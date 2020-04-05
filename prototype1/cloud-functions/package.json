@@ -1,0 +1,14 @@
+{
+  "name": "cloud-functions",
+  "version": "1.0.0",
+  "description": "prototype1",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "functions-framework --target=api"
+  },
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "@google-cloud/functions-framework": "^1.5.0"
+  }
+}
