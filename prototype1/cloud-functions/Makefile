@@ -1,3 +1,5 @@
+API=https://us-central1-apollo-server-273118.cloudfunctions.net/prototype1
+
 local:
 	npm start
 
@@ -8,3 +10,10 @@ deploy:
 
 clean:
 	rm -f prototype1.zip
+
+query1:
+	curl -d '{"method":"infection","ids":["1234"]}' -H "Content-Type: application/json" \
+           -X POST ${API}
+
+corsquery1:
+	curl -v -X OPTIONS ${API}

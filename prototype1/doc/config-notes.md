@@ -14,3 +14,23 @@ Setup cloud function:
    * Function to execute: api
 
 URL: https://us-central1-apollo-server-273118.cloudfunctions.net/prototype1
+
+### Cloud Bigtable
+
+Setup .cbrtrc
+```
+project = apollo-server-273118
+instance = prototype1
+```
+
+Create the tables:
+```
+cbt createtable infections
+cbt createfamily infections properties
+cbt createtable verifications
+cbt createfamily verifications properties
+cbt createtable verifiers
+cbt createfamily verifiers properties
+cbt createtable prefix_index
+cbt createfamily prefix_index properties
+```

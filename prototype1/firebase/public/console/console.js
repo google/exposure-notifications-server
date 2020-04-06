@@ -19,7 +19,7 @@ send.onclick = function() {
   var messageFixed = message.value.replace(/[/][/][^\n]*/g, '\n');
   try {
     var messagePacked = JSON.stringify(JSON.parse(messageFixed));
-    request.send(JSON.stringify(message));
+    request.send(messagePacked);
     request.onreadystatechange = function() {
       if (this.readyState === XMLHttpRequest.DONE) {
         if (this.status === 200) {

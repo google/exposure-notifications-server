@@ -46,5 +46,5 @@ exports.api = (request, response) => {
         'Bad Request - unsupported method "' + message['method'] + '"');
     return;
   }
-  handler(request, response);
+  handler(message, response);
 };
