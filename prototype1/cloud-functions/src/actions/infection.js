@@ -20,10 +20,11 @@ exports.handle = (request, response) => {
   const batch_id = storage.uuid();
   let rows = [];
   for (var i = 0; i < request.ids.length; i++) {
-    if (typeof request.ids[i] !== 'string' ||
+    if ((typeof request.ids[i]) !== 'string' ||
         !request.ids[i].match(storage.ID_REGEX)) {
       response.status(400).send(
-          'Bad Request - invalid id "' + request.ids[i] + '"');
+          'Bad Request - invalid id at ' + i + ': "' +
+          request.ids[i].toString() + '"');
       return;
     }
     rows.push({

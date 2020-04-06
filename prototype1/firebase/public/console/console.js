@@ -61,7 +61,7 @@ scan.onclick = function() {
     "0123"
     // ...
   ]
-  // ,"cursor": "optional prior server cursor",
+  // ,"cursor": "optional prior server cursor"
 }
   `;
 };

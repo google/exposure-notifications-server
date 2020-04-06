@@ -11,8 +11,12 @@ deploy:
 clean:
 	rm -f prototype1.zip
 
-query1:
-	curl -d '{"method":"infection","ids":["1234"]}' -H "Content-Type: application/json" \
+infection1:
+	curl -d '{"method":"infection","ids":["12345678"]}' -H "Content-Type: application/json" \
+           -X POST ${API}
+
+scan1:
+	curl -d '{"method":"scan","prefixes":["1234"]}' -H "Content-Type: application/json" \
            -X POST ${API}
 
 corsquery1:

@@ -19,3 +19,4 @@ exports.verifications = verifications;
 exports.verifiers = verifiers;
 exports.prefix_index = prefix_index;
 exports.ID_REGEX = /^[A-Za-z0-9/+]{16,32}/;
+exports.PREFIX_REGEX = /^[A-Za-z0-9/+]{4,32}/;
