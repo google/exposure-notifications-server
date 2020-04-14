@@ -10,6 +10,7 @@ import (
 )
 
 func TestTransform(t *testing.T) {
+	keyDay := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
 	source := &Publish{
 		Keys: []string{
 			base64.StdEncoding.EncodeToString([]byte("ABC")),
@@ -19,6 +20,7 @@ func TestTransform(t *testing.T) {
 		AppPackageName: "com.google",
 		Country:        "us",
 		Platform:       "android",
+		KeyDay:         keyDay.Unix(),
 		// Verification doesn't matter for transforming.
 	}
 
@@ -27,7 +29,9 @@ func TestTransform(t *testing.T) {
 		Infection{DiagnosisKey: []byte("DEF")},
 		Infection{DiagnosisKey: []byte("123")},
 	}
-	batchTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
+	keyDayRounded := time.Date(2020, 2, 29, 0, 0, 0, 0, time.UTC)
+	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
+	batchTimeRounded := time.Date(2020, 3, 1, 10, 30, 0, 0, time.UTC)
 	for i, v := range want {
 		want[i] = Infection{
 			DiagnosisKey:     v.DiagnosisKey,
@@ -35,7 +39,8 @@ func TestTransform(t *testing.T) {
 			Country:          "us",
 			Platform:         "android",
 			FederationSyncId: 0,
-			BatchTimestamp:   batchTime,
+			KeyDay:           keyDayRounded,
+			CreatedAt:        batchTimeRounded,
 		}
 	}
 

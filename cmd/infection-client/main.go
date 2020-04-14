@@ -8,8 +8,10 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"time"
 )
 
+// This is a simple tester to call the infection API.
 func main() {
 	var url = flag.String("url", "http://localhost:8080", "http(s) destination to send test record")
 	flag.Parse()
@@ -25,6 +27,7 @@ func main() {
 		Country:        "US",
 		Platform:       "Android",
 		Verification:   "",
+		KeyDay:         time.Now().Unix(),
 	}
 
 	jsonData, err := json.Marshal(data)
