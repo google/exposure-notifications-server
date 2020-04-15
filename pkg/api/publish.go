@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"cambio/pkg/database"
+	"cambio/pkg/encryption"
 	"cambio/pkg/logging"
 	"cambio/pkg/model"
 	"cambio/pkg/verification"
@@ -40,10 +41,17 @@ func HandlePublish() http.HandlerFunc {
 			return
 		}
 
+		infections, err = encryption.EncryptDiagnosisKeys(ctx, infections)
+		if err != nil {
+			logger.Errorf("error during diagnosis key encryption: %v", err)
+			http.Error(w, "internal processing error", http.StatusInternalServerError)
+			return
+		}
+
 		err = database.InsertInfections(ctx, infections)
 		if err != nil {
 			logger.Errorf("error writing infection record: %v", err)
-			http.Error(w, "internall processing error", http.StatusInternalServerError)
+			http.Error(w, "internal processing error", http.StatusInternalServerError)
 			return
 		}
 
