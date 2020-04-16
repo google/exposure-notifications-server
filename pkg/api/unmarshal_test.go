@@ -12,14 +12,63 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestInvalidHeader(t *testing.T) {
+	body := ioutil.NopCloser(bytes.NewReader([]byte("")))
+	r := httptest.NewRequest("POST", "/", body)
+	r.Header.Set("content-type", "application/text")
+
+	w := httptest.NewRecorder()
+	data := &model.Publish{}
+	err, code := unmarshal(w, r, data)
+
+	expCode := http.StatusUnsupportedMediaType
+	expErr := "content-type is not application/json"
+	if code != expCode {
+		t.Errorf("unmarshal wanted %v response code, got %v", expCode, code)
+	}
+
+	if err == nil || err.Error() != expErr {
+		t.Errorf("expected error '%v', got: %v", expErr, err)
+	}
+}
+
+func TestEmptyBody(t *testing.T) {
+	invalidJSON := []string{
+		``,
+	}
+	errors := []string{
+		`body must not be empty`,
+	}
+	unmarshalTestHelper(t, invalidJSON, errors, http.StatusBadRequest)
+}
+func TestMultipleJson(t *testing.T) {
+	invalidJSON := []string{
+		`{"diagnosisKeys": ["ABC", "DEF", "123"],
+		"appPackageName": "com.google.android.awesome",
+		"country": "us",
+		"platform": "android",
+		"verificationPayload": "foo"}{"diagnosisKeys": ["ABC", "DEF", "123"],
+		"appPackageName": "com.google.android.awesome",
+		"country": "us",
+		"platform": "android",
+		"verificationPayload": "foo"}`,
+	}
+	errors := []string{
+		"body must contain only one JSON object",
+	}
+	unmarshalTestHelper(t, invalidJSON, errors, http.StatusBadRequest)
+}
+
 func TestInvalidJSON(t *testing.T) {
 	invalidJSON := []string{
 		`totally not json`,
 		`{"key": "value", badKey: 6`,
+		`{"diagnosisKeys": ["ABC", "DEF", "123"],`,
 	}
 	errors := []string{
 		`malformed json at position 2`,
 		`malformed json at position 18`,
+		`malformed json`,
 	}
 	unmarshalTestHelper(t, invalidJSON, errors, http.StatusBadRequest)
 }

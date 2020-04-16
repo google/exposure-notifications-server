@@ -9,6 +9,27 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
+func TestInvalidBase64(t *testing.T) {
+	keyDay := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
+	source := &Publish{
+		Keys: []string{
+			base64.StdEncoding.EncodeToString([]byte("ABC")) + `2`,
+		},
+		AppPackageName: "com.google",
+		Country:        "us",
+		Platform:       "android",
+		KeyDay:         keyDay.Unix(),
+		// Verification doesn't matter for transforming.
+	}
+	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
+
+	_, err := TransformPublish(source, batchTime)
+	expErr := `illegal base64 data at input byte 4`
+	if err == nil || err.Error() != expErr {
+		t.Errorf("expected error '%v', got: %v", expErr, err)
+	}
+}
+
 func TestTransform(t *testing.T) {
 	keyDay := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
 	source := &Publish{
