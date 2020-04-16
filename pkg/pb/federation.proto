@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+option go_package = "pkg/pb;pb";
+
+message FederationFetchRequest {
+	repeated string regionIdentifiers = 1;
+	repeated string excludeRegionIdentifiers = 2;
+	int64 lastFetchResponseKeyTimestamp = 3;
+}
+
+message FederationFetchResponse {
+	repeated ContactTracingResponse response = 1;
+	bool partialResponse = 2; // required
+	string nextFetchToken = 3;
+	int64 fetchResponseKeyTimestamp = 4; // required
+}
+
+message ContactTracingResponse {
+	repeated ContactTracingInfo contactTracingInfo = 1;
+	repeated string regionIdentifiers = 2;
+}
+
+message ContactTracingInfo {
+	DiagnosisStatus diagnosisStatus = 1; // required
+	repeated DiagnosisKey diagnosisKeys = 2;
+}
+
+enum DiagnosisStatus {
+	unknown = 0;
+	positive_verified = 1;
+	self_reported = 2;
+}
+
+message DiagnosisKey {
+	bytes diagnosisKey = 1; // required
+	int64 timestamp = 2; // required
+}
+
+service Federation {
+	rpc Fetch (FederationFetchRequest) returns (FederationFetchResponse) {}
+}
