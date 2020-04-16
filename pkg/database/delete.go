@@ -4,6 +4,8 @@ import (
 	"cambio/pkg/logging"
 	"context"
 	"fmt"
+
+	"cloud.google.com/go/datastore"
 )
 
 const batchSize = 500
@@ -11,7 +13,7 @@ const batchSize = 500
 // DeleteDiagnosisKeys deletes the keys provided from datastore. This is done
 // in batches, and returns an error if any batch of deletes fail. If multiple
 // batches fail, the last error is returned.
-func DeleteDiagnosisKeys(ctx context.Context, keys []string) error {
+func DeleteDiagnosisKeys(ctx context.Context, keys []*datastore.Key) error {
 	logger := logging.FromContext(ctx)
 
 	client := Connection()
