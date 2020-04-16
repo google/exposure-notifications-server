@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"cloud.google.com/go/datastore"
 )
 
-func FilterKeysOnly(ctx context.Context, entity string, to time.Time) ([]string, error) {
+func FilterKeysOnly(ctx context.Context, entity string, to time.Time) ([]*datastore.Key, error) {
 	logger := logging.FromContext(ctx)
 
 	client := Connection()
@@ -15,9 +17,9 @@ func FilterKeysOnly(ctx context.Context, entity string, to time.Time) ([]string,
 		return nil, fmt.Errorf("unable to obtain database client")
 	}
 
-	q := client.NewQuery(entity).Filter("createdAt <=", to).KeysOnly()
+	q := datastore.NewQuery(entity).Filter("createdAt <=", to).KeysOnly()
 
-	var keys []string
+	var keys []*datastore.Key
 	// TODO: do this using cursors
 	_, err := client.GetAll(ctx, q, &keys)
 	if err != nil {
