@@ -1,28 +1,17 @@
-package functions
+package storage
 
 import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
 )
 
-type PubSubMessage struct {
-	Data []byte `json:"data"`
-}
-
-func SchedulerPubSubFunction(ctx context.Context, m PubSubMessage) error {
-	payload := string(m.Data)
-	log.Printf("Payload: %s", payload)
-	createStorageFile("apollo-public-bucket", "testObject.txt", payload)
-	return nil
-}
-
-func createStorageFile(bucket, objectName, contents string) error {
+// CreateObject creates a new cloud storage object
+func CreateObject(bucket, objectName, contents string) error {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
