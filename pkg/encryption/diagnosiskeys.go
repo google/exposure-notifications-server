@@ -39,19 +39,42 @@ func InitDiagnosisKeys() error {
 
 // EncryptDiagnosisKeys encrypts the diagnosis keys with the configured
 // key from Google Cloud KMS.
-// the infections slice passed in is modified in-place making the plaintext
+// The infections slice passed in is modified in-place making the plaintext
 // DiagnosisKey fields inaccessible in memory after the encrypt operation.
 func EncryptDiagnosisKeys(ctx context.Context, infections []model.Infection) error {
 	for i, infection := range infections {
+		// Encrypt the diagnosis key as primary plaintext. Use AAD of the country.
+		// https://cloud.google.com/kms/docs/additional-authenticated-data
 		req := &kmspb.EncryptRequest{
-			Name:      keyName,
-			Plaintext: infection.DiagnosisKey,
+			Name:                        keyName,
+			Plaintext:                   infection.DiagnosisKey,
+			AdditionalAuthenticatedData: []byte(infection.Country),
 		}
 		result, err := client.Encrypt(ctx, req)
 		if err != nil {
 			return fmt.Errorf("encrypting diagnosis key: %v", err)
 		}
 		infections[i].DiagnosisKey = result.Ciphertext
+	}
+	return nil
+}
+
+// DescryptDiagnosisKeys decsrypts the diagnosis keys with the configured key
+// from Google Cloud KMS.
+// The infections slice passed in is modified in-place, and after this call
+// each record will contain the plaintext verison of the diagnososKey.
+func DecryptDiagnosisKeys(ctx context.Context, infections []model.Infection) error {
+	for i, infection := range infections {
+		req := &kmspb.DecryptRequest{
+			Name:                        keyName,
+			Ciphertext:                  infection.DiagnosisKey,
+			AdditionalAuthenticatedData: []byte(infection.Country),
+		}
+		result, err := client.Decrypt(ctx, req)
+		if err != nil {
+			return fmt.Errorf("descrypting diagnosis key: %v", err)
+		}
+		infections[i].DiagnosisKey = result.Plaintext
 	}
 	return nil
 }

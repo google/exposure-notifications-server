@@ -41,7 +41,7 @@ func HandlePublish() http.HandlerFunc {
 			return
 		}
 
-		infections, err = encryption.EncryptDiagnosisKeys(ctx, infections)
+		err = encryption.EncryptDiagnosisKeys(ctx, infections)
 		if err != nil {
 			logger.Errorf("error during diagnosis key encryption: %v", err)
 			http.Error(w, "internal processing error", http.StatusInternalServerError)

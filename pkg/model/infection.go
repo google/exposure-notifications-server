@@ -22,8 +22,13 @@ type Publish struct {
 }
 
 // Infection represents the record as storedin the database
+// TODO(helmick) - refactor this so that there is a public
+// Infection struct that doesn't have public fields and an
+// internal struct that does. Separate out the database model
+// from direct access.append
+// Mark records as writable/nowritable - is diagnosis key encrypted
 type Infection struct {
-	DiagnosisKey     []byte         `datastore:"diagnosisKey"`
+	DiagnosisKey     []byte         `datastore:"diagnosisKey,noindex"`
 	AppPackageName   string         `datastore:"appPackageName"`
 	Country          string         `datastore:"country"`
 	Platform         string         `datastore:"string,noindex"`
