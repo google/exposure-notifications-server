@@ -6,23 +6,22 @@ message FederationFetchRequest {
 	repeated string regionIdentifiers = 1;
 	repeated string excludeRegionIdentifiers = 2;
 	int64 lastFetchResponseKeyTimestamp = 3;
+
+	// regionIdentifiers, excludeRegionIdentifiers, lastFetchResponseKeyTimestamp must be stable to send a fetchToken.
+	string fetchToken = 4;
 }
 
 message FederationFetchResponse {
 	repeated ContactTracingResponse response = 1;
 	bool partialResponse = 2; // required
-	string nextFetchToken = 3;
+	string nextFetchToken = 3; // nextFetchToken will be present if partialResponse==true
 	int64 fetchResponseKeyTimestamp = 4; // required
 }
 
 message ContactTracingResponse {
-	repeated ContactTracingInfo contactTracingInfo = 1;
-	repeated string regionIdentifiers = 2;
-}
-
-message ContactTracingInfo {
 	DiagnosisStatus diagnosisStatus = 1; // required
-	repeated DiagnosisKey diagnosisKeys = 2;
+	string regionIdentifier = 2; // required
+	repeated DiagnosisKey diagnosisKeys = 3;
 }
 
 enum DiagnosisStatus {
