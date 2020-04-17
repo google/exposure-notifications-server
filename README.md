@@ -10,6 +10,22 @@ Common code goes in `/pkg`
 
 Each binary will have main in `/cmd/[bin-name]`
 
+# Running locally
+
+1. (One time only) Create a dev service account and add the credentials to `./local/sa.json`
+
+2. Setup env
+
+```
+source scripts/setup_env.sh
+```
+
+3. Run with go
+
+```
+go run ./cmd/[bin-name]
+```
+
 # Building / publishing images
 
 1. Install ko
