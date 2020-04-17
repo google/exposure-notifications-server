@@ -9,7 +9,7 @@ import (
 	"cloud.google.com/go/datastore"
 )
 
-func FilterKeysOnly(ctx context.Context, entity string, to time.Time) ([]*datastore.Key, error) {
+func FilterKeysOnly(ctx context.Context, to time.Time) ([]*datastore.Key, error) {
 	logger := logging.FromContext(ctx)
 
 	client := Connection()
@@ -17,7 +17,7 @@ func FilterKeysOnly(ctx context.Context, entity string, to time.Time) ([]*datast
 		return nil, fmt.Errorf("unable to obtain database client")
 	}
 
-	q := datastore.NewQuery(entity).Filter("createdAt <=", to).KeysOnly()
+	q := datastore.NewQuery("infection").Filter("createdAt <=", to).KeysOnly()
 
 	var keys []*datastore.Key
 	// TODO: do this using cursors

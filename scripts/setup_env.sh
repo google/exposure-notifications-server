@@ -8,3 +8,6 @@ export DIAGNOSIS_KMS_KEY="projects/$PROJECT_ID/locations/us/keyRings/us-db-keys/
 
 # local application credentials - you need to get your own credentials
 export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/local/sa.json"
+
+# wipeout variables
+export TTL_DURATION="14d"
