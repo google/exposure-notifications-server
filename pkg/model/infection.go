@@ -30,12 +30,12 @@ type Publish struct {
 type Infection struct {
 	DiagnosisKey     []byte         `datastore:"diagnosisKey,noindex"`
 	AppPackageName   string         `datastore:"appPackageName"`
-	Country          string         `datastore:"country"` // TODO: Change to region?
-	Platform         string         `datastore:"string,noindex"`
+	Country          string         `datastore:"region"` // TODO: Change to region?
+	Platform         string         `datastore:"platform,noindex"`
 	FederationSyncId int64          `datastore:"syncId"`
 	KeyDay           time.Time      `datastore:"keyDay"`
 	CreatedAt        time.Time      `datastore:"createdAt"`
-	K                *datastore.Key `datstore:"__key__"`
+	K                *datastore.Key `datastore:"__key__"`
 	// TODO(helmick): Add DiagnosisStatus, VerificationSource
 }
 

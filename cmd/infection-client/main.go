@@ -2,27 +2,42 @@ package main
 
 import (
 	"bytes"
-	"cambio/pkg/model"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"log"
 	"net/http"
 	"time"
+
+	"cambio/pkg/model"
 )
+
+// the length of a diagnosis key, always 16 bytes
+const dkLen = 16
 
 // This is a simple tester to call the infection API.
 func main() {
 	var url = flag.String("url", "http://localhost:8080", "http(s) destination to send test record")
+	var numKeys = flag.Int("num", 1, "number of keys to generate -num=1")
 	flag.Parse()
 
-	diagnosisKey := make([]byte, 16)
-	for i := range diagnosisKey {
-		diagnosisKey[i] = 42
+	keys := make([][]byte, *numKeys)
+	for i := 0; i < *numKeys; i++ {
+		keys[i] = make([]byte, dkLen)
+		_, err := rand.Read(keys[i])
+		if err != nil {
+			log.Fatalf("rand.Read: %v", err)
+		}
+	}
+
+	diagnosisKeys := make([]string, *numKeys)
+	for i, rawKey := range keys {
+		diagnosisKeys[i] = base64.StdEncoding.EncodeToString(rawKey)
 	}
 
 	data := model.Publish{
-		Keys:           []string{base64.StdEncoding.EncodeToString(diagnosisKey)},
+		Keys:           diagnosisKeys,
 		AppPackageName: "com.google.android",
 		Country:        "US",
 		Platform:       "Android",
@@ -48,4 +63,9 @@ func main() {
 	defer resp.Body.Close()
 
 	log.Printf("response: %v", resp.Status)
+	log.Printf("key day: %v", data.KeyDay)
+	log.Printf("wrote %v keys", len(keys))
+	for _, key := range keys {
+		log.Printf("  %v", key)
+	}
 }
