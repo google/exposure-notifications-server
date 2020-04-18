@@ -39,7 +39,7 @@ func main() {
 	data := model.Publish{
 		Keys:           diagnosisKeys,
 		AppPackageName: "com.google.android",
-		Country:        "US",
+		Region:         []string{"US"},
 		Platform:       "Android",
 		Verification:   "",
 		KeyDay:         time.Now().Unix(),

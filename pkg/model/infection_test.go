@@ -16,7 +16,7 @@ func TestInvalidBase64(t *testing.T) {
 			base64.StdEncoding.EncodeToString([]byte("ABC")) + `2`,
 		},
 		AppPackageName: "com.google",
-		Country:        "us",
+		Region:         []string{"US"},
 		Platform:       "android",
 		KeyDay:         keyDay.Unix(),
 		// Verification doesn't matter for transforming.
@@ -39,7 +39,7 @@ func TestTransform(t *testing.T) {
 			base64.StdEncoding.EncodeToString([]byte("123")),
 		},
 		AppPackageName: "com.google",
-		Country:        "us",
+		Region:         []string{"US"},
 		Platform:       "android",
 		KeyDay:         keyDay.Unix(),
 		// Verification doesn't matter for transforming.
@@ -57,7 +57,7 @@ func TestTransform(t *testing.T) {
 		want[i] = Infection{
 			DiagnosisKey:     v.DiagnosisKey,
 			AppPackageName:   "com.google",
-			Country:          "us",
+			Region:           []string{"US"},
 			Platform:         "android",
 			FederationSyncId: 0,
 			KeyDay:           keyDayRounded,

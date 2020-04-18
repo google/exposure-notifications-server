@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/base64"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/datastore"
@@ -15,7 +16,7 @@ const (
 type Publish struct {
 	Keys           []string `json:"diagnosisKeys"`
 	AppPackageName string   `json:"appPackageName"`
-	Country        string   `json:"country"`
+	Region         []string `json:"region"`
 	Platform       string   `json:"platform"`
 	Verification   string   `json:"verificationPayload"`
 	KeyDay         int64    `json:"keyDay"`
@@ -30,8 +31,8 @@ type Publish struct {
 type Infection struct {
 	DiagnosisKey     []byte         `datastore:"diagnosisKey,noindex"`
 	AppPackageName   string         `datastore:"appPackageName"`
-	Country          string         `datastore:"region"` // TODO: Change to region?
-	Platform         string         `datastore:"platform,noindex"`
+	Region           []string       `datastore:"region"`
+	Platform         string         `datastore:"string,noindex"`
 	FederationSyncId int64          `datastore:"syncId"`
 	KeyDay           time.Time      `datastore:"keyDay"`
 	CreatedAt        time.Time      `datastore:"createdAt"`
@@ -50,14 +51,17 @@ func truncateDay(utcTimeSec int64) time.Time {
 	return t.Truncate(oneDay)
 }
 
-// Transforms a time to
-func truncateWindow(t time.Time) time.Time {
+// TruncateWindow truncates a time based on the size of the creation window.
+func TruncateWindow(t time.Time) time.Time {
 	return t.Truncate(createWindow)
 }
 
 func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error) {
-	createdAt := truncateWindow(batchTime)
+	createdAt := TruncateWindow(batchTime)
 	keyDay := truncateDay(inData.KeyDay)
+	for i := range inData.Region {
+		inData.Region[i] = strings.ToUpper(inData.Region[i])
+	}
 	entities := make([]Infection, 0, len(inData.Keys))
 	for _, diagnosisKey := range inData.Keys {
 		binKey, err := base64.StdEncoding.DecodeString(diagnosisKey)
@@ -69,7 +73,7 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error)
 		infection := Infection{
 			DiagnosisKey:     binKey,
 			AppPackageName:   inData.AppPackageName,
-			Country:          inData.Country,
+			Region:           inData.Region,
 			Platform:         inData.Platform,
 			FederationSyncId: 0,
 			KeyDay:           keyDay,

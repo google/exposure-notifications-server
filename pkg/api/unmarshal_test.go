@@ -45,7 +45,7 @@ func TestMultipleJson(t *testing.T) {
 	invalidJSON := []string{
 		`{"diagnosisKeys": ["ABC", "DEF", "123"],
 		"appPackageName": "com.google.android.awesome",
-		"country": "us",
+		"region": ["us"],
 		"platform": "android",
 		"verificationPayload": "foo"}{"diagnosisKeys": ["ABC", "DEF", "123"],
 		"appPackageName": "com.google.android.awesome",
@@ -78,14 +78,12 @@ func TestInvalidStructure(t *testing.T) {
 		`{"diagnosisKeys": 42}`,
 		`{"diagnosisKeys": ["41", 42]}`,
 		`{"appPackageName": 4.5}`,
-		`{"country": ["us", "ca"]}`,
 		`{"badField": "doesn't exist"}`,
 	}
 	errors := []string{
 		`invalid value diagnosisKeys at position 20`,
 		`invalid value diagnosisKeys at position 27`,
 		`invalid value appPackageName at position 22`,
-		`invalid value country at position 13`,
 		`unknown field "badField"`,
 	}
 	unmarshalTestHelper(t, invalidJSON, errors, http.StatusBadRequest)
@@ -94,7 +92,7 @@ func TestInvalidStructure(t *testing.T) {
 func TestValidPublisMessage(t *testing.T) {
 	json := `{"diagnosisKeys": ["ABC", "DEF", "123"],
     "appPackageName": "com.google.android.awesome",
-    "country": "us",
+    "region": ["us"],
     "platform": "android",
     "verificationPayload": "foo"}`
 
@@ -116,7 +114,7 @@ func TestValidPublisMessage(t *testing.T) {
 	want := &model.Publish{
 		Keys:           []string{"ABC", "DEF", "123"},
 		AppPackageName: "com.google.android.awesome",
-		Country:        "us",
+		Region:         []string{"us"},
 		Platform:       "android",
 		Verification:   "foo",
 	}

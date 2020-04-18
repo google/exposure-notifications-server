@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	"cambio/pkg/api"
+	"cambio/pkg/database"
 	"cambio/pkg/logging"
 	"cambio/pkg/pb"
 )
@@ -25,6 +26,10 @@ const (
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
+
+	if err := database.Initialize(); err != nil {
+		logger.Fatalf("unable to connect to database: %v", err)
+	}
 
 	port := os.Getenv(portEnvVar)
 	if port == "" {

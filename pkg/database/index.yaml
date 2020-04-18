@@ -1,0 +1,6 @@
+indexes:
+
+- kind: infection
+  properties:
+  - name: Region
+  - name: CreatedAt

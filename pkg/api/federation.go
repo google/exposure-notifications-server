@@ -3,15 +3,18 @@ package api
 import (
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
+	"cambio/pkg/model"
 	"cambio/pkg/pb"
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 )
 
-type diagKeyList []*pb.DiagnosisKey
-type diagKeys map[pb.DiagnosisStatus]diagKeyList
-type collator map[string]diagKeys
+// type diagKeyList []*pb.DiagnosisKey
+// type diagKeys map[pb.DiagnosisStatus]diagKeyList
+// type collator map[string]diagKeys
 type fetchIterator func(context.Context, database.FetchInfectionsCriteria) (database.InfectionIterator, error)
 
 // NewFederationServer builds a new FederationServer.
@@ -27,23 +30,44 @@ type federationServer struct {
 func (s *federationServer) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.FederationFetchResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
-	return s.fetch(ctx, req, database.IterateInfections)
+	return s.fetch(ctx, req, database.IterateInfections, model.TruncateWindow(time.Now())) // Don't fetch the current window, which isn't complete yet. TODO(jasonco): should I double this for safety?
 }
 
-func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFunc fetchIterator) (*pb.FederationFetchResponse, error) {
+func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFunc fetchIterator, fetchUntil time.Time) (*pb.FederationFetchResponse, error) {
 	logger := logging.FromContext(ctx)
 
+	for i := range req.RegionIdentifiers {
+		req.RegionIdentifiers[i] = strings.ToUpper(req.RegionIdentifiers[i])
+	}
+	for i := range req.ExcludeRegionIdentifiers {
+		req.ExcludeRegionIdentifiers[i] = strings.ToUpper(req.ExcludeRegionIdentifiers[i])
+	}
+
+	// If there is only one region, we can let datastore filter it; otherwise we'll have to filter in memory.
+	// TODO(jasonco): moving to CloudSQL will allow this to be simplified.
 	criteria := database.FetchInfectionsCriteria{
-		IncludeRegions: req.RegionIdentifiers,
 		SinceTimestamp: time.Unix(req.LastFetchResponseKeyTimestamp, 0),
-		// UntilTimestamp: time.Time{}, // TODO(jasonco): do we limit how recent the data can be? Possibly at least the size of the windowing.
-		LastCursor: req.FetchToken,
+		UntilTimestamp: fetchUntil,
+		LastCursor:     req.FetchToken,
+	}
+	if len(req.RegionIdentifiers) == 1 {
+		criteria.IncludeRegions = req.RegionIdentifiers
+	}
+
+	logger.Infof("Processing request Regions:%v Excluding:%v Since:%v Until:%v HasCursor:%t", req.RegionIdentifiers, req.ExcludeRegionIdentifiers, criteria.SinceTimestamp, criteria.UntilTimestamp, req.FetchToken != "")
+
+	// Filter included countries in memory.
+	// TODO(jasonco): move to database query if/when Cloud SQL.
+	includedRegions := map[string]struct{}{}
+	for _, region := range req.RegionIdentifiers {
+		includedRegions[region] = struct{}{}
 	}
 
 	// Filter excluded countries in memory, using a map for efficiency.
-	excluded := map[string]struct{}{}
+	// TODO(jasonco): move to database query if/when Cloud SQL.
+	excludedRegions := map[string]struct{}{}
 	for _, region := range req.ExcludeRegionIdentifiers {
-		excluded[region] = struct{}{}
+		excludedRegions[region] = struct{}{}
 	}
 
 	it, err := itFunc(ctx, criteria)
@@ -51,84 +75,116 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		return nil, fmt.Errorf("querying infections (criteria: %#v): %v", criteria, err)
 	}
 
-	c := collator{}
-	var maxTimestamp int64
+	ctrMap := map[string]*pb.ContactTracingResponse{} // local index into the response being assembled; keyed on unique set of regions.
+	response := &pb.FederationFetchResponse{}
 
-	for {
+	for !response.PartialResponse { // This loop will end on break, or if the context is interrupted and we send a partial response.
+
+		// Check the context to see if we've been interrupted (e.g., timeout).
 		select {
 		case <-ctx.Done():
-			// Err() may be context.Canceled due to test code.
-			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
+			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled { // May be context.Canceled due to test code.
 				return nil, fmt.Errorf("context error: %v", err)
 			}
-			logger.Infof("Fetch request reached time out, returning partial response.")
+
 			cursor, err := it.Cursor()
 			if err != nil {
 				return nil, fmt.Errorf("generating cursor: %v", err)
 			}
-			return &pb.FederationFetchResponse{
-				Response:        convertResponse(c),
-				PartialResponse: true,
-				// TODO(jasonco): Should this value be included for a partial response? (I.e., a partial response might truncate a window,
-				// so starting a query with the timestamp (but not the NextFetchToken) will likely miss the end of that truncated window.)
-				FetchResponseKeyTimestamp: maxTimestamp,
-				NextFetchToken:            cursor,
-			}, nil
+
+			logger.Infof("Fetch request reached time out, returning partial response.")
+			response.PartialResponse = true
+			response.NextFetchToken = cursor
+			continue
+
 		default:
+			// Fallthrough to process a record.
 		}
 
 		inf, done, err := it.Next()
 		if err != nil {
 			return nil, fmt.Errorf("iterating results: %v", err)
 		}
+
 		if done {
+			// Reached the end of the result set.
 			break
 		}
 		if inf == nil {
 			continue
 		}
 
-		// Skip excluded countries.
-		if _, isExcluded := excluded[inf.Country]; isExcluded {
+		// If the diagnosis key is empty, it's malformed, so skip it.
+		if len(inf.DiagnosisKey) == 0 {
 			continue
 		}
 
-		if _, exists := c[inf.Country]; !exists {
-			c[inf.Country] = make(diagKeys)
+		// If there are no regions on the infection, it's malformed, so skip it.
+		if len(inf.Region) == 0 {
+			continue
 		}
 
-		// TODO(jasonco): add DiagnosisStatus
-		status := pb.DiagnosisStatus_positive_verified
-		if _, exists := c[inf.Country][status]; !exists {
-			c[inf.Country][status] = nil
-		}
-
-		// TODO(jasonco): decrypt key
-		k := pb.DiagnosisKey{DiagnosisKey: inf.DiagnosisKey, Timestamp: inf.KeyDay.Unix()}
-		c[inf.Country][status] = append(c[inf.Country][status], &k)
-		if k.Timestamp > maxTimestamp {
-			maxTimestamp = k.Timestamp
-		}
-	}
-
-	return &pb.FederationFetchResponse{
-		Response:                  convertResponse(c),
-		FetchResponseKeyTimestamp: maxTimestamp,
-	}, nil
-}
-
-func convertResponse(c collator) []*pb.ContactTracingResponse {
-	r := []*pb.ContactTracingResponse{}
-	for region := range c {
-		for status := range c[region] {
-			keys := c[region][status]
-			rec := pb.ContactTracingResponse{
-				DiagnosisStatus:  status, // TODO(jasonco) convert?
-				RegionIdentifier: region, // TODO(jasonco) convert?
+		// If all the regions on the record are excluded, skip it.
+		// TODO(jasonco): move to database query if/when Cloud SQL.
+		skip := true
+		for _, region := range inf.Region {
+			if _, excluded := excludedRegions[region]; !excluded {
+				// At least one region for the infection is NOT excluded, so we don't skip this record.
+				skip = false
+				break
 			}
-			rec.DiagnosisKeys = append(rec.DiagnosisKeys, keys...)
-			r = append(r, &rec)
+		}
+		if skip {
+			continue
+		}
+
+		// If filtering on a region (len(includedRegions) > 0) and none of the regions on the record are included, skip it.
+		// TODO(jasonco): move to database query if/when Cloud SQL.
+		if len(includedRegions) > 0 {
+			skip = true
+			for _, region := range inf.Region {
+				if _, included := includedRegions[region]; included {
+					skip = false
+					break
+				}
+			}
+			if skip {
+				continue
+			}
+		}
+
+		// Find, or create, the ContactTracingResponse based on the unique set of regions.
+		sort.Strings(inf.Region)
+		ctrKey := strings.Join(inf.Region, "::")
+		ctr := ctrMap[ctrKey]
+		if ctr == nil {
+			ctr = &pb.ContactTracingResponse{RegionIdentifiers: inf.Region}
+			ctrMap[ctrKey] = ctr
+			response.Response = append(response.Response, ctr)
+		}
+
+		// Find the ContactTracingInfo corresponding to the diagnosis status. There are only a few statuses, so we linear search.
+		var cti *pb.ContactTracingInfo
+		status := pb.DiagnosisStatus_positive_verified // TODO(jasonco): fix this. inf.DiagnosisStatus // TODO: convert?
+		for _, info := range ctr.ContactTracingInfo {
+			if info.DiagnosisStatus == status {
+				cti = info
+				break
+			}
+		}
+		if cti == nil {
+			cti = &pb.ContactTracingInfo{DiagnosisStatus: status}
+			ctr.ContactTracingInfo = append(ctr.ContactTracingInfo, cti)
+		}
+
+		// Add the key to the ContactTracingInfo.
+		cti.DiagnosisKeys = append(cti.DiagnosisKeys, &pb.DiagnosisKey{DiagnosisKey: inf.DiagnosisKey, Timestamp: inf.KeyDay.Unix()})
+
+		created := inf.CreatedAt.Unix()
+		if created > response.FetchResponseKeyTimestamp {
+			response.FetchResponseKeyTimestamp = created
 		}
 	}
-	return r
+
+	return response, nil
 }

@@ -48,7 +48,7 @@ func EncryptDiagnosisKeys(ctx context.Context, infections []model.Infection) err
 		req := &kmspb.EncryptRequest{
 			Name:                        keyName,
 			Plaintext:                   infection.DiagnosisKey,
-			AdditionalAuthenticatedData: []byte(infection.Country),
+			AdditionalAuthenticatedData: []byte(infection.Region[0]),
 		}
 		result, err := client.Encrypt(ctx, req)
 		if err != nil {
@@ -68,7 +68,7 @@ func DecryptDiagnosisKeys(ctx context.Context, infections []model.Infection) err
 		req := &kmspb.DecryptRequest{
 			Name:                        keyName,
 			Ciphertext:                  infection.DiagnosisKey,
-			AdditionalAuthenticatedData: []byte(infection.Country),
+			AdditionalAuthenticatedData: []byte(infection.Region[0]),
 		}
 		result, err := client.Decrypt(ctx, req)
 		if err != nil {

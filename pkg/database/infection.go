@@ -4,6 +4,7 @@ import (
 	"cambio/pkg/logging"
 	"cambio/pkg/model"
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -107,19 +108,22 @@ func IterateInfections(ctx context.Context, criteria FetchInfectionsCriteria) (I
 func fetchQuery(criteria FetchInfectionsCriteria) (*datastore.Query, error) {
 	q := datastore.NewQuery(model.InfectionTable)
 
-	if len(criteria.IncludeRegions) > 0 {
-		q = q.Filter("Country IN", criteria.IncludeRegions)
+	if len(criteria.IncludeRegions) > 1 {
+		return nil, errors.New("datastore cannot filter on multiple regions")
+	}
+	if len(criteria.IncludeRegions) == 1 {
+		q = q.Filter("Region = ", criteria.IncludeRegions[0])
 	}
 
 	if !criteria.SinceTimestamp.IsZero() {
-		q = q.Filter("BatchTimestamp >", criteria.SinceTimestamp)
+		q = q.Filter("CreatedAt >", criteria.SinceTimestamp)
 	}
 
 	if !criteria.UntilTimestamp.IsZero() {
-		q = q.Filter("BatchTimestamp <=", criteria.UntilTimestamp)
+		q = q.Filter("CreatedAt <=", criteria.UntilTimestamp)
 	}
 
-	q = q.Order("BatchTimestamp")
+	q = q.Order("CreatedAt")
 
 	if criteria.LastCursor != "" {
 		c, err := datastore.DecodeCursor(criteria.LastCursor)

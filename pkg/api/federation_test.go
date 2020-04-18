@@ -18,7 +18,8 @@ var (
 	listsAsSets = []cmp.Option{
 		protocmp.Transform(),
 		protocmp.SortRepeatedFields(&pb.FederationFetchResponse{}, "response"),
-		protocmp.SortRepeatedFields(&pb.ContactTracingResponse{}, "diagnosisKeys"),
+		protocmp.SortRepeatedFields(&pb.ContactTracingResponse{}, "contactTracingInfo"),
+		protocmp.SortRepeatedFields(&pb.ContactTracingInfo{}, "diagnosisKeys"),
 	}
 
 	posver  = pb.DiagnosisStatus_positive_verified
@@ -30,98 +31,14 @@ var (
 	ddd = &pb.DiagnosisKey{DiagnosisKey: []byte("ddd"), Timestamp: 4}
 )
 
-// TestConvertResponse tests convertResponse().
-func TestConvertResponse(t *testing.T) {
-	testCases := []struct {
-		name string
-		c    collator
-		want []*pb.ContactTracingResponse
-	}{
-		{
-			name: "empty",
-			c:    collator{},
-			want: []*pb.ContactTracingResponse{},
-		},
-		{
-			name: "one record",
-			c: collator{
-				"US": diagKeys{posver: diagKeyList{aaa}},
-			},
-			want: []*pb.ContactTracingResponse{
-				{DiagnosisStatus: posver, RegionIdentifier: "US", DiagnosisKeys: diagKeyList{aaa}},
-			},
-		},
-		{
-			name: "same country same status",
-			c: collator{
-				"US": diagKeys{posver: diagKeyList{aaa, bbb}},
-			},
-			want: []*pb.ContactTracingResponse{
-				{DiagnosisStatus: posver, RegionIdentifier: "US", DiagnosisKeys: diagKeyList{aaa, bbb}},
-			},
-		},
-		{
-			name: "same country different status",
-			c: collator{
-				"US": diagKeys{posver: diagKeyList{aaa}, selfver: diagKeyList{bbb}},
-			},
-			want: []*pb.ContactTracingResponse{
-				{DiagnosisStatus: posver, RegionIdentifier: "US", DiagnosisKeys: diagKeyList{aaa}},
-				{DiagnosisStatus: selfver, RegionIdentifier: "US", DiagnosisKeys: diagKeyList{bbb}},
-			},
-		},
-		{
-			name: "different country same status",
-			c: collator{
-				"US": diagKeys{posver: diagKeyList{aaa}},
-				"CA": diagKeys{posver: diagKeyList{bbb}},
-			},
-			want: []*pb.ContactTracingResponse{
-				{DiagnosisStatus: posver, RegionIdentifier: "US", DiagnosisKeys: diagKeyList{aaa}},
-				{DiagnosisStatus: posver, RegionIdentifier: "CA", DiagnosisKeys: diagKeyList{bbb}},
-			},
-		},
-		{
-			name: "different country different status",
-			c: collator{
-				"US": diagKeys{
-					posver:  diagKeyList{aaa},
-					selfver: diagKeyList{bbb},
-				},
-				"CA": diagKeys{
-					posver:  diagKeyList{ccc},
-					selfver: diagKeyList{ddd},
-				},
-			},
-			want: []*pb.ContactTracingResponse{
-				{DiagnosisStatus: posver, RegionIdentifier: "US", DiagnosisKeys: diagKeyList{aaa}},
-				{DiagnosisStatus: selfver, RegionIdentifier: "US", DiagnosisKeys: diagKeyList{bbb}},
-				{DiagnosisStatus: posver, RegionIdentifier: "CA", DiagnosisKeys: diagKeyList{ccc}},
-				{DiagnosisStatus: selfver, RegionIdentifier: "CA", DiagnosisKeys: diagKeyList{ddd}},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			want := pb.FederationFetchResponse{Response: tc.want}
-
-			got := pb.FederationFetchResponse{Response: convertResponse(tc.c)}
-
-			if diff := cmp.Diff(want, got, listsAsSets...); diff != "" {
-				t.Errorf("convertReponse() mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
 // makeInfection returns a mock model.Infection.
-func makeInfection(region string, diagKey *pb.DiagnosisKey) model.Infection {
+func makeInfection(diagKey *pb.DiagnosisKey, regions ...string) model.Infection {
 	return model.Infection{
-		Country: region,
+		Region: regions,
 		// TODO(jasonco): Status: status,
 		DiagnosisKey: diagKey.DiagnosisKey,
 		KeyDay:       time.Unix(diagKey.Timestamp, 0),
+		CreatedAt:    time.Unix(diagKey.Timestamp*100, 0), // Make unique from KeyDay.
 	}
 }
 
@@ -177,47 +94,86 @@ func TestFetch(t *testing.T) {
 		iterations     []interface{}
 		want           pb.FederationFetchResponse
 	}{
+		// TODO(jasonco): Add tests for diagnosis status.
 		{
 			name: "no results",
 			want: pb.FederationFetchResponse{},
 		},
 		{
 			name:       "basic results",
-			iterations: []interface{}{makeInfection("US", aaa), makeInfection("US", bbb)},
+			iterations: []interface{}{makeInfection(aaa, "US"), makeInfection(bbb, "US"), makeInfection(ccc, "GB"), makeInfection(ddd, "US", "GB")},
 			want: pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
-					{DiagnosisStatus: posver, RegionIdentifier: "US", DiagnosisKeys: diagKeyList{aaa, bbb}},
+					{
+						RegionIdentifiers: []string{"US"},
+						ContactTracingInfo: []*pb.ContactTracingInfo{
+							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{aaa, bbb}},
+						},
+					},
+					{
+						RegionIdentifiers: []string{"GB"},
+						ContactTracingInfo: []*pb.ContactTracingInfo{
+							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{ccc}},
+						},
+					},
+					{
+						RegionIdentifiers: []string{"GB", "US"},
+						ContactTracingInfo: []*pb.ContactTracingInfo{
+							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{ddd}},
+						},
+					},
 				},
-				FetchResponseKeyTimestamp: 2,
+				FetchResponseKeyTimestamp: 400,
 			},
 		},
 		{
-			name:           "exclude countries",
+			name:           "exclude regions",
 			excludeRegions: []string{"US", "CA"},
-			iterations:     []interface{}{makeInfection("US", aaa), makeInfection("CA", bbb), makeInfection("GB", ccc)},
+			iterations:     []interface{}{makeInfection(aaa, "US"), makeInfection(bbb, "CA"), makeInfection(ccc, "GB"), makeInfection(ddd, "US", "GB")},
 			want: pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
-					{DiagnosisStatus: posver, RegionIdentifier: "GB", DiagnosisKeys: diagKeyList{ccc}},
+					{
+						RegionIdentifiers: []string{"GB"},
+						ContactTracingInfo: []*pb.ContactTracingInfo{
+							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{ccc}},
+						},
+					},
+					{
+						RegionIdentifiers: []string{"GB", "US"},
+						ContactTracingInfo: []*pb.ContactTracingInfo{
+							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{ddd}},
+						},
+					},
 				},
-				FetchResponseKeyTimestamp: 3,
+				FetchResponseKeyTimestamp: 400,
 			},
 		},
 		{
-			name:           "exclude all countries",
+			name:           "exclude all regions",
 			excludeRegions: []string{"US", "CA", "GB"},
-			iterations:     []interface{}{makeInfection("US", aaa), makeInfection("CA", bbb), makeInfection("GB", ccc)},
+			iterations:     []interface{}{makeInfection(aaa, "US"), makeInfection(bbb, "CA"), makeInfection(ccc, "GB"), makeInfection(ddd, "US", "CA", "GB")},
 			want:           pb.FederationFetchResponse{},
 		},
 		{
 			name:       "partial result",
-			iterations: []interface{}{makeInfection("US", aaa), makeInfection("CA", bbb), timeout{}, makeInfection("GB", ccc)},
+			iterations: []interface{}{makeInfection(aaa, "US"), makeInfection(bbb, "CA"), timeout{}, makeInfection(ccc, "GB")},
 			want: pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
-					{DiagnosisStatus: posver, RegionIdentifier: "US", DiagnosisKeys: diagKeyList{aaa}},
-					{DiagnosisStatus: posver, RegionIdentifier: "CA", DiagnosisKeys: diagKeyList{bbb}},
+					{
+						RegionIdentifiers: []string{"US"},
+						ContactTracingInfo: []*pb.ContactTracingInfo{
+							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{aaa}},
+						},
+					},
+					{
+						RegionIdentifiers: []string{"CA"},
+						ContactTracingInfo: []*pb.ContactTracingInfo{
+							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{bbb}},
+						},
+					},
 				},
 				PartialResponse:           true,
-				FetchResponseKeyTimestamp: 2,
+				FetchResponseKeyTimestamp: 200,
 				NextFetchToken:            "bbb_cursor",
 			},
 		},
@@ -232,7 +188,7 @@ func TestFetch(t *testing.T) {
 				return &testIterator{iterations: tc.iterations, cancel: cancel}, nil
 			}
 
-			got, err := server.fetch(ctx, &req, itFunc)
+			got, err := server.fetch(ctx, &req, itFunc, time.Now())
 
 			if err != nil {
 				t.Fatalf("fetch() returned err=%v, want err=nil", err)
