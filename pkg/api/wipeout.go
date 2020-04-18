@@ -37,17 +37,17 @@ func HandleWipeout() http.HandlerFunc {
 		}
 
 		// Validate that TTL is sufficiently in the past.
-		if err != nil && ttlDuration < minTtl {
-			logger.Errorf("wipeout ttl is less than configured minumum ttk: %v", err)
+		if ttlDuration < minTtl {
+			logger.Errorf("wipeout ttl is less than configured minumum ttl")
 			http.Error(w, "internal processing error", http.StatusInternalServerError)
 			return
 		}
 
-		// Get cutoff date
+		// Get cutoff timestamp
 		cutoff := time.Now().Add(-ttlDuration)
 		logger.Infof("Starting wipeout for records older than %v", cutoff.UTC())
 
-		// Get wipeout keys older than cutoff
+		// Get wipeout keys older than cutoff timestamp
 		wipeoutKeys, err := database.FilterKeysOnly(ctx, cutoff)
 		if err != nil {
 			logger.Errorf("error getting wipeout keys: %v", err)
