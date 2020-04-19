@@ -1,3 +1,4 @@
+// This package is the service that deletes old infection keys; it is intended to be invoked over HTTP by Cloud Scheduler.
 package main
 
 import (

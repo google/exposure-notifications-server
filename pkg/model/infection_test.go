@@ -55,13 +55,12 @@ func TestTransform(t *testing.T) {
 	batchTimeRounded := time.Date(2020, 3, 1, 10, 30, 0, 0, time.UTC)
 	for i, v := range want {
 		want[i] = Infection{
-			DiagnosisKey:     v.DiagnosisKey,
-			AppPackageName:   "com.google",
-			Region:           []string{"US"},
-			Platform:         "android",
-			FederationSyncId: 0,
-			KeyDay:           keyDayRounded,
-			CreatedAt:        batchTimeRounded,
+			DiagnosisKey:   v.DiagnosisKey,
+			AppPackageName: "com.google",
+			Region:         []string{"US"},
+			Platform:       "android",
+			KeyDay:         keyDayRounded,
+			CreatedAt:      batchTimeRounded,
 		}
 	}
 

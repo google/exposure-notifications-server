@@ -44,6 +44,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	}
 
 	// If there is only one region, we can let datastore filter it; otherwise we'll have to filter in memory.
+	// TODO(jasonco): Filter out other partner's data; don't re-federate.
 	// TODO(jasonco): moving to CloudSQL will allow this to be simplified.
 	criteria := database.FetchInfectionsCriteria{
 		SinceTimestamp: time.Unix(req.LastFetchResponseKeyTimestamp, 0),

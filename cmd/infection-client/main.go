@@ -1,3 +1,4 @@
+// This package is a CLI tool for generating test infection key data.
 package main
 
 import (
@@ -16,10 +17,13 @@ import (
 // the length of a diagnosis key, always 16 bytes
 const dkLen = 16
 
+var (
+	url     = flag.String("url", "http://localhost:8080", "http(s) destination to send test record")
+	numKeys = flag.Int("num", 1, "number of keys to generate -num=1")
+)
+
 // This is a simple tester to call the infection API.
 func main() {
-	var url = flag.String("url", "http://localhost:8080", "http(s) destination to send test record")
-	var numKeys = flag.Int("num", 1, "number of keys to generate -num=1")
 	flag.Parse()
 
 	keys := make([][]byte, *numKeys)

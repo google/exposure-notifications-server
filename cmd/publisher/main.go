@@ -1,3 +1,4 @@
+// This package is the service that publishes infected keys; it is intended to be invoked over HTTP by Cloud Scheduler.
 package main
 
 import (
@@ -20,9 +21,9 @@ func main() {
 	if err := database.Initialize(); err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
-        if err := encryption.InitDiagnosisKeys(); err != nil {
-                logger.Fatalf("encryption.InitDiagnosisKeys: %v", err)
-        }
+	if err := encryption.InitDiagnosisKeys(); err != nil {
+		logger.Fatalf("encryption.InitDiagnosisKeys: %v", err)
+	}
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", api.HandleGenerateBatch())

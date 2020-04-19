@@ -14,6 +14,9 @@ import (
 
 const (
 	defaultFetchInfectionsPageSize = 1000
+
+	// InsertInfectionsBatchSize is the maximum number of infections that can be inserted at once.
+	InsertInfectionsBatchSize = 500
 )
 
 // InsertInfections adds a set of infections to the database.
@@ -23,6 +26,10 @@ func InsertInfections(ctx context.Context, infections []model.Infection) error {
 	client := Connection()
 	if client == nil {
 		return fmt.Errorf("unable to obtain database client")
+	}
+
+	if len(infections) > InsertInfectionsBatchSize {
+		return fmt.Errorf("batch size %d too large (maximum %d)", len(infections), InsertInfectionsBatchSize)
 	}
 
 	// Using auto keys

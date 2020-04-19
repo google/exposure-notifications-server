@@ -33,7 +33,7 @@ type Infection struct {
 	AppPackageName   string         `datastore:"appPackageName"`
 	Region           []string       `datastore:"region"`
 	Platform         string         `datastore:"string,noindex"`
-	FederationSyncId int64          `datastore:"syncId"`
+	FederationSyncId string         `datastore:"syncId"`
 	KeyDay           time.Time      `datastore:"keyDay"`
 	CreatedAt        time.Time      `datastore:"createdAt"`
 	K                *datastore.Key `datastore:"__key__"`
@@ -71,13 +71,12 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error)
 		// TODO - data validation
 		// TODO encrypt the diagnosis key (binKey)
 		infection := Infection{
-			DiagnosisKey:     binKey,
-			AppPackageName:   inData.AppPackageName,
-			Region:           inData.Region,
-			Platform:         inData.Platform,
-			FederationSyncId: 0,
-			KeyDay:           keyDay,
-			CreatedAt:        createdAt,
+			DiagnosisKey:   binKey,
+			AppPackageName: inData.AppPackageName,
+			Region:         inData.Region,
+			Platform:       inData.Platform,
+			KeyDay:         keyDay,
+			CreatedAt:      createdAt,
 		}
 		entities = append(entities, infection)
 	}

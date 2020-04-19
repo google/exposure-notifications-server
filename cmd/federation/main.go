@@ -1,3 +1,4 @@
+// This package is the gRPC server for federation requests from federations partners.
 package main
 
 import (
@@ -38,8 +39,7 @@ func main() {
 	logger.Infof("Using port %s (override with $%s)", port, portEnvVar)
 
 	timeout := defaultTimeout
-	timeoutStr := os.Getenv(timeoutEnvVar)
-	if timeoutStr != "" {
+	if timeoutStr := os.Getenv(timeoutEnvVar); timeoutStr != "" {
 		var err error
 		timeout, err = time.ParseDuration(timeoutStr)
 		if err != nil {

@@ -1,3 +1,4 @@
+// This package is the primary infected keys upload service.
 package main
 
 import (
