@@ -99,16 +99,16 @@ func TestInvalidStructure(t *testing.T) {
 }
 
 func TestValidPublisMessage(t *testing.T) {
-	keyDay := time.Date(2020, 04, 17, 20, 04, 01, 1, time.UTC).Unix()
+	intervalStart := time.Date(2020, 04, 17, 20, 04, 01, 1, time.UTC).Unix() / 600
 	json := `{"diagnosisKeys": [
-		  {"key": "ABC", "keyDay": %v},
-		  {"key": "DEF", "keyDay": %v},
-			{"key": "123", "keyDay": %v}],
+		  {"key": "ABC", "intervalStart": %v},
+		  {"key": "DEF", "intervalStart": %v},
+			{"key": "123", "intervalStart": %v}],
     "appPackageName": "com.google.android.awesome",
     "regions": ["CA", "US"],
 		"diagnosisStatus": 2,
     "verificationPayload": "foo"}`
-	json = fmt.Sprintf(json, keyDay, keyDay, keyDay)
+	json = fmt.Sprintf(json, intervalStart, intervalStart, intervalStart)
 
 	body := ioutil.NopCloser(bytes.NewReader([]byte(json)))
 	r := httptest.NewRequest("POST", "/", body)
@@ -127,9 +127,9 @@ func TestValidPublisMessage(t *testing.T) {
 
 	want := &model.Publish{
 		Keys: []model.DiagnosisKey{
-			model.DiagnosisKey{Key: "ABC", KeyDay: keyDay},
-			model.DiagnosisKey{Key: "DEF", KeyDay: keyDay},
-			model.DiagnosisKey{Key: "123", KeyDay: keyDay},
+			model.DiagnosisKey{Key: "ABC", IntervalStart: intervalStart},
+			model.DiagnosisKey{Key: "DEF", IntervalStart: intervalStart},
+			model.DiagnosisKey{Key: "123", IntervalStart: intervalStart},
 		},
 		Regions:         []string{"CA", "US"},
 		AppPackageName:  "com.google.android.awesome",

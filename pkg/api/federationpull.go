@@ -134,8 +134,9 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 						Regions: ctr.RegionIdentifiers,
 						// Platform:         "",
 						FederationSync: syncKey,
-						KeyDay:         time.Unix(key.Timestamp, 0),
-						CreatedAt:      model.TruncateWindow(time.Now()), // TODO(jasonco): should this be now, or the time this batch started? Should it be truncated at all?
+						IntervalStart:  key.Timestamp,
+						// TODO(jasonco) - set IntervalCount
+						CreatedAt: model.TruncateWindow(time.Now()), // TODO(jasonco): should this be now, or the time this batch started? Should it be truncated at all?
 					})
 
 					if len(infections) == database.InsertInfectionsBatchSize {

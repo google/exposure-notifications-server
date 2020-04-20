@@ -36,9 +36,9 @@ func makeInfection(diagKey *pb.DiagnosisKey, regions ...string) model.Infection 
 	return model.Infection{
 		Regions: regions,
 		// TODO(jasonco): Status: status,
-		DiagnosisKey: diagKey.DiagnosisKey,
-		KeyDay:       time.Unix(diagKey.Timestamp, 0),
-		CreatedAt:    time.Unix(diagKey.Timestamp*100, 0), // Make unique from KeyDay.
+		DiagnosisKey:  diagKey.DiagnosisKey,
+		IntervalStart: diagKey.Timestamp,
+		CreatedAt:     time.Unix(diagKey.Timestamp*100, 0), // Make unique from KeyDay.
 	}
 }
 

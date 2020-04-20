@@ -11,6 +11,8 @@ import (
 const (
 	// InfectionTable holds uploaded infected keys.
 	InfectionTable = "infection"
+	// Intervals are defined as 10 minute periods, there are 144 of them in a day.
+	maxIntervalCount = 144
 )
 
 // Publish represents the body of the PublishInfectedIds API call.
@@ -25,9 +27,9 @@ type Publish struct {
 // DiagnosisKey is the 16 byte key, the start time of the key and the
 // duration of the key. A duration of 0 means 24 hours.
 type DiagnosisKey struct {
-	Key         string `json:"key"`
-	KeyDay      int64  `json:"keyDay"`
-	KeyDuration int64  `json:"keyDuration"`
+	Key           string `json:"key"`
+	IntervalStart int64  `json:"intervalStart"`
+	IntervalCount int64  `json:"intervalCount"`
 }
 
 // Infection represents the record as storedin the database
@@ -42,8 +44,8 @@ type Infection struct {
 	AppPackageName  string         `datastore:"appPackageName,noindex"`
 	Regions         []string       `datastore:"region,noindex"`
 	FederationSync  *datastore.Key `datastore:"sync,noindex"`
-	KeyDay          time.Time      `datastore:"keyDay,noindex"`
-	KeyDuration     int64          `datastore:"keyDuration,noindex"`
+	IntervalStart   int64          `datastore:"intervalStart,noindex"`
+	IntervalCount   int64          `datastore:"intervalCount,noindex"`
 	CreatedAt       time.Time      `datastore:"createdAt"`
 	LocalProvenance bool           `datastore:"localProvenance"`
 	K               *datastore.Key `datastore:"__key__"`
@@ -55,15 +57,16 @@ const (
 	createWindow = time.Minute * 15
 )
 
-// TruncateDay truncates the given timestamp to midnight (UTC).
-func TruncateDay(utcTimeSec int64) time.Time {
-	t := time.Unix(utcTimeSec, 0)
-	return t.Truncate(oneDay)
-}
-
 // TruncateWindow truncates a time based on the size of the creation window.
 func TruncateWindow(t time.Time) time.Time {
 	return t.Truncate(createWindow)
+}
+
+func correctIntervalCount(count int64) int64 {
+	if count <= 0 || count > maxIntervalCount {
+		return maxIntervalCount
+	}
+	return count
 }
 
 // TransformPublish converts incoming key data to a list of infection entities.
@@ -82,15 +85,14 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error)
 		if err != nil {
 			return nil, err
 		}
-		keyDay := TruncateDay(diagnosisKey.KeyDay)
 		// TODO(helmick) - data validation
 		infection := Infection{
 			DiagnosisKey:    binKey,
 			DiagnosisStatus: inData.DiagnosisStatus,
 			AppPackageName:  inData.AppPackageName,
 			Regions:         upcaseRegions,
-			KeyDay:          keyDay,
-			KeyDuration:     diagnosisKey.KeyDuration,
+			IntervalStart:   diagnosisKey.IntervalStart,
+			IntervalCount:   correctIntervalCount(diagnosisKey.IntervalCount),
 			CreatedAt:       createdAt,
 			LocalProvenance: true, // This is the origin system for this data.
 		}

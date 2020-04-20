@@ -180,7 +180,8 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// Add the key to the ContactTracingInfo.
-		cti.DiagnosisKeys = append(cti.DiagnosisKeys, &pb.DiagnosisKey{DiagnosisKey: inf.DiagnosisKey, Timestamp: inf.KeyDay.Unix()})
+		// TODO(jasonco) - DiagnosisKeys need intervalStart and intervalCount instead of timestamp.
+		cti.DiagnosisKeys = append(cti.DiagnosisKeys, &pb.DiagnosisKey{DiagnosisKey: inf.DiagnosisKey, Timestamp: inf.IntervalStart})
 
 		created := inf.CreatedAt.Unix()
 		if created > response.FetchResponseKeyTimestamp {

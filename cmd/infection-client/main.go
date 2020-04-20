@@ -23,6 +23,14 @@ var (
 	numKeys = flag.Int("num", 1, "number of keys to generate -num=1")
 )
 
+func randIntervalCount() int64 {
+	n, err := rand.Int(rand.Reader, big.NewInt(144))
+	if err != nil {
+		log.Fatalf("rand.Int: %v", err)
+	}
+	return n.Int64() + 1 // valid values are 1-144
+}
+
 // This is a simple tester to call the infection API.
 func main() {
 	flag.Parse()
@@ -37,14 +45,17 @@ func main() {
 	}
 
 	// When publishing multiple keys - they'll be on different days.
-	oneDay, _ := time.ParseDuration("24h")
-	keyDay := time.Now()
+	intervalCount := randIntervalCount()
+	intervalStart := time.Now().Unix()/600 - intervalCount
 
 	diagnosisKeys := make([]model.DiagnosisKey, *numKeys)
 	for i, rawKey := range keys {
 		diagnosisKeys[i].Key = base64.StdEncoding.EncodeToString(rawKey)
-		diagnosisKeys[i].KeyDay = keyDay.Unix()
-		keyDay = keyDay.Add(-oneDay)
+		diagnosisKeys[i].IntervalStart = intervalStart
+		diagnosisKeys[i].IntervalCount = intervalCount
+		// Adjust interval math for next key.
+		intervalCount = randIntervalCount()
+		intervalStart -= intervalCount
 	}
 
 	// region settings for a key are assigned randomly

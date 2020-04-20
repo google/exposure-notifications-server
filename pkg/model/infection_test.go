@@ -9,13 +9,16 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
+func intervalStart(t time.Time) int64 {
+	tenMin, _ := time.ParseDuration("10m")
+	return t.Truncate(tenMin).Unix() / int64(tenMin.Seconds())
+}
+
 func TestInvalidBase64(t *testing.T) {
-	keyDay := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
 	source := &Publish{
 		Keys: []DiagnosisKey{
 			DiagnosisKey{
-				Key:    base64.StdEncoding.EncodeToString([]byte("ABC")) + `2`,
-				KeyDay: keyDay.Unix(),
+				Key: base64.StdEncoding.EncodeToString([]byte("ABC")) + `2`,
 			},
 		},
 		Regions:         []string{"US"},
@@ -33,21 +36,27 @@ func TestInvalidBase64(t *testing.T) {
 }
 
 func TestTransform(t *testing.T) {
-	keyDay := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
-	oneDay, _ := time.ParseDuration("24h")
+	intervalStart := intervalStart(time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC))
 	source := &Publish{
 		Keys: []DiagnosisKey{
 			DiagnosisKey{
-				Key:    base64.StdEncoding.EncodeToString([]byte("ABC")),
-				KeyDay: keyDay.Unix(),
+				Key:           base64.StdEncoding.EncodeToString([]byte("ABC")),
+				IntervalStart: intervalStart,
+				IntervalCount: 0,
 			},
 			DiagnosisKey{
-				Key:    base64.StdEncoding.EncodeToString([]byte("DEF")),
-				KeyDay: keyDay.Add(oneDay).Unix(),
+				Key:           base64.StdEncoding.EncodeToString([]byte("DEF")),
+				IntervalStart: intervalStart + maxIntervalCount,
 			},
 			DiagnosisKey{
-				Key:    base64.StdEncoding.EncodeToString([]byte("123")),
-				KeyDay: keyDay.Add(oneDay).Add(oneDay).Unix(),
+				Key:           base64.StdEncoding.EncodeToString([]byte("123")),
+				IntervalStart: intervalStart + 2*maxIntervalCount,
+				IntervalCount: maxIntervalCount * 10, // Invalid, should get rounded down
+			},
+			DiagnosisKey{
+				Key:           base64.StdEncoding.EncodeToString([]byte("456")),
+				IntervalStart: intervalStart + 3*maxIntervalCount,
+				IntervalCount: 42,
 			},
 		},
 		Regions:         []string{"us", "cA", "Mx"}, // will be upcased
@@ -57,11 +66,27 @@ func TestTransform(t *testing.T) {
 	}
 
 	want := []Infection{
-		{DiagnosisKey: []byte("ABC")},
-		{DiagnosisKey: []byte("DEF")},
-		{DiagnosisKey: []byte("123")},
+		Infection{
+			DiagnosisKey:  []byte("ABC"),
+			IntervalStart: intervalStart,
+			IntervalCount: maxIntervalCount,
+		},
+		Infection{
+			DiagnosisKey:  []byte("DEF"),
+			IntervalStart: intervalStart + maxIntervalCount,
+			IntervalCount: maxIntervalCount,
+		},
+		Infection{
+			DiagnosisKey:  []byte("123"),
+			IntervalStart: intervalStart + 2*maxIntervalCount,
+			IntervalCount: maxIntervalCount,
+		},
+		Infection{
+			DiagnosisKey:  []byte("456"),
+			IntervalStart: intervalStart + 3*maxIntervalCount,
+			IntervalCount: 42,
+		},
 	}
-	keyDayRounded := time.Date(2020, 2, 29, 0, 0, 0, 0, time.UTC)
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
 	batchTimeRounded := time.Date(2020, 3, 1, 10, 30, 0, 0, time.UTC)
 	for i, v := range want {
@@ -70,12 +95,11 @@ func TestTransform(t *testing.T) {
 			DiagnosisStatus: 2,
 			AppPackageName:  "com.google",
 			Regions:         []string{"US", "CA", "MX"},
-			KeyDay:          keyDayRounded,
-			KeyDuration:     0,
+			IntervalStart:   v.IntervalStart,
+			IntervalCount:   v.IntervalCount,
 			CreatedAt:       batchTimeRounded,
 			LocalProvenance: true,
 		}
-		keyDayRounded = keyDayRounded.Add(oneDay)
 	}
 
 	got, err := TransformPublish(source, batchTime)
