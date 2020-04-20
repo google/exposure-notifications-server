@@ -9,7 +9,7 @@ import (
 	"cambio/pkg/storage"
 )
 
-func HandleGenerateBatch() http.HandlerFunc {
+func HandleExport() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		logger := logging.FromContext(ctx)

@@ -22,7 +22,7 @@ func main() {
 	}
 
 	router := mux.NewRouter()
-	router.HandleFunc("/", api.HandleGenerateBatch())
-	logger.Info("starting infection batch publisher server")
+	router.HandleFunc("/", api.HandleExport())
+	logger.Info("starting infection export server")
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
