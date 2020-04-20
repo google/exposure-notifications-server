@@ -126,6 +126,12 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 			continue
 		}
 
+		// Filter out non-LocalProvenance results; we should not re-federate.
+		// This may already be handled by the database query and is included here for completeness.
+		if !inf.LocalProvenance {
+			continue
+		}
+
 		// If all the regions on the record are excluded, skip it.
 		// TODO(jasonco): move to database query if/when Cloud SQL.
 		skip := true
@@ -180,8 +186,11 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// Add the key to the ContactTracingInfo.
-		// TODO(jasonco) - DiagnosisKeys need intervalStart and intervalCount instead of timestamp.
-		cti.DiagnosisKeys = append(cti.DiagnosisKeys, &pb.DiagnosisKey{DiagnosisKey: inf.DiagnosisKey, Timestamp: inf.IntervalStart})
+		cti.DiagnosisKeys = append(cti.DiagnosisKeys, &pb.DiagnosisKey{
+			DiagnosisKey:  inf.DiagnosisKey,
+			IntervalStart: inf.IntervalStart,
+			IntervalCount: inf.IntervalCount,
+		})
 
 		created := inf.CreatedAt.Unix()
 		if created > response.FetchResponseKeyTimestamp {
