@@ -27,9 +27,9 @@ type Publish struct {
 // DiagnosisKey is the 16 byte key, the start time of the key and the
 // duration of the key. A duration of 0 means 24 hours.
 type DiagnosisKey struct {
-	Key           string `json:"key"`
-	IntervalStart int64  `json:"intervalStart"`
-	IntervalCount int64  `json:"intervalCount"`
+	Key            string `json:"key"`
+	IntervalNumber int64  `json:"intervalNumber"`
+	IntervalCount  int64  `json:"intervalCount"`
 }
 
 // Infection represents the record as storedin the database
@@ -44,7 +44,7 @@ type Infection struct {
 	AppPackageName  string         `datastore:"appPackageName,noindex"`
 	Regions         []string       `datastore:"region,noindex"`
 	FederationSync  *datastore.Key `datastore:"sync,noindex"`
-	IntervalStart   int64          `datastore:"intervalStart,noindex"`
+	IntervalNumber  int64          `datastore:"intervalNumber,noindex"`
 	IntervalCount   int64          `datastore:"intervalCount,noindex"`
 	CreatedAt       time.Time      `datastore:"createdAt"`
 	LocalProvenance bool           `datastore:"localProvenance"`
@@ -91,7 +91,7 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error)
 			DiagnosisStatus: inData.DiagnosisStatus,
 			AppPackageName:  inData.AppPackageName,
 			Regions:         upcaseRegions,
-			IntervalStart:   diagnosisKey.IntervalStart,
+			IntervalNumber:  diagnosisKey.IntervalNumber,
 			IntervalCount:   correctIntervalCount(diagnosisKey.IntervalCount),
 			CreatedAt:       createdAt,
 			LocalProvenance: true, // This is the origin system for this data.

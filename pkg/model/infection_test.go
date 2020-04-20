@@ -9,7 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func intervalStart(t time.Time) int64 {
+func IntervalNumber(t time.Time) int64 {
 	tenMin, _ := time.ParseDuration("10m")
 	return t.Truncate(tenMin).Unix() / int64(tenMin.Seconds())
 }
@@ -36,27 +36,27 @@ func TestInvalidBase64(t *testing.T) {
 }
 
 func TestTransform(t *testing.T) {
-	intervalStart := intervalStart(time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC))
+	intervalNumber := IntervalNumber(time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC))
 	source := &Publish{
 		Keys: []DiagnosisKey{
 			{
-				Key:           base64.StdEncoding.EncodeToString([]byte("ABC")),
-				IntervalStart: intervalStart,
-				IntervalCount: 0,
+				Key:            base64.StdEncoding.EncodeToString([]byte("ABC")),
+				IntervalNumber: intervalNumber,
+				IntervalCount:  0,
 			},
 			{
-				Key:           base64.StdEncoding.EncodeToString([]byte("DEF")),
-				IntervalStart: intervalStart + maxIntervalCount,
+				Key:            base64.StdEncoding.EncodeToString([]byte("DEF")),
+				IntervalNumber: intervalNumber + maxIntervalCount,
 			},
 			{
-				Key:           base64.StdEncoding.EncodeToString([]byte("123")),
-				IntervalStart: intervalStart + 2*maxIntervalCount,
-				IntervalCount: maxIntervalCount * 10, // Invalid, should get rounded down
+				Key:            base64.StdEncoding.EncodeToString([]byte("123")),
+				IntervalNumber: intervalNumber + 2*maxIntervalCount,
+				IntervalCount:  maxIntervalCount * 10, // Invalid, should get rounded down
 			},
 			{
-				Key:           base64.StdEncoding.EncodeToString([]byte("456")),
-				IntervalStart: intervalStart + 3*maxIntervalCount,
-				IntervalCount: 42,
+				Key:            base64.StdEncoding.EncodeToString([]byte("456")),
+				IntervalNumber: intervalNumber + 3*maxIntervalCount,
+				IntervalCount:  42,
 			},
 		},
 		Regions:         []string{"us", "cA", "Mx"}, // will be upcased
@@ -67,24 +67,24 @@ func TestTransform(t *testing.T) {
 
 	want := []Infection{
 		{
-			DiagnosisKey:  []byte("ABC"),
-			IntervalStart: intervalStart,
-			IntervalCount: maxIntervalCount,
+			DiagnosisKey:   []byte("ABC"),
+			IntervalNumber: intervalNumber,
+			IntervalCount:  maxIntervalCount,
 		},
 		{
-			DiagnosisKey:  []byte("DEF"),
-			IntervalStart: intervalStart + maxIntervalCount,
-			IntervalCount: maxIntervalCount,
+			DiagnosisKey:   []byte("DEF"),
+			IntervalNumber: intervalNumber + maxIntervalCount,
+			IntervalCount:  maxIntervalCount,
 		},
 		{
-			DiagnosisKey:  []byte("123"),
-			IntervalStart: intervalStart + 2*maxIntervalCount,
-			IntervalCount: maxIntervalCount,
+			DiagnosisKey:   []byte("123"),
+			IntervalNumber: intervalNumber + 2*maxIntervalCount,
+			IntervalCount:  maxIntervalCount,
 		},
 		{
-			DiagnosisKey:  []byte("456"),
-			IntervalStart: intervalStart + 3*maxIntervalCount,
-			IntervalCount: 42,
+			DiagnosisKey:   []byte("456"),
+			IntervalNumber: intervalNumber + 3*maxIntervalCount,
+			IntervalCount:  42,
 		},
 	}
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
@@ -95,7 +95,7 @@ func TestTransform(t *testing.T) {
 			DiagnosisStatus: 2,
 			AppPackageName:  "com.google",
 			Regions:         []string{"US", "CA", "MX"},
-			IntervalStart:   v.IntervalStart,
+			IntervalNumber:  v.IntervalNumber,
 			IntervalCount:   v.IntervalCount,
 			CreatedAt:       batchTimeRounded,
 			LocalProvenance: true,

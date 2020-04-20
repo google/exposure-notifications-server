@@ -25,10 +25,10 @@ var (
 	posver  = pb.DiagnosisStatus_positive_verified
 	selfver = pb.DiagnosisStatus_self_reported
 
-	aaa = &pb.DiagnosisKey{DiagnosisKey: []byte("aaa"), IntervalStart: 1}
-	bbb = &pb.DiagnosisKey{DiagnosisKey: []byte("bbb"), IntervalStart: 2}
-	ccc = &pb.DiagnosisKey{DiagnosisKey: []byte("ccc"), IntervalStart: 3}
-	ddd = &pb.DiagnosisKey{DiagnosisKey: []byte("ddd"), IntervalStart: 4}
+	aaa = &pb.DiagnosisKey{DiagnosisKey: []byte("aaa"), IntervalNumber: 1}
+	bbb = &pb.DiagnosisKey{DiagnosisKey: []byte("bbb"), IntervalNumber: 2}
+	ccc = &pb.DiagnosisKey{DiagnosisKey: []byte("ccc"), IntervalNumber: 3}
+	ddd = &pb.DiagnosisKey{DiagnosisKey: []byte("ddd"), IntervalNumber: 4}
 )
 
 // makeInfection returns a mock model.Infection.
@@ -37,8 +37,8 @@ func makeInfection(diagKey *pb.DiagnosisKey, regions ...string) model.Infection 
 		Regions: regions,
 		// TODO(jasonco): Status: status,
 		DiagnosisKey:    diagKey.DiagnosisKey,
-		IntervalStart:   diagKey.IntervalStart,
-		CreatedAt:       time.Unix(diagKey.IntervalStart*100, 0), // Make unique from KeyDay.
+		IntervalNumber:  diagKey.IntervalNumber,
+		CreatedAt:       time.Unix(diagKey.IntervalNumber*100, 0), // Make unique from KeyDay.
 		LocalProvenance: true,
 	}
 }

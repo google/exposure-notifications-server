@@ -46,16 +46,16 @@ func main() {
 
 	// When publishing multiple keys - they'll be on different days.
 	intervalCount := randIntervalCount()
-	intervalStart := time.Now().Unix()/600 - intervalCount
+	intervalNumber := time.Now().Unix()/600 - intervalCount
 
 	diagnosisKeys := make([]model.DiagnosisKey, *numKeys)
 	for i, rawKey := range keys {
 		diagnosisKeys[i].Key = base64.StdEncoding.EncodeToString(rawKey)
-		diagnosisKeys[i].IntervalStart = intervalStart
+		diagnosisKeys[i].IntervalNumber = intervalNumber
 		diagnosisKeys[i].IntervalCount = intervalCount
 		// Adjust interval math for next key.
 		intervalCount = randIntervalCount()
-		intervalStart -= intervalCount
+		intervalNumber -= intervalCount
 	}
 
 	// region settings for a key are assigned randomly

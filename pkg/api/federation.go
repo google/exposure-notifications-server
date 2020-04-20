@@ -187,9 +187,9 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 
 		// Add the key to the ContactTracingInfo.
 		cti.DiagnosisKeys = append(cti.DiagnosisKeys, &pb.DiagnosisKey{
-			DiagnosisKey:  inf.DiagnosisKey,
-			IntervalStart: inf.IntervalStart,
-			IntervalCount: inf.IntervalCount,
+			DiagnosisKey:   inf.DiagnosisKey,
+			IntervalNumber: inf.IntervalNumber,
+			IntervalCount:  inf.IntervalCount,
 		})
 
 		created := inf.CreatedAt.Unix()

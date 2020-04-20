@@ -134,7 +134,7 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 						Regions: ctr.RegionIdentifiers,
 						// Platform:         "",
 						FederationSync:  syncKey,
-						IntervalStart:   key.IntervalStart,
+						IntervalNumber:  key.IntervalNumber,
 						IntervalCount:   key.IntervalCount,
 						CreatedAt:       model.TruncateWindow(time.Now()), // TODO(jasonco): should this be now, or the time this batch started? Should it be truncated at all?
 						LocalProvenance: false,

@@ -18,15 +18,15 @@ message FederationFetchResponse {
 	int64 fetchResponseKeyTimestamp = 4; // required
 }
 
-message ContactTracingResponse { 
+message ContactTracingResponse {
 	repeated ContactTracingInfo contactTracingInfo = 1;
 	repeated string regionIdentifiers = 2;
-} 
+}
 
-message ContactTracingInfo { 
+message ContactTracingInfo {
 	DiagnosisStatus diagnosisStatus = 1;  // required
-	repeated DiagnosisKey diagnosisKeys = 2; 
-} 
+	repeated DiagnosisKey diagnosisKeys = 2;
+}
 
 enum DiagnosisStatus {
 	unknown = 0;
@@ -36,7 +36,7 @@ enum DiagnosisStatus {
 
 message DiagnosisKey {
 	bytes diagnosisKey = 1; // required
-	int64 intervalStart = 2; // required
+	int64 intervalNumber = 2; // required
 	int64 intervalCount = 3; // required
 }
 
