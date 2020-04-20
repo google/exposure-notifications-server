@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option go_package = "pkg/pb;pb";
+
+message DiagnosisKeyExport {
+	// Time window of keys based on arrival to server, in UTC
+	int64 startTimestamp = 1;
+	int64 endTimestamp = 2;
+	// Region for which these keys came from (e.g., country)
+	string region = 3;
+	repeated DiagnosisKey keys = 4;
+
+	message DiagnosisKey {
+		// Key of infected user
+		bytes diagnosisKey = 1;
+		// Together, next two fields specify window of validity of key
+		// E.g., assuming 10 min intervals a key from 2020-04-19 and
+		// only good until 1 pm might have intervalStart = 2645424
+		// and intervalCount = 78
+		int64 intervalStart = 2;
+		int64 intervalCount = 3;
+	}
+}
