@@ -127,9 +127,9 @@ func TestValidPublisMessage(t *testing.T) {
 
 	want := &model.Publish{
 		Keys: []model.DiagnosisKey{
-			model.DiagnosisKey{Key: "ABC", IntervalStart: intervalStart},
-			model.DiagnosisKey{Key: "DEF", IntervalStart: intervalStart},
-			model.DiagnosisKey{Key: "123", IntervalStart: intervalStart},
+			{Key: "ABC", IntervalStart: intervalStart},
+			{Key: "DEF", IntervalStart: intervalStart},
+			{Key: "123", IntervalStart: intervalStart},
 		},
 		Regions:         []string{"CA", "US"},
 		AppPackageName:  "com.google.android.awesome",

@@ -17,7 +17,7 @@ func intervalStart(t time.Time) int64 {
 func TestInvalidBase64(t *testing.T) {
 	source := &Publish{
 		Keys: []DiagnosisKey{
-			DiagnosisKey{
+			{
 				Key: base64.StdEncoding.EncodeToString([]byte("ABC")) + `2`,
 			},
 		},
@@ -39,21 +39,21 @@ func TestTransform(t *testing.T) {
 	intervalStart := intervalStart(time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC))
 	source := &Publish{
 		Keys: []DiagnosisKey{
-			DiagnosisKey{
+			{
 				Key:           base64.StdEncoding.EncodeToString([]byte("ABC")),
 				IntervalStart: intervalStart,
 				IntervalCount: 0,
 			},
-			DiagnosisKey{
+			{
 				Key:           base64.StdEncoding.EncodeToString([]byte("DEF")),
 				IntervalStart: intervalStart + maxIntervalCount,
 			},
-			DiagnosisKey{
+			{
 				Key:           base64.StdEncoding.EncodeToString([]byte("123")),
 				IntervalStart: intervalStart + 2*maxIntervalCount,
 				IntervalCount: maxIntervalCount * 10, // Invalid, should get rounded down
 			},
-			DiagnosisKey{
+			{
 				Key:           base64.StdEncoding.EncodeToString([]byte("456")),
 				IntervalStart: intervalStart + 3*maxIntervalCount,
 				IntervalCount: 42,
@@ -66,22 +66,22 @@ func TestTransform(t *testing.T) {
 	}
 
 	want := []Infection{
-		Infection{
+		{
 			DiagnosisKey:  []byte("ABC"),
 			IntervalStart: intervalStart,
 			IntervalCount: maxIntervalCount,
 		},
-		Infection{
+		{
 			DiagnosisKey:  []byte("DEF"),
 			IntervalStart: intervalStart + maxIntervalCount,
 			IntervalCount: maxIntervalCount,
 		},
-		Infection{
+		{
 			DiagnosisKey:  []byte("123"),
 			IntervalStart: intervalStart + 2*maxIntervalCount,
 			IntervalCount: maxIntervalCount,
 		},
-		Infection{
+		{
 			DiagnosisKey:  []byte("456"),
 			IntervalStart: intervalStart + 3*maxIntervalCount,
 			IntervalCount: 42,

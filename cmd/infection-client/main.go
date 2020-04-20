@@ -60,11 +60,11 @@ func main() {
 
 	// region settings for a key are assigned randomly
 	regions := [][]string{
-		[]string{"US"},
-		[]string{"US", "CA"},
-		[]string{"US", "CA", "MX"},
-		[]string{"CA"},
-		[]string{"CA", "MX"},
+		{"US"},
+		{"US", "CA"},
+		{"US", "CA", "MX"},
+		{"CA"},
+		{"CA", "MX"},
 	}
 
 	n, err := rand.Int(rand.Reader, big.NewInt(3))
