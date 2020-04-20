@@ -30,4 +30,3 @@ func CreateObject(bucket, objectName, contents string) error {
 	}
 	return nil
 }
-

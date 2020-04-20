@@ -46,9 +46,9 @@ func TestTransform(t *testing.T) {
 	}
 
 	want := []Infection{
-		Infection{DiagnosisKey: []byte("ABC")},
-		Infection{DiagnosisKey: []byte("DEF")},
-		Infection{DiagnosisKey: []byte("123")},
+		{DiagnosisKey: []byte("ABC")},
+		{DiagnosisKey: []byte("DEF")},
+		{DiagnosisKey: []byte("123")},
 	}
 	keyDayRounded := time.Date(2020, 2, 29, 0, 0, 0, 0, time.UTC)
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
