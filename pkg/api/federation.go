@@ -121,14 +121,14 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// If there are no regions on the infection, it's malformed, so skip it.
-		if len(inf.Region) == 0 {
+		if len(inf.Regions) == 0 {
 			continue
 		}
 
 		// If all the regions on the record are excluded, skip it.
 		// TODO(jasonco): move to database query if/when Cloud SQL.
 		skip := true
-		for _, region := range inf.Region {
+		for _, region := range inf.Regions {
 			if _, excluded := excludedRegions[region]; !excluded {
 				// At least one region for the infection is NOT excluded, so we don't skip this record.
 				skip = false
@@ -143,7 +143,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		// TODO(jasonco): move to database query if/when Cloud SQL.
 		if len(includedRegions) > 0 {
 			skip = true
-			for _, region := range inf.Region {
+			for _, region := range inf.Regions {
 				if _, included := includedRegions[region]; included {
 					skip = false
 					break
@@ -155,11 +155,11 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// Find, or create, the ContactTracingResponse based on the unique set of regions.
-		sort.Strings(inf.Region)
-		ctrKey := strings.Join(inf.Region, "::")
+		sort.Strings(inf.Regions)
+		ctrKey := strings.Join(inf.Regions, "::")
 		ctr := ctrMap[ctrKey]
 		if ctr == nil {
-			ctr = &pb.ContactTracingResponse{RegionIdentifiers: inf.Region}
+			ctr = &pb.ContactTracingResponse{RegionIdentifiers: inf.Regions}
 			ctrMap[ctrKey] = ctr
 			response.Response = append(response.Response, ctr)
 		}

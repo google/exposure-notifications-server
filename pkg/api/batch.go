@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"cambio/pkg/database"
-	"cambio/pkg/encryption"
 	"cambio/pkg/logging"
 	"cambio/pkg/storage"
 )
@@ -24,7 +23,6 @@ func HandleGenerateBatch() http.HandlerFunc {
 		}
 
 		logger.Infof("received infections")
-		encryption.DecryptDiagnosisKeys(ctx, infections)
 		// TODO(guray): adjust final format (see tools/fake_client_data.go)
 		body := "diagnosisKey\n"
 		for _, infection := range infections {

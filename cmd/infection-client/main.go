@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"flag"
 	"log"
+	"math/big"
 	"net/http"
 	"time"
 
@@ -35,18 +36,41 @@ func main() {
 		}
 	}
 
-	diagnosisKeys := make([]string, *numKeys)
+	// When publishing multiple keys - they'll be on different days.
+	oneDay, _ := time.ParseDuration("24h")
+	keyDay := time.Now()
+
+	diagnosisKeys := make([]model.DiagnosisKey, *numKeys)
 	for i, rawKey := range keys {
-		diagnosisKeys[i] = base64.StdEncoding.EncodeToString(rawKey)
+		diagnosisKeys[i].Key = base64.StdEncoding.EncodeToString(rawKey)
+		diagnosisKeys[i].KeyDay = keyDay.Unix()
+		keyDay = keyDay.Add(-oneDay)
+	}
+
+	// region settings for a key are assigned randomly
+	regions := [][]string{
+		[]string{"US"},
+		[]string{"US", "CA"},
+		[]string{"US", "CA", "MX"},
+		[]string{"CA"},
+		[]string{"CA", "MX"},
+	}
+
+	n, err := rand.Int(rand.Reader, big.NewInt(3))
+	if err != nil {
+		log.Fatalf("rand.Int: %v", err)
+	}
+	regionIdx, err := rand.Int(rand.Reader, big.NewInt(int64(len(regions))))
+	if err != nil {
+		log.Fatalf("rand.Int: %v", err)
 	}
 
 	data := model.Publish{
-		Keys:           diagnosisKeys,
-		AppPackageName: "com.google.android",
-		Region:         []string{"US"},
-		Platform:       "Android",
-		Verification:   "",
-		KeyDay:         time.Now().Unix(),
+		Keys:            diagnosisKeys,
+		Regions:         regions[regionIdx.Int64()],
+		AppPackageName:  "com.google.android",
+		DiagnosisStatus: int(n.Int64()),
+		Verification:    "",
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -67,7 +91,6 @@ func main() {
 	defer resp.Body.Close()
 
 	log.Printf("response: %v", resp.Status)
-	log.Printf("key day: %v", data.KeyDay)
 	log.Printf("wrote %v keys", len(keys))
 	for _, key := range keys {
 		log.Printf("  %v", key)

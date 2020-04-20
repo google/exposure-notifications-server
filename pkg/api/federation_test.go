@@ -34,7 +34,7 @@ var (
 // makeInfection returns a mock model.Infection.
 func makeInfection(diagKey *pb.DiagnosisKey, regions ...string) model.Infection {
 	return model.Infection{
-		Region: regions,
+		Regions: regions,
 		// TODO(jasonco): Status: status,
 		DiagnosisKey: diagKey.DiagnosisKey,
 		KeyDay:       time.Unix(diagKey.Timestamp, 0),

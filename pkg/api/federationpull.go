@@ -131,7 +131,7 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 					infections = append(infections, model.Infection{
 						DiagnosisKey: key.DiagnosisKey,
 						// AppPackageName: "",
-						Region: ctr.RegionIdentifiers,
+						Regions: ctr.RegionIdentifiers,
 						// Platform:         "",
 						FederationSyncId: syncID,
 						KeyDay:           time.Unix(key.Timestamp, 0),

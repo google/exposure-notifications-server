@@ -8,7 +8,6 @@ import (
 
 	"cambio/pkg/api"
 	"cambio/pkg/database"
-	"cambio/pkg/encryption"
 	"cambio/pkg/logging"
 
 	"github.com/gorilla/mux"
@@ -20,9 +19,6 @@ func main() {
 
 	if err := database.Initialize(); err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
-	}
-	if err := encryption.InitDiagnosisKeys(); err != nil {
-		logger.Fatalf("encryption.InitDiagnosisKeys: %v", err)
 	}
 
 	router := mux.NewRouter()
