@@ -133,10 +133,11 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 						// AppPackageName: "",
 						Regions: ctr.RegionIdentifiers,
 						// Platform:         "",
-						FederationSync: syncKey,
-						IntervalStart:  key.Timestamp,
-						// TODO(jasonco) - set IntervalCount
-						CreatedAt: model.TruncateWindow(time.Now()), // TODO(jasonco): should this be now, or the time this batch started? Should it be truncated at all?
+						FederationSync:  syncKey,
+						IntervalStart:   key.IntervalStart,
+						IntervalCount:   key.IntervalCount,
+						CreatedAt:       model.TruncateWindow(time.Now()), // TODO(jasonco): should this be now, or the time this batch started? Should it be truncated at all?
+						LocalProvenance: false,
 					})
 
 					if len(infections) == database.InsertInfectionsBatchSize {
