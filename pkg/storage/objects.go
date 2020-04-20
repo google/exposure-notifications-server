@@ -1,17 +1,17 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
 )
 
 // CreateObject creates a new cloud storage object
-func CreateObject(bucket, objectName, contents string) error {
+func CreateObject(bucket, objectName string, contents []byte) error {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
@@ -21,7 +21,7 @@ func CreateObject(bucket, objectName, contents string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
 	defer cancel()
 	wc := client.Bucket(bucket).Object(objectName).NewWriter(ctx)
-	r := strings.NewReader(contents)
+	r := bytes.NewReader(contents)
 	if _, err = io.Copy(wc, r); err != nil {
 		return fmt.Errorf("io.Copy: %v", err)
 	}
