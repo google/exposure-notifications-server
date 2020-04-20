@@ -14,28 +14,37 @@ const (
 
 // Publish represents the body of the PublishInfectedIds API call.
 type Publish struct {
-	Keys           []string `json:"diagnosisKeys"`
-	AppPackageName string   `json:"appPackageName"`
-	Region         []string `json:"region"`
-	Platform       string   `json:"platform"`
-	Verification   string   `json:"verificationPayload"`
-	KeyDay         int64    `json:"keyDay"`
+	Keys            []DiagnosisKey `json:"diagnosisKeys"`
+	Regions         []string       `json:"regions"`
+	AppPackageName  string         `json:"appPackageName"`
+	DiagnosisStatus int            `json:"diagnosisStatus"`
+	Verification    string         `json:"verificationPayload"`
+}
+
+// A diagnosis key is the 16 byte key, the start time of the key and the
+// duration of the key. A duration of 0 means 24 hours.
+type DiagnosisKey struct {
+	Key         string `json:"key"`
+	KeyDay      int64  `json:"keyDay"`
+	KeyDuration int64  `json:"keyDuration"`
 }
 
 // Infection represents the record as storedin the database
 // TODO(helmick) - refactor this so that there is a public
 // Infection struct that doesn't have public fields and an
 // internal struct that does. Separate out the database model
-// from direct access.append
+// from direct access.
 // Mark records as writable/nowritable - is diagnosis key encrypted
 type Infection struct {
 	DiagnosisKey     []byte         `datastore:"diagnosisKey,noindex"`
-	AppPackageName   string         `datastore:"appPackageName"`
-	Region           []string       `datastore:"region"`
-	Platform         string         `datastore:"string,noindex"`
-	FederationSyncId string         `datastore:"syncId"`
-	KeyDay           time.Time      `datastore:"keyDay"`
+	DiagnosisStatus  int            `datastore:"diagnosisStatus,noindex"`
+	AppPackageName   string         `datastore:"appPackageName,noindex"`
+	Regions          []string       `datastore:"region,noindex"`
+	FederationSyncId string         `datastore:"syncId,noindex"`
+	KeyDay           time.Time      `datastore:"keyDay,noindex"`
+	KeyDuration      int64          `datastore:"keyDuration,noindex"`
 	CreatedAt        time.Time      `datastore:"createdAt"`
+	LocalProvenance  bool           `datastore:"localProvenance"`
 	K                *datastore.Key `datastore:"__key__"`
 	// TODO(helmick): Add DiagnosisStatus, VerificationSource
 }
@@ -46,7 +55,7 @@ const (
 )
 
 // Key days are set to midnight (UTC) on the day the key was used.
-func truncateDay(utcTimeSec int64) time.Time {
+func TruncateDay(utcTimeSec int64) time.Time {
 	t := time.Unix(utcTimeSec, 0)
 	return t.Truncate(oneDay)
 }
@@ -58,25 +67,31 @@ func TruncateWindow(t time.Time) time.Time {
 
 func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error) {
 	createdAt := TruncateWindow(batchTime)
-	keyDay := truncateDay(inData.KeyDay)
-	for i := range inData.Region {
-		inData.Region[i] = strings.ToUpper(inData.Region[i])
-	}
 	entities := make([]Infection, 0, len(inData.Keys))
+
+	// Regions are a multi-value property, uppercase them for storage.
+	upcaseRegions := make([]string, len(inData.Regions))
+	for i, r := range inData.Regions {
+		upcaseRegions[i] = strings.ToUpper(r)
+	}
+
 	for _, diagnosisKey := range inData.Keys {
-		binKey, err := base64.StdEncoding.DecodeString(diagnosisKey)
+		binKey, err := base64.StdEncoding.DecodeString(diagnosisKey.Key)
 		if err != nil {
 			return nil, err
 		}
-		// TODO - data validation
-		// TODO encrypt the diagnosis key (binKey)
+		keyDay := TruncateDay(diagnosisKey.KeyDay)
+		// TODO(helmick) - data validation
 		infection := Infection{
-			DiagnosisKey:   binKey,
-			AppPackageName: inData.AppPackageName,
-			Region:         inData.Region,
-			Platform:       inData.Platform,
-			KeyDay:         keyDay,
-			CreatedAt:      createdAt,
+			DiagnosisKey:     binKey,
+			DiagnosisStatus:  inData.DiagnosisStatus,
+			AppPackageName:   inData.AppPackageName,
+			Regions:          upcaseRegions,
+			FederationSyncId: "0",
+			KeyDay:           keyDay,
+			KeyDuration:      diagnosisKey.KeyDuration,
+			CreatedAt:        createdAt,
+			LocalProvenance:  true, // This is the origin system for this data.
 		}
 		entities = append(entities, infection)
 	}

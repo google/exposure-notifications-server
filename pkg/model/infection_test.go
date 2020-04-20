@@ -12,13 +12,15 @@ import (
 func TestInvalidBase64(t *testing.T) {
 	keyDay := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
 	source := &Publish{
-		Keys: []string{
-			base64.StdEncoding.EncodeToString([]byte("ABC")) + `2`,
+		Keys: []DiagnosisKey{
+			DiagnosisKey{
+				Key:    base64.StdEncoding.EncodeToString([]byte("ABC")) + `2`,
+				KeyDay: keyDay.Unix(),
+			},
 		},
-		AppPackageName: "com.google",
-		Region:         []string{"US"},
-		Platform:       "android",
-		KeyDay:         keyDay.Unix(),
+		Regions:         []string{"US"},
+		AppPackageName:  "com.google",
+		DiagnosisStatus: 0,
 		// Verification doesn't matter for transforming.
 	}
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
@@ -32,16 +34,25 @@ func TestInvalidBase64(t *testing.T) {
 
 func TestTransform(t *testing.T) {
 	keyDay := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
+	oneDay, _ := time.ParseDuration("24h")
 	source := &Publish{
-		Keys: []string{
-			base64.StdEncoding.EncodeToString([]byte("ABC")),
-			base64.StdEncoding.EncodeToString([]byte("DEF")),
-			base64.StdEncoding.EncodeToString([]byte("123")),
+		Keys: []DiagnosisKey{
+			DiagnosisKey{
+				Key:    base64.StdEncoding.EncodeToString([]byte("ABC")),
+				KeyDay: keyDay.Unix(),
+			},
+			DiagnosisKey{
+				Key:    base64.StdEncoding.EncodeToString([]byte("DEF")),
+				KeyDay: keyDay.Add(oneDay).Unix(),
+			},
+			DiagnosisKey{
+				Key:    base64.StdEncoding.EncodeToString([]byte("123")),
+				KeyDay: keyDay.Add(oneDay).Add(oneDay).Unix(),
+			},
 		},
-		AppPackageName: "com.google",
-		Region:         []string{"US"},
-		Platform:       "android",
-		KeyDay:         keyDay.Unix(),
+		Regions:         []string{"us", "cA", "Mx"}, // will be upcased
+		AppPackageName:  "com.google",
+		DiagnosisStatus: 2,
 		// Verification doesn't matter for transforming.
 	}
 
@@ -55,13 +66,17 @@ func TestTransform(t *testing.T) {
 	batchTimeRounded := time.Date(2020, 3, 1, 10, 30, 0, 0, time.UTC)
 	for i, v := range want {
 		want[i] = Infection{
-			DiagnosisKey:   v.DiagnosisKey,
-			AppPackageName: "com.google",
-			Region:         []string{"US"},
-			Platform:       "android",
-			KeyDay:         keyDayRounded,
-			CreatedAt:      batchTimeRounded,
+			DiagnosisKey:     v.DiagnosisKey,
+			DiagnosisStatus:  2,
+			AppPackageName:   "com.google",
+			Regions:          []string{"US", "CA", "MX"},
+			FederationSyncId: "0",
+			KeyDay:           keyDayRounded,
+			KeyDuration:      0,
+			CreatedAt:        batchTimeRounded,
+			LocalProvenance:  true,
 		}
+		keyDayRounded = keyDayRounded.Add(oneDay)
 	}
 
 	got, err := TransformPublish(source, batchTime)

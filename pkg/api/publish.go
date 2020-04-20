@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"cambio/pkg/database"
-	"cambio/pkg/encryption"
 	"cambio/pkg/logging"
 	"cambio/pkg/model"
 	"cambio/pkg/verification"
@@ -38,13 +37,6 @@ func HandlePublish() http.HandlerFunc {
 		if err != nil {
 			logger.Errorf("error transforming publish data: %v", err)
 			http.Error(w, "bad API request", http.StatusBadRequest)
-			return
-		}
-
-		err = encryption.EncryptDiagnosisKeys(ctx, infections)
-		if err != nil {
-			logger.Errorf("error during diagnosis key encryption: %v", err)
-			http.Error(w, "internal processing error", http.StatusInternalServerError)
 			return
 		}
 

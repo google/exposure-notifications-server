@@ -2,10 +2,12 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"cambio/pkg/model"
 
@@ -43,14 +45,19 @@ func TestEmptyBody(t *testing.T) {
 }
 func TestMultipleJson(t *testing.T) {
 	invalidJSON := []string{
-		`{"diagnosisKeys": ["ABC", "DEF", "123"],
+		`{"diagnosisKeys":
+			[{"key": "ABC"},
+			 {"key": "DEF"},
+			 {"key": "123"}],
 		"appPackageName": "com.google.android.awesome",
-		"region": ["us"],
-		"platform": "android",
-		"verificationPayload": "foo"}{"diagnosisKeys": ["ABC", "DEF", "123"],
+		"regions": ["us"],
+		"verificationPayload": "foo"}
+		{"diagnosisKeys":
+			[{"key": "ABC"},
+			 {"key": "DEF"},
+			 {"key": "123"}],
 		"appPackageName": "com.google.android.awesome",
-		"country": "us",
-		"platform": "android",
+		"regions": ["us"],
 		"verificationPayload": "foo"}`,
 	}
 	errors := []string{
@@ -78,23 +85,30 @@ func TestInvalidStructure(t *testing.T) {
 		`{"diagnosisKeys": 42}`,
 		`{"diagnosisKeys": ["41", 42]}`,
 		`{"appPackageName": 4.5}`,
+		`{"regions": "us"}`,
 		`{"badField": "doesn't exist"}`,
 	}
 	errors := []string{
 		`invalid value diagnosisKeys at position 20`,
-		`invalid value diagnosisKeys at position 27`,
+		`invalid value diagnosisKeys at position 23`,
 		`invalid value appPackageName at position 22`,
+		`invalid value regions at position 16`,
 		`unknown field "badField"`,
 	}
 	unmarshalTestHelper(t, invalidJSON, errors, http.StatusBadRequest)
 }
 
 func TestValidPublisMessage(t *testing.T) {
-	json := `{"diagnosisKeys": ["ABC", "DEF", "123"],
+	keyDay := time.Date(2020, 04, 17, 20, 04, 01, 1, time.UTC).Unix()
+	json := `{"diagnosisKeys": [
+		  {"key": "ABC", "keyDay": %v},
+		  {"key": "DEF", "keyDay": %v},
+			{"key": "123", "keyDay": %v}],
     "appPackageName": "com.google.android.awesome",
-    "region": ["us"],
-    "platform": "android",
+    "regions": ["CA", "US"],
+		"diagnosisStatus": 2,
     "verificationPayload": "foo"}`
+	json = fmt.Sprintf(json, keyDay, keyDay, keyDay)
 
 	body := ioutil.NopCloser(bytes.NewReader([]byte(json)))
 	r := httptest.NewRequest("POST", "/", body)
@@ -112,11 +126,15 @@ func TestValidPublisMessage(t *testing.T) {
 	}
 
 	want := &model.Publish{
-		Keys:           []string{"ABC", "DEF", "123"},
-		AppPackageName: "com.google.android.awesome",
-		Region:         []string{"us"},
-		Platform:       "android",
-		Verification:   "foo",
+		Keys: []model.DiagnosisKey{
+			model.DiagnosisKey{Key: "ABC", KeyDay: keyDay},
+			model.DiagnosisKey{Key: "DEF", KeyDay: keyDay},
+			model.DiagnosisKey{Key: "123", KeyDay: keyDay},
+		},
+		Regions:         []string{"CA", "US"},
+		AppPackageName:  "com.google.android.awesome",
+		DiagnosisStatus: 2,
+		Verification:    "foo",
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unmarshal mismatch (-want +got):\n%v", diff)
