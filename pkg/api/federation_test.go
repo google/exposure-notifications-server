@@ -32,10 +32,10 @@ var (
 )
 
 // makeInfection returns a mock model.Infection.
-func makeInfection(diagKey *pb.DiagnosisKey, regions ...string) model.Infection {
+func makeInfection(diagKey *pb.DiagnosisKey, diagStatus pb.DiagnosisStatus, regions ...string) model.Infection {
 	return model.Infection{
-		Regions: regions,
-		// TODO(jasonco): Status: status,
+		Regions:         regions,
+		DiagnosisStatus: int(diagStatus),
 		DiagnosisKey:    diagKey.DiagnosisKey,
 		IntervalNumber:  diagKey.IntervalNumber,
 		CreatedAt:       time.Unix(diagKey.IntervalNumber*100, 0), // Make unique from KeyDay.
@@ -101,8 +101,13 @@ func TestFetch(t *testing.T) {
 			want: pb.FederationFetchResponse{},
 		},
 		{
-			name:       "basic results",
-			iterations: []interface{}{makeInfection(aaa, "US"), makeInfection(bbb, "US"), makeInfection(ccc, "GB"), makeInfection(ddd, "US", "GB")},
+			name: "basic results",
+			iterations: []interface{}{
+				makeInfection(aaa, posver, "US"),
+				makeInfection(bbb, posver, "US"),
+				makeInfection(ccc, posver, "GB"),
+				makeInfection(ddd, posver, "US", "GB"),
+			},
 			want: pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
 					{
@@ -128,9 +133,41 @@ func TestFetch(t *testing.T) {
 			},
 		},
 		{
+			name: "results combined on status",
+			iterations: []interface{}{
+				makeInfection(aaa, posver, "US"),
+				makeInfection(bbb, posver, "US"),
+				makeInfection(ccc, selfver, "US"),
+				makeInfection(ddd, selfver, "CA"),
+			},
+			want: pb.FederationFetchResponse{
+				Response: []*pb.ContactTracingResponse{
+					{
+						RegionIdentifiers: []string{"US"},
+						ContactTracingInfo: []*pb.ContactTracingInfo{
+							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{aaa, bbb}},
+							{DiagnosisStatus: selfver, DiagnosisKeys: []*pb.DiagnosisKey{ccc}},
+						},
+					},
+					{
+						RegionIdentifiers: []string{"CA"},
+						ContactTracingInfo: []*pb.ContactTracingInfo{
+							{DiagnosisStatus: selfver, DiagnosisKeys: []*pb.DiagnosisKey{ddd}},
+						},
+					},
+				},
+				FetchResponseKeyTimestamp: 400,
+			},
+		},
+		{
 			name:           "exclude regions",
 			excludeRegions: []string{"US", "CA"},
-			iterations:     []interface{}{makeInfection(aaa, "US"), makeInfection(bbb, "CA"), makeInfection(ccc, "GB"), makeInfection(ddd, "US", "GB")},
+			iterations: []interface{}{
+				makeInfection(aaa, posver, "US"),
+				makeInfection(bbb, posver, "CA"),
+				makeInfection(ccc, posver, "GB"),
+				makeInfection(ddd, posver, "US", "GB"),
+			},
 			want: pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
 					{
@@ -152,12 +189,22 @@ func TestFetch(t *testing.T) {
 		{
 			name:           "exclude all regions",
 			excludeRegions: []string{"US", "CA", "GB"},
-			iterations:     []interface{}{makeInfection(aaa, "US"), makeInfection(bbb, "CA"), makeInfection(ccc, "GB"), makeInfection(ddd, "US", "CA", "GB")},
-			want:           pb.FederationFetchResponse{},
+			iterations: []interface{}{
+				makeInfection(aaa, posver, "US"),
+				makeInfection(bbb, posver, "CA"),
+				makeInfection(ccc, posver, "GB"),
+				makeInfection(ddd, posver, "US", "CA", "GB"),
+			},
+			want: pb.FederationFetchResponse{},
 		},
 		{
-			name:       "partial result",
-			iterations: []interface{}{makeInfection(aaa, "US"), makeInfection(bbb, "CA"), timeout{}, makeInfection(ccc, "GB")},
+			name: "partial result",
+			iterations: []interface{}{
+				makeInfection(aaa, posver, "US"),
+				makeInfection(bbb, posver, "CA"),
+				timeout{},
+				makeInfection(ccc, posver, "GB"),
+			},
 			want: pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
 					{

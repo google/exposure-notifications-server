@@ -129,15 +129,16 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 			for _, cti := range ctr.ContactTracingInfo {
 				for _, key := range cti.DiagnosisKeys {
 					infections = append(infections, model.Infection{
-						DiagnosisKey: key.DiagnosisKey,
-						// AppPackageName: "",
-						Regions: ctr.RegionIdentifiers,
-						// Platform:         "",
+						DiagnosisStatus: int(cti.DiagnosisStatus),
+						DiagnosisKey:    key.DiagnosisKey,
+						Regions:         ctr.RegionIdentifiers,
 						FederationSync:  syncKey,
 						IntervalNumber:  key.IntervalNumber,
 						IntervalCount:   key.IntervalCount,
 						CreatedAt:       model.TruncateWindow(time.Now()), // TODO(jasonco): should this be now, or the time this batch started? Should it be truncated at all?
 						LocalProvenance: false,
+						// AppPackageName: "",
+						// Platform:         "",
 					})
 
 					if len(infections) == database.InsertInfectionsBatchSize {

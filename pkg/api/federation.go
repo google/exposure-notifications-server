@@ -132,6 +132,11 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 			continue
 		}
 
+		// If the infection has an unknown status, it's malformed, so skip it.
+		if _, ok := pb.DiagnosisStatus_name[int32(inf.DiagnosisStatus)]; !ok {
+			continue
+		}
+
 		// If all the regions on the record are excluded, skip it.
 		// TODO(jasonco): move to database query if/when Cloud SQL.
 		skip := true
@@ -172,8 +177,8 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// Find the ContactTracingInfo corresponding to the diagnosis status. There are only a few statuses, so we linear search.
+		status := pb.DiagnosisStatus(inf.DiagnosisStatus)
 		var cti *pb.ContactTracingInfo
-		status := pb.DiagnosisStatus_positive_verified // TODO(jasonco): fix this. inf.DiagnosisStatus // TODO: convert?
 		for _, info := range ctr.ContactTracingInfo {
 			if info.DiagnosisStatus == status {
 				cti = info
