@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	// InfectionTable holds uploaded infected keys.
 	InfectionTable = "infection"
 )
 
@@ -21,7 +22,7 @@ type Publish struct {
 	Verification    string         `json:"verificationPayload"`
 }
 
-// A diagnosis key is the 16 byte key, the start time of the key and the
+// DiagnosisKey is the 16 byte key, the start time of the key and the
 // duration of the key. A duration of 0 means 24 hours.
 type DiagnosisKey struct {
 	Key         string `json:"key"`
@@ -36,16 +37,16 @@ type DiagnosisKey struct {
 // from direct access.
 // Mark records as writable/nowritable - is diagnosis key encrypted
 type Infection struct {
-	DiagnosisKey     []byte         `datastore:"diagnosisKey,noindex"`
-	DiagnosisStatus  int            `datastore:"diagnosisStatus,noindex"`
-	AppPackageName   string         `datastore:"appPackageName,noindex"`
-	Regions          []string       `datastore:"region,noindex"`
-	FederationSyncId string         `datastore:"syncId,noindex"`
-	KeyDay           time.Time      `datastore:"keyDay,noindex"`
-	KeyDuration      int64          `datastore:"keyDuration,noindex"`
-	CreatedAt        time.Time      `datastore:"createdAt"`
-	LocalProvenance  bool           `datastore:"localProvenance"`
-	K                *datastore.Key `datastore:"__key__"`
+	DiagnosisKey    []byte         `datastore:"diagnosisKey,noindex"`
+	DiagnosisStatus int            `datastore:"diagnosisStatus,noindex"`
+	AppPackageName  string         `datastore:"appPackageName,noindex"`
+	Regions         []string       `datastore:"region,noindex"`
+	FederationSync  *datastore.Key `datastore:"sync,noindex"`
+	KeyDay          time.Time      `datastore:"keyDay,noindex"`
+	KeyDuration     int64          `datastore:"keyDuration,noindex"`
+	CreatedAt       time.Time      `datastore:"createdAt"`
+	LocalProvenance bool           `datastore:"localProvenance"`
+	K               *datastore.Key `datastore:"__key__"`
 	// TODO(helmick): Add DiagnosisStatus, VerificationSource
 }
 
@@ -54,7 +55,7 @@ const (
 	createWindow = time.Minute * 15
 )
 
-// Key days are set to midnight (UTC) on the day the key was used.
+// TruncateDay truncates the given timestamp to midnight (UTC).
 func TruncateDay(utcTimeSec int64) time.Time {
 	t := time.Unix(utcTimeSec, 0)
 	return t.Truncate(oneDay)
@@ -65,6 +66,7 @@ func TruncateWindow(t time.Time) time.Time {
 	return t.Truncate(createWindow)
 }
 
+// TransformPublish converts incoming key data to a list of infection entities.
 func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error) {
 	createdAt := TruncateWindow(batchTime)
 	entities := make([]Infection, 0, len(inData.Keys))
@@ -83,15 +85,14 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error)
 		keyDay := TruncateDay(diagnosisKey.KeyDay)
 		// TODO(helmick) - data validation
 		infection := Infection{
-			DiagnosisKey:     binKey,
-			DiagnosisStatus:  inData.DiagnosisStatus,
-			AppPackageName:   inData.AppPackageName,
-			Regions:          upcaseRegions,
-			FederationSyncId: "0",
-			KeyDay:           keyDay,
-			KeyDuration:      diagnosisKey.KeyDuration,
-			CreatedAt:        createdAt,
-			LocalProvenance:  true, // This is the origin system for this data.
+			DiagnosisKey:    binKey,
+			DiagnosisStatus: inData.DiagnosisStatus,
+			AppPackageName:  inData.AppPackageName,
+			Regions:         upcaseRegions,
+			KeyDay:          keyDay,
+			KeyDuration:     diagnosisKey.KeyDuration,
+			CreatedAt:       createdAt,
+			LocalProvenance: true, // This is the origin system for this data.
 		}
 		entities = append(entities, infection)
 	}

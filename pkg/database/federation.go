@@ -37,6 +37,7 @@ func GetFederationQuery(ctx context.Context, queryID string) (*model.FederationQ
 	return &query, nil
 }
 
+// AddFederationQuery adds a FederationQuery entity. It will overwrite a query with matching queryID if it exists.
 func AddFederationQuery(ctx context.Context, queryID string, query *model.FederationQuery) error {
 	client := Connection()
 	if client == nil {
@@ -51,16 +52,16 @@ func AddFederationQuery(ctx context.Context, queryID string, query *model.Federa
 	return nil
 }
 
-// StartFederationSync stores a historical record of a query sync starting. It returns a syncID, and a FinalizeSyncFn that must be invoked to finalize the historical record.
-func StartFederationSync(ctx context.Context, query *model.FederationQuery) (string, FinalizeSyncFn, error) {
+// StartFederationSync stores a historical record of a query sync starting. It returns a FederationSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
+func StartFederationSync(ctx context.Context, query *model.FederationQuery) (*datastore.Key, FinalizeSyncFn, error) {
 	client := Connection()
 	if client == nil {
-		return "", nil, fmt.Errorf("unable to obtain database client")
+		return nil, nil, fmt.Errorf("unable to obtain database client")
 	}
 
 	key := federationSyncKey(query)
 	if _, err := client.Put(ctx, key, &model.FederationSync{Started: time.Now()}); err != nil {
-		return "", nil, fmt.Errorf("putting initial sync entity for %s: %v", key, err)
+		return nil, nil, fmt.Errorf("putting initial sync entity for %s: %v", key, err)
 	}
 
 	finalize := func(completed, maxTimestamp time.Time, totalInserted int) error {
@@ -96,7 +97,7 @@ func StartFederationSync(ctx context.Context, query *model.FederationQuery) (str
 		}
 		return nil
 	}
-	return key.String(), finalize, nil
+	return key, finalize, nil
 }
 
 func federationQueryKey(queryID string) *datastore.Key {

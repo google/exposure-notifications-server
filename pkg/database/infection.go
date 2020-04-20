@@ -64,6 +64,9 @@ type FetchInfectionsCriteria struct {
 	SinceTimestamp time.Time
 	UntilTimestamp time.Time
 	LastCursor     string
+
+	// OnlyLocalProvenance indicates that only infections with LocalProvenance=true will be returned.
+	OnlyLocalProvenance bool
 }
 
 // InfectionIterator iterates over a set of infections.
@@ -119,7 +122,7 @@ func fetchQuery(criteria FetchInfectionsCriteria) (*datastore.Query, error) {
 		return nil, errors.New("datastore cannot filter on multiple regions")
 	}
 	if len(criteria.IncludeRegions) == 1 {
-		q = q.Filter("Region = ", criteria.IncludeRegions[0])
+		q = q.Filter("Region =", criteria.IncludeRegions[0])
 	}
 
 	if !criteria.SinceTimestamp.IsZero() {
@@ -128,6 +131,10 @@ func fetchQuery(criteria FetchInfectionsCriteria) (*datastore.Query, error) {
 
 	if !criteria.UntilTimestamp.IsZero() {
 		q = q.Filter("CreatedAt <=", criteria.UntilTimestamp)
+	}
+
+	if criteria.OnlyLocalProvenance {
+		q = q.Filter("LocalProvenance =", true)
 	}
 
 	q = q.Order("CreatedAt")

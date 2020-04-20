@@ -100,7 +100,7 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 		logger.Infof("Inserted %d keys", total)
 	}()
 
-	syncID, finalizeFn, err := database.StartFederationSync(ctx, query)
+	syncKey, finalizeFn, err := database.StartFederationSync(ctx, query)
 	if err != nil {
 		return fmt.Errorf("starting federation sync for query %s: %v", queryID, err)
 	}
@@ -133,9 +133,9 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 						// AppPackageName: "",
 						Regions: ctr.RegionIdentifiers,
 						// Platform:         "",
-						FederationSyncId: syncID,
-						KeyDay:           time.Unix(key.Timestamp, 0),
-						CreatedAt:        model.TruncateWindow(time.Now()), // TODO(jasonco): should this be now, or the time this batch started? Should it be truncated at all?
+						FederationSync: syncKey,
+						KeyDay:         time.Unix(key.Timestamp, 0),
+						CreatedAt:      model.TruncateWindow(time.Now()), // TODO(jasonco): should this be now, or the time this batch started? Should it be truncated at all?
 					})
 
 					if len(infections) == database.InsertInfectionsBatchSize {

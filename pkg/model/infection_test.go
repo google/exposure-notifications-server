@@ -66,15 +66,14 @@ func TestTransform(t *testing.T) {
 	batchTimeRounded := time.Date(2020, 3, 1, 10, 30, 0, 0, time.UTC)
 	for i, v := range want {
 		want[i] = Infection{
-			DiagnosisKey:     v.DiagnosisKey,
-			DiagnosisStatus:  2,
-			AppPackageName:   "com.google",
-			Regions:          []string{"US", "CA", "MX"},
-			FederationSyncId: "0",
-			KeyDay:           keyDayRounded,
-			KeyDuration:      0,
-			CreatedAt:        batchTimeRounded,
-			LocalProvenance:  true,
+			DiagnosisKey:    v.DiagnosisKey,
+			DiagnosisStatus: 2,
+			AppPackageName:  "com.google",
+			Regions:         []string{"US", "CA", "MX"},
+			KeyDay:          keyDayRounded,
+			KeyDuration:     0,
+			CreatedAt:       batchTimeRounded,
+			LocalProvenance: true,
 		}
 		keyDayRounded = keyDayRounded.Add(oneDay)
 	}

@@ -47,9 +47,10 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	// TODO(jasonco): Filter out other partner's data; don't re-federate.
 	// TODO(jasonco): moving to CloudSQL will allow this to be simplified.
 	criteria := database.FetchInfectionsCriteria{
-		SinceTimestamp: time.Unix(req.LastFetchResponseKeyTimestamp, 0),
-		UntilTimestamp: fetchUntil,
-		LastCursor:     req.FetchToken,
+		SinceTimestamp:      time.Unix(req.LastFetchResponseKeyTimestamp, 0),
+		UntilTimestamp:      fetchUntil,
+		LastCursor:          req.FetchToken,
+		OnlyLocalProvenance: true, // Do not return results that came from other federation partners.
 	}
 	if len(req.RegionIdentifiers) == 1 {
 		criteria.IncludeRegions = req.RegionIdentifiers
