@@ -42,14 +42,14 @@ type Infection struct {
 	DiagnosisKey    []byte         `datastore:"diagnosisKey,noindex"`
 	DiagnosisStatus int            `datastore:"diagnosisStatus,noindex"`
 	AppPackageName  string         `datastore:"appPackageName,noindex"`
-	Regions         []string       `datastore:"region,noindex"`
+	Regions         []string       `datastore:"region"`
 	FederationSync  *datastore.Key `datastore:"sync,noindex"`
 	IntervalNumber  int64          `datastore:"intervalNumber,noindex"`
 	IntervalCount   int64          `datastore:"intervalCount,noindex"`
 	CreatedAt       time.Time      `datastore:"createdAt"`
 	LocalProvenance bool           `datastore:"localProvenance"`
 	K               *datastore.Key `datastore:"__key__"`
-	// TODO(helmick): Add DiagnosisStatus, VerificationSource
+	// TODO(helmick): Add VerificationSource
 }
 
 const (

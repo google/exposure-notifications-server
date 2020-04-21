@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	serverAddr    = flag.String("server-addr", "localhost:10000", "The server address in the format of host:port")
+	serverAddr    = flag.String("server-addr", "localhost:8080", "The server address in the format of host:port")
 	lastTimestamp = flag.String("last-timestamp", "", "The last timestamp (RFC3339) to set; queries start from this point and go forward.")
 	cursor        = flag.String("cursor", "", "Cursor from previous partial response.")
 )
@@ -28,9 +28,13 @@ func main() {
 	flag.Var(&excludeRegions, "exclude-regions", "A comma-separated list fo regions to exclude from the query.")
 	flag.Parse()
 
-	lastTime, err := time.Parse(time.RFC3339, *lastTimestamp)
-	if err != nil {
-		log.Fatalf("failed to parse --last-timestamp (use RFC3339): %v", err)
+	var lastTime time.Time
+	var err error
+	if *lastTimestamp != "" {
+		lastTime, err = time.Parse(time.RFC3339, *lastTimestamp)
+		if err != nil {
+			log.Fatalf("failed to parse --last-timestamp (use RFC3339): %v", err)
+		}
 	}
 
 	request := &pb.FederationFetchRequest{
@@ -54,5 +58,16 @@ func main() {
 		log.Fatalf("Error calling fetch: %v", err)
 	}
 
-	log.Printf("Result:\n%#v\n", response)
+	for _, ctr := range response.Response {
+		log.Printf("%v", ctr.RegionIdentifiers)
+		for _, cti := range ctr.ContactTracingInfo {
+			log.Printf("    %s", cti.DiagnosisStatus)
+			for _, dk := range cti.DiagnosisKeys {
+				log.Printf("        {[bytes] number %d count %d}", dk.IntervalNumber, dk.IntervalCount)
+			}
+		}
+	}
+	log.Printf("partialResponse: %t", response.PartialResponse)
+	log.Printf("nextFetchToken:  %s", response.NextFetchToken)
+	log.Printf("fetchResponseKeyTimestamp: %d", response.FetchResponseKeyTimestamp)
 }
