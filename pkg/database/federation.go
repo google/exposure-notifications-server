@@ -59,8 +59,9 @@ func StartFederationSync(ctx context.Context, query *model.FederationQuery) (*da
 		return nil, nil, fmt.Errorf("unable to obtain database client")
 	}
 
-	key := federationSyncKey(query)
-	if _, err := client.Put(ctx, key, &model.FederationSync{Started: time.Now()}); err != nil {
+	keyIncomplete := federationSyncIncompleteKey(query)
+	key, err := client.Put(ctx, keyIncomplete, &model.FederationSync{Started: time.Now()})
+	if err != nil {
 		return nil, nil, fmt.Errorf("putting initial sync entity for %s: %v", key, err)
 	}
 
@@ -74,7 +75,7 @@ func StartFederationSync(ctx context.Context, query *model.FederationQuery) (*da
 				return fmt.Errorf("getting query %s: %v", queryKey, errg)
 			}
 			query.LastTimestamp = maxTimestamp
-			if _, errp := tx.Put(queryKey, query); errp != nil {
+			if _, errp := tx.Put(queryKey, &query); errp != nil {
 				return fmt.Errorf("putting updated query %s: %v", queryKey, errp)
 			}
 
@@ -104,7 +105,7 @@ func federationQueryKey(queryID string) *datastore.Key {
 	return datastore.NameKey(model.FederationQueryTable, queryID, nil)
 }
 
-func federationSyncKey(query *model.FederationQuery) *datastore.Key {
+func federationSyncIncompleteKey(query *model.FederationQuery) *datastore.Key {
 	// FederationSync keys have ancestor of FederationQuery so they can be updated together in transaction.
 	return datastore.IncompleteKey(model.FederationSyncTable, query.K)
 }

@@ -118,22 +118,26 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 
 		// If the diagnosis key is empty, it's malformed, so skip it.
 		if len(inf.DiagnosisKey) == 0 {
+			logger.Debugf("Infection %s missing DiagnosisKey, skipping.", inf.K)
 			continue
 		}
 
 		// If there are no regions on the infection, it's malformed, so skip it.
 		if len(inf.Regions) == 0 {
+			logger.Debugf("Infection %s missing Regions, skipping.", inf.K)
 			continue
 		}
 
 		// Filter out non-LocalProvenance results; we should not re-federate.
 		// This may already be handled by the database query and is included here for completeness.
 		if !inf.LocalProvenance {
+			logger.Debugf("Infection %s not LocalProvenance, skipping.", inf.K)
 			continue
 		}
 
 		// If the infection has an unknown status, it's malformed, so skip it.
 		if _, ok := pb.DiagnosisStatus_name[int32(inf.DiagnosisStatus)]; !ok {
+			logger.Debugf("Infection %s has invalid DiagnosisStatus, skipping.", inf.K)
 			continue
 		}
 
@@ -148,6 +152,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 			}
 		}
 		if skip {
+			logger.Debugf("Infection %s contains only excluded regions, skipping.", inf.K)
 			continue
 		}
 
@@ -162,6 +167,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 				}
 			}
 			if skip {
+				logger.Debugf("Infection %s does not contain requested regions, skipping.", inf.K)
 				continue
 			}
 		}

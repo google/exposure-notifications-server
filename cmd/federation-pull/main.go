@@ -15,6 +15,8 @@ import (
 )
 
 var (
+	portEnvVar     = "PORT"
+	defaultPort    = "8080"
 	timeoutEnvVar  = "PULL_TIMEOUT"
 	defaultTimeout = 5 * time.Minute
 )
@@ -22,6 +24,12 @@ var (
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
+
+	port := os.Getenv(portEnvVar)
+	if port == "" {
+		port = defaultPort
+	}
+	logger.Infof("Using port %s (override with $%s)", port, portEnvVar)
 
 	timeout := defaultTimeout
 	if timeoutStr := os.Getenv(timeoutEnvVar); timeoutStr != "" {
@@ -41,5 +49,5 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/", api.HandleFederationPull(timeout))
 	logger.Info("starting federation puller")
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Fatal(http.ListenAndServe(":"+port, router))
 }
