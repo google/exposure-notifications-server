@@ -52,7 +52,7 @@ func Lock(ctx context.Context, name string, ttl time.Duration) (UnlockFn, error)
 		}
 		return ErrAlreadyLocked
 
-	}, nil)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func Lock(ctx context.Context, name string, ttl time.Duration) (UnlockFn, error)
 				return fmt.Errorf("deleting lock %s: %v", key, err1)
 			}
 			return nil
-		}, nil)
+		})
 		if err != nil {
 			return err
 		}

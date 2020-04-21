@@ -13,14 +13,14 @@ import (
 )
 
 var (
-	validQueryIDStr    = `\A[a-z][a-z0-9-_]*[a-z9-0]\z`
+	validQueryIDStr    = `\A[a-z][a-z0-9-_]*[a-z0-9]\z`
 	validQueryIDRegexp = regexp.MustCompile(validQueryIDStr)
 
-	validServerAddrStr    = `\Ahttps://.+\z`
+	validServerAddrStr    = `\A[a-z0-9.-]+(:\d+)?\z`
 	validServerAddrRegexp = regexp.MustCompile(validServerAddrStr)
 
 	queryID       = flag.String("query-id", "", "(Required) The ID of the federation query to set.")
-	serverAddr    = flag.String("server-addr", "", "(Required) The address of the remote server, in the form https://some-server/some-endpoint.")
+	serverAddr    = flag.String("server-addr", "", "(Required) The address of the remote server, in the form some-server:some-port")
 	lastTimestamp = flag.String("last-timestamp", "", "The last timestamp (RFC3339) to set; queries start from this point and go forward.")
 )
 
@@ -43,9 +43,17 @@ func main() {
 		log.Fatalf("server-addr %q must match %s", *serverAddr, validServerAddrStr)
 	}
 
-	lastTime, err := time.Parse(time.RFC3339, *lastTimestamp)
-	if err != nil {
-		log.Fatalf("failed to parse --last-timestamp (use RFC3339): %v", err)
+	if err := database.Initialize(); err != nil {
+		log.Fatalf("unable to connect to database: %v", err)
+	}
+
+	var lastTime time.Time
+	if *lastTimestamp != "" {
+		var err error
+		lastTime, err = time.Parse(time.RFC3339, *lastTimestamp)
+		if err != nil {
+			log.Fatalf("failed to parse --last-timestamp (use RFC3339): %v", err)
+		}
 	}
 
 	query := &model.FederationQuery{

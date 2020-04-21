@@ -107,7 +107,7 @@ func IterateInfections(ctx context.Context, criteria FetchInfectionsCriteria) (I
 	if err != nil {
 		return nil, fmt.Errorf("generating query: %v", err)
 	}
-	logger.Infof("Querying with %#v", query)
+	logger.Debugf("Querying with %#v", query)
 
 	client := Connection()
 	if client == nil {

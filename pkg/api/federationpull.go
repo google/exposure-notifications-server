@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	queryParam = "query_id"
+	queryParam = "query-id"
 )
 
 // HandleFederationPull returns a handler that will fetch server-to-server federation results for a single federation query.
@@ -107,6 +107,7 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 
 	batchStart := model.TruncateWindow(time.Now())
 	var maxTimestamp time.Time
+
 	partial := true
 	for partial {
 
