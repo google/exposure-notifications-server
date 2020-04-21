@@ -105,6 +105,7 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 		return fmt.Errorf("starting federation sync for query %s: %v", queryID, err)
 	}
 
+	batchStart := model.TruncateWindow(time.Now())
 	var maxTimestamp time.Time
 	partial := true
 	for partial {
@@ -135,10 +136,8 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 						FederationSync:  syncKey,
 						IntervalNumber:  key.IntervalNumber,
 						IntervalCount:   key.IntervalCount,
-						CreatedAt:       model.TruncateWindow(time.Now()), // TODO(jasonco): should this be now, or the time this batch started? Should it be truncated at all?
+						CreatedAt:       batchStart,
 						LocalProvenance: false,
-						// AppPackageName: "",
-						// Platform:         "",
 					})
 
 					if len(infections) == database.InsertInfectionsBatchSize {

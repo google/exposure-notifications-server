@@ -102,10 +102,12 @@ func (i *datastoreInfectionIterator) Cursor() (string, error) {
 
 // IterateInfections returns an iterator for infections meeting the criteria.
 func IterateInfections(ctx context.Context, criteria FetchInfectionsCriteria) (InfectionIterator, error) {
+	logger := logging.FromContext(ctx)
 	query, err := fetchQuery(criteria)
 	if err != nil {
 		return nil, fmt.Errorf("generating query: %v", err)
 	}
+	logger.Infof("Querying with %#v", query)
 
 	client := Connection()
 	if client == nil {
@@ -122,22 +124,22 @@ func fetchQuery(criteria FetchInfectionsCriteria) (*datastore.Query, error) {
 		return nil, errors.New("datastore cannot filter on multiple regions")
 	}
 	if len(criteria.IncludeRegions) == 1 {
-		q = q.Filter("Region =", criteria.IncludeRegions[0])
+		q = q.Filter("region =", criteria.IncludeRegions[0])
 	}
 
 	if !criteria.SinceTimestamp.IsZero() {
-		q = q.Filter("CreatedAt >", criteria.SinceTimestamp)
+		q = q.Filter("createdAt >", criteria.SinceTimestamp)
 	}
 
 	if !criteria.UntilTimestamp.IsZero() {
-		q = q.Filter("CreatedAt <=", criteria.UntilTimestamp)
+		q = q.Filter("createdAt <=", criteria.UntilTimestamp)
 	}
 
 	if criteria.OnlyLocalProvenance {
-		q = q.Filter("LocalProvenance =", true)
+		q = q.Filter("localProvenance =", true)
 	}
 
-	q = q.Order("CreatedAt")
+	q = q.Order("createdAt")
 
 	if criteria.LastCursor != "" {
 		c, err := datastore.DecodeCursor(criteria.LastCursor)

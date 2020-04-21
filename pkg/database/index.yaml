@@ -2,6 +2,11 @@ indexes:
 
 - kind: infection
   properties:
-  - name: LocalProvenance
-  - name: Region
-  - name: CreatedAt
+  - name: localProvenance
+  - name: region
+  - name: createdAt
+
+- kind: infection
+  properties:
+  - name: localProvenance
+  - name: createdAt
