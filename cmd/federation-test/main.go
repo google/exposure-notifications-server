@@ -40,7 +40,7 @@ func main() {
 	request := &pb.FederationFetchRequest{
 		RegionIdentifiers:             includeRegions,
 		ExcludeRegionIdentifiers:      excludeRegions,
-		FetchToken:                    *cursor,
+		NextFetchToken:                *cursor,
 		LastFetchResponseKeyTimestamp: lastTime.Unix(),
 	}
 
@@ -51,6 +51,7 @@ func main() {
 	}
 	defer conn.Close()
 
+	total := 0
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	response, err := pb.NewFederationClient(conn).Fetch(ctx, request)
@@ -61,8 +62,9 @@ func main() {
 	for _, ctr := range response.Response {
 		log.Printf("%v", ctr.RegionIdentifiers)
 		for _, cti := range ctr.ContactTracingInfo {
-			log.Printf("    %s", cti.DiagnosisStatus)
+			log.Printf("    (%s, %q)", cti.DiagnosisStatus, cti.VerificationAuthorityName)
 			for _, dk := range cti.DiagnosisKeys {
+				total++
 				log.Printf("        {[bytes] number %d count %d}", dk.IntervalNumber, dk.IntervalCount)
 			}
 		}
@@ -70,4 +72,5 @@ func main() {
 	log.Printf("partialResponse: %t", response.PartialResponse)
 	log.Printf("nextFetchToken:  %s", response.NextFetchToken)
 	log.Printf("fetchResponseKeyTimestamp: %d", response.FetchResponseKeyTimestamp)
+	log.Printf("number records:  %d", total)
 }

@@ -131,14 +131,15 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 			for _, cti := range ctr.ContactTracingInfo {
 				for _, key := range cti.DiagnosisKeys {
 					infections = append(infections, model.Infection{
-						DiagnosisStatus: int(cti.DiagnosisStatus),
-						DiagnosisKey:    key.DiagnosisKey,
-						Regions:         ctr.RegionIdentifiers,
-						FederationSync:  syncKey,
-						IntervalNumber:  key.IntervalNumber,
-						IntervalCount:   key.IntervalCount,
-						CreatedAt:       batchStart,
-						LocalProvenance: false,
+						DiagnosisStatus:           int(cti.DiagnosisStatus),
+						DiagnosisKey:              key.DiagnosisKey,
+						Regions:                   ctr.RegionIdentifiers,
+						FederationSync:            syncKey,
+						IntervalNumber:            key.IntervalNumber,
+						IntervalCount:             key.IntervalCount,
+						CreatedAt:                 batchStart,
+						LocalProvenance:           false,
+						VerificationAuthorityName: cti.VerificationAuthorityName,
 					})
 
 					if len(infections) == database.InsertInfectionsBatchSize {
@@ -163,7 +164,7 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 		}
 
 		partial = response.PartialResponse
-		request.FetchToken = response.NextFetchToken
+		request.NextFetchToken = response.NextFetchToken
 	}
 
 	if err := finalizeFn(time.Now(), maxTimestamp, total); err != nil {

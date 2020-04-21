@@ -67,6 +67,13 @@ func main() {
 		{"CA", "MX"},
 	}
 
+	// verificationAuth for a key are assigned randomly
+	verificationAuthorityNames := []string{
+		"",
+		"AAA Health",
+		"BBB Labs",
+	}
+
 	n, err := rand.Int(rand.Reader, big.NewInt(3))
 	if err != nil {
 		log.Fatalf("rand.Int: %v", err)
@@ -75,13 +82,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("rand.Int: %v", err)
 	}
+	authNameIdx, err := rand.Int(rand.Reader, big.NewInt(int64(len(verificationAuthorityNames))))
+	if err != nil {
+		log.Fatalf("rand.Int: %v", err)
+	}
 
 	data := model.Publish{
-		Keys:            diagnosisKeys,
-		Regions:         regions[regionIdx.Int64()],
-		AppPackageName:  "com.google.android",
-		DiagnosisStatus: int(n.Int64()),
-		Verification:    "",
+		Keys:                      diagnosisKeys,
+		Regions:                   regions[regionIdx.Int64()],
+		AppPackageName:            "com.google.android",
+		DiagnosisStatus:           int(n.Int64()),
+		Verification:              "",
+		VerificationAuthorityName: verificationAuthorityNames[authNameIdx.Int64()],
 	}
 
 	jsonData, err := json.Marshal(data)
