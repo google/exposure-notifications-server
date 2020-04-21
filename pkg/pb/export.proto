@@ -17,7 +17,7 @@ message DiagnosisKeyExport {
 		// E.g., assuming 10 min intervals a key from 2020-04-19 and
 		// only good until 1 pm might have intervalStart = 2645424
 		// and intervalCount = 78
-		int64 intervalNumber = 2;
-		int64 intervalCount = 3;
+		int32 intervalNumber = 2;
+		int32 intervalCount = 3;
 	}
 }

@@ -38,8 +38,8 @@ enum DiagnosisStatus {
 
 message DiagnosisKey {
 	bytes diagnosisKey = 1; // required
-	int64 intervalNumber = 2; // required
-	int64 intervalCount = 3; // required
+	int32 intervalNumber = 2; // required
+	int32 intervalCount = 3; // required
 }
 
 service Federation {

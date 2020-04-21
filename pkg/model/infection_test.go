@@ -9,9 +9,9 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func IntervalNumber(t time.Time) int64 {
+func IntervalNumber(t time.Time) int32 {
 	tenMin, _ := time.ParseDuration("10m")
-	return t.Truncate(tenMin).Unix() / int64(tenMin.Seconds())
+	return int32(t.Truncate(tenMin).Unix()) / int32(tenMin.Seconds())
 }
 
 func TestInvalidBase64(t *testing.T) {

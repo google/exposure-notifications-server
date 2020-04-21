@@ -38,7 +38,7 @@ func makeInfection(diagKey *pb.DiagnosisKey, diagStatus pb.DiagnosisStatus, regi
 		DiagnosisStatus: int(diagStatus),
 		DiagnosisKey:    diagKey.DiagnosisKey,
 		IntervalNumber:  diagKey.IntervalNumber,
-		CreatedAt:       time.Unix(diagKey.IntervalNumber*100, 0), // Make unique from IntervalNumber.
+		CreatedAt:       time.Unix(int64(diagKey.IntervalNumber*100), 0), // Make unique from IntervalNumber.
 		LocalProvenance: true,
 	}
 }

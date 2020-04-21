@@ -23,12 +23,12 @@ var (
 	numKeys = flag.Int("num", 1, "number of keys to generate -num=1")
 )
 
-func randIntervalCount() int64 {
+func randIntervalCount() int32 {
 	n, err := rand.Int(rand.Reader, big.NewInt(144))
 	if err != nil {
 		log.Fatalf("rand.Int: %v", err)
 	}
-	return n.Int64() + 1 // valid values are 1-144
+	return int32(n.Int64() + 1) // valid values are 1-144
 }
 
 // This is a simple tester to call the infection API.
@@ -46,7 +46,7 @@ func main() {
 
 	// When publishing multiple keys - they'll be on different days.
 	intervalCount := randIntervalCount()
-	intervalNumber := time.Now().Unix()/600 - intervalCount
+	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
 
 	diagnosisKeys := make([]model.DiagnosisKey, *numKeys)
 	for i, rawKey := range keys {

@@ -30,8 +30,8 @@ type Publish struct {
 // duration of the key. A duration of 0 means 24 hours.
 type DiagnosisKey struct {
 	Key            string `json:"key"`
-	IntervalNumber int64  `json:"intervalNumber"`
-	IntervalCount  int64  `json:"intervalCount"`
+	IntervalNumber int32  `json:"intervalNumber"`
+	IntervalCount  int32  `json:"intervalCount"`
 }
 
 // Infection represents the record as storedin the database
@@ -46,8 +46,8 @@ type Infection struct {
 	AppPackageName            string         `datastore:"appPackageName,noindex"`
 	Regions                   []string       `datastore:"region"`
 	FederationSync            *datastore.Key `datastore:"sync,noindex"`
-	IntervalNumber            int64          `datastore:"intervalNumber,noindex"`
-	IntervalCount             int64          `datastore:"intervalCount,noindex"`
+	IntervalNumber            int32          `datastore:"intervalNumber,noindex"`
+	IntervalCount             int32          `datastore:"intervalCount,noindex"`
 	CreatedAt                 time.Time      `datastore:"createdAt"`
 	LocalProvenance           bool           `datastore:"localProvenance"`
 	VerificationAuthorityName string         `datastore:"verificationAuthName,noindex"`
@@ -64,7 +64,7 @@ func TruncateWindow(t time.Time) time.Time {
 	return t.Truncate(createWindow)
 }
 
-func correctIntervalCount(count int64) int64 {
+func correctIntervalCount(count int32) int32 {
 	if count <= 0 || count > maxIntervalCount {
 		return maxIntervalCount
 	}
