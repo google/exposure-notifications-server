@@ -9,8 +9,6 @@ import (
 )
 
 const (
-	// InfectionTable holds uploaded infected keys.
-	InfectionTable = "infection"
 	// Intervals are defined as 10 minute periods, there are 144 of them in a day.
 	maxIntervalCount = 144
 )
