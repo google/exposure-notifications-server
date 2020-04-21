@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"os"
@@ -10,11 +11,12 @@ import (
 	"cambio/pkg/logging"
 )
 
-const ttlEnvVar = "TTL_DURATION"
-const MIN_CUTOFF_DURATION = "10d"
+const (
+	ttlEnvVar         = "TTL_DURATION"
+	minCutoffDuration = "10d"
+)
 
-func HandleWipeout() http.HandlerFunc {
-	// TODO(lmohanan) Add timeout handling
+func HandleWipeout(timeout time.Duration) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		logger := logging.FromContext(ctx)
@@ -29,7 +31,7 @@ func HandleWipeout() http.HandlerFunc {
 		}
 
 		// Parse and Validate min ttl duration string.
-		minTtl, err := getAndValidateDuration(MIN_CUTOFF_DURATION)
+		minTtl, err := getAndValidateDuration(minCutoffDuration)
 		if err != nil {
 			logger.Errorf("min ttl const error: %v", err)
 			http.Error(w, "internal processing error", http.StatusInternalServerError)
@@ -47,8 +49,12 @@ func HandleWipeout() http.HandlerFunc {
 		cutoff := time.Now().Add(-ttlDuration)
 		logger.Infof("Starting wipeout for records older than %v", cutoff.UTC())
 
+		// Set timeout
+		timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+
 		// Get wipeout keys older than cutoff timestamp
-		wipeoutKeys, err := database.FilterKeysOnly(ctx, cutoff)
+		wipeoutKeys, err := database.FilterKeysOnly(timeoutCtx, cutoff)
 		if err != nil {
 			logger.Errorf("error getting wipeout keys: %v", err)
 			// TODO(lmohanan): Work out error codes depending on cloud run retry behavior
@@ -65,7 +71,7 @@ func HandleWipeout() http.HandlerFunc {
 		}
 
 		// Delete wipeout keys older than cutoff
-		count, err := database.DeleteDiagnosisKeys(ctx, wipeoutKeys)
+		count, err := database.DeleteDiagnosisKeys(timeoutCtx, wipeoutKeys)
 		if err != nil {
 			logger.Errorf("error completing wipeout: %v", err)
 			if count == 0 {
@@ -79,6 +85,11 @@ func HandleWipeout() http.HandlerFunc {
 				http.Error(w, "partial success", http.StatusMultiStatus)
 				return
 			}
+		}
+
+		if timeoutCtx.Err() != nil && timeoutCtx.Err() == context.DeadlineExceeded {
+			logger.Infof("wipeout run timed out at %v.", timeout)
+			return
 		}
 
 		//TODO(lmohanan) add a metric for key count and deleted count.
