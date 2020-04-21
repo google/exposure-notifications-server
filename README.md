@@ -10,6 +10,20 @@ Common code goes in `/pkg`
 
 Each binary will have main in `/cmd/[bin-name]`
 
+# Dependencies
+1. This project requires protoc.
+  - Mac: `brew install protobuf`
+  - Linux: `apt-get install protobuf-compiler`
+  - Source: https://github.com/protocolbuffers/protobuf/releases
+1. Install protoc-gen-go `go get -u github.com/golang/protobuf/protoc-gen-go`
+1. Install `go install golang.org/x/tools/cmd/goimports`
+1. You may need to update your path to include these tools
+
+```
+export PATH=$PATH:$HOME/go/bin, in order to add the GOPATH and
+export PATH=$PATH:/usr/local/go/bin, in order to add GOROOT
+```
+
 # Running locally
 
 1. (One time only) Create a dev service account and add the credentials to `./local/sa.json`
@@ -25,6 +39,19 @@ source scripts/setup_env.sh
 ```
 go run ./cmd/[bin-name]
 ```
+
+# Code Reviews
+
+1. Before creating a code review, you can run the presubmits at scripts/presubmit.sh
+
+1. You can add a prepush hook by linking to the script:
+
+```
+# From Repository Root
+❯ ln -s -f ../../scripts/presubmit.sh .git/hooks/pre-push
+❯ chmod a+x .git/hooks/pre-push
+```
+
 
 # Building / publishing images
 
