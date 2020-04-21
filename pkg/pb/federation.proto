@@ -3,12 +3,13 @@ syntax = "proto3";
 option go_package = "pkg/pb;pb";
 
 message FederationFetchRequest {
-	repeated string regionIdentifiers = 1;
-	repeated string excludeRegionIdentifiers = 2;
-	int64 lastFetchResponseKeyTimestamp = 3;
+	string fetchType = 1; // required
+	repeated string regionIdentifiers = 2;
+	repeated string excludeRegionIdentifiers = 3;
+	int64 lastFetchResponseKeyTimestamp = 4; // required
 
 	// regionIdentifiers, excludeRegionIdentifiers, lastFetchResponseKeyTimestamp must be stable to send a fetchToken.
-	string fetchToken = 4;
+	string nextFetchToken = 5;
 }
 
 message FederationFetchResponse {
@@ -26,6 +27,7 @@ message ContactTracingResponse {
 message ContactTracingInfo {
 	DiagnosisStatus diagnosisStatus = 1;  // required
 	repeated DiagnosisKey diagnosisKeys = 2;
+	string verificationAuthorityName = 3;  // TODO(jasonco): need to group on this.
 }
 
 enum DiagnosisStatus {

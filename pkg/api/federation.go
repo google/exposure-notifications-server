@@ -49,14 +49,14 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	criteria := database.FetchInfectionsCriteria{
 		SinceTimestamp:      time.Unix(req.LastFetchResponseKeyTimestamp, 0),
 		UntilTimestamp:      fetchUntil,
-		LastCursor:          req.FetchToken,
+		LastCursor:          req.NextFetchToken,
 		OnlyLocalProvenance: true, // Do not return results that came from other federation partners.
 	}
 	if len(req.RegionIdentifiers) == 1 {
 		criteria.IncludeRegions = req.RegionIdentifiers
 	}
 
-	logger.Infof("Processing request Regions:%v Excluding:%v Since:%v Until:%v HasCursor:%t", req.RegionIdentifiers, req.ExcludeRegionIdentifiers, criteria.SinceTimestamp, criteria.UntilTimestamp, req.FetchToken != "")
+	logger.Infof("Processing request Regions:%v Excluding:%v Since:%v Until:%v HasCursor:%t", req.RegionIdentifiers, req.ExcludeRegionIdentifiers, criteria.SinceTimestamp, criteria.UntilTimestamp, req.NextFetchToken != "")
 
 	// Filter included countries in memory.
 	// TODO(jasonco): move to database query if/when Cloud SQL.
@@ -78,6 +78,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	}
 
 	ctrMap := map[string]*pb.ContactTracingResponse{} // local index into the response being assembled; keyed on unique set of regions.
+	ctiMap := map[string]*pb.ContactTracingInfo{}     // local index into the response being assembled; keys on unique set of (ctrMap key, diagnosisStatus, verificationAuthorityName)
 	response := &pb.FederationFetchResponse{}
 
 	for !response.PartialResponse { // This loop will end on break, or if the context is interrupted and we send a partial response.
@@ -182,17 +183,13 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 			response.Response = append(response.Response, ctr)
 		}
 
-		// Find the ContactTracingInfo corresponding to the diagnosis status. There are only a few statuses, so we linear search.
+		// Find, or create, the ContactTracingInfo for (ctrKey, diagnosisStatus, verificationAuthorityName).
 		status := pb.DiagnosisStatus(inf.DiagnosisStatus)
-		var cti *pb.ContactTracingInfo
-		for _, info := range ctr.ContactTracingInfo {
-			if info.DiagnosisStatus == status {
-				cti = info
-				break
-			}
-		}
+		ctiKey := fmt.Sprintf("%s::%d::%s", ctrKey, status, inf.VerificationAuthorityName)
+		cti := ctiMap[ctiKey]
 		if cti == nil {
-			cti = &pb.ContactTracingInfo{DiagnosisStatus: status}
+			cti = &pb.ContactTracingInfo{DiagnosisStatus: status, VerificationAuthorityName: inf.VerificationAuthorityName}
+			ctiMap[ctiKey] = cti
 			ctr.ContactTracingInfo = append(ctr.ContactTracingInfo, cti)
 		}
 

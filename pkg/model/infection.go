@@ -22,6 +22,8 @@ type Publish struct {
 	AppPackageName  string         `json:"appPackageName"`
 	DiagnosisStatus int            `json:"diagnosisStatus"`
 	Verification    string         `json:"verificationPayload"`
+	// TODO(helmick): validate this field
+	VerificationAuthorityName string `json:"verificationAuthorityName"`
 }
 
 // DiagnosisKey is the 16 byte key, the start time of the key and the
@@ -39,17 +41,17 @@ type DiagnosisKey struct {
 // from direct access.
 // Mark records as writable/nowritable - is diagnosis key encrypted
 type Infection struct {
-	DiagnosisKey    []byte         `datastore:"diagnosisKey,noindex"`
-	DiagnosisStatus int            `datastore:"diagnosisStatus,noindex"`
-	AppPackageName  string         `datastore:"appPackageName,noindex"`
-	Regions         []string       `datastore:"region"`
-	FederationSync  *datastore.Key `datastore:"sync,noindex"`
-	IntervalNumber  int64          `datastore:"intervalNumber,noindex"`
-	IntervalCount   int64          `datastore:"intervalCount,noindex"`
-	CreatedAt       time.Time      `datastore:"createdAt"`
-	LocalProvenance bool           `datastore:"localProvenance"`
-	K               *datastore.Key `datastore:"__key__"`
-	// TODO(helmick): Add VerificationSource
+	DiagnosisKey              []byte         `datastore:"diagnosisKey,noindex"`
+	DiagnosisStatus           int            `datastore:"diagnosisStatus,noindex"`
+	AppPackageName            string         `datastore:"appPackageName,noindex"`
+	Regions                   []string       `datastore:"region"`
+	FederationSync            *datastore.Key `datastore:"sync,noindex"`
+	IntervalNumber            int64          `datastore:"intervalNumber,noindex"`
+	IntervalCount             int64          `datastore:"intervalCount,noindex"`
+	CreatedAt                 time.Time      `datastore:"createdAt"`
+	LocalProvenance           bool           `datastore:"localProvenance"`
+	VerificationAuthorityName string         `datastore:"verificationAuthName,noindex"`
+	K                         *datastore.Key `datastore:"__key__"`
 }
 
 const (
@@ -87,14 +89,15 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error)
 		}
 		// TODO(helmick) - data validation
 		infection := Infection{
-			DiagnosisKey:    binKey,
-			DiagnosisStatus: inData.DiagnosisStatus,
-			AppPackageName:  inData.AppPackageName,
-			Regions:         upcaseRegions,
-			IntervalNumber:  diagnosisKey.IntervalNumber,
-			IntervalCount:   correctIntervalCount(diagnosisKey.IntervalCount),
-			CreatedAt:       createdAt,
-			LocalProvenance: true, // This is the origin system for this data.
+			DiagnosisKey:              binKey,
+			DiagnosisStatus:           inData.DiagnosisStatus,
+			AppPackageName:            inData.AppPackageName,
+			Regions:                   upcaseRegions,
+			IntervalNumber:            diagnosisKey.IntervalNumber,
+			IntervalCount:             correctIntervalCount(diagnosisKey.IntervalCount),
+			CreatedAt:                 createdAt,
+			LocalProvenance:           true, // This is the origin system for this data.
+			VerificationAuthorityName: strings.ToUpper(strings.TrimSpace(inData.VerificationAuthorityName)),
 		}
 		entities = append(entities, infection)
 	}
