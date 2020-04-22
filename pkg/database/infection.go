@@ -18,20 +18,32 @@ import (
 	"cambio/pkg/logging"
 	"cambio/pkg/model"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
 
 	"cloud.google.com/go/datastore"
 	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
+	// InfectionTable holds uploaded infected keys.
+	InfectionTable = "infection"
+
 	defaultFetchInfectionsPageSize = 1000
 
 	// InsertInfectionsBatchSize is the maximum number of infections that can be inserted at once.
 	InsertInfectionsBatchSize = 500
 )
+
+// makeInfectionDatastoreKey turns a DiagnosisKey (16 bytes) into a datastore key,
+// which is just the standard base64 encoding for those bytes.
+func makeInfectionDatastoreKey(diagnosisKey []byte) *datastore.Key {
+	return datastore.NameKey(InfectionTable, base64.StdEncoding.EncodeToString(diagnosisKey), nil)
+}
 
 // InsertInfections adds a set of infections to the database.
 func InsertInfections(ctx context.Context, infections []model.Infection) error {
@@ -46,16 +58,36 @@ func InsertInfections(ctx context.Context, infections []model.Infection) error {
 		return fmt.Errorf("batch size %d too large (maximum %d)", len(infections), InsertInfectionsBatchSize)
 	}
 
-	// Using auto keys
-	keys := make([]*datastore.Key, 0, len(infections))
-	for range infections {
-		keys = append(keys, datastore.IncompleteKey(model.InfectionTable, nil))
+	// Use datastore's batch loading functionality. By bundling inserts in
+	// a non-transactional batch - each individual update will be transactional,
+	// but we don't need to take locks over the entier enntity group.
+	mutations := make([]*datastore.Mutation, 0, len(infections))
+	for _, inf := range infections {
+		inf.K = makeInfectionDatastoreKey(inf.DiagnosisKey)
+		mutations = append(mutations, datastore.NewInsert(inf.K, &inf))
 	}
-	logger.Infof("Writing %v records", len(infections))
 
-	_, err := client.PutMulti(ctx, keys, infections)
+	logger.Infof("Writing %v records", len(mutations))
+	_, err := client.Mutate(ctx, mutations...)
+	if err != nil {
+		logger.Errorf("client.Mutate: %v", err)
+		var mError datastore.MultiError
+		if status.Code(err) == codes.AlreadyExists {
+			logger.Infof("datastore library bug - didn't get multi-error, but did get codes.AlreadyExists.")
+		} else if errors.As(err, &mError) {
+			duplicateKeys := 0
+			for _, e := range mError {
+				if status.Code(e) != codes.AlreadyExists {
+					return err
+				} else {
+					duplicateKeys++
+				}
+			}
+			logger.Infof("Dropped %v duplicate keys in the batch of %v keys", duplicateKeys, len(mutations))
+		}
+	}
 
-	return err
+	return nil
 }
 
 func GetInfections(ctx context.Context) ([]model.Infection, error) {
@@ -132,7 +164,7 @@ func IterateInfections(ctx context.Context, criteria FetchInfectionsCriteria) (I
 }
 
 func fetchQuery(criteria FetchInfectionsCriteria) (*datastore.Query, error) {
-	q := datastore.NewQuery(model.InfectionTable)
+	q := datastore.NewQuery(InfectionTable)
 
 	if len(criteria.IncludeRegions) > 1 {
 		return nil, errors.New("datastore cannot filter on multiple regions")

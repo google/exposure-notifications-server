@@ -35,6 +35,7 @@ const dkLen = 16
 var (
 	url     = flag.String("url", "http://localhost:8080", "http(s) destination to send test record")
 	numKeys = flag.Int("num", 1, "number of keys to generate -num=1")
+	twice   = flag.Bool("twice", false, "send the same request twice w/ delay")
 )
 
 func randIntervalCount() int32 {
@@ -115,6 +116,21 @@ func main() {
 		log.Fatalf("unable to marshal json payload")
 	}
 
+	sendRequest(jsonData)
+
+	log.Printf("wrote %v keys", len(keys))
+	for i, key := range keys {
+		log.Printf(" %v | %v", key, diagnosisKeys[i].Key)
+	}
+
+	if *twice {
+		time.Sleep(1 * time.Second)
+		log.Printf("sending the request again...")
+		sendRequest(jsonData)
+	}
+}
+
+func sendRequest(jsonData []byte) {
 	r, err := http.NewRequest("POST", *url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Fatalf("error creating http request, %v", err)
@@ -128,8 +144,5 @@ func main() {
 	defer resp.Body.Close()
 
 	log.Printf("response: %v", resp.Status)
-	log.Printf("wrote %v keys", len(keys))
-	for _, key := range keys {
-		log.Printf("  %v", key)
-	}
+
 }
