@@ -39,10 +39,10 @@ const (
 	InsertInfectionsBatchSize = 500
 )
 
-// makeInfectionDatastoreKey turns a DiagnosisKey (16 bytes) into a datastore key,
+// makeInfectionDatastoreKey turns a ExposureKey (16 bytes) into a datastore key,
 // which is just the standard base64 encoding for those bytes.
-func makeInfectionDatastoreKey(diagnosisKey []byte) *datastore.Key {
-	return datastore.NameKey(InfectionTable, base64.StdEncoding.EncodeToString(diagnosisKey), nil)
+func makeInfectionDatastoreKey(ExposureKey []byte) *datastore.Key {
+	return datastore.NameKey(InfectionTable, base64.StdEncoding.EncodeToString(ExposureKey), nil)
 }
 
 // InsertInfections adds a set of infections to the database.
@@ -63,7 +63,7 @@ func InsertInfections(ctx context.Context, infections []model.Infection) error {
 	// but we don't need to take locks over the entier enntity group.
 	mutations := make([]*datastore.Mutation, 0, len(infections))
 	for _, inf := range infections {
-		inf.K = makeInfectionDatastoreKey(inf.DiagnosisKey)
+		inf.K = makeInfectionDatastoreKey(inf.ExposureKey)
 		mutations = append(mutations, datastore.NewInsert(inf.K, &inf))
 	}
 

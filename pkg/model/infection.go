@@ -29,18 +29,18 @@ const (
 
 // Publish represents the body of the PublishInfectedIds API call.
 type Publish struct {
-	Keys            []DiagnosisKey `json:"diagnosisKeys"`
-	Regions         []string       `json:"regions"`
-	AppPackageName  string         `json:"appPackageName"`
-	DiagnosisStatus int            `json:"diagnosisStatus"`
-	Verification    string         `json:"verificationPayload"`
+	Keys            []ExposureKey `json:"exposureKeys"`
+	Regions         []string      `json:"regions"`
+	AppPackageName  string        `json:"appPackageName"`
+	DiagnosisStatus int           `json:"diagnosisStatus"`
+	Verification    string        `json:"verificationPayload"`
 	// TODO(helmick): validate this field
 	VerificationAuthorityName string `json:"verificationAuthorityName"`
 }
 
 // DiagnosisKey is the 16 byte key, the start time of the key and the
 // duration of the key. A duration of 0 means 24 hours.
-type DiagnosisKey struct {
+type ExposureKey struct {
 	Key            string `json:"key"`
 	IntervalNumber int32  `json:"intervalNumber"`
 	IntervalCount  int32  `json:"intervalCount"`
@@ -53,7 +53,7 @@ type DiagnosisKey struct {
 // from direct access.
 // Mark records as writable/nowritable - is diagnosis key encrypted
 type Infection struct {
-	DiagnosisKey              []byte         `datastore:"diagnosisKey,noindex"`
+	ExposureKey               []byte         `datastore:"exposureKeys,noindex"`
 	DiagnosisStatus           int            `datastore:"diagnosisStatus,noindex"`
 	AppPackageName            string         `datastore:"appPackageName,noindex"`
 	Regions                   []string       `datastore:"region"`
@@ -101,7 +101,7 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error)
 		}
 		// TODO(helmick) - data validation
 		infection := Infection{
-			DiagnosisKey:              binKey,
+			ExposureKey:               binKey,
 			DiagnosisStatus:           inData.DiagnosisStatus,
 			AppPackageName:            inData.AppPackageName,
 			Regions:                   upcaseRegions,

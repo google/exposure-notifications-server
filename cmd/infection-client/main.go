@@ -63,11 +63,11 @@ func main() {
 	intervalCount := randIntervalCount()
 	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
 
-	diagnosisKeys := make([]model.DiagnosisKey, *numKeys)
+	exposureKeys := make([]model.ExposureKey, *numKeys)
 	for i, rawKey := range keys {
-		diagnosisKeys[i].Key = base64.StdEncoding.EncodeToString(rawKey)
-		diagnosisKeys[i].IntervalNumber = intervalNumber
-		diagnosisKeys[i].IntervalCount = intervalCount
+		exposureKeys[i].Key = base64.StdEncoding.EncodeToString(rawKey)
+		exposureKeys[i].IntervalNumber = intervalNumber
+		exposureKeys[i].IntervalCount = intervalCount
 		// Adjust interval math for next key.
 		intervalCount = randIntervalCount()
 		intervalNumber -= intervalCount
@@ -103,7 +103,7 @@ func main() {
 	}
 
 	data := model.Publish{
-		Keys:                      diagnosisKeys,
+		Keys:                      exposureKeys,
 		Regions:                   regions[regionIdx.Int64()],
 		AppPackageName:            "com.google.android",
 		DiagnosisStatus:           int(n.Int64()),
@@ -120,7 +120,7 @@ func main() {
 
 	log.Printf("wrote %v keys", len(keys))
 	for i, key := range keys {
-		log.Printf(" %v | %v", key, diagnosisKeys[i].Key)
+		log.Printf(" %v | %v", key, exposureKeys[i].Key)
 	}
 
 	if *twice {

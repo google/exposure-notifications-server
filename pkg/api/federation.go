@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-// type diagKeyList []*pb.DiagnosisKey
+// type diagKeyList []*pb.ExposureKey
 // type diagKeys map[pb.DiagnosisStatus]diagKeyList
 // type collator map[string]diagKeys
 type fetchIterator func(context.Context, database.FetchInfectionsCriteria) (database.InfectionIterator, error)
@@ -132,8 +132,8 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// If the diagnosis key is empty, it's malformed, so skip it.
-		if len(inf.DiagnosisKey) == 0 {
-			logger.Debugf("Infection %s missing DiagnosisKey, skipping.", inf.K)
+		if len(inf.ExposureKey) == 0 {
+			logger.Debugf("Infection %s missing ExposureKey, skipping.", inf.K)
 			continue
 		}
 
@@ -208,8 +208,8 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// Add the key to the ContactTracingInfo.
-		cti.DiagnosisKeys = append(cti.DiagnosisKeys, &pb.DiagnosisKey{
-			DiagnosisKey:   inf.DiagnosisKey,
+		cti.ExposureKeys = append(cti.ExposureKeys, &pb.ExposureKey{
+			ExposureKey:    inf.ExposureKey,
 			IntervalNumber: inf.IntervalNumber,
 			IntervalCount:  inf.IntervalCount,
 		})

@@ -41,20 +41,20 @@ func HandleExport() http.HandlerFunc {
 		}
 
 		logger.Infof("received infections")
-		diagnosisKeys := make([]*pb.DiagnosisKeyExport_DiagnosisKey, 0, 20)
+		exposureKeys := make([]*pb.ExposureKeyExport_ExposureKey, 0, 20)
 		for _, infection := range infections {
-			diagnosisKey := pb.DiagnosisKeyExport_DiagnosisKey{
-				DiagnosisKey:   infection.DiagnosisKey,
+			exposureKey := pb.ExposureKeyExport_ExposureKey{
+				ExposureKey:    infection.ExposureKey,
 				IntervalNumber: infection.IntervalNumber,
 				IntervalCount:  infection.IntervalCount,
 			}
-			diagnosisKeys = append(diagnosisKeys, &diagnosisKey)
+			exposureKeys = append(exposureKeys, &exposureKey)
 		}
-		batch := pb.DiagnosisKeyExport{
+		batch := pb.ExposureKeyExport{
 			// TODO(guray): real metadata, depending on what batch this is
 			StartTimestamp: time.Now().Unix(),
 			Region:         "US",
-			Keys:           diagnosisKeys,
+			Keys:           exposureKeys,
 		}
 		data, err := proto.Marshal(&batch)
 		if err != nil {

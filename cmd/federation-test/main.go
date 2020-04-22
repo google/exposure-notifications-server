@@ -77,7 +77,7 @@ func main() {
 		log.Printf("%v", ctr.RegionIdentifiers)
 		for _, cti := range ctr.ContactTracingInfo {
 			log.Printf("    (%s, %q)", cti.DiagnosisStatus, cti.VerificationAuthorityName)
-			for _, dk := range cti.DiagnosisKeys {
+			for _, dk := range cti.ExposureKeys {
 				total++
 				log.Printf("        {[bytes] number %d count %d}", dk.IntervalNumber, dk.IntervalCount)
 			}

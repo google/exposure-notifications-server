@@ -53,6 +53,6 @@ func main() {
 
 	var stdout = os.Stdout
 	for _, inf := range infections {
-		fmt.Fprintf(stdout, "%v | %v\n", inf.K, inf.DiagnosisKey)
+		fmt.Fprintf(stdout, "%v | %v\n", inf.K, inf.ExposureKey)
 	}
 }

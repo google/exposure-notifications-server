@@ -143,10 +143,10 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 		var infections []model.Infection
 		for _, ctr := range response.Response {
 			for _, cti := range ctr.ContactTracingInfo {
-				for _, key := range cti.DiagnosisKeys {
+				for _, key := range cti.ExposureKeys {
 					infections = append(infections, model.Infection{
 						DiagnosisStatus:           int(cti.DiagnosisStatus),
-						DiagnosisKey:              key.DiagnosisKey,
+						ExposureKey:               key.ExposureKey,
 						Regions:                   ctr.RegionIdentifiers,
 						FederationSync:            syncKey,
 						IntervalNumber:            key.IntervalNumber,

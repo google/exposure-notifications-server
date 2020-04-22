@@ -59,14 +59,14 @@ func TestEmptyBody(t *testing.T) {
 }
 func TestMultipleJson(t *testing.T) {
 	invalidJSON := []string{
-		`{"diagnosisKeys":
+		`{"exposureKeys":
 			[{"key": "ABC"},
 			 {"key": "DEF"},
 			 {"key": "123"}],
 		"appPackageName": "com.google.android.awesome",
 		"regions": ["us"],
 		"verificationPayload": "foo"}
-		{"diagnosisKeys":
+		{"exposureKeys":
 			[{"key": "ABC"},
 			 {"key": "DEF"},
 			 {"key": "123"}],
@@ -84,7 +84,7 @@ func TestInvalidJSON(t *testing.T) {
 	invalidJSON := []string{
 		`totally not json`,
 		`{"key": "value", badKey: 6`,
-		`{"diagnosisKeys": ["ABC", "DEF", "123"],`,
+		`{"exposureKeys": ["ABC", "DEF", "123"],`,
 	}
 	errors := []string{
 		`malformed json at position 2`,
@@ -96,15 +96,15 @@ func TestInvalidJSON(t *testing.T) {
 
 func TestInvalidStructure(t *testing.T) {
 	invalidJSON := []string{
-		`{"diagnosisKeys": 42}`,
-		`{"diagnosisKeys": ["41", 42]}`,
+		`{"exposureKeys": 42}`,
+		`{"exposureKeys": ["41", 42]}`,
 		`{"appPackageName": 4.5}`,
 		`{"regions": "us"}`,
 		`{"badField": "doesn't exist"}`,
 	}
 	errors := []string{
-		`invalid value diagnosisKeys at position 20`,
-		`invalid value diagnosisKeys at position 23`,
+		`invalid value exposureKeys at position 19`,
+		`invalid value exposureKeys at position 22`,
 		`invalid value appPackageName at position 22`,
 		`invalid value regions at position 16`,
 		`unknown field "badField"`,
@@ -114,7 +114,7 @@ func TestInvalidStructure(t *testing.T) {
 
 func TestValidPublisMessage(t *testing.T) {
 	intervalNumber := int32(time.Date(2020, 04, 17, 20, 04, 01, 1, time.UTC).Unix() / 600)
-	json := `{"diagnosisKeys": [
+	json := `{"exposureKeys": [
 		  {"key": "ABC", "intervalNumber": %v},
 		  {"key": "DEF", "intervalNumber": %v},
 			{"key": "123", "intervalNumber": %v}],
@@ -140,7 +140,7 @@ func TestValidPublisMessage(t *testing.T) {
 	}
 
 	want := &model.Publish{
-		Keys: []model.DiagnosisKey{
+		Keys: []model.ExposureKey{
 			{Key: "ABC", IntervalNumber: intervalNumber},
 			{Key: "DEF", IntervalNumber: intervalNumber},
 			{Key: "123", IntervalNumber: intervalNumber},

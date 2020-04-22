@@ -33,24 +33,24 @@ var (
 		protocmp.Transform(),
 		protocmp.SortRepeatedFields(&pb.FederationFetchResponse{}, "response"),
 		protocmp.SortRepeatedFields(&pb.ContactTracingResponse{}, "contactTracingInfo"),
-		protocmp.SortRepeatedFields(&pb.ContactTracingInfo{}, "diagnosisKeys"),
+		protocmp.SortRepeatedFields(&pb.ContactTracingInfo{}, "exposureKeys"),
 	}
 
 	posver  = pb.DiagnosisStatus_positive_verified
 	selfver = pb.DiagnosisStatus_self_reported
 
-	aaa = &pb.DiagnosisKey{DiagnosisKey: []byte("aaa"), IntervalNumber: 1}
-	bbb = &pb.DiagnosisKey{DiagnosisKey: []byte("bbb"), IntervalNumber: 2}
-	ccc = &pb.DiagnosisKey{DiagnosisKey: []byte("ccc"), IntervalNumber: 3}
-	ddd = &pb.DiagnosisKey{DiagnosisKey: []byte("ddd"), IntervalNumber: 4}
+	aaa = &pb.ExposureKey{ExposureKey: []byte("aaa"), IntervalNumber: 1}
+	bbb = &pb.ExposureKey{ExposureKey: []byte("bbb"), IntervalNumber: 2}
+	ccc = &pb.ExposureKey{ExposureKey: []byte("ccc"), IntervalNumber: 3}
+	ddd = &pb.ExposureKey{ExposureKey: []byte("ddd"), IntervalNumber: 4}
 )
 
 // makeInfection returns a mock model.Infection.
-func makeInfection(diagKey *pb.DiagnosisKey, diagStatus pb.DiagnosisStatus, regions ...string) model.Infection {
+func makeInfection(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, regions ...string) model.Infection {
 	return model.Infection{
 		Regions:         regions,
 		DiagnosisStatus: int(diagStatus),
-		DiagnosisKey:    diagKey.DiagnosisKey,
+		ExposureKey:     diagKey.ExposureKey,
 		IntervalNumber:  diagKey.IntervalNumber,
 		CreatedAt:       time.Unix(int64(diagKey.IntervalNumber*100), 0), // Make unique from IntervalNumber.
 		LocalProvenance: true,
@@ -82,7 +82,7 @@ func (i *testIterator) Next() (*model.Infection, bool, error) {
 
 	case model.Infection:
 		// Set the cursor equal to the most recent diagnosis key, suffixed with "_cursor".
-		i.cursor = string(v.DiagnosisKey) + "_cursor"
+		i.cursor = string(v.ExposureKey) + "_cursor"
 		return &v, false, nil
 
 	case timeout:
@@ -127,19 +127,19 @@ func TestFetch(t *testing.T) {
 					{
 						RegionIdentifiers: []string{"US"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{aaa, bbb}},
+							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
 						},
 					},
 					{
 						RegionIdentifiers: []string{"GB"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{ccc}},
+							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{ccc}},
 						},
 					},
 					{
 						RegionIdentifiers: []string{"GB", "US"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{ddd}},
+							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{ddd}},
 						},
 					},
 				},
@@ -159,14 +159,14 @@ func TestFetch(t *testing.T) {
 					{
 						RegionIdentifiers: []string{"US"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{aaa, bbb}},
-							{DiagnosisStatus: selfver, DiagnosisKeys: []*pb.DiagnosisKey{ccc}},
+							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
+							{DiagnosisStatus: selfver, ExposureKeys: []*pb.ExposureKey{ccc}},
 						},
 					},
 					{
 						RegionIdentifiers: []string{"CA"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: selfver, DiagnosisKeys: []*pb.DiagnosisKey{ddd}},
+							{DiagnosisStatus: selfver, ExposureKeys: []*pb.ExposureKey{ddd}},
 						},
 					},
 				},
@@ -187,13 +187,13 @@ func TestFetch(t *testing.T) {
 					{
 						RegionIdentifiers: []string{"GB"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{ccc}},
+							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{ccc}},
 						},
 					},
 					{
 						RegionIdentifiers: []string{"GB", "US"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{ddd}},
+							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{ddd}},
 						},
 					},
 				},
@@ -224,13 +224,13 @@ func TestFetch(t *testing.T) {
 					{
 						RegionIdentifiers: []string{"US"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{aaa}},
+							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{aaa}},
 						},
 					},
 					{
 						RegionIdentifiers: []string{"CA"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, DiagnosisKeys: []*pb.DiagnosisKey{bbb}},
+							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{bbb}},
 						},
 					},
 				},

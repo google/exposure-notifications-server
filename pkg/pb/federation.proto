@@ -40,7 +40,7 @@ message ContactTracingResponse {
 
 message ContactTracingInfo {
 	DiagnosisStatus diagnosisStatus = 1;  // required
-	repeated DiagnosisKey diagnosisKeys = 2;
+	repeated ExposureKey exposureKeys = 2;
 	string verificationAuthorityName = 3;  // TODO(jasonco): need to group on this.
 }
 
@@ -50,8 +50,8 @@ enum DiagnosisStatus {
 	self_reported = 2;
 }
 
-message DiagnosisKey {
-	bytes diagnosisKey = 1; // required
+message ExposureKey {
+	bytes exposureKey = 1; // required
 	int32 intervalNumber = 2; // required
 	int32 intervalCount = 3; // required
 }

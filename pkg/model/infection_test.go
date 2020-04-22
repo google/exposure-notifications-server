@@ -30,7 +30,7 @@ func IntervalNumber(t time.Time) int32 {
 
 func TestInvalidBase64(t *testing.T) {
 	source := &Publish{
-		Keys: []DiagnosisKey{
+		Keys: []ExposureKey{
 			{
 				Key: base64.StdEncoding.EncodeToString([]byte("ABC")) + `2`,
 			},
@@ -52,7 +52,7 @@ func TestInvalidBase64(t *testing.T) {
 func TestTransform(t *testing.T) {
 	intervalNumber := IntervalNumber(time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC))
 	source := &Publish{
-		Keys: []DiagnosisKey{
+		Keys: []ExposureKey{
 			{
 				Key:            base64.StdEncoding.EncodeToString([]byte("ABC")),
 				IntervalNumber: intervalNumber,
@@ -81,22 +81,22 @@ func TestTransform(t *testing.T) {
 
 	want := []Infection{
 		{
-			DiagnosisKey:   []byte("ABC"),
+			ExposureKey:    []byte("ABC"),
 			IntervalNumber: intervalNumber,
 			IntervalCount:  maxIntervalCount,
 		},
 		{
-			DiagnosisKey:   []byte("DEF"),
+			ExposureKey:    []byte("DEF"),
 			IntervalNumber: intervalNumber + maxIntervalCount,
 			IntervalCount:  maxIntervalCount,
 		},
 		{
-			DiagnosisKey:   []byte("123"),
+			ExposureKey:    []byte("123"),
 			IntervalNumber: intervalNumber + 2*maxIntervalCount,
 			IntervalCount:  maxIntervalCount,
 		},
 		{
-			DiagnosisKey:   []byte("456"),
+			ExposureKey:    []byte("456"),
 			IntervalNumber: intervalNumber + 3*maxIntervalCount,
 			IntervalCount:  42,
 		},
@@ -105,7 +105,7 @@ func TestTransform(t *testing.T) {
 	batchTimeRounded := time.Date(2020, 3, 1, 10, 30, 0, 0, time.UTC)
 	for i, v := range want {
 		want[i] = Infection{
-			DiagnosisKey:    v.DiagnosisKey,
+			ExposureKey:     v.ExposureKey,
 			DiagnosisStatus: 2,
 			AppPackageName:  "com.google",
 			Regions:         []string{"US", "CA", "MX"},
