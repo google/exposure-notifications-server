@@ -57,6 +57,12 @@ func makeInfection(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, regio
 	}
 }
 
+func makeInfectionWithVerification(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, verificationAuthorityName string, regions ...string) model.Infection {
+	inf := makeInfection(diagKey, diagStatus, regions...)
+	inf.VerificationAuthorityName = verificationAuthorityName
+	return inf
+}
+
 // timeout is used by testIterator to indicate that a timeout signal should be sent.
 type timeout struct{}
 
@@ -167,6 +173,28 @@ func TestFetch(t *testing.T) {
 						RegionIdentifiers: []string{"CA"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
 							{DiagnosisStatus: selfver, ExposureKeys: []*pb.ExposureKey{ddd}},
+						},
+					},
+				},
+				FetchResponseKeyTimestamp: 400,
+			},
+		},
+		{
+			name: "results combined on status and verification",
+			iterations: []interface{}{
+				makeInfectionWithVerification(aaa, posver, "AAA", "US"),
+				makeInfectionWithVerification(bbb, posver, "AAA", "US"),
+				makeInfectionWithVerification(ccc, posver, "BBB", "US"),
+				makeInfectionWithVerification(ddd, selfver, "AAA", "US"),
+			},
+			want: pb.FederationFetchResponse{
+				Response: []*pb.ContactTracingResponse{
+					{
+						RegionIdentifiers: []string{"US"},
+						ContactTracingInfo: []*pb.ContactTracingInfo{
+							{DiagnosisStatus: posver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
+							{DiagnosisStatus: posver, VerificationAuthorityName: "BBB", ExposureKeys: []*pb.ExposureKey{ccc}},
+							{DiagnosisStatus: selfver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{ddd}},
 						},
 					},
 				},

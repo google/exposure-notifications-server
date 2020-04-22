@@ -22,14 +22,31 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
+	"cloud.google.com/go/datastore"
 	"google.golang.org/grpc"
 )
 
 const (
 	queryParam = "query-id"
 )
+
+var (
+	fetchBatchSize = database.InsertInfectionsBatchSize
+)
+
+type fetchFn func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
+type insertInfectionsFn func(context.Context, []model.Infection) error
+type startFederationSyncFn func(context.Context, *model.FederationQuery) (*datastore.Key, database.FinalizeSyncFn, error)
+
+type pullDependencies struct {
+	fetch               fetchFn
+	insertInfections    insertInfectionsFn
+	startFederationSync startFederationSyncFn
+}
 
 // HandleFederationPull returns a handler that will fetch server-to-server federation results for a single federation query.
 func HandleFederationPull(timeout time.Duration) http.HandlerFunc {
@@ -59,16 +76,47 @@ func HandleFederationPull(timeout time.Duration) http.HandlerFunc {
 				return
 			}
 			logger.Errorf("Failed getting query %q: %v", queryID, err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Failed getting query %q, check logs.", queryID), http.StatusInternalServerError)
 			return
 		}
+
+		// Obtain lock to make sure there are no other processes working on this batch.
+		lock := "query_" + queryID
+		unlockFn, err := database.Lock(ctx, lock, timeout)
+		if err != nil {
+			if err == database.ErrAlreadyLocked {
+				msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
+				logger.Infof(msg)
+				w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.
+				return
+			}
+			logger.Errorf("Could not acquire lock %s for query %s: %v", lock, queryID, err)
+			http.Error(w, fmt.Sprintf("Could not acquire lock %s for query %s, check logs.", lock, queryID), http.StatusInternalServerError)
+			return
+		}
+		defer unlockFn()
+
+		// TODO(jasonco): make secure
+		conn, err := grpc.Dial(query.ServerAddr, grpc.WithInsecure())
+		if err != nil {
+			logger.Errorf("Failed to dial for query %q %s: %v", queryID, query.ServerAddr, err)
+			http.Error(w, fmt.Sprintf("Failed to dial for query %q, check logs.", queryID), http.StatusInternalServerError)
+		}
+		defer conn.Close()
+		client := pb.NewFederationClient(conn)
 
 		timeoutContext, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 
-		if err := pull(timeoutContext, query, timeout); err != nil {
+		deps := pullDependencies{
+			fetch:               client.Fetch,
+			insertInfections:    database.InsertInfections,
+			startFederationSync: database.StartFederationSync,
+		}
+		batchStart := model.TruncateWindow(time.Now())
+		if err := federationPull(timeoutContext, deps, query, batchStart); err != nil {
 			logger.Errorf("Federation query %q failed: %v", queryID, err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Federation query %q fetch failed, check logs.", queryID), http.StatusInternalServerError)
 		}
 
 		if timeoutContext.Err() != nil && timeoutContext.Err() == context.DeadlineExceeded {
@@ -77,57 +125,35 @@ func HandleFederationPull(timeout time.Duration) http.HandlerFunc {
 	}
 }
 
-func pull(ctx context.Context, query *model.FederationQuery, timeout time.Duration) error {
+func federationPull(ctx context.Context, deps pullDependencies, query *model.FederationQuery, batchStart time.Time) error {
 	logger := logging.FromContext(ctx)
 	queryID := query.K.String()
+	start := time.Now()
 
 	logger.Infof("Processing query %q", queryID)
-
-	// Obtain lock to make sure there are no other processes working on this batch.
-	lock := "query_" + queryID
-	unlockFn, err := database.Lock(ctx, lock, timeout)
-	if err != nil {
-		if err == database.ErrAlreadyLocked {
-			logger.Infof("Lock %s already in use. No work will be performed.", lock)
-			return nil
-		}
-		return fmt.Errorf("could not acquire lock %s: %v", lock, err)
-	}
-	defer unlockFn()
-
-	// TODO(jasonco): make secure
-	conn, err := grpc.Dial(query.ServerAddr, grpc.WithInsecure())
-	if err != nil {
-		return fmt.Errorf("dialing %s: %v", query.ServerAddr, err)
-	}
-	defer conn.Close()
-	client := pb.NewFederationClient(conn)
-
 	request := &pb.FederationFetchRequest{
 		RegionIdentifiers:             query.IncludeRegions,
 		ExcludeRegionIdentifiers:      query.ExcludeRegions,
 		LastFetchResponseKeyTimestamp: query.LastTimestamp.Unix(),
 	}
 
-	total := 0
-	defer func() {
-		logger.Infof("Inserted %d keys", total)
-	}()
-
-	syncKey, finalizeFn, err := database.StartFederationSync(ctx, query)
+	syncKey, finalizeFn, err := deps.startFederationSync(ctx, query)
 	if err != nil {
 		return fmt.Errorf("starting federation sync for query %s: %v", queryID, err)
 	}
 
-	batchStart := model.TruncateWindow(time.Now())
 	var maxTimestamp time.Time
+	total := 0
+	defer func() {
+		logger.Infof("Inserted %d keys", total)
+	}()
 
 	partial := true
 	for partial {
 
 		// TODO(jasonco): react to the context timeout and complete a chunk of work so next invocation can pick up where left off.
 
-		response, err := client.Fetch(ctx, request)
+		response, err := deps.fetch(ctx, request)
 		if err != nil {
 			return fmt.Errorf("fetching query %s: %v", queryID, err)
 		}
@@ -138,28 +164,35 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 		}
 
 		// Loop through the result set, storing in database.
-		// TODO(jasonco): ideally there would be a transaction for every change of date window. This will allow us to recover cleanly.
-		// TODO(jasonco): datastore has batch size limitations that need to be considered; this won't interplay well with above TODO.
 		var infections []model.Infection
 		for _, ctr := range response.Response {
+
+			var upperRegions []string
+			for _, region := range ctr.RegionIdentifiers {
+				upperRegions = append(upperRegions, strings.ToUpper(strings.TrimSpace(region)))
+			}
+			sort.Strings(upperRegions)
+
 			for _, cti := range ctr.ContactTracingInfo {
+
+				verificationAuthName := strings.ToUpper(strings.TrimSpace(cti.VerificationAuthorityName))
+
 				for _, key := range cti.ExposureKeys {
+
 					infections = append(infections, model.Infection{
 						DiagnosisStatus:           int(cti.DiagnosisStatus),
 						ExposureKey:               key.ExposureKey,
-						Regions:                   ctr.RegionIdentifiers,
+						Regions:                   upperRegions,
 						FederationSync:            syncKey,
 						IntervalNumber:            key.IntervalNumber,
 						IntervalCount:             key.IntervalCount,
 						CreatedAt:                 batchStart,
 						LocalProvenance:           false,
-						VerificationAuthorityName: cti.VerificationAuthorityName,
+						VerificationAuthorityName: verificationAuthName,
 					})
 
-					if len(infections) == database.InsertInfectionsBatchSize {
-						if err := database.InsertInfections(ctx, infections); err != nil {
-							// This is challenging without transactions. Which were inserted, which we not? We don't have idempotent keys, so we can insert duplciates.
-							// Duplicate keys are probably not bad, so maybe we should just start fetching at the start of this overall request (on the next invocation).
+					if len(infections) == fetchBatchSize {
+						if err := deps.insertInfections(ctx, infections); err != nil {
 							return fmt.Errorf("inserting %d infections: %v", len(infections), err)
 						}
 						total += len(infections)
@@ -169,9 +202,7 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 			}
 		}
 		if len(infections) > 0 {
-			if err := database.InsertInfections(ctx, infections); err != nil {
-				// This is challenging without transactions. Which were inserted, which we not? We don't have idempotent keys, so we can insert duplciates.
-				// Duplicate keys are probably not bad, so maybe we should just start fetching at the start of this overall request (on the next invocation).
+			if err := deps.insertInfections(ctx, infections); err != nil {
 				return fmt.Errorf("inserting %d infections: %v", len(infections), err)
 			}
 			total += len(infections)
@@ -181,7 +212,7 @@ func pull(ctx context.Context, query *model.FederationQuery, timeout time.Durati
 		request.NextFetchToken = response.NextFetchToken
 	}
 
-	if err := finalizeFn(time.Now(), maxTimestamp, total); err != nil {
+	if err := finalizeFn(batchStart.Add(time.Now().Sub(start)), maxTimestamp, total); err != nil {
 		// TODO(jasonco): how do we clean up here? Just leave the records in and have the exporter eliminate them? Other?
 		return fmt.Errorf("finalizing federation sync for query %s: %v", queryID, err)
 	}
