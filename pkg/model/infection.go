@@ -38,7 +38,7 @@ type Publish struct {
 	VerificationAuthorityName string `json:"verificationAuthorityName"`
 }
 
-// DiagnosisKey is the 16 byte key, the start time of the key and the
+// ExposureKey is the 16 byte key, the start time of the key and the
 // duration of the key. A duration of 0 means 24 hours.
 type ExposureKey struct {
 	Key            string `json:"key"`
@@ -51,7 +51,7 @@ type ExposureKey struct {
 // Infection struct that doesn't have public fields and an
 // internal struct that does. Separate out the database model
 // from direct access.
-// Mark records as writable/nowritable - is diagnosis key encrypted
+// Mark records as writable/nowritable - is exposure key encrypted
 type Infection struct {
 	ExposureKey               []byte         `datastore:"exposureKeys,noindex"`
 	DiagnosisStatus           int            `datastore:"diagnosisStatus,noindex"`
@@ -94,8 +94,8 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error)
 		upcaseRegions[i] = strings.ToUpper(r)
 	}
 
-	for _, diagnosisKey := range inData.Keys {
-		binKey, err := base64.StdEncoding.DecodeString(diagnosisKey.Key)
+	for _, exposureKey := range inData.Keys {
+		binKey, err := base64.StdEncoding.DecodeString(exposureKey.Key)
 		if err != nil {
 			return nil, err
 		}
@@ -105,8 +105,8 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error)
 			DiagnosisStatus:           inData.DiagnosisStatus,
 			AppPackageName:            inData.AppPackageName,
 			Regions:                   upcaseRegions,
-			IntervalNumber:            diagnosisKey.IntervalNumber,
-			IntervalCount:             correctIntervalCount(diagnosisKey.IntervalCount),
+			IntervalNumber:            exposureKey.IntervalNumber,
+			IntervalCount:             correctIntervalCount(exposureKey.IntervalCount),
 			CreatedAt:                 createdAt,
 			LocalProvenance:           true, // This is the origin system for this data.
 			VerificationAuthorityName: strings.ToUpper(strings.TrimSpace(inData.VerificationAuthorityName)),

@@ -22,6 +22,8 @@ import (
 	"cambio/pkg/logging"
 	"cambio/pkg/pb"
 	"cambio/pkg/storage"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -32,23 +34,41 @@ func HandleExport() http.HandlerFunc {
 		ctx := r.Context()
 		logger := logging.FromContext(ctx)
 
-		// TODO(guray): determine work required, split into batches, store state, etc
-		infections, err := database.GetInfections(ctx)
+		limit := 30000
+		limits, ok := r.URL.Query()["limit"]
+		if ok && len(limits) > 0 {
+			lim, err := strconv.Atoi(limits[0])
+			if err == nil {
+				limit = lim
+			}
+		}
+		logger.Infof("limiting to %v", limit)
+		// TODO(guray): split into multiple batches
+		criteria := database.FetchInfectionsCriteria{
+			// TODO(guray): calculate Since/UntilTimestamp's based on last success
+			SinceTimestamp: time.Now().AddDate(0, 0, -5),
+			UntilTimestamp: time.Now(),
+			// TODO(guray): use IncludeRegions to split into multiple files
+			OnlyLocalProvenance: false, // include federated ids
+		}
+		it, err := database.IterateInfections(ctx, criteria)
+		inf, done, err := it.Next()
+		var exposureKeys []*pb.ExposureKeyExport_ExposureKey
+		num := 1
+		for !done && err == nil && num <= limit {
+			exposureKey := pb.ExposureKeyExport_ExposureKey{
+				ExposureKey:    inf.ExposureKey,
+				IntervalNumber: inf.IntervalNumber,
+				IntervalCount:  inf.IntervalCount,
+			}
+			exposureKeys = append(exposureKeys, &exposureKey)
+			num++
+			inf, done, err = it.Next()
+		}
 		if err != nil {
 			logger.Errorf("error getting infections: %v", err)
 			http.Error(w, "internal processing error", http.StatusInternalServerError)
 			return
-		}
-
-		logger.Infof("received infections")
-		exposureKeys := make([]*pb.ExposureKeyExport_ExposureKey, 0, 20)
-		for _, infection := range infections {
-			exposureKey := pb.ExposureKeyExport_ExposureKey{
-				ExposureKey:    infection.ExposureKey,
-				IntervalNumber: infection.IntervalNumber,
-				IntervalCount:  infection.IntervalCount,
-			}
-			exposureKeys = append(exposureKeys, &exposureKey)
 		}
 		batch := pb.ExposureKeyExport{
 			// TODO(guray): real metadata, depending on what batch this is
@@ -62,7 +82,8 @@ func HandleExport() http.HandlerFunc {
 			http.Error(w, "internal processing error", http.StatusInternalServerError)
 		}
 		// TODO(guray): sort out naming scheme, cache control, etc
-		if err := storage.CreateObject("apollo-public-bucket", "testExport.pb", data); err != nil {
+		objectName := fmt.Sprintf("testExport-%d-records.pb", limit)
+		if err := storage.CreateObject("apollo-public-bucket", objectName, data); err != nil {
 			logger.Errorf("error creating cloud storage object: %v", err)
 			http.Error(w, "internal processing error", http.StatusInternalServerError)
 			return

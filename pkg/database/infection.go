@@ -90,20 +90,6 @@ func InsertInfections(ctx context.Context, infections []model.Infection) error {
 	return nil
 }
 
-func GetInfections(ctx context.Context) ([]model.Infection, error) {
-	client := Connection()
-	if client == nil {
-		return nil, fmt.Errorf("unable to obtain database client")
-	}
-
-	var infections []model.Infection
-	q := datastore.NewQuery("infection").Limit(10) // TODO(guray): add filter by time, plumbed through from request (use filter.go)
-	if _, err := client.GetAll(ctx, q, &infections); err != nil {
-		return nil, fmt.Errorf("unable to fetch infections")
-	}
-	return infections, nil
-}
-
 // FetchInfectionsCriteria is criteria to query infections.
 type FetchInfectionsCriteria struct {
 	IncludeRegions []string
