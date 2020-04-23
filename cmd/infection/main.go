@@ -19,6 +19,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 
 	"cambio/pkg/android"
 	"cambio/pkg/api"
@@ -28,9 +29,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const (
+	portEnvVar  = "PORT"
+	defaultPort = "8080"
+)
+
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
+
+	port := os.Getenv(portEnvVar)
+	if port == "" {
+		port = defaultPort
+	}
+	logger.Infof("Using port %s (override with $%s)", port, portEnvVar)
 
 	if err := database.Initialize(); err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
@@ -42,5 +54,5 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/", api.HandlePublish())
 	logger.Info("starting infection server")
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Fatal(http.ListenAndServe(":"+port, router))
 }

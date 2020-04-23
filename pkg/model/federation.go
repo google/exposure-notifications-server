@@ -16,27 +16,21 @@ package model
 
 import (
 	"time"
-
-	"cloud.google.com/go/datastore"
-)
-
-const (
-	FederationQueryTable = "FederationQuery"
-	FederationSyncTable  = "FederationSync"
 )
 
 type FederationQuery struct {
-	ServerAddr     string         `datastore:"serverAddr,noindex"`
-	IncludeRegions []string       `datastore:"includeRegions,noindex"`
-	ExcludeRegions []string       `datastore:"excludeRegions,noindex"`
-	LastTimestamp  time.Time      `datastore:"lastTimestamp,noindex"`
-	K              *datastore.Key `datastore:"__key__"`
+	QueryID        string    `db:"query_id"`
+	ServerAddr     string    `db:"server_addr"`
+	IncludeRegions []string  `db:"include_regions"`
+	ExcludeRegions []string  `db:"exclude_regions"`
+	LastTimestamp  time.Time `db:"last_timestamp"`
 }
 
 type FederationSync struct {
-	Started      time.Time      `datastore:"started"`
-	Completed    time.Time      `datastore:"completed"`
-	Insertions   int            `datastore:"insertions,noindex"`
-	MaxTimestamp time.Time      `datastore:"maxTimestamp,noindex"`
-	K            *datastore.Key `datastore:"__key__"`
+	SyncID       string    `db:"sync_id"`
+	QueryID      string    `db:"query_id"`
+	Started      time.Time `db:"started"`
+	Completed    time.Time `db:"completed"`
+	Insertions   int       `db:"insertions"`
+	MaxTimestamp time.Time `db:"max_timestamp"`
 }

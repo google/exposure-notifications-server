@@ -20,6 +20,7 @@ import (
 	"cambio/pkg/model"
 	"cambio/pkg/pb"
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -29,7 +30,7 @@ import (
 // type diagKeyList []*pb.ExposureKey
 // type diagKeys map[pb.DiagnosisStatus]diagKeyList
 // type collator map[string]diagKeys
-type fetchIterator func(context.Context, database.FetchInfectionsCriteria) (database.InfectionIterator, error)
+type fetchIterator func(context.Context, database.IterateInfectionsCriteria) (database.InfectionIterator, error)
 
 // NewFederationServer builds a new FederationServer.
 func NewFederationServer(timeout time.Duration) pb.FederationServer {
@@ -44,7 +45,13 @@ type federationServer struct {
 func (s *federationServer) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.FederationFetchResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
-	return s.fetch(ctx, req, database.IterateInfections, model.TruncateWindow(time.Now())) // Don't fetch the current window, which isn't complete yet. TODO(jasonco): should I double this for safety?
+	logger := logging.FromContext(ctx)
+	response, err := s.fetch(ctx, req, database.IterateInfections, model.TruncateWindow(time.Now().UTC())) // Don't fetch the current window, which isn't complete yet. TODO(jasonco): should I double this for safety?
+	if err != nil {
+		logger.Errorf("Fetch error: %v", err)
+		return nil, errors.New("internal error")
+	}
+	return response, nil
 }
 
 func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFunc fetchIterator, fetchUntil time.Time) (*pb.FederationFetchResponse, error) {
@@ -60,8 +67,8 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	// If there is only one region, we can let datastore filter it; otherwise we'll have to filter in memory.
 	// TODO(jasonco): Filter out other partner's data; don't re-federate.
 	// TODO(jasonco): moving to CloudSQL will allow this to be simplified.
-	criteria := database.FetchInfectionsCriteria{
-		SinceTimestamp:      time.Unix(req.LastFetchResponseKeyTimestamp, 0),
+	criteria := database.IterateInfectionsCriteria{
+		SinceTimestamp:      time.Unix(req.LastFetchResponseKeyTimestamp, 0).UTC(),
 		UntilTimestamp:      fetchUntil,
 		LastCursor:          req.NextFetchToken,
 		OnlyLocalProvenance: true, // Do not return results that came from other federation partners.
@@ -90,11 +97,13 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	if err != nil {
 		return nil, fmt.Errorf("querying infections (criteria: %#v): %v", criteria, err)
 	}
+	defer it.Close()
 
 	ctrMap := map[string]*pb.ContactTracingResponse{} // local index into the response being assembled; keyed on unique set of regions.
 	ctiMap := map[string]*pb.ContactTracingInfo{}     // local index into the response being assembled; keys on unique set of (ctrMap key, diagnosisStatus, verificationAuthorityName)
 	response := &pb.FederationFetchResponse{}
 
+	count := 0
 	for !response.PartialResponse { // This loop will end on break, or if the context is interrupted and we send a partial response.
 
 		// Check the context to see if we've been interrupted (e.g., timeout).
@@ -133,26 +142,26 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 
 		// If the diagnosis key is empty, it's malformed, so skip it.
 		if len(inf.ExposureKey) == 0 {
-			logger.Debugf("Infection %s missing ExposureKey, skipping.", inf.K)
+			logger.Debugf("Infection %s missing ExposureKey, skipping.", inf.ExposureKey)
 			continue
 		}
 
 		// If there are no regions on the infection, it's malformed, so skip it.
 		if len(inf.Regions) == 0 {
-			logger.Debugf("Infection %s missing Regions, skipping.", inf.K)
+			logger.Debugf("Infection %s missing Regions, skipping.", inf.ExposureKey)
 			continue
 		}
 
 		// Filter out non-LocalProvenance results; we should not re-federate.
 		// This may already be handled by the database query and is included here for completeness.
 		if !inf.LocalProvenance {
-			logger.Debugf("Infection %s not LocalProvenance, skipping.", inf.K)
+			logger.Debugf("Infection %s not LocalProvenance, skipping.", inf.ExposureKey)
 			continue
 		}
 
 		// If the infection has an unknown status, it's malformed, so skip it.
 		if _, ok := pb.DiagnosisStatus_name[int32(inf.DiagnosisStatus)]; !ok {
-			logger.Debugf("Infection %s has invalid DiagnosisStatus, skipping.", inf.K)
+			logger.Debugf("Infection %s has invalid DiagnosisStatus, skipping.", inf.ExposureKey)
 			continue
 		}
 
@@ -167,7 +176,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 			}
 		}
 		if skip {
-			logger.Debugf("Infection %s contains only excluded regions, skipping.", inf.K)
+			logger.Debugf("Infection %s contains only excluded regions, skipping.", inf.ExposureKey)
 			continue
 		}
 
@@ -182,7 +191,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 				}
 			}
 			if skip {
-				logger.Debugf("Infection %s does not contain requested regions, skipping.", inf.K)
+				logger.Debugf("Infection %s does not contain requested regions, skipping.", inf.ExposureKey)
 				continue
 			}
 		}
@@ -218,7 +227,10 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		if created > response.FetchResponseKeyTimestamp {
 			response.FetchResponseKeyTimestamp = created
 		}
+
+		count++
 	}
 
+	logger.Infof("Sent %d keys", count)
 	return response, nil
 }

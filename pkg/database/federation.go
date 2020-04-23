@@ -15,111 +15,212 @@
 package database
 
 import (
+	"cambio/pkg/logging"
 	"cambio/pkg/model"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
-	"cloud.google.com/go/datastore"
+	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 var (
-	// ErrQueryNotFound indicates that the requested federation query was not found in the database.
-	ErrQueryNotFound = errors.New("query not found")
+	// ErrNotFound indicates that the requested record was not found in the database.
+	ErrNotFound = errors.New("record not found")
 )
 
 // FinalizeSyncFn is used to finalize a historical sync record.
 type FinalizeSyncFn func(completed, maxTimestamp time.Time, totalInserted int) error
 
-// GetFederationQuery returns a query for given queryID. If not found, ErrQueryNotFound will be returned.
+type queryRowContextFn func(ctx context.Context, query string, args ...interface{}) *sql.Row
+
+// GetFederationQuery returns a query for given queryID. If not found, ErrNotFound will be returned.
 func GetFederationQuery(ctx context.Context, queryID string) (*model.FederationQuery, error) {
-	client := Connection()
-	if client == nil {
-		return nil, fmt.Errorf("unable to obtain database client")
+	conn, err := Connection(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
-
-	key := federationQueryKey(queryID)
-
-	var query model.FederationQuery
-	if err := client.Get(ctx, key, &query); err != nil {
-		if err == datastore.ErrNoSuchEntity {
-			return nil, ErrQueryNotFound
-		}
-		return nil, fmt.Errorf("getting query %q: %v", queryID, err)
-	}
-	return &query, nil
+	return getFederationQuery(ctx, queryID, conn.QueryRowContext)
 }
 
-// AddFederationQuery adds a FederationQuery entity. It will overwrite a query with matching queryID if it exists.
-func AddFederationQuery(ctx context.Context, queryID string, query *model.FederationQuery) error {
-	client := Connection()
-	if client == nil {
-		return fmt.Errorf("unable to obtain database client")
+func getFederationQuery(ctx context.Context, queryID string, queryRowContext queryRowContextFn) (*model.FederationQuery, error) {
+	row := queryRowContext(ctx, `
+		SELECT
+			query_id, server_addr, include_regions, exclude_regions, last_timestamp
+		FROM FederationQuery 
+		WHERE 
+			query_id=$1
+		`, queryID)
+
+	// See https://www.opsdash.com/blog/postgres-arrays-golang.html for working with Postgres arrays in Go.
+	q := model.FederationQuery{}
+	if err := row.Scan(&q.QueryID, &q.ServerAddr, pq.Array(&q.IncludeRegions), pq.Array(&q.ExcludeRegions), &q.LastTimestamp); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("scanning results: %v", err)
+	}
+	return &q, nil
+}
+
+// AddFederationQuery adds a FederationQuery entity. It will overwrite a query with matching q.queryID if it exists.
+func AddFederationQuery(ctx context.Context, q *model.FederationQuery) (err error) {
+	conn, err := Connection(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to obtain database connection: %v", err)
+	}
+	logger := logging.FromContext(ctx)
+
+	commit := false
+	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return fmt.Errorf("starting transaction: %v", err)
+	}
+	defer func() {
+		if commit {
+			if err1 := tx.Commit(); err1 != nil {
+				err = fmt.Errorf("failed to commit: %v", err1)
+			}
+		} else {
+			if err1 := tx.Rollback(); err1 != nil {
+				err = fmt.Errorf("failed to rollback: %v", err1)
+			} else {
+				logger.Debugf("Rolling back.")
+			}
+		}
+	}()
+
+	existing := true
+	if _, err := getFederationQuery(ctx, q.QueryID, tx.QueryRowContext); err != nil {
+		if err == ErrNotFound {
+			existing = false
+		} else {
+			return fmt.Errorf("getting existing federation query %s: %v", q.QueryID, err)
+		}
 	}
 
-	key := federationQueryKey(queryID)
-
-	if _, err := client.Put(ctx, key, query); err != nil {
-		return fmt.Errorf("putting federation query: %v", err)
+	if existing {
+		_, err := tx.ExecContext(ctx, `
+			DELETE FROM FederationQuery
+			WHERE
+				query_id=$1
+			`, q.QueryID)
+		if err != nil {
+			return fmt.Errorf("deleting existing federation query %s: %v", q.QueryID, err)
+		}
 	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO FederationQuery
+			(query_id, server_addr, include_regions, exclude_regions, last_timestamp)
+		VALUES
+			($1, $2, $3, $4, $5)
+		`, q.QueryID, q.ServerAddr, pq.Array(q.IncludeRegions), pq.Array(q.ExcludeRegions), q.LastTimestamp)
+	if err != nil {
+		return fmt.Errorf("inserting federation query: %v", err)
+	}
+
+	commit = true
 	return nil
 }
 
-// StartFederationSync stores a historical record of a query sync starting. It returns a FederationSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
-func StartFederationSync(ctx context.Context, query *model.FederationQuery) (*datastore.Key, FinalizeSyncFn, error) {
-	client := Connection()
-	if client == nil {
-		return nil, nil, fmt.Errorf("unable to obtain database client")
-	}
-
-	keyIncomplete := federationSyncIncompleteKey(query)
-	key, err := client.Put(ctx, keyIncomplete, &model.FederationSync{Started: time.Now()})
+// GetFederationSync returns a federation sync record for given syncID. If not found, ErrNotFound will be returned.
+func GetFederationSync(ctx context.Context, syncID string) (*model.FederationSync, error) {
+	conn, err := Connection(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("putting initial sync entity for %s: %v", key, err)
+		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
+	}
+	return getFederationSync(ctx, syncID, conn.QueryRowContext)
+}
+
+func getFederationSync(ctx context.Context, syncID string, queryRowContext queryRowContextFn) (*model.FederationSync, error) {
+	row := queryRowContext(ctx, `
+		SELECT
+			sync_id, query_id, started, completed, insertions, max_timestamp
+		FROM FederationSync
+		WHERE
+			sync_id=$1
+		`, syncID)
+
+	s := model.FederationSync{}
+	if err := row.Scan(&s.SyncID, &s.QueryID, &s.Started, &s.Completed, &s.Insertions, &s.MaxTimestamp); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("scanning results: %v", err)
+	}
+	return &s, nil
+}
+
+// StartFederationSync stores a historical record of a query sync starting. It returns a FederationSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
+func StartFederationSync(ctx context.Context, q *model.FederationQuery) (string, FinalizeSyncFn, error) {
+	conn, err := Connection(ctx)
+	if err != nil {
+		return "", nil, fmt.Errorf("unable to obtain database connection: %v", err)
+	}
+	logger := logging.FromContext(ctx)
+
+	started := time.Now().UTC()
+	syncID := uuid.New().String()
+	_, err = conn.ExecContext(ctx, `
+		INSERT INTO FederationSync
+			(sync_id, query_id, started)
+		VALUES
+			($1, $2, $3)
+		`, syncID, q.QueryID, started)
+	if err != nil {
+		return "", nil, fmt.Errorf("inserting federation sync: %v", err)
 	}
 
-	finalize := func(completed, maxTimestamp time.Time, totalInserted int) error {
-		_, err := client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
-
-			// Fetch the query record, update the max timestamp for the next batch.
-			queryKey := key.Parent
-			var query model.FederationQuery
-			if errg := tx.Get(queryKey, &query); errg != nil {
-				return fmt.Errorf("getting query %s: %v", queryKey, errg)
-			}
-			query.LastTimestamp = maxTimestamp
-			if _, errp := tx.Put(queryKey, &query); errp != nil {
-				return fmt.Errorf("putting updated query %s: %v", queryKey, errp)
-			}
-
-			// Fetch the sync record, update the statistics.
-			var sync model.FederationSync
-			if errg := tx.Get(key, &sync); errg != nil {
-				return fmt.Errorf("getting sync entity %s: %v", key, errg)
-			}
-			sync.Completed = completed
-			sync.Insertions = totalInserted
-			sync.MaxTimestamp = maxTimestamp
-			if _, errp := tx.Put(key, &sync); errp != nil {
-				return fmt.Errorf("putting updated sync entity %s: %v", key, errp)
-			}
-
-			return nil
-		})
+	finalize := func(completed, maxTimestamp time.Time, totalInserted int) (err error) {
+		commit := false
+		tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 		if err != nil {
-			return err
+			return fmt.Errorf("starting transaction: %v", err)
 		}
+		defer func() {
+			if commit {
+				if err1 := tx.Commit(); err1 != nil {
+					err = fmt.Errorf("failed to commit: %v", err1)
+				}
+			} else {
+				if err1 := tx.Rollback(); err1 != nil {
+					err = fmt.Errorf("failed to rollback: %v", err1)
+				} else {
+					logger.Debugf("Rolling back.")
+				}
+			}
+		}()
+
+		_, err = tx.ExecContext(ctx, `
+			UPDATE FederationQuery
+			SET
+				last_timestamp = $1
+			WHERE
+				query_id = $2
+			`, maxTimestamp, q.QueryID)
+		if err != nil {
+			return fmt.Errorf("updating federation query: %v", err)
+		}
+
+		_, err = tx.ExecContext(ctx, `
+			UPDATE FederationSync
+			SET
+				completed = $1,
+				insertions = $2,
+				max_timestamp = $3
+			WHERE
+				sync_id = $4
+			`, completed, totalInserted, maxTimestamp, syncID)
+		if err != nil {
+			return fmt.Errorf("updating federation sync: %v", err)
+		}
+		commit = true
 		return nil
 	}
-	return key, finalize, nil
-}
 
-func federationQueryKey(queryID string) *datastore.Key {
-	return datastore.NameKey(model.FederationQueryTable, queryID, nil)
-}
-
-func federationSyncIncompleteKey(query *model.FederationQuery) *datastore.Key {
-	// FederationSync keys have ancestor of FederationQuery so they can be updated together in transaction.
-	return datastore.IncompleteKey(model.FederationSyncTable, query.K)
+	return syncID, finalize, nil
 }

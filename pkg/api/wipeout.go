@@ -60,54 +60,21 @@ func HandleWipeout(timeout time.Duration) http.HandlerFunc {
 		}
 
 		// Get cutoff timestamp
-		cutoff := time.Now().Add(-ttlDuration)
+		cutoff := time.Now().UTC().Add(-ttlDuration)
 		logger.Infof("Starting wipeout for records older than %v", cutoff.UTC())
 
 		// Set timeout
 		timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 
-		// Get wipeout keys older than cutoff timestamp
-		wipeoutKeys, err := database.FilterKeysOnly(timeoutCtx, cutoff)
+		count, err := database.DeleteInfections(timeoutCtx, cutoff)
 		if err != nil {
-			logger.Errorf("error getting wipeout keys: %v", err)
-			// TODO(lmohanan): Work out error codes depending on cloud run retry behavior
+			logger.Errorf("Failed deleting infections: %v", err)
 			http.Error(w, "internal processing error", http.StatusInternalServerError)
 			return
 		}
-		numKeys := len(wipeoutKeys)
-		logger.Infof("%v records match", numKeys)
 
-		if numKeys == 0 {
-			logger.Infof("nothing to wipeout")
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		// Delete wipeout keys older than cutoff
-		count, err := database.DeleteDiagnosisKeys(timeoutCtx, wipeoutKeys)
-		if err != nil {
-			logger.Errorf("error completing wipeout: %v", err)
-			if count == 0 {
-				// TODO(lmohanan): Work out error codes depending on cloud run retry behavior
-				http.Error(w, "internal processing error", http.StatusInternalServerError)
-				return
-			}
-
-			if count < numKeys {
-				// TODO(lmohanan): Work out error codes depending on cloud run retry behavior
-				http.Error(w, "partial success", http.StatusMultiStatus)
-				return
-			}
-		}
-
-		if timeoutCtx.Err() != nil && timeoutCtx.Err() == context.DeadlineExceeded {
-			logger.Infof("wipeout run timed out at %v.", timeout)
-			return
-		}
-
-		//TODO(lmohanan) add a metric for key count and deleted count.
-		logger.Infof("wipeout run complete, deleted %v records of %v records", count, numKeys)
+		logger.Infof("wipeout run complete, deleted %v records.", count)
 		w.WriteHeader(http.StatusOK)
 	}
 }

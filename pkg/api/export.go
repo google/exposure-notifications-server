@@ -44,15 +44,26 @@ func HandleExport() http.HandlerFunc {
 		}
 		logger.Infof("limiting to %v", limit)
 		// TODO(guray): split into multiple batches
-		criteria := database.FetchInfectionsCriteria{
+		criteria := database.IterateInfectionsCriteria{
 			// TODO(guray): calculate Since/UntilTimestamp's based on last success
-			SinceTimestamp: time.Now().AddDate(0, 0, -5),
-			UntilTimestamp: time.Now(),
+			SinceTimestamp: time.Now().UTC().AddDate(0, 0, -5),
+			UntilTimestamp: time.Now().UTC(),
 			// TODO(guray): use IncludeRegions to split into multiple files
 			OnlyLocalProvenance: false, // include federated ids
 		}
 		it, err := database.IterateInfections(ctx, criteria)
+		if err != nil {
+			logger.Errorf("error getting infections: %v", err)
+			http.Error(w, "internal processing error", http.StatusInternalServerError)
+			return
+		}
+		defer it.Close()
 		inf, done, err := it.Next()
+		if err != nil {
+			logger.Errorf("error getting infections: %v", err)
+			http.Error(w, "internal processing error", http.StatusInternalServerError)
+			return
+		}
 		var exposureKeys []*pb.ExposureKeyExport_ExposureKey
 		num := 1
 		for !done && err == nil && num <= limit {
@@ -72,7 +83,7 @@ func HandleExport() http.HandlerFunc {
 		}
 		batch := pb.ExposureKeyExport{
 			// TODO(guray): real metadata, depending on what batch this is
-			StartTimestamp: time.Now().Unix(),
+			StartTimestamp: time.Now().UTC().Unix(),
 			Region:         "US",
 			Keys:           exposureKeys,
 		}

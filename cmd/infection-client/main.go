@@ -61,7 +61,7 @@ func main() {
 
 	// When publishing multiple keys - they'll be on different days.
 	intervalCount := randIntervalCount()
-	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
+	intervalNumber := int32(time.Now().UTC().Unix()/600) - intervalCount
 
 	exposureKeys := make([]model.ExposureKey, *numKeys)
 	for i, rawKey := range keys {

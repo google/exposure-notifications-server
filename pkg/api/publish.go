@@ -46,7 +46,7 @@ func HandlePublish() http.HandlerFunc {
 			return
 		}
 
-		batchTime := time.Now()
+		batchTime := time.Now().UTC()
 		infections, err := model.TransformPublish(&data, batchTime)
 		if err != nil {
 			logger.Errorf("error transforming publish data: %v", err)
@@ -60,6 +60,7 @@ func HandlePublish() http.HandlerFunc {
 			http.Error(w, "internal processing error", http.StatusInternalServerError)
 			return
 		}
+		logger.Infof("Inserted %d infections.", len(infections))
 
 		w.WriteHeader(http.StatusOK)
 	}

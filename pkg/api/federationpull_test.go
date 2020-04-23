@@ -22,21 +22,20 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/datastore"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/grpc"
 )
 
 var (
-	syncKey = datastore.NameKey(model.FederationSyncTable, "zzz", nil)
+	syncID = "ABC123"
 )
 
 // makeRemoteInfection returns a mock model.Infection with LocalProvenance=false.
-func makeRemoteInfection(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, verificationAuthorityName string, regions ...string) model.Infection {
+func makeRemoteInfection(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, verificationAuthorityName string, regions ...string) *model.Infection {
 	inf := makeInfectionWithVerification(diagKey, diagStatus, verificationAuthorityName, regions...)
 	inf.LocalProvenance = false
-	inf.FederationSync = syncKey
+	inf.FederationSyncID = syncID
 	return inf
 }
 
@@ -59,10 +58,10 @@ func (r *remoteFetchServer) fetch(ctx context.Context, req *pb.FederationFetchRe
 
 // infectionDB mocks the database, recording infection insertions.
 type infectionDB struct {
-	infections []model.Infection
+	infections []*model.Infection
 }
 
-func (idb *infectionDB) insertInfections(ctx context.Context, infections []model.Infection) error {
+func (idb *infectionDB) insertInfections(ctx context.Context, infections []*model.Infection) error {
 	idb.infections = append(idb.infections, infections...)
 	return nil
 }
@@ -76,9 +75,9 @@ type syncDB struct {
 	totalInserted int
 }
 
-func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.FederationQuery) (*datastore.Key, database.FinalizeSyncFn, error) {
+func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.FederationQuery) (string, database.FinalizeSyncFn, error) {
 	sdb.syncStarted = true
-	return syncKey, func(completed, maxTimestamp time.Time, totalInserted int) error {
+	return syncID, func(completed, maxTimestamp time.Time, totalInserted int) error {
 		sdb.syncCompleted = true
 		sdb.completed = completed
 		sdb.maxTimestamp = maxTimestamp
@@ -93,14 +92,14 @@ func TestFederationPull(t *testing.T) {
 		name             string
 		batchSize        int
 		fetchResponses   []*pb.FederationFetchResponse
-		wantInfections   []model.Infection
+		wantInfections   []*model.Infection
 		wantTokens       []string
 		wantMaxTimestamp time.Time
 	}{
 		{
 			name:             "no results",
 			wantTokens:       []string{""},
-			wantMaxTimestamp: time.Unix(0, 0),
+			wantMaxTimestamp: time.Unix(0, 0).UTC(),
 		},
 		{
 			name: "basic results",
@@ -129,14 +128,14 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantInfections: []model.Infection{
+			wantInfections: []*model.Infection{
 				makeRemoteInfection(aaa, posver, "", "US"),
 				makeRemoteInfection(bbb, posver, "", "US"),
 				makeRemoteInfection(ccc, posver, "AAA", "CA", "US"),
 				makeRemoteInfection(ddd, selfver, "", "US"),
 			},
 			wantTokens:       []string{""},
-			wantMaxTimestamp: time.Unix(400, 0),
+			wantMaxTimestamp: time.Unix(400, 0).UTC(),
 		},
 		{
 			name: "partial results",
@@ -172,14 +171,14 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantInfections: []model.Infection{
+			wantInfections: []*model.Infection{
 				makeRemoteInfection(aaa, posver, "", "US"),
 				makeRemoteInfection(bbb, posver, "", "US"),
 				makeRemoteInfection(ccc, posver, "", "US"),
 				makeRemoteInfection(ddd, selfver, "AAA", "CA"),
 			},
 			wantTokens:       []string{"", "abcdef"},
-			wantMaxTimestamp: time.Unix(400, 0),
+			wantMaxTimestamp: time.Unix(400, 0).UTC(),
 		},
 		{
 			name:      "too large for batch",
@@ -209,14 +208,14 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantInfections: []model.Infection{
+			wantInfections: []*model.Infection{
 				makeRemoteInfection(aaa, posver, "", "US"),
 				makeRemoteInfection(bbb, posver, "", "US"),
 				makeRemoteInfection(ccc, posver, "AAA", "CA", "US"),
 				makeRemoteInfection(ddd, selfver, "", "US"),
 			},
 			wantTokens:       []string{""},
-			wantMaxTimestamp: time.Unix(400, 0),
+			wantMaxTimestamp: time.Unix(400, 0).UTC(),
 		},
 	}
 
@@ -227,7 +226,7 @@ func TestFederationPull(t *testing.T) {
 			remote := remoteFetchServer{responses: tc.fetchResponses}
 			idb := infectionDB{}
 			sdb := syncDB{}
-			batchStart := time.Now()
+			batchStart := time.Now().UTC()
 			if tc.batchSize > 0 {
 				oldBatchSize := fetchBatchSize
 				fetchBatchSize = tc.batchSize

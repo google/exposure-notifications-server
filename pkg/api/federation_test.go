@@ -46,18 +46,18 @@ var (
 )
 
 // makeInfection returns a mock model.Infection.
-func makeInfection(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, regions ...string) model.Infection {
-	return model.Infection{
+func makeInfection(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, regions ...string) *model.Infection {
+	return &model.Infection{
 		Regions:         regions,
 		DiagnosisStatus: int(diagStatus),
 		ExposureKey:     diagKey.ExposureKey,
 		IntervalNumber:  diagKey.IntervalNumber,
-		CreatedAt:       time.Unix(int64(diagKey.IntervalNumber*100), 0), // Make unique from IntervalNumber.
+		CreatedAt:       time.Unix(int64(diagKey.IntervalNumber*100), 0).UTC(), // Make unique from IntervalNumber.
 		LocalProvenance: true,
 	}
 }
 
-func makeInfectionWithVerification(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, verificationAuthorityName string, regions ...string) model.Infection {
+func makeInfectionWithVerification(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, verificationAuthorityName string, regions ...string) *model.Infection {
 	inf := makeInfection(diagKey, diagStatus, regions...)
 	inf.VerificationAuthorityName = verificationAuthorityName
 	return inf
@@ -86,10 +86,10 @@ func (i *testIterator) Next() (*model.Infection, bool, error) {
 	// Switch on the type of iteration (either model.Infection or timeout).
 	switch v := item.(type) {
 
-	case model.Infection:
+	case *model.Infection:
 		// Set the cursor equal to the most recent diagnosis key, suffixed with "_cursor".
 		i.cursor = string(v.ExposureKey) + "_cursor"
-		return &v, false, nil
+		return v, false, nil
 
 	case timeout:
 		if i.cancel == nil {
@@ -107,6 +107,10 @@ func (i *testIterator) Cursor() (string, error) {
 	return i.cursor, nil
 }
 
+func (i *testIterator) Close() error {
+	return nil
+}
+
 // TestFetch tests the fetch() function.
 func TestFetch(t *testing.T) {
 	testCases := []struct {
@@ -115,7 +119,6 @@ func TestFetch(t *testing.T) {
 		iterations     []interface{}
 		want           pb.FederationFetchResponse
 	}{
-		// TODO(jasonco): Add tests for diagnosis status.
 		{
 			name: "no results",
 			want: pb.FederationFetchResponse{},
@@ -274,11 +277,11 @@ func TestFetch(t *testing.T) {
 			server := federationServer{}
 			req := pb.FederationFetchRequest{ExcludeRegionIdentifiers: tc.excludeRegions}
 			ctx, cancel := context.WithCancel(context.Background())
-			itFunc := func(ctx context.Context, criteria database.FetchInfectionsCriteria) (database.InfectionIterator, error) {
+			itFunc := func(ctx context.Context, criteria database.IterateInfectionsCriteria) (database.InfectionIterator, error) {
 				return &testIterator{iterations: tc.iterations, cancel: cancel}, nil
 			}
 
-			got, err := server.fetch(ctx, &req, itFunc, time.Now())
+			got, err := server.fetch(ctx, &req, itFunc, time.Now().UTC())
 
 			if err != nil {
 				t.Fatalf("fetch() returned err=%v, want err=nil", err)

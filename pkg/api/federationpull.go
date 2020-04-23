@@ -26,7 +26,6 @@ import (
 	"strings"
 	"time"
 
-	"cloud.google.com/go/datastore"
 	"google.golang.org/grpc"
 )
 
@@ -39,8 +38,8 @@ var (
 )
 
 type fetchFn func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
-type insertInfectionsFn func(context.Context, []model.Infection) error
-type startFederationSyncFn func(context.Context, *model.FederationQuery) (*datastore.Key, database.FinalizeSyncFn, error)
+type insertInfectionsFn func(context.Context, []*model.Infection) error
+type startFederationSyncFn func(context.Context, *model.FederationQuery) (string, database.FinalizeSyncFn, error)
 
 type pullDependencies struct {
 	fetch               fetchFn
@@ -71,7 +70,7 @@ func HandleFederationPull(timeout time.Duration) http.HandlerFunc {
 
 		query, err := database.GetFederationQuery(ctx, queryID)
 		if err != nil {
-			if err == database.ErrQueryNotFound {
+			if err == database.ErrNotFound {
 				http.Error(w, fmt.Sprintf("unknown %s", queryParam), http.StatusBadRequest)
 				return
 			}
@@ -113,7 +112,7 @@ func HandleFederationPull(timeout time.Duration) http.HandlerFunc {
 			insertInfections:    database.InsertInfections,
 			startFederationSync: database.StartFederationSync,
 		}
-		batchStart := model.TruncateWindow(time.Now())
+		batchStart := model.TruncateWindow(time.Now().UTC())
 		if err := federationPull(timeoutContext, deps, query, batchStart); err != nil {
 			logger.Errorf("Federation query %q failed: %v", queryID, err)
 			http.Error(w, fmt.Sprintf("Federation query %q fetch failed, check logs.", queryID), http.StatusInternalServerError)
@@ -125,21 +124,20 @@ func HandleFederationPull(timeout time.Duration) http.HandlerFunc {
 	}
 }
 
-func federationPull(ctx context.Context, deps pullDependencies, query *model.FederationQuery, batchStart time.Time) error {
+func federationPull(ctx context.Context, deps pullDependencies, q *model.FederationQuery, batchStart time.Time) error {
 	logger := logging.FromContext(ctx)
-	queryID := query.K.String()
-	start := time.Now()
+	start := time.Now().UTC()
 
-	logger.Infof("Processing query %q", queryID)
+	logger.Infof("Processing query %q", q.QueryID)
 	request := &pb.FederationFetchRequest{
-		RegionIdentifiers:             query.IncludeRegions,
-		ExcludeRegionIdentifiers:      query.ExcludeRegions,
-		LastFetchResponseKeyTimestamp: query.LastTimestamp.Unix(),
+		RegionIdentifiers:             q.IncludeRegions,
+		ExcludeRegionIdentifiers:      q.ExcludeRegions,
+		LastFetchResponseKeyTimestamp: q.LastTimestamp.Unix(),
 	}
 
-	syncKey, finalizeFn, err := deps.startFederationSync(ctx, query)
+	syncID, finalizeFn, err := deps.startFederationSync(ctx, q)
 	if err != nil {
-		return fmt.Errorf("starting federation sync for query %s: %v", queryID, err)
+		return fmt.Errorf("starting federation sync for query %s: %v", q.QueryID, err)
 	}
 
 	var maxTimestamp time.Time
@@ -155,16 +153,16 @@ func federationPull(ctx context.Context, deps pullDependencies, query *model.Fed
 
 		response, err := deps.fetch(ctx, request)
 		if err != nil {
-			return fmt.Errorf("fetching query %s: %v", queryID, err)
+			return fmt.Errorf("fetching query %s: %v", q.QueryID, err)
 		}
 
-		responseTimestamp := time.Unix(response.FetchResponseKeyTimestamp, 0)
+		responseTimestamp := time.Unix(response.FetchResponseKeyTimestamp, 0).UTC()
 		if responseTimestamp.After(maxTimestamp) {
 			maxTimestamp = responseTimestamp
 		}
 
 		// Loop through the result set, storing in database.
-		var infections []model.Infection
+		var infections []*model.Infection
 		for _, ctr := range response.Response {
 
 			var upperRegions []string
@@ -179,11 +177,11 @@ func federationPull(ctx context.Context, deps pullDependencies, query *model.Fed
 
 				for _, key := range cti.ExposureKeys {
 
-					infections = append(infections, model.Infection{
+					infections = append(infections, &model.Infection{
 						DiagnosisStatus:           int(cti.DiagnosisStatus),
 						ExposureKey:               key.ExposureKey,
 						Regions:                   upperRegions,
-						FederationSync:            syncKey,
+						FederationSyncID:          syncID,
 						IntervalNumber:            key.IntervalNumber,
 						IntervalCount:             key.IntervalCount,
 						CreatedAt:                 batchStart,
@@ -212,9 +210,9 @@ func federationPull(ctx context.Context, deps pullDependencies, query *model.Fed
 		request.NextFetchToken = response.NextFetchToken
 	}
 
-	if err := finalizeFn(batchStart.Add(time.Now().Sub(start)), maxTimestamp, total); err != nil {
+	if err := finalizeFn(batchStart.Add(time.Now().UTC().Sub(start)), maxTimestamp, total); err != nil {
 		// TODO(jasonco): how do we clean up here? Just leave the records in and have the exporter eliminate them? Other?
-		return fmt.Errorf("finalizing federation sync for query %s: %v", queryID, err)
+		return fmt.Errorf("finalizing federation sync for query %s: %v", q.QueryID, err)
 	}
 
 	return nil

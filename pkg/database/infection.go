@@ -18,80 +18,33 @@ import (
 	"cambio/pkg/logging"
 	"cambio/pkg/model"
 	"context"
+	"database/sql"
 	"encoding/base64"
-	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
-	"cloud.google.com/go/datastore"
-	"google.golang.org/api/iterator"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/lib/pq"
 )
 
 const (
-	// InfectionTable holds uploaded infected keys.
-	InfectionTable = "infection"
-
-	defaultFetchInfectionsPageSize = 1000
-
 	// InsertInfectionsBatchSize is the maximum number of infections that can be inserted at once.
 	InsertInfectionsBatchSize = 500
 )
 
-// makeInfectionDatastoreKey turns a ExposureKey (16 bytes) into a datastore key,
-// which is just the standard base64 encoding for those bytes.
-func makeInfectionDatastoreKey(ExposureKey []byte) *datastore.Key {
-	return datastore.NameKey(InfectionTable, base64.StdEncoding.EncodeToString(ExposureKey), nil)
+// InfectionIterator iterates over a set of infections.
+type InfectionIterator interface {
+	// Next returns an infection and a flag indicating if the iterator is done (the infection will be nil when done==true).
+	Next() (infection *model.Infection, done bool, err error)
+	// Cursor returns a string that can be passed as LastCursor in FetchInfectionsCriteria when generating another iterator.
+	Cursor() (string, error)
+	// Close should be called when done iterating.
+	Close() error
 }
 
-// InsertInfections adds a set of infections to the database.
-func InsertInfections(ctx context.Context, infections []model.Infection) error {
-	logger := logging.FromContext(ctx)
-
-	client := Connection()
-	if client == nil {
-		return fmt.Errorf("unable to obtain database client")
-	}
-
-	if len(infections) > InsertInfectionsBatchSize {
-		return fmt.Errorf("batch size %d too large (maximum %d)", len(infections), InsertInfectionsBatchSize)
-	}
-
-	// Use datastore's batch loading functionality. By bundling inserts in
-	// a non-transactional batch - each individual update will be transactional,
-	// but we don't need to take locks over the entier enntity group.
-	mutations := make([]*datastore.Mutation, 0, len(infections))
-	for _, inf := range infections {
-		inf.K = makeInfectionDatastoreKey(inf.ExposureKey)
-		mutations = append(mutations, datastore.NewInsert(inf.K, &inf))
-	}
-
-	logger.Infof("Writing %v records", len(mutations))
-	_, err := client.Mutate(ctx, mutations...)
-	if err != nil {
-		logger.Errorf("client.Mutate: %v", err)
-		var mError datastore.MultiError
-		if status.Code(err) == codes.AlreadyExists {
-			logger.Infof("datastore library bug - didn't get multi-error, but did get codes.AlreadyExists.")
-		} else if errors.As(err, &mError) {
-			duplicateKeys := 0
-			for _, e := range mError {
-				if status.Code(e) != codes.AlreadyExists {
-					return err
-				} else {
-					duplicateKeys++
-				}
-			}
-			logger.Infof("Dropped %v duplicate keys in the batch of %v keys", duplicateKeys, len(mutations))
-		}
-	}
-
-	return nil
-}
-
-// FetchInfectionsCriteria is criteria to query infections.
-type FetchInfectionsCriteria struct {
+// IterateInfectionsCriteria is criteria to iterate infections.
+type IterateInfectionsCriteria struct {
 	IncludeRegions []string
 	SinceTimestamp time.Time
 	UntilTimestamp time.Time
@@ -101,85 +54,241 @@ type FetchInfectionsCriteria struct {
 	OnlyLocalProvenance bool
 }
 
-// InfectionIterator iterates over a set of infections.
-type InfectionIterator interface {
-	// Next returns an infection and a flag indicating if the iterator is done (the infection will be nil when done==true).
-	Next() (infection *model.Infection, done bool, err error)
-	// Cursor returns a string that can be passed as LastCursor in FetchInfectionsCriteria when generating another iterator.
-	Cursor() (string, error)
-}
-
-type datastoreInfectionIterator struct {
-	it *datastore.Iterator
-}
-
-func (i *datastoreInfectionIterator) Next() (*model.Infection, bool, error) {
-	var inf model.Infection
-	if _, err := i.it.Next(&inf); err != nil {
-		if err == iterator.Done {
-			return nil, true, nil
-		}
-		return nil, false, err
-	}
-	return &inf, false, nil
-}
-
-func (i *datastoreInfectionIterator) Cursor() (string, error) {
-	c, err := i.it.Cursor()
-	if err != nil {
-		return "", err
-	}
-	return c.String(), nil
-}
-
 // IterateInfections returns an iterator for infections meeting the criteria.
-func IterateInfections(ctx context.Context, criteria FetchInfectionsCriteria) (InfectionIterator, error) {
-	logger := logging.FromContext(ctx)
-	query, err := fetchQuery(criteria)
+func IterateInfections(ctx context.Context, criteria IterateInfectionsCriteria) (InfectionIterator, error) {
+	conn, err := Connection(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
+	}
+
+	offset := 0
+	if criteria.LastCursor != "" {
+		offsetStr, err := decodeCursor(criteria.LastCursor)
+		if err != nil {
+			return nil, fmt.Errorf("unable to decode cursor: %v", err)
+		}
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to decode cursor %v", err)
+		}
+	}
+
+	query, args, err := generateQuery(criteria)
 	if err != nil {
 		return nil, fmt.Errorf("generating query: %v", err)
 	}
-	logger.Debugf("Querying with %#v", query)
-
-	client := Connection()
-	if client == nil {
-		return nil, fmt.Errorf("unable to obtain database client")
+	rows, err := conn.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
 	}
 
-	return &datastoreInfectionIterator{it: client.Run(ctx, query)}, nil
+	return &postgresInfectionIterator{rows: rows, offset: offset}, nil
 }
 
-func fetchQuery(criteria FetchInfectionsCriteria) (*datastore.Query, error) {
-	q := datastore.NewQuery(InfectionTable)
+type postgresInfectionIterator struct {
+	rows   *sql.Rows
+	offset int
+}
 
-	if len(criteria.IncludeRegions) > 1 {
-		return nil, errors.New("datastore cannot filter on multiple regions")
+func (i *postgresInfectionIterator) Next() (*model.Infection, bool, error) {
+	if i.rows == nil {
+		return nil, true, nil
 	}
+
+	if !i.rows.Next() {
+		return nil, true, nil
+	}
+
+	var m model.Infection
+	var encodedExposureKey string
+	if err := i.rows.Scan(&encodedExposureKey, &m.DiagnosisStatus, &m.AppPackageName, pq.Array(&m.Regions), &m.IntervalNumber,
+		&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &m.FederationSyncID); err != nil {
+		return nil, false, err
+	}
+
+	var err error
+	m.ExposureKey, err = decodeExposureKey(encodedExposureKey)
+	if err != nil {
+		return nil, false, err
+	}
+	i.offset++
+
+	return &m, false, nil
+}
+
+func (i *postgresInfectionIterator) Cursor() (string, error) {
+	// TODO: this is a pretty weak cursor solution, but not too bad since we'll typcially have queries ahead of the wipeout
+	// and before the current ingestion window, and those should be stable.
+	return encodeCursor(strconv.Itoa(i.offset)), nil
+}
+
+func (i *postgresInfectionIterator) Close() error {
+	if i.rows != nil {
+		i.rows.Close()
+	}
+	return nil
+}
+
+func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, error) {
+	q := `
+		SELECT
+			exposure_key, diagnosis_status, app_package_name, regions, interval_number, interval_count,
+			created_at, local_provenance, verification_authority_name, sync_id
+		FROM Infection
+		WHERE 1=1
+		`
+	var args []interface{}
+
 	if len(criteria.IncludeRegions) == 1 {
-		q = q.Filter("region =", criteria.IncludeRegions[0])
+		args = append(args, pq.Array(criteria.IncludeRegions))
+		q += fmt.Sprintf(" AND (regions && $%d)", len(args)) // Operation "&&" means "array overlaps / intersects"
 	}
 
 	if !criteria.SinceTimestamp.IsZero() {
-		q = q.Filter("createdAt >", criteria.SinceTimestamp)
+		args = append(args, criteria.SinceTimestamp)
+		q += fmt.Sprintf(" AND created_at > $%d", len(args))
 	}
 
 	if !criteria.UntilTimestamp.IsZero() {
-		q = q.Filter("createdAt <=", criteria.UntilTimestamp)
+		args = append(args, criteria.UntilTimestamp)
+		q += fmt.Sprintf(" AND created_at <= $%d", len(args))
 	}
 
 	if criteria.OnlyLocalProvenance {
-		q = q.Filter("localProvenance =", true)
+		args = append(args, true)
+		q += fmt.Sprintf(" AND local_provenance = $%d", len(args))
 	}
 
-	q = q.Order("createdAt")
+	q += " ORDER BY created_at"
 
 	if criteria.LastCursor != "" {
-		c, err := datastore.DecodeCursor(criteria.LastCursor)
+		decoded, err := decodeCursor(criteria.LastCursor)
 		if err != nil {
-			return nil, fmt.Errorf("decoding cursor: %v", err)
+			return "", nil, err
 		}
-		q = q.Start(c)
+		args = append(args, decoded)
+		q += fmt.Sprintf(" OFFSET $%d", len(args))
+	}
+	q = strings.ReplaceAll(q, "\n", " ")
+
+	return q, args, nil
+}
+
+// InsertInfections inserts a set of infections.
+func InsertInfections(ctx context.Context, infections []*model.Infection) (err error) {
+	conn, err := Connection(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to obtain database connection: %v", err)
+	}
+	logger := logging.FromContext(ctx)
+
+	commit := false
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if commit {
+			if err1 := tx.Commit(); err1 != nil {
+				err = err1
+			}
+		} else {
+			if err1 := tx.Rollback(); err1 != nil {
+				err = err1
+			} else {
+				logger.Debugf("Rolling back.")
+			}
+		}
+	}()
+
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO Infection
+		  (exposure_key, diagnosis_status, app_package_name, regions, interval_number, interval_count, 
+		  created_at, local_provenance, verification_authority_name, sync_id)
+		VALUES
+		  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		ON CONFLICT (exposure_key) DO NOTHING
+		`)
+	if err != nil {
+		return fmt.Errorf("preparing insert statment: %v", err)
 	}
 
-	return q, nil
+	for _, inf := range infections {
+		_, err := stmt.ExecContext(ctx, encodeExposureKey(inf.ExposureKey), inf.DiagnosisStatus, inf.AppPackageName, pq.Array(inf.Regions), inf.IntervalNumber, inf.IntervalCount,
+			inf.CreatedAt, inf.LocalProvenance, inf.VerificationAuthorityName, inf.FederationSyncID)
+		if err != nil {
+			return fmt.Errorf("inserting infection: %v", err)
+		}
+	}
+	if err := stmt.Close(); err != nil {
+		return fmt.Errorf("closing prepared statement: %v", err)
+	}
+
+	commit = true
+	return nil
+}
+
+// DeleteInfections deletes infections created before "before" date. Returns the number of records deleted.
+func DeleteInfections(ctx context.Context, before time.Time) (count int64, err error) {
+	conn, err := Connection(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("unable to obtain database connection: %v", err)
+	}
+	logger := logging.FromContext(ctx)
+
+	commit := false
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("starting transaction: %v", err)
+	}
+	defer func() {
+		if commit {
+			if err1 := tx.Commit(); err1 != nil {
+				err = fmt.Errorf("failed to commit: %v", err1)
+			}
+		} else {
+			if err1 := tx.Rollback(); err1 != nil {
+				err = fmt.Errorf("failed to rollback: %v", err1)
+			} else {
+				logger.Debugf("Rolling back.")
+			}
+		}
+	}()
+
+	result, err := tx.ExecContext(ctx, `
+			DELETE FROM Infection
+			WHERE
+				created_at < $1
+			`, before)
+	if err != nil {
+		return 0, fmt.Errorf("deleting infections: %v", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	commit = true
+	return rows, nil
+}
+
+func encodeCursor(s string) string {
+	return base64.StdEncoding.EncodeToString([]byte(s))
+}
+
+func decodeCursor(encoded string) (string, error) {
+	b, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", fmt.Errorf("decoding cursor: %v", err)
+	}
+	return string(b), nil
+}
+
+func encodeExposureKey(b []byte) string {
+	return base64.StdEncoding.EncodeToString(b)
+}
+
+func decodeExposureKey(encoded string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(encoded)
 }

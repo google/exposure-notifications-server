@@ -18,13 +18,31 @@ export PROJECT_ID=$(gcloud config get-value core/project)
 
 # environment variables for running the services
 export DATASTORE_PROJECT_ID=$PROJECT_ID
+
+# local application credentials - you need to get your own credentials
+export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/local/sa.json"
+
+# To use Secret Manager, you need to grant Secret Manager > Secret Manager Accessor to the credentials in the above sa.json file.
+# https://pantheon.corp.google.com/iam-admin/iam
+#
+# If using a test project, you need to create a test key (one time) in your project:
+#
+#  $ echo -n "<some random string>" | gcloud secrets create safetynetapi --replication-policy=automatic --data-file=-
+#
 export SAFETYNET_API_KEY="projects/$PROJECT_ID/secrets/safetynetapi/versions/latest"
 
 # wipeout variables
 export TTL_DURATION="14d"
 
-# local application credentials - you need to get your own credentials
-export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/local/sa.json"
+# Set up environment for local postgres database; see pkg/database/schema.sql for the schema to use.
+# More configuration available in pkg/database/connection.go
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_DBNAME=apollo
+export DB_USER=apollo
+export DB_PASSWORD=mypassword
+export DB_SSLMODE=disable
+
 
 if [ ! -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
     echo "$GOOGLE_APPLICATION_CREDENTIALS does not exist. \
@@ -34,5 +52,7 @@ $GOOGLE_APPLICATION_CREDENTIALS"
     exit -1
 fi
 
-echo "Project ID:  $PROJECT_ID"
-echo "Credentials: $GOOGLE_APPLICATION_CREDENTIALS"
+echo "Project ID:    $PROJECT_ID"
+echo "Credentials:   $GOOGLE_APPLICATION_CREDENTIALS"
+echo "Database:      $DB_HOST:$DB_PORT"
+echo "Database user: $DB_USER"

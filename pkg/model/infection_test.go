@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func IntervalNumber(t time.Time) int32 {
@@ -79,7 +78,7 @@ func TestTransform(t *testing.T) {
 		// Verification doesn't matter for transforming.
 	}
 
-	want := []Infection{
+	want := []*Infection{
 		{
 			ExposureKey:    []byte("ABC"),
 			IntervalNumber: intervalNumber,
@@ -104,7 +103,7 @@ func TestTransform(t *testing.T) {
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
 	batchTimeRounded := time.Date(2020, 3, 1, 10, 30, 0, 0, time.UTC)
 	for i, v := range want {
-		want[i] = Infection{
+		want[i] = &Infection{
 			ExposureKey:     v.ExposureKey,
 			DiagnosisStatus: 2,
 			AppPackageName:  "com.google",
@@ -121,9 +120,8 @@ func TestTransform(t *testing.T) {
 		t.Fatalf("TransformPublish returned unexpected error: %v", err)
 	}
 
-	opts := cmpopts.IgnoreFields(Infection{}, "K")
 	for i := range want {
-		if diff := cmp.Diff(want[i], got[i], opts); diff != "" {
+		if diff := cmp.Diff(want[i], got[i]); diff != "" {
 			t.Errorf("TransformPublish mismatch (-want +got):\n%v", diff)
 		}
 	}

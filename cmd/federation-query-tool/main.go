@@ -71,6 +71,7 @@ func main() {
 	}
 
 	query := &model.FederationQuery{
+		QueryID:        *queryID,
 		ServerAddr:     *serverAddr,
 		IncludeRegions: includeRegions,
 		ExcludeRegions: excludeRegions,
@@ -78,7 +79,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	if err := database.AddFederationQuery(ctx, *queryID, query); err != nil {
+	if err := database.AddFederationQuery(ctx, query); err != nil {
 		log.Fatalf("adding new query %s %#v: %v", *queryID, query, err)
 	}
 

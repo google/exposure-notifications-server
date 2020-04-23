@@ -18,8 +18,6 @@ import (
 	"encoding/base64"
 	"strings"
 	"time"
-
-	"cloud.google.com/go/datastore"
 )
 
 const (
@@ -53,17 +51,16 @@ type ExposureKey struct {
 // from direct access.
 // Mark records as writable/nowritable - is exposure key encrypted
 type Infection struct {
-	ExposureKey               []byte         `datastore:"exposureKeys,noindex"`
-	DiagnosisStatus           int            `datastore:"diagnosisStatus,noindex"`
-	AppPackageName            string         `datastore:"appPackageName,noindex"`
-	Regions                   []string       `datastore:"region"`
-	FederationSync            *datastore.Key `datastore:"sync,noindex"`
-	IntervalNumber            int32          `datastore:"intervalNumber,noindex"`
-	IntervalCount             int32          `datastore:"intervalCount,noindex"`
-	CreatedAt                 time.Time      `datastore:"createdAt"`
-	LocalProvenance           bool           `datastore:"localProvenance"`
-	VerificationAuthorityName string         `datastore:"verificationAuthName,noindex"`
-	K                         *datastore.Key `datastore:"__key__"`
+	ExposureKey               []byte    `db:"exposure_key"`
+	DiagnosisStatus           int       `db:"diagnosis_status"`
+	AppPackageName            string    `db:"app_package_name"`
+	Regions                   []string  `db:"regions"`
+	IntervalNumber            int32     `db:"interval_number"`
+	IntervalCount             int32     `db:"interval_count"`
+	CreatedAt                 time.Time `db:"created_at"`
+	LocalProvenance           bool      `db:"local_provenance"`
+	VerificationAuthorityName string    `db:"verification_authority_name"`
+	FederationSyncID          string    `db:"sync_id"`
 }
 
 const (
@@ -84,9 +81,9 @@ func correctIntervalCount(count int32) int32 {
 }
 
 // TransformPublish converts incoming key data to a list of infection entities.
-func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error) {
+func TransformPublish(inData *Publish, batchTime time.Time) ([]*Infection, error) {
 	createdAt := TruncateWindow(batchTime)
-	entities := make([]Infection, 0, len(inData.Keys))
+	entities := make([]*Infection, 0, len(inData.Keys))
 
 	// Regions are a multi-value property, uppercase them for storage.
 	upcaseRegions := make([]string, len(inData.Regions))
@@ -100,7 +97,7 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]Infection, error)
 			return nil, err
 		}
 		// TODO(helmick) - data validation
-		infection := Infection{
+		infection := &Infection{
 			ExposureKey:               binKey,
 			DiagnosisStatus:           inData.DiagnosisStatus,
 			AppPackageName:            inData.AppPackageName,
