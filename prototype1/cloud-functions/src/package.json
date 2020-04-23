@@ -1,9 +1,0 @@
-{
-  "name": "apollo-server",
-  "version": "0.0.1",
-  "dependencies": {
-    "@google-cloud/bigtable": "^2.3.2",
-    "@google-cloud/functions-framework": "^1.5.0",
-    "uuid": "^7.0.3"
-  }
-}
