@@ -23,6 +23,9 @@ message ExposureKeyExport {
 	// Region for which these keys came from (e.g., country)
 	string region = 3;
 	repeated ExposureKey keys = 4;
+	// E.g., Batch 2 of 10
+	int32 batchNum = 5;
+	int32 batchSize = 6;
 
 	message ExposureKey {
 		// Key of infected user
