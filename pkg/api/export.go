@@ -29,7 +29,17 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func HandleExport() http.HandlerFunc {
+func HandleSetupBatch() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		logger := logging.FromContext(ctx)
+		logger.Infof("setting up tables for next batch...")
+		database.AddNewBatch(ctx)
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func HandleTestExport() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		logger := logging.FromContext(ctx)
@@ -43,12 +53,9 @@ func HandleExport() http.HandlerFunc {
 			}
 		}
 		logger.Infof("limiting to %v", limit)
-		// TODO(guray): split into multiple batches
 		criteria := database.IterateInfectionsCriteria{
-			// TODO(guray): calculate Since/UntilTimestamp's based on last success
-			SinceTimestamp: time.Now().UTC().AddDate(0, 0, -5),
-			UntilTimestamp: time.Now().UTC(),
-			// TODO(guray): use IncludeRegions to split into multiple files
+			SinceTimestamp:      time.Now().UTC().AddDate(0, 0, -5),
+			UntilTimestamp:      time.Now().UTC(),
 			OnlyLocalProvenance: false, // include federated ids
 		}
 		it, err := database.IterateInfections(ctx, criteria)
@@ -82,7 +89,6 @@ func HandleExport() http.HandlerFunc {
 			return
 		}
 		batch := pb.ExposureKeyExport{
-			// TODO(guray): real metadata, depending on what batch this is
 			StartTimestamp: time.Now().UTC().Unix(),
 			Region:         "US",
 			Keys:           exposureKeys,
@@ -92,7 +98,6 @@ func HandleExport() http.HandlerFunc {
 			logger.Errorf("error serializing proto: %v", err)
 			http.Error(w, "internal processing error", http.StatusInternalServerError)
 		}
-		// TODO(guray): sort out naming scheme, cache control, etc
 		objectName := fmt.Sprintf("testExport-%d-records.pb", limit)
 		if err := storage.CreateObject("apollo-public-bucket", objectName, data); err != nil {
 			logger.Errorf("error creating cloud storage object: %v", err)

@@ -43,6 +43,22 @@ CREATE TABLE Infection (
 	sync_id VARCHAR(100)  -- This could be a foreign key to FederationSync, but it's more difficult to handle nullable strings in Go, and it seems like unnecessary overhead.
 );
 
+CREATE TABLE ExportBatch (
+	batch_id SERIAL PRIMARY KEY,
+	start_timestamp TIMESTAMP,
+	end_timestamp TIMESTAMP,
+	status VARCHAR(10)
+);
+
+CREATE TABLE ExportFile (
+	filename VARCHAR(200) PRIMARY KEY,
+	batch_id INT REFERENCES ExportBatch(batch_id),
+	region VARCHAR(5),
+	batch_num INT,
+	batch_size INT,
+	status VARCHAR(10)
+);
+
 CREATE TABLE Lock (
 	lock_id VARCHAR(100) PRIMARY KEY,
 	expires TIMESTAMP NOT NULL
