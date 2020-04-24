@@ -1,0 +1,92 @@
+meta {
+  title "Contact Tracing Server"
+}
+
+elements {
+########################################
+# Clients and Partners
+########################################
+
+  card server as federated_partner
+  card smartphone as client
+  card smartphone as out_client
+  card server as federated_ingestion_server
+ 
+
+ gcp {
+    card gclb
+    ########################################
+    # GKE Components
+    ########################################
+	card cloud_run as exposure_ingestion {
+    	name "Exposure Ingestion"
+        description "Intake of Exposure Keys"
+    }
+    
+	card cloud_run as federated_ingestion {
+    	name "Federated Ingestion"
+        description "Federated Ingestion Label"
+    }
+    
+    card cloud_run as data_deletion {
+    	name "Data Deletion"
+        description "Periodically delete old exposure keys"
+    }
+    
+    card cloud_run as batch_keys {
+    	name "Batch Exposed Keys"
+        description ""
+    }
+
+	card cloud_run as federation_api {
+    	name "Batch Exposed Keys"
+        description "Bundle keys to periodic binaries to share with clients"
+    }
+    
+    # Likely needed instead of CDN
+    #card gke as exposed_key_server {
+    #}
+    
+    ########################################
+    # Storage Components
+    ########################################
+    card sql {
+    	name "Exposed Key Database"
+		description ""
+	}
+    
+    card storage {
+    	name "Exposed Key Batch Object Storage"
+		description ""
+	}
+    
+    card cdn
+
+    ########################################
+    #
+    ########################################
+    card cloud_scheduler
+  }
+}
+
+paths {
+  federated_ingestion_server --> gclb
+  client --> gclb
+  
+  gclb --> exposure_ingestion
+  gclb --> federated_ingestion
+  
+  exposure_ingestion --> sql
+  federated_ingestion --> sql
+  
+  sql --> batch_keys
+  sql --> federation_api
+  
+  cloud_scheduler ..> data_deletion
+  cloud_scheduler ..> batch_keys
+  
+  batch_keys --> storage
+  storage --> cdn
+  cdn --> federated_partner
+  cdn --> out_client
+}
