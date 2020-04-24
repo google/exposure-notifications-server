@@ -1,19 +1,19 @@
 meta {
-  title "Contact Tracing Server"
+  title "Contact Tracing Server - In"
 }
 
 elements {
-  ########################################
-  # Clients and Partners
-  ########################################
-  # In
+########################################
+# Clients and Partners
+########################################
+
   card smartphone as client
   card server as federated_ingestion_server
-  # Out
-  card smartphone as out_client
-  card server as federated_partner
 
-  gcp {
+  # card smartphone as out_client
+  # card server as federated_partner
+  
+ gcp {
     ########################################
     # Compute Components
     ########################################
@@ -41,25 +41,14 @@ elements {
         description ""
     }
 
-    ########################################
-    # Storage Components
-    ########################################
-    card sql {
-    	name "Tracing Key Database"
-		description ""
-	}
-
-    card storage as storage {
-    	name "Batches"
-		description ""
-	}
+   
 
     card cdn
     # Likely needed instead of CDN for non-gcp
     # card cloud_run as cdn {
     #    name "Tracing Key Batch Server"
     #}
-    
+
     card generic as secret_manager {
         name "Secret Manager"
     }
@@ -71,24 +60,42 @@ elements {
         name "Periodically run Data Deletion, Batching"
     }
   }
+  
+  group OnPrem {
+ 	########################################
+    # Storage Components
+    ########################################
+    card gke_onprem as sql {
+    	name "Tracing Key Database"
+		description ""
+	}
+
+    card gke_onprem as storage {
+    	name "Tracing Key Batches"
+		description ""
+	} 
+  }
 }
+
 
 paths {
   federated_ingestion_server --> federated_ingestion
   client --> tracing_key_ingestion
 
-  tracing_key_ingestion --> sql
-  federated_ingestion --> sql
-  data_deletion --> sql
 
-  sql --> batch_keys
-  sql --> federation_api
+
+  # sql --> batch_keys
+  # sql --> federation_api
 
  
   batch_keys --> storage
-  storage --> cdn
-  federation_api --> federated_partner
-  cdn --> out_client
+  # storage --> cdn
+  # federation_api --> federated_partner
+  # cdn --> out_client
+  
+  tracing_key_ingestion --> sql
+  federated_ingestion --> sql
+  data_deletion --> sql
 
   # Don't render connections as it clutters diagram
   # cloud_scheduler ..> data_deletion

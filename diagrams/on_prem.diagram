@@ -3,28 +3,29 @@ meta {
 }
 
 elements {
-########################################
-# Clients and Partners
-########################################
-
-  card server as federated_partner
+  ########################################
+  # Clients and Partners
+  ########################################
+  # In
   card smartphone as client
-  card smartphone as out_client
   card server as federated_ingestion_server
+  # Out
+  card smartphone as out_client
+  card server as federated_partner
 
- group Architecture {
-    card gateway as gclb
+
+  group OnPrem {
     ########################################
     # Compute Components
     ########################################
-	card gke_onprem as exposure_ingestion {
-    	name "Exposure Ingestion"
-        description "Intake of Exposure Keys"
+	card gke_onprem as tracing_key_ingestion {
+    	name "Tracing Key Ingestion"
+        description "Intake of Tracing Keys"
     }
 
 	card gke_onprem as federated_ingestion {
     	name "Federated Ingestion"
-        description "Federated Ingestion Label"
+        description "Federated Ingestion"
     }
 
     card gke_onprem as data_deletion {
@@ -37,7 +38,7 @@ elements {
         description ""
     }
     card gke_onprem as batch_keys {
-    	name "Batch Exposed Keys"
+    	name "Batch Tracing Keys"
         description ""
     }
 
@@ -53,39 +54,44 @@ elements {
 		description ""
 	}
 
+    card gke_onprem as secret_manager {
+        name "Secret Manager"
+    }
+
+
     #card cdn
     # Likely needed instead of CDN
     card gke_onprem as cdn {
-        name "Exposed Key Batch Server"
+        name "Tracing Key Batch Server"
     }
 
     ########################################
     #
     ########################################
     card gke_onprem as cloud_scheduler {
-    	name "Scheduler"
+        name "Periodically run Data Deletion, Batching"
     }
   }
 }
 
 paths {
-  federated_ingestion_server --> gclb
-  client --> gclb
+  federated_ingestion_server --> federated_ingestion
+  client --> tracing_key_ingestion
 
-  gclb --> exposure_ingestion
-  gclb --> federated_ingestion
-
-  exposure_ingestion --> sql
+  tracing_key_ingestion --> sql
   federated_ingestion --> sql
+  data_deletion ..> sql
 
   sql --> batch_keys
   sql --> federation_api
 
-  cloud_scheduler ..> data_deletion
-  cloud_scheduler ..> batch_keys
-
+ 
   batch_keys --> storage
   storage --> cdn
   federation_api --> federated_partner
   cdn --> out_client
+
+  # Don't render connections as it clutters diagram
+  # cloud_scheduler ..> data_deletion
+  # cloud_scheduler ..> batch_keys
 }
