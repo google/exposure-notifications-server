@@ -36,9 +36,10 @@ func main() {
 	}
 
 	router := mux.NewRouter()
-	// TODO(guray): remove or gate this handler
+	// TODO(guray): remove or gate the /test handler
 	router.HandleFunc("/test", api.HandleTestExport())
 	router.HandleFunc("/setupBatch", api.HandleSetupBatch())
+	router.HandleFunc("/pollWork", api.HandlePollWork())
 	logger.Info("starting infection export server")
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

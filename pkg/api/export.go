@@ -39,6 +39,15 @@ func HandleSetupBatch() http.HandlerFunc {
 	}
 }
 
+func HandlePollWork() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		logger := logging.FromContext(ctx)
+		logger.Infof("Polling for open work...")
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
 func HandleTestExport() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
