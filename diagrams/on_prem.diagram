@@ -12,31 +12,31 @@ elements {
   card smartphone as out_client
   card server as federated_ingestion_server
 
- gcp {
-    card gclb
+ group Architecture {
+    card gateway as gclb
     ########################################
     # Compute Components
     ########################################
-	card cloud_run as exposure_ingestion {
+	card gke_onprem as exposure_ingestion {
     	name "Exposure Ingestion"
         description "Intake of Exposure Keys"
     }
 
-	card cloud_run as federated_ingestion {
+	card gke_onprem as federated_ingestion {
     	name "Federated Ingestion"
         description "Federated Ingestion Label"
     }
 
-    card cloud_run as data_deletion {
+    card gke_onprem as data_deletion {
     	name "Data Deletion"
         description "Periodically delete old exposure keys"
     }
 
-	card cloud_run as federation_api {
+	card gke_onprem as federation_api {
     	name "Federated Access"
         description ""
     }
-    card cloud_run as batch_keys {
+    card gke_onprem as batch_keys {
     	name "Batch Exposed Keys"
         description ""
     }
@@ -44,9 +44,8 @@ elements {
     ########################################
     # Storage Components
     ########################################
-    card sql {
-    	name "Exposed Key Database"
-		description ""
+    card server as sql {
+    	name "Database"
 	}
 
     card server as storage {
@@ -54,16 +53,18 @@ elements {
 		description ""
 	}
 
-    card cdn
-    # Likely needed instead of CDN for non-gcp
-    # card cloud_run as cdn {
-    #    name "Exposed Key Batch Server"
-    #}
+    #card cdn
+    # Likely needed instead of CDN
+    card gke_onprem as cdn {
+        name "Exposed Key Batch Server"
+    }
 
     ########################################
     #
     ########################################
-    card cloud_scheduler
+    card gke_onprem as cloud_scheduler {
+    	name "Scheduler"
+    }
   }
 }
 
