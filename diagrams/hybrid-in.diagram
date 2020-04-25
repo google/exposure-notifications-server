@@ -49,8 +49,8 @@ elements {
     #    name "Tracing Key Batch Server"
     #}
 
-    card generic as secret_manager {
-        name "Secret Manager"
+    card secret_manager as secret_manager {
+        name "Certificates, Keys
     }
 
     ########################################
