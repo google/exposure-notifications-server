@@ -18,9 +18,10 @@ import (
 	"cambio/pkg/logging"
 	"cambio/pkg/model"
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
+
+	pgx "github.com/jackc/pgx/v4"
 )
 
 const (
@@ -29,47 +30,38 @@ const (
 )
 
 func AddNewBatch(ctx context.Context) (err error) {
+	logger := logging.FromContext(ctx)
 	conn, err := Connection(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to obtain database connection: %v", err)
 	}
-	logger := logging.FromContext(ctx)
+	defer conn.Release()
 
 	commit := false
-	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
 		return fmt.Errorf("starting transaction: %v", err)
 	}
-	defer func() {
-		if commit {
-			if err1 := tx.Commit(); err1 != nil {
-				err = fmt.Errorf("failed to commit: %v", err1)
-			}
-		} else {
-			if err1 := tx.Rollback(); err1 != nil {
-				err = fmt.Errorf("failed to rollback: %v", err1)
-			} else {
-				logger.Debugf("Rolling back.")
-			}
-		}
-	}()
-	eb, err1 := calculateNextBatch(ctx, tx)
-	if err1 != nil {
-		return fmt.Errorf("calculating batch: %v", err1)
+	defer finishTx(ctx, tx, &commit, &err)
+
+	eb, err := calculateNextBatch(ctx, tx)
+	if err != nil {
+		return fmt.Errorf("calculating batch: %v", err)
 	}
-	bId, err2 := insertBatch(ctx, tx, eb)
-	if err2 != nil {
-		return fmt.Errorf("inserting batch: %v", err2)
+
+	bid, err := insertBatch(ctx, tx, eb)
+	if err != nil {
+		return fmt.Errorf("inserting batch: %v", err)
 	}
-	logger.Infof("Inserted batch id %v", bId)
+
+	logger.Infof("Inserted batch id %v", bid)
 
 	// TODO(guray): insert into ExportFile with that batch, query for exposure key counts, ...
-
 	commit = true
 	return nil
 }
 
-func calculateNextBatch(ctx context.Context, tx *sql.Tx) (model.ExportBatch, error) {
+func calculateNextBatch(ctx context.Context, tx pgx.Tx) (model.ExportBatch, error) {
 	// TODO(guray): lookup end_timestamp of last successful batch, truncate, etc
 	return model.ExportBatch{
 		StartTimestamp: time.Now().UTC().Add(time.Hour * -24),
@@ -78,24 +70,20 @@ func calculateNextBatch(ctx context.Context, tx *sql.Tx) (model.ExportBatch, err
 	}, nil
 }
 
-func insertBatch(ctx context.Context, tx *sql.Tx, b model.ExportBatch) (int64, error) {
+func insertBatch(ctx context.Context, tx pgx.Tx, b model.ExportBatch) (int64, error) {
 	// Postgres sql driver doesn't support LastInsertedId, so using "RETURNING"
 	// and scanning the query result
-	stmt, err := tx.PrepareContext(ctx, `
+	row := tx.QueryRow(ctx, `
 		INSERT INTO ExportBatch
 			(start_timestamp, end_timestamp, status)
 		VALUES
 			($1, $2, $3)
 		RETURNING batch_id
-		`)
-	if err != nil {
-		return -1, err
-	}
-	defer stmt.Close()
+		`, b.StartTimestamp, b.EndTimestamp, b.Status)
+
 	var id int64
-	err1 := stmt.QueryRowContext(ctx, b.StartTimestamp, b.EndTimestamp, b.Status).Scan(&id)
-	if err1 != nil {
-		return -1, err1
+	if err := row.Scan(&id); err != nil {
+		return -1, fmt.Errorf("fetching batch_id: %v", err)
 	}
 	return id, nil
 }

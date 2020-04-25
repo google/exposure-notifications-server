@@ -15,13 +15,13 @@
 package database
 
 import (
-	"cambio/pkg/logging"
 	"cambio/pkg/model"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
+
+	pgx "github.com/jackc/pgx/v4"
 )
 
 var (
@@ -38,32 +38,17 @@ func Lock(ctx context.Context, lockID string, ttl time.Duration) (unlockFn Unloc
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
-	logger := logging.FromContext(ctx)
-
-	now := time.Now().UTC()
-	expiry := now.Add(ttl)
+	defer conn.Release()
 
 	commit := false
-	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
 		return nil, fmt.Errorf("starting transaction: %v", err)
 	}
-	defer func() {
-		if commit {
-			if err1 := tx.Commit(); err1 != nil {
-				err = fmt.Errorf("failed to commit: %v", err1)
-			}
-		} else {
-			if err1 := tx.Rollback(); err1 != nil {
-				err = fmt.Errorf("failed to rollback: %v", err1)
-			} else {
-				logger.Debugf("Rolling back.")
-			}
-		}
-	}()
+	defer finishTx(ctx, tx, &commit, &err)
 
 	// Lookup existing lock, if any.
-	row := tx.QueryRowContext(ctx, `
+	row := tx.QueryRow(ctx, `
 		SELECT
 			lock_id, expires 
 		FROM Lock 
@@ -77,17 +62,18 @@ func Lock(ctx context.Context, lockID string, ttl time.Duration) (unlockFn Unloc
 	existing := true
 	var l model.Lock
 	if err := row.Scan(&l.LockID, &l.Expires); err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			existing = false
 		} else {
 			return nil, fmt.Errorf("scanning results: %v", err)
 		}
 	}
 
+	expiry := time.Now().UTC().Add(ttl)
 	if existing {
-		// If expired, update lock and return true
+		// If expired, update lock and return true.
 		if time.Now().UTC().After(l.Expires) {
-			_, err := tx.ExecContext(ctx, `
+			_, err := tx.Exec(ctx, `
 				UPDATE Lock
 				SET
 					expires=$1
@@ -104,7 +90,7 @@ func Lock(ctx context.Context, lockID string, ttl time.Duration) (unlockFn Unloc
 	}
 
 	// Insert a new lock.
-	_, err = tx.ExecContext(ctx, `
+	_, err = tx.Exec(ctx, `
 		INSERT INTO Lock
 			(lock_id, expires)
 		VALUES
@@ -113,6 +99,7 @@ func Lock(ctx context.Context, lockID string, ttl time.Duration) (unlockFn Unloc
 	if err != nil {
 		return nil, fmt.Errorf("inserting new lock: %v", err)
 	}
+
 	commit = true
 	return buildUnlockFn(ctx, lockID), nil
 }
@@ -123,27 +110,16 @@ func buildUnlockFn(ctx context.Context, lockID string) UnlockFn {
 		if err != nil {
 			return fmt.Errorf("unable to obtain database connection: %v", err)
 		}
-		logger := logging.FromContext(ctx)
+		defer conn.Release()
+
 		commit := false
-		tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+		tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
 		if err != nil {
 			return fmt.Errorf("starting transaction: %v", err)
 		}
-		defer func() {
-			if commit {
-				if err1 := tx.Commit(); err1 != nil {
-					err = fmt.Errorf("failed to commit: %v", err1)
-				}
-			} else {
-				if err1 := tx.Rollback(); err1 != nil {
-					err = fmt.Errorf("failed to rollback: %v", err1)
-				} else {
-					logger.Debugf("Rolling back.")
-				}
-			}
-		}()
+		defer finishTx(ctx, tx, &commit, &err)
 
-		_, err = tx.ExecContext(ctx, `
+		_, err = tx.Exec(ctx, `
 			DELETE FROM Lock
 			WHERE
 				lock_id=$1
@@ -151,6 +127,7 @@ func buildUnlockFn(ctx context.Context, lockID string) UnlockFn {
 		if err != nil {
 			return fmt.Errorf("deleting lock: %v", err)
 		}
+
 		commit = true
 		return nil
 	}

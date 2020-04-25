@@ -10,8 +10,10 @@ require (
 	github.com/google/go-cmp v0.4.0
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
-	github.com/lib/pq v1.4.0
+	github.com/jackc/pgx/v4 v4.6.0
+	github.com/lib/pq v1.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
 	go.uber.org/zap v1.14.1
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect
 	golang.org/x/tools v0.0.0-20200331202046-9d5940d49312 // indirect

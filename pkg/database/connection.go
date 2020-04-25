@@ -18,7 +18,6 @@ package database
 import (
 	"cambio/pkg/logging"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -27,14 +26,12 @@ import (
 	"sync"
 	"time"
 
-	// Register postgres.
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 const (
-	databaseType              = "postgres"
 	defaultHost               = "localhost"
-	defaultPort               = "5432"
+	defaultPort               = 5432
 	defaultSSLMode            = "required"
 	defaultMaxIdleConnections = 10
 	defaultMaxOpenConnections = 10
@@ -42,8 +39,8 @@ const (
 
 var (
 	// mu guards the initialization of db
-	mu sync.Mutex
-	db *sql.DB
+	mu   sync.Mutex
+	pool *pgxpool.Pool
 
 	validSSLModes = []string{
 		"disable",     // No SSL
@@ -51,152 +48,144 @@ var (
 		"verify-ca",   // Always SSL (verify that the certificate presented by the server was signed by a trusted CA)
 		"verify-full", // Always SSL (verify that the certification presented by
 	}
+
+	configs = []config{
+		{env: "DB_DBNAME", part: "dbname", def: "", req: true},
+		{env: "DB_USER", part: "user", def: "", req: true},
+		{env: "DB_HOST", part: "host", def: defaultHost},
+		{env: "DB_PORT", part: "port", def: defaultPort},
+		{env: "DB_SSLMODE", part: "sslmode", def: defaultSSLMode, valid: validSSLModes},
+		{env: "DB_CONNECT_TIMEOUT", part: "connect_timeout", def: 0},
+		{env: "DB_PASSWORD", part: "password", def: ""},
+		{env: "DB_SSLCERT", part: "sslcert", def: ""},
+		{env: "DB_SSLKEY", part: "sslkey", def: ""},
+		{env: "DB_SSLROOTCERT", part: "sslrootcert", def: ""},
+		{env: "DB_POOL_MAX_CONNS", part: "pool_max_conns", def: ""},
+		{env: "DB_POOL_MIN_CONNS", part: "pool_min_conns", def: ""},
+		{env: "DB_POOL_MAX_CONN_LIFETIME", part: "pool_max_conn_lifetime", def: time.Duration(0)},
+		{env: "DB_POOL_MAX_CONN_IDLE_TIME", part: "pool_max_conn_idle_time", def: time.Duration(0)},
+		{env: "DB_POOL_HEALTH_CHECK_PERIOD", part: "pool_health_check_period", def: time.Duration(0)},
+	}
 )
+
+type config struct {
+	env   string
+	part  string
+	def   interface{}
+	req   bool
+	valid []string
+}
 
 // Initialize sets up the database connections.
 func Initialize() error {
 	mu.Lock()
 	defer mu.Unlock()
-	if db != nil {
-		return errors.New("database connection already initialized")
+	if pool != nil {
+		return errors.New("connection pool already initialized")
 	}
 
 	ctx := context.Background()
-	logger := logging.FromContext(ctx)
-
-	var e []string
-	dbname := os.Getenv("DB_DBNAME")
-	if dbname == "" {
-		e = append(e, "$DB_DBNAME is required")
-	}
-	user := os.Getenv("DB_USER")
-	if user == "" {
-		e = append(e, "$DB_USER is required")
-	}
-	host := os.Getenv("DB_HOST")
-	if host == "" {
-		logger.Infof("$DB_HOST not found. Using default %q", defaultHost)
-		host = defaultHost
-	}
-	port := os.Getenv("DB_PORT")
-	if port == "" {
-		logger.Infof("$DB_PORT not found. Using default %q", defaultPort)
-		port = defaultPort
-	}
-	sslmode := os.Getenv("DB_SSLMODE")
-	if sslmode == "" {
-		logger.Infof("$DB_SSLMODE not found. Using default %q", defaultSSLMode)
-		sslmode = defaultSSLMode
-	} else {
-		valid := false
-		for _, v := range validSSLModes {
-			if sslmode == v {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			e = append(e, fmt.Sprintf("$DB_SSLMODE %q is not valid; must be one of %v", sslmode, validSSLModes))
-		}
-	}
-	connectTimeout := os.Getenv("DB_CONNECT_TIMEOUT")
-	if connectTimeout != "" {
-		dur, err := time.ParseDuration(connectTimeout)
-		if err != nil {
-			e = append(e, fmt.Sprintf("$DB_CONNECT_TIMEOUT parsing failed: %v", err))
-		}
-		connectTimeout = string(int64(dur.Seconds()))
-	}
-	password := os.Getenv("DB_PASSWORD") // TODO(jasonco): move to secrets, or rely on certificates
-	sslcert := os.Getenv("DB_SSLCERT")
-	sslkey := os.Getenv("DB_SSLKEY")
-	sslrootcert := os.Getenv("DB_SSLROOTCERT")
-
-	maxIdle := 0
-	maxIdleStr := os.Getenv("DB_MAX_IDLE_CONNS")
-	if maxIdleStr != "" {
-		v, err := strconv.Atoi(maxIdleStr)
-		if err != nil || v < 0 {
-			e = append(e, fmt.Sprintf("$DB_MAX_IDLE_CONNS %q must be a non-negative integer", maxIdleStr))
-		}
-		maxIdle = v
-	}
-
-	maxOpen := 0
-	maxOpenStr := os.Getenv("DB_MAX_OPEN_CONNS")
-	if maxOpenStr != "" {
-		v, err := strconv.Atoi(maxOpenStr)
-		if err != nil || v < 0 {
-			e = append(e, fmt.Sprintf("$DB_MAX_OPEN_CONNS %q must be a non-negative integer", maxOpenStr))
-		}
-		maxOpen = v
-	}
-
-	var maxLifetime time.Duration
-	maxLifetimeStr := os.Getenv("DB_CONN_MAX_LIFETIME")
-	if maxLifetimeStr != "" {
-		dur, err := time.ParseDuration(maxLifetimeStr)
-		if err != nil {
-			e = append(e, fmt.Sprintf("$DB_CONN_MAX_LIFETIME parsing failed: %v", err))
-		}
-		maxLifetime = dur
-	}
-
-	if len(e) > 0 {
-		msg := "database config errors:\n"
-		for _, s := range e {
-			msg += fmt.Sprintf("  - %s\n", s)
-		}
-		return errors.New(msg)
-	}
-
-	// See https://godoc.org/github.com/lib/pq#hdr-Connection_String_Parameters
-	parts := []string{
-		"dbname=" + dbname,
-		"user=" + user,
-		"host=" + host,
-		"port=" + port,
-		"sslmode=" + sslmode,
-		// "fallback_application_name="+fallbackApplicationName,
-	}
-	if password != "" {
-		parts = append(parts, "password="+password)
-	}
-	if connectTimeout != "" {
-		parts = append(parts, "connect_timeout="+connectTimeout)
-	}
-	if sslcert != "" {
-		parts = append(parts, "sslcert="+connectTimeout)
-	}
-	if sslkey != "" {
-		parts = append(parts, "sslkey="+connectTimeout)
-	}
-	if sslrootcert != "" {
-		parts = append(parts, "sslrootcert="+connectTimeout)
-	}
-
-	connStr := strings.Join(parts, " ")
-
-	var err error
-	db, err = sql.Open(databaseType, connStr)
+	connStr, err := processEnv(ctx, configs)
 	if err != nil {
-		return fmt.Errorf("opening database: %v", err)
+		return fmt.Errorf("invalid database config: %v", err)
 	}
 
-	if maxIdle > 0 {
-		db.SetMaxIdleConns(maxIdle)
+	pool, err = pgxpool.Connect(ctx, connStr)
+	if err != nil {
+		return fmt.Errorf("creating connection pool: %v", err)
 	}
-	if maxOpen > 0 {
-		db.SetMaxOpenConns(maxOpen)
-	}
-	if maxLifetime != 0 {
-		db.SetConnMaxLifetime(maxLifetime)
-	}
-
 	return nil
 }
 
-// Connection returns a database connection.
-func Connection(ctx context.Context) (*sql.Conn, error) {
-	return db.Conn(ctx)
+// Connection returns a database connection. You must defer conn.Release() in order to return the connection to the pool.
+func Connection(ctx context.Context) (*pgxpool.Conn, error) {
+	return pool.Acquire(ctx)
+}
+
+func processEnv(ctx context.Context, configs []config) (string, error) {
+	logger := logging.FromContext(ctx)
+	var e, p []string
+	for _, c := range configs {
+
+		val := os.Getenv(c.env)
+		if c.req && val == "" {
+			e = append(e, fmt.Sprintf("$%s is required", c.env))
+			continue
+		}
+
+		switch def := c.def.(type) {
+
+		case string:
+			s := def
+			if val == "" {
+				if def != "" {
+					logger.Infof("$%s not specified, using default value %q", c.env, def)
+				}
+			} else {
+				s = val
+				if len(c.valid) > 0 {
+					isValid := false
+					for _, enum := range c.valid {
+						if enum == s {
+							isValid = true
+							break
+						}
+					}
+					if !isValid {
+						e = append(e, fmt.Sprintf("$%s %q must be one of %v", c.env, val, c.valid))
+					}
+				}
+			}
+			if s != "" {
+				p = append(p, fmt.Sprintf("%s=%s", c.part, s))
+			}
+
+		case int:
+			i := def
+			if val == "" {
+				if def != 0 {
+					logger.Infof("$%s not specified, using default value %d", c.env, def)
+				}
+			} else {
+				var err error
+				i, err = strconv.Atoi(val)
+				if err != nil || i < 0 {
+					e = append(e, fmt.Sprintf("$%s %q must be a positive integer", c.env, val))
+				}
+			}
+			if i != 0 {
+				p = append(p, fmt.Sprintf("%s=%d", c.part, i))
+			}
+
+		case time.Duration:
+			d := def
+			if val == "" {
+				if def != 0 {
+					logger.Infof("$%s not specified, using default value %s", c.env, def)
+				}
+			} else {
+				var err error
+				d, err = time.ParseDuration(val)
+				if err != nil {
+					e = append(e, fmt.Sprintf("$%s %q is an invalid duration: %v", c.env, val, err))
+				}
+			}
+			if d != 0 {
+				p = append(p, fmt.Sprintf("%s=%s", c.part, d))
+			}
+
+		default:
+			e = append(e, fmt.Sprintf("unknown type %T", c.def))
+		}
+	}
+
+	if len(e) > 0 {
+		errs := "errors:\n"
+		for _, item := range e {
+			errs += fmt.Sprintf("  - %s\n", item)
+		}
+		return "", errors.New(errs)
+	}
+
+	return strings.Join(p, " "), nil
 }

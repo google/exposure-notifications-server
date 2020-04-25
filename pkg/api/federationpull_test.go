@@ -75,11 +75,12 @@ type syncDB struct {
 	totalInserted int
 }
 
-func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.FederationQuery) (string, database.FinalizeSyncFn, error) {
+func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.FederationQuery, start time.Time) (string, database.FinalizeSyncFn, error) {
 	sdb.syncStarted = true
-	return syncID, func(completed, maxTimestamp time.Time, totalInserted int) error {
+	timerStart := time.Now().UTC()
+	return syncID, func(maxTimestamp time.Time, totalInserted int) error {
 		sdb.syncCompleted = true
-		sdb.completed = completed
+		sdb.completed = start.Add(time.Now().UTC().Sub(timerStart))
 		sdb.maxTimestamp = maxTimestamp
 		sdb.totalInserted = totalInserted
 		return nil

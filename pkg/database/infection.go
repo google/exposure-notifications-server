@@ -15,17 +15,15 @@
 package database
 
 import (
-	"cambio/pkg/logging"
 	"cambio/pkg/model"
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/lib/pq"
+	pgx "github.com/jackc/pgx/v4"
 )
 
 const (
@@ -54,12 +52,13 @@ type IterateInfectionsCriteria struct {
 	OnlyLocalProvenance bool
 }
 
-// IterateInfections returns an iterator for infections meeting the criteria.
+// IterateInfections returns an iterator for infections meeting the criteria. Must call iterator's Close() method when done.
 func IterateInfections(ctx context.Context, criteria IterateInfectionsCriteria) (InfectionIterator, error) {
 	conn, err := Connection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
+	// We don't defer Release() here because the iterator's Close() method will do it.
 
 	offset := 0
 	if criteria.LastCursor != "" {
@@ -77,7 +76,7 @@ func IterateInfections(ctx context.Context, criteria IterateInfectionsCriteria) 
 	if err != nil {
 		return nil, fmt.Errorf("generating query: %v", err)
 	}
-	rows, err := conn.QueryContext(ctx, query, args...)
+	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +85,7 @@ func IterateInfections(ctx context.Context, criteria IterateInfectionsCriteria) 
 }
 
 type postgresInfectionIterator struct {
-	rows   *sql.Rows
+	rows   pgx.Rows
 	offset int
 }
 
@@ -101,7 +100,7 @@ func (i *postgresInfectionIterator) Next() (*model.Infection, bool, error) {
 
 	var m model.Infection
 	var encodedExposureKey string
-	if err := i.rows.Scan(&encodedExposureKey, &m.DiagnosisStatus, &m.AppPackageName, pq.Array(&m.Regions), &m.IntervalNumber,
+	if err := i.rows.Scan(&encodedExposureKey, &m.DiagnosisStatus, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
 		&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &m.FederationSyncID); err != nil {
 		return nil, false, err
 	}
@@ -140,7 +139,7 @@ func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, e
 	var args []interface{}
 
 	if len(criteria.IncludeRegions) == 1 {
-		args = append(args, pq.Array(criteria.IncludeRegions))
+		args = append(args, criteria.IncludeRegions)
 		q += fmt.Sprintf(" AND (regions && $%d)", len(args)) // Operation "&&" means "array overlaps / intersects"
 	}
 
@@ -180,28 +179,17 @@ func InsertInfections(ctx context.Context, infections []*model.Infection) (err e
 	if err != nil {
 		return fmt.Errorf("unable to obtain database connection: %v", err)
 	}
-	logger := logging.FromContext(ctx)
+	defer conn.Release()
 
 	commit := false
-	tx, err := conn.BeginTx(ctx, nil)
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if commit {
-			if err1 := tx.Commit(); err1 != nil {
-				err = err1
-			}
-		} else {
-			if err1 := tx.Rollback(); err1 != nil {
-				err = err1
-			} else {
-				logger.Debugf("Rolling back.")
-			}
-		}
-	}()
+	defer finishTx(ctx, tx, &commit, &err)
 
-	stmt, err := tx.PrepareContext(ctx, `
+	stmtName := "insert infections"
+	_, err = tx.Prepare(ctx, stmtName, `
 		INSERT INTO Infection
 		  (exposure_key, diagnosis_status, app_package_name, regions, interval_number, interval_count, 
 		  created_at, local_provenance, verification_authority_name, sync_id)
@@ -214,14 +202,11 @@ func InsertInfections(ctx context.Context, infections []*model.Infection) (err e
 	}
 
 	for _, inf := range infections {
-		_, err := stmt.ExecContext(ctx, encodeExposureKey(inf.ExposureKey), inf.DiagnosisStatus, inf.AppPackageName, pq.Array(inf.Regions), inf.IntervalNumber, inf.IntervalCount,
+		_, err := tx.Exec(ctx, stmtName, encodeExposureKey(inf.ExposureKey), inf.DiagnosisStatus, inf.AppPackageName, inf.Regions, inf.IntervalNumber, inf.IntervalCount,
 			inf.CreatedAt, inf.LocalProvenance, inf.VerificationAuthorityName, inf.FederationSyncID)
 		if err != nil {
 			return fmt.Errorf("inserting infection: %v", err)
 		}
-	}
-	if err := stmt.Close(); err != nil {
-		return fmt.Errorf("closing prepared statement: %v", err)
 	}
 
 	commit = true
@@ -234,28 +219,16 @@ func DeleteInfections(ctx context.Context, before time.Time) (count int64, err e
 	if err != nil {
 		return 0, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
-	logger := logging.FromContext(ctx)
+	defer conn.Release()
 
 	commit := false
-	tx, err := conn.BeginTx(ctx, nil)
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
 		return 0, fmt.Errorf("starting transaction: %v", err)
 	}
-	defer func() {
-		if commit {
-			if err1 := tx.Commit(); err1 != nil {
-				err = fmt.Errorf("failed to commit: %v", err1)
-			}
-		} else {
-			if err1 := tx.Rollback(); err1 != nil {
-				err = fmt.Errorf("failed to rollback: %v", err1)
-			} else {
-				logger.Debugf("Rolling back.")
-			}
-		}
-	}()
+	defer finishTx(ctx, tx, &commit, &err)
 
-	result, err := tx.ExecContext(ctx, `
+	result, err := tx.Exec(ctx, `
 			DELETE FROM Infection
 			WHERE
 				created_at < $1
@@ -264,13 +237,8 @@ func DeleteInfections(ctx context.Context, before time.Time) (count int64, err e
 		return 0, fmt.Errorf("deleting infections: %v", err)
 	}
 
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-
 	commit = true
-	return rows, nil
+	return result.RowsAffected(), nil
 }
 
 func encodeCursor(s string) string {

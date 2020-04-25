@@ -63,8 +63,3 @@ CREATE TABLE Lock (
 	lock_id VARCHAR(100) PRIMARY KEY,
 	expires TIMESTAMP NOT NULL
 );
-
-CREATE USER apollo WITH password 'mypassword';
-CREATE ROLE apollo_service;
-GRANT SELECT, INSERT, UPDATE, DELETE ON Lock, Infection, FederationSync, FederationQuery TO apollo_service;
-GRANT apollo_service TO apollo;

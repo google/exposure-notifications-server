@@ -15,16 +15,14 @@
 package database
 
 import (
-	"cambio/pkg/logging"
 	"cambio/pkg/model"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	pgx "github.com/jackc/pgx/v4"
 )
 
 var (
@@ -33,9 +31,9 @@ var (
 )
 
 // FinalizeSyncFn is used to finalize a historical sync record.
-type FinalizeSyncFn func(completed, maxTimestamp time.Time, totalInserted int) error
+type FinalizeSyncFn func(maxTimestamp time.Time, totalInserted int) error
 
-type queryRowContextFn func(ctx context.Context, query string, args ...interface{}) *sql.Row
+type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx.Row
 
 // GetFederationQuery returns a query for given queryID. If not found, ErrNotFound will be returned.
 func GetFederationQuery(ctx context.Context, queryID string) (*model.FederationQuery, error) {
@@ -43,11 +41,12 @@ func GetFederationQuery(ctx context.Context, queryID string) (*model.FederationQ
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
-	return getFederationQuery(ctx, queryID, conn.QueryRowContext)
+	defer conn.Release()
+	return getFederationQuery(ctx, queryID, conn.QueryRow)
 }
 
-func getFederationQuery(ctx context.Context, queryID string, queryRowContext queryRowContextFn) (*model.FederationQuery, error) {
-	row := queryRowContext(ctx, `
+func getFederationQuery(ctx context.Context, queryID string, queryRow queryRowFn) (*model.FederationQuery, error) {
+	row := queryRow(ctx, `
 		SELECT
 			query_id, server_addr, include_regions, exclude_regions, last_timestamp
 		FROM FederationQuery 
@@ -57,8 +56,8 @@ func getFederationQuery(ctx context.Context, queryID string, queryRowContext que
 
 	// See https://www.opsdash.com/blog/postgres-arrays-golang.html for working with Postgres arrays in Go.
 	q := model.FederationQuery{}
-	if err := row.Scan(&q.QueryID, &q.ServerAddr, pq.Array(&q.IncludeRegions), pq.Array(&q.ExcludeRegions), &q.LastTimestamp); err != nil {
-		if err == sql.ErrNoRows {
+	if err := row.Scan(&q.QueryID, &q.ServerAddr, &q.IncludeRegions, &q.ExcludeRegions, &q.LastTimestamp); err != nil {
+		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("scanning results: %v", err)
@@ -72,29 +71,17 @@ func AddFederationQuery(ctx context.Context, q *model.FederationQuery) (err erro
 	if err != nil {
 		return fmt.Errorf("unable to obtain database connection: %v", err)
 	}
-	logger := logging.FromContext(ctx)
+	defer conn.Release()
 
 	commit := false
-	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
 		return fmt.Errorf("starting transaction: %v", err)
 	}
-	defer func() {
-		if commit {
-			if err1 := tx.Commit(); err1 != nil {
-				err = fmt.Errorf("failed to commit: %v", err1)
-			}
-		} else {
-			if err1 := tx.Rollback(); err1 != nil {
-				err = fmt.Errorf("failed to rollback: %v", err1)
-			} else {
-				logger.Debugf("Rolling back.")
-			}
-		}
-	}()
+	defer finishTx(ctx, tx, &commit, &err)
 
 	existing := true
-	if _, err := getFederationQuery(ctx, q.QueryID, tx.QueryRowContext); err != nil {
+	if _, err := getFederationQuery(ctx, q.QueryID, tx.QueryRow); err != nil {
 		if err == ErrNotFound {
 			existing = false
 		} else {
@@ -103,7 +90,7 @@ func AddFederationQuery(ctx context.Context, q *model.FederationQuery) (err erro
 	}
 
 	if existing {
-		_, err := tx.ExecContext(ctx, `
+		_, err := tx.Exec(ctx, `
 			DELETE FROM FederationQuery
 			WHERE
 				query_id=$1
@@ -113,12 +100,12 @@ func AddFederationQuery(ctx context.Context, q *model.FederationQuery) (err erro
 		}
 	}
 
-	_, err = tx.ExecContext(ctx, `
+	_, err = tx.Exec(ctx, `
 		INSERT INTO FederationQuery
 			(query_id, server_addr, include_regions, exclude_regions, last_timestamp)
 		VALUES
 			($1, $2, $3, $4, $5)
-		`, q.QueryID, q.ServerAddr, pq.Array(q.IncludeRegions), pq.Array(q.ExcludeRegions), q.LastTimestamp)
+		`, q.QueryID, q.ServerAddr, q.IncludeRegions, q.ExcludeRegions, q.LastTimestamp)
 	if err != nil {
 		return fmt.Errorf("inserting federation query: %v", err)
 	}
@@ -133,10 +120,11 @@ func GetFederationSync(ctx context.Context, syncID string) (*model.FederationSyn
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
-	return getFederationSync(ctx, syncID, conn.QueryRowContext)
+	defer conn.Release()
+	return getFederationSync(ctx, syncID, conn.QueryRow)
 }
 
-func getFederationSync(ctx context.Context, syncID string, queryRowContext queryRowContextFn) (*model.FederationSync, error) {
+func getFederationSync(ctx context.Context, syncID string, queryRowContext queryRowFn) (*model.FederationSync, error) {
 	row := queryRowContext(ctx, `
 		SELECT
 			sync_id, query_id, started, completed, insertions, max_timestamp
@@ -147,7 +135,7 @@ func getFederationSync(ctx context.Context, syncID string, queryRowContext query
 
 	s := model.FederationSync{}
 	if err := row.Scan(&s.SyncID, &s.QueryID, &s.Started, &s.Completed, &s.Insertions, &s.MaxTimestamp); err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("scanning results: %v", err)
@@ -156,16 +144,16 @@ func getFederationSync(ctx context.Context, syncID string, queryRowContext query
 }
 
 // StartFederationSync stores a historical record of a query sync starting. It returns a FederationSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
-func StartFederationSync(ctx context.Context, q *model.FederationQuery) (string, FinalizeSyncFn, error) {
+func StartFederationSync(ctx context.Context, q *model.FederationQuery, started time.Time) (string, FinalizeSyncFn, error) {
 	conn, err := Connection(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
-	logger := logging.FromContext(ctx)
+	defer conn.Release()
 
-	started := time.Now().UTC()
+	startedTimer := time.Now().UTC()
 	syncID := uuid.New().String()
-	_, err = conn.ExecContext(ctx, `
+	_, err = conn.Exec(ctx, `
 		INSERT INTO FederationSync
 			(sync_id, query_id, started)
 		VALUES
@@ -175,38 +163,37 @@ func StartFederationSync(ctx context.Context, q *model.FederationQuery) (string,
 		return "", nil, fmt.Errorf("inserting federation sync: %v", err)
 	}
 
-	finalize := func(completed, maxTimestamp time.Time, totalInserted int) (err error) {
+	finalize := func(maxTimestamp time.Time, totalInserted int) (err error) {
+		conn, err := Connection(ctx)
+		if err != nil {
+			return fmt.Errorf("unable to obtain database connection: %v", err)
+		}
+		defer conn.Release()
+
+		completed := started.Add(time.Now().UTC().Sub(startedTimer))
 		commit := false
-		tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+		tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
 		if err != nil {
 			return fmt.Errorf("starting transaction: %v", err)
 		}
-		defer func() {
-			if commit {
-				if err1 := tx.Commit(); err1 != nil {
-					err = fmt.Errorf("failed to commit: %v", err1)
-				}
-			} else {
-				if err1 := tx.Rollback(); err1 != nil {
-					err = fmt.Errorf("failed to rollback: %v", err1)
-				} else {
-					logger.Debugf("Rolling back.")
-				}
-			}
-		}()
+		defer finishTx(ctx, tx, &commit, &err)
 
-		_, err = tx.ExecContext(ctx, `
+		// Special case: when no keys are pulled, the maxTimestamp will be 0, so we don't update the
+		// FederationQuery in this case to prevent it from going back and fetching old keys from the past.
+		if totalInserted > 0 {
+			_, err = tx.Exec(ctx, `
 			UPDATE FederationQuery
 			SET
 				last_timestamp = $1
 			WHERE
 				query_id = $2
 			`, maxTimestamp, q.QueryID)
-		if err != nil {
-			return fmt.Errorf("updating federation query: %v", err)
+			if err != nil {
+				return fmt.Errorf("updating federation query: %v", err)
+			}
 		}
 
-		_, err = tx.ExecContext(ctx, `
+		_, err = tx.Exec(ctx, `
 			UPDATE FederationSync
 			SET
 				completed = $1,
@@ -218,6 +205,7 @@ func StartFederationSync(ctx context.Context, q *model.FederationQuery) (string,
 		if err != nil {
 			return fmt.Errorf("updating federation sync: %v", err)
 		}
+
 		commit = true
 		return nil
 	}

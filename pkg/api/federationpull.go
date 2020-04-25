@@ -39,7 +39,7 @@ var (
 
 type fetchFn func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
 type insertInfectionsFn func(context.Context, []*model.Infection) error
-type startFederationSyncFn func(context.Context, *model.FederationQuery) (string, database.FinalizeSyncFn, error)
+type startFederationSyncFn func(context.Context, *model.FederationQuery, time.Time) (string, database.FinalizeSyncFn, error)
 
 type pullDependencies struct {
 	fetch               fetchFn
@@ -112,7 +112,7 @@ func HandleFederationPull(timeout time.Duration) http.HandlerFunc {
 			insertInfections:    database.InsertInfections,
 			startFederationSync: database.StartFederationSync,
 		}
-		batchStart := model.TruncateWindow(time.Now().UTC())
+		batchStart := time.Now().UTC()
 		if err := federationPull(timeoutContext, deps, query, batchStart); err != nil {
 			logger.Errorf("Federation query %q failed: %v", queryID, err)
 			http.Error(w, fmt.Sprintf("Federation query %q fetch failed, check logs.", queryID), http.StatusInternalServerError)
@@ -126,16 +126,15 @@ func HandleFederationPull(timeout time.Duration) http.HandlerFunc {
 
 func federationPull(ctx context.Context, deps pullDependencies, q *model.FederationQuery, batchStart time.Time) error {
 	logger := logging.FromContext(ctx)
-	start := time.Now().UTC()
-
 	logger.Infof("Processing query %q", q.QueryID)
+
 	request := &pb.FederationFetchRequest{
 		RegionIdentifiers:             q.IncludeRegions,
 		ExcludeRegionIdentifiers:      q.ExcludeRegions,
 		LastFetchResponseKeyTimestamp: q.LastTimestamp.Unix(),
 	}
 
-	syncID, finalizeFn, err := deps.startFederationSync(ctx, q)
+	syncID, finalizeFn, err := deps.startFederationSync(ctx, q, batchStart)
 	if err != nil {
 		return fmt.Errorf("starting federation sync for query %s: %v", q.QueryID, err)
 	}
@@ -146,6 +145,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 		logger.Infof("Inserted %d keys", total)
 	}()
 
+	createdAt := model.TruncateWindow(batchStart)
 	partial := true
 	for partial {
 
@@ -184,7 +184,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 						FederationSyncID:          syncID,
 						IntervalNumber:            key.IntervalNumber,
 						IntervalCount:             key.IntervalCount,
-						CreatedAt:                 batchStart,
+						CreatedAt:                 createdAt,
 						LocalProvenance:           false,
 						VerificationAuthorityName: verificationAuthName,
 					})
@@ -210,7 +210,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 		request.NextFetchToken = response.NextFetchToken
 	}
 
-	if err := finalizeFn(batchStart.Add(time.Now().UTC().Sub(start)), maxTimestamp, total); err != nil {
+	if err := finalizeFn(maxTimestamp, total); err != nil {
 		// TODO(jasonco): how do we clean up here? Just leave the records in and have the exporter eliminate them? Other?
 		return fmt.Errorf("finalizing federation sync for query %s: %v", q.QueryID, err)
 	}
