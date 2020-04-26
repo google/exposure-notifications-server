@@ -20,13 +20,12 @@ import (
 
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
-	"cambio/pkg/pb"
+	"cambio/pkg/model"
 	"cambio/pkg/storage"
+	"context"
 	"fmt"
 	"strconv"
 	"time"
-
-	"github.com/golang/protobuf/proto"
 )
 
 func HandleSetupBatch() http.HandlerFunc {
@@ -62,49 +61,16 @@ func HandleTestExport() http.HandlerFunc {
 			}
 		}
 		logger.Infof("limiting to %v", limit)
-		criteria := database.IterateInfectionsCriteria{
-			SinceTimestamp:      time.Now().UTC().AddDate(0, 0, -5),
-			UntilTimestamp:      time.Now().UTC(),
-			OnlyLocalProvenance: false, // include federated ids
-		}
-		it, err := database.IterateInfections(ctx, criteria)
+		since := time.Now().UTC().AddDate(0, 0, -5)
+		until := time.Now().UTC()
+		exposureKeys, err := queryExposureKeys(ctx, since, until, limit)
 		if err != nil {
 			logger.Errorf("error getting infections: %v", err)
 			http.Error(w, "internal processing error", http.StatusInternalServerError)
-			return
 		}
-		defer it.Close()
-		inf, done, err := it.Next()
+		data, err := MarshalExportFile(since, until, exposureKeys, "US")
 		if err != nil {
-			logger.Errorf("error getting infections: %v", err)
-			http.Error(w, "internal processing error", http.StatusInternalServerError)
-			return
-		}
-		var exposureKeys []*pb.ExposureKeyExport_ExposureKey
-		num := 1
-		for !done && err == nil && num <= limit {
-			exposureKey := pb.ExposureKeyExport_ExposureKey{
-				ExposureKey:    inf.ExposureKey,
-				IntervalNumber: inf.IntervalNumber,
-				IntervalCount:  inf.IntervalCount,
-			}
-			exposureKeys = append(exposureKeys, &exposureKey)
-			num++
-			inf, done, err = it.Next()
-		}
-		if err != nil {
-			logger.Errorf("error getting infections: %v", err)
-			http.Error(w, "internal processing error", http.StatusInternalServerError)
-			return
-		}
-		batch := pb.ExposureKeyExport{
-			StartTimestamp: time.Now().UTC().Unix(),
-			Region:         "US",
-			Keys:           exposureKeys,
-		}
-		data, err := proto.Marshal(&batch)
-		if err != nil {
-			logger.Errorf("error serializing proto: %v", err)
+			logger.Errorf("error marshalling export file: %v", err)
 			http.Error(w, "internal processing error", http.StatusInternalServerError)
 		}
 		objectName := fmt.Sprintf("testExport-%d-records.pb", limit)
@@ -116,4 +82,31 @@ func HandleTestExport() http.HandlerFunc {
 
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+func queryExposureKeys(ctx context.Context, since, until time.Time, limit int) ([]*model.Infection, error) {
+	criteria := database.IterateInfectionsCriteria{
+		SinceTimestamp:      since,
+		UntilTimestamp:      until,
+		OnlyLocalProvenance: false, // include federated ids
+	}
+	it, err := database.IterateInfections(ctx, criteria)
+	if err != nil {
+		return nil, err
+	}
+	defer it.Close()
+	var exposureKeys []*model.Infection
+	num := 1
+	exp, done, err := it.Next()
+	for !done && err == nil && num <= limit {
+		if exp != nil {
+			exposureKeys = append(exposureKeys, exp)
+			num++
+		}
+		exp, done, err = it.Next()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return exposureKeys, nil
 }
