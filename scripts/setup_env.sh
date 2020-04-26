@@ -30,6 +30,7 @@ export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/local/sa.json"
 #  $ echo -n "<some random string>" | gcloud secrets create safetynetapi --replication-policy=automatic --data-file=-
 #
 export SAFETYNET_API_KEY="projects/$PROJECT_ID/secrets/safetynetapi/versions/latest"
+export SAFETYNET_URL="https://www.googleapis.com/androidcheck/v1/attestations/verify?key="
 
 # wipeout variables
 export TTL_DURATION="14d"
