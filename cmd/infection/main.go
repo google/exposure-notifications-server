@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"os"
 
-	"cambio/pkg/android"
 	"cambio/pkg/api"
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
@@ -46,9 +45,6 @@ func main() {
 
 	if err := database.Initialize(); err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
-	}
-	if err := android.InitializeSafetynet(); err != nil {
-		logger.Fatalf("android.InitializeSafetynet: %v", err)
 	}
 
 	router := mux.NewRouter()
