@@ -21,13 +21,10 @@ import (
 	"io"
 	"net/http"
 	"strings"
-
-	"github.com/golang/gddo/httputil/header"
 )
 
 func unmarshal(w http.ResponseWriter, r *http.Request, data interface{}) (error, int) {
-	value, _ := header.ParseValueAndParams(r.Header, "content-type")
-	if value != "application/json" {
+	if t := r.Header.Get("Content-type"); t != "application/json" {
 		return fmt.Errorf("content-type is not application/json"), http.StatusUnsupportedMediaType
 	}
 
