@@ -31,9 +31,11 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	if err := database.Initialize(); err != nil {
+	cleanup, err := database.Initialize(ctx)
+	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
+	defer cleanup(ctx)
 
 	router := mux.NewRouter()
 	// TODO(guray): remove or gate the /test handler

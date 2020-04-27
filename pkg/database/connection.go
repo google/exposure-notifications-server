@@ -77,24 +77,39 @@ type config struct {
 }
 
 // Initialize sets up the database connections.
-func Initialize() error {
+func Initialize(ctx context.Context) (cleanup func(context.Context), err error) {
 	mu.Lock()
 	defer mu.Unlock()
 	if pool != nil {
-		return errors.New("connection pool already initialized")
+		return nil, errors.New("connection pool already initialized")
 	}
 
-	ctx := context.Background()
+	logger := logging.FromContext(ctx)
+	logger.Infof("Creating connection pool.")
+
 	connStr, err := processEnv(ctx, configs)
 	if err != nil {
-		return fmt.Errorf("invalid database config: %v", err)
+		return nil, fmt.Errorf("invalid database config: %v", err)
 	}
 
 	pool, err = pgxpool.Connect(ctx, connStr)
 	if err != nil {
-		return fmt.Errorf("creating connection pool: %v", err)
+		return nil, fmt.Errorf("creating connection pool: %v", err)
 	}
-	return nil
+
+	return close, nil
+}
+
+// close releases pool connections.
+func close(ctx context.Context) {
+	mu.Lock()
+	defer mu.Unlock()
+	if pool != nil {
+		logger := logging.FromContext(ctx)
+		logger.Infof("Closing connection pool.")
+		pool.Close()
+	}
+	pool = nil
 }
 
 // Connection returns a database connection. You must defer conn.Release() in order to return the connection to the pool.

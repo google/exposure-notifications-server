@@ -57,9 +57,12 @@ func main() {
 		log.Fatalf("server-addr %q must match %s", *serverAddr, validServerAddrStr)
 	}
 
-	if err := database.Initialize(); err != nil {
+	ctx := context.Background()
+	cleanup, err := database.Initialize(ctx)
+	if err != nil {
 		log.Fatalf("unable to connect to database: %v", err)
 	}
+	defer cleanup(ctx)
 
 	var lastTime time.Time
 	if *lastTimestamp != "" {
@@ -78,7 +81,6 @@ func main() {
 		LastTimestamp:  lastTime,
 	}
 
-	ctx := context.Background()
 	if err := database.AddFederationQuery(ctx, query); err != nil {
 		log.Fatalf("adding new query %s %#v: %v", *queryID, query, err)
 	}

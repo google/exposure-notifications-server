@@ -43,9 +43,11 @@ func main() {
 	}
 	logger.Infof("Using port %s (override with $%s)", port, portEnvVar)
 
-	if err := database.Initialize(); err != nil {
+	cleanup, err := database.Initialize(ctx)
+	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
+	defer cleanup(ctx)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", api.HandlePublish())

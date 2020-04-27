@@ -56,9 +56,11 @@ func main() {
 	}
 	logger.Infof("Using fetch timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
-	if err := database.Initialize(); err != nil {
+	cleanup, err := database.Initialize(ctx)
+	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
+	defer cleanup(ctx)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", api.HandleFederationPull(timeout))
