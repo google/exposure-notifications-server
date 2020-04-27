@@ -36,5 +36,7 @@ message ExposureKeyExport {
 		// and intervalCount = 78
 		int32 intervalNumber = 2;
 		int32 intervalCount = 3;
+		// Stems from the uploaded verification source
+		int32 transmissionRisk = 4;
 	}
 }
