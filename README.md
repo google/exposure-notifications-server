@@ -1,4 +1,4 @@
-# Contact Tracing Reference Server
+# Exposure Notification Reference Server
 
 This repository contains a reference implementation of an exposure notification
 server intended to be used as a backend for a mobile device exposure
