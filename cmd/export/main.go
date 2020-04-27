@@ -23,8 +23,6 @@ import (
 	"cambio/pkg/api"
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
-
-	"github.com/gorilla/mux"
 )
 
 func main() {
@@ -37,11 +35,10 @@ func main() {
 	}
 	defer cleanup(ctx)
 
-	router := mux.NewRouter()
 	// TODO(guray): remove or gate the /test handler
-	router.HandleFunc("/test", api.TestExportHandler)
-	router.HandleFunc("/setupBatch", api.SetupBatchHandler)
-	router.HandleFunc("/pollWork", api.PollWorkHandler)
+	http.HandleFunc("/test", api.TestExportHandler)
+	http.HandleFunc("/setupBatch", api.SetupBatchHandler)
+	http.HandleFunc("/pollWork", api.PollWorkHandler)
 	logger.Info("starting infection export server")
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

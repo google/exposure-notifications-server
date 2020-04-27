@@ -24,8 +24,6 @@ import (
 	"cambio/pkg/api"
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
-
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -49,8 +47,7 @@ func main() {
 	}
 	defer cleanup(ctx)
 
-	router := mux.NewRouter()
-	router.HandleFunc("/", api.PublishHandler)
+	http.HandleFunc("/", api.PublishHandler)
 	logger.Info("starting infection server")
-	log.Fatal(http.ListenAndServe(":"+port, router))
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

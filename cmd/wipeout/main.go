@@ -25,8 +25,6 @@ import (
 	"cambio/pkg/api"
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
-
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -55,8 +53,7 @@ func main() {
 	}
 	defer cleanup(ctx)
 
-	router := mux.NewRouter()
-	router.Handle("/", api.WipeoutHandler{Timeout: timeout})
+	http.Handle("/", api.WipeoutHandler{Timeout: timeout})
 	logger.Info("starting wipeout server")
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

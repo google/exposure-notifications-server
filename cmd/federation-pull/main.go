@@ -24,8 +24,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-
-	"github.com/gorilla/mux"
 )
 
 var (
@@ -62,8 +60,7 @@ func main() {
 	}
 	defer cleanup(ctx)
 
-	router := mux.NewRouter()
-	router.Handle("/", api.FederationPullHandler{Timeout: timeout})
+	http.Handle("/", api.FederationPullHandler{Timeout: timeout})
 	logger.Info("starting federation puller")
-	log.Fatal(http.ListenAndServe(":"+port, router))
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
