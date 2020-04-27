@@ -1,31 +1,14 @@
 meta {
-  title "Contact Tracing Server - Out"
+  title "Data Retrieval Flow"
 }
 
 elements {
-########################################
-# Clients and Partners
-########################################
-
+  ########################################
+  # Clients and Partners
+  ########################################
   # card smartphone as client
   # card server as federated_ingestion_server
-
-  group OnPrem {
- 	########################################
-    # Storage Components
-    ########################################
-    card gke_onprem as sql {
-    	name "Tracing Key Database"
-		description ""
-	}
-
-    card gke_onprem as storage {
-    	name "Tracing Key Batches"
-		description ""
-	} 
-  }
-
- gcp {
+  group Compute {
     ########################################
     # Compute Components
     ########################################
@@ -52,19 +35,13 @@ elements {
     	name "Batch Tracing Keys"
         description ""
     }
-
-   
-
-    card cdn
+    
+	card cdn
     # Likely needed instead of CDN for non-gcp
     # card cloud_run as cdn {
     #    name "Tracing Key Batch Server"
     #}
-
-    card secret_manager as secret_manager {
-        name "Certificates, Keys
-    }
-
+   
     ########################################
     #
     ########################################
@@ -73,9 +50,27 @@ elements {
     }
   }
   
-  card smartphone as out_client
+  group Data {
+ 	########################################
+    # Storage Components
+    ########################################
+    card gke_onprem as sql {
+    	name "Tracing Key Database"
+		description ""
+	}
+
+    card gke_onprem as storage {
+    	name "Tracing Key Batches"
+		description ""
+	} 
+    
+    card generic as secret_manager {
+        name "Secret Manager"
+    }
+  }
+
   card server as federated_partner
-  
+  card smartphone as out_client
 }
 
 
@@ -83,15 +78,15 @@ paths {
   #federated_ingestion_server --> federated_ingestion
   #client --> tracing_key_ingestion
 
-  sql --> batch_keys
-  sql --> federation_api
-
- 
   # batch_keys --> storage
   storage --> cdn
   federation_api --> federated_partner
   cdn --> out_client
   
+  sql --> batch_keys
+  sql --> federation_api
+
+ 
   # tracing_key_ingestion --> sql
   # federated_ingestion --> sql
   # data_deletion --> sql
