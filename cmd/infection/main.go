@@ -50,7 +50,7 @@ func main() {
 	defer cleanup(ctx)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/", api.HandlePublish())
+	router.HandleFunc("/", api.PublishHandler)
 	logger.Info("starting infection server")
 	log.Fatal(http.ListenAndServe(":"+port, router))
 }

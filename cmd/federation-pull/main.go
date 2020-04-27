@@ -63,7 +63,7 @@ func main() {
 	defer cleanup(ctx)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/", api.HandleFederationPull(timeout))
+	router.Handle("/", api.FederationPullHandler{Timeout: timeout})
 	logger.Info("starting federation puller")
 	log.Fatal(http.ListenAndServe(":"+port, router))
 }

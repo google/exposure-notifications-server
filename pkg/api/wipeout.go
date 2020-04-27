@@ -30,53 +30,55 @@ const (
 	minCutoffDuration = "10d"
 )
 
-func HandleWipeout(timeout time.Duration) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		logger := logging.FromContext(ctx)
+type WipeoutHandler struct {
+	Timeout time.Duration
+}
 
-		// Parse and Validate TTL duration string.
-		ttlString := os.Getenv(ttlEnvVar)
-		ttlDuration, err := getAndValidateDuration(ttlString)
-		if err != nil {
-			logger.Errorf("TTL env variable error: %v", err)
-			http.Error(w, "internal processing error", http.StatusInternalServerError)
-			return
-		}
+func (h WipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	logger := logging.FromContext(ctx)
 
-		// Parse and Validate min ttl duration string.
-		minTtl, err := getAndValidateDuration(minCutoffDuration)
-		if err != nil {
-			logger.Errorf("min ttl const error: %v", err)
-			http.Error(w, "internal processing error", http.StatusInternalServerError)
-			return
-		}
-
-		// Validate that TTL is sufficiently in the past.
-		if ttlDuration < minTtl {
-			logger.Errorf("wipeout ttl is less than configured minumum ttl")
-			http.Error(w, "internal processing error", http.StatusInternalServerError)
-			return
-		}
-
-		// Get cutoff timestamp
-		cutoff := time.Now().UTC().Add(-ttlDuration)
-		logger.Infof("Starting wipeout for records older than %v", cutoff.UTC())
-
-		// Set timeout
-		timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-		defer cancel()
-
-		count, err := database.DeleteInfections(timeoutCtx, cutoff)
-		if err != nil {
-			logger.Errorf("Failed deleting infections: %v", err)
-			http.Error(w, "internal processing error", http.StatusInternalServerError)
-			return
-		}
-
-		logger.Infof("wipeout run complete, deleted %v records.", count)
-		w.WriteHeader(http.StatusOK)
+	// Parse and Validate TTL duration string.
+	ttlString := os.Getenv(ttlEnvVar)
+	ttlDuration, err := getAndValidateDuration(ttlString)
+	if err != nil {
+		logger.Errorf("TTL env variable error: %v", err)
+		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return
 	}
+
+	// Parse and Validate min ttl duration string.
+	minTtl, err := getAndValidateDuration(minCutoffDuration)
+	if err != nil {
+		logger.Errorf("min ttl const error: %v", err)
+		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return
+	}
+
+	// Validate that TTL is sufficiently in the past.
+	if ttlDuration < minTtl {
+		logger.Errorf("wipeout ttl is less than configured minumum ttl")
+		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return
+	}
+
+	// Get cutoff timestamp
+	cutoff := time.Now().UTC().Add(-ttlDuration)
+	logger.Infof("Starting wipeout for records older than %v", cutoff.UTC())
+
+	// Set h.Timeout
+	timeoutCtx, cancel := context.WithTimeout(ctx, h.Timeout)
+	defer cancel()
+
+	count, err := database.DeleteInfections(timeoutCtx, cutoff)
+	if err != nil {
+		logger.Errorf("Failed deleting infections: %v", err)
+		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return
+	}
+
+	logger.Infof("wipeout run complete, deleted %v records.", count)
+	w.WriteHeader(http.StatusOK)
 }
 
 func getAndValidateDuration(durationString string) (time.Duration, error) {

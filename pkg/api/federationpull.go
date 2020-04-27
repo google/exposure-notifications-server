@@ -47,80 +47,82 @@ type pullDependencies struct {
 	startFederationSync startFederationSyncFn
 }
 
-// HandleFederationPull returns a handler that will fetch server-to-server federation results for a single federation query.
-func HandleFederationPull(timeout time.Duration) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		logger := logging.FromContext(ctx)
+// FederationPullHandler is a handler that will fetch server-to-server federation results for a single federation query.
+type FederationPullHandler struct {
+	Timeout time.Duration
+}
 
-		queryIDs, ok := r.URL.Query()[queryParam]
-		if !ok {
-			http.Error(w, fmt.Sprintf("%s is required", queryParam), http.StatusBadRequest)
+func (h FederationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	logger := logging.FromContext(ctx)
+
+	queryIDs, ok := r.URL.Query()[queryParam]
+	if !ok {
+		http.Error(w, fmt.Sprintf("%s is required", queryParam), http.StatusBadRequest)
+		return
+	}
+	if len(queryIDs) > 1 {
+		http.Error(w, fmt.Sprintf("only one %s allowed", queryParam), http.StatusBadRequest)
+		return
+	}
+	queryID := queryIDs[0]
+	if queryID == "" {
+		http.Error(w, fmt.Sprintf("%s is required", queryParam), http.StatusBadRequest)
+		return
+	}
+
+	query, err := database.GetFederationQuery(ctx, queryID)
+	if err != nil {
+		if err == database.ErrNotFound {
+			http.Error(w, fmt.Sprintf("unknown %s", queryParam), http.StatusBadRequest)
 			return
 		}
-		if len(queryIDs) > 1 {
-			http.Error(w, fmt.Sprintf("only one %s allowed", queryParam), http.StatusBadRequest)
+		logger.Errorf("Failed getting query %q: %v", queryID, err)
+		http.Error(w, fmt.Sprintf("Failed getting query %q, check logs.", queryID), http.StatusInternalServerError)
+		return
+	}
+
+	// Obtain lock to make sure there are no other processes working on this batch.
+	lock := "query_" + queryID
+	unlockFn, err := database.Lock(ctx, lock, h.Timeout)
+	if err != nil {
+		if err == database.ErrAlreadyLocked {
+			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
+			logger.Infof(msg)
+			w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.
 			return
 		}
-		queryID := queryIDs[0]
-		if queryID == "" {
-			http.Error(w, fmt.Sprintf("%s is required", queryParam), http.StatusBadRequest)
-			return
-		}
+		logger.Errorf("Could not acquire lock %s for query %s: %v", lock, queryID, err)
+		http.Error(w, fmt.Sprintf("Could not acquire lock %s for query %s, check logs.", lock, queryID), http.StatusInternalServerError)
+		return
+	}
+	defer unlockFn()
 
-		query, err := database.GetFederationQuery(ctx, queryID)
-		if err != nil {
-			if err == database.ErrNotFound {
-				http.Error(w, fmt.Sprintf("unknown %s", queryParam), http.StatusBadRequest)
-				return
-			}
-			logger.Errorf("Failed getting query %q: %v", queryID, err)
-			http.Error(w, fmt.Sprintf("Failed getting query %q, check logs.", queryID), http.StatusInternalServerError)
-			return
-		}
+	// TODO(jasonco): make secure
+	conn, err := grpc.Dial(query.ServerAddr, grpc.WithInsecure())
+	if err != nil {
+		logger.Errorf("Failed to dial for query %q %s: %v", queryID, query.ServerAddr, err)
+		http.Error(w, fmt.Sprintf("Failed to dial for query %q, check logs.", queryID), http.StatusInternalServerError)
+	}
+	defer conn.Close()
+	client := pb.NewFederationClient(conn)
 
-		// Obtain lock to make sure there are no other processes working on this batch.
-		lock := "query_" + queryID
-		unlockFn, err := database.Lock(ctx, lock, timeout)
-		if err != nil {
-			if err == database.ErrAlreadyLocked {
-				msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
-				logger.Infof(msg)
-				w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.
-				return
-			}
-			logger.Errorf("Could not acquire lock %s for query %s: %v", lock, queryID, err)
-			http.Error(w, fmt.Sprintf("Could not acquire lock %s for query %s, check logs.", lock, queryID), http.StatusInternalServerError)
-			return
-		}
-		defer unlockFn()
+	timeoutContext, cancel := context.WithTimeout(ctx, h.Timeout)
+	defer cancel()
 
-		// TODO(jasonco): make secure
-		conn, err := grpc.Dial(query.ServerAddr, grpc.WithInsecure())
-		if err != nil {
-			logger.Errorf("Failed to dial for query %q %s: %v", queryID, query.ServerAddr, err)
-			http.Error(w, fmt.Sprintf("Failed to dial for query %q, check logs.", queryID), http.StatusInternalServerError)
-		}
-		defer conn.Close()
-		client := pb.NewFederationClient(conn)
+	deps := pullDependencies{
+		fetch:               client.Fetch,
+		insertInfections:    database.InsertInfections,
+		startFederationSync: database.StartFederationSync,
+	}
+	batchStart := time.Now().UTC()
+	if err := federationPull(timeoutContext, deps, query, batchStart); err != nil {
+		logger.Errorf("Federation query %q failed: %v", queryID, err)
+		http.Error(w, fmt.Sprintf("Federation query %q fetch failed, check logs.", queryID), http.StatusInternalServerError)
+	}
 
-		timeoutContext, cancel := context.WithTimeout(ctx, timeout)
-		defer cancel()
-
-		deps := pullDependencies{
-			fetch:               client.Fetch,
-			insertInfections:    database.InsertInfections,
-			startFederationSync: database.StartFederationSync,
-		}
-		batchStart := time.Now().UTC()
-		if err := federationPull(timeoutContext, deps, query, batchStart); err != nil {
-			logger.Errorf("Federation query %q failed: %v", queryID, err)
-			http.Error(w, fmt.Sprintf("Federation query %q fetch failed, check logs.", queryID), http.StatusInternalServerError)
-		}
-
-		if timeoutContext.Err() != nil && timeoutContext.Err() == context.DeadlineExceeded {
-			logger.Infof("Federation puller timed out at %v before fetching entire set.", timeout)
-		}
+	if timeoutContext.Err() != nil && timeoutContext.Err() == context.DeadlineExceeded {
+		logger.Infof("Federation puller timed out at %v before fetching entire set.", h.Timeout)
 	}
 }
 

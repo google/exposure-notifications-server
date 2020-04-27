@@ -56,7 +56,7 @@ func main() {
 	defer cleanup(ctx)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/", api.HandleWipeout(timeout))
+	router.Handle("/", api.WipeoutHandler{Timeout: timeout})
 	logger.Info("starting wipeout server")
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

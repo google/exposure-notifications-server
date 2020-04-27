@@ -28,60 +28,54 @@ import (
 	"time"
 )
 
-func HandleSetupBatch() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		logger := logging.FromContext(ctx)
-		logger.Infof("setting up tables for next batch...")
-		database.AddNewBatch(ctx)
-		w.WriteHeader(http.StatusOK)
-	}
+func SetupBatchHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	logger := logging.FromContext(ctx)
+	logger.Infof("setting up tables for next batch...")
+	database.AddNewBatch(ctx)
+	w.WriteHeader(http.StatusOK)
 }
 
-func HandlePollWork() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		logger := logging.FromContext(ctx)
-		logger.Infof("Polling for open work...")
-		w.WriteHeader(http.StatusOK)
-	}
+func PollWorkHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	logger := logging.FromContext(ctx)
+	logger.Infof("Polling for open work...")
+	w.WriteHeader(http.StatusOK)
 }
 
-func HandleTestExport() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		logger := logging.FromContext(ctx)
+func TestExportHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	logger := logging.FromContext(ctx)
 
-		limit := 30000
-		limits, ok := r.URL.Query()["limit"]
-		if ok && len(limits) > 0 {
-			lim, err := strconv.Atoi(limits[0])
-			if err == nil {
-				limit = lim
-			}
+	limit := 30000
+	limits, ok := r.URL.Query()["limit"]
+	if ok && len(limits) > 0 {
+		lim, err := strconv.Atoi(limits[0])
+		if err == nil {
+			limit = lim
 		}
-		logger.Infof("limiting to %v", limit)
-		since := time.Now().UTC().AddDate(0, 0, -5)
-		until := time.Now().UTC()
-		exposureKeys, err := queryExposureKeys(ctx, since, until, limit)
-		if err != nil {
-			logger.Errorf("error getting infections: %v", err)
-			http.Error(w, "internal processing error", http.StatusInternalServerError)
-		}
-		data, err := MarshalExportFile(since, until, exposureKeys, "US")
-		if err != nil {
-			logger.Errorf("error marshalling export file: %v", err)
-			http.Error(w, "internal processing error", http.StatusInternalServerError)
-		}
-		objectName := fmt.Sprintf("testExport-%d-records.pb", limit)
-		if err := storage.CreateObject("apollo-public-bucket", objectName, data); err != nil {
-			logger.Errorf("error creating cloud storage object: %v", err)
-			http.Error(w, "internal processing error", http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
 	}
+	logger.Infof("limiting to %v", limit)
+	since := time.Now().UTC().AddDate(0, 0, -5)
+	until := time.Now().UTC()
+	exposureKeys, err := queryExposureKeys(ctx, since, until, limit)
+	if err != nil {
+		logger.Errorf("error getting infections: %v", err)
+		http.Error(w, "internal processing error", http.StatusInternalServerError)
+	}
+	data, err := MarshalExportFile(since, until, exposureKeys, "US")
+	if err != nil {
+		logger.Errorf("error marshalling export file: %v", err)
+		http.Error(w, "internal processing error", http.StatusInternalServerError)
+	}
+	objectName := fmt.Sprintf("testExport-%d-records.pb", limit)
+	if err := storage.CreateObject("apollo-public-bucket", objectName, data); err != nil {
+		logger.Errorf("error creating cloud storage object: %v", err)
+		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func queryExposureKeys(ctx context.Context, since, until time.Time, limit int) ([]*model.Infection, error) {
