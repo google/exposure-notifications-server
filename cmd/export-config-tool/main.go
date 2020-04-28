@@ -61,11 +61,11 @@ func main() {
 	}
 
 	ctx := context.Background()
-	cleanup, err := database.Initialize(ctx)
+	db, err := database.NewFromEnv(ctx)
 	if err != nil {
 		log.Fatalf("unable to connect to database: %v", err)
 	}
-	defer cleanup(ctx)
+	defer db.Close(ctx)
 
 	ec := model.ExportConfig{
 		FilenameRoot:   *filenameRoot,
@@ -76,7 +76,7 @@ func main() {
 		Thru:           thruTime,
 	}
 
-	if err := database.AddExportConfig(ctx, &ec); err != nil {
+	if err := db.AddExportConfig(ctx, &ec); err != nil {
 		log.Fatalf("Failure: %v", err)
 	}
 	log.Printf("Successfully created ExportConfig %d.", ec.ConfigID)

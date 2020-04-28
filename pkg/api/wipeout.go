@@ -31,11 +31,19 @@ const (
 	minCutoffDuration = "10d"
 )
 
-type InfectionWipeoutHandler struct {
-	Timeout time.Duration
+func NewInfectionWipeoutHandler(db *database.DB, timeout time.Duration) http.Handler {
+	return &infectionWipeoutHandler{
+		db:      db,
+		timeout: timeout,
+	}
 }
 
-func (h InfectionWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+type infectionWipeoutHandler struct {
+	db      *database.DB
+	timeout time.Duration
+}
+
+func (h *infectionWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
@@ -48,10 +56,10 @@ func (h InfectionWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	logger.Infof("Starting wipeout for records older than %v", cutoff.UTC())
 
 	// Set h.Timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, h.Timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 
-	count, err := database.DeleteInfections(timeoutCtx, cutoff)
+	count, err := h.db.DeleteInfections(timeoutCtx, cutoff)
 	if err != nil {
 		logger.Errorf("Failed deleting infections: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
@@ -62,11 +70,19 @@ func (h InfectionWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 }
 
-type ExportWipeoutHandler struct {
-	Timeout time.Duration
+func NewExportWipeoutHandler(db *database.DB, timeout time.Duration) http.Handler {
+	return &exportWipeoutHandler{
+		db:      db,
+		timeout: timeout,
+	}
 }
 
-func (h ExportWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+type exportWipeoutHandler struct {
+	db      *database.DB
+	timeout time.Duration
+}
+
+func (h *exportWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
@@ -79,10 +95,10 @@ func (h ExportWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	logger.Infof("Starting wipeout for export files older than %v", cutoff.UTC())
 
 	// Set h.Timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, h.Timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 
-	count, err := database.DeleteFilesBefore(timeoutCtx, cutoff)
+	count, err := h.db.DeleteInfections(timeoutCtx, cutoff)
 	if err != nil {
 		logger.Errorf("Failed deleting export files: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)

@@ -42,11 +42,11 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	cleanup, err := database.Initialize(ctx)
+	db, err := database.NewFromEnv(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
-	defer cleanup(ctx)
+	defer db.Close(ctx)
 
 	port := os.Getenv(portEnvVar)
 	if port == "" {
@@ -69,7 +69,7 @@ func main() {
 	logger.Infof("gRPC endpoint [%s]", grpcEndpoint)
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterFederationServer(grpcServer, api.NewFederationServer(timeout))
+	pb.RegisterFederationServer(grpcServer, api.NewFederationServer(db, timeout))
 
 	listen, err := net.Listen("tcp", grpcEndpoint)
 	if err != nil {

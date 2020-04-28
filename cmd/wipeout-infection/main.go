@@ -47,13 +47,13 @@ func main() {
 	}
 	logger.Infof("Using timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
-	cleanup, err := database.Initialize(ctx)
+	db, err := database.NewFromEnv(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
-	defer cleanup(ctx)
+	defer db.Close(ctx)
 
-	http.Handle("/", api.InfectionWipeoutHandler{Timeout: timeout})
+	http.Handle("/", api.NewInfectionWipeoutHandler(db, timeout))
 	logger.Info("starting wipeout server")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

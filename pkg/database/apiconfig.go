@@ -23,8 +23,8 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-func ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
-	conn, err := Connection(ctx)
+func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("untable to obtain database connection: %v", err)
 	}

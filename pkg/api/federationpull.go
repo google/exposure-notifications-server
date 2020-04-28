@@ -47,12 +47,18 @@ type pullDependencies struct {
 	startFederationSync startFederationSyncFn
 }
 
-// FederationPullHandler is a handler that will fetch server-to-server federation results for a single federation query.
-type FederationPullHandler struct {
-	Timeout time.Duration
+// NewFederationPullHandler returns a handler that will fetch server-to-server
+// federation results for a single federation query.
+func NewFederationPullHandler(db *database.DB, timeout time.Duration) http.Handler {
+	return &federationPullHandler{db: db, timeout: timeout}
 }
 
-func (h FederationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+type federationPullHandler struct {
+	db      *database.DB
+	timeout time.Duration
+}
+
+func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
@@ -71,7 +77,7 @@ func (h FederationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	query, err := database.GetFederationQuery(ctx, queryID)
+	query, err := h.db.GetFederationQuery(ctx, queryID)
 	if err != nil {
 		if err == database.ErrNotFound {
 			http.Error(w, fmt.Sprintf("unknown %s", queryParam), http.StatusBadRequest)
@@ -84,7 +90,7 @@ func (h FederationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 
 	// Obtain lock to make sure there are no other processes working on this batch.
 	lock := "query_" + queryID
-	unlockFn, err := database.Lock(ctx, lock, h.Timeout)
+	unlockFn, err := h.db.Lock(ctx, lock, h.timeout)
 	if err != nil {
 		if err == database.ErrAlreadyLocked {
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
@@ -107,13 +113,13 @@ func (h FederationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	defer conn.Close()
 	client := pb.NewFederationClient(conn)
 
-	timeoutContext, cancel := context.WithTimeout(ctx, h.Timeout)
+	timeoutContext, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 
 	deps := pullDependencies{
 		fetch:               client.Fetch,
-		insertInfections:    database.InsertInfections,
-		startFederationSync: database.StartFederationSync,
+		insertInfections:    h.db.InsertInfections,
+		startFederationSync: h.db.StartFederationSync,
 	}
 	batchStart := time.Now().UTC()
 	if err := federationPull(timeoutContext, deps, query, batchStart); err != nil {
@@ -122,7 +128,7 @@ func (h FederationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 
 	if timeoutContext.Err() != nil && timeoutContext.Err() == context.DeadlineExceeded {
-		logger.Infof("Federation puller timed out at %v before fetching entire set.", h.Timeout)
+		logger.Infof("Federation puller timed out at %v before fetching entire set.", h.timeout)
 	}
 }
 

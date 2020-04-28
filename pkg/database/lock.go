@@ -33,8 +33,8 @@ var (
 type UnlockFn func() error
 
 // Lock acquires lock with given name that times out after ttl. Returns an UnlockFn that can be used to unlock the lock. ErrAlreadyLocked will be returned if there is already a lock in use.
-func Lock(ctx context.Context, lockID string, ttl time.Duration) (unlockFn UnlockFn, err error) {
-	conn, err := Connection(ctx)
+func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (unlockFn UnlockFn, err error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -84,7 +84,7 @@ func Lock(ctx context.Context, lockID string, ttl time.Duration) (unlockFn Unloc
 				return nil, fmt.Errorf("updating expired lock: %v", err)
 			}
 			commit = true
-			return buildUnlockFn(ctx, lockID), nil
+			return buildUnlockFn(ctx, db, lockID), nil
 		}
 		return nil, ErrAlreadyLocked
 	}
@@ -101,12 +101,12 @@ func Lock(ctx context.Context, lockID string, ttl time.Duration) (unlockFn Unloc
 	}
 
 	commit = true
-	return buildUnlockFn(ctx, lockID), nil
+	return buildUnlockFn(ctx, db, lockID), nil
 }
 
-func buildUnlockFn(ctx context.Context, lockID string) UnlockFn {
+func buildUnlockFn(ctx context.Context, db *DB, lockID string) UnlockFn {
 	return func() (err error) {
-		conn, err := Connection(ctx)
+		conn, err := db.pool.Acquire(ctx)
 		if err != nil {
 			return fmt.Errorf("unable to obtain database connection: %v", err)
 		}

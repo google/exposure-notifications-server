@@ -38,11 +38,11 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	cleanup, err := database.Initialize(ctx)
+	db, err := database.NewFromEnv(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
-	defer cleanup(ctx)
+	defer db.Close(ctx)
 
 	port := os.Getenv(portEnvVar)
 	if port == "" {
@@ -62,11 +62,12 @@ func main() {
 	logger.Infof("Using create batches timeout %v (override with $%s)", createBatchesTimeout, createBatchesTimeoutEnvVar)
 
 	// TODO(guray): remove or gate the /test handler
-	http.HandleFunc("/test", api.TestExportHandler)
+	http.Handle("/test", api.NewTestExportHandler(db))
 
-	http.Handle("/create-batches", api.CreateBatchesHandler{Timeout: createBatchesTimeout})
-	http.HandleFunc("/lease-batch", api.LeaseBatchHandler)
-	http.HandleFunc("/complete-batch", api.CompleteBatchHandler)
+	batchServer := api.NewBatchServer(db, createBatchesTimeout)
+	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler)
+	http.HandleFunc("/lease-batch", batchServer.LeaseBatchHandler)
+	http.HandleFunc("/complete-batch", batchServer.CompleteBatchHandler)
 
 	logger.Info("starting infection export server")
 	log.Fatal(http.ListenAndServe(":"+port, nil))

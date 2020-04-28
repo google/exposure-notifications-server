@@ -26,12 +26,13 @@ import (
 	"cambio/pkg/verification"
 )
 
-func NewPublishHandler(cfg *config.Config) http.Handler {
-	return &publishHandler{config: cfg}
+func NewPublishHandler(db *database.DB, cfg *config.Config) http.Handler {
+	return &publishHandler{db: db}
 }
 
 type publishHandler struct {
 	config *config.Config
+	db     *database.DB
 }
 
 func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +81,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = database.InsertInfections(ctx, infections)
+	err = h.db.InsertInfections(ctx, infections)
 	if err != nil {
 		logger.Errorf("error writing infection record: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)

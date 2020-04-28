@@ -58,11 +58,11 @@ func main() {
 	}
 
 	ctx := context.Background()
-	cleanup, err := database.Initialize(ctx)
+	db, err := database.NewFromEnv(ctx)
 	if err != nil {
 		log.Fatalf("unable to connect to database: %v", err)
 	}
-	defer cleanup(ctx)
+	defer db.Close(ctx)
 
 	var lastTime time.Time
 	if *lastTimestamp != "" {
@@ -81,7 +81,7 @@ func main() {
 		LastTimestamp:  lastTime,
 	}
 
-	if err := database.AddFederationQuery(ctx, query); err != nil {
+	if err := db.AddFederationQuery(ctx, query); err != nil {
 		log.Fatalf("adding new query %s %#v: %v", *queryID, query, err)
 	}
 

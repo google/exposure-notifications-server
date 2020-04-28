@@ -23,7 +23,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -38,10 +37,6 @@ const (
 )
 
 var (
-	// mu guards the initialization of db
-	mu   sync.Mutex
-	pool *pgxpool.Pool
-
 	validSSLModes = []string{
 		"disable",     // No SSL
 		"require",     // Always SSL (skip verification)
@@ -76,14 +71,14 @@ type config struct {
 	valid []string
 }
 
-// Initialize sets up the database connections.
-func Initialize(ctx context.Context) (cleanup func(context.Context), err error) {
-	mu.Lock()
-	defer mu.Unlock()
-	if pool != nil {
-		return nil, errors.New("connection pool already initialized")
-	}
+type DB struct {
+	pool *pgxpool.Pool
+}
 
+// NewFromEnv sets up the database connections using the configuration in the
+// process's environment variables. This should be called just once per server
+// instance.
+func NewFromEnv(ctx context.Context) (*DB, error) {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Creating connection pool.")
 
@@ -92,29 +87,19 @@ func Initialize(ctx context.Context) (cleanup func(context.Context), err error) 
 		return nil, fmt.Errorf("invalid database config: %v", err)
 	}
 
-	pool, err = pgxpool.Connect(ctx, connStr)
+	pool, err := pgxpool.Connect(ctx, connStr)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection pool: %v", err)
 	}
 
-	return close, nil
+	return &DB{pool: pool}, nil
 }
 
-// close releases pool connections.
-func close(ctx context.Context) {
-	mu.Lock()
-	defer mu.Unlock()
-	if pool != nil {
-		logger := logging.FromContext(ctx)
-		logger.Infof("Closing connection pool.")
-		pool.Close()
-	}
-	pool = nil
-}
-
-// Connection returns a database connection. You must defer conn.Release() in order to return the connection to the pool.
-func Connection(ctx context.Context) (*pgxpool.Conn, error) {
-	return pool.Acquire(ctx)
+// Close releases database connections.
+func (db *DB) Close(ctx context.Context) {
+	logger := logging.FromContext(ctx)
+	logger.Infof("Closing connection pool.")
+	db.pool.Close()
 }
 
 func processEnv(ctx context.Context, configs []config) (string, error) {

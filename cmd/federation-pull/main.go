@@ -54,13 +54,13 @@ func main() {
 	}
 	logger.Infof("Using fetch timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
-	cleanup, err := database.Initialize(ctx)
+	db, err := database.NewFromEnv(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
-	defer cleanup(ctx)
+	defer db.Close(ctx)
 
-	http.Handle("/", api.FederationPullHandler{Timeout: timeout})
+	http.Handle("/", api.NewFederationPullHandler(db, timeout))
 	logger.Info("starting federation puller")
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

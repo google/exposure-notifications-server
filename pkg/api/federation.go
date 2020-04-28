@@ -33,11 +33,12 @@ import (
 type fetchIterator func(context.Context, database.IterateInfectionsCriteria) (database.InfectionIterator, error)
 
 // NewFederationServer builds a new FederationServer.
-func NewFederationServer(timeout time.Duration) pb.FederationServer {
-	return &federationServer{timeout: timeout}
+func NewFederationServer(db *database.DB, timeout time.Duration) pb.FederationServer {
+	return &federationServer{db: db, timeout: timeout}
 }
 
 type federationServer struct {
+	db      *database.DB
 	timeout time.Duration
 }
 
@@ -46,7 +47,7 @@ func (s *federationServer) Fetch(ctx context.Context, req *pb.FederationFetchReq
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
-	response, err := s.fetch(ctx, req, database.IterateInfections, model.TruncateWindow(time.Now().UTC())) // Don't fetch the current window, which isn't complete yet. TODO(jasonco): should I double this for safety?
+	response, err := s.fetch(ctx, req, s.db.IterateInfections, model.TruncateWindow(time.Now().UTC())) // Don't fetch the current window, which isn't complete yet. TODO(jasonco): should I double this for safety?
 	if err != nil {
 		logger.Errorf("Fetch error: %v", err)
 		return nil, errors.New("internal error")

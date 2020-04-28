@@ -30,19 +30,22 @@ const (
 )
 
 type Config struct {
-	mu            sync.RWMutex
-	lastLoadTime  time.Time
-	cache         map[string]*model.APIConfig
+	db            *database.DB
 	refreshPeriod time.Duration
+
+	mu           sync.RWMutex
+	lastLoadTime time.Time
+	cache        map[string]*model.APIConfig
 }
 
-func New() *Config {
+func New(db *database.DB) *Config {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
 	cfg := &Config{
-		cache:         make(map[string]*model.APIConfig),
+		db:            db,
 		refreshPeriod: defaultRefreshPeriod,
+		cache:         make(map[string]*model.APIConfig),
 	}
 
 	if ds := os.Getenv("CONFIG_REFRESH_DURATION"); ds != "" {
@@ -56,6 +59,7 @@ func New() *Config {
 	if cfg.refreshPeriod > time.Minute*5 {
 		logger.Warn("config refresh duration is > 5 minutes: %v", cfg.refreshPeriod)
 	}
+
 	return cfg
 }
 
@@ -71,7 +75,7 @@ func (c *Config) loadConfig(ctx context.Context) error {
 
 	logger := logging.FromContext(ctx)
 
-	configs, err := database.ReadAPIConfigs(ctx)
+	configs, err := c.db.ReadAPIConfigs(ctx)
 	if err != nil {
 		// This will exit the server. Without a valid config, we cannot process
 		// requests.

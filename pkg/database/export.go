@@ -34,7 +34,7 @@ const (
 )
 
 // AddExportConfig creates a new ExportConfig record from which batch jobs are created.
-func AddExportConfig(ctx context.Context, ec *model.ExportConfig) (err error) {
+func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) (err error) {
 	if ec.Period > oneDay {
 		return errors.New("maximum period is 24h")
 	}
@@ -42,7 +42,7 @@ func AddExportConfig(ctx context.Context, ec *model.ExportConfig) (err error) {
 		return errors.New("period must divide equally into 24 hours (e.g., 2h, 4h, 12h, 15m, 30m)")
 	}
 
-	conn, err := Connection(ctx)
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -84,8 +84,8 @@ type ExportConfigIterator interface {
 }
 
 // IterateExportConfigs returns an ExportConfigIterator to iterate the ExportConfigs.
-func IterateExportConfigs(ctx context.Context, now time.Time) (ExportConfigIterator, error) {
-	conn, err := Connection(ctx)
+func (db *DB) IterateExportConfigs(ctx context.Context, now time.Time) (ExportConfigIterator, error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -141,9 +141,11 @@ func (i *postgresExportConfigIterator) Close() error {
 	return nil
 }
 
-// LatestExportBatchStartTime returns the most recent ExportBatch start time for a given ExportConfig. nil will be returned if batch has never been created.
-func LatestExportBatchStartTime(ctx context.Context, ec *model.ExportConfig) (*time.Time, error) {
-	conn, err := Connection(ctx)
+// LatestExportBatchStartTime returns the most recent ExportBatch start time
+// for a given ExportConfig. nil will be returned if batch has never been
+// created.
+func (db *DB) LatestExportBatchStartTime(ctx context.Context, ec *model.ExportConfig) (*time.Time, error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -174,8 +176,8 @@ func LatestExportBatchStartTime(ctx context.Context, ec *model.ExportConfig) (*t
 }
 
 // AddExportBatch adds a new export batch for the given ExportConfig.
-func AddExportBatch(ctx context.Context, eb *model.ExportBatch) (err error) {
-	conn, err := Connection(ctx)
+func (db *DB) AddExportBatch(ctx context.Context, eb *model.ExportBatch) (err error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -205,8 +207,8 @@ func AddExportBatch(ctx context.Context, eb *model.ExportBatch) (err error) {
 }
 
 // LeaseBatch returns a leased ExportBatch for the worker to process. If no work to do, nil will be returned.
-func LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) (eb *model.ExportBatch, err error) {
-	conn, err := Connection(ctx)
+func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) (eb *model.ExportBatch, err error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -340,8 +342,8 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 }
 
 // CompleteBatch marks a batch as completed.
-func CompleteBatch(ctx context.Context, batchID int64) (err error) {
-	conn, err := Connection(ctx)
+func (db *DB) CompleteBatch(ctx context.Context, batchID int64) (err error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -401,9 +403,9 @@ type joinedExportBatchFile struct {
 }
 
 // DeleteFilesBefore deletes the export batch files for batches ending before the time passed in.
-func DeleteFilesBefore(ctx context.Context, before time.Time) (count int, err error) {
+func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (count int, err error) {
 	logger := logging.FromContext(ctx)
-	conn, err := Connection(ctx)
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("unable to obtain database connection: %v", err)
 	}

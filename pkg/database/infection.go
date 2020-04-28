@@ -53,8 +53,8 @@ type IterateInfectionsCriteria struct {
 }
 
 // IterateInfections returns an iterator for infections meeting the criteria. Must call iterator's Close() method when done.
-func IterateInfections(ctx context.Context, criteria IterateInfectionsCriteria) (InfectionIterator, error) {
-	conn, err := Connection(ctx)
+func (db *DB) IterateInfections(ctx context.Context, criteria IterateInfectionsCriteria) (InfectionIterator, error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -174,8 +174,8 @@ func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, e
 }
 
 // InsertInfections inserts a set of infections.
-func InsertInfections(ctx context.Context, infections []*model.Infection) (err error) {
-	conn, err := Connection(ctx)
+func (db *DB) InsertInfections(ctx context.Context, infections []*model.Infection) (err error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -214,8 +214,8 @@ func InsertInfections(ctx context.Context, infections []*model.Infection) (err e
 }
 
 // DeleteInfections deletes infections created before "before" date. Returns the number of records deleted.
-func DeleteInfections(ctx context.Context, before time.Time) (count int64, err error) {
-	conn, err := Connection(ctx)
+func (db *DB) DeleteInfections(ctx context.Context, before time.Time) (count int64, err error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("unable to obtain database connection: %v", err)
 	}

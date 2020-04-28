@@ -33,19 +33,28 @@ const (
 	batchIDParam = "batch-id"
 )
 
-// CreateBatchesHandler is a handler to iterate the rows of ExportConfig and create entries in ExportBatchJob as appropriate.
-type CreateBatchesHandler struct {
-	Timeout time.Duration
+func NewBatchServer(db *database.DB, createTimeout time.Duration) *BatchServer {
+	return &BatchServer{
+		db:            db,
+		createTimeout: createTimeout,
+	}
 }
 
-func (h CreateBatchesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), h.Timeout)
+type BatchServer struct {
+	db            *database.DB
+	createTimeout time.Duration
+}
+
+// CreateBatchesHandler is a handler to iterate the rows of ExportConfig and
+// create entries in ExportBatchJob as appropriate.
+func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), s.createTimeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
 
 	// Obtain lock to make sure there are no other processes working to create batches.
 	lock := "create_batches"
-	unlockFn, err := database.Lock(ctx, lock, h.Timeout) // TODO(jasonco): double this?
+	unlockFn, err := s.db.Lock(ctx, lock, s.createTimeout) // TODO(jasonco): double this?
 	if err != nil {
 		if err == database.ErrAlreadyLocked {
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
@@ -60,7 +69,7 @@ func (h CreateBatchesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	defer unlockFn()
 
 	now := time.Now().UTC()
-	it, err := database.IterateExportConfigs(ctx, now)
+	it, err := s.db.IterateExportConfigs(ctx, now)
 	if err != nil {
 		logger.Errorf("Failed to get export config iterator: %v", err)
 		http.Error(w, "Failed to get export config iterator, check logs.", http.StatusInternalServerError)
@@ -99,16 +108,16 @@ func (h CreateBatchesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 			continue
 		}
 
-		if err := maybeCreateBatch(ctx, ec, now); err != nil {
+		if err := s.maybeCreateBatch(ctx, ec, now); err != nil {
 			logger.Errorf("Failed to create batch for config %d: %v. Continuing", ec.ConfigID, err)
 		}
 	}
 }
 
-func maybeCreateBatch(ctx context.Context, ec *model.ExportConfig, now time.Time) error {
+func (s *BatchServer) maybeCreateBatch(ctx context.Context, ec *model.ExportConfig, now time.Time) error {
 	logger := logging.FromContext(ctx)
 
-	latestStart, err := database.LatestExportBatchStartTime(ctx, ec)
+	latestStart, err := s.db.LatestExportBatchStartTime(ctx, ec)
 	if err != nil {
 		return fmt.Errorf("fetching most recent batch for config %d: %v", ec.ConfigID, err)
 	}
@@ -137,7 +146,7 @@ func maybeCreateBatch(ctx context.Context, ec *model.ExportConfig, now time.Time
 		ExcludeRegions: ec.ExcludeRegions,
 		Status:         model.ExportBatchOpen,
 	}
-	if err := database.AddExportBatch(ctx, &eb); err != nil {
+	if err := s.db.AddExportBatch(ctx, &eb); err != nil {
 		return fmt.Errorf("creating export batch for config %d: %v", ec.ConfigID, err)
 	}
 
@@ -145,13 +154,14 @@ func maybeCreateBatch(ctx context.Context, ec *model.ExportConfig, now time.Time
 	return nil
 }
 
-// LeaseBatchHandler leases and returns a batch job for the worker to process. Returns a 404 if no work to do.
-func LeaseBatchHandler(w http.ResponseWriter, r *http.Request) {
+// LeaseBatchHandler leases and returns a batch job for the worker to process.
+// Returns a 404 if no work to do.
+func (s *BatchServer) LeaseBatchHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
 	ttl := 15 * time.Minute // TODO(jasonco): take from args?
-	batch, err := database.LeaseBatch(ctx, ttl, time.Now().UTC())
+	batch, err := s.db.LeaseBatch(ctx, ttl, time.Now().UTC())
 	if err != nil {
 		logger.Errorf("Failed to lease batch: %v", err)
 		http.Error(w, "Failed to lease batch, check logs.", http.StatusInternalServerError)
@@ -178,7 +188,7 @@ func LeaseBatchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // CompleteBatchHandler marks a batch job as completed.
-func CompleteBatchHandler(w http.ResponseWriter, r *http.Request) {
+func (s *BatchServer) CompleteBatchHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
@@ -202,7 +212,7 @@ func CompleteBatchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := database.CompleteBatch(ctx, batchID); err != nil {
+	if err := s.db.CompleteBatch(ctx, batchID); err != nil {
 		if err == database.ErrNotFound {
 			http.Error(w, fmt.Sprintf("%d not found", batchID), http.StatusBadRequest)
 			return
@@ -214,7 +224,15 @@ func CompleteBatchHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(fmt.Sprintf("Batch %d marked completed", batchID)))
 }
 
-func TestExportHandler(w http.ResponseWriter, r *http.Request) {
+func NewTestExportHandler(db *database.DB) http.Handler {
+	return &testExportHandler{db: db}
+}
+
+type testExportHandler struct {
+	db *database.DB
+}
+
+func (h *testExportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
@@ -229,7 +247,7 @@ func TestExportHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Infof("limiting to %v", limit)
 	since := time.Now().UTC().AddDate(0, 0, -5)
 	until := time.Now().UTC()
-	exposureKeys, err := queryExposureKeys(ctx, since, until, limit)
+	exposureKeys, err := h.queryExposureKeys(ctx, since, until, limit)
 	if err != nil {
 		logger.Errorf("error getting infections: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
@@ -249,13 +267,13 @@ func TestExportHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func queryExposureKeys(ctx context.Context, since, until time.Time, limit int) ([]*model.Infection, error) {
+func (h *testExportHandler) queryExposureKeys(ctx context.Context, since, until time.Time, limit int) ([]*model.Infection, error) {
 	criteria := database.IterateInfectionsCriteria{
 		SinceTimestamp:      since,
 		UntilTimestamp:      until,
 		OnlyLocalProvenance: false, // include federated ids
 	}
-	it, err := database.IterateInfections(ctx, criteria)
+	it, err := h.db.IterateInfections(ctx, criteria)
 	if err != nil {
 		return nil, err
 	}

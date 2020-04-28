@@ -42,15 +42,15 @@ func main() {
 	}
 	logger.Infof("Using port %s (override with $%s)", port, portEnvVar)
 
-	cleanup, err := database.Initialize(ctx)
+	db, err := database.NewFromEnv(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
-	defer cleanup(ctx)
+	defer db.Close(ctx)
 
-	cfg := config.New()
+	cfg := config.New(db)
 
-	http.Handle("/", api.NewPublishHandler(cfg))
+	http.Handle("/", api.NewPublishHandler(db, cfg))
 	logger.Info("starting infection server")
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

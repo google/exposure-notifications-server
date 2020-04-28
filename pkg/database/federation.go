@@ -36,8 +36,8 @@ type FinalizeSyncFn func(maxTimestamp time.Time, totalInserted int) error
 type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx.Row
 
 // GetFederationQuery returns a query for given queryID. If not found, ErrNotFound will be returned.
-func GetFederationQuery(ctx context.Context, queryID string) (*model.FederationQuery, error) {
-	conn, err := Connection(ctx)
+func (db *DB) GetFederationQuery(ctx context.Context, queryID string) (*model.FederationQuery, error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -66,8 +66,8 @@ func getFederationQuery(ctx context.Context, queryID string, queryRow queryRowFn
 }
 
 // AddFederationQuery adds a FederationQuery entity. It will overwrite a query with matching q.queryID if it exists.
-func AddFederationQuery(ctx context.Context, q *model.FederationQuery) (err error) {
-	conn, err := Connection(ctx)
+func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) (err error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -115,8 +115,8 @@ func AddFederationQuery(ctx context.Context, q *model.FederationQuery) (err erro
 }
 
 // GetFederationSync returns a federation sync record for given syncID. If not found, ErrNotFound will be returned.
-func GetFederationSync(ctx context.Context, syncID string) (*model.FederationSync, error) {
-	conn, err := Connection(ctx)
+func (db *DB) GetFederationSync(ctx context.Context, syncID string) (*model.FederationSync, error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -144,8 +144,8 @@ func getFederationSync(ctx context.Context, syncID string, queryRowContext query
 }
 
 // StartFederationSync stores a historical record of a query sync starting. It returns a FederationSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
-func StartFederationSync(ctx context.Context, q *model.FederationQuery, started time.Time) (string, FinalizeSyncFn, error) {
-	conn, err := Connection(ctx)
+func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery, started time.Time) (string, FinalizeSyncFn, error) {
+	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
@@ -164,7 +164,7 @@ func StartFederationSync(ctx context.Context, q *model.FederationQuery, started 
 	}
 
 	finalize := func(maxTimestamp time.Time, totalInserted int) (err error) {
-		conn, err := Connection(ctx)
+		conn, err := db.pool.Acquire(ctx)
 		if err != nil {
 			return fmt.Errorf("unable to obtain database connection: %v", err)
 		}
