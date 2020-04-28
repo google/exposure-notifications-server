@@ -44,6 +44,8 @@ export DB_USER=apollo
 export DB_PASSWORD=mypassword
 export DB_SSLMODE=disable
 
+# GCS variables
+export EXPORT_BUCKET = "apollo-public-bucket"
 
 if [ ! -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
     echo "$GOOGLE_APPLICATION_CREDENTIALS does not exist. \

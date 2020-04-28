@@ -19,7 +19,7 @@ import (
 )
 
 type ExportBatch struct {
-	BatchId        string    `db:"batch_id"`
+	BatchId        int       `db:"batch_id"`
 	StartTimestamp time.Time `db:"start_timestamp"`
 	EndTimestamp   time.Time `db:"end_timestamp"`
 	Status         string    `db:"status"`
