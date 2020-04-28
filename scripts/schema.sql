@@ -81,3 +81,16 @@ CREATE TABLE Lock (
 	lock_id VARCHAR(100) PRIMARY KEY,
 	expires TIMESTAMP NOT NULL
 );
+
+CREATE TABLE APIConfig (
+	app_package_name VARCHAR(1000) PRIMARY KEY,
+	apk_digest VARCHAR(64),
+	enforce_apk_digest BOOLEAN NOT NULL,
+	cts_profile_match BOOLEAN NOT NULL,
+	basic_integrity BOOLEAN NOT NULL,
+	max_age_seconds INT NOT NULL,
+	clock_skew_seconds INT NOT NULL,
+	allowed_regions VARCHAR(5) [] NOT NULL,
+	all_regions bool NOT NULL,
+	bypass_safetynet bool NOT NULL
+);

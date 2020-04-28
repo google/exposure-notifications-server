@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"time"
 
+	"cambio/pkg/api/config"
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
 	"cambio/pkg/model"
@@ -38,9 +39,32 @@ func PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = verification.VerifySafetyNet(ctx)
+	cfg, err := config.AppPkgConfig(ctx, data.AppPackageName)
+	if err != nil {
+		logger.Errorf("config.AppPkgConfig: %v", err)
+		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return
+	}
+	if cfg == nil {
+		// configs were loaded, but the request app isn't configured.
+		logger.Errorf("unauthorized applicaiton: %v", data.AppPackageName)
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	err = verification.VerifyRegions(cfg, data)
+	if err != nil {
+		logger.Errorf("verification.VerifyRegions: %v", err)
+		// TODO(mikehelmick) change error code after clients verify functionality.
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	requestTime := time.Now().UTC()
+	err = verification.VerifySafetyNet(ctx, requestTime, cfg, data)
 	if err != nil {
 		logger.Errorf("unable to verify safetynet payload: %v", err)
+		// TODO(mikehelmick) change error code after clients verify functionality.
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
