@@ -1,16 +1,55 @@
-# CT Server Components
+# Exposure Server Components
 
-# Code location.
+# How to Contribute
 
-Check out the code to `$GOPATH/src/cambio` on your machine.
+We'd love to accept your patches and contributions to this project. There are
+just a few small guidelines you need to follow.
 
-# Layout
+## Contributor License Agreement
+
+Contributions to this project must be accompanied by a Contributor License
+Agreement (CLA). You (or your employer) retain the copyright to your
+contribution; this simply gives us permission to use and redistribute your
+contributions as part of the project. Head over to
+<https://cla.developers.google.com/> to see your current agreements on file or
+to sign a new one.
+
+You generally only need to submit a CLA once, so if you've already submitted one
+(even if it was for a different project), you probably don't need to do it
+again.
+
+## Code reviews
+
+All submissions, including submissions by project members, require review. We
+use GitHub pull requests for this purpose. Consult
+[GitHub Help](https://help.github.com/articles/about-pull-requests/) for more
+information on using pull requests.
+
+It is strongly recommended that you run the presubmits before publishing. You
+can find a script to do this at scripts/presubmit.sh
+
+You can also add a prepush hook by linking to the script. This will run
+these automatically before pushing a branch to the GitHub remote.
+
+```
+# From Repository Root
+❯ ln -s -f ../../scripts/presubmit.sh .git/hooks/pre-push
+❯ chmod a+x .git/hooks/pre-push
+```
+
+## Community Guidelines
+
+This project follows
+[Google's Open Source Community Guidelines](https://opensource.google/conduct/).
+
+# Additional Project Details
+## Code Layout
 
 Common code goes in `/pkg`
 
 Each binary will have main in `/cmd/[bin-name]`
 
-# Dependencies
+## Project Dependencies
 1. This project requires protoc.
   - Mac: `brew install protobuf`
   - Linux: `apt-get install protobuf-compiler`
@@ -24,7 +63,7 @@ export PATH=$PATH:$HOME/go/bin, in order to add the GOPATH and
 export PATH=$PATH:/usr/local/go/bin, in order to add GOROOT
 ```
 
-# Running locally
+## Running locally
 
 1. (One time only) Create a dev service account and add the credentials to `./local/sa.json`
 
@@ -40,20 +79,9 @@ source scripts/setup_env.sh
 go run ./cmd/[bin-name]
 ```
 
-# Code Reviews
-
-1. Before creating a code review, you can run the presubmits at scripts/presubmit.sh
-
-1. You can add a prepush hook by linking to the script:
-
-```
-# From Repository Root
-❯ ln -s -f ../../scripts/presubmit.sh .git/hooks/pre-push
-❯ chmod a+x .git/hooks/pre-push
-```
 
 
-# Building / publishing images
+## Building / publishing images
 
 1. Install ko
 

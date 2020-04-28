@@ -23,7 +23,7 @@ export DATASTORE_PROJECT_ID=$PROJECT_ID
 export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/local/sa.json"
 
 # To use Secret Manager, you need to grant Secret Manager > Secret Manager Accessor to the credentials in the above sa.json file.
-# https://pantheon.corp.google.com/iam-admin/iam
+# https://console.cloud.google.com/iam-admin/iam
 #
 # If using a test project, you need to create a test key (one time) in your project:
 #
