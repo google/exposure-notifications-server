@@ -30,11 +30,11 @@ const (
 	minCutoffDuration = "10d"
 )
 
-type WipeoutHandler struct {
+type InfectionWipeoutHandler struct {
 	Timeout time.Duration
 }
 
-func (h WipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h InfectionWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 

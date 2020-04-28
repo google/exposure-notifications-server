@@ -53,7 +53,7 @@ func main() {
 	}
 	defer cleanup(ctx)
 
-	http.Handle("/", api.WipeoutHandler{Timeout: timeout})
+	http.Handle("/", api.InfectionWipeoutHandler{Timeout: timeout})
 	logger.Info("starting wipeout server")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
