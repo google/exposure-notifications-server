@@ -43,11 +43,29 @@ CREATE TABLE Infection (
 	sync_id VARCHAR(100)  -- This could be a foreign key to FederationSync, but it's more difficult to handle nullable strings in Go, and it seems like unnecessary overhead.
 );
 
+-- ExportConfig stores a list of batches to create on an ongoing basis. The /create-batches endpoint will iterate over this
+-- table and create rows in the ExportBatchJob table.
+CREATE TABLE ExportConfig (
+	config_id SERIAL PRIMARY KEY,
+	filename_root VARCHAR(100) NOT NULL,
+	period_seconds INT NOT NULL,
+	include_regions VARCHAR(5) [],
+	exclude_regions VARCHAR(5) [],
+	from_timestamp TIMESTAMP NOT NULL,
+	thru_timestamp TIMESTAMP,
+)
+
+CREATE TYPE ExportBatchStatus AS ENUM ('OPEN', 'PENDING', 'COMPLETE', 'DELETED');
 CREATE TABLE ExportBatch (
 	batch_id SERIAL PRIMARY KEY,
-	start_timestamp TIMESTAMP,
-	end_timestamp TIMESTAMP,
-	status VARCHAR(10)
+	config_id INT NOT NULL REFERENCES ExportConfig(config_id),
+	filename_root VARCHAR(100) NOT NULL,
+	start_timestamp TIMESTAMP NOT NULL,
+	end_timestamp TIMESTAMP NOT NULL,
+	include_regions VARCHAR(5) [],
+	exclude_regions VARCHAR(5) [],
+	status ExportBatchStatus NOT NULL DEFAULT 'OPEN',
+	lease_expires TIMESTAMP,
 );
 
 CREATE TABLE ExportFile (

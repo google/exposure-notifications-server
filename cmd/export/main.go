@@ -19,10 +19,19 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"time"
 
 	"cambio/pkg/api"
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
+)
+
+const (
+	portEnvVar                 = "PORT"
+	defaultPort                = "8080"
+	createBatchesTimeoutEnvVar = "CREATE_BATCHES_TIMEOUT"
+	defaultTimeout             = 5 * time.Minute
 )
 
 func main() {
@@ -35,10 +44,30 @@ func main() {
 	}
 	defer cleanup(ctx)
 
+	port := os.Getenv(portEnvVar)
+	if port == "" {
+		port = defaultPort
+	}
+	logger.Infof("Using port %s (override with $%s)", port, portEnvVar)
+
+	createBatchesTimeout := defaultTimeout
+	if timeoutStr := os.Getenv(createBatchesTimeoutEnvVar); timeoutStr != "" {
+		var err error
+		createBatchesTimeout, err = time.ParseDuration(timeoutStr)
+		if err != nil {
+			logger.Warnf("Failed to parse $%s value %q, using default.", createBatchesTimeoutEnvVar, timeoutStr)
+			createBatchesTimeout = defaultTimeout
+		}
+	}
+	logger.Infof("Using create batches timeout %v (override with $%s)", createBatchesTimeout, createBatchesTimeoutEnvVar)
+
 	// TODO(guray): remove or gate the /test handler
 	http.HandleFunc("/test", api.TestExportHandler)
-	http.HandleFunc("/setupBatch", api.SetupBatchHandler)
-	http.HandleFunc("/pollWork", api.PollWorkHandler)
+
+	http.Handle("/create-batches", api.CreateBatchesHandler{Timeout: createBatchesTimeout})
+	http.HandleFunc("/lease-batch", api.LeaseBatchHandler)
+	http.HandleFunc("/complete-batch", api.CompleteBatchHandler)
+
 	logger.Info("starting infection export server")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
