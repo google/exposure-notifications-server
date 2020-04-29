@@ -131,7 +131,7 @@ func (i *postgresInfectionIterator) Close() error {
 func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, error) {
 	q := `
 		SELECT
-			exposure_key, tranismission_risk, app_package_name, regions, interval_number, interval_count,
+			exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
 			created_at, local_provenance, verification_authority_name, sync_id
 		FROM Infection
 		WHERE 1=1
