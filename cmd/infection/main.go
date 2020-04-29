@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"cambio/pkg/api"
+	"cambio/pkg/api/config"
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
 )
@@ -47,7 +48,9 @@ func main() {
 	}
 	defer cleanup(ctx)
 
-	http.HandleFunc("/", api.PublishHandler)
+	cfg := config.New()
+
+	http.Handle("/", api.NewPublishHandler(cfg))
 	logger.Info("starting infection server")
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

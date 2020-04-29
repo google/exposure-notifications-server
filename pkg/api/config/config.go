@@ -29,20 +29,18 @@ const (
 	defaultRefreshPeriod = time.Minute
 )
 
-type config struct {
+type Config struct {
 	mu            sync.RWMutex
 	lastLoadTime  time.Time
 	cache         map[string]*model.APIConfig
 	refreshPeriod time.Duration
 }
 
-var globalConfig = newConfig()
-
-func newConfig() *config {
+func New() *Config {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	cfg := &config{
+	cfg := &Config{
 		cache:         make(map[string]*model.APIConfig),
 		refreshPeriod: defaultRefreshPeriod,
 	}
@@ -61,16 +59,17 @@ func newConfig() *config {
 	return cfg
 }
 
-func (c *config) loadConfig(ctx context.Context) error {
+func (c *Config) loadConfig(ctx context.Context) error {
 	// In case multiple requests notice expiration simultaneously, only do it once.
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	logger := logging.FromContext(ctx)
 
 	// if the cache isn't expired, don't reload.
 	if time.Since(c.lastLoadTime) < c.refreshPeriod {
 		return nil
 	}
+
+	logger := logging.FromContext(ctx)
 
 	configs, err := database.ReadAPIConfigs(ctx)
 	if err != nil {
@@ -91,21 +90,17 @@ func (c *config) loadConfig(ctx context.Context) error {
 	return nil
 }
 
-func (c *config) appConfig(appPkg string) (*model.APIConfig, bool) {
+func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) *model.APIConfig {
+	c.loadConfig(ctx)
+
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	appConfig, ok := c.cache[appPkg]
-	return appConfig, ok
-}
 
-func AppPkgConfig(ctx context.Context, appPkg string) (*model.APIConfig, error) {
-	globalConfig.loadConfig(ctx)
-
-	appConfig, ok := globalConfig.appConfig(appPkg)
+	cfg, ok := c.cache[appPkg]
 	if !ok {
 		logger := logging.FromContext(ctx)
 		logger.Errorf("requested config for unconfigured app: %v", appPkg)
+		return nil
 	}
-
-	return appConfig, nil
+	return cfg
 }

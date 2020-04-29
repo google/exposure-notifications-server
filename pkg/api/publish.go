@@ -26,7 +26,15 @@ import (
 	"cambio/pkg/verification"
 )
 
-func PublishHandler(w http.ResponseWriter, r *http.Request) {
+func NewPublishHandler(cfg *config.Config) http.Handler {
+	return &publishHandler{config: cfg}
+}
+
+type publishHandler struct {
+	config *config.Config
+}
+
+func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
@@ -39,12 +47,7 @@ func PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := config.AppPkgConfig(ctx, data.AppPackageName)
-	if err != nil {
-		logger.Errorf("config.AppPkgConfig: %v", err)
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
-		return
-	}
+	cfg := h.config.AppPkgConfig(ctx, data.AppPackageName)
 	if cfg == nil {
 		// configs were loaded, but the request app isn't configured.
 		logger.Errorf("unauthorized applicaiton: %v", data.AppPackageName)
