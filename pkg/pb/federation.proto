@@ -39,12 +39,13 @@ message ContactTracingResponse {
 }
 
 message ContactTracingInfo {
-	DiagnosisStatus diagnosisStatus = 1;  // required
+	// TODO(jasonco | mikehelmick): this should be an int now.
+	TransmissionRisk transmissionRisk = 1;  // required
 	repeated ExposureKey exposureKeys = 2;
 	string verificationAuthorityName = 3;  // TODO(jasonco): need to group on this.
 }
 
-enum DiagnosisStatus {
+enum TransmissionRisk {
 	unknown = 0;
 	positive_verified = 1;
 	self_reported = 2;

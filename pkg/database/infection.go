@@ -100,7 +100,7 @@ func (i *postgresInfectionIterator) Next() (*model.Infection, bool, error) {
 
 	var m model.Infection
 	var encodedExposureKey string
-	if err := i.rows.Scan(&encodedExposureKey, &m.DiagnosisStatus, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
+	if err := i.rows.Scan(&encodedExposureKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
 		&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &m.FederationSyncID); err != nil {
 		return nil, false, err
 	}
@@ -131,7 +131,7 @@ func (i *postgresInfectionIterator) Close() error {
 func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, error) {
 	q := `
 		SELECT
-			exposure_key, diagnosis_status, app_package_name, regions, interval_number, interval_count,
+			exposure_key, tranismission_risk, app_package_name, regions, interval_number, interval_count,
 			created_at, local_provenance, verification_authority_name, sync_id
 		FROM Infection
 		WHERE 1=1
@@ -191,7 +191,7 @@ func InsertInfections(ctx context.Context, infections []*model.Infection) (err e
 	stmtName := "insert infections"
 	_, err = tx.Prepare(ctx, stmtName, `
 		INSERT INTO Infection
-		  (exposure_key, diagnosis_status, app_package_name, regions, interval_number, interval_count, 
+		  (exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
 		  created_at, local_provenance, verification_authority_name, sync_id)
 		VALUES
 		  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -202,7 +202,7 @@ func InsertInfections(ctx context.Context, infections []*model.Infection) (err e
 	}
 
 	for _, inf := range infections {
-		_, err := tx.Exec(ctx, stmtName, encodeExposureKey(inf.ExposureKey), inf.DiagnosisStatus, inf.AppPackageName, inf.Regions, inf.IntervalNumber, inf.IntervalCount,
+		_, err := tx.Exec(ctx, stmtName, encodeExposureKey(inf.ExposureKey), inf.TransmissionRisk, inf.AppPackageName, inf.Regions, inf.IntervalNumber, inf.IntervalCount,
 			inf.CreatedAt, inf.LocalProvenance, inf.VerificationAuthorityName, inf.FederationSyncID)
 		if err != nil {
 			return fmt.Errorf("inserting infection: %v", err)

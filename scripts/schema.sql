@@ -32,7 +32,7 @@ CREATE TABLE FederationSync (
 
 CREATE TABLE Infection (
 	exposure_key VARCHAR(30) PRIMARY KEY,
-	diagnosis_status INT NOT NULL,
+	transmission_risk INT NOT NULL,
 	app_package_name VARCHAR(100),
 	regions VARCHAR(5) [],
 	interval_number INT NOT NULL,

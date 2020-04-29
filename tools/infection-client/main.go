@@ -103,10 +103,10 @@ func main() {
 	}
 
 	data := model.Publish{
-		Keys:            exposureKeys,
-		Regions:         regions[regionIdx.Int64()],
-		AppPackageName:  "com.example.app",
-		DiagnosisStatus: int(n.Int64()),
+		Keys:             exposureKeys,
+		Regions:          regions[regionIdx.Int64()],
+		AppPackageName:   "com.example.app",
+		TransmissionRisk: int(n.Int64()),
 		// This tool cannot generate valid safetynet attestations.
 		Verification:              "some invalid data",
 		VerificationAuthorityName: verificationAuthorityNames[authNameIdx.Int64()],

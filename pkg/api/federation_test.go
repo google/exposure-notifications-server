@@ -36,8 +36,8 @@ var (
 		protocmp.SortRepeatedFields(&pb.ContactTracingInfo{}, "exposureKeys"),
 	}
 
-	posver  = pb.DiagnosisStatus_positive_verified
-	selfver = pb.DiagnosisStatus_self_reported
+	posver  = pb.TransmissionRisk_positive_verified
+	selfver = pb.TransmissionRisk_self_reported
 
 	aaa = &pb.ExposureKey{ExposureKey: []byte("aaa"), IntervalNumber: 1}
 	bbb = &pb.ExposureKey{ExposureKey: []byte("bbb"), IntervalNumber: 2}
@@ -46,18 +46,18 @@ var (
 )
 
 // makeInfection returns a mock model.Infection.
-func makeInfection(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, regions ...string) *model.Infection {
+func makeInfection(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, regions ...string) *model.Infection {
 	return &model.Infection{
-		Regions:         regions,
-		DiagnosisStatus: int(diagStatus),
-		ExposureKey:     diagKey.ExposureKey,
-		IntervalNumber:  diagKey.IntervalNumber,
-		CreatedAt:       time.Unix(int64(diagKey.IntervalNumber*100), 0).UTC(), // Make unique from IntervalNumber.
-		LocalProvenance: true,
+		Regions:          regions,
+		TransmissionRisk: int(diagStatus),
+		ExposureKey:      diagKey.ExposureKey,
+		IntervalNumber:   diagKey.IntervalNumber,
+		CreatedAt:        time.Unix(int64(diagKey.IntervalNumber*100), 0).UTC(), // Make unique from IntervalNumber.
+		LocalProvenance:  true,
 	}
 }
 
-func makeInfectionWithVerification(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, verificationAuthorityName string, regions ...string) *model.Infection {
+func makeInfectionWithVerification(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, verificationAuthorityName string, regions ...string) *model.Infection {
 	inf := makeInfection(diagKey, diagStatus, regions...)
 	inf.VerificationAuthorityName = verificationAuthorityName
 	return inf
@@ -136,19 +136,19 @@ func TestFetch(t *testing.T) {
 					{
 						RegionIdentifiers: []string{"US"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
+							{TransmissionRisk: posver, ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
 						},
 					},
 					{
 						RegionIdentifiers: []string{"GB"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{ccc}},
+							{TransmissionRisk: posver, ExposureKeys: []*pb.ExposureKey{ccc}},
 						},
 					},
 					{
 						RegionIdentifiers: []string{"GB", "US"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{ddd}},
+							{TransmissionRisk: posver, ExposureKeys: []*pb.ExposureKey{ddd}},
 						},
 					},
 				},
@@ -168,14 +168,14 @@ func TestFetch(t *testing.T) {
 					{
 						RegionIdentifiers: []string{"US"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
-							{DiagnosisStatus: selfver, ExposureKeys: []*pb.ExposureKey{ccc}},
+							{TransmissionRisk: posver, ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
+							{TransmissionRisk: selfver, ExposureKeys: []*pb.ExposureKey{ccc}},
 						},
 					},
 					{
 						RegionIdentifiers: []string{"CA"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: selfver, ExposureKeys: []*pb.ExposureKey{ddd}},
+							{TransmissionRisk: selfver, ExposureKeys: []*pb.ExposureKey{ddd}},
 						},
 					},
 				},
@@ -195,9 +195,9 @@ func TestFetch(t *testing.T) {
 					{
 						RegionIdentifiers: []string{"US"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
-							{DiagnosisStatus: posver, VerificationAuthorityName: "BBB", ExposureKeys: []*pb.ExposureKey{ccc}},
-							{DiagnosisStatus: selfver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{ddd}},
+							{TransmissionRisk: posver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
+							{TransmissionRisk: posver, VerificationAuthorityName: "BBB", ExposureKeys: []*pb.ExposureKey{ccc}},
+							{TransmissionRisk: selfver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{ddd}},
 						},
 					},
 				},
@@ -218,13 +218,13 @@ func TestFetch(t *testing.T) {
 					{
 						RegionIdentifiers: []string{"GB"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{ccc}},
+							{TransmissionRisk: posver, ExposureKeys: []*pb.ExposureKey{ccc}},
 						},
 					},
 					{
 						RegionIdentifiers: []string{"GB", "US"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{ddd}},
+							{TransmissionRisk: posver, ExposureKeys: []*pb.ExposureKey{ddd}},
 						},
 					},
 				},
@@ -255,13 +255,13 @@ func TestFetch(t *testing.T) {
 					{
 						RegionIdentifiers: []string{"US"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{aaa}},
+							{TransmissionRisk: posver, ExposureKeys: []*pb.ExposureKey{aaa}},
 						},
 					},
 					{
 						RegionIdentifiers: []string{"CA"},
 						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{DiagnosisStatus: posver, ExposureKeys: []*pb.ExposureKey{bbb}},
+							{TransmissionRisk: posver, ExposureKeys: []*pb.ExposureKey{bbb}},
 						},
 					},
 				},

@@ -34,9 +34,9 @@ func TestInvalidBase64(t *testing.T) {
 				Key: base64.StdEncoding.EncodeToString([]byte("ABC")) + `2`,
 			},
 		},
-		Regions:         []string{"US"},
-		AppPackageName:  "com.google",
-		DiagnosisStatus: 0,
+		Regions:          []string{"US"},
+		AppPackageName:   "com.google",
+		TransmissionRisk: 0,
 		// Verification doesn't matter for transforming.
 	}
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
@@ -72,9 +72,9 @@ func TestTransform(t *testing.T) {
 				IntervalCount:  42,
 			},
 		},
-		Regions:         []string{"us", "cA", "Mx"}, // will be upcased
-		AppPackageName:  "com.google",
-		DiagnosisStatus: 2,
+		Regions:          []string{"us", "cA", "Mx"}, // will be upcased
+		AppPackageName:   "com.google",
+		TransmissionRisk: 2,
 		// Verification doesn't matter for transforming.
 	}
 
@@ -104,14 +104,14 @@ func TestTransform(t *testing.T) {
 	batchTimeRounded := time.Date(2020, 3, 1, 10, 30, 0, 0, time.UTC)
 	for i, v := range want {
 		want[i] = &Infection{
-			ExposureKey:     v.ExposureKey,
-			DiagnosisStatus: 2,
-			AppPackageName:  "com.google",
-			Regions:         []string{"US", "CA", "MX"},
-			IntervalNumber:  v.IntervalNumber,
-			IntervalCount:   v.IntervalCount,
-			CreatedAt:       batchTimeRounded,
-			LocalProvenance: true,
+			ExposureKey:      v.ExposureKey,
+			TransmissionRisk: 2,
+			AppPackageName:   "com.google",
+			Regions:          []string{"US", "CA", "MX"},
+			IntervalNumber:   v.IntervalNumber,
+			IntervalCount:    v.IntervalCount,
+			CreatedAt:        batchTimeRounded,
+			LocalProvenance:  true,
 		}
 	}
 

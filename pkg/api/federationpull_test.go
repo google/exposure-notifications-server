@@ -32,7 +32,7 @@ var (
 )
 
 // makeRemoteInfection returns a mock model.Infection with LocalProvenance=false.
-func makeRemoteInfection(diagKey *pb.ExposureKey, diagStatus pb.DiagnosisStatus, verificationAuthorityName string, regions ...string) *model.Infection {
+func makeRemoteInfection(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, verificationAuthorityName string, regions ...string) *model.Infection {
 	inf := makeInfectionWithVerification(diagKey, diagStatus, verificationAuthorityName, regions...)
 	inf.LocalProvenance = false
 	inf.FederationSyncID = syncID
@@ -109,19 +109,19 @@ func TestFederationPull(t *testing.T) {
 					Response: []*pb.ContactTracingResponse{
 						{
 							ContactTracingInfo: []*pb.ContactTracingInfo{
-								{DiagnosisStatus: posver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
+								{TransmissionRisk: posver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
 							},
 							RegionIdentifiers: []string{"US"},
 						},
 						{
 							ContactTracingInfo: []*pb.ContactTracingInfo{
-								{DiagnosisStatus: posver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{ccc}},
+								{TransmissionRisk: posver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{ccc}},
 							},
 							RegionIdentifiers: []string{"US", "CA"},
 						},
 						{
 							ContactTracingInfo: []*pb.ContactTracingInfo{
-								{DiagnosisStatus: selfver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{ddd}},
+								{TransmissionRisk: selfver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{ddd}},
 							},
 							RegionIdentifiers: []string{"US"},
 						},
@@ -147,7 +147,7 @@ func TestFederationPull(t *testing.T) {
 					Response: []*pb.ContactTracingResponse{
 						{
 							ContactTracingInfo: []*pb.ContactTracingInfo{
-								{DiagnosisStatus: posver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
+								{TransmissionRisk: posver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
 							},
 							RegionIdentifiers: []string{"US"},
 						},
@@ -158,13 +158,13 @@ func TestFederationPull(t *testing.T) {
 					Response: []*pb.ContactTracingResponse{
 						{
 							ContactTracingInfo: []*pb.ContactTracingInfo{
-								{DiagnosisStatus: posver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{ccc}},
+								{TransmissionRisk: posver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{ccc}},
 							},
 							RegionIdentifiers: []string{"US"},
 						},
 						{
 							ContactTracingInfo: []*pb.ContactTracingInfo{
-								{DiagnosisStatus: selfver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{ddd}},
+								{TransmissionRisk: selfver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{ddd}},
 							},
 							RegionIdentifiers: []string{"CA"},
 						},
@@ -189,19 +189,19 @@ func TestFederationPull(t *testing.T) {
 					Response: []*pb.ContactTracingResponse{
 						{
 							ContactTracingInfo: []*pb.ContactTracingInfo{
-								{DiagnosisStatus: posver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
+								{TransmissionRisk: posver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
 							},
 							RegionIdentifiers: []string{"US"},
 						},
 						{
 							ContactTracingInfo: []*pb.ContactTracingInfo{
-								{DiagnosisStatus: posver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{ccc}},
+								{TransmissionRisk: posver, VerificationAuthorityName: "AAA", ExposureKeys: []*pb.ExposureKey{ccc}},
 							},
 							RegionIdentifiers: []string{"US", "CA"},
 						},
 						{
 							ContactTracingInfo: []*pb.ContactTracingInfo{
-								{DiagnosisStatus: selfver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{ddd}},
+								{TransmissionRisk: selfver, VerificationAuthorityName: "", ExposureKeys: []*pb.ExposureKey{ddd}},
 							},
 							RegionIdentifiers: []string{"US"},
 						},

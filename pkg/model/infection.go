@@ -27,11 +27,11 @@ const (
 
 // Publish represents the body of the PublishInfectedIds API call.
 type Publish struct {
-	Keys            []ExposureKey `json:"exposureKeys"`
-	Regions         []string      `json:"regions"`
-	AppPackageName  string        `json:"appPackageName"`
-	DiagnosisStatus int           `json:"diagnosisStatus"`
-	Verification    string        `json:"verificationPayload"`
+	Keys             []ExposureKey `json:"exposureKeys"`
+	Regions          []string      `json:"regions"`
+	AppPackageName   string        `json:"appPackageName"`
+	TransmissionRisk int           `json:"transmissionRisk"`
+	Verification     string        `json:"verificationPayload"`
 	// TODO(helmick): validate this field
 	VerificationAuthorityName string `json:"verificationAuthorityName"`
 }
@@ -52,7 +52,7 @@ type ExposureKey struct {
 // Mark records as writable/nowritable - is exposure key encrypted
 type Infection struct {
 	ExposureKey               []byte    `db:"exposure_key"`
-	DiagnosisStatus           int       `db:"diagnosis_status"`
+	TransmissionRisk          int       `db:"transmission_risk"`
 	AppPackageName            string    `db:"app_package_name"`
 	Regions                   []string  `db:"regions"`
 	IntervalNumber            int32     `db:"interval_number"`
@@ -99,7 +99,7 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]*Infection, error
 		// TODO(helmick) - data validation
 		infection := &Infection{
 			ExposureKey:               binKey,
-			DiagnosisStatus:           inData.DiagnosisStatus,
+			TransmissionRisk:          inData.TransmissionRisk,
 			AppPackageName:            inData.AppPackageName,
 			Regions:                   upcaseRegions,
 			IntervalNumber:            exposureKey.IntervalNumber,

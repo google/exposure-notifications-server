@@ -120,7 +120,7 @@ func TestValidPublisMessage(t *testing.T) {
 			{"key": "123", "intervalNumber": %v}],
     "appPackageName": "com.google.android.awesome",
     "regions": ["CA", "US"],
-		"diagnosisStatus": 2,
+		"transmissionRisk": 2,
     "verificationPayload": "foo"}`
 	json = fmt.Sprintf(json, intervalNumber, intervalNumber, intervalNumber)
 
@@ -145,10 +145,10 @@ func TestValidPublisMessage(t *testing.T) {
 			{Key: "DEF", IntervalNumber: intervalNumber},
 			{Key: "123", IntervalNumber: intervalNumber},
 		},
-		Regions:         []string{"CA", "US"},
-		AppPackageName:  "com.google.android.awesome",
-		DiagnosisStatus: 2,
-		Verification:    "foo",
+		Regions:          []string{"CA", "US"},
+		AppPackageName:   "com.google.android.awesome",
+		TransmissionRisk: 2,
+		Verification:     "foo",
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unmarshal mismatch (-want +got):\n%v", diff)

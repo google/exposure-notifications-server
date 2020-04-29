@@ -180,7 +180,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 				for _, key := range cti.ExposureKeys {
 
 					infections = append(infections, &model.Infection{
-						DiagnosisStatus:           int(cti.DiagnosisStatus),
+						TransmissionRisk:          int(cti.TransmissionRisk),
 						ExposureKey:               key.ExposureKey,
 						Regions:                   upperRegions,
 						FederationSyncID:          syncID,

@@ -28,7 +28,7 @@ import (
 )
 
 // type diagKeyList []*pb.ExposureKey
-// type diagKeys map[pb.DiagnosisStatus]diagKeyList
+// type diagKeys map[pb.TransmissionRisk]diagKeyList
 // type collator map[string]diagKeys
 type fetchIterator func(context.Context, database.IterateInfectionsCriteria) (database.InfectionIterator, error)
 
@@ -100,7 +100,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	defer it.Close()
 
 	ctrMap := map[string]*pb.ContactTracingResponse{} // local index into the response being assembled; keyed on unique set of regions.
-	ctiMap := map[string]*pb.ContactTracingInfo{}     // local index into the response being assembled; keys on unique set of (ctrMap key, diagnosisStatus, verificationAuthorityName)
+	ctiMap := map[string]*pb.ContactTracingInfo{}     // local index into the response being assembled; keys on unique set of (ctrMap key, transmissionRisk, verificationAuthorityName)
 	response := &pb.FederationFetchResponse{}
 
 	count := 0
@@ -160,8 +160,8 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// If the infection has an unknown status, it's malformed, so skip it.
-		if _, ok := pb.DiagnosisStatus_name[int32(inf.DiagnosisStatus)]; !ok {
-			logger.Debugf("Infection %s has invalid DiagnosisStatus, skipping.", inf.ExposureKey)
+		if _, ok := pb.TransmissionRisk_name[int32(inf.TransmissionRisk)]; !ok {
+			logger.Debugf("Infection %s has invalid TransmissionRisk, skipping.", inf.ExposureKey)
 			continue
 		}
 
@@ -206,12 +206,12 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 			response.Response = append(response.Response, ctr)
 		}
 
-		// Find, or create, the ContactTracingInfo for (ctrKey, diagnosisStatus, verificationAuthorityName).
-		status := pb.DiagnosisStatus(inf.DiagnosisStatus)
+		// Find, or create, the ContactTracingInfo for (ctrKey, transmissionRisk, verificationAuthorityName).
+		status := pb.TransmissionRisk(inf.TransmissionRisk)
 		ctiKey := fmt.Sprintf("%s::%d::%s", ctrKey, status, inf.VerificationAuthorityName)
 		cti := ctiMap[ctiKey]
 		if cti == nil {
-			cti = &pb.ContactTracingInfo{DiagnosisStatus: status, VerificationAuthorityName: inf.VerificationAuthorityName}
+			cti = &pb.ContactTracingInfo{TransmissionRisk: status, VerificationAuthorityName: inf.VerificationAuthorityName}
 			ctiMap[ctiKey] = cti
 			ctr.ContactTracingInfo = append(ctr.ContactTracingInfo, cti)
 		}
