@@ -1,7 +1,5 @@
 # Exposure Notification Reference Server
 
-change to force pr 
-
 This repository contains a reference implementation of an exposure notification
 server intended to be used as a backend for a mobile device exposure
 notification solution.
