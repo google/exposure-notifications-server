@@ -56,6 +56,7 @@ Each binary will have main in `/cmd/[bin-name]`
   - Source: https://github.com/protocolbuffers/protobuf/releases
 1. Install protoc-gen-go `go get -u github.com/golang/protobuf/protoc-gen-go`
 1. Install `go install golang.org/x/tools/cmd/goimports`
+1. Install OpenCensus `go get -u go.opencensus.io`
 1. You may need to update your path to include these tools
 
 ```
