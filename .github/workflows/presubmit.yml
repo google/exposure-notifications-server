@@ -22,5 +22,11 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
-    - name: Run Presubmits
-      run: ./scripts/presubmit.sh
+    - name: Mod Check
+      run: go mod verify
+
+    - name: Build
+      run: go build ./...
+
+    - name: Test
+      run: go test ./...
