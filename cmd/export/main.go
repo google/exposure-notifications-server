@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"cambio/pkg/api"
@@ -32,6 +33,10 @@ import (
 const (
 	createBatchesTimeoutEnvVar = "CREATE_BATCHES_TIMEOUT"
 	defaultTimeout             = 5 * time.Minute
+	bucketEnvVar               = "EXPORT_BUCKET"
+	tmpBucketEnvVar            = "TMP_EXPORT_BUCKET"
+	maxRecordsEnvVar           = "EXPORT_FILE_MAX_RECORDS"
+	defaultMaxRecords          = 30_000
 )
 
 func main() {
@@ -44,6 +49,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
+	bsc := api.BatchServerConfig{}
 	createBatchesTimeout := defaultTimeout
 	if timeoutStr := os.Getenv(createBatchesTimeoutEnvVar); timeoutStr != "" {
 		var err error
@@ -54,14 +60,22 @@ func main() {
 		}
 	}
 	logger.Infof("Using create batches timeout %v (override with $%s)", createBatchesTimeout, createBatchesTimeoutEnvVar)
+	bsc.CreateTimeout = createBatchesTimeout
+
+	bsc.MaxRecords, err = strconv.Atoi(os.Getenv(maxRecordsEnvVar))
+	if err != nil {
+		logger.Infof("Failed to parse export batch size env EnvVar: %v, %v", maxRecordsEnvVar, err)
+		bsc.MaxRecords = defaultMaxRecords
+	}
+	bsc.TmpBucket = os.Getenv(tmpBucketEnvVar)
+	bsc.Bucket = os.Getenv(bucketEnvVar)
 
 	// TODO(guray): remove or gate the /test handler
 	http.Handle("/test", api.NewTestExportHandler(db))
 
-	batchServer := api.NewBatchServer(db, createBatchesTimeout)
-	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler)
-	http.HandleFunc("/lease-batch", batchServer.LeaseBatchHandler)
-	http.HandleFunc("/complete-batch", batchServer.CompleteBatchHandler)
+	batchServer := api.NewBatchServer(db, bsc)
+	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
+	http.HandleFunc("/create-files", batchServer.CreateFilesHandler)     // worker that executes work
 
 	env := serverenv.New(ctx)
 	logger.Info("starting infection export server")

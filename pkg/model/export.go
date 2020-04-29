@@ -49,7 +49,7 @@ type ExportBatch struct {
 
 type ExportFile struct {
 	Filename  string `db:"filename"`
-	BatchID   int    `db:"batch_id"`
+	BatchID   int64  `db:"batch_id"`
 	Region    string `db:"region"`
 	BatchNum  int    `db:"batch_num"`
 	BatchSize int    `db:"batch_size"`

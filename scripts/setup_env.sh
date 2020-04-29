@@ -49,6 +49,8 @@ export DB_SSLMODE=disable
 
 # GCS variables
 export EXPORT_BUCKET = "apollo-public-bucket"
+export TMP_EXPORT_BUCKET = "apollo-tmp-bucket"
+export EXPORT_FILE_MAX_RECORDS = 30_000
 
 if [ ! -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
     echo "$GOOGLE_APPLICATION_CREDENTIALS does not exist. \

@@ -209,6 +209,65 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 	return nil
 }
 
+// AddExportFile adds a new export file entry for the given ExportFile.
+func (db *DB) AddExportFile(ctx context.Context, ef *model.ExportFile) error {
+	conn, err := db.pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to obtain database connection: %v", err)
+	}
+	defer conn.Release()
+
+	commit := false
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	if err != nil {
+		return fmt.Errorf("starting transaction: %v", err)
+	}
+	defer finishTx(ctx, tx, &commit, &err)
+
+	_, err = tx.Exec(ctx, `
+		INSERT INTO ExportFile
+			(filename, batch_id, region, batch_num, batch_size, status)
+		VALUES
+			($1, $2, $3, $4, $5, $6)
+		`, ef.Filename, ef.BatchID, ef.Region, ef.BatchNum, ef.BatchSize, ef.Status)
+	if err != nil {
+		return fmt.Errorf("inserting to ExportFile: %v", err)
+	}
+
+	commit = true
+	return nil
+}
+
+// UpdateExportFile updates batchsize and status for the rows correcponding to the files passed in.
+func (db *DB) UpdateExportFile(ctx context.Context, filename, status string, batchCount int) error {
+	conn, err := db.pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to obtain database connection: %v", err)
+	}
+	defer conn.Release()
+
+	commit := false
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	if err != nil {
+		return fmt.Errorf("starting transaction: %v", err)
+	}
+	defer finishTx(ctx, tx, &commit, &err)
+
+	_, err = tx.Exec(ctx, `
+		UPDATE ExportFile
+		SET
+			status = $1, batch_size = $2,
+		WHERE
+			filename = $3
+		`, status, batchCount, filename)
+	if err != nil {
+		return fmt.Errorf("updating ExportFile: %v", err)
+	}
+
+	commit = true
+	return nil
+}
+
 // LeaseBatch returns a leased ExportBatch for the worker to process. If no work to do, nil will be returned.
 func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) (eb *model.ExportBatch, err error) {
 	conn, err := db.pool.Acquire(ctx)

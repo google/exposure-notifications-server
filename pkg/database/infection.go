@@ -44,6 +44,7 @@ type InfectionIterator interface {
 // IterateInfectionsCriteria is criteria to iterate infections.
 type IterateInfectionsCriteria struct {
 	IncludeRegions []string
+	ExcludeRegions []string
 	SinceTimestamp time.Time
 	UntilTimestamp time.Time
 	LastCursor     string
@@ -141,6 +142,11 @@ func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, e
 	if len(criteria.IncludeRegions) == 1 {
 		args = append(args, criteria.IncludeRegions)
 		q += fmt.Sprintf(" AND (regions && $%d)", len(args)) // Operation "&&" means "array overlaps / intersects"
+	}
+
+	if len(criteria.ExcludeRegions) == 1 {
+		args = append(args, criteria.ExcludeRegions)
+		q += fmt.Sprintf(" AND NOT (regions && $%d)", len(args)) // Operation "&&" means "array overlaps / intersects"
 	}
 
 	if !criteria.SinceTimestamp.IsZero() {
