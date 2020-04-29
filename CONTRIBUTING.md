@@ -18,6 +18,11 @@ You generally only need to submit a CLA once, so if you've already submitted one
 (even if it was for a different project), you probably don't need to do it
 again.
 
+## Community Guidelines
+
+This project follows
+[Google's Open Source Community Guidelines](https://opensource.google/conduct/).
+
 ## Code reviews
 
 All submissions, including submissions by project members, require review. We
@@ -33,14 +38,9 @@ these automatically before pushing a branch to the GitHub remote.
 
 ```
 # From Repository Root
-❯ ln -s -f ../../scripts/presubmit.sh .git/hooks/pre-push
-❯ chmod a+x .git/hooks/pre-push
+ln -s -f ../../scripts/presubmit.sh .git/hooks/pre-push
+chmod a+x .git/hooks/pre-push
 ```
-
-## Community Guidelines
-
-This project follows
-[Google's Open Source Community Guidelines](https://opensource.google/conduct/).
 
 # Additional Project Details
 ## Code Layout
