@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -25,6 +26,7 @@ import (
 	"cambio/pkg/api"
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
+	"cambio/pkg/serverenv"
 )
 
 const (
@@ -55,5 +57,6 @@ func main() {
 
 	http.Handle("/", api.NewInfectionWipeoutHandler(db, timeout))
 	logger.Info("starting wipeout server")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	env := serverenv.New(ctx)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }

@@ -19,7 +19,9 @@ import (
 	"cambio/pkg/api"
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
+	"cambio/pkg/serverenv"
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -27,8 +29,6 @@ import (
 )
 
 var (
-	portEnvVar     = "PORT"
-	defaultPort    = "8080"
 	timeoutEnvVar  = "PULL_TIMEOUT"
 	defaultTimeout = 5 * time.Minute
 )
@@ -36,12 +36,6 @@ var (
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
-
-	port := os.Getenv(portEnvVar)
-	if port == "" {
-		port = defaultPort
-	}
-	logger.Infof("Using port %s (override with $%s)", port, portEnvVar)
 
 	timeout := defaultTimeout
 	if timeoutStr := os.Getenv(timeoutEnvVar); timeoutStr != "" {
@@ -62,5 +56,6 @@ func main() {
 
 	http.Handle("/", api.NewFederationPullHandler(db, timeout))
 	logger.Info("starting federation puller")
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	env := serverenv.New(ctx)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }

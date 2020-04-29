@@ -12,37 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is the primary infected keys upload service.
-package main
+// Package serverenv defines common parameters for the sever environment.
+package serverenv
 
 import (
-	"context"
-	"fmt"
-	"log"
-	"net/http"
-
-	"cambio/pkg/api"
-	"cambio/pkg/api/config"
-	"cambio/pkg/database"
 	"cambio/pkg/logging"
-	"cambio/pkg/serverenv"
+	"context"
+	"os"
 )
 
-func main() {
-	ctx := context.Background()
+const (
+	portEnvVar  = "PORT"
+	defaultPort = "8080"
+)
+
+type ServerEnv struct {
+	port string
+}
+
+func New(ctx context.Context) *ServerEnv {
+	env := &ServerEnv{
+		port: defaultPort,
+	}
+
 	logger := logging.FromContext(ctx)
 
-	db, err := database.NewFromEnv(ctx)
-	if err != nil {
-		logger.Fatalf("unable to connect to database: %v", err)
+	if override := os.Getenv(portEnvVar); override != "" {
+		env.port = override
 	}
-	defer db.Close(ctx)
+	logger.Info("using port %v (override with $%v)", env.port, portEnvVar)
 
-	cfg := config.New(db)
+	return env
+}
 
-	env := serverenv.New(ctx)
-
-	http.Handle("/", api.NewPublishHandler(db, cfg))
-	logger.Info("starting infection server")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
+func (s *ServerEnv) Port() string {
+	return s.port
 }

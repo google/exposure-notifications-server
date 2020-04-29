@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -25,11 +26,10 @@ import (
 	"cambio/pkg/api"
 	"cambio/pkg/database"
 	"cambio/pkg/logging"
+	"cambio/pkg/serverenv"
 )
 
 const (
-	portEnvVar                 = "PORT"
-	defaultPort                = "8080"
 	createBatchesTimeoutEnvVar = "CREATE_BATCHES_TIMEOUT"
 	defaultTimeout             = 5 * time.Minute
 )
@@ -43,12 +43,6 @@ func main() {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
-
-	port := os.Getenv(portEnvVar)
-	if port == "" {
-		port = defaultPort
-	}
-	logger.Infof("Using port %s (override with $%s)", port, portEnvVar)
 
 	createBatchesTimeout := defaultTimeout
 	if timeoutStr := os.Getenv(createBatchesTimeoutEnvVar); timeoutStr != "" {
@@ -69,6 +63,7 @@ func main() {
 	http.HandleFunc("/lease-batch", batchServer.LeaseBatchHandler)
 	http.HandleFunc("/complete-batch", batchServer.CompleteBatchHandler)
 
+	env := serverenv.New(ctx)
 	logger.Info("starting infection export server")
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }
