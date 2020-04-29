@@ -258,7 +258,7 @@ func (h *testExportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 	}
 	objectName := fmt.Sprintf("testExport-%d-records.pb", limit)
-	if err := storage.CreateObject("apollo-public-bucket", objectName, data); err != nil {
+	if err := storage.CreateObject(ctx, "apollo-public-bucket", objectName, data); err != nil {
 		logger.Errorf("error creating cloud storage object: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return

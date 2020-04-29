@@ -454,7 +454,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (count in
 		}
 
 		// Attempt to delete file
-		err = storage.DeleteObject(bucket, f.filename)
+		err = storage.DeleteObject(ctx, bucket, f.filename)
 		if err != nil {
 			return count, fmt.Errorf("delete object: %v", err)
 		}
