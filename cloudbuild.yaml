@@ -1,8 +1,29 @@
-steps:
-- name: 'gcr.io/$PROJECT_ID/ko'
+options:
   env:
   - 'KO_DOCKER_REPO=us.gcr.io/${PROJECT_ID}'
   - 'DOCKER_REPO_OVERRIDE=us.gcr.io/${PROJECT_ID}'
+steps:
+- name: 'gcr.io/$PROJECT_ID/ko'
+  args:
+  - publish
+  - ./cmd/export
+- name: 'gcr.io/$PROJECT_ID/ko'
+  args:
+  - publish
+  - ./cmd/federation-pull
+- name: 'gcr.io/$PROJECT_ID/ko'
+  args:
+  - publish
+  - ./cmd/federation
+- name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
   - ./cmd/infection
+- name: 'gcr.io/$PROJECT_ID/ko'
+  args:
+  - publish
+  - ./cmd/wipeout-export
+- name: 'gcr.io/$PROJECT_ID/ko'
+  args:
+  - publish
+  - ./cmd/wipeout-infection
