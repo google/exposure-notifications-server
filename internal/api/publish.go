@@ -26,8 +26,12 @@ import (
 	"github.com/googlepartners/exposure-notifications/internal/verification"
 )
 
+// NewPublishHandler creates the HTTP handler for the TTK publishing API.
 func NewPublishHandler(db *database.DB, cfg *config.Config) http.Handler {
-	return &publishHandler{db: db}
+	return &publishHandler{
+		config: cfg,
+		db:     db,
+	}
 }
 
 type publishHandler struct {
