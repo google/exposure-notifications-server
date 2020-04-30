@@ -16,7 +16,6 @@
 package database
 
 import (
-	"cambio/pkg/logging"
 	"context"
 	"errors"
 	"fmt"
@@ -24,6 +23,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )

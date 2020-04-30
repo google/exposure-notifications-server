@@ -15,16 +15,17 @@
 package api
 
 import (
-	"cambio/pkg/database"
-	"cambio/pkg/logging"
-	"cambio/pkg/model"
-	"cambio/pkg/pb"
 	"context"
 	"fmt"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/model"
+	"github.com/googlepartners/exposure-notifications/pkg/pb"
 
 	"google.golang.org/grpc"
 )

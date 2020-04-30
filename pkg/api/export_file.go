@@ -17,10 +17,11 @@ package api
 
 import (
 	"bytes"
-	"cambio/pkg/model"
-	"cambio/pkg/pb"
 	"sort"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/model"
+	"github.com/googlepartners/exposure-notifications/pkg/pb"
 
 	"github.com/golang/protobuf/proto"
 )

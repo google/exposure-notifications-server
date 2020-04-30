@@ -15,13 +15,14 @@
 package api
 
 import (
-	"cambio/pkg/database"
-	"cambio/pkg/model"
-	"cambio/pkg/pb"
 	"context"
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/model"
+	"github.com/googlepartners/exposure-notifications/pkg/pb"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"

@@ -17,7 +17,6 @@
 package android
 
 import (
-	"cambio/pkg/logging"
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
@@ -25,6 +24,8 @@ import (
 	"fmt"
 	"runtime/trace"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
 
 	"github.com/dgrijalva/jwt-go"
 )

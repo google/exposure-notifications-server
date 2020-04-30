@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"cambio/pkg/model"
+	"github.com/googlepartners/exposure-notifications/pkg/model"
 
 	"github.com/google/go-cmp/cmp"
 )

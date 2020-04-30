@@ -22,10 +22,10 @@ import (
 	"strconv"
 	"time"
 
-	"cambio/pkg/database"
-	"cambio/pkg/logging"
-	"cambio/pkg/model"
-	"cambio/pkg/storage"
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/model"
+	"github.com/googlepartners/exposure-notifications/pkg/storage"
 )
 
 const (

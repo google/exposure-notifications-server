@@ -15,13 +15,14 @@
 package verification
 
 import (
-	"cambio/pkg/android"
-	"cambio/pkg/logging"
-	"cambio/pkg/model"
 	"context"
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/android"
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/model"
 )
 
 var (

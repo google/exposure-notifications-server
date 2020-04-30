@@ -16,9 +16,10 @@
 package serverenv
 
 import (
-	"cambio/pkg/logging"
 	"context"
 	"os"
+
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
 )
 
 const (

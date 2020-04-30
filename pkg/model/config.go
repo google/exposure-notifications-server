@@ -15,8 +15,9 @@
 package model
 
 import (
-	"cambio/pkg/android"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/android"
 )
 
 type APIConfig struct {

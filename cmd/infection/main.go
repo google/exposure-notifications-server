@@ -22,11 +22,11 @@ import (
 	"net/http"
 	"time"
 
-	"cambio/pkg/api"
-	"cambio/pkg/api/config"
-	"cambio/pkg/database"
-	"cambio/pkg/logging"
-	"cambio/pkg/serverenv"
+	"github.com/googlepartners/exposure-notifications/pkg/api"
+	"github.com/googlepartners/exposure-notifications/pkg/api/config"
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/serverenv"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
 	"go.opencensus.io/plugin/ochttp"

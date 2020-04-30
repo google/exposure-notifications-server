@@ -15,13 +15,14 @@
 package database
 
 import (
-	"cambio/pkg/model"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/model"
 
 	pgx "github.com/jackc/pgx/v4"
 )

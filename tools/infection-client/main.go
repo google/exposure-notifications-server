@@ -26,7 +26,7 @@ import (
 	"net/http"
 	"time"
 
-	"cambio/pkg/model"
+	"github.com/googlepartners/exposure-notifications/pkg/model"
 )
 
 // the length of a diagnosis key, always 16 bytes

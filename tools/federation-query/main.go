@@ -16,14 +16,15 @@
 package main
 
 import (
-	"cambio/pkg/database"
-	cflag "cambio/pkg/flag"
-	"cambio/pkg/model"
 	"context"
 	"flag"
 	"log"
 	"regexp"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	cflag "github.com/googlepartners/exposure-notifications/pkg/flag"
+	"github.com/googlepartners/exposure-notifications/pkg/model"
 )
 
 var (
