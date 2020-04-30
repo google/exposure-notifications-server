@@ -16,12 +16,13 @@
 package main
 
 import (
-	cflag "cambio/pkg/flag"
-	"cambio/pkg/pb"
 	"context"
 	"flag"
 	"log"
 	"time"
+
+	cflag "github.com/googlepartners/exposure-notifications/pkg/flag"
+	"github.com/googlepartners/exposure-notifications/pkg/pb"
 
 	"google.golang.org/grpc"
 )

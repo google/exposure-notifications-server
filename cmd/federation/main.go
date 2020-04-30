@@ -25,11 +25,11 @@ import (
 
 	"google.golang.org/grpc"
 
-	"cambio/pkg/api"
-	"cambio/pkg/database"
-	"cambio/pkg/logging"
-	"cambio/pkg/pb"
-	"cambio/pkg/serverenv"
+	"github.com/googlepartners/exposure-notifications/pkg/api"
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/pb"
+	"github.com/googlepartners/exposure-notifications/pkg/serverenv"
 )
 
 const (

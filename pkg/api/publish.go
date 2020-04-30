@@ -19,11 +19,11 @@ import (
 	"net/http"
 	"time"
 
-	"cambio/pkg/api/config"
-	"cambio/pkg/database"
-	"cambio/pkg/logging"
-	"cambio/pkg/model"
-	"cambio/pkg/verification"
+	"github.com/googlepartners/exposure-notifications/pkg/api/config"
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/model"
+	"github.com/googlepartners/exposure-notifications/pkg/verification"
 )
 
 func NewPublishHandler(db *database.DB, cfg *config.Config) http.Handler {

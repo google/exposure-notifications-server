@@ -34,8 +34,8 @@ import (
 	mrand "math/rand"
 	"os"
 
-	"cambio/pkg/pb"
-	"cambio/tools/experiments/binary_formats/flat_exp"
+	"github.com/googlepartners/exposure-notifications/pkg/pb"
+	"github.com/googlepartners/exposure-notifications/tools/experiments/binary_formats/flat_exp"
 
 	"github.com/golang/protobuf/proto"
 	flatbuffers "github.com/google/flatbuffers/go"

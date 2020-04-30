@@ -20,9 +20,9 @@ import (
 	"sync"
 	"time"
 
-	"cambio/pkg/database"
-	"cambio/pkg/logging"
-	"cambio/pkg/model"
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/model"
 )
 
 const (

@@ -24,10 +24,10 @@ import (
 	"strconv"
 	"time"
 
-	"cambio/pkg/api"
-	"cambio/pkg/database"
-	"cambio/pkg/logging"
-	"cambio/pkg/serverenv"
+	"github.com/googlepartners/exposure-notifications/pkg/api"
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/serverenv"
 )
 
 const (
@@ -36,7 +36,7 @@ const (
 	bucketEnvVar               = "EXPORT_BUCKET"
 	tmpBucketEnvVar            = "TMP_EXPORT_BUCKET"
 	maxRecordsEnvVar           = "EXPORT_FILE_MAX_RECORDS"
-	defaultMaxRecords          = 30_000
+	defaultMaxRecords          = 30000
 )
 
 func main() {

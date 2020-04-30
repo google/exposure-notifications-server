@@ -15,15 +15,16 @@
 package database
 
 import (
-	"cambio/pkg/logging"
-	"cambio/pkg/model"
-	"cambio/pkg/storage"
 	"context"
 	"errors"
 	"fmt"
 	"math/rand"
 	"os"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/model"
+	"github.com/googlepartners/exposure-notifications/pkg/storage"
 
 	pgx "github.com/jackc/pgx/v4"
 )

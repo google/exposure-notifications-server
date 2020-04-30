@@ -1,4 +1,4 @@
-module cambio
+module github.com/googlepartners/exposure-notifications
 
 go 1.14
 

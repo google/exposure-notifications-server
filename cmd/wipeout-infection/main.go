@@ -23,10 +23,10 @@ import (
 	"os"
 	"time"
 
-	"cambio/pkg/api"
-	"cambio/pkg/database"
-	"cambio/pkg/logging"
-	"cambio/pkg/serverenv"
+	"github.com/googlepartners/exposure-notifications/pkg/api"
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/serverenv"
 )
 
 const (

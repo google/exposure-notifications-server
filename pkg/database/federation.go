@@ -15,11 +15,12 @@
 package database
 
 import (
-	"cambio/pkg/model"
 	"context"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/model"
 
 	"github.com/google/uuid"
 	pgx "github.com/jackc/pgx/v4"

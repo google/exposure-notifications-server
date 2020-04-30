@@ -15,12 +15,13 @@
 package api
 
 import (
-	"cambio/pkg/database"
-	"cambio/pkg/model"
-	"cambio/pkg/pb"
 	"context"
 	"testing"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/model"
+	"github.com/googlepartners/exposure-notifications/pkg/pb"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"

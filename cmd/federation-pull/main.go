@@ -16,16 +16,17 @@
 package main
 
 import (
-	"cambio/pkg/api"
-	"cambio/pkg/database"
-	"cambio/pkg/logging"
-	"cambio/pkg/serverenv"
 	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/googlepartners/exposure-notifications/pkg/api"
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/serverenv"
 )
 
 var (

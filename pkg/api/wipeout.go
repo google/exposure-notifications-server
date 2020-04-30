@@ -22,8 +22,8 @@ import (
 	"os"
 	"time"
 
-	"cambio/pkg/database"
-	"cambio/pkg/logging"
+	"github.com/googlepartners/exposure-notifications/pkg/database"
+	"github.com/googlepartners/exposure-notifications/pkg/logging"
 )
 
 const (

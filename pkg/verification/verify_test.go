@@ -15,9 +15,10 @@
 package verification
 
 import (
-	"cambio/pkg/model"
 	"fmt"
 	"testing"
+
+	"github.com/googlepartners/exposure-notifications/pkg/model"
 )
 
 const (
