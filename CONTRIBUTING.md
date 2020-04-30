@@ -57,12 +57,16 @@ Each binary will have main in `/cmd/[bin-name]`
 
     To install the Protocol Buffer compiler:
     
+    [Windows and Linux binaries, and source code](https://github.com/protocolbuffers/protobuf/releases)
+    
+    OS Managed binaries:
+    
     | OS       | Command                                            |
     |----------|----------------------------------------------------|
     | Mac OS X ([Brew](https://brew.sh/)) | `brew install protobuf` |
     | Linux (APT) | `apt-get install protobuf-compiler`             |
     | Linux (YUM) | `yum install protobuf-compiler`                 |
-    | Source | https://github.com/protocolbuffers/protobuf/releases |
+
 
 1. The protoc-gen-go module.
 
@@ -79,15 +83,9 @@ Each binary will have main in `/cmd/[bin-name]`
           go build
           ```
       
-      1. Move the binary to a folder defined in your PATH environment variable, for example $HOME/bin
+      1. Move the binary to a folder defined in your `PATH` environment variable, for example `$HOME/bin`
       
           `mv protoc-gen-go $HOME/bin`
-
-1. The goimports tool.
-  
-   To install goimports:
-   
-     `go install golang.org/x/tools/cmd/goimports`
 
 ### Running locally
 
