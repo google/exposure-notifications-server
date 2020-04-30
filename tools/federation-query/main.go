@@ -22,9 +22,9 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/googlepartners/exposure-notifications/pkg/database"
-	cflag "github.com/googlepartners/exposure-notifications/pkg/flag"
-	"github.com/googlepartners/exposure-notifications/pkg/model"
+	"github.com/googlepartners/exposure-notifications/internal/database"
+	cflag "github.com/googlepartners/exposure-notifications/internal/flag"
+	"github.com/googlepartners/exposure-notifications/internal/model"
 )
 
 var (
