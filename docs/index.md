@@ -21,4 +21,4 @@ The server is responsible for the following functions:
 # Guides and Documentation
 - [Deployment Guide](deploying)
 - [User Guide](user-guide)
-- [Reference Documentation](https://godoc.org/github.com/googlepartners/exposure-notifications)
+- [Reference Documentation](https://godoc.org/github.com/google/exposure-notifications-server)

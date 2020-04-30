@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/googlepartners/exposure-notifications/internal/database"
-	"github.com/googlepartners/exposure-notifications/internal/logging"
-	"github.com/googlepartners/exposure-notifications/internal/model"
-	"github.com/googlepartners/exposure-notifications/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/pb"
 )
 
 // type diagKeyList []*pb.ExposureKey

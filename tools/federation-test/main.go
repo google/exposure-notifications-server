@@ -21,8 +21,8 @@ import (
 	"log"
 	"time"
 
-	cflag "github.com/googlepartners/exposure-notifications/internal/flag"
-	"github.com/googlepartners/exposure-notifications/internal/pb"
+	cflag "github.com/google/exposure-notifications-server/internal/flag"
+	"github.com/google/exposure-notifications-server/internal/pb"
 
 	"google.golang.org/grpc"
 )

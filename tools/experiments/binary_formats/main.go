@@ -34,8 +34,8 @@ import (
 	mrand "math/rand"
 	"os"
 
-	"github.com/googlepartners/exposure-notifications/internal/pb"
-	"github.com/googlepartners/exposure-notifications/tools/experiments/binary_formats/flat_exp"
+	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/tools/experiments/binary_formats/flat_exp"
 
 	"github.com/golang/protobuf/proto"
 	flatbuffers "github.com/google/flatbuffers/go"

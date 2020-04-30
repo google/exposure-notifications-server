@@ -1,4 +1,4 @@
-module github.com/googlepartners/exposure-notifications
+module github.com/google/exposure-notifications-server
 
 go 1.14
 

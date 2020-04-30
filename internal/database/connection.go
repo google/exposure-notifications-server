@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/googlepartners/exposure-notifications/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/logging"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )

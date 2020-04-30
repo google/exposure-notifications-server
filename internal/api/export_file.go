@@ -20,8 +20,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/googlepartners/exposure-notifications/internal/model"
-	"github.com/googlepartners/exposure-notifications/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/pb"
 
 	"github.com/golang/protobuf/proto"
 )
