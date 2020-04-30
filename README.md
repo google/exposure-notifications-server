@@ -16,3 +16,5 @@ The server is responsible for the following functions:
 - Periodically deleting old temporary exposure keys. After 14 days (or
   configurable different time periods) they can no longer be matched to
   devices.
+
+For more in depth documentation view the [documentation](docs/index)
