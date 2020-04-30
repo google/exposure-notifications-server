@@ -22,7 +22,8 @@ For 30K new cases a day, the file size would be:
  - grouped by key: 8.5MB (7.4MB compressed, 1.15 compression ratio)
  - transposed by field: 8.5MB (6.7MB, 1.27 compression ratio)
  - protobuf: 12MB (7.6MB compressed, 1.58 compression ratio)
-
+ - flatbuffer: 16MB (8.2MB compressed, 1.95 compression ratio)
+ - series of protobufs of just exposure keys: 11MB (7.4MB compressed, 1.49 compression ratio)
 */
 
 import (
@@ -34,14 +35,18 @@ import (
 	"os"
 
 	"cambio/pkg/pb"
+	"cambio/tools/experiments/binary_formats/flat_exp"
 
 	"github.com/golang/protobuf/proto"
+	flatbuffers "github.com/google/flatbuffers/go"
 )
 
 const (
 	filenameTrans    = "/tmp/testBinaryTransposed.bin"
 	filenameGrp      = "/tmp/testBinaryGrp.bin"
 	filenamePb       = "/tmp/testBinaryPb.bin"
+	filenameFb       = "/tmp/testBinaryFb.bin"
+	filenamePbs      = "/tmp/testBinaryPbs.bin"
 	numKeys          = 30000 * 14 // 30K new cases per day in U.S. (100K globally), times 14 daily keys uploaded
 	exposureKeyBytes = 16
 	periodDays       = 14
@@ -67,8 +72,12 @@ func main() {
 	for i := 0; i < numKeys; i++ {
 		writeTransmissionRisk(wT)
 	}
-	wT.Flush()
-	fT.Close()
+	if err = wT.Flush(); err != nil {
+		panic("couldn't flush")
+	}
+	if err = fT.Close(); err != nil {
+		panic("couldn't close")
+	}
 
 	// write grouped file
 	fG, err := os.Create(filenameGrp)
@@ -82,8 +91,12 @@ func main() {
 		writeRollingPeriod(wG)
 		writeTransmissionRisk(wG)
 	}
-	wG.Flush()
-	fG.Close()
+	if err = wG.Flush(); err != nil {
+		panic("couldn't flush")
+	}
+	if err = fG.Close(); err != nil {
+		panic("couldn't close")
+	}
 
 	// write pb file
 	fP, err := os.Create(filenamePb)
@@ -105,9 +118,82 @@ func main() {
 		Keys: pbeks,
 	}
 	data, err := proto.Marshal(&batch)
-	wP.Write(data)
-	wP.Flush()
-	fP.Close()
+	_, err = wP.Write(data)
+	if err != nil {
+		panic("did not write all bytes")
+	}
+	if err = wP.Flush(); err != nil {
+		panic("couldn't flush")
+	}
+	if err = fP.Close(); err != nil {
+		panic("couldn't close")
+	}
+
+	// write series of serialized pb ExposureKeys only
+	fPB, err := os.Create(filenamePbs)
+	if err != nil {
+		panic("cannot open pbs output file")
+	}
+	wPB := bufio.NewWriter(fPB)
+	for i := 0; i < numKeys; i++ {
+		pbek := pb.ExposureKeyExport_ExposureKey{
+			ExposureKey:      getRandKey(),
+			IntervalNumber:   int32(getRandInterval()),
+			IntervalCount:    int32(getRollingPeriod()),
+			TransmissionRisk: int32(getTransmissionRisk()),
+		}
+		data, err := proto.Marshal(&pbek)
+		if err != nil {
+			panic("problem marshalling pbs")
+		}
+		_, err = wPB.Write(data)
+		if err != nil {
+			panic("didn't write all bytes")
+		}
+	}
+	if err = wPB.Flush(); err != nil {
+		panic("couldn't flush")
+	}
+	if err = fPB.Close(); err != nil {
+		panic("couldn't close")
+	}
+
+	// write flatbuffer file
+	fF, err := os.Create(filenameFb)
+	if err != nil {
+		panic("cannot open fb output file")
+	}
+	wF := bufio.NewWriter(fF)
+	builder := flatbuffers.NewBuilder(1024)
+	var keyOffsets [numKeys]flatbuffers.UOffsetT
+	for i := 0; i < numKeys; i++ {
+		flat_exp.ExposureKeyStartExposureKeyVector(builder, exposureKeyBytes)
+		for j := 0; j < exposureKeyBytes; j++ {
+			rk := getRandKey()
+			builder.PrependByte(rk[j])
+		}
+		keyBytes := builder.EndVector(exposureKeyBytes)
+		flat_exp.ExposureKeyStart(builder)
+		flat_exp.ExposureKeyAddExposureKey(builder, keyBytes)
+		flat_exp.ExposureKeyAddIntervalNumber(builder, int32(getRandInterval()))
+		flat_exp.ExposureKeyAddIntervalCount(builder, int32(getRollingPeriod()))
+		flat_exp.ExposureKeyAddTransmissionRisk(builder, int32(getTransmissionRisk()))
+		keyOffsets[i] = flat_exp.ExposureKeyEnd(builder)
+	}
+	flat_exp.ExposureKeyExportStart(builder)
+	exp := flat_exp.ExposureKeyExportEnd(builder)
+	builder.Finish(exp)
+	buf := builder.FinishedBytes()
+	_, err = wF.Write(buf)
+	if err != nil {
+		panic("couldn't write all bytes")
+	}
+	if err = wF.Flush(); err != nil {
+		panic("couldn't flush")
+	}
+	if err = fF.Close(); err != nil {
+		panic("couldn't close")
+	}
 }
 
 // random 128 bit exposure keys
@@ -121,7 +207,10 @@ func getRandKey() []byte {
 }
 
 func writeKey(w io.Writer) {
-	w.Write(getRandKey())
+	_, err := w.Write(getRandKey())
+	if err != nil {
+		panic("couldn't write")
+	}
 }
 
 // 13/14 chance of being 144
