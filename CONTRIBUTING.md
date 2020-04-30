@@ -1,7 +1,7 @@
 # Exposure Server Components
 
-Contributions to this project are welcomed and encouraged. We request that you
-read through the guidelines before diving in.
+Contributions to this project are welcomed. We request that you
+read through the guidelines before getting started.
 
 ## Contributor License Agreement
 
@@ -31,7 +31,7 @@ All submissions will be reviewed before merging. Submissions are reviewed using
 ### Presubmits
 
 You should run the presubmit checks before committing changes. The presubmit script
-is located at scripts/presubmit.sh. You can add a prepush hook by linking to the
+is located at `scripts/presubmit.sh`. You can add a prepush hook by linking to the
 presubmit script so it will automatically run before pushing a branch to the remote
 GitHub repository.
 
@@ -47,45 +47,44 @@ chmod a+x .git/hooks/pre-push
 
 ### Source code layout
 
-Common code is in the `/pkg` folder
+Common code is in the `/pkg` folder.
 
-Each binary will have main in `/cmd/[bin-name]`
+Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
 
 ## Project dependencies
 
 1. Protocol Buffer compiler.
 
     To install the Protocol Buffer compiler:
-    
+
     [Windows and Linux binaries, and source code](https://github.com/protocolbuffers/protobuf/releases)
-    
+
     OS Managed binaries:
-    
+
     | OS       | Command                                            |
     |----------|----------------------------------------------------|
     | Mac OS X ([Brew](https://brew.sh/)) | `brew install protobuf` |
     | Linux (APT) | `apt-get install protobuf-compiler`             |
     | Linux (YUM) | `yum install protobuf-compiler`                 |
 
-
 1. The protoc-gen-go module.
 
-   To install protoc-gen-go:
-   
-      1. Clone the Go Protocol Buffer module repository
-      
-          `git clone https://github.com/golang/protobuf`
-      
-      1. Build the module:
-      
-          ```
-          cd protobuf/protoc-gen-go
-          go build
-          ```
-      
-      1. Move the binary to a folder defined in your `PATH` environment variable, for example `$HOME/bin`
-      
-          `mv protoc-gen-go $HOME/bin`
+    To install protoc-gen-go:
+
+    1. Clone the Go Protocol Buffer module repository
+
+        ```git clone https://github.com/golang/protobuf```
+
+    1. Build the module:
+
+        ```
+        cd protobuf/protoc-gen-go
+        go build
+        ```
+
+    1. Move the binary to a folder defined in your `PATH` environment variable, for example `$HOME/bin`
+
+        ```mv protoc-gen-go $HOME/bin```
 
 ### Running locally
 
