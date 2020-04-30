@@ -141,42 +141,39 @@ func (i *postgresExportConfigIterator) Close() error {
 	return nil
 }
 
-// LatestExportBatchStartTime returns the most recent ExportBatch start time
-// for a given ExportConfig. nil will be returned if batch has never been
-// created.
-func (db *DB) LatestExportBatchStartTime(ctx context.Context, ec *model.ExportConfig) (*time.Time, error) {
+// LatestExportBatchEnd returns the end time of the most recent ExportBatch
+// for a given ExportConfig. Minimum time (i.e., time.Time{}) is returned
+// if no previous ExportBatch exists.
+func (db *DB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportConfig) (time.Time, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
+		return time.Time{}, fmt.Errorf("unable to obtain database connection: %v", err)
 	}
 	defer conn.Release()
 
 	row := conn.QueryRow(ctx, `
 		SELECT
-			start_timestamp
+			end_timestamp
 		FROM
 			ExportBatch
 		WHERE
 		    config_id = $1
 		ORDER BY
-		    start_timestamp DESC
+		    end_timestamp DESC
 		`, ec.ConfigID)
 
-	var latestStart time.Time
-	if err := row.Scan(&latestStart); err != nil {
+	var latestEnd time.Time
+	if err := row.Scan(&latestEnd); err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, nil
+			return time.Time{}, nil
 		}
-		return nil, fmt.Errorf("scanning result: %v", err)
+		return time.Time{}, fmt.Errorf("scanning result: %v", err)
 	}
-	if latestStart.IsZero() {
-		return nil, nil
-	}
-	return &latestStart, nil
+	return latestEnd, nil
 }
 
-// AddExportBatch adds a new export batch for the given ExportConfig.
-func (db *DB) AddExportBatch(ctx context.Context, eb *model.ExportBatch) (err error) {
+// AddExportBatches inserts new export batches.
+func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch) (err error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to obtain database connection: %v", err)
@@ -186,20 +183,26 @@ func (db *DB) AddExportBatch(ctx context.Context, eb *model.ExportBatch) (err er
 	commit := false
 	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
-		return fmt.Errorf("starting transaction: %v", err)
+		return err
 	}
 	defer finishTx(ctx, tx, &commit, &err)
 
-	row := tx.QueryRow(ctx, `
+	const stmtName = "insert export batches"
+	_, err = tx.Prepare(ctx, stmtName, `
 		INSERT INTO ExportBatch
 			(config_id, filename_root, start_timestamp, end_timestamp, include_regions, exclude_regions, status)
 		VALUES
 			($1, $2, $3, $4, $5, $6, $7)
-		RETURNING batch_id
-		`, eb.ConfigID, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.IncludeRegions, eb.ExcludeRegions, eb.Status)
+		`)
+	if err != nil {
+		return err
+	}
 
-	if err := row.Scan(&eb.BatchID); err != nil {
-		return fmt.Errorf("fetching batch_id: %v", err)
+	for _, eb := range batches {
+		_, err := tx.Exec(ctx, stmtName, eb.ConfigID, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.IncludeRegions, eb.ExcludeRegions, eb.Status)
+		if err != nil {
+			return err
+		}
 	}
 
 	commit = true
