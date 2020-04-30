@@ -22,11 +22,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/googlepartners/exposure-notifications/pkg/api"
-	"github.com/googlepartners/exposure-notifications/pkg/api/config"
-	"github.com/googlepartners/exposure-notifications/pkg/database"
-	"github.com/googlepartners/exposure-notifications/pkg/logging"
-	"github.com/googlepartners/exposure-notifications/pkg/serverenv"
+	"github.com/googlepartners/exposure-notifications/internal/api"
+	"github.com/googlepartners/exposure-notifications/internal/api/config"
+	"github.com/googlepartners/exposure-notifications/internal/database"
+	"github.com/googlepartners/exposure-notifications/internal/logging"
+	"github.com/googlepartners/exposure-notifications/internal/serverenv"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
 	"go.opencensus.io/plugin/ochttp"

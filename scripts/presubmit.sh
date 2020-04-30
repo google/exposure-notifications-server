@@ -19,7 +19,7 @@ set -eEuo pipefail
 source_dirs="cmd pkg"
 
 echo "🚒 Update Protobufs"
-protoc --proto_path=. --go_out=plugins=grpc:. ./pkg/pb/*.proto
+protoc --proto_path=. --go_out=plugins=grpc:. ./internal/pb/*.proto
 
 set +e
 which goimports >/dev/null 2>&1
