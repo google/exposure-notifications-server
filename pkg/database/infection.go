@@ -188,7 +188,7 @@ func (db *DB) InsertInfections(ctx context.Context, infections []*model.Infectio
 	}
 	defer finishTx(ctx, tx, &commit, &err)
 
-	stmtName := "insert infections"
+	const stmtName = "insert infections"
 	_, err = tx.Prepare(ctx, stmtName, `
 		INSERT INTO Infection
 		  (exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,

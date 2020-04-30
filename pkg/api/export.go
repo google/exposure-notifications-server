@@ -33,6 +33,7 @@ const (
 	batchIDParam = "batch-id"
 )
 
+// NewBatchServer creates a BatchServer.
 func NewBatchServer(db *database.DB, createTimeout time.Duration) *BatchServer {
 	return &BatchServer{
 		db:            db,
@@ -40,6 +41,7 @@ func NewBatchServer(db *database.DB, createTimeout time.Duration) *BatchServer {
 	}
 }
 
+// BatchServer hosts end points to manage export batches.
 type BatchServer struct {
 	db            *database.DB
 	createTimeout time.Duration
@@ -108,50 +110,83 @@ func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Reques
 			continue
 		}
 
-		if err := s.maybeCreateBatch(ctx, ec, now); err != nil {
-			logger.Errorf("Failed to create batch for config %d: %v. Continuing", ec.ConfigID, err)
+		if err := s.maybeCreateBatches(ctx, ec, now); err != nil {
+			logger.Errorf("Failed to create batches for config %d: %v. Continuing", ec.ConfigID, err)
 		}
 	}
 }
 
-func (s *BatchServer) maybeCreateBatch(ctx context.Context, ec *model.ExportConfig, now time.Time) error {
+func (s *BatchServer) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig, now time.Time) error {
 	logger := logging.FromContext(ctx)
 
-	latestStart, err := s.db.LatestExportBatchStartTime(ctx, ec)
+	latestEnd, err := s.db.LatestExportBatchEnd(ctx, ec)
 	if err != nil {
 		return fmt.Errorf("fetching most recent batch for config %d: %v", ec.ConfigID, err)
 	}
 
-	newStartTimestamp := now.Truncate(ec.Period)
-	create := false
-	if latestStart == nil {
-		create = true
-	} else {
-		if latestStart.Before(newStartTimestamp) {
-			create = true
-		}
-	}
-
-	if !create {
+	ranges := makeBatchRanges(ec.Period, latestEnd, now)
+	if len(ranges) == 0 {
 		logger.Debugf("Batch creation for config %d is not required. Skipping.", ec.ConfigID)
 		return nil
 	}
 
-	eb := model.ExportBatch{
-		ConfigID:       ec.ConfigID,
-		FilenameRoot:   ec.FilenameRoot,
-		StartTimestamp: newStartTimestamp,
-		EndTimestamp:   newStartTimestamp.Add(ec.Period),
-		IncludeRegions: ec.IncludeRegions,
-		ExcludeRegions: ec.ExcludeRegions,
-		Status:         model.ExportBatchOpen,
-	}
-	if err := s.db.AddExportBatch(ctx, &eb); err != nil {
-		return fmt.Errorf("creating export batch for config %d: %v", ec.ConfigID, err)
+	var batches []*model.ExportBatch
+	for _, br := range ranges {
+		batches = append(batches, &model.ExportBatch{
+			ConfigID:       ec.ConfigID,
+			FilenameRoot:   ec.FilenameRoot,
+			StartTimestamp: br.start,
+			EndTimestamp:   br.end,
+			IncludeRegions: ec.IncludeRegions,
+			ExcludeRegions: ec.ExcludeRegions,
+			Status:         model.ExportBatchOpen,
+		})
 	}
 
-	logger.Infof("Created batch %d for config %d.", eb.BatchID, ec.ConfigID)
+	if err := s.db.AddExportBatches(ctx, batches); err != nil {
+		return fmt.Errorf("creating export batches for config %d: %v", ec.ConfigID, err)
+	}
+
+	logger.Infof("Created %d batch(es) for config %d.", len(batches), ec.ConfigID)
 	return nil
+}
+
+type batchRange struct {
+	start, end time.Time
+}
+
+var sanityDate = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+
+func makeBatchRanges(period time.Duration, latestEnd, now time.Time) []batchRange {
+
+	// Truncate now to align with period; use this as the end date.
+	end := now.Truncate(period)
+
+	// If the end date < latest end date, we already have a batch that covers this period, so return no batches.
+	if end.Before(latestEnd) {
+		return nil
+	}
+
+	// Subtract period to get the start date.
+	start := end.Add(-period)
+
+	// Special case: if there have not been batches before, return only a single one.
+	// We use sanityDate here because the loop below will happily create batch ranges
+	// until the beginning of time otherwise.
+	if latestEnd.Before(sanityDate) {
+		return []batchRange{{start: start, end: end}}
+	}
+
+	// Build up a list of batches until we reach that latestEnd.
+	// Allow for overlap so we don't miss keys; this might happen in the event that
+	// an ExportConfig was edited and the new settings don't quite align.
+	ranges := []batchRange{}
+	for end.After(latestEnd) {
+		ranges = append([]batchRange{{start: start, end: end}}, ranges...)
+		start = start.Add(-period)
+		end = end.Add(-period)
+	}
+	return ranges
 }
 
 // LeaseBatchHandler leases and returns a batch job for the worker to process.
