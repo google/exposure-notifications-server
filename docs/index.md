@@ -17,4 +17,8 @@ The server is responsible for the following functions:
   configurable different time periods) they can no longer be matched to
   devices.
 
-For more in depth documentation view the [documentation](docs/index)
+
+# Guides and Documentation
+- [Deployment Guide](deploying)
+- [User Guide](user-guide)
+- [Reference Documentation](https://godoc.org/github.com/googlepartners/exposure-notifications)
