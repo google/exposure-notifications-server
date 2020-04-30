@@ -1,0 +1,8 @@
+steps:
+- name: 'gcr.io/$PROJECT_ID/ko'
+  env:
+  - 'KO_DOCKER_REPO=us.gcr.io/${PROJECT_ID}'
+  - 'DOCKER_REPO_OVERRIDE=us.gcr.io/${PROJECT_ID}'
+  args:
+  - publish
+  - ./cmd/infection
