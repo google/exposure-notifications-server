@@ -73,7 +73,9 @@ Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
 
     1. Clone the Go Protocol Buffer module repository
 
-        ```git clone https://github.com/golang/protobuf```
+        ```
+        git clone https://github.com/golang/protobuf
+        ```
 
     1. Build the module:
 
@@ -84,7 +86,9 @@ Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
 
     1. Move the binary to a folder defined in your `PATH` environment variable, for example `$HOME/bin`
 
-        ```mv protoc-gen-go $HOME/bin```
+        ```
+        mv protoc-gen-go $HOME/bin
+        ```
 
 ### Running locally
 
