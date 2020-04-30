@@ -26,7 +26,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/googlepartners/exposure-notifications/internal/model"
+	"github.com/google/exposure-notifications-server/internal/model"
 )
 
 // the length of a diagnosis key, always 16 bytes

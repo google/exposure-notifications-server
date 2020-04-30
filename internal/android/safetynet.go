@@ -25,7 +25,7 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/googlepartners/exposure-notifications/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/logging"
 
 	"github.com/dgrijalva/jwt-go"
 )

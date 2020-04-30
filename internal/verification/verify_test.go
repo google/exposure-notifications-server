@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/googlepartners/exposure-notifications/internal/model"
+	"github.com/google/exposure-notifications-server/internal/model"
 )
 
 const (

@@ -25,11 +25,11 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/googlepartners/exposure-notifications/internal/api"
-	"github.com/googlepartners/exposure-notifications/internal/database"
-	"github.com/googlepartners/exposure-notifications/internal/logging"
-	"github.com/googlepartners/exposure-notifications/internal/pb"
-	"github.com/googlepartners/exposure-notifications/internal/serverenv"
+	"github.com/google/exposure-notifications-server/internal/api"
+	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
 const (

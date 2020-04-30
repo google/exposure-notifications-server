@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googlepartners/exposure-notifications/internal/database"
-	"github.com/googlepartners/exposure-notifications/internal/model"
-	"github.com/googlepartners/exposure-notifications/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/pb"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"

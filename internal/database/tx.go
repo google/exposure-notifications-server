@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/googlepartners/exposure-notifications/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/logging"
 
 	pgx "github.com/jackc/pgx/v4"
 )
