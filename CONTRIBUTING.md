@@ -6,13 +6,13 @@ read through the guidelines before diving in.
 ## Contributor License Agreement
 
 Contributions to this project must be accompanied by a Contributor License
-Agreement (CLA). You, or your employer, retain the copyright to your
-contribution. This agreement simply gives us permission to use and redistribute your
-contributions as part of the project. You can see existing accepted CLAs or sign
-a new agreement at the
-[Contributor License Agreement webpage](https://cla.developers.google.com/).
+Agreement (CLA). You (or your employer) retain the copyright to your
+contribution; this simply gives us permission to use and redistribute your
+contributions as part of the project. Head over to
+<https://cla.developers.google.com/> to see your current agreements on file or
+to sign a new one.
 
-You generally only need to submit one CLA, so if you've already submitted one
+You generally only need to submit a CLA once, so if you've already submitted one
 (even if it was for a different project), you probably don't need to do it
 again.
 
@@ -53,33 +53,35 @@ Each binary will have main in `/cmd/[bin-name]`
 
 ## Project dependencies
 
-1. Protocol Buffers.
+1. Protocol Buffer compiler.
 
-    To install the Protocol Buffer library:
+    To install the Protocol Buffer compiler:
+    
+    | OS       | Command                                            |
+    |----------|----------------------------------------------------|
+    | Mac OS X ([Brew](https://brew.sh/)) | `brew install protobuf` |
+    | Linux (APT) | `apt-get install protobuf-compiler`             |
+    | Linux (YUM) | `yum install protobuf-compiler`                 |
+    | Source | https://github.com/protocolbuffers/protobuf/releases |
 
-      * Mac OS X:
-        
-        Using [Brew](https://brew.sh/):
-
-           `brew install protobuf`
-      
-      * Linux:
-        
-        Using the APT package manager:
-
-           `apt-get install protobuf-compiler` 
-
-        Using the YUM package manager:
-
-           `yum install protobuf-compiler`
-
-       * Source: https://github.com/protocolbuffers/protobuf/releases
-
-1. The protoc-gen-go library.
+1. The protoc-gen-go module.
 
    To install protoc-gen-go:
-
-     `go get -u github.com/golang/protobuf/protoc-gen-go`
+   
+      1. Clone the Go Protocol Buffer module repository
+      
+          `git clone https://github.com/golang/protobuf`
+      
+      1. Build the module:
+      
+          ```
+          cd protobuf/protoc-gen-go
+          go build
+          ```
+      
+      1. Move the binary to a folder defined in your PATH environment variable, for example $HOME/bin
+      
+          `mv protoc-gen-go $HOME/bin`
 
 1. The goimports tool.
   
@@ -87,18 +89,6 @@ Each binary will have main in `/cmd/[bin-name]`
    
      `go install golang.org/x/tools/cmd/goimports`
 
-1. OpenCensus 
-
-   To install the OpenCencus library:
-
-       `go get -u go.opencensus.io`
-
-1. You may need to update your path to include these libraries and tools:
-
-```
-export PATH=$PATH:$HOME/go/bin, in order to add the GOPATH and
-export PATH=$PATH:/usr/local/go/bin, in order to add GOROOT
-```
 ### Running locally
 
 1. (One time only) Create a dev service account and add the credentials to `./local/sa.json`
