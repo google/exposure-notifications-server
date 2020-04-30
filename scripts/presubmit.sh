@@ -16,7 +16,7 @@
 
 set -eEuo pipefail
 
-source_dirs="cmd pkg"
+source_dirs="cmd internal tools"
 
 echo "🚒 Update Protobufs"
 protoc --proto_path=. --go_out=plugins=grpc:. ./internal/pb/*.proto
