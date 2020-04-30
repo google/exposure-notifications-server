@@ -1,0 +1,23 @@
+// Generated from export.proto
+
+namespace flat_exp;
+
+table ExposureKeyExport {
+  startTimestamp:long;
+  endTimestamp:long;
+  region:string;
+  keys:[ExposureKey];
+  batchNum:int;
+  batchSize:int;
+}
+
+// Can't be struct instead of table (which would get inlined in the binary encoding)
+// because then none of the fields would be optional
+// https://google.github.io/flatbuffers/flatbuffers_guide_writing_schema.html
+table ExposureKey {
+  exposureKey:[ubyte];
+  intervalNumber:int;
+  intervalCount:int;
+  transmissionRisk:int;
+}
+
