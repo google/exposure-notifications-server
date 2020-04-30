@@ -3,6 +3,10 @@ options:
   - 'KO_DOCKER_REPO=us.gcr.io/${PROJECT_ID}'
   - 'DOCKER_REPO_OVERRIDE=us.gcr.io/${PROJECT_ID}'
 steps:
+- name: 'mirror.gcr.io/library/golang'
+  env:
+  - GO111MODULE=on
+  args: ['go', 'test', './...']
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
