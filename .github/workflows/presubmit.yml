@@ -1,4 +1,4 @@
-name: Build and Test Go Modules
+name: Presubmit
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 jobs:
 
   build:
-    name: Build
+    name: Presubmit
     runs-on: ubuntu-latest
     steps:
 
