@@ -17,7 +17,7 @@ package model
 import (
 	"time"
 
-	"github.com/googlepartners/exposure-notifications/internal/android"
+	"github.com/google/exposure-notifications-server/internal/android"
 )
 
 type APIConfig struct {

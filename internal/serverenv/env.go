@@ -19,7 +19,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/googlepartners/exposure-notifications/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/logging"
 )
 
 const (
