@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/api"
+	"github.com/google/exposure-notifications-server/internal/api/export"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -49,7 +49,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	bsc := api.BatchServerConfig{}
+	bsc := export.BatchServerConfig{}
 	createBatchesTimeout := defaultTimeout
 	if timeoutStr := os.Getenv(createBatchesTimeoutEnvVar); timeoutStr != "" {
 		var err error
@@ -71,9 +71,9 @@ func main() {
 	bsc.Bucket = os.Getenv(bucketEnvVar)
 
 	// TODO(guray): remove or gate the /test handler
-	http.Handle("/test", api.NewTestExportHandler(db))
+	http.Handle("/test", export.NewTestExportHandler(db))
 
-	batchServer := api.NewBatchServer(db, bsc)
+	batchServer := export.NewBatchServer(db, bsc)
 	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
 	http.HandleFunc("/create-files", batchServer.CreateFilesHandler)     // worker that executes work
 

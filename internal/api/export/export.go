@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package api defines the structures for the infection publishing API.
-package api
+// Package export defines the handlers for managing exporure key exporting
+package export
 
 import (
 	"context"
