@@ -335,8 +335,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 	return &eb, nil
 }
 
-// completeBatch marks a batch as completed.
-func completeBatch(ctx context.Context, tx pgx.Tx, batchID int64) (err error) {
+func completeBatch(ctx context.Context, tx pgx.Tx, batchID int64) error {
 	batch, err := lookupExportBatch(ctx, batchID, tx.QueryRow)
 	if err != nil {
 		if err == pgx.ErrNoRows {
