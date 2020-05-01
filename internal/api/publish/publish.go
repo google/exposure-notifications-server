@@ -70,12 +70,11 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cfg.IsIOS() {
-		logger.Errorf("ios devicecheck not supported on this sever.")
+		logger.Errorf("ios devicecheck not supported on this server.")
 		http.Error(w, "bad API request", http.StatusBadRequest)
 		return
 	} else if cfg.IsAndroid() {
-		requestTime := time.Now().UTC()
-		err = verification.VerifySafetyNet(ctx, requestTime, cfg, data)
+		err = verification.VerifySafetyNet(ctx, time.Now().UTC(), cfg, data)
 		if err != nil {
 			logger.Errorf("unable to verify safetynet payload: %v", err)
 			// TODO(mikehelmick) change error code after clients verify functionality.
