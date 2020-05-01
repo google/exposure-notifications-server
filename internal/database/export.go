@@ -437,30 +437,47 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 		batchFileDeleteCounter := make(map[int64]int)
 		for rows.Next() {
 			var f joinedExportBatchFile
-			if err := rows.Scan(&f.batchID, &f.batchStatus, &f.filename, &f.count, &f.fileStatus); err != nil {
-				return fmt.Errorf("fetching batch_id: %v", err)
+			err := rows.Scan(&f.batchID, &f.batchStatus, &f.filename, &f.count, &f.fileStatus)
+			if err != nil {
+				return fmt.Errorf("fetching filenames: %v", err)
 			}
+			defer rows.Close()
 
-			// If file is already deleted, skip to the next
-			if f.fileStatus == model.ExportBatchDeleted {
-				batchFileDeleteCounter[f.batchID]++
-				continue
-			}
+			for rows.Next() {
+				var f joinedExportBatchFile
+				if err := rows.Scan(&f.batchID, &f.batchStatus, &f.filename, &f.count, &f.fileStatus); err != nil {
+					return fmt.Errorf("fetching batch_id: %v", err)
+				}
 
-			// Attempt to delete file
-			if err := storage.DeleteObject(ctx, bucket, f.filename); err != nil {
-				return fmt.Errorf("delete object: %v", err)
-			}
+				// If file is already deleted, skip to the next
+				if f.fileStatus == model.ExportBatchDeleted {
+					batchFileDeleteCounter[f.batchID]++
+					continue
+				}
 
-			// Update Status in ExportFile
-			if err := updateExportFileStatus(ctx, tx, f.filename, model.ExportBatchDeleted); err != nil {
-				return fmt.Errorf("updating ExportFile: %v", err)
-			}
+				// Attempt to delete file
+				if err := storage.DeleteObject(ctx, bucket, f.filename); err != nil {
+					return fmt.Errorf("delete object: %v", err)
+				}
 
-			// If batch completely deleted, update in ExportBatch
-			if batchFileDeleteCounter[f.batchID] == f.count {
-				if err := updateExportBatchStatus(ctx, tx, f.batchID, model.ExportBatchDeleted); err != nil {
-					return fmt.Errorf("updating ExportBatch: %v", err)
+				// Update Status in ExportFile
+				if err := updateExportFileStatus(ctx, tx, f.filename, model.ExportBatchDeleted); err != nil {
+					return fmt.Errorf("updating ExportFile: %v", err)
+				}
+
+				// If batch completely deleted, update in ExportBatch
+				if batchFileDeleteCounter[f.batchID] == f.count {
+					err = updateExportBatchStatus(ctx, tx, f.batchID, model.ExportBatchDeleted)
+					if err != nil {
+						return fmt.Errorf("updating ExportBatch: %v", err)
+					}
+
+					logger.Infof("Deleted filename %v", f.filename)
+					count++
+				}
+
+				if err = rows.Err(); err != nil {
+					return fmt.Errorf("fetching export files: %v", err)
 				}
 			}
 
