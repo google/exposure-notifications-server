@@ -28,21 +28,6 @@ This project follows
 All submissions will be reviewed before merging. Submissions are reviewed using
 [GitHub pull requests](https://help.github.com/articles/about-pull-requests/).
 
-### Presubmits
-
-You should run the presubmit checks before committing changes. The presubmit script
-is located at `scripts/presubmit.sh`. You can add a prepush hook by linking to the
-presubmit script so it will automatically run before pushing a branch to the remote
-GitHub repository.
-
-To add the presubmit script as a prepush hook:
-
-```
-# From Repository Root
-ln -s -f ../../scripts/presubmit.sh .git/hooks/pre-push
-chmod a+x .git/hooks/pre-push
-```
-
 ## Source and build
 
 ### Source code layout
@@ -51,7 +36,7 @@ Common code is in the `/pkg` folder.
 
 Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
 
-## Project dependencies
+### Project dependencies
 
 1. Go v1.14.0 or higher.
 
@@ -94,10 +79,29 @@ Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
         mv protoc-gen-go $HOME/bin
         ```
 
-### Running Tests
-You can run the tests that are run on CI by executing `./scripts/kokoro_presubmit.sh "."`
+### Running tests
 
-A shorter version is proved at `./scripts/presubmit.sh` and is made to be leveraged as a push hook.
+You can run the same tests that are used in the continuous integration pipeline
+by running:
+
+```
+./scripts/kokoro_presubmit.sh "."
+```
+
+### Presubmit checks
+
+You should run the presubmit checks before committing changes. The presubmit script
+is located at `scripts/presubmit.sh`.
+
+You can add a prepush hook by linking to the presubmit script to automatically
+run before pushing a branch to the remote GitHub repository. To add the
+presubmit script as a prepush hook, go to the root directory of the repository
+and type:
+
+```
+ln -s -f ../../scripts/presubmit.sh .git/hooks/pre-push
+chmod a+x .git/hooks/pre-push
+```
 
 ### Running locally
 
@@ -115,40 +119,7 @@ source scripts/setup_env.sh
 go run ./cmd/[bin-name]
 ```
 
-## Building and deploying servers
+## Documentation
 
-To build and deploy a server, you will need to install the `ko` container
-builder tool and the [Google Cloud SDK](https://cloud.google.com/sdk/).
-
-1. Download and install the [Google Cloud SDK](https://cloud.google.com/sdk/install).
-For more information on installation and set up, see the
-[Cloud SDK Quickstarts](https://cloud.google.com/sdk/docs/quickstarts).
-
-1. Install the `ko` container builder and deployment tool:
-
-    ```
-    GO111MODULE=on
-    go get github.com/google/ko/cmd/ko
-    ```
-
-1. Configure the `ko` tool using the `setup_ko.sh` configuration file in this
-   repository:
-
-    ```
-    source setup_ko.sh
-    ```
-
-1. Generate a [Google Cloud Repository](https://cloud.google.com/container-registry)
-   Docker configuration:
-
-    ```
-    gcloud auth configure-docker
-    ```
-
-1. Build and deploy the container using the `ko publish` command.
-
-    For example, to deploy the infection server:
-
-    ```
-    ko publish ./cmd/infection
-    ```
+User documentation for this project is in the [`docs`](/docs/index.md) directory,
+with information on building, deploying and using the reference implementation.
