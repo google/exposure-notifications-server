@@ -18,23 +18,31 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/exposure-notifications-server/internal/logging"
-
 	pgx "github.com/jackc/pgx/v4"
 )
 
-// finish is a convenience function that can be deferred to commit or rollback a transaction according to boolean commit flag. err will be populated if there is an error.
-func finishTx(ctx context.Context, tx pgx.Tx, commit *bool, err *error) {
-	if *commit {
-		if err1 := tx.Commit(ctx); err1 != nil {
-			*err = fmt.Errorf("failed to commit: %v", err1)
-		}
-	} else {
-		if err1 := tx.Rollback(ctx); err1 != nil {
-			*err = fmt.Errorf("failed to rollback: %v", err1)
-		} else {
-			logger := logging.FromContext(ctx)
-			logger.Infof("Rolling back.")
-		}
+// inTx runs the given function f within a transaction with isolation level isoLevel.
+func (db *DB) inTx(ctx context.Context, isoLevel pgx.TxIsoLevel, f func(tx pgx.Tx) error) error {
+	conn, err := db.pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("acquiring connection: %v", err)
 	}
+	defer conn.Release()
+
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: isoLevel})
+	if err != nil {
+		return fmt.Errorf("starting transaction: %v", err)
+	}
+
+	if err := f(tx); err != nil {
+		if err1 := tx.Rollback(ctx); err1 != nil {
+			return fmt.Errorf("rolling back transaction: %v (original error: %v)", err1, err)
+		}
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("committing transaction: %v", err)
+	}
+	return nil
 }
