@@ -22,9 +22,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/googlepartners/exposure-notifications/internal/logging"
-	"github.com/googlepartners/exposure-notifications/internal/model"
-	"github.com/googlepartners/exposure-notifications/internal/storage"
+	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/storage"
 
 	pgx "github.com/jackc/pgx/v4"
 )
@@ -436,7 +436,7 @@ func (db *DB) CompleteFileAndBatch(ctx context.Context, files []string, batchID 
 
 type joinedExportBatchFile struct {
 	filename    string
-	batchID     int
+	batchID     int64
 	count       int
 	fileStatus  string
 	batchStatus string
@@ -470,7 +470,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (count in
 	defer rows.Close()
 
 	bucket := os.Getenv(bucketEnvVar)
-	batchFileDeleteCounter := make(map[int]int)
+	batchFileDeleteCounter := make(map[int64]int)
 	for rows.Next() {
 		var f joinedExportBatchFile
 		err := rows.Scan(&f.batchID, &f.batchStatus, &f.filename, &f.count, &f.fileStatus)
