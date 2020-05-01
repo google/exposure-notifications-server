@@ -69,12 +69,22 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestTime := time.Now().UTC()
-	err = verification.VerifySafetyNet(ctx, requestTime, cfg, data)
-	if err != nil {
-		logger.Errorf("unable to verify safetynet payload: %v", err)
-		// TODO(mikehelmick) change error code after clients verify functionality.
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	if cfg.IsIOS() {
+		logger.Errorf("ios devicecheck not supported on this sever.")
+		http.Error(w, "bad API request", http.StatusBadRequest)
+		return
+	} else if cfg.IsAndroid() {
+		requestTime := time.Now().UTC()
+		err = verification.VerifySafetyNet(ctx, requestTime, cfg, data)
+		if err != nil {
+			logger.Errorf("unable to verify safetynet payload: %v", err)
+			// TODO(mikehelmick) change error code after clients verify functionality.
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+	} else {
+		logger.Errorf("invalid API configuration for AppPkg: %v, invalid platform", data.AppPackageName)
+		http.Error(w, "bad API request", http.StatusBadRequest)
 		return
 	}
 

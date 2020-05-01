@@ -84,6 +84,7 @@ CREATE TABLE Lock (
 
 CREATE TABLE APIConfig (
 	app_package_name VARCHAR(1000) PRIMARY KEY,
+	platform VARCHAR(10) NOT NULL,
 	apk_digest VARCHAR(64),
 	enforce_apk_digest BOOLEAN NOT NULL,
 	cts_profile_match BOOLEAN NOT NULL,

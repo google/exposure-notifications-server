@@ -20,8 +20,14 @@ import (
 	"github.com/google/exposure-notifications-server/internal/android"
 )
 
+const (
+	IOS_DEVICE     = "ios"
+	ANDROID_DEVICE = "android"
+)
+
 type APIConfig struct {
 	AppPackageName   string          `db:"app_package_name"`
+	Platform         string          `db:"platform"`
 	ApkDigestSHA256  string          `db:"apk_digest"`
 	EnforceApkDigest bool            `db:"enforce_apk_digest"`
 	CTSProfileMatch  bool            `db:"cts_profile_match"`
@@ -35,6 +41,14 @@ type APIConfig struct {
 
 func NewAPIConfig() *APIConfig {
 	return &APIConfig{AllowedRegions: make(map[string]bool)}
+}
+
+func (c *APIConfig) IsIOS() bool {
+	return c.Platform == IOS_DEVICE
+}
+
+func (c *APIConfig) IsAndroid() bool {
+	return c.Platform == ANDROID_DEVICE
 }
 
 func (c *APIConfig) VerifyOpts(from time.Time) android.VerifyOpts {
