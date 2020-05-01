@@ -20,8 +20,16 @@ import (
 	"github.com/google/exposure-notifications-server/internal/android"
 )
 
+const (
+	iosDevice     = "ios"
+	androidDevice = "android"
+)
+
+// APIConfig represents the configuration for a single exposure notification
+// application and their access to and requirements for using the API.
 type APIConfig struct {
 	AppPackageName   string          `db:"app_package_name"`
+	Platform         string          `db:"platform"`
 	ApkDigestSHA256  string          `db:"apk_digest"`
 	EnforceApkDigest bool            `db:"enforce_apk_digest"`
 	CTSProfileMatch  bool            `db:"cts_profile_match"`
@@ -35,6 +43,14 @@ type APIConfig struct {
 
 func NewAPIConfig() *APIConfig {
 	return &APIConfig{AllowedRegions: make(map[string]bool)}
+}
+
+func (c *APIConfig) IsIOS() bool {
+	return c.Platform == iosDevice
+}
+
+func (c *APIConfig) IsAndroid() bool {
+	return c.Platform == androidDevice
 }
 
 func (c *APIConfig) VerifyOpts(from time.Time) android.VerifyOpts {
