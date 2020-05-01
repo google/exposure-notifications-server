@@ -58,7 +58,7 @@ type IterateInfectionsCriteria struct {
 func (db *DB) IterateInfections(ctx context.Context, criteria IterateInfectionsCriteria) (InfectionIterator, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to obtain database connection: %v", err)
+		return nil, fmt.Errorf("acquiring connection: %v", err)
 	}
 	// We don't defer Release() here because the iterator's Close() method will do it.
 
@@ -66,11 +66,11 @@ func (db *DB) IterateInfections(ctx context.Context, criteria IterateInfectionsC
 	if criteria.LastCursor != "" {
 		offsetStr, err := decodeCursor(criteria.LastCursor)
 		if err != nil {
-			return nil, fmt.Errorf("unable to decode cursor: %v", err)
+			return nil, fmt.Errorf("decoding cursor: %v", err)
 		}
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil {
-			return nil, fmt.Errorf("unable to decode cursor %v", err)
+			return nil, fmt.Errorf("decoding cursor %v", err)
 		}
 	}
 
@@ -135,7 +135,8 @@ func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, e
 		SELECT
 			exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
 			created_at, local_provenance, verification_authority_name, sync_id
-		FROM Infection
+		FROM
+			Infection
 		WHERE 1=1
 		`
 	var args []interface{}
@@ -181,71 +182,58 @@ func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, e
 }
 
 // InsertInfections inserts a set of infections.
-func (db *DB) InsertInfections(ctx context.Context, infections []*model.Infection) (err error) {
-	conn, err := db.pool.Acquire(ctx)
-	if err != nil {
-		return fmt.Errorf("unable to obtain database connection: %v", err)
-	}
-	defer conn.Release()
+func (db *DB) InsertInfections(ctx context.Context, infections []*model.Infection) error {
+	err := db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		const stmtName = "insert infections"
+		_, err := tx.Prepare(ctx, stmtName, `
+			INSERT INTO
+				Infection
+				(exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
+			     created_at, local_provenance, verification_authority_name, sync_id)
+			VALUES
+			  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			ON CONFLICT (exposure_key) DO NOTHING
+		`)
+		if err != nil {
+			return fmt.Errorf("preparing insert statment: %v", err)
+		}
 
-	commit := false
-	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+		for _, inf := range infections {
+			if _, err := tx.Exec(ctx, stmtName,
+				encodeExposureKey(inf.ExposureKey), inf.TransmissionRisk, inf.AppPackageName, inf.Regions, inf.IntervalNumber,
+				inf.IntervalCount, inf.CreatedAt, inf.LocalProvenance, inf.VerificationAuthorityName, inf.FederationSyncID); err != nil {
+				return fmt.Errorf("inserting infection: %v", err)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	defer finishTx(ctx, tx, &commit, &err)
-
-	const stmtName = "insert infections"
-	_, err = tx.Prepare(ctx, stmtName, `
-		INSERT INTO Infection
-		  (exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
-		  created_at, local_provenance, verification_authority_name, sync_id)
-		VALUES
-		  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		ON CONFLICT (exposure_key) DO NOTHING
-		`)
-	if err != nil {
-		return fmt.Errorf("preparing insert statment: %v", err)
-	}
-
-	for _, inf := range infections {
-		_, err := tx.Exec(ctx, stmtName, encodeExposureKey(inf.ExposureKey), inf.TransmissionRisk, inf.AppPackageName, inf.Regions, inf.IntervalNumber, inf.IntervalCount,
-			inf.CreatedAt, inf.LocalProvenance, inf.VerificationAuthorityName, inf.FederationSyncID)
-		if err != nil {
-			return fmt.Errorf("inserting infection: %v", err)
-		}
-	}
-
-	commit = true
 	return nil
 }
 
 // DeleteInfections deletes infections created before "before" date. Returns the number of records deleted.
-func (db *DB) DeleteInfections(ctx context.Context, before time.Time) (count int64, err error) {
-	conn, err := db.pool.Acquire(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("unable to obtain database connection: %v", err)
-	}
-	defer conn.Release()
-
-	commit := false
-	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
-	if err != nil {
-		return 0, fmt.Errorf("starting transaction: %v", err)
-	}
-	defer finishTx(ctx, tx, &commit, &err)
-
-	result, err := tx.Exec(ctx, `
-			DELETE FROM Infection
+func (db *DB) DeleteInfections(ctx context.Context, before time.Time) (int64, error) {
+	var rows int64
+	// ReadCommitted is sufficient here because we are working on historical, immutable rows.
+	err := db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			DELETE FROM
+				Infection
 			WHERE
 				created_at < $1
 			`, before)
+		if err != nil {
+			return fmt.Errorf("deleting infections: %v", err)
+		}
+		rows = result.RowsAffected()
+		return nil
+	})
 	if err != nil {
-		return 0, fmt.Errorf("deleting infections: %v", err)
+		return 0, err
 	}
-
-	commit = true
-	return result.RowsAffected(), nil
+	return rows, nil
 }
 
 func encodeCursor(s string) string {

@@ -20,28 +20,22 @@ import (
 	"fmt"
 
 	"github.com/google/exposure-notifications-server/internal/model"
-
-	pgx "github.com/jackc/pgx/v4"
 )
 
+// ReadAPIConfigs returns the set of APIConfig's.
 func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("untable to obtain database connection: %v", err)
+		return nil, fmt.Errorf("acquiring connection: %v", err)
 	}
 	defer conn.Release()
 
-	commit := false
-	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
-	if err != nil {
-		return nil, err
-	}
-	defer finishTx(ctx, tx, &commit, &err)
-
 	query := `
-    SELECT
-    app_package_name, apk_digest, enforce_apk_digest, cts_profile_match, basic_integrity, max_age_seconds, clock_skew_seconds, allowed_regions, all_regions, bypass_safetynet
-    FROM APIConfig`
+	    SELECT
+	    	app_package_name, apk_digest, enforce_apk_digest, cts_profile_match, basic_integrity,
+	    	max_age_seconds, clock_skew_seconds, allowed_regions, all_regions, bypass_safetynet
+	    FROM
+	    	APIConfig`
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -49,7 +43,7 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
 	defer rows.Close()
 
 	// In most instances, we expect a single config entry.
-	result := make([]*model.APIConfig, 0, 1)
+	var result []*model.APIConfig
 	for rows.Next() {
 		var regions []string
 		config := model.NewAPIConfig()
