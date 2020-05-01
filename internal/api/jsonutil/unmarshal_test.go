@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package jsonutil
 
 import (
 	"bytes"
@@ -35,7 +35,7 @@ func TestInvalidHeader(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	data := &model.Publish{}
-	err, code := unmarshal(w, r, data)
+	code, err := Unmarshal(w, r, data)
 
 	expCode := http.StatusUnsupportedMediaType
 	expErr := "content-type is not application/json"
@@ -131,7 +131,7 @@ func TestValidPublisMessage(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	got := &model.Publish{}
-	err, code := unmarshal(w, r, got)
+	code, err := Unmarshal(w, r, got)
 	if err != nil {
 		t.Fatalf("unexpected err, %v", err)
 	}
@@ -163,7 +163,7 @@ func unmarshalTestHelper(t *testing.T, payloads []string, errors []string, expCo
 
 		w := httptest.NewRecorder()
 		data := &model.Publish{}
-		err, code := unmarshal(w, r, data)
+		code, err := Unmarshal(w, r, data)
 		if code != expCode {
 			t.Errorf("unmarshal wanted %v response code, got %v", expCode, code)
 		}
