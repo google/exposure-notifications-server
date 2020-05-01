@@ -90,6 +90,11 @@ Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
         mv protoc-gen-go $HOME/bin
         ```
 
+### Running Tests
+You can run the tests that are run on CI by executing `./scripts/kokoro_presubmit.sh "."`
+
+A shorter version is proved at `./scripts/presubmit.sh` and is made to be leveraged as a push hook.
+
 ### Running locally
 
 1. (One time only) Create a dev service account and add the credentials to `./local/sa.json`
