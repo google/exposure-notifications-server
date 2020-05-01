@@ -290,37 +290,13 @@ func (s *BatchServer) createExportFilesForBatch(ctx context.Context, eb model.Ex
 	files = append(files, objectName)
 	batchCount++
 
-	// Update ExportFile for the files created: set batchSize and update status .
-	// TODO(lmohanan): Figure out batchCount ahead of time and do this immediately after writing to GCS
-	// for better failure protection.
-	// TODO(lmohanan): Perform UpdateExportFile and CompleteBatch as a transaction.
-	for _, file := range files {
-		s.db.UpdateExportFile(ctx, file, model.ExportBatchComplete, batchCount)
+	if err = s.db.CompleteFileAndBatch(ctx, files, eb.BatchID, batchCount); err != nil {
+		return err
 	}
-
-	// Update ExportFile for the batch to mark it complete.
-	if err := s.db.CompleteBatch(ctx, eb.BatchID); err != nil {
-		return fmt.Errorf("marking batch %v complete: %v", eb.BatchID, err)
-	}
-
 	return nil
 }
 
 func (s *BatchServer) createFile(ctx context.Context, objectName string, exposureKeys []*model.Infection, eb model.ExportBatch, batchCount int) error {
-	// Add ExportFile entry with Status Pending
-	ef := model.ExportFile{
-		Filename: objectName,
-		BatchID:  eb.BatchID,
-		Region:   "", // TODO(lmohanan) figure out where region comes from.
-		BatchNum: batchCount,
-		Status:   model.ExportBatchPending,
-	}
-	// TODO(lmohanan) Handle partial failure: If redoing this batch after a failure,
-	// these inserts can fail due to duplicate filename.
-	if err := s.db.AddExportFile(ctx, &ef); err != nil {
-		return fmt.Errorf("adding export file entry: %v", err)
-	}
-
 	// Format keys
 	data, err := MarshalExportFile(eb.StartTimestamp, eb.EndTimestamp, exposureKeys, "US")
 	if err != nil {
