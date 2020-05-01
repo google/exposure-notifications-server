@@ -36,17 +36,11 @@ steps:
   - ./cmd/wipeout-infection
 # Deploy to Cloud Run.
 - name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
   args:
+  - '-c'
   # `--platform managed` and `--no-traffic` only works in `alpha`
-  - 'alpha'
-  - 'run'
-  - 'deploy'
-  - 'infection'
-  - '--image'
-  - 'us.gcr.io/$PROJECT_ID/infection:latest'
-  - '--region'
-  - 'us-central1'
-  - '--platform'
-  - 'managed'
-  - '--update-labels=env=staging'
-  - '--no-traffic'
+  - |
+    gcloud alpha run deploy infection --image \
+      us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/infection:latest --region us-central1 \
+      --platform managed --update-labels=env=staging --no-traffic
