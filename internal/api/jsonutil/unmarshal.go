@@ -25,9 +25,9 @@ import (
 )
 
 const (
-  // Max request size of 64KB. None of the current API requests for this
-  // server are near that limit. Prevents us from unnecessarily parsing JSON
-  // payloads that are much large than we anticiapte.
+	// Max request size of 64KB. None of the current API requests for this
+	// server are near that limit. Prevents us from unnecessarily parsing JSON
+	// payloads that are much large than we anticiapte.
 	maxBodyBytes = 64_000
 )
 
