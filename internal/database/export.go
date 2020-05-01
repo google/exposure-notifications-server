@@ -410,74 +410,91 @@ type joinedExportBatchFile struct {
 func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, error) {
 	logger := logging.FromContext(ctx)
 
-	// ReadCommitted is sufficient here because we are working with historical, immutable rows.
-	count := 0
-	err := db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		// Fetch filenames for  batches where atleast one file is not deleted yet.
+	// Fetch filenames for  batches where at least one file is not deleted yet.
+	var files []joinedExportBatchFile
+	err := func() error { // Use a func to allow defer conn.Release() to work.
+		conn, err := db.pool.Acquire(ctx)
+		if err != nil {
+			return fmt.Errorf("acquiring connection: %v", err)
+		}
+		defer conn.Release()
+
 		q := `
-		SELECT
-			ExportBatch.batch_id,
-			ExportBatch.status,
-			ExportFile.filename,
-			ExportFile.batch_size,
-			ExportFile.status
-		FROM 
-			ExportBatch 
-		INNER JOIN
-			ExportFile ON (ExportBatch.batch_id = ExportFile.batch_id)
-		WHERE
-			ExportBatch.end_timestamp < $1
-			AND ExportBatch.status != $2`
-		rows, err := tx.Query(ctx, q, before, model.ExportBatchDeleted)
+			SELECT
+				ExportBatch.batch_id,
+				ExportBatch.status,
+				ExportFile.filename,
+				ExportFile.batch_size,
+				ExportFile.status
+			FROM 
+				ExportBatch 
+			INNER JOIN
+				ExportFile ON (ExportBatch.batch_id = ExportFile.batch_id)
+			WHERE
+				ExportBatch.end_timestamp < $1
+				AND ExportBatch.status != $2`
+		rows, err := conn.Query(ctx, q, before, model.ExportBatchDeleted)
 		if err != nil {
 			return fmt.Errorf("fetching filenames: %v", err)
 		}
 		defer rows.Close()
 
-		bucket := os.Getenv(bucketEnvVar)
-		batchFileDeleteCounter := make(map[int64]int)
 		for rows.Next() {
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("iterating rows: %v", err)
+			}
+
 			var f joinedExportBatchFile
-			err := rows.Scan(&f.batchID, &f.batchStatus, &f.filename, &f.count, &f.fileStatus)
-			if err != nil {
+			if err := rows.Scan(&f.batchID, &f.batchStatus, &f.filename, &f.count, &f.fileStatus); err != nil {
 				return fmt.Errorf("fetching batch_id: %v", err)
 			}
+			files = append(files, f)
+		}
+		return nil
+	}()
+	if err != nil {
+		return 0, err
+	}
 
-			// If file is already deleted, skip to the next
-			if f.fileStatus == model.ExportBatchDeleted {
-				batchFileDeleteCounter[f.batchID]++
-				continue
-			}
+	count := 0
+	bucket := os.Getenv(bucketEnvVar)
+	batchFileDeleteCounter := make(map[int64]int)
 
-			// Attempt to delete file
-			if err := storage.DeleteObject(ctx, bucket, f.filename); err != nil {
-				return fmt.Errorf("delete object: %v", err)
-			}
+	for _, f := range files {
 
-			// Update Status in ExportFile
-			if err = updateExportFileStatus(ctx, tx, f.filename, model.ExportBatchDeleted); err != nil {
+		// If file is already deleted, skip to the next.
+		if f.fileStatus == model.ExportBatchDeleted {
+			batchFileDeleteCounter[f.batchID]++
+			continue
+		}
+
+		// Attempt to delete file.
+		if err := storage.DeleteObject(ctx, bucket, f.filename); err != nil {
+			return 0, fmt.Errorf("delete object: %v", err)
+		}
+
+		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+			// Update Status in ExportFile.
+			if err := updateExportFileStatus(ctx, tx, f.filename, model.ExportBatchDeleted); err != nil {
 				return fmt.Errorf("updating ExportFile: %v", err)
 			}
 
-			// If batch completely deleted, update in ExportBatch
+			// If batch completely deleted, update in ExportBatch.
 			if batchFileDeleteCounter[f.batchID] == f.count {
 				if err := updateExportBatchStatus(ctx, tx, f.batchID, model.ExportBatchDeleted); err != nil {
 					return fmt.Errorf("updating ExportBatch: %v", err)
 				}
 			}
-
-			logger.Infof("Deleted filename %v", f.filename)
-			count++
+			return nil
+		})
+		if err != nil {
+			return 0, err
 		}
 
-		if err = rows.Err(); err != nil {
-			return fmt.Errorf("fetching export files: %v", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return 0, err
+		logger.Infof("Deleted filename %v", f.filename)
+		count++
 	}
+
 	return count, nil
 }
 
