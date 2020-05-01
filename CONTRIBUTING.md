@@ -53,6 +53,10 @@ Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
 
 ## Project dependencies
 
+1. Go v1.14.0 or higher.
+
+    Go can be downloaded from https://golang.org/dl/
+
 1. Protocol Buffer compiler.
 
     To install the Protocol Buffer compiler:
