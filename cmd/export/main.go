@@ -36,7 +36,7 @@ const (
 	bucketEnvVar               = "EXPORT_BUCKET"
 	tmpBucketEnvVar            = "TMP_EXPORT_BUCKET"
 	maxRecordsEnvVar           = "EXPORT_FILE_MAX_RECORDS"
-	defaultMaxRecords          = 30000
+	defaultMaxRecords          = 30_000
 )
 
 func main() {
