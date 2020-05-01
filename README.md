@@ -35,4 +35,4 @@ Server here:
 ## Contributing to this project
 
 Contributions to this project are welcomed. For more information about
-contributing to this project, see the [contribution guidelines](CONTRIBUTING)
+contributing to this project, see the [contribution guidelines](CONTRIBUTING).
