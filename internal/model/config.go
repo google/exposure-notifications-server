@@ -21,10 +21,12 @@ import (
 )
 
 const (
-	IOS_DEVICE     = "ios"
-	ANDROID_DEVICE = "android"
+	iosDevice     = "ios"
+	androidDevice = "android"
 )
 
+// APIConfig represents the configuration for a single exposure notification
+// application and their access to and requirements for using the API.
 type APIConfig struct {
 	AppPackageName   string          `db:"app_package_name"`
 	Platform         string          `db:"platform"`
@@ -44,11 +46,11 @@ func NewAPIConfig() *APIConfig {
 }
 
 func (c *APIConfig) IsIOS() bool {
-	return c.Platform == IOS_DEVICE
+	return c.Platform == iosDevice
 }
 
 func (c *APIConfig) IsAndroid() bool {
-	return c.Platform == ANDROID_DEVICE
+	return c.Platform == androidDevice
 }
 
 func (c *APIConfig) VerifyOpts(from time.Time) android.VerifyOpts {
