@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package api defines the structures for the infection publishing API.
-package api
+// Package publish defines the exposure keys publishing API.
+package publish
 
 import (
 	"net/http"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/config"
+	"github.com/google/exposure-notifications-server/internal/api/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/verification"
 )
 
-// NewPublishHandler creates the HTTP handler for the TTK publishing API.
-func NewPublishHandler(db *database.DB, cfg *config.Config) http.Handler {
+// NewHandler creates the HTTP handler for the TTK publishing API.
+func NewHandler(db *database.DB, cfg *config.Config) http.Handler {
 	return &publishHandler{
 		config: cfg,
 		db:     db,
@@ -44,7 +45,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := logging.FromContext(ctx)
 
 	var data model.Publish
-	err, code := unmarshal(w, r, &data)
+	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		logger.Errorf("error unmarhsaling API call, code: %v: %v", code, err)
 		// Log but don't return internal decode error message reason.
@@ -68,12 +69,21 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestTime := time.Now().UTC()
-	err = verification.VerifySafetyNet(ctx, requestTime, cfg, data)
-	if err != nil {
-		logger.Errorf("unable to verify safetynet payload: %v", err)
-		// TODO(mikehelmick) change error code after clients verify functionality.
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	if cfg.IsIOS() {
+		logger.Errorf("ios devicecheck not supported on this server.")
+		http.Error(w, "bad API request", http.StatusBadRequest)
+		return
+	} else if cfg.IsAndroid() {
+		err = verification.VerifySafetyNet(ctx, time.Now().UTC(), cfg, data)
+		if err != nil {
+			logger.Errorf("unable to verify safetynet payload: %v", err)
+			// TODO(mikehelmick) change error code after clients verify functionality.
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+	} else {
+		logger.Errorf("invalid API configuration for AppPkg: %v, invalid platform", data.AppPackageName)
+		http.Error(w, "bad API request", http.StatusBadRequest)
 		return
 	}
 

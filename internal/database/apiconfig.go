@@ -30,11 +30,10 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
 	defer conn.Release()
 
 	query := `
-	    SELECT
-	    	app_package_name, apk_digest, enforce_apk_digest, cts_profile_match, basic_integrity, max_age_seconds,
-	    	clock_skew_seconds, allowed_regions, all_regions, bypass_safetynet
-	    FROM
-			APIConfig`
+    SELECT
+      app_package_name, platform, apk_digest, enforce_apk_digest, cts_profile_match, basic_integrity, max_age_seconds,
+      clock_skew_seconds, allowed_regions, all_regions, bypass_safetynet
+    FROM APIConfig`
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -47,7 +46,7 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
 		var regions []string
 		config := model.NewAPIConfig()
 		var apkDigest sql.NullString
-		if err := rows.Scan(&config.AppPackageName, &apkDigest,
+		if err := rows.Scan(&config.AppPackageName, &config.Platform, &apkDigest,
 			&config.EnforceApkDigest, &config.CTSProfileMatch, &config.BasicIntegrity, &config.MaxAgeSeconds,
 			&config.ClockSkewSeconds, &regions, &config.AllowAllRegions, &config.BypassSafetynet); err != nil {
 			return nil, err

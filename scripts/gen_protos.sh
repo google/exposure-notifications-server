@@ -14,4 +14,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-protoc --proto_path=. --go_out=plugins=grpc:. ./pkg/pb/*.proto
+protoc --proto_path=. --go_out=plugins=grpc:. ./internal/pb/*.proto
