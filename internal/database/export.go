@@ -478,6 +478,21 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 				if err = rows.Err(); err != nil {
 					return fmt.Errorf("fetching export files: %v", err)
 				}
+
+				// If batch completely deleted, update in ExportBatch
+				if batchFileDeleteCounter[f.batchID] == f.count {
+					err = updateExportBatchStatus(ctx, tx, f.batchID, model.ExportBatchDeleted)
+					if err != nil {
+						return fmt.Errorf("updating ExportBatch: %v", err)
+					}
+
+					logger.Infof("Deleted filename %v", f.filename)
+					count++
+				}
+
+				if err = rows.Err(); err != nil {
+					return fmt.Errorf("fetching export files: %v", err)
+				}
 			}
 
 			logger.Infof("Deleted filename %v", f.filename)
