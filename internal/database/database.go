@@ -1,0 +1,48 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package database
+
+import (
+	"context"
+	"fmt"
+
+	pgx "github.com/jackc/pgx/v4"
+)
+
+// inTx runs the given function f within a transaction with isolation level isoLevel.
+func (db *DB) inTx(ctx context.Context, isoLevel pgx.TxIsoLevel, f func(tx pgx.Tx) error) error {
+	conn, err := db.pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("acquiring connection: %v", err)
+	}
+	defer conn.Release()
+
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: isoLevel})
+	if err != nil {
+		return fmt.Errorf("starting transaction: %v", err)
+	}
+
+	if err := f(tx); err != nil {
+		if err1 := tx.Rollback(ctx); err1 != nil {
+			return fmt.Errorf("rolling back transaction: %v (original error: %v)", err1, err)
+		}
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("committing transaction: %v", err)
+	}
+	return nil
+}
