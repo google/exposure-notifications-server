@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	maxBodyBytes = 64000
+	maxBodyBytes = 64_000
 )
 
 // Unmarshal provides a common implementation of JSON unmarshalling with well defined error handling.
