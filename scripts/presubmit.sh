@@ -44,4 +44,7 @@ echo "🚧 Compile"
 go build ./...
 
 echo "🧪 Test"
-go test ./... -cover
+go test ./... -coverprofile=coverage.out
+
+echo "🧑‍🔬 Test Coverage"
+go tool cover -func cover.out | grep total | awk '{print $NF}'             
