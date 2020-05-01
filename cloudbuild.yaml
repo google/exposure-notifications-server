@@ -3,10 +3,12 @@ options:
   - 'KO_DOCKER_REPO=us.gcr.io/${PROJECT_ID}'
   - 'DOCKER_REPO_OVERRIDE=us.gcr.io/${PROJECT_ID}'
 steps:
+# Tests
 - name: 'mirror.gcr.io/library/golang'
   env:
   - GO111MODULE=on
   args: ['go', 'test', './...']
+# Build and publish containers`
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
@@ -22,6 +24,7 @@ steps:
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
+  - -P
   - ./cmd/infection
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
@@ -31,3 +34,19 @@ steps:
   args:
   - publish
   - ./cmd/wipeout-infection
+# Deploy to Cloud Run.
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  # `--platform managed` and `--no-traffic` only works in `alpha`
+  - 'alpha'
+  - 'run'
+  - 'deploy'
+  - 'infection'
+  - '--image'
+  - 'us.gcr.io/$PROJECT_ID/infection:latest'
+  - '--region'
+  - 'us-central1'
+  - '--platform'
+  - 'managed'
+  - '--update-labels=env=staging'
+  - '--no-traffic'
