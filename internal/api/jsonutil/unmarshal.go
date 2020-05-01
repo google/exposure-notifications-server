@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+// Package jsonutil provides common utilities for properly handling JSON payloads in HTPT body.
+package jsonutil
 
 import (
 	"encoding/json"
@@ -23,16 +24,18 @@ import (
 	"strings"
 )
 
-func unmarshal(w http.ResponseWriter, r *http.Request, data interface{}) (error, int) {
+const (
+	maxBodyBytes = 64000
+)
+
+// Unmarshal provides a common implementation of JSON unmarshalling with well defined error handling.
+func Unmarshal(w http.ResponseWriter, r *http.Request, data interface{}) (int, error) {
 	if t := r.Header.Get("Content-type"); t != "application/json" {
-		return fmt.Errorf("content-type is not application/json"), http.StatusUnsupportedMediaType
+		return http.StatusUnsupportedMediaType, fmt.Errorf("content-type is not application/json")
 	}
 
 	defer r.Body.Close()
-	// TODO - Max Size may need to be adjusted. Starting with 64K
-	// Publish API only needs about 1K
-	// leaving room for safetyNet attestation payloads.
-	r.Body = http.MaxBytesReader(w, r.Body, 64000)
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 
 	d := json.NewDecoder(r.Body)
 	d.DisallowUnknownFields()
@@ -42,25 +45,25 @@ func unmarshal(w http.ResponseWriter, r *http.Request, data interface{}) (error,
 		var unmarshalError *json.UnmarshalTypeError
 		switch {
 		case errors.As(err, &syntaxErr):
-			return fmt.Errorf("malformed json at position %v", syntaxErr.Offset), http.StatusBadRequest
+			return http.StatusBadRequest, fmt.Errorf("malformed json at position %v", syntaxErr.Offset)
 		case errors.Is(err, io.ErrUnexpectedEOF):
-			return fmt.Errorf("malformed json"), http.StatusBadRequest
+			return http.StatusBadRequest, fmt.Errorf("malformed json")
 		case errors.As(err, &unmarshalError):
-			return fmt.Errorf("invalid value %v at position %v", unmarshalError.Field, unmarshalError.Offset), http.StatusBadRequest
+			return http.StatusBadRequest, fmt.Errorf("invalid value %v at position %v", unmarshalError.Field, unmarshalError.Offset)
 		case strings.HasPrefix(err.Error(), "json: unknown field"):
 			fieldName := strings.TrimPrefix(err.Error(), "json: unknown field ")
-			return fmt.Errorf("unknown field %s", fieldName), http.StatusBadRequest
+			return http.StatusBadRequest, fmt.Errorf("unknown field %s", fieldName)
 		case errors.Is(err, io.EOF):
-			return fmt.Errorf("body must not be empty"), http.StatusBadRequest
+			return http.StatusBadRequest, fmt.Errorf("body must not be empty")
 		case err.Error() == "http: request body too large":
-			return err, http.StatusRequestEntityTooLarge
+			return http.StatusRequestEntityTooLarge, err
 		default:
-			return fmt.Errorf("failed to decode json %v", err), http.StatusInternalServerError
+			return http.StatusInternalServerError, fmt.Errorf("failed to decode json %v", err)
 		}
 	}
 	if d.More() {
-		return fmt.Errorf("body must contain only one JSON object"), http.StatusBadRequest
+		return http.StatusBadRequest, fmt.Errorf("body must contain only one JSON object")
 	}
 
-	return nil, http.StatusOK
+	return http.StatusOK, nil
 }

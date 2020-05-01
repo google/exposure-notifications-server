@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package api defines the structures for the infection publishing API.
-package api
+// Package publish defines the exposure keys publishing API.
+package publish
 
 import (
 	"net/http"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/config"
+	"github.com/google/exposure-notifications-server/internal/api/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/verification"
 )
 
-// NewPublishHandler creates the HTTP handler for the TTK publishing API.
-func NewPublishHandler(db *database.DB, cfg *config.Config) http.Handler {
+// NewHandler creates the HTTP handler for the TTK publishing API.
+func NewHandler(db *database.DB, cfg *config.Config) http.Handler {
 	return &publishHandler{
 		config: cfg,
 		db:     db,
@@ -44,7 +45,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := logging.FromContext(ctx)
 
 	var data model.Publish
-	err, code := unmarshal(w, r, &data)
+	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		logger.Errorf("error unmarhsaling API call, code: %v: %v", code, err)
 		// Log but don't return internal decode error message reason.

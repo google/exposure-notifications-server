@@ -21,8 +21,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/google/exposure-notifications-server/internal/api"
 	"github.com/google/exposure-notifications-server/internal/api/config"
+	"github.com/google/exposure-notifications-server/internal/api/publish"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -41,7 +41,7 @@ func main() {
 	cfg := config.New(db)
 	env := serverenv.New(ctx)
 
-	http.Handle("/", api.NewPublishHandler(db, cfg))
+	http.Handle("/", publish.NewHandler(db, cfg))
 	logger.Info("starting infection server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }
