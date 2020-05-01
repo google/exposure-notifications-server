@@ -194,49 +194,6 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 	return nil
 }
 
-// AddExportFile adds a new export file entry for the given ExportFile.
-func (db *DB) AddExportFile(ctx context.Context, ef *model.ExportFile) error {
-	err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `
-			INSERT INTO
-				ExportFile
-				(filename, batch_id, region, batch_num, batch_size, status)
-			VALUES
-				($1, $2, $3, $4, $5, $6)
-		`, ef.Filename, ef.BatchID, ef.Region, ef.BatchNum, ef.BatchSize, ef.Status)
-		if err != nil {
-			return fmt.Errorf("inserting to ExportFile: %v", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// UpdateExportFile updates batchsize and status for the rows correcponding to the files passed in.
-func (db *DB) UpdateExportFile(ctx context.Context, filename, status string, batchCount int) error {
-	err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `
-			UPDATE
-				ExportFile
-			SET
-				status = $1, batch_size = $2,
-			WHERE
-				filename = $3
-		`, status, batchCount, filename)
-		if err != nil {
-			return fmt.Errorf("updating ExportFile: %v", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // LeaseBatch returns a leased ExportBatch for the worker to process. If no work to do, nil will be returned.
 func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) (*model.ExportBatch, error) {
 	// Get a set of candidate batchIDs.
@@ -378,19 +335,21 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 	return &eb, nil
 }
 
-// CompleteBatch marks a batch as completed.
-func (db *DB) CompleteBatch(ctx context.Context, batchID int64) error {
-	err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
-		batch, err := lookupExportBatch(ctx, batchID, tx.QueryRow)
-		if err != nil {
-			return err
+// completeBatch marks a batch as completed.
+func completeBatch(ctx context.Context, tx pgx.Tx, batchID int64) (err error) {
+	batch, err := lookupExportBatch(ctx, batchID, tx.QueryRow)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return ErrNotFound
 		}
+		return err
+	}
 
-		if batch.Status == model.ExportBatchComplete {
-			return fmt.Errorf("batch %d is already marked completed", batchID)
-		}
+	if batch.Status == model.ExportBatchComplete {
+		return fmt.Errorf("batch %d is already marked completed", batchID)
+	}
 
-		_, err = tx.Exec(ctx, `
+	_, err = tx.Exec(ctx, `
 			UPDATE
 				ExportBatch
 			SET
@@ -398,11 +357,6 @@ func (db *DB) CompleteBatch(ctx context.Context, batchID int64) error {
 			WHERE
 				batch_id = $2
 		`, model.ExportBatchComplete, batchID)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
 	if err != nil {
 		return err
 	}
@@ -419,9 +373,37 @@ func shuffle(vals []int64) []int64 {
 	return ret
 }
 
+func (db *DB) CompleteFileAndBatch(ctx context.Context, files []string, batchID int64, batchCount int) error {
+	err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		// Update ExportFile for the files created.
+		for _, file := range files {
+			ef := model.ExportFile{
+				Filename: file,
+				BatchID:  batchID,
+				Region:   "", // TODO(lmohanan) figure out where region comes from.
+				BatchNum: batchCount,
+				Status:   model.ExportBatchComplete,
+			}
+			if err := addExportFile(ctx, tx, &ef); err != nil {
+				return fmt.Errorf("adding export file entry: %v", err)
+			}
+		}
+
+		// Update ExportFile for the batch to mark it complete.
+		if err := completeBatch(ctx, tx, batchID); err != nil {
+			return fmt.Errorf("marking batch %v complete: %v", batchID, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 type joinedExportBatchFile struct {
 	filename    string
-	batchID     int
+	batchID     int64
 	count       int
 	fileStatus  string
 	batchStatus string
@@ -452,7 +434,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 		}
 		defer rows.Close()
 
-		batchFileDeleteCounter := make(map[int]int)
+		batchFileDeleteCounter := make(map[int64]int)
 		for rows.Next() {
 			var f joinedExportBatchFile
 			if err := rows.Scan(&f.batchID, &f.batchStatus, &f.filename, &f.count, &f.fileStatus); err != nil {
@@ -477,7 +459,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 
 			// If batch completely deleted, update in ExportBatch
 			if batchFileDeleteCounter[f.batchID] == f.count {
-				if err := updateExportBatchStatus(ctx, tx, f.filename, model.ExportBatchDeleted); err != nil {
+				if err := updateExportBatchStatus(ctx, tx, f.batchID, model.ExportBatchDeleted); err != nil {
 					return fmt.Errorf("updating ExportBatch: %v", err)
 				}
 			}
@@ -496,7 +478,20 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 		return 0, err
 	}
 	return count, nil
+}
 
+func addExportFile(ctx context.Context, tx pgx.Tx, ef *model.ExportFile) error {
+	_, err := tx.Exec(ctx, `
+		INSERT INTO 
+			ExportFile
+		    (filename, batch_id, region, batch_num, batch_size, status)
+		VALUES
+			($1, $2, $3, $4, $5, $6)
+		`, ef.Filename, ef.BatchID, ef.Region, ef.BatchNum, ef.BatchSize, ef.Status)
+	if err != nil {
+		return fmt.Errorf("inserting to ExportFile: %v", err)
+	}
+	return nil
 }
 
 func updateExportFileStatus(ctx context.Context, tx pgx.Tx, filename, status string) error {
@@ -513,7 +508,7 @@ func updateExportFileStatus(ctx context.Context, tx pgx.Tx, filename, status str
 	return nil
 }
 
-func updateExportBatchStatus(ctx context.Context, tx pgx.Tx, batchID string, status string) error {
+func updateExportBatchStatus(ctx context.Context, tx pgx.Tx, batchID int64, status string) error {
 	_, err := tx.Exec(ctx, `
 		UPDATE ExportBatch
 		SET
