@@ -31,3 +31,8 @@ Server here:
 * [Deployment Guide](docs/deploying)
 * [User Guide](docs/user-guide)
 * [Reference Documentation](https://godoc.org/github.com/google/exposure-notifications-server)
+
+## Contributing to this project
+
+Contributions to this project are welcomed. For more information about
+contributing to this project, see the [contribution guidelines](CONTRIBUTING)

@@ -1,4 +1,4 @@
-# Exposure Server Components
+# Exposure Server Components - contribution guidelines
 
 Contributions to this project are welcomed. We request that you
 read through the guidelines before getting started.
@@ -106,30 +106,40 @@ source scripts/setup_env.sh
 go run ./cmd/[bin-name]
 ```
 
-## Building / publishing images
+## Building and deploying servers
 
-1. Install ko
+To build and deploy a server, you will need to install the `ko` container
+builder tool and the [Google Cloud SDK](https://cloud.google.com/sdk/).
 
-```
-GO111MODULE=on go get github.com/google/ko/cmd/ko
-```
+1. Download and install the [Google Cloud SDK](https://cloud.google.com/sdk/install).
+For more information on installation and set up, see the
+[Cloud SDK Quickstarts](https://cloud.google.com/sdk/docs/quickstarts).
 
-2. Configure ko
+1. Install the `ko` container builder and deployment tool:
 
-```
-source setup_ko.sh
-```
+    ```
+    GO111MODULE=on
+    go get github.com/google/ko/cmd/ko
+    ```
 
-3. Generate GCR docker config
+1. Configure the `ko` tool using the `setup_ko.sh` configuration file in this
+   repository:
 
-```
-gcloud auth configure-docker
-```
+    ```
+    source setup_ko.sh
+    ```
 
-4. Build and publish the desired container
+1. Generate a [Google Cloud Repository](https://cloud.google.com/container-registry)
+   Docker configuration:
 
-For example, to publish the infection server.
+    ```
+    gcloud auth configure-docker
+    ```
 
-```
-ko publish ./cmd/infection
-```
+1. Build and deploy the container using the `ko publish` command.
+
+    For example, to deploy the infection server:
+
+    ```
+    ko publish ./cmd/infection
+    ```
