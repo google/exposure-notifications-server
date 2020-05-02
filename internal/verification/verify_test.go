@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
 
 const (
@@ -26,11 +27,11 @@ const (
 )
 
 func TestVerifyRegions(t *testing.T) {
-	allRegions := &model.APIConfig{
+	allRegions := &apiconfig.APIConfig{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
 	}
-	usCaRegions := &model.APIConfig{
+	usCaRegions := &apiconfig.APIConfig{
 		AppPackageName: appPkgName,
 		AllowedRegions: make(map[string]bool),
 	}
@@ -40,7 +41,7 @@ func TestVerifyRegions(t *testing.T) {
 	cases := []struct {
 		Data model.Publish
 		Msg  string
-		Cfg  *model.APIConfig
+		Cfg  *apiconfig.APIConfig
 	}{
 		{
 			model.Publish{Regions: []string{"US"}},

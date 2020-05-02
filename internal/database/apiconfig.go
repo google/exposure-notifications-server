@@ -19,10 +19,10 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
 
-func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
+func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
@@ -42,14 +42,14 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
 	defer rows.Close()
 
 	// In most instances, we expect a single config entry.
-	var result []*model.APIConfig
+	var result []*apiconfig.APIConfig
 	for rows.Next() {
 		if err := rows.Err(); err != nil {
 			return nil, fmt.Errorf("iterating rows: %v", err)
 		}
 
 		var regions []string
-		config := model.NewAPIConfig()
+		config := apiconfig.New()
 		var apkDigest sql.NullString
 		if err := rows.Scan(&config.AppPackageName, &config.Platform, &apkDigest,
 			&config.EnforceApkDigest, &config.CTSProfileMatch, &config.BasicIntegrity, &config.MaxAgeSeconds,
