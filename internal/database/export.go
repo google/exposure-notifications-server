@@ -114,6 +114,10 @@ func (i *postgresExportConfigIterator) Next() (*model.ExportConfig, bool, error)
 		return nil, true, nil
 	}
 
+	if err := i.rows.Err(); err != nil {
+		return nil, false, fmt.Errorf("iterating rows: %v", err)
+	}
+
 	var m model.ExportConfig
 	var periodSeconds int
 	var thru *time.Time
@@ -207,7 +211,6 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 
 		// Query for batches that are OPEN or PENDING with expired lease. Also, only return batches with end timestamp
 		// in the past (i.e., the batch is complete).
-		// TODO(jasonco): Should we wait even a bit longer to allow the batch to be completely full?
 		rows, err := conn.Query(ctx, `
 			SELECT
 				batch_id
@@ -228,6 +231,10 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 		}
 
 		for rows.Next() {
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("iterating rows: %v", err)
+			}
+
 			var id int64
 			if err := rows.Scan(&id); err != nil {
 				return err
@@ -248,7 +255,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 	openBatchIDs = shuffle(openBatchIDs)
 
 	for _, bid := range openBatchIDs {
-		// In a serialized transaction, fetch the existing batch and make sure it can be reserved, then reserve it.
+		// In a serialized transaction, fetch the existing batch and make sure it can be leased, then lease it.
 		leased := false
 		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 
@@ -268,11 +275,13 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 			}
 
 			if status == model.ExportBatchComplete || (expires != nil && status == model.ExportBatchPending && now.Before(*expires)) {
+				// Something beat us to this batch, it's no longer available.
 				return nil
 			}
 
 			_, err = tx.Exec(ctx, `
-				UPDATE ExportBatch
+				UPDATE
+					ExportBatch
 				SET
 					status = $1, lease_expires = $2
 				WHERE
@@ -297,6 +306,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 			return eb, nil
 		}
 	}
+	// We didn't manage to lease any of the candidates, so return no work to be done (nil).
 	return nil, nil
 }
 
@@ -333,41 +343,6 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 		eb.LeaseExpires = *expires
 	}
 	return &eb, nil
-}
-
-// CompleteBatch marks a batch as completed.
-func completeBatch(ctx context.Context, tx pgx.Tx, batchID int64) error {
-	batch, err := lookupExportBatch(ctx, batchID, tx.QueryRow)
-	if err != nil {
-		return err
-	}
-
-	if batch.Status == model.ExportBatchComplete {
-		return fmt.Errorf("batch %d is already marked completed", batchID)
-	}
-
-	_, err = tx.Exec(ctx, `
-		UPDATE
-			ExportBatch
-		SET
-			status = $1, lease_expires = NULL
-		WHERE
-			batch_id = $2
-		`, model.ExportBatchComplete, batchID)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func shuffle(vals []int64) []int64 {
-	r := rand.New(rand.NewSource(time.Now().Unix()))
-	ret := make([]int64, len(vals))
-	perm := r.Perm(len(vals))
-	for i, randIndex := range perm {
-		ret[i] = vals[randIndex]
-	}
-	return ret
 }
 
 func (db *DB) CompleteFileAndBatch(ctx context.Context, files []string, batchID int64, batchCount int) error {
@@ -468,7 +443,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 			continue
 		}
 
-		// Attempt to delete file.
+		// Delete stored file.
 		if err := storage.DeleteObject(ctx, bucket, f.filename); err != nil {
 			return 0, fmt.Errorf("delete object: %v", err)
 		}
@@ -540,4 +515,40 @@ func updateExportBatchStatus(ctx context.Context, tx pgx.Tx, batchID int64, stat
 		return fmt.Errorf("updating ExportBatch: %v", err)
 	}
 	return nil
+}
+
+// completeBatch marks a batch as completed.
+func completeBatch(ctx context.Context, tx pgx.Tx, batchID int64) error {
+	batch, err := lookupExportBatch(ctx, batchID, tx.QueryRow)
+	if err != nil {
+		return err
+	}
+
+	if batch.Status == model.ExportBatchComplete {
+		// Batch is already completed.
+		return nil
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE
+			ExportBatch
+		SET
+			status = $1, lease_expires = NULL
+		WHERE
+			batch_id = $2
+		`, model.ExportBatchComplete, batchID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func shuffle(vals []int64) []int64 {
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+	ret := make([]int64, len(vals))
+	perm := r.Perm(len(vals))
+	for i, randIndex := range perm {
+		ret[i] = vals[randIndex]
+	}
+	return ret
 }
