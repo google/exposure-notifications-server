@@ -14,10 +14,8 @@
 package storage
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -35,9 +33,8 @@ func CreateObject(ctx context.Context, bucket, objectName string, contents []byt
 	defer cancel()
 
 	wc := client.Bucket(bucket).Object(objectName).NewWriter(ctx)
-	r := bytes.NewReader(contents)
-	if _, err = io.Copy(wc, r); err != nil {
-		return fmt.Errorf("io.Copy: %v", err)
+	if _, err = wc.Write(contents); err != nil {
+		return fmt.Errorf("storage.Writer.Write: %v", err)
 	}
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("storage.Writer.Close: %v", err)
