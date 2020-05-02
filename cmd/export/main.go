@@ -50,17 +50,8 @@ func main() {
 	defer db.Close(ctx)
 
 	bsc := api.BatchServerConfig{}
-	createBatchesTimeout := defaultTimeout
-	if timeoutStr := os.Getenv(createBatchesTimeoutEnvVar); timeoutStr != "" {
-		var err error
-		createBatchesTimeout, err = time.ParseDuration(timeoutStr)
-		if err != nil {
-			logger.Warnf("Failed to parse $%s value %q, using default.", createBatchesTimeoutEnvVar, timeoutStr)
-			createBatchesTimeout = defaultTimeout
-		}
-	}
-	logger.Infof("Using create batches timeout %v (override with $%s)", createBatchesTimeout, createBatchesTimeoutEnvVar)
-	bsc.CreateTimeout = createBatchesTimeout
+	bsc.CreateTimeout = serverenv.ParseDuration(ctx, createBatchesTimeoutEnvVar, defaultTimeout)
+	logger.Infof("Using create batches timeout %v (override with $%s)", bsc.CreateTimeout, createBatchesTimeoutEnvVar)
 
 	bsc.MaxRecords, err = strconv.Atoi(os.Getenv(maxRecordsEnvVar))
 	if err != nil {
