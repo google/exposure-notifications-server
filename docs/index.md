@@ -27,7 +27,7 @@ The server is responsible for the following functions:
 You can read tutorials on deploying and using the reference Exposure Notification
 Server here:
 
-* [Deployment guide](deploying)
-* [User guide](user-guide)
-* [Contributor guide](/CONTRIBUTING)
+* [Deployment guide](deploying.md)
+* [User guide](user-guide.md)
+* [Contributor guide](/CONTRIBUTING.md)
 * [Reference documentation](https://godoc.org/github.com/google/exposure-notifications-server)

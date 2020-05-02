@@ -10,12 +10,12 @@ Each service's `main` package is located in the `cmd` directory.
 
 | Service | Folder                | Description |
 |---------|-----------------------|-------------|
-| infection export  | cmd/export | Publishes infection keys |
+| exposure key export  | cmd/export | Publishes exposure keys |
 | federation | cmd/federation | gRPC federation requests listener |
 | federation puller | cmd/federation-pull | Pulls federation results from federation partners |
 | infection server | cmd/infection |  Stores infection keys |
-| export wipeout | cmd/wipeout-export | Deletes old infection keys |
-| wipeout server | cmd/wipeout-infection | Deletes old infection keys |
+| exposure wipeout | cmd/wipeout-export | Deletes old exposure keys |
+| infection wipeout | cmd/wipeout-infection | Deletes old infection keys |
 
 ## Building and deploying servers
 
