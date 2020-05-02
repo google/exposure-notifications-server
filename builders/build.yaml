@@ -12,14 +12,17 @@ steps:
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
+  - -P
   - ./cmd/export
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
+  - -P
   - ./cmd/federation-pull
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
+  - -P
   - ./cmd/federation
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
@@ -29,18 +32,10 @@ steps:
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
+  - -P
   - ./cmd/wipeout-export
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
+  - -P
   - ./cmd/wipeout-exposure
-# Deploy to Cloud Run.
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
-  - '-c'
-  # `--platform managed` and `--no-traffic` only works in `alpha`
-  - |
-    gcloud alpha run deploy exposure --image \
-      us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/exposure:latest --region us-central1 \
-      --platform managed --update-labels=env=staging --no-traffic
