@@ -23,7 +23,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/api"
+	"github.com/google/exposure-notifications-server/internal/api/wipeout"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -55,7 +55,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	http.Handle("/", api.NewInfectionWipeoutHandler(db, timeout))
+	http.Handle("/", wipeout.NewInfectionHandler(db, timeout))
 	logger.Info("starting wipeout server")
 	env := serverenv.New(ctx)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))

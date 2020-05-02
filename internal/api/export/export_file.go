@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package api defines the structures for the infection publishing API.
-package api
+package export
 
 import (
 	"bytes"
