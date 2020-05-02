@@ -1,0 +1,43 @@
+# This is a comment.
+# Each line is a file pattern followed by one or more owners.
+
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# @global-owner1 and @global-owner2 will be requested for
+# review when someone opens a pull request.
+*       @crwilcox @mikehelmick
+
+# Order is important; the last matching pattern takes the most
+# precedence.
+
+# /cmd/
+/cmd/export @gurayAlsac
+/cmd/federation/ @squee1945
+/cmd/federation-pull @squee1945
+/cmd/infection @mikehelmick
+/cmd/wipeout-export @lakshmy88
+/cmd/wipeout-infection @lakshmy88
+ 
+
+/docs/ @llatif @crwilcox
+
+# /inernal/
+# /internal/android/
+# /internal/api/
+# /internal/database/
+# /internal/flag/
+# /internal/logging/
+# /internal/model/
+# /internal/pb/
+# /internal/serverenv/
+# /internal/storage/
+# /internal/verification/
+
+# /scripts/
+
+# /tools/
+# /tools/export-config/
+# /tools/federation-query/
+# /tools/fedaration-test/
+# /tools/hexconvert/
+# /tools/infection-client/
