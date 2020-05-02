@@ -27,7 +27,7 @@ type FederationQuery struct {
 }
 
 type FederationSync struct {
-	SyncID       string    `db:"sync_id"`
+	SyncID       int64     `db:"sync_id"`
 	QueryID      string    `db:"query_id"`
 	Started      time.Time `db:"started"`
 	Completed    time.Time `db:"completed"`
