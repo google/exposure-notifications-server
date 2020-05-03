@@ -53,7 +53,13 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := h.config.AppPkgConfig(ctx, data.AppPackageName)
+	cfg, err := h.config.AppPkgConfig(ctx, data.AppPackageName)
+	if err != nil {
+		// This will exit the server. Without a valid config, we cannot process
+		// requests.
+		// TODO(mikehelmick) stable fallbacks
+		logger.Fatalf("error loading APIConfig: %v", err)
+	}
 	if cfg == nil {
 		// configs were loaded, but the request app isn't configured.
 		logger.Errorf("unauthorized applicaiton: %v", data.AppPackageName)

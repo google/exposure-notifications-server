@@ -63,24 +63,21 @@ func New(db *database.DB) *Config {
 	return cfg
 }
 
-func (c *Config) loadConfig(ctx context.Context) {
+func (c *Config) loadConfig(ctx context.Context) error {
 	// In case multiple requests notice expiration simultaneously, only do it once.
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	// if the cache isn't expired, don't reload.
 	if time.Since(c.lastLoadTime) < c.refreshPeriod {
-		return
+		return nil
 	}
 
 	logger := logging.FromContext(ctx)
 
 	configs, err := c.db.ReadAPIConfigs(ctx)
 	if err != nil {
-		// This will exit the server. Without a valid config, we cannot process
-		// requests.
-		// TODO(mikehelmick) stable fallbacks
-		logger.Fatalf("error loading APIConfig: %v", err)
+		return err
 	}
 
 	c.cache = make(map[string]*model.APIConfig)
@@ -89,10 +86,13 @@ func (c *Config) loadConfig(ctx context.Context) {
 	}
 	logger.Info("loaded new APIConfig values")
 	c.lastLoadTime = time.Now()
+	return nil
 }
 
-func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) *model.APIConfig {
-	c.loadConfig(ctx)
+func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) (*model.APIConfig, error) {
+	if err := c.loadConfig(ctx); err != nil {
+		return nil, err
+	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -101,7 +101,7 @@ func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) *model.APIConf
 	if !ok {
 		logger := logging.FromContext(ctx)
 		logger.Errorf("requested config for unconfigured app: %v", appPkg)
-		return nil
+		return nil, nil
 	}
-	return cfg
+	return cfg, nil
 }
