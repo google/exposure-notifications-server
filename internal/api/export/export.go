@@ -17,6 +17,7 @@ package export
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -63,7 +64,7 @@ func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Reques
 	lock := "create_batches"
 	unlockFn, err := s.db.Lock(ctx, lock, s.bsc.CreateTimeout) // TODO(jasonco): double this?
 	if err != nil {
-		if err == database.ErrAlreadyLocked {
+		if errors.Is(err, database.ErrAlreadyLocked) {
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
 			logger.Infof(msg)
 			w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.

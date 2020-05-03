@@ -72,7 +72,7 @@ func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) 
 	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		existing := true
 		if _, err := getFederationQuery(ctx, q.QueryID, tx.QueryRow); err != nil {
-			if err == ErrNotFound {
+			if errors.Is(err, ErrNotFound) {
 				existing = false
 			} else {
 				return fmt.Errorf("getting existing federation query %s: %v", q.QueryID, err)
