@@ -62,7 +62,7 @@ Each service's `main` package is located in the `cmd` directory.
 
 | Service | Folder                | Description |
 |---------|-----------------------|-------------|
-| exposure key export  | cmd/export | Publishes exposure keys |
+| exposure key server  | cmd/export | Publishes exposure keys |
 | federation | cmd/federation | gRPC federation requests listener |
 | federation puller | cmd/federation-pull | Pulls federation results from federation partners |
 | infection server | cmd/infection |  Stores infection keys |
