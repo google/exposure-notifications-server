@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/api"
+	"github.com/google/exposure-notifications-server/internal/api/export"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -36,7 +36,7 @@ const (
 	bucketEnvVar               = "EXPORT_BUCKET"
 	tmpBucketEnvVar            = "TMP_EXPORT_BUCKET"
 	maxRecordsEnvVar           = "EXPORT_FILE_MAX_RECORDS"
-	defaultMaxRecords          = 30000
+	defaultMaxRecords          = 30_000
 )
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	bsc := api.BatchServerConfig{}
+	bsc := export.BatchServerConfig{}
 	bsc.CreateTimeout = serverenv.ParseDuration(ctx, createBatchesTimeoutEnvVar, defaultTimeout)
 	logger.Infof("Using create batches timeout %v (override with $%s)", bsc.CreateTimeout, createBatchesTimeoutEnvVar)
 
@@ -62,9 +62,9 @@ func main() {
 	bsc.Bucket = os.Getenv(bucketEnvVar)
 
 	// TODO(guray): remove or gate the /test handler
-	http.Handle("/test", api.NewTestExportHandler(db))
+	http.Handle("/test", export.NewTestExportHandler(db))
 
-	batchServer := api.NewBatchServer(db, bsc)
+	batchServer := export.NewBatchServer(db, bsc)
 	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
 	http.HandleFunc("/create-files", batchServer.CreateFilesHandler)     // worker that executes work
 

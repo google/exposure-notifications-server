@@ -24,7 +24,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/google/exposure-notifications-server/internal/api"
+	"github.com/google/exposure-notifications-server/internal/api/federation"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/pb"
@@ -54,7 +54,7 @@ func main() {
 	logger.Infof("gRPC endpoint [%s]", grpcEndpoint)
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterFederationServer(grpcServer, api.NewFederationServer(db, timeout))
+	pb.RegisterFederationServer(grpcServer, federation.NewServer(db, timeout))
 
 	listen, err := net.Listen("tcp", grpcEndpoint)
 	if err != nil {

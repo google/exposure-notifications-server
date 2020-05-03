@@ -100,6 +100,10 @@ func (i *postgresInfectionIterator) Next() (*model.Infection, bool, error) {
 		return nil, true, nil
 	}
 
+	if err := i.rows.Err(); err != nil {
+		return nil, false, fmt.Errorf("iterating rows: %v", err)
+	}
+
 	var m model.Infection
 	var encodedExposureKey string
 	if err := i.rows.Scan(&encodedExposureKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,

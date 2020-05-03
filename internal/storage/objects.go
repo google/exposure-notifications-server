@@ -11,13 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package storage is an interface over Google Cloud Storage.
 package storage
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -35,9 +35,8 @@ func CreateObject(ctx context.Context, bucket, objectName string, contents []byt
 	defer cancel()
 
 	wc := client.Bucket(bucket).Object(objectName).NewWriter(ctx)
-	r := bytes.NewReader(contents)
-	if _, err = io.Copy(wc, r); err != nil {
-		return fmt.Errorf("io.Copy: %v", err)
+	if _, err = wc.Write(contents); err != nil {
+		return fmt.Errorf("storage.Writer.Write: %v", err)
 	}
 	if err := wc.Close(); err != nil {
 		return fmt.Errorf("storage.Writer.Close: %v", err)
@@ -56,8 +55,11 @@ func DeleteObject(ctx context.Context, bucket, objectName string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
 	defer cancel()
 
-	err = client.Bucket(bucket).Object(objectName).Delete(ctx)
-	if err != nil {
+	if err := client.Bucket(bucket).Object(objectName).Delete(ctx); err != nil {
+		if err == storage.ErrObjectNotExist {
+			// Object doesn't exist; presumably already deleted.
+			return nil
+		}
 		return fmt.Errorf("storage.DeleteObject: %v", err)
 	}
 	return nil

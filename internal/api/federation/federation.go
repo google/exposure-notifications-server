@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+// Package federation provides the server for other installations to pull
+// sharable data from this server.
+package federation
 
 import (
 	"context"
@@ -33,8 +35,8 @@ import (
 // type collator map[string]diagKeys
 type fetchIterator func(context.Context, database.IterateInfectionsCriteria) (database.InfectionIterator, error)
 
-// NewFederationServer builds a new FederationServer.
-func NewFederationServer(db *database.DB, timeout time.Duration) pb.FederationServer {
+// NewServer builds a new FederationServer.
+func NewServer(db *database.DB, timeout time.Duration) pb.FederationServer {
 	return &federationServer{db: db, timeout: timeout}
 }
 

@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+// Package wipeout implements the API handlers for running data deletion jobs.
+package wipeout
 
 import (
 	"context"
@@ -31,7 +32,9 @@ const (
 	minCutoffDuration = "10d"
 )
 
-func NewInfectionWipeoutHandler(db *database.DB, timeout time.Duration) http.Handler {
+// NewInfectionHandler creates a http.Handler for deleting exposure keys
+// from the database.
+func NewInfectionHandler(db *database.DB, timeout time.Duration) http.Handler {
 	return &infectionWipeoutHandler{
 		db:      db,
 		timeout: timeout,
@@ -70,7 +73,9 @@ func (h *infectionWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusOK)
 }
 
-func NewExportWipeoutHandler(db *database.DB, timeout time.Duration) http.Handler {
+// NewExportHandler creates a http.Handler that manages deletetion of
+// old export files that are no longer needed by clients for download.
+func NewExportHandler(db *database.DB, timeout time.Duration) http.Handler {
 	return &exportWipeoutHandler{
 		db:      db,
 		timeout: timeout,
@@ -119,14 +124,14 @@ func getCutoff(ttlVar string) (cutoff time.Time, err error) {
 	}
 
 	// Parse and Validate min ttl duration string.
-	minTtl, err := getAndValidateDuration(minCutoffDuration)
+	minTTL, err := getAndValidateDuration(minCutoffDuration)
 	if err != nil {
 		err = fmt.Errorf("min ttl const error: %v", err)
 		return cutoff, err
 	}
 
 	// Validate that TTL is sufficiently in the past.
-	if ttlDuration < minTtl {
+	if ttlDuration < minTTL {
 		err = fmt.Errorf("wipeout ttl is less than configured minumum ttl")
 		return cutoff, err
 	}
