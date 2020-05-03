@@ -9,12 +9,16 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.10.0
 	github.com/golang/protobuf v1.4.0
 	github.com/google/go-cmp v0.4.0
+	github.com/google/ko v0.4.0 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/lib/pq v1.4.0 // indirect
+<<<<<<< HEAD
 	github.com/sethvargo/go-gcpkms v0.0.0-20200417004547-e50d0c7083d9
+=======
+>>>>>>> 044f586... Ran through the deploying instructions and got stuck as my PATH didn't have the go/bin directory. Should be mentioned here so that folks unfamiliar with go are not tripped up.
 	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
 	go.uber.org/zap v1.14.1
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect
