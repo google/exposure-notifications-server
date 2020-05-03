@@ -83,26 +83,21 @@ func (db *DB) IterateInfections(ctx context.Context, criteria IterateInfectionsC
 		return nil, err
 	}
 
-	return &postgresInfectionIterator{rows: rows, offset: offset}, nil
+	return &postgresInfectionIterator{iter: &rowIterator{rows}, offset: offset}, nil
 }
 
 type postgresInfectionIterator struct {
-	rows   pgx.Rows
+	iter   *rowIterator
 	offset int
 }
 
 func (i *postgresInfectionIterator) Next() (*model.Infection, bool, error) {
-	if i.rows == nil {
-		return nil, true, nil
+	if done, err := i.iter.next(); done {
+		return nil, done, err
 	}
-
-	if !i.rows.Next() {
-		return nil, true, nil
-	}
-
 	var m model.Infection
 	var encodedExposureKey string
-	if err := i.rows.Scan(&encodedExposureKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
+	if err := i.iter.rows.Scan(&encodedExposureKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
 		&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &m.FederationSyncID); err != nil {
 		return nil, false, err
 	}
@@ -124,10 +119,7 @@ func (i *postgresInfectionIterator) Cursor() (string, error) {
 }
 
 func (i *postgresInfectionIterator) Close() error {
-	if i.rows != nil {
-		i.rows.Close()
-	}
-	return nil
+	return i.iter.close()
 }
 
 func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, error) {

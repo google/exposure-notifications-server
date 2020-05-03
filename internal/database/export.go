@@ -98,26 +98,22 @@ func (db *DB) IterateExportConfigs(ctx context.Context, now time.Time) (ExportCo
 		return nil, err
 	}
 
-	return &postgresExportConfigIterator{rows: rows}, nil
+	return &postgresExportConfigIterator{iter: &rowIterator{rows}}, nil
 }
 
 type postgresExportConfigIterator struct {
-	rows pgx.Rows
+	iter *rowIterator
 }
 
 func (i *postgresExportConfigIterator) Next() (*model.ExportConfig, bool, error) {
-	if i.rows == nil {
-		return nil, true, nil
-	}
-
-	if !i.rows.Next() {
-		return nil, true, nil
+	if done, err := i.iter.next(); done {
+		return nil, done, err
 	}
 
 	var m model.ExportConfig
 	var periodSeconds int
 	var thru *time.Time
-	if err := i.rows.Scan(&m.ConfigID, &m.FilenameRoot, &periodSeconds, &m.IncludeRegions, &m.ExcludeRegions, &m.From, &thru); err != nil {
+	if err := i.iter.rows.Scan(&m.ConfigID, &m.FilenameRoot, &periodSeconds, &m.IncludeRegions, &m.ExcludeRegions, &m.From, &thru); err != nil {
 		return nil, false, err
 	}
 	m.Period = time.Duration(periodSeconds) * time.Second
@@ -128,10 +124,7 @@ func (i *postgresExportConfigIterator) Next() (*model.ExportConfig, bool, error)
 }
 
 func (i *postgresExportConfigIterator) Close() error {
-	if i.rows != nil {
-		i.rows.Close()
-	}
-	return nil
+	return i.iter.close()
 }
 
 // LatestExportBatchEnd returns the end time of the most recent ExportBatch
