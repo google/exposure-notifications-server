@@ -8,11 +8,11 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/golang/protobuf v1.4.0
 	github.com/google/go-cmp v0.4.0
+	github.com/google/ko v0.4.0 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/lib/pq v1.4.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
 	go.uber.org/zap v1.14.1
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect
