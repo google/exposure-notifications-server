@@ -17,18 +17,18 @@ package database
 import (
 	"context"
 	"os"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
-// TestProcessEnv tests processEnv().
-func TestProcessEnv(t *testing.T) {
+func TestDBValues(t *testing.T) {
 	testCases := []struct {
 		name    string
 		configs []config
-		env     []string
-		want    string
+		env     map[string]string
+		want    map[string]string
 		wantErr bool
 	}{
 		{
@@ -46,8 +46,8 @@ func TestProcessEnv(t *testing.T) {
 			configs: []config{
 				{env: "AAA", part: "aaa", def: "", req: true},
 			},
-			env:  []string{"AAA=a_a"},
-			want: "aaa=a_a",
+			env:  map[string]string{"AAA": "a_a"},
+			want: map[string]string{"aaa": "a_a"},
 		},
 		{
 			name: "optional not required",
@@ -66,22 +66,22 @@ func TestProcessEnv(t *testing.T) {
 			configs: []config{
 				{env: "AAA", part: "aaa", def: "default"},
 			},
-			want: "aaa=default",
+			want: map[string]string{"aaa": "default"},
 		},
 		{
 			name: "valid enum",
 			configs: []config{
 				{env: "AAA", part: "aaa", def: "", valid: []string{"a1", "a2"}},
 			},
-			env:  []string{"AAA=a2"},
-			want: "aaa=a2",
+			env:  map[string]string{"AAA": "a2"},
+			want: map[string]string{"aaa": "a2"},
 		},
 		{
 			name: "invalid enum",
 			configs: []config{
 				{env: "AAA", part: "aaa", def: "", valid: []string{"a1", "a2"}},
 			},
-			env:     []string{"AAA=not-a-valid-enum"},
+			env:     map[string]string{"AAA": "not-a-valid-enum"},
 			wantErr: true,
 		},
 		{
@@ -89,15 +89,15 @@ func TestProcessEnv(t *testing.T) {
 			configs: []config{
 				{env: "AAA", part: "aaa", def: 0},
 			},
-			env:  []string{"AAA=99"},
-			want: "aaa=99",
+			env:  map[string]string{"AAA": "99"},
+			want: map[string]string{"aaa": "99"},
 		},
 		{
 			name: "invalid int",
 			configs: []config{
 				{env: "AAA", part: "aaa", def: 0},
 			},
-			env:     []string{"AAA=not-an-int"},
+			env:     map[string]string{"AAA": "not-an-int"},
 			wantErr: true,
 		},
 		{
@@ -111,22 +111,22 @@ func TestProcessEnv(t *testing.T) {
 			configs: []config{
 				{env: "AAA", part: "aaa", def: 99},
 			},
-			want: "aaa=99",
+			want: map[string]string{"aaa": "99"},
 		},
 		{
 			name: "valid duration",
 			configs: []config{
 				{env: "AAA", part: "aaa", def: time.Duration(0)},
 			},
-			env:  []string{"AAA=10s"},
-			want: "aaa=10s",
+			env:  map[string]string{"AAA": "10s"},
+			want: map[string]string{"aaa": "10s"},
 		},
 		{
 			name: "invalid duration",
 			configs: []config{
 				{env: "AAA", part: "aaa", def: time.Duration(0)},
 			},
-			env:     []string{"AAA=not-a-duration"},
+			env:     map[string]string{"AAA": "not-a-duration"},
 			wantErr: true,
 		},
 		{
@@ -134,7 +134,7 @@ func TestProcessEnv(t *testing.T) {
 			configs: []config{
 				{env: "AAA", part: "aaa", def: 5 * time.Second},
 			},
-			want: "aaa=5s",
+			want: map[string]string{"aaa": "5s"},
 		},
 		{
 			name: "no default duration",
@@ -150,8 +150,8 @@ func TestProcessEnv(t *testing.T) {
 				{env: "CCC", part: "ccc", def: time.Duration(0)},
 				{env: "DDD", part: "ddd", def: "d_d"},
 			},
-			env:     []string{"AAA=a_a", "CCC=10s"},
-			want:    "aaa=a_a ccc=10s ddd=d_d",
+			env:     map[string]string{"AAA": "a_a", "CCC": "10s"},
+			want:    map[string]string{"aaa": "a_a", "ccc": "10s", "ddd": "d_d"},
 			wantErr: false,
 		},
 	}
@@ -161,32 +161,25 @@ func TestProcessEnv(t *testing.T) {
 			ctx := context.Background()
 			setupEnv(t, tc.env)
 
-			connStr, err := processEnv(ctx, tc.configs)
+			got, err := dbValues(ctx, tc.configs, tc.env)
 
 			if err != nil != tc.wantErr {
 				t.Fatalf("processEnv got err %t, want err %t", err != nil, tc.wantErr)
 			}
-			if connStr != tc.want {
-				t.Errorf("processEnv got=%q, want=%q", connStr, tc.want)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func setupEnv(t *testing.T, env []string) {
+func setupEnv(t *testing.T, env map[string]string) {
 	t.Helper()
 
 	old := map[string]string{}
 	var clear []string
 
-	for _, e := range env {
-		parts := strings.SplitN(e, "=", 2)
-		if len(parts) != 2 {
-			t.Fatalf("Env %q is invalid, use KEY=VALUE form.", e)
-		}
-
-		key, value := parts[0], parts[1]
-
+	for key, value := range env {
 		if oldVal, ok := os.LookupEnv(key); ok {
 			old[key] = oldVal
 		} else {

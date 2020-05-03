@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -80,10 +81,15 @@ type DB struct {
 // process's environment variables. This should be called just once per server
 // instance.
 func NewFromEnv(ctx context.Context) (*DB, error) {
+	return newDB(ctx, envMap())
+}
+
+func newDB(ctx context.Context, env map[string]string) (*DB, error) {
+
 	logger := logging.FromContext(ctx)
 	logger.Infof("Creating connection pool.")
 
-	connStr, err := processEnv(ctx, configs)
+	connStr, err := dbConnectionString(ctx, configs, env)
 	if err != nil {
 		return nil, fmt.Errorf("invalid database config: %v", err)
 	}
@@ -103,12 +109,47 @@ func (db *DB) Close(ctx context.Context) {
 	db.pool.Close()
 }
 
-func processEnv(ctx context.Context, configs []config) (string, error) {
+func envMap() map[string]string {
+	m := map[string]string{}
+	for _, c := range configs {
+		m[c.env] = os.Getenv(c.env)
+	}
+	return m
+}
+
+// dbConnectionString builds a connection string suitable for the pgx Postgres driver, using the
+// values of vars.
+func dbConnectionString(ctx context.Context, configs []config, vars map[string]string) (string, error) {
+	vals, err := dbValues(ctx, configs, vars)
+	if err != nil {
+		return "", err
+	}
+	var p []string
+	for k, v := range vals {
+		p = append(p, fmt.Sprintf("%s=%s", k, v))
+	}
+	return strings.Join(p, " "), nil
+}
+
+// dbURI builds a Postgres URI suitable for the lib/pq driver, which is used by
+// github.com/golang-migrate/migrate.
+func dbURI(ctx context.Context, configs []config, vars map[string]string) (string, error) {
+	vals, err := dbValues(ctx, configs, vars)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("postgres://%s/%s?sslmode=disable&user=%s&password=%s&port=%s",
+		vals["host"], vals["dbname"], url.QueryEscape(vals["user"]),
+		url.QueryEscape(vals["password"]), url.QueryEscape(vals["port"])), nil
+}
+
+func dbValues(ctx context.Context, configs []config, vars map[string]string) (map[string]string, error) {
 	logger := logging.FromContext(ctx)
-	var e, p []string
+	var e []string
+	p := map[string]string{}
 	for _, c := range configs {
 
-		val := os.Getenv(c.env)
+		val := vars[c.env]
 		if c.req && val == "" {
 			e = append(e, fmt.Sprintf("$%s is required", c.env))
 			continue
@@ -138,7 +179,7 @@ func processEnv(ctx context.Context, configs []config) (string, error) {
 				}
 			}
 			if s != "" {
-				p = append(p, fmt.Sprintf("%s=%s", c.part, s))
+				p[c.part] = s
 			}
 
 		case int:
@@ -155,7 +196,7 @@ func processEnv(ctx context.Context, configs []config) (string, error) {
 				}
 			}
 			if i != 0 {
-				p = append(p, fmt.Sprintf("%s=%d", c.part, i))
+				p[c.part] = fmt.Sprintf("%d", i)
 			}
 
 		case time.Duration:
@@ -172,7 +213,7 @@ func processEnv(ctx context.Context, configs []config) (string, error) {
 				}
 			}
 			if d != 0 {
-				p = append(p, fmt.Sprintf("%s=%s", c.part, d))
+				p[c.part] = d.String()
 			}
 
 		default:
@@ -185,8 +226,10 @@ func processEnv(ctx context.Context, configs []config) (string, error) {
 		for _, item := range e {
 			errs += fmt.Sprintf("  - %s\n", item)
 		}
-		return "", errors.New(errs)
+		return nil, errors.New(errs)
 	}
-
-	return strings.Join(p, " "), nil
+	if len(p) == 0 {
+		p = nil
+	}
+	return p, nil
 }
