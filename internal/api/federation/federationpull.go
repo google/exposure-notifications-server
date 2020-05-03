@@ -16,6 +16,7 @@ package federation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -80,7 +81,7 @@ func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	query, err := h.db.GetFederationQuery(ctx, queryID)
 	if err != nil {
-		if err == database.ErrNotFound {
+		if errors.Is(err, database.ErrNotFound) {
 			http.Error(w, fmt.Sprintf("unknown %s", queryParam), http.StatusBadRequest)
 			return
 		}
@@ -93,7 +94,7 @@ func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	lock := "query_" + queryID
 	unlockFn, err := h.db.Lock(ctx, lock, h.timeout)
 	if err != nil {
-		if err == database.ErrAlreadyLocked {
+		if errors.Is(err, database.ErrAlreadyLocked) {
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
 			logger.Infof(msg)
 			w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.
