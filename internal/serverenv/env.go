@@ -61,7 +61,7 @@ func ParseDuration(ctx context.Context, name string, defaultValue time.Duration)
 	}
 	dur, err := time.ParseDuration(val)
 	if err != nil {
-		logging.FromContext(ctx).Warnf("Failed to parse $%s value %q, using default.", name, val)
+		logging.FromContext(ctx).Warnf("Failed to parse $%s value %q, using default %s", name, val, defaultValue)
 		return defaultValue
 	}
 	return dur
