@@ -50,14 +50,14 @@ func New(db *database.DB) *Config {
 
 	if ds := os.Getenv("CONFIG_REFRESH_DURATION"); ds != "" {
 		if d, err := time.ParseDuration(ds); err != nil {
-			logger.Info("CONFIG_REFRESH_DURATION parse error: %v", defaultRefreshPeriod)
+			logger.Infof("CONFIG_REFRESH_DURATION parse error: %v", defaultRefreshPeriod)
 		} else {
 			cfg.refreshPeriod = d
 		}
 	}
 
 	if cfg.refreshPeriod > time.Minute*5 {
-		logger.Warn("config refresh duration is > 5 minutes: %v", cfg.refreshPeriod)
+		logger.Warnf("config refresh duration is > 5 minutes: %v", cfg.refreshPeriod)
 	}
 
 	return cfg
