@@ -67,4 +67,4 @@ Each service's `main` package is located in the `cmd` directory.
 | federation puller | cmd/federation-pull | Pulls federation results from federation partners |
 | infection server | cmd/infection |  Stores infection keys |
 | exposure wipeout | cmd/wipeout-export | Deletes old exposure keys |
-| infection wipeout | cmd/wipeout-infection | Deletes old infection keys |
+| export wipeout | cmd/wipeout-infection | Deletes old exported files published by the exposure key export service |
