@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/wipeout"
@@ -38,15 +37,7 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	timeout := defaultTimeout
-	if timeoutStr := os.Getenv(timeoutEnvVar); timeoutStr != "" {
-		var err error
-		timeout, err = time.ParseDuration(timeoutStr)
-		if err != nil {
-			logger.Warnf("Failed to parse $%s value %q, using default.", timeoutEnvVar, timeoutStr)
-			timeout = defaultTimeout
-		}
-	}
+	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
 	logger.Infof("Using timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
 	db, err := database.NewFromEnv(ctx)

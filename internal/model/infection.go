@@ -60,7 +60,7 @@ type Infection struct {
 	CreatedAt                 time.Time `db:"created_at"`
 	LocalProvenance           bool      `db:"local_provenance"`
 	VerificationAuthorityName string    `db:"verification_authority_name"`
-	FederationSyncID          string    `db:"sync_id"`
+	FederationSyncID          int64     `db:"sync_id"`
 }
 
 const (

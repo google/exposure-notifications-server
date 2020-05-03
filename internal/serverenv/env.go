@@ -42,7 +42,7 @@ func New(ctx context.Context) *ServerEnv {
 	if override := os.Getenv(portEnvVar); override != "" {
 		env.port = override
 	}
-	logger.Info("using port %v (override with $%v)", env.port, portEnvVar)
+	logger.Infof("using port %v (override with $%v)", env.port, portEnvVar)
 
 	return env
 }

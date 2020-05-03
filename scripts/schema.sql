@@ -21,13 +21,12 @@ CREATE TABLE FederationQuery (
 );
 
 CREATE TABLE FederationSync (
-	sync_id VARCHAR(100) PRIMARY KEY,
-	query_id VARCHAR(50) NOT NULL,
+	sync_id SERIAL PRIMARY KEY,
+	query_id VARCHAR(50) NOT NULL REFERENCES FederationQuery (query_id),
 	started TIMESTAMP NOT NULL,
 	completed TIMESTAMP,
 	insertions INT,
-	max_timestamp TIMESTAMP,
-	FOREIGN KEY (query_id) REFERENCES FederationQuery (query_id)
+	max_timestamp TIMESTAMP
 );
 
 CREATE TABLE Infection (
@@ -40,7 +39,7 @@ CREATE TABLE Infection (
 	created_at TIMESTAMP NOT NULL,
 	local_provenance BOOLEAN NOT NULL,
 	verification_authority_name VARCHAR(100),
-	sync_id VARCHAR(100)  -- This could be a foreign key to FederationSync, but it's more difficult to handle nullable strings in Go, and it seems like unnecessary overhead.
+	sync_id INT REFERENCES FederationSync (sync_id)
 );
 
 -- ExportConfig stores a list of batches to create on an ongoing basis. The /create-batches endpoint will iterate over this
