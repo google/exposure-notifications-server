@@ -6,7 +6,6 @@ require (
 	cloud.google.com/go v0.56.0 // indirect
 	cloud.google.com/go/storage v1.6.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/golang-migrate/migrate/v4 v4.10.0 // indirect
 	github.com/golang/protobuf v1.4.0
 	github.com/google/go-cmp v0.4.0
 	github.com/google/uuid v1.1.1
