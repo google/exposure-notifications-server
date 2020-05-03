@@ -100,7 +100,11 @@ func (i *postgresInfectionIterator) Next() (*model.Infection, bool, error) {
 		return nil, true, nil
 	}
 
-	var (
+	if err := i.rows.Err(); err != nil {
+		return nil, false, fmt.Errorf("iterating rows: %v", err)
+	}
+
+  var (
 		m          model.Infection
 		encodedKey string
 		syncID     *int64
