@@ -40,7 +40,7 @@ var (
 
 type fetchFn func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
 type insertInfectionsFn func(context.Context, []*model.Infection) error
-type startFederationSyncFn func(context.Context, *model.FederationQuery, time.Time) (string, database.FinalizeSyncFn, error)
+type startFederationSyncFn func(context.Context, *model.FederationQuery, time.Time) (int64, database.FinalizeSyncFn, error)
 
 type pullDependencies struct {
 	fetch               fetchFn

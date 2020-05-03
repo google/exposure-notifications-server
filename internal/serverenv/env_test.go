@@ -12,25 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+package serverenv
 
 import (
+	"context"
+	"os"
+	"testing"
 	"time"
 )
 
-type FederationQuery struct {
-	QueryID        string    `db:"query_id"`
-	ServerAddr     string    `db:"server_addr"`
-	IncludeRegions []string  `db:"include_regions"`
-	ExcludeRegions []string  `db:"exclude_regions"`
-	LastTimestamp  time.Time `db:"last_timestamp"`
-}
-
-type FederationSync struct {
-	SyncID       int64     `db:"sync_id"`
-	QueryID      string    `db:"query_id"`
-	Started      time.Time `db:"started"`
-	Completed    time.Time `db:"completed"`
-	Insertions   int       `db:"insertions"`
-	MaxTimestamp time.Time `db:"max_timestamp"`
+func TestParseDurationEnv(t *testing.T) {
+	ctx := context.Background()
+	const varName = "PARSE_DURATION_TEST"
+	const defaultValue = 17 * time.Second
+	for _, test := range []struct {
+		val  string
+		want time.Duration
+	}{
+		{"", defaultValue},
+		{"bad", defaultValue},
+		{"250ms", 250 * time.Millisecond},
+	} {
+		os.Setenv(varName, test.val)
+		got := ParseDuration(ctx, varName, defaultValue)
+		if got != test.want {
+			t.Errorf("%q: got %v, want %v", test.val, got, test.want)
+		}
+	}
 }
