@@ -44,7 +44,8 @@ To build and deploy a service:
     gcloud auth configure-docker
     ```
 
-1. Build and deploy the container using the `ko publish` command.
+1. Build and deploy the container using the `ko publish` command from the repository's
+   root directory.
 
     For example, to deploy the exposure key server:
 
@@ -52,7 +53,7 @@ To build and deploy a service:
     ko publish ./cmd/infection
     ```
 
-For a list of services, see the table below.
+You can find a list of services and their corresponding folders below.
 
 ## List of services
 
