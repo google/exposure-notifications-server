@@ -63,14 +63,14 @@ func New(db *database.DB) *Config {
 	return cfg
 }
 
-func (c *Config) loadConfig(ctx context.Context) error {
+func (c *Config) loadConfig(ctx context.Context) {
 	// In case multiple requests notice expiration simultaneously, only do it once.
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	// if the cache isn't expired, don't reload.
 	if time.Since(c.lastLoadTime) < c.refreshPeriod {
-		return nil
+		return
 	}
 
 	logger := logging.FromContext(ctx)
@@ -81,7 +81,6 @@ func (c *Config) loadConfig(ctx context.Context) error {
 		// requests.
 		// TODO(mikehelmick) stable fallbacks
 		logger.Fatalf("error loading APIConfig: %v", err)
-		return err
 	}
 
 	c.cache = make(map[string]*model.APIConfig)
@@ -90,8 +89,6 @@ func (c *Config) loadConfig(ctx context.Context) error {
 	}
 	logger.Info("loaded new APIConfig values")
 	c.lastLoadTime = time.Now()
-
-	return nil
 }
 
 func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) *model.APIConfig {
