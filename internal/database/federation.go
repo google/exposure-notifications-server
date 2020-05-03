@@ -70,7 +70,7 @@ func getFederationQuery(ctx context.Context, queryID string, queryRow queryRowFn
 
 // AddFederationQuery adds a FederationQuery entity. It will overwrite a query with matching q.queryID if it exists.
 func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) error {
-	err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		existing := true
 		if _, err := getFederationQuery(ctx, q.QueryID, tx.QueryRow); err != nil {
 			if err == ErrNotFound {
@@ -104,10 +104,6 @@ func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) 
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // GetFederationSync returns a federation sync record for given syncID. If not found, ErrNotFound will be returned.
@@ -164,7 +160,7 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 
 	finalize := func(maxTimestamp time.Time, totalInserted int) error {
 		completed := started.Add(time.Now().UTC().Sub(startedTimer))
-		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Special case: when no keys are pulled, the maxTimestamp will be 0, so we don't update the
 			// FederationQuery in this case to prevent it from going back and fetching old keys from the past.
 			if totalInserted > 0 {
@@ -196,10 +192,6 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 			}
 			return nil
 		})
-		if err != nil {
-			return err
-		}
-		return nil
 	}
 
 	return syncID, finalize, nil

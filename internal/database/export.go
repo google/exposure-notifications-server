@@ -47,7 +47,7 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 	if !ec.Thru.IsZero() {
 		thru = &ec.Thru
 	}
-	err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				ExportConfig
@@ -62,10 +62,6 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // ExportConfigIterator iterates over a set of export configs.
@@ -111,7 +107,7 @@ func (i *postgresExportConfigIterator) Next() (*model.ExportConfig, bool, error)
 	}
 
 	if !i.rows.Next() {
-		return nil, true, nil
+		return nil, true, i.rows.Err()
 	}
 
 	if err := i.rows.Err(); err != nil {
@@ -134,13 +130,14 @@ func (i *postgresExportConfigIterator) Next() (*model.ExportConfig, bool, error)
 func (i *postgresExportConfigIterator) Close() error {
 	if i.rows != nil {
 		i.rows.Close()
+		return i.rows.Err()
 	}
 	return nil
 }
 
-// LatestExportBatchEnd returns the end time of the most recent ExportBatch
-// for a given ExportConfig. Minimum time (i.e., time.Time{}) is returned
-// if no previous ExportBatch exists.
+// LatestExportBatchEnd returns the end time of the most recent ExportBatch for
+// a given ExportConfig. It returns the zero time if no previous ExportBatch
+// exists.
 func (db *DB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportConfig) (time.Time, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
@@ -171,7 +168,7 @@ func (db *DB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportConfig) 
 
 // AddExportBatches inserts new export batches.
 func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch) error {
-	err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		const stmtName = "insert export batches"
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
@@ -192,10 +189,6 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // LeaseBatch returns a leased ExportBatch for the worker to process. If no work to do, nil will be returned.
@@ -241,7 +234,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 			}
 			openBatchIDs = append(openBatchIDs, id)
 		}
-		return nil
+		return rows.Err()
 	}()
 	if err != nil {
 		return nil, err
@@ -299,11 +292,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 		}
 
 		if leased {
-			eb, err := db.LookupExportBatch(ctx, bid)
-			if err != nil {
-				return nil, err
-			}
-			return eb, nil
+			return db.LookupExportBatch(ctx, bid)
 		}
 	}
 	// We didn't manage to lease any of the candidates, so return no work to be done (nil).
@@ -346,7 +335,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 }
 
 func (db *DB) CompleteFileAndBatch(ctx context.Context, files []string, batchID int64, batchCount int) error {
-	err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		// Update ExportFile for the files created.
 		for _, file := range files {
 			ef := model.ExportFile{
@@ -367,10 +356,6 @@ func (db *DB) CompleteFileAndBatch(ctx context.Context, files []string, batchID 
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 type joinedExportBatchFile struct {
@@ -415,17 +400,13 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 		defer rows.Close()
 
 		for rows.Next() {
-			if err := rows.Err(); err != nil {
-				return fmt.Errorf("iterating rows: %v", err)
-			}
-
 			var f joinedExportBatchFile
 			if err := rows.Scan(&f.batchID, &f.batchStatus, &f.filename, &f.count, &f.fileStatus); err != nil {
 				return fmt.Errorf("fetching batch_id: %v", err)
 			}
 			files = append(files, f)
 		}
-		return nil
+		return rows.Err()
 	}()
 	if err != nil {
 		return 0, err
