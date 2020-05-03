@@ -62,18 +62,10 @@ Each service's `main` package is located in the `cmd` directory.
 
 | Service | Folder                | Description |
 |---------|-----------------------|-------------|
-<<<<<<< HEAD
 | exposure key server  | cmd/export | Publishes exposure keys |
 | federation | cmd/federation | gRPC federation requests listener |
 | federation puller | cmd/federation-pull | Pulls federation results from federation partners |
 | exposure server | cmd/exposure |  Stores infection keys |
 | exposure cleanup | cmd/cleanup-export | Deletes old exposure keys |
 | export cleanup | cmd/cleanup-infection | Deletes old exported files published by the exposure key export service |
-=======
-| exposure key export  | cmd/export | Publishes exposure keys |
-| federation | cmd/federation | gRPC federation requests listener |
-| federation puller | cmd/federation-pull | Pulls federation results from federation partners |
-| infection server | cmd/infection |  Stores infection keys |
 | exposure wipeout | cmd/wipeout-export | Deletes old exposure keys |
-| infection wipeout | cmd/wipeout-infection | Deletes old infection keys |
->>>>>>> 044f586... Ran through the deploying instructions and got stuck as my PATH didn't have the go/bin directory. Should be mentioned here so that folks unfamiliar with go are not tripped up.
