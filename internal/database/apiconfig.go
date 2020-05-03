@@ -67,6 +67,8 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
 
 		result = append(result, config)
 	}
-
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return result, nil
 }

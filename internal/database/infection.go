@@ -97,7 +97,7 @@ func (i *postgresInfectionIterator) Next() (*model.Infection, bool, error) {
 	}
 
 	if !i.rows.Next() {
-		return nil, true, nil
+		return nil, true, i.rows.Err()
 	}
 
 	if err := i.rows.Err(); err != nil {
@@ -136,6 +136,7 @@ func (i *postgresInfectionIterator) Cursor() (string, error) {
 func (i *postgresInfectionIterator) Close() error {
 	if i.rows != nil {
 		i.rows.Close()
+		return i.rows.Err()
 	}
 	return nil
 }
@@ -193,7 +194,7 @@ func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, e
 
 // InsertInfections inserts a set of infections.
 func (db *DB) InsertInfections(ctx context.Context, infections []*model.Infection) error {
-	err := db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+	return db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		const stmtName = "insert infections"
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
@@ -221,10 +222,6 @@ func (db *DB) InsertInfections(ctx context.Context, infections []*model.Infectio
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // DeleteInfections deletes infections created before "before" date. Returns the number of records deleted.

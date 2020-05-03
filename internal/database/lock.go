@@ -98,7 +98,7 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 
 func makeUnlockFn(ctx context.Context, db *DB, lockID string) UnlockFn {
 	return func() error {
-		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			_, err := tx.Exec(ctx, `
 				DELETE FROM
 					Lock
@@ -110,9 +110,5 @@ func makeUnlockFn(ctx context.Context, db *DB, lockID string) UnlockFn {
 			}
 			return nil
 		})
-		if err != nil {
-			return err
-		}
-		return nil
 	}
 }
