@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package federation
 
 import (
 	"context"
@@ -50,7 +50,7 @@ type pullDependencies struct {
 
 // NewFederationPullHandler returns a handler that will fetch server-to-server
 // federation results for a single federation query.
-func NewFederationPullHandler(db *database.DB, timeout time.Duration) http.Handler {
+func NewPullHandler(db *database.DB, timeout time.Duration) http.Handler {
 	return &federationPullHandler{db: db, timeout: timeout}
 }
 

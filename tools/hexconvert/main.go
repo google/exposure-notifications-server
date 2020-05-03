@@ -33,11 +33,11 @@ func main() {
 
 	hexKey := os.Args[1]
 	bytes, err := hex.DecodeString(hexKey)
-	if len(bytes) != 16 {
-		log.Fatalf("decoded hex string, want len(bytes)=16, got: %v", len(bytes))
-	}
 	if err != nil {
 		log.Fatalf("hex.DecodeString: %v : %v", hexKey, err)
+	}
+	if len(bytes) != 16 {
+		log.Fatalf("decoded hex string, want len(bytes)=16, got: %v", len(bytes))
 	}
 	// The client application doesn't pad the keys.
 	keyBase64 := base64.RawStdEncoding.EncodeToString(bytes)

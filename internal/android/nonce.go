@@ -54,6 +54,5 @@ func (n *NonceData) Nonce() string {
 	// Take the sha256 checksum of that data
 	sum := sha256.Sum256([]byte(cleartext))
 	// Base64 encode the result.
-	nonce := base64.RawStdEncoding.EncodeToString(sum[0:sha256.Size])
-	return nonce
+	return base64.RawStdEncoding.EncodeToString(sum[:])
 }
