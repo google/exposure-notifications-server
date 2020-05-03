@@ -145,5 +145,7 @@ func sendRequest(jsonData []byte) {
 	defer resp.Body.Close()
 
 	log.Printf("response: %v", resp.Status)
-
+	if resp.StatusCode != http.StatusOK {
+		log.Fatalf("Failure response from server.")
+	}
 }

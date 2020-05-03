@@ -22,7 +22,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/model"
 
-	"github.com/google/uuid"
 	pgx "github.com/jackc/pgx/v4"
 )
 
@@ -111,7 +110,7 @@ func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) 
 }
 
 // GetFederationSync returns a federation sync record for given syncID. If not found, ErrNotFound will be returned.
-func (db *DB) GetFederationSync(ctx context.Context, syncID string) (*model.FederationSync, error) {
+func (db *DB) GetFederationSync(ctx context.Context, syncID int64) (*model.FederationSync, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
@@ -121,7 +120,7 @@ func (db *DB) GetFederationSync(ctx context.Context, syncID string) (*model.Fede
 	return getFederationSync(ctx, syncID, conn.QueryRow)
 }
 
-func getFederationSync(ctx context.Context, syncID string, queryRowContext queryRowFn) (*model.FederationSync, error) {
+func getFederationSync(ctx context.Context, syncID int64, queryRowContext queryRowFn) (*model.FederationSync, error) {
 	row := queryRowContext(ctx, `
 		SELECT
 			sync_id, query_id, started, completed, insertions, max_timestamp
@@ -142,28 +141,33 @@ func getFederationSync(ctx context.Context, syncID string, queryRowContext query
 }
 
 // StartFederationSync stores a historical record of a query sync starting. It returns a FederationSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
-func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery, started time.Time) (string, FinalizeSyncFn, error) {
+func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery, started time.Time) (int64, FinalizeSyncFn, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return "", nil, fmt.Errorf("acquiring connection: %v", err)
+		return 0, nil, fmt.Errorf("acquiring connection: %v", err)
 	}
 	defer conn.Release()
 
+	// startedTime is used internally to compute a Duration between here and when finalize function below is executed.
+	// This allows the finalize function to not request a completed Time parameter.
 	startedTimer := time.Now().UTC()
-	syncID := uuid.New().String()
-	_, err = conn.Exec(ctx, `
+
+	var syncID int64
+	row := conn.QueryRow(ctx, `
 		INSERT INTO
 			FederationSync
-			(sync_id, query_id, started)
+			(query_id, started)
 		VALUES
-			($1, $2, $3)
-		`, syncID, q.QueryID, started)
-	if err != nil {
-		return "", nil, fmt.Errorf("inserting federation sync: %v", err)
+			($1, $2)
+		RETURNING sync_id
+		`, q.QueryID, started)
+	if err := row.Scan(&syncID); err != nil {
+		return 0, nil, fmt.Errorf("fetching sync_id: %v", err)
 	}
 
 	finalize := func(maxTimestamp time.Time, totalInserted int) error {
 		completed := started.Add(time.Now().UTC().Sub(startedTimer))
+
 		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Special case: when no keys are pulled, the maxTimestamp will be 0, so we don't update the
 			// FederationQuery in this case to prevent it from going back and fetching old keys from the past.
@@ -181,6 +185,10 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 				}
 			}
 
+			var max *time.Time
+			if totalInserted > 0 {
+				max = &maxTimestamp
+			}
 			_, err = tx.Exec(ctx, `
 				UPDATE
 					FederationSync
@@ -190,7 +198,7 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 					max_timestamp = $3
 				WHERE
 					sync_id = $4
-			`, completed, totalInserted, maxTimestamp, syncID)
+			`, completed, totalInserted, max, syncID)
 			if err != nil {
 				return fmt.Errorf("updating federation sync: %v", err)
 			}
