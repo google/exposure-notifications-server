@@ -101,7 +101,7 @@ func (i *postgresInfectionIterator) Next() (*model.Infection, bool, error) {
 		encodedKey string
 		syncID     *int64
 	)
-	if err := i.rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
+	if err := i.iter.rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
 		&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &syncID); err != nil {
 		return nil, false, err
 	}
