@@ -95,17 +95,24 @@ func (i *postgresInfectionIterator) Next() (*model.Infection, bool, error) {
 	if done, err := i.iter.next(); done {
 		return nil, done, err
 	}
-	var m model.Infection
-	var encodedExposureKey string
-	if err := i.iter.rows.Scan(&encodedExposureKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
-		&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &m.FederationSyncID); err != nil {
+
+	var (
+		m          model.Infection
+		encodedKey string
+		syncID     *int64
+	)
+	if err := i.rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
+		&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &syncID); err != nil {
 		return nil, false, err
 	}
 
 	var err error
-	m.ExposureKey, err = decodeExposureKey(encodedExposureKey)
+	m.ExposureKey, err = decodeExposureKey(encodedKey)
 	if err != nil {
 		return nil, false, err
+	}
+	if syncID != nil {
+		m.FederationSyncID = *syncID
 	}
 	i.offset++
 
@@ -175,7 +182,7 @@ func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, e
 
 // InsertInfections inserts a set of infections.
 func (db *DB) InsertInfections(ctx context.Context, infections []*model.Infection) error {
-	err := db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+	return db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		const stmtName = "insert infections"
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
@@ -191,18 +198,18 @@ func (db *DB) InsertInfections(ctx context.Context, infections []*model.Infectio
 		}
 
 		for _, inf := range infections {
+			var syncID *int64
+			if inf.FederationSyncID != 0 {
+				syncID = &inf.FederationSyncID
+			}
 			_, err := tx.Exec(ctx, stmtName, encodeExposureKey(inf.ExposureKey), inf.TransmissionRisk, inf.AppPackageName, inf.Regions, inf.IntervalNumber, inf.IntervalCount,
-				inf.CreatedAt, inf.LocalProvenance, inf.VerificationAuthorityName, inf.FederationSyncID)
+				inf.CreatedAt, inf.LocalProvenance, inf.VerificationAuthorityName, syncID)
 			if err != nil {
 				return fmt.Errorf("inserting infection: %v", err)
 			}
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // DeleteInfections deletes infections created before "before" date. Returns the number of records deleted.

@@ -18,6 +18,7 @@ package serverenv
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
 )
@@ -41,11 +42,27 @@ func New(ctx context.Context) *ServerEnv {
 	if override := os.Getenv(portEnvVar); override != "" {
 		env.port = override
 	}
-	logger.Info("using port %v (override with $%v)", env.port, portEnvVar)
+	logger.Infof("using port %v (override with $%v)", env.port, portEnvVar)
 
 	return env
 }
 
 func (s *ServerEnv) Port() string {
 	return s.port
+}
+
+// ParseDuration parses a duration string stored in the named environment
+// variable. If the variable's values is empty or cannot be parsed as a
+// duration, the default value is returned instead.
+func ParseDuration(ctx context.Context, name string, defaultValue time.Duration) time.Duration {
+	val := os.Getenv(name)
+	if val == "" {
+		return defaultValue
+	}
+	dur, err := time.ParseDuration(val)
+	if err != nil {
+		logging.FromContext(ctx).Warnf("Failed to parse $%s value %q, using default %s", name, val, defaultValue)
+		return defaultValue
+	}
+	return dur
 }

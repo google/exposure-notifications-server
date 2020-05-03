@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package federation
 
 import (
 	"context"
@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	syncID = "ABC123"
+	syncID int64 = 999
 )
 
 // makeRemoteInfection returns a mock model.Infection with LocalProvenance=false.
@@ -76,7 +76,7 @@ type syncDB struct {
 	totalInserted int
 }
 
-func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.FederationQuery, start time.Time) (string, database.FinalizeSyncFn, error) {
+func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.FederationQuery, start time.Time) (int64, database.FinalizeSyncFn, error) {
 	sdb.syncStarted = true
 	timerStart := time.Now().UTC()
 	return syncID, func(maxTimestamp time.Time, totalInserted int) error {

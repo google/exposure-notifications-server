@@ -20,12 +20,11 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"time"
 
 	"google.golang.org/grpc"
 
-	"github.com/google/exposure-notifications-server/internal/api"
+	"github.com/google/exposure-notifications-server/internal/api/federation"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/pb"
@@ -47,15 +46,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	timeout := defaultTimeout
-	if timeoutStr := os.Getenv(timeoutEnvVar); timeoutStr != "" {
-		var err error
-		timeout, err = time.ParseDuration(timeoutStr)
-		if err != nil {
-			logger.Warnf("Failed to parse $%s value %q, using default.", timeoutEnvVar, timeoutStr)
-			timeout = defaultTimeout
-		}
-	}
+	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
 	logger.Infof("Using fetch timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
 	env := serverenv.New(ctx)
@@ -63,7 +54,7 @@ func main() {
 	logger.Infof("gRPC endpoint [%s]", grpcEndpoint)
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterFederationServer(grpcServer, api.NewFederationServer(db, timeout))
+	pb.RegisterFederationServer(grpcServer, federation.NewServer(db, timeout))
 
 	listen, err := net.Listen("tcp", grpcEndpoint)
 	if err != nil {

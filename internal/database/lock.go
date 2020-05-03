@@ -41,7 +41,8 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 		row := tx.QueryRow(ctx, `
 			SELECT
 				lock_id, expires 
-			FROM Lock 
+			FROM
+				Lock 
 			WHERE
 				lock_id=$1
 		`, lockID)
@@ -61,7 +62,8 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 			// If expired, update lock and return true.
 			if time.Now().UTC().After(l.Expires) {
 				_, err := tx.Exec(ctx, `
-					UPDATE Lock
+					UPDATE
+						Lock
 					SET
 						expires=$1
 					WHERE
@@ -77,7 +79,8 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 
 		// Insert a new lock.
 		_, err := tx.Exec(ctx, `
-			INSERT INTO Lock
+			INSERT INTO
+				Lock
 				(lock_id, expires)
 			VALUES
 				($1, $2)
@@ -95,9 +98,10 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 
 func makeUnlockFn(ctx context.Context, db *DB, lockID string) UnlockFn {
 	return func() error {
-		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			_, err := tx.Exec(ctx, `
-				DELETE FROM Lock
+				DELETE FROM
+					Lock
 				WHERE
 					lock_id=$1
 		`, lockID)
@@ -106,9 +110,5 @@ func makeUnlockFn(ctx context.Context, db *DB, lockID string) UnlockFn {
 			}
 			return nil
 		})
-		if err != nil {
-			return err
-		}
-		return nil
 	}
 }

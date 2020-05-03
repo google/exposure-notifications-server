@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package federation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -40,7 +41,7 @@ var (
 
 type fetchFn func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
 type insertInfectionsFn func(context.Context, []*model.Infection) error
-type startFederationSyncFn func(context.Context, *model.FederationQuery, time.Time) (string, database.FinalizeSyncFn, error)
+type startFederationSyncFn func(context.Context, *model.FederationQuery, time.Time) (int64, database.FinalizeSyncFn, error)
 
 type pullDependencies struct {
 	fetch               fetchFn
@@ -50,7 +51,7 @@ type pullDependencies struct {
 
 // NewFederationPullHandler returns a handler that will fetch server-to-server
 // federation results for a single federation query.
-func NewFederationPullHandler(db *database.DB, timeout time.Duration) http.Handler {
+func NewPullHandler(db *database.DB, timeout time.Duration) http.Handler {
 	return &federationPullHandler{db: db, timeout: timeout}
 }
 
@@ -80,7 +81,7 @@ func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	query, err := h.db.GetFederationQuery(ctx, queryID)
 	if err != nil {
-		if err == database.ErrNotFound {
+		if errors.Is(err, database.ErrNotFound) {
 			http.Error(w, fmt.Sprintf("unknown %s", queryParam), http.StatusBadRequest)
 			return
 		}
@@ -93,7 +94,7 @@ func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	lock := "query_" + queryID
 	unlockFn, err := h.db.Lock(ctx, lock, h.timeout)
 	if err != nil {
-		if err == database.ErrAlreadyLocked {
+		if errors.Is(err, database.ErrAlreadyLocked) {
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
 			logger.Infof(msg)
 			w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.

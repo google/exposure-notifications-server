@@ -20,10 +20,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/api"
+	"github.com/google/exposure-notifications-server/internal/api/wipeout"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -38,15 +37,7 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	timeout := defaultTimeout
-	if timeoutStr := os.Getenv(timeoutEnvVar); timeoutStr != "" {
-		var err error
-		timeout, err = time.ParseDuration(timeoutStr)
-		if err != nil {
-			logger.Warnf("Failed to parse $%s value %q, using default.", timeoutEnvVar, timeoutStr)
-			timeout = defaultTimeout
-		}
-	}
+	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
 	logger.Infof("Using timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
 	db, err := database.NewFromEnv(ctx)
@@ -55,7 +46,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	http.Handle("/", api.NewInfectionWipeoutHandler(db, timeout))
+	http.Handle("/", wipeout.NewInfectionHandler(db, timeout))
 	logger.Info("starting wipeout server")
 	env := serverenv.New(ctx)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
