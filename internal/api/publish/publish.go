@@ -62,7 +62,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if cfg == nil {
 		// configs were loaded, but the request app isn't configured.
-		logger.Errorf("unauthorized applicaiton: %v", data.AppPackageName)
+		logger.Errorf("unauthorized application: %v", data.AppPackageName)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
