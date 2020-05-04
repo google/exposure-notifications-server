@@ -109,32 +109,32 @@ chmod a+x .git/hooks/pre-push
 
 1. Setup env
 
-```
-source scripts/setup_env.sh
-```
+    ```
+    source scripts/setup_env.sh
+    ```
 
 1. Create a postgres db locally.
 
-```
-psql postgres
-postgres-# CREATE ROLE apollo WITH LOGIN PASSWORD 'mypassword';
-postgres-# CREATE DATABASE apollo;
-postgres=# GRANT ALL PRIVILEGES ON DATABASE apollo TO apollo;
-postgres=# \q
-```
+    ```
+    psql postgres
+    postgres-# CREATE ROLE apollo WITH LOGIN PASSWORD 'mypassword';
+    postgres-# CREATE DATABASE apollo;
+    postgres=# GRANT ALL PRIVILEGES ON DATABASE apollo TO apollo;
+    postgres=# \q
+    ```
 
 1. Configure Database Schema and Run Migrations
 
-```
-psql $DB_USER -h $DB_HOST -d $DB_DBNAME -f scripts/schema.sql
-./scripts/run_db_migrations.sh up
-```
+    ```
+    psql $DB_USER -h $DB_HOST -d $DB_DBNAME -f scripts/schema.sql
+    ./scripts/run_db_migrations.sh up
+    ```
 
 1. Run with go
 
-```
-go run ./cmd/[bin-name]
-```
+    ```
+    go run ./cmd/[bin-name]
+    ```
 
 ## Documentation
 
