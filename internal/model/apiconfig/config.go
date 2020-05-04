@@ -27,18 +27,19 @@ const (
 
 // APIConfig represents the configuration for a single exposure notification
 // application and their access to and requirements for using the API.
+// DB times of 0 are interpreted to be "unbounded" in that direction.
 type APIConfig struct {
-	AppPackageName   string          `db:"app_package_name"`
-	Platform         string          `db:"platform"`
-	ApkDigestSHA256  string          `db:"apk_digest"`
-	EnforceApkDigest bool            `db:"enforce_apk_digest"`
-	CTSProfileMatch  bool            `db:"cts_profile_match"`
-	BasicIntegrity   bool            `db:"basic_integrity"`
-	MaxAgeSeconds    int64           `db:"max_age_seconds"`
-	ClockSkewSeconds int64           `db:"clock_skew_seconds"`
-	AllowedRegions   map[string]bool `db:"allowed_regions"`
-	AllowAllRegions  bool            `db:"all_regions"`
-	BypassSafetynet  bool            `db:"bypass_safetynet"`
+	AppPackageName    string          `db:"app_package_name"`
+	Platform          string          `db:"platform"`
+	ApkDigestSHA256   string          `db:"apk_digest"`
+	EnforceApkDigest  bool            `db:"enforce_apk_digest"`
+	CTSProfileMatch   bool            `db:"cts_profile_match"`
+	BasicIntegrity    bool            `db:"basic_integrity"`
+	AllowedPastTime   *time.Duration  `db:"allowed_time_past_seconds"`
+	AllowedFutureTime *time.Duration  `db:"allowed_time_future_seconds"`
+	AllowedRegions    map[string]bool `db:"allowed_regions"`
+	AllowAllRegions   bool            `db:"all_regions"`
+	BypassSafetynet   bool            `db:"bypass_safetynet"`
 }
 
 // New creates a new, empty API config
@@ -69,12 +70,12 @@ func (c *APIConfig) VerifyOpts(from time.Time) android.VerifyOpts {
 	}
 
 	// Calculate the valid time window based on now + config options.
-	if c.MaxAgeSeconds > 0 {
-		minTime := from.UTC().Add(time.Duration(-c.MaxAgeSeconds) * time.Second)
+	if c.AllowedPastTime != nil {
+		minTime := from.UTC().Add(-*c.AllowedPastTime)
 		rtn.MinValidTime = &minTime
 	}
-	if c.ClockSkewSeconds > 0 {
-		maxTime := from.UTC().Add(time.Duration(c.ClockSkewSeconds) * time.Second)
+	if c.AllowedFutureTime != nil {
+		maxTime := from.UTC().Add(*c.AllowedFutureTime)
 		rtn.MaxValidTime = &maxTime
 	}
 

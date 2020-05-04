@@ -38,6 +38,10 @@ func timePtr(t time.Time) *time.Time {
 	return &t
 }
 
+func durationPtr(d time.Duration) *time.Duration {
+	return &d
+}
+
 func TestVerifyOpts(t *testing.T) {
 	testTime := time.Date(2020, 1, 13, 5, 6, 4, 6, time.UTC)
 
@@ -47,12 +51,12 @@ func TestVerifyOpts(t *testing.T) {
 	}{
 		{
 			cfg: &APIConfig{
-				AppPackageName:   "foo",
-				EnforceApkDigest: false,
-				CTSProfileMatch:  true,
-				BasicIntegrity:   true,
-				MaxAgeSeconds:    int64(15 * time.Minute.Seconds()),
-				ClockSkewSeconds: 1,
+				AppPackageName:    "foo",
+				EnforceApkDigest:  false,
+				CTSProfileMatch:   true,
+				BasicIntegrity:    true,
+				AllowedPastTime:   durationPtr(time.Duration(15 * time.Minute)),
+				AllowedFutureTime: durationPtr(time.Duration(1 * time.Second)),
 			},
 			opts: android.VerifyOpts{
 				AppPkgName:      "foo",
@@ -64,12 +68,12 @@ func TestVerifyOpts(t *testing.T) {
 		},
 		{
 			cfg: &APIConfig{
-				AppPackageName:   "foo",
-				EnforceApkDigest: false,
-				CTSProfileMatch:  false,
-				BasicIntegrity:   true,
-				MaxAgeSeconds:    0,
-				ClockSkewSeconds: 0,
+				AppPackageName:    "foo",
+				EnforceApkDigest:  false,
+				CTSProfileMatch:   false,
+				BasicIntegrity:    true,
+				AllowedPastTime:   nil,
+				AllowedFutureTime: nil,
 			},
 			opts: android.VerifyOpts{
 				AppPkgName:      "foo",
@@ -81,13 +85,13 @@ func TestVerifyOpts(t *testing.T) {
 		},
 		{
 			cfg: &APIConfig{
-				AppPackageName:   "foo",
-				ApkDigestSHA256:  "bar",
-				EnforceApkDigest: true,
-				CTSProfileMatch:  false,
-				BasicIntegrity:   true,
-				MaxAgeSeconds:    0,
-				ClockSkewSeconds: 0,
+				AppPackageName:    "foo",
+				ApkDigestSHA256:   "bar",
+				EnforceApkDigest:  true,
+				CTSProfileMatch:   false,
+				BasicIntegrity:    true,
+				AllowedPastTime:   nil,
+				AllowedFutureTime: nil,
 			},
 			opts: android.VerifyOpts{
 				AppPkgName:      "foo",

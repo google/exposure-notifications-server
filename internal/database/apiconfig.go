@@ -18,10 +18,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
 
+// ReadAPIConfigs loads all APIConfig values from the database.
 func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
@@ -31,8 +33,8 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error
 
 	query := `
 	    SELECT
-	    	app_package_name, platform, apk_digest, enforce_apk_digest, cts_profile_match, basic_integrity, max_age_seconds,
-	    	clock_skew_seconds, allowed_regions, all_regions, bypass_safetynet
+	    	app_package_name, platform, apk_digest, enforce_apk_digest, cts_profile_match, basic_integrity,
+        allowed_time_past_seconds, allowed_time_future_seconds, allowed_regions, all_regions, bypass_safetynet
 	    FROM
 	    	APIConfig`
 	rows, err := conn.Query(ctx, query)
@@ -51,13 +53,26 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error
 		var regions []string
 		config := apiconfig.New()
 		var apkDigest sql.NullString
+		var allowedPastSeconds, allowedFutureSeconds int
 		if err := rows.Scan(&config.AppPackageName, &config.Platform, &apkDigest,
-			&config.EnforceApkDigest, &config.CTSProfileMatch, &config.BasicIntegrity, &config.MaxAgeSeconds,
-			&config.ClockSkewSeconds, &regions, &config.AllowAllRegions, &config.BypassSafetynet); err != nil {
+			&config.EnforceApkDigest, &config.CTSProfileMatch, &config.BasicIntegrity,
+			&allowedPastSeconds, &allowedFutureSeconds, &regions,
+			&config.AllowAllRegions, &config.BypassSafetynet); err != nil {
 			return nil, err
 		}
 		if apkDigest.Valid {
 			config.ApkDigestSHA256 = apkDigest.String
+		}
+
+		// Convert time in seconds from DB into time.Duration
+		if allowedPastSeconds > 0 {
+			var d time.Duration
+			d = time.Duration(allowedPastSeconds) * time.Second
+			config.AllowedPastTime = &d
+		}
+		if allowedFutureSeconds > 0 {
+			d := time.Duration(allowedFutureSeconds) * time.Second
+			config.AllowedFutureTime = &d
 		}
 
 		// build the regions map
