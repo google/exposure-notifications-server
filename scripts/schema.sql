@@ -88,8 +88,8 @@ CREATE TABLE APIConfig (
 	enforce_apk_digest BOOLEAN NOT NULL,
 	cts_profile_match BOOLEAN NOT NULL,
 	basic_integrity BOOLEAN NOT NULL,
-	allowed_time_past_seconds INT NOT NULL,
-	allowed_time_future_seconds INT NOT NULL,
+	allowed_past_seconds INT,
+	allowed_future_seconds INT,
 	allowed_regions VARCHAR(5) [] NOT NULL,
 	all_regions bool NOT NULL,
 	bypass_safetynet bool NOT NULL
