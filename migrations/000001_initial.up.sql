@@ -13,7 +13,6 @@
 -- limitations under the License.
 
 BEGIN;
-
 CREATE TABLE FederationQuery (
 	query_id VARCHAR(50) PRIMARY KEY,
 	server_addr VARCHAR(100) NOT NULL,
@@ -31,7 +30,7 @@ CREATE TABLE FederationSync (
 	max_timestamp TIMESTAMP
 );
 
-CREATE TABLE Exposure (
+CREATE TABLE Infection (
 	exposure_key VARCHAR(30) PRIMARY KEY,
 	transmission_risk INT NOT NULL,
 	app_package_name VARCHAR(100),
@@ -90,10 +89,11 @@ CREATE TABLE APIConfig (
 	enforce_apk_digest BOOLEAN NOT NULL,
 	cts_profile_match BOOLEAN NOT NULL,
 	basic_integrity BOOLEAN NOT NULL,
-	max_age_seconds INT NOT NULL,
-	clock_skew_seconds INT NOT NULL,
+	allowed_past_seconds INT,
+	allowed_future_seconds INT,
 	allowed_regions VARCHAR(5) [] NOT NULL,
 	all_regions bool NOT NULL,
 	bypass_safetynet bool NOT NULL
 );
+
 END;
