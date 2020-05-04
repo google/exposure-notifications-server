@@ -89,7 +89,7 @@ func (c *Config) loadConfig(ctx context.Context) error {
 	return nil
 }
 
-func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) (*model.APIConfig, error) {
+func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) (*apiconfig.APIConfig, error) {
 	if err := c.loadConfig(ctx); err != nil {
 		return nil, err
 	}

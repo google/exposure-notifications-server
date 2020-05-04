@@ -27,7 +27,7 @@ import (
 
 // VerifyRegions checks the request regions against the regions allowed by
 // the configuration for the application.
-func VerifyRegions(cfg *model.APIConfig, data model.Publish) error {
+func VerifyRegions(cfg *apiconfig.APIConfig, data model.Publish) error {
 	if cfg == nil {
 		return fmt.Errorf("no allowed regions configured")
 	}
