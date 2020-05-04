@@ -6,7 +6,6 @@ require (
 	cloud.google.com/go v0.56.0 // indirect
 	cloud.google.com/go/storage v1.6.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/golang-migrate/migrate/v4 v4.10.0 // indirect
 	github.com/golang/protobuf v1.4.0
 	github.com/google/go-cmp v0.4.0
 	github.com/jackc/pgx/v4 v4.6.0
@@ -16,7 +15,7 @@ require (
 	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
 	go.uber.org/zap v1.14.1
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect
-	golang.org/x/tools v0.0.0-20200331202046-9d5940d49312 // indirect
+	golang.org/x/tools v0.0.0-20200501205727-542909fd9944 // indirect
 	google.golang.org/genproto v0.0.0-20200413115906-b5235f65be36 // indirect
 	google.golang.org/grpc v1.28.1
 	google.golang.org/protobuf v1.21.0

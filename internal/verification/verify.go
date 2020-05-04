@@ -22,11 +22,12 @@ import (
 	"github.com/google/exposure-notifications-server/internal/android"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
 
 // VerifyRegions checks the request regions against the regions allowed by
 // the configuration for the application.
-func VerifyRegions(cfg *model.APIConfig, data model.Publish) error {
+func VerifyRegions(cfg *apiconfig.APIConfig, data model.Publish) error {
 	if cfg == nil {
 		return fmt.Errorf("no allowed regions configured")
 	}
@@ -46,7 +47,7 @@ func VerifyRegions(cfg *model.APIConfig, data model.Publish) error {
 }
 
 // VerifySafetyNet verifies the SafetyNet device attestation against the allowed configuration for the application.
-func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *model.APIConfig, data model.Publish) error {
+func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *apiconfig.APIConfig, data model.Publish) error {
 	logger := logging.FromContext(ctx)
 
 	if cfg == nil {
