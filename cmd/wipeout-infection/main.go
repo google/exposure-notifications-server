@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is the service that deletes old infection keys; it is intended to be invoked over HTTP by Cloud Scheduler.
+// This package is the service that deletes old exposure keys; it is intended to be invoked over HTTP by Cloud Scheduler.
 package main
 
 import (
@@ -46,7 +46,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	http.Handle("/", wipeout.NewInfectionHandler(db, timeout))
+	http.Handle("/", wipeout.NewExposureHandler(db, timeout))
 	logger.Info("starting wipeout server")
 	env := serverenv.New(ctx)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))

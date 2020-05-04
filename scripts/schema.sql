@@ -29,7 +29,7 @@ CREATE TABLE FederationSync (
 	max_timestamp TIMESTAMP
 );
 
-CREATE TABLE Infection (
+CREATE TABLE Exposure (
 	exposure_key VARCHAR(30) PRIMARY KEY,
 	transmission_risk INT NOT NULL,
 	app_package_name VARCHAR(100),

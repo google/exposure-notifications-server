@@ -69,6 +69,6 @@ func main() {
 	http.HandleFunc("/create-files", batchServer.CreateFilesHandler)     // worker that executes work
 
 	env := serverenv.New(ctx)
-	logger.Info("starting infection export server")
+	logger.Info("starting exposure export server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }

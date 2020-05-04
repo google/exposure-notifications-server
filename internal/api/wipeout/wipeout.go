@@ -32,21 +32,21 @@ const (
 	minCutoffDuration = "10d"
 )
 
-// NewInfectionHandler creates a http.Handler for deleting exposure keys
+// NewExposureHandler creates a http.Handler for deleting exposure keys
 // from the database.
-func NewInfectionHandler(db *database.DB, timeout time.Duration) http.Handler {
-	return &infectionWipeoutHandler{
+func NewExposureHandler(db *database.DB, timeout time.Duration) http.Handler {
+	return &exposureWipeoutHandler{
 		db:      db,
 		timeout: timeout,
 	}
 }
 
-type infectionWipeoutHandler struct {
+type exposureWipeoutHandler struct {
 	db      *database.DB
 	timeout time.Duration
 }
 
-func (h *infectionWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *exposureWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
@@ -62,9 +62,9 @@ func (h *infectionWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 
-	count, err := h.db.DeleteInfections(timeoutCtx, cutoff)
+	count, err := h.db.DeleteExposures(timeoutCtx, cutoff)
 	if err != nil {
-		logger.Errorf("Failed deleting infections: %v", err)
+		logger.Errorf("Failed deleting exposures: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
@@ -103,7 +103,7 @@ func (h *exportWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 
-	count, err := h.db.DeleteInfections(timeoutCtx, cutoff)
+	count, err := h.db.DeleteExposures(timeoutCtx, cutoff)
 	if err != nil {
 		logger.Errorf("Failed deleting export files: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
