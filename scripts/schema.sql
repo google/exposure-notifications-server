@@ -12,6 +12,18 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+
+-- Changes to this file should be paired with migration additions. 
+-- Whenever you update this please also update the version here to match.
+CREATE TABLE public.schema_migrations
+(
+    version bigint NOT NULL,
+    dirty boolean NOT NULL,
+    CONSTRAINT schema_migrations_pkey PRIMARY KEY (version)
+);
+
+INSERT INTO public.schema_migrations (version, dirty) VALUES (1, false);
+
 CREATE TABLE FederationQuery (
 	query_id VARCHAR(50) PRIMARY KEY,
 	server_addr VARCHAR(100) NOT NULL,
@@ -94,3 +106,6 @@ CREATE TABLE APIConfig (
 	all_regions bool NOT NULL,
 	bypass_safetynet bool NOT NULL
 );
+
+
+
