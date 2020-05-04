@@ -16,7 +16,7 @@
 package metrics
 
 type Exporter interface {
-	WriteBool(name string, bool value)
+	WriteBool(name string, value bool)
 
 	WriteInt(name string, cumulative bool, value int)
 
