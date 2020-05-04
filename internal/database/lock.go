@@ -28,12 +28,6 @@ var (
 	ErrAlreadyLocked = errors.New("lock already in use")
 )
 
-// Lock is lock record with an expiration.
-type lock struct {
-	LockID  string    `db:"lock_id"`
-	Expires time.Time `db:"expires"`
-}
-
 // UnlockFn can be deferred to release a lock.
 type UnlockFn func() error
 
@@ -44,7 +38,7 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 		// Lookup existing lock, if any.
 		row := tx.QueryRow(ctx, `
 			SELECT
-				lock_id, expires
+				expires
 			FROM
 				Lock
 			WHERE
@@ -52,8 +46,8 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 		`, lockID)
 
 		existing := true
-		var l lock
-		if err := row.Scan(&l.LockID, &l.Expires); err != nil {
+		var expires time.Time
+		if err := row.Scan(&expires); err != nil {
 			if err == pgx.ErrNoRows {
 				existing = false
 			} else {
@@ -64,7 +58,7 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 		expiry := time.Now().UTC().Add(ttl)
 		if existing {
 			// If expired, update lock and return true.
-			if time.Now().UTC().After(l.Expires) {
+			if time.Now().UTC().After(expires) {
 				_, err := tx.Exec(ctx, `
 					UPDATE
 						Lock
