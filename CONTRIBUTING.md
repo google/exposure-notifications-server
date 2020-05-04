@@ -107,13 +107,29 @@ chmod a+x .git/hooks/pre-push
 
 1. (One time only) Create a dev service account and add the credentials to `./local/sa.json`
 
-2. Setup env
+1. Setup env
 
 ```
 source scripts/setup_env.sh
 ```
 
-3. Run with go
+1. Create a postgres db locally.
+
+```
+psql postgres
+postgres-# CREATE ROLE apollo WITH LOGIN PASSWORD 'mypassword';
+postgres-# CREATE DATABASE apollo;
+postgres=# GRANT ALL PRIVILEGES ON DATABASE apollo TO apollo;
+```
+
+1. Configure Database Schema and Run Migrations
+
+```
+psql $DB_USER -h $DB_HOST -d $DB_DBNAME -f scripts/schema.sql
+./scripts/run_db_migrations.sh
+```
+
+1. Run with go
 
 ```
 go run ./cmd/[bin-name]

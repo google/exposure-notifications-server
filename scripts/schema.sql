@@ -46,13 +46,13 @@ CREATE TABLE Infection (
 -- table and create rows in the ExportBatchJob table.
 CREATE TABLE ExportConfig (
 	config_id SERIAL PRIMARY KEY,
-	filename_root VARCHAR(100) NOT NULL,
+    filename_root VARCHAR(100) NOT NULL,
 	period_seconds INT NOT NULL,
 	include_regions VARCHAR(5) [],
 	exclude_regions VARCHAR(5) [],
 	from_timestamp TIMESTAMP NOT NULL,
-	thru_timestamp TIMESTAMP,
-)
+	thru_timestamp TIMESTAMP
+);
 
 CREATE TYPE ExportBatchStatus AS ENUM ('OPEN', 'PENDING', 'COMPLETE', 'DELETED');
 CREATE TABLE ExportBatch (
@@ -64,7 +64,7 @@ CREATE TABLE ExportBatch (
 	include_regions VARCHAR(5) [],
 	exclude_regions VARCHAR(5) [],
 	status ExportBatchStatus NOT NULL DEFAULT 'OPEN',
-	lease_expires TIMESTAMP,
+	lease_expires TIMESTAMP
 );
 
 CREATE TABLE ExportFile (
