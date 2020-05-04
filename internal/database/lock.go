@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model"
-
 	pgx "github.com/jackc/pgx/v4"
 )
 
@@ -29,6 +27,12 @@ var (
 	// ErrAlreadyLocked is returned if the lock is already in use.
 	ErrAlreadyLocked = errors.New("lock already in use")
 )
+
+// Lock is lock record with an expiration.
+type lock struct {
+	LockID  string    `db:"lock_id"`
+	Expires time.Time `db:"expires"`
+}
 
 // UnlockFn can be deferred to release a lock.
 type UnlockFn func() error
@@ -40,15 +44,15 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 		// Lookup existing lock, if any.
 		row := tx.QueryRow(ctx, `
 			SELECT
-				lock_id, expires 
+				lock_id, expires
 			FROM
-				Lock 
+				Lock
 			WHERE
 				lock_id=$1
 		`, lockID)
 
 		existing := true
-		var l model.Lock
+		var l lock
 		if err := row.Scan(&l.LockID, &l.Expires); err != nil {
 			if err == pgx.ErrNoRows {
 				existing = false
