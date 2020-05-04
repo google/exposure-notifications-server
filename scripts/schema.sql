@@ -46,7 +46,7 @@ CREATE TABLE Infection (
 -- table and create rows in the ExportBatchJob table.
 CREATE TABLE ExportConfig (
 	config_id SERIAL PRIMARY KEY,
-    filename_root VARCHAR(100) NOT NULL,
+	filename_root VARCHAR(100) NOT NULL,
 	period_seconds INT NOT NULL,
 	include_regions VARCHAR(5) [],
 	exclude_regions VARCHAR(5) [],
