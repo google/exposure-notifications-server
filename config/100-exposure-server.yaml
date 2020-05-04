@@ -11,7 +11,7 @@ spec:
     timeoutSeconds: 300
     containerConcurrency: 80
     containers:
-    - image: ko://github.com/googlepartners/exposure-notifications/cmd/exposure
+    - image: ko://github.com/google/exposure-notifications-server/cmd/exposure
       ports:
       - containerPort: 8080
       env:
