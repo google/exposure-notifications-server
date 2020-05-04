@@ -42,6 +42,6 @@ func main() {
 	env := serverenv.New(ctx)
 
 	http.Handle("/", publish.NewHandler(db, cfg))
-	logger.Info("starting infection server")
+	logger.Info("starting exposure server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }

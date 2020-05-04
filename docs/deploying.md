@@ -34,8 +34,8 @@ For more information on installation and set up, see the
 
 1. Build and deploy the container using the `ko publish` command.
 
-    For example, to deploy the infection server:
+    For example, to deploy the exposure server:
 
     ```
-    ko publish ./cmd/infection
+    ko publish ./cmd/exposure
     ```

@@ -67,7 +67,7 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 // ExportConfigIterator iterates over a set of export configs.
 type ExportConfigIterator interface {
 	// Next returns an export config and a flag indicating if the iterator is done (the config will be nil when done==true).
-	Next() (infection *model.ExportConfig, done bool, err error)
+	Next() (exposure *model.ExportConfig, done bool, err error)
 	// Close should be called when done iterating.
 	Close() error
 }

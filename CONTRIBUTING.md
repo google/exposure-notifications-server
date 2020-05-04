@@ -123,10 +123,9 @@ chmod a+x .git/hooks/pre-push
     postgres=# \q
     ```
 
-1. Configure Database Schema and Run Migrations
+1. Configure Database
 
     ```
-    psql $DB_USER -h $DB_HOST -d $DB_DBNAME -f scripts/schema.sql
     ./scripts/run_db_migrations.sh up
     ```
 

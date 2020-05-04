@@ -32,9 +32,9 @@ var (
 	syncID int64 = 999
 )
 
-// makeRemoteInfection returns a mock model.Infection with LocalProvenance=false.
-func makeRemoteInfection(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, verificationAuthorityName string, regions ...string) *model.Infection {
-	inf := makeInfectionWithVerification(diagKey, diagStatus, verificationAuthorityName, regions...)
+// makeRemoteExposure returns a mock model.Exposure with LocalProvenance=false.
+func makeRemoteExposure(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, verificationAuthorityName string, regions ...string) *model.Exposure {
+	inf := makeExposureWithVerification(diagKey, diagStatus, verificationAuthorityName, regions...)
 	inf.LocalProvenance = false
 	inf.FederationSyncID = syncID
 	return inf
@@ -57,13 +57,13 @@ func (r *remoteFetchServer) fetch(ctx context.Context, req *pb.FederationFetchRe
 	return response, nil
 }
 
-// infectionDB mocks the database, recording infection insertions.
-type infectionDB struct {
-	infections []*model.Infection
+// exposureDB mocks the database, recording exposure insertions.
+type exposureDB struct {
+	exposures []*model.Exposure
 }
 
-func (idb *infectionDB) insertInfections(ctx context.Context, infections []*model.Infection) error {
-	idb.infections = append(idb.infections, infections...)
+func (idb *exposureDB) insertExposures(ctx context.Context, exposures []*model.Exposure) error {
+	idb.exposures = append(idb.exposures, exposures...)
 	return nil
 }
 
@@ -94,7 +94,7 @@ func TestFederationPull(t *testing.T) {
 		name             string
 		batchSize        int
 		fetchResponses   []*pb.FederationFetchResponse
-		wantInfections   []*model.Infection
+		wantExposures    []*model.Exposure
 		wantTokens       []string
 		wantMaxTimestamp time.Time
 	}{
@@ -130,11 +130,11 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantInfections: []*model.Infection{
-				makeRemoteInfection(aaa, posver, "", "US"),
-				makeRemoteInfection(bbb, posver, "", "US"),
-				makeRemoteInfection(ccc, posver, "AAA", "CA", "US"),
-				makeRemoteInfection(ddd, selfver, "", "US"),
+			wantExposures: []*model.Exposure{
+				makeRemoteExposure(aaa, posver, "", "US"),
+				makeRemoteExposure(bbb, posver, "", "US"),
+				makeRemoteExposure(ccc, posver, "AAA", "CA", "US"),
+				makeRemoteExposure(ddd, selfver, "", "US"),
 			},
 			wantTokens:       []string{""},
 			wantMaxTimestamp: time.Unix(400, 0).UTC(),
@@ -173,11 +173,11 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantInfections: []*model.Infection{
-				makeRemoteInfection(aaa, posver, "", "US"),
-				makeRemoteInfection(bbb, posver, "", "US"),
-				makeRemoteInfection(ccc, posver, "", "US"),
-				makeRemoteInfection(ddd, selfver, "AAA", "CA"),
+			wantExposures: []*model.Exposure{
+				makeRemoteExposure(aaa, posver, "", "US"),
+				makeRemoteExposure(bbb, posver, "", "US"),
+				makeRemoteExposure(ccc, posver, "", "US"),
+				makeRemoteExposure(ddd, selfver, "AAA", "CA"),
 			},
 			wantTokens:       []string{"", "abcdef"},
 			wantMaxTimestamp: time.Unix(400, 0).UTC(),
@@ -210,11 +210,11 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantInfections: []*model.Infection{
-				makeRemoteInfection(aaa, posver, "", "US"),
-				makeRemoteInfection(bbb, posver, "", "US"),
-				makeRemoteInfection(ccc, posver, "AAA", "CA", "US"),
-				makeRemoteInfection(ddd, selfver, "", "US"),
+			wantExposures: []*model.Exposure{
+				makeRemoteExposure(aaa, posver, "", "US"),
+				makeRemoteExposure(bbb, posver, "", "US"),
+				makeRemoteExposure(ccc, posver, "AAA", "CA", "US"),
+				makeRemoteExposure(ddd, selfver, "", "US"),
 			},
 			wantTokens:       []string{""},
 			wantMaxTimestamp: time.Unix(400, 0).UTC(),
@@ -226,7 +226,7 @@ func TestFederationPull(t *testing.T) {
 			ctx := context.Background()
 			query := &model.FederationQuery{}
 			remote := remoteFetchServer{responses: tc.fetchResponses}
-			idb := infectionDB{}
+			idb := exposureDB{}
 			sdb := syncDB{}
 			batchStart := time.Now().UTC()
 			if tc.batchSize > 0 {
@@ -236,7 +236,7 @@ func TestFederationPull(t *testing.T) {
 			}
 			deps := pullDependencies{
 				fetch:               remote.fetch,
-				insertInfections:    idb.insertInfections,
+				insertExposures:     idb.insertExposures,
 				startFederationSync: sdb.startFederationSync,
 			}
 
@@ -245,8 +245,8 @@ func TestFederationPull(t *testing.T) {
 				t.Fatalf("pull returned err=%v, want err=nil", err)
 			}
 
-			if diff := cmp.Diff(tc.wantInfections, idb.infections, cmpopts.IgnoreFields(model.Infection{}, "CreatedAt")); diff != "" {
-				t.Errorf("infections mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tc.wantExposures, idb.exposures, cmpopts.IgnoreFields(model.Exposure{}, "CreatedAt")); diff != "" {
+				t.Errorf("exposures mismatch (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.wantTokens, remote.gotTokens); diff != "" {
 				t.Errorf("tokens mismatch (-want +got):\n%s", diff)
@@ -260,8 +260,8 @@ func TestFederationPull(t *testing.T) {
 			if sdb.completed.Before(batchStart) {
 				t.Errorf("federation sync ended too soon, completed: %v, batch started: %v", sdb.completed, batchStart)
 			}
-			if sdb.totalInserted != len(tc.wantInfections) {
-				t.Errorf("federation sync total inserted got %d, want %d", sdb.totalInserted, len(tc.wantInfections))
+			if sdb.totalInserted != len(tc.wantExposures) {
+				t.Errorf("federation sync total inserted got %d, want %d", sdb.totalInserted, len(tc.wantExposures))
 			}
 			if sdb.maxTimestamp != tc.wantMaxTimestamp {
 				t.Errorf("federation sync max timestamp got %v, want %v", sdb.maxTimestamp, tc.wantMaxTimestamp)
