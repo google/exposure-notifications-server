@@ -25,7 +25,7 @@ steps:
   args:
   - publish
   - -P
-  - ./cmd/infection
+  - ./cmd/exposure
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
@@ -33,7 +33,7 @@ steps:
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
-  - ./cmd/wipeout-infection
+  - ./cmd/wipeout-exposure
 # Deploy to Cloud Run.
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
@@ -41,6 +41,6 @@ steps:
   - '-c'
   # `--platform managed` and `--no-traffic` only works in `alpha`
   - |
-    gcloud alpha run deploy infection --image \
-      us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/infection:latest --region us-central1 \
+    gcloud alpha run deploy exposure --image \
+      us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/exposure:latest --region us-central1 \
       --platform managed --update-labels=env=staging --no-traffic

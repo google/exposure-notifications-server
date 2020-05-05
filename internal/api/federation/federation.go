@@ -33,7 +33,7 @@ import (
 // type diagKeyList []*pb.ExposureKey
 // type diagKeys map[pb.TransmissionRisk]diagKeyList
 // type collator map[string]diagKeys
-type fetchIterator func(context.Context, database.IterateInfectionsCriteria) (database.InfectionIterator, error)
+type fetchIterator func(context.Context, database.IterateExposuresCriteria) (database.ExposureIterator, error)
 
 // NewServer builds a new FederationServer.
 func NewServer(db *database.DB, timeout time.Duration) pb.FederationServer {
@@ -50,7 +50,7 @@ func (s *federationServer) Fetch(ctx context.Context, req *pb.FederationFetchReq
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
-	response, err := s.fetch(ctx, req, s.db.IterateInfections, model.TruncateWindow(time.Now().UTC())) // Don't fetch the current window, which isn't complete yet. TODO(jasonco): should I double this for safety?
+	response, err := s.fetch(ctx, req, s.db.IterateExposures, model.TruncateWindow(time.Now().UTC())) // Don't fetch the current window, which isn't complete yet. TODO(jasonco): should I double this for safety?
 	if err != nil {
 		logger.Errorf("Fetch error: %v", err)
 		return nil, errors.New("internal error")
@@ -71,7 +71,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	// If there is only one region, we can let datastore filter it; otherwise we'll have to filter in memory.
 	// TODO(jasonco): Filter out other partner's data; don't re-federate.
 	// TODO(jasonco): moving to CloudSQL will allow this to be simplified.
-	criteria := database.IterateInfectionsCriteria{
+	criteria := database.IterateExposuresCriteria{
 		SinceTimestamp:      time.Unix(req.LastFetchResponseKeyTimestamp, 0).UTC(),
 		UntilTimestamp:      fetchUntil,
 		LastCursor:          req.NextFetchToken,
@@ -99,7 +99,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 
 	it, err := itFunc(ctx, criteria)
 	if err != nil {
-		return nil, fmt.Errorf("querying infections (criteria: %#v): %v", criteria, err)
+		return nil, fmt.Errorf("querying exposures (criteria: %#v): %v", criteria, err)
 	}
 	defer it.Close()
 
@@ -146,26 +146,26 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 
 		// If the diagnosis key is empty, it's malformed, so skip it.
 		if len(inf.ExposureKey) == 0 {
-			logger.Debugf("Infection %s missing ExposureKey, skipping.", inf.ExposureKey)
+			logger.Debugf("Exposure %s missing ExposureKey, skipping.", inf.ExposureKey)
 			continue
 		}
 
-		// If there are no regions on the infection, it's malformed, so skip it.
+		// If there are no regions on the exposure, it's malformed, so skip it.
 		if len(inf.Regions) == 0 {
-			logger.Debugf("Infection %s missing Regions, skipping.", inf.ExposureKey)
+			logger.Debugf("Exposure %s missing Regions, skipping.", inf.ExposureKey)
 			continue
 		}
 
 		// Filter out non-LocalProvenance results; we should not re-federate.
 		// This may already be handled by the database query and is included here for completeness.
 		if !inf.LocalProvenance {
-			logger.Debugf("Infection %s not LocalProvenance, skipping.", inf.ExposureKey)
+			logger.Debugf("Exposure %s not LocalProvenance, skipping.", inf.ExposureKey)
 			continue
 		}
 
-		// If the infection has an unknown status, it's malformed, so skip it.
+		// If the exposure has an unknown status, it's malformed, so skip it.
 		if _, ok := pb.TransmissionRisk_name[int32(inf.TransmissionRisk)]; !ok {
-			logger.Debugf("Infection %s has invalid TransmissionRisk, skipping.", inf.ExposureKey)
+			logger.Debugf("Exposure %s has invalid TransmissionRisk, skipping.", inf.ExposureKey)
 			continue
 		}
 
@@ -174,13 +174,13 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		skip := true
 		for _, region := range inf.Regions {
 			if _, excluded := excludedRegions[region]; !excluded {
-				// At least one region for the infection is NOT excluded, so we don't skip this record.
+				// At least one region for the exposure is NOT excluded, so we don't skip this record.
 				skip = false
 				break
 			}
 		}
 		if skip {
-			logger.Debugf("Infection %s contains only excluded regions, skipping.", inf.ExposureKey)
+			logger.Debugf("Exposure %s contains only excluded regions, skipping.", inf.ExposureKey)
 			continue
 		}
 
@@ -195,7 +195,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 				}
 			}
 			if skip {
-				logger.Debugf("Infection %s does not contain requested regions, skipping.", inf.ExposureKey)
+				logger.Debugf("Exposure %s does not contain requested regions, skipping.", inf.ExposureKey)
 				continue
 			}
 		}

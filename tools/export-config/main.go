@@ -24,6 +24,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
 var (
@@ -62,7 +63,12 @@ func main() {
 	}
 
 	ctx := context.Background()
-	db, err := database.NewFromEnv(ctx)
+	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
+	if err != nil {
+		log.Fatalf("unable to connect to secret manager: %v", err)
+	}
+
+	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
 		log.Fatalf("unable to connect to database: %v", err)
 	}

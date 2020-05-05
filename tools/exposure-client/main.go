@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is a CLI tool for generating test infection key data.
+// This package is a CLI tool for generating test exposure key data.
 package main
 
 import (
@@ -46,7 +46,7 @@ func randIntervalCount() int32 {
 	return int32(n.Int64() + 1) // valid values are 1-144
 }
 
-// This is a simple tester to call the infection API.
+// This is a simple tester to call the exposure API.
 func main() {
 	flag.Parse()
 

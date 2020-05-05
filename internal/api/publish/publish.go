@@ -94,20 +94,20 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	batchTime := time.Now().UTC()
-	infections, err := model.TransformPublish(&data, batchTime)
+	exposures, err := model.TransformPublish(&data, batchTime)
 	if err != nil {
 		logger.Errorf("error transforming publish data: %v", err)
 		http.Error(w, "bad API request", http.StatusBadRequest)
 		return
 	}
 
-	err = h.db.InsertInfections(ctx, infections)
+	err = h.db.InsertExposures(ctx, exposures)
 	if err != nil {
-		logger.Errorf("error writing infection record: %v", err)
+		logger.Errorf("error writing exposure record: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
-	logger.Infof("Inserted %d infections.", len(infections))
+	logger.Infof("Inserted %d exposures.", len(exposures))
 
 	w.WriteHeader(http.StatusOK)
 }

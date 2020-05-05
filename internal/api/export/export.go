@@ -238,9 +238,9 @@ func (s *BatchServer) createExportFilesForBatch(ctx context.Context, eb model.Ex
 		done         = false
 		batchCount   = 0
 		recordCount  = 1
-		exposureKeys []*model.Infection
+		exposureKeys []*model.Exposure
 		files        []string
-		criteria     = database.IterateInfectionsCriteria{
+		criteria     = database.IterateExposuresCriteria{
 			SinceTimestamp:      eb.StartTimestamp,
 			UntilTimestamp:      eb.EndTimestamp,
 			IncludeRegions:      eb.IncludeRegions,
@@ -249,9 +249,9 @@ func (s *BatchServer) createExportFilesForBatch(ctx context.Context, eb model.Ex
 		}
 	)
 
-	it, err := s.db.IterateInfections(ctx, criteria)
+	it, err := s.db.IterateExposures(ctx, criteria)
 	if err != nil {
-		return fmt.Errorf("iterating infections: %v", err)
+		return fmt.Errorf("iterating exposures: %v", err)
 	}
 	defer it.Close()
 
@@ -278,7 +278,7 @@ func (s *BatchServer) createExportFilesForBatch(ctx context.Context, eb model.Ex
 		exp, done, err = it.Next()
 	}
 	if err != nil {
-		return fmt.Errorf("iterating infections: %v", err)
+		return fmt.Errorf("iterating exposures: %v", err)
 	}
 
 	// Create a file for the remaining keys
@@ -297,7 +297,7 @@ func (s *BatchServer) createExportFilesForBatch(ctx context.Context, eb model.Ex
 	return nil
 }
 
-func (s *BatchServer) createFile(ctx context.Context, objectName string, exposureKeys []*model.Infection, eb model.ExportBatch, batchCount int) error {
+func (s *BatchServer) createFile(ctx context.Context, objectName string, exposureKeys []*model.Exposure, eb model.ExportBatch, batchCount int) error {
 	// Format keys
 	data, err := MarshalExportFile(eb.StartTimestamp, eb.EndTimestamp, exposureKeys, "US")
 	if err != nil {
@@ -337,7 +337,7 @@ func (h *testExportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	until := time.Now().UTC()
 	exposureKeys, err := h.queryExposureKeys(ctx, since, until, limit)
 	if err != nil {
-		logger.Errorf("error getting infections: %v", err)
+		logger.Errorf("error getting exposures: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 	}
 	data, err := MarshalExportFile(since, until, exposureKeys, "US")
@@ -355,18 +355,18 @@ func (h *testExportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *testExportHandler) queryExposureKeys(ctx context.Context, since, until time.Time, limit int) ([]*model.Infection, error) {
-	criteria := database.IterateInfectionsCriteria{
+func (h *testExportHandler) queryExposureKeys(ctx context.Context, since, until time.Time, limit int) ([]*model.Exposure, error) {
+	criteria := database.IterateExposuresCriteria{
 		SinceTimestamp:      since,
 		UntilTimestamp:      until,
 		OnlyLocalProvenance: false, // include federated ids
 	}
-	it, err := h.db.IterateInfections(ctx, criteria)
+	it, err := h.db.IterateExposures(ctx, criteria)
 	if err != nil {
 		return nil, err
 	}
 	defer it.Close()
-	var exposureKeys []*model.Infection
+	var exposureKeys []*model.Exposure
 	num := 1
 	exp, done, err := it.Next()
 	for !done && err == nil && num <= limit {

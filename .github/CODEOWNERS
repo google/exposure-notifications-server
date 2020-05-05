@@ -14,9 +14,9 @@
 /cmd/export @gurayAlsac
 /cmd/federation/ @squee1945
 /cmd/federation-pull @squee1945
-/cmd/infection @mikehelmick
+/cmd/exposure @mikehelmick
 /cmd/wipeout-export @lakshmy88
-/cmd/wipeout-infection @lakshmy88
+/cmd/wipeout-exposure @lakshmy88
  
 
 /docs/ @llatif @crwilcox
@@ -40,4 +40,4 @@
 # /tools/federation-query/
 # /tools/fedaration-test/
 # /tools/hexconvert/
-# /tools/infection-client/
+# /tools/exposure-client/

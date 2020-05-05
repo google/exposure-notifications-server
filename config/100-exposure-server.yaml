@@ -1,4 +1,4 @@
-# Sample Knative service definition for the infection publishing server.
+# Sample Knative service definition for the exposure publishing server.
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
@@ -11,7 +11,7 @@ spec:
     timeoutSeconds: 300
     containerConcurrency: 80
     containers:
-    - image: ko://github.com/googlepartners/exposure-notifications/cmd/infection
+    - image: ko://github.com/google/exposure-notifications-server/cmd/exposure
       ports:
       - containerPort: 8080
       env:
