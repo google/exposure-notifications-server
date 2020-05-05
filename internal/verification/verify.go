@@ -19,10 +19,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/android"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
+
+var ValidateAttestation = android.ValidateAttestation
 
 // VerifyRegions checks the request regions against the regions allowed by
 // the configuration for the application.

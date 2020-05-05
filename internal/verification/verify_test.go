@@ -89,11 +89,16 @@ func TestVerifyRegions(t *testing.T) {
 }
 
 func TestVerifySafetyNet(t *testing.T) {
-	allRegions := &model.APIConfig{
+	allRegions := &apiconfig.APIConfig{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
 	}
-	allRegionsSafetyCheckDisabled := &model.APIConfig{
+	// allRegionsNoSafetyCheck := &apiconfig.APIConfig{
+	// 	AppPackageName:  appPkgName,
+	// 	AllowAllRegions: true,
+	// 	BypassSafetynet: false,
+	// }
+	allRegionsSafetyCheckDisabled := &apiconfig.APIConfig{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
 		BypassSafetynet: true,
@@ -102,47 +107,35 @@ func TestVerifySafetyNet(t *testing.T) {
 	cases := []struct {
 		Data              model.Publish
 		Msg               string
-		Cfg               *model.APIConfig
-		Enforce           bool
+		Cfg               *apiconfig.APIConfig
 		AttestationResult error
 	}{
-
-		{ // Verify that with Enforcement disabled, nil is returned
-			model.Publish{Regions: []string{"US"}},
-			"",
-			nil,
-			false,
-			nil,
-		}, { // Verify with no config, we return an error
+		{ // Verify with no config, we return an error
 			model.Publish{Regions: []string{"US"}},
 			"cannot enforce safetynet, no application config",
 			nil,
-			true,
 			nil,
 		}, { // verify that when bypass is enabled we return nil even on fail
 			model.Publish{Regions: []string{"US"}},
 			"",
 			allRegions,
-			true,
 			nil,
 		}, { // verify that with safety check enabled, on error, we declare invalid attestation.
 			model.Publish{Regions: []string{"US"}},
 			"android.ValidateAttestation: mocked",
 			allRegions,
-			true,
 			fmt.Errorf("mocked"),
 		}, { // verify error path for bypass safety net
 			model.Publish{Regions: []string{"US"}},
 			"",
 			allRegionsSafetyCheckDisabled,
-			true,
 			fmt.Errorf("mocked"),
 		},
 	}
 
 	for i, c := range cases {
 		var ctx = context.Background()
-		enforce = c.Enforce
+		// enforce = c.Enforce
 		ValidateAttestation = func(context.Context, string, android.VerifyOpts) error {
 			return c.AttestationResult
 		}
