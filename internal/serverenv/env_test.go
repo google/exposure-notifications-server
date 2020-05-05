@@ -12,14 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+package serverenv
 
 import (
+	"context"
+	"os"
+	"testing"
 	"time"
 )
 
-// Lock is lock record with an expiration.
-type Lock struct {
-	LockID  string    `db:"lock_id"`
-	Expires time.Time `db:"expires"`
+func TestParseDurationEnv(t *testing.T) {
+	ctx := context.Background()
+	const varName = "PARSE_DURATION_TEST"
+	const defaultValue = 17 * time.Second
+	for _, test := range []struct {
+		val  string
+		want time.Duration
+	}{
+		{"", defaultValue},
+		{"bad", defaultValue},
+		{"250ms", 250 * time.Millisecond},
+	} {
+		os.Setenv(varName, test.val)
+		got := ParseDuration(ctx, varName, defaultValue)
+		if got != test.want {
+			t.Errorf("%q: got %v, want %v", test.val, got, test.want)
+		}
+	}
 }

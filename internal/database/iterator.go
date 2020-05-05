@@ -12,25 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+package database
 
-import (
-	"time"
-)
+import pgx "github.com/jackc/pgx/v4"
 
-type FederationQuery struct {
-	QueryID        string    `db:"query_id"`
-	ServerAddr     string    `db:"server_addr"`
-	IncludeRegions []string  `db:"include_regions"`
-	ExcludeRegions []string  `db:"exclude_regions"`
-	LastTimestamp  time.Time `db:"last_timestamp"`
+type rowIterator struct {
+	rows pgx.Rows
 }
 
-type FederationSync struct {
-	SyncID       int64     `db:"sync_id"`
-	QueryID      string    `db:"query_id"`
-	Started      time.Time `db:"started"`
-	Completed    time.Time `db:"completed"`
-	Insertions   int       `db:"insertions"`
-	MaxTimestamp time.Time `db:"max_timestamp"`
+func (i *rowIterator) next() (done bool, err error) {
+	if i.rows == nil {
+		return true, nil
+	}
+	if !i.rows.Next() {
+		return true, i.rows.Err()
+	}
+	return false, nil
+}
+
+func (i *rowIterator) close() error {
+	if i.rows != nil {
+		i.rows.Close()
+		return i.rows.Err()
+	}
+	return nil
 }

@@ -16,6 +16,7 @@ package federation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -35,16 +36,16 @@ const (
 )
 
 var (
-	fetchBatchSize = database.InsertInfectionsBatchSize
+	fetchBatchSize = database.InsertExposuresBatchSize
 )
 
 type fetchFn func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
-type insertInfectionsFn func(context.Context, []*model.Infection) error
-type startFederationSyncFn func(context.Context, *model.FederationQuery, time.Time) (string, database.FinalizeSyncFn, error)
+type insertExposuresFn func(context.Context, []*model.Exposure) error
+type startFederationSyncFn func(context.Context, *model.FederationQuery, time.Time) (int64, database.FinalizeSyncFn, error)
 
 type pullDependencies struct {
 	fetch               fetchFn
-	insertInfections    insertInfectionsFn
+	insertExposures     insertExposuresFn
 	startFederationSync startFederationSyncFn
 }
 
@@ -80,7 +81,7 @@ func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	query, err := h.db.GetFederationQuery(ctx, queryID)
 	if err != nil {
-		if err == database.ErrNotFound {
+		if errors.Is(err, database.ErrNotFound) {
 			http.Error(w, fmt.Sprintf("unknown %s", queryParam), http.StatusBadRequest)
 			return
 		}
@@ -93,7 +94,7 @@ func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	lock := "query_" + queryID
 	unlockFn, err := h.db.Lock(ctx, lock, h.timeout)
 	if err != nil {
-		if err == database.ErrAlreadyLocked {
+		if errors.Is(err, database.ErrAlreadyLocked) {
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
 			logger.Infof(msg)
 			w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.
@@ -119,7 +120,7 @@ func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	deps := pullDependencies{
 		fetch:               client.Fetch,
-		insertInfections:    h.db.InsertInfections,
+		insertExposures:     h.db.InsertExposures,
 		startFederationSync: h.db.StartFederationSync,
 	}
 	batchStart := time.Now().UTC()
@@ -171,7 +172,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 		}
 
 		// Loop through the result set, storing in database.
-		var infections []*model.Infection
+		var exposures []*model.Exposure
 		for _, ctr := range response.Response {
 
 			var upperRegions []string
@@ -186,7 +187,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 
 				for _, key := range cti.ExposureKeys {
 
-					infections = append(infections, &model.Infection{
+					exposures = append(exposures, &model.Exposure{
 						TransmissionRisk:          int(cti.TransmissionRisk),
 						ExposureKey:               key.ExposureKey,
 						Regions:                   upperRegions,
@@ -198,21 +199,21 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 						VerificationAuthorityName: verificationAuthName,
 					})
 
-					if len(infections) == fetchBatchSize {
-						if err := deps.insertInfections(ctx, infections); err != nil {
-							return fmt.Errorf("inserting %d infections: %v", len(infections), err)
+					if len(exposures) == fetchBatchSize {
+						if err := deps.insertExposures(ctx, exposures); err != nil {
+							return fmt.Errorf("inserting %d exposures: %v", len(exposures), err)
 						}
-						total += len(infections)
-						infections = nil // Start a new batch.
+						total += len(exposures)
+						exposures = nil // Start a new batch.
 					}
 				}
 			}
 		}
-		if len(infections) > 0 {
-			if err := deps.insertInfections(ctx, infections); err != nil {
-				return fmt.Errorf("inserting %d infections: %v", len(infections), err)
+		if len(exposures) > 0 {
+			if err := deps.insertExposures(ctx, exposures); err != nil {
+				return fmt.Errorf("inserting %d exposures: %v", len(exposures), err)
 			}
-			total += len(infections)
+			total += len(exposures)
 		}
 
 		partial = response.PartialResponse

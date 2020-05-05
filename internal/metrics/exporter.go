@@ -12,25 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+// This package contains utilities for exporting metrics.
+package metrics
 
-import (
-	"time"
-)
+type Exporter interface {
+	WriteBool(name string, value bool)
 
-type FederationQuery struct {
-	QueryID        string    `db:"query_id"`
-	ServerAddr     string    `db:"server_addr"`
-	IncludeRegions []string  `db:"include_regions"`
-	ExcludeRegions []string  `db:"exclude_regions"`
-	LastTimestamp  time.Time `db:"last_timestamp"`
-}
+	WriteInt(name string, cumulative bool, value int)
 
-type FederationSync struct {
-	SyncID       int64     `db:"sync_id"`
-	QueryID      string    `db:"query_id"`
-	Started      time.Time `db:"started"`
-	Completed    time.Time `db:"completed"`
-	Insertions   int       `db:"insertions"`
-	MaxTimestamp time.Time `db:"max_timestamp"`
+	WriteIntDistribution(name string, cumulative bool, values ...int)
+
+	WriteFloat64(name string, cumulative bool, value float64)
+
+	WriteFloat64Distribution(name string, cumulative bool, values ...float64)
 }

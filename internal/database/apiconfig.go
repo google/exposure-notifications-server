@@ -18,11 +18,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
 
-func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
+// ReadAPIConfigs loads all APIConfig values from the database.
+func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
@@ -31,8 +33,8 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
 
 	query := `
 	    SELECT
-	    	app_package_name, platform, apk_digest, enforce_apk_digest, cts_profile_match, basic_integrity, max_age_seconds,
-	    	clock_skew_seconds, allowed_regions, all_regions, bypass_safetynet
+	    	app_package_name, platform, apk_digest, enforce_apk_digest, cts_profile_match, basic_integrity,
+        allowed_past_seconds, allowed_future_seconds, allowed_regions, all_regions, bypass_safetynet
 	    FROM
 	    	APIConfig`
 	rows, err := conn.Query(ctx, query)
@@ -42,22 +44,34 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
 	defer rows.Close()
 
 	// In most instances, we expect a single config entry.
-	var result []*model.APIConfig
+	var result []*apiconfig.APIConfig
 	for rows.Next() {
 		if err := rows.Err(); err != nil {
 			return nil, fmt.Errorf("iterating rows: %v", err)
 		}
 
 		var regions []string
-		config := model.NewAPIConfig()
+		config := apiconfig.New()
 		var apkDigest sql.NullString
+		var allowedPastSeconds, allowedFutureSeconds *int
 		if err := rows.Scan(&config.AppPackageName, &config.Platform, &apkDigest,
-			&config.EnforceApkDigest, &config.CTSProfileMatch, &config.BasicIntegrity, &config.MaxAgeSeconds,
-			&config.ClockSkewSeconds, &regions, &config.AllowAllRegions, &config.BypassSafetynet); err != nil {
+			&config.EnforceApkDigest, &config.CTSProfileMatch, &config.BasicIntegrity,
+			&allowedPastSeconds, &allowedFutureSeconds, &regions,
+			&config.AllowAllRegions, &config.BypassSafetynet); err != nil {
 			return nil, err
 		}
 		if apkDigest.Valid {
 			config.ApkDigestSHA256 = apkDigest.String
+		}
+
+		// Convert time in seconds from DB into time.Duration
+		if allowedPastSeconds != nil {
+			d := time.Duration(*allowedPastSeconds) * time.Second
+			config.AllowedPastTime = &d
+		}
+		if allowedFutureSeconds != nil {
+			d := time.Duration(*allowedFutureSeconds) * time.Second
+			config.AllowedFutureTime = &d
 		}
 
 		// build the regions map
@@ -67,6 +81,8 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*model.APIConfig, error) {
 
 		result = append(result, config)
 	}
-
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return result, nil
 }

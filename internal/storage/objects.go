@@ -17,6 +17,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -56,7 +57,7 @@ func DeleteObject(ctx context.Context, bucket, objectName string) error {
 	defer cancel()
 
 	if err := client.Bucket(bucket).Object(objectName).Delete(ctx); err != nil {
-		if err == storage.ErrObjectNotExist {
+		if errors.Is(err, storage.ErrObjectNotExist) {
 			// Object doesn't exist; presumably already deleted.
 			return nil
 		}

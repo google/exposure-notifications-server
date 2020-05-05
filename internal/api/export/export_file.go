@@ -25,7 +25,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func MarshalExportFile(since, until time.Time, exposureKeys []*model.Infection, region string) ([]byte, error) {
+func MarshalExportFile(since, until time.Time, exposureKeys []*model.Exposure, region string) ([]byte, error) {
 	contents, err := marshalContents(since, until, exposureKeys, region)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func MarshalExportFile(since, until time.Time, exposureKeys []*model.Infection, 
 	return append(sig, contents...), nil
 }
 
-func marshalContents(since, until time.Time, exposureKeys []*model.Infection, region string) ([]byte, error) {
+func marshalContents(since, until time.Time, exposureKeys []*model.Exposure, region string) ([]byte, error) {
 	// We want a deterministic ordering so signatures can be generated/verified consistently.
 	// Arbitrarily sorting on the keys themselves.
 	// This could be done at the db layer but doing it here makes it explicit that its

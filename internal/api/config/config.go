@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
 
 const (
@@ -35,7 +35,7 @@ type Config struct {
 
 	mu           sync.RWMutex
 	lastLoadTime time.Time
-	cache        map[string]*model.APIConfig
+	cache        map[string]*apiconfig.APIConfig
 }
 
 func New(db *database.DB) *Config {
@@ -45,19 +45,19 @@ func New(db *database.DB) *Config {
 	cfg := &Config{
 		db:            db,
 		refreshPeriod: defaultRefreshPeriod,
-		cache:         make(map[string]*model.APIConfig),
+		cache:         make(map[string]*apiconfig.APIConfig),
 	}
 
 	if ds := os.Getenv("CONFIG_REFRESH_DURATION"); ds != "" {
 		if d, err := time.ParseDuration(ds); err != nil {
-			logger.Info("CONFIG_REFRESH_DURATION parse error: %v", defaultRefreshPeriod)
+			logger.Infof("CONFIG_REFRESH_DURATION parse error: %v", defaultRefreshPeriod)
 		} else {
 			cfg.refreshPeriod = d
 		}
 	}
 
 	if cfg.refreshPeriod > time.Minute*5 {
-		logger.Warn("config refresh duration is > 5 minutes: %v", cfg.refreshPeriod)
+		logger.Warnf("config refresh duration is > 5 minutes: %v", cfg.refreshPeriod)
 	}
 
 	return cfg
@@ -77,25 +77,22 @@ func (c *Config) loadConfig(ctx context.Context) error {
 
 	configs, err := c.db.ReadAPIConfigs(ctx)
 	if err != nil {
-		// This will exit the server. Without a valid config, we cannot process
-		// requests.
-		// TODO(mikehelmick) stable fallbacks
-		logger.Fatalf("error loading APIConfig: %v", err)
 		return err
 	}
 
-	c.cache = make(map[string]*model.APIConfig)
+	c.cache = make(map[string]*apiconfig.APIConfig)
 	for _, apiConfig := range configs {
 		c.cache[apiConfig.AppPackageName] = apiConfig
 	}
 	logger.Info("loaded new APIConfig values")
 	c.lastLoadTime = time.Now()
-
 	return nil
 }
 
-func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) *model.APIConfig {
-	c.loadConfig(ctx)
+func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) (*apiconfig.APIConfig, error) {
+	if err := c.loadConfig(ctx); err != nil {
+		return nil, err
+	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -104,7 +101,7 @@ func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) *model.APIConf
 	if !ok {
 		logger := logging.FromContext(ctx)
 		logger.Errorf("requested config for unconfigured app: %v", appPkg)
-		return nil
+		return nil, nil
 	}
-	return cfg
+	return cfg, nil
 }

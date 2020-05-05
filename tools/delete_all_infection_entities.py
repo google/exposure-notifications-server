@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-This script will delete all entitities of the infection kind
+This script will delete all entitities of the exposure kind
 """
 from google.cloud import datastore
 import itertools
@@ -27,12 +27,12 @@ client = datastore.Client()
 
 
 def producer(futures_queue):
-    query = client.query(kind="infection")
-    all_infection_entity_keys = (entity.key for entity in query.fetch())
+    query = client.query(kind="exposure")
+    all_exposure_entity_keys = (entity.key for entity in query.fetch())
 
     with ThreadPoolExecutor(max_workers=8) as executor:
         batch = []
-        for key in all_infection_entity_keys:
+        for key in all_exposure_entity_keys:
             batch.append(key)
             if len(batch) >= 500:
                 delete_entities_batch(batch)
@@ -46,8 +46,8 @@ def producer(futures_queue):
 
 def consumer(futures_queue):
     client = datastore.Client()
-    query = client.query(kind="infection")
-    all_infection_entity_keys = (entity.key for entity in query.fetch())
+    query = client.query(kind="exposure")
+    all_exposure_entity_keys = (entity.key for entity in query.fetch())
 
     total_deleted = 0
 

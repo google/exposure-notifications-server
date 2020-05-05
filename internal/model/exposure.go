@@ -44,13 +44,13 @@ type ExposureKey struct {
 	IntervalCount  int32  `json:"intervalCount"`
 }
 
-// Infection represents the record as storedin the database
+// Exposure represents the record as storedin the database
 // TODO(helmick) - refactor this so that there is a public
-// Infection struct that doesn't have public fields and an
+// Exposure struct that doesn't have public fields and an
 // internal struct that does. Separate out the database model
 // from direct access.
 // Mark records as writable/nowritable - is exposure key encrypted
-type Infection struct {
+type Exposure struct {
 	ExposureKey               []byte    `db:"exposure_key"`
 	TransmissionRisk          int       `db:"transmission_risk"`
 	AppPackageName            string    `db:"app_package_name"`
@@ -60,7 +60,7 @@ type Infection struct {
 	CreatedAt                 time.Time `db:"created_at"`
 	LocalProvenance           bool      `db:"local_provenance"`
 	VerificationAuthorityName string    `db:"verification_authority_name"`
-	FederationSyncID          string    `db:"sync_id"`
+	FederationSyncID          int64     `db:"sync_id"`
 }
 
 const (
@@ -80,10 +80,10 @@ func correctIntervalCount(count int32) int32 {
 	return count
 }
 
-// TransformPublish converts incoming key data to a list of infection entities.
-func TransformPublish(inData *Publish, batchTime time.Time) ([]*Infection, error) {
+// TransformPublish converts incoming key data to a list of exposure entities.
+func TransformPublish(inData *Publish, batchTime time.Time) ([]*Exposure, error) {
 	createdAt := TruncateWindow(batchTime)
-	entities := make([]*Infection, 0, len(inData.Keys))
+	entities := make([]*Exposure, 0, len(inData.Keys))
 
 	// Regions are a multi-value property, uppercase them for storage.
 	upcaseRegions := make([]string, len(inData.Regions))
@@ -97,7 +97,7 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]*Infection, error
 			return nil, err
 		}
 		// TODO(helmick) - data validation
-		infection := &Infection{
+		exposure := &Exposure{
 			ExposureKey:               binKey,
 			TransmissionRisk:          inData.TransmissionRisk,
 			AppPackageName:            inData.AppPackageName,
@@ -108,7 +108,7 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]*Infection, error
 			LocalProvenance:           true, // This is the origin system for this data.
 			VerificationAuthorityName: strings.ToUpper(strings.TrimSpace(inData.VerificationAuthorityName)),
 		}
-		entities = append(entities, infection)
+		entities = append(entities, exposure)
 	}
 	return entities, nil
 }

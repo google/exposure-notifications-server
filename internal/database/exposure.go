@@ -28,34 +28,34 @@ import (
 )
 
 const (
-	// InsertInfectionsBatchSize is the maximum number of infections that can be inserted at once.
-	InsertInfectionsBatchSize = 500
+	// InsertExposuresBatchSize is the maximum number of exposures that can be inserted at once.
+	InsertExposuresBatchSize = 500
 )
 
-// InfectionIterator iterates over a set of infections.
-type InfectionIterator interface {
-	// Next returns an infection and a flag indicating if the iterator is done (the infection will be nil when done==true).
-	Next() (infection *model.Infection, done bool, err error)
-	// Cursor returns a string that can be passed as LastCursor in FetchInfectionsCriteria when generating another iterator.
+// ExposureIterator iterates over a set of exposures.
+type ExposureIterator interface {
+	// Next returns an exposure and a flag indicating if the iterator is done (the exposure will be nil when done==true).
+	Next() (exposure *model.Exposure, done bool, err error)
+	// Cursor returns a string that can be passed as LastCursor in FetchExposuresCriteria when generating another iterator.
 	Cursor() (string, error)
 	// Close should be called when done iterating.
 	Close() error
 }
 
-// IterateInfectionsCriteria is criteria to iterate infections.
-type IterateInfectionsCriteria struct {
+// IterateExposuresCriteria is criteria to iterate exposures.
+type IterateExposuresCriteria struct {
 	IncludeRegions []string
 	ExcludeRegions []string
 	SinceTimestamp time.Time
 	UntilTimestamp time.Time
 	LastCursor     string
 
-	// OnlyLocalProvenance indicates that only infections with LocalProvenance=true will be returned.
+	// OnlyLocalProvenance indicates that only exposures with LocalProvenance=true will be returned.
 	OnlyLocalProvenance bool
 }
 
-// IterateInfections returns an iterator for infections meeting the criteria. Must call iterator's Close() method when done.
-func (db *DB) IterateInfections(ctx context.Context, criteria IterateInfectionsCriteria) (InfectionIterator, error) {
+// IterateExposures returns an iterator for exposures meeting the criteria. Must call iterator's Close() method when done.
+func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria) (ExposureIterator, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
@@ -83,64 +83,59 @@ func (db *DB) IterateInfections(ctx context.Context, criteria IterateInfectionsC
 		return nil, err
 	}
 
-	return &postgresInfectionIterator{rows: rows, offset: offset}, nil
+	return &postgresExposureIterator{iter: &rowIterator{rows}, offset: offset}, nil
 }
 
-type postgresInfectionIterator struct {
-	rows   pgx.Rows
+type postgresExposureIterator struct {
+	iter   *rowIterator
 	offset int
 }
 
-func (i *postgresInfectionIterator) Next() (*model.Infection, bool, error) {
-	if i.rows == nil {
-		return nil, true, nil
+func (i *postgresExposureIterator) Next() (*model.Exposure, bool, error) {
+	if done, err := i.iter.next(); done {
+		return nil, done, err
 	}
 
-	if !i.rows.Next() {
-		return nil, true, nil
-	}
-
-	if err := i.rows.Err(); err != nil {
-		return nil, false, fmt.Errorf("iterating rows: %v", err)
-	}
-
-	var m model.Infection
-	var encodedExposureKey string
-	if err := i.rows.Scan(&encodedExposureKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
-		&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &m.FederationSyncID); err != nil {
+	var (
+		m          model.Exposure
+		encodedKey string
+		syncID     *int64
+	)
+	if err := i.iter.rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
+		&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &syncID); err != nil {
 		return nil, false, err
 	}
 
 	var err error
-	m.ExposureKey, err = decodeExposureKey(encodedExposureKey)
+	m.ExposureKey, err = decodeExposureKey(encodedKey)
 	if err != nil {
 		return nil, false, err
+	}
+	if syncID != nil {
+		m.FederationSyncID = *syncID
 	}
 	i.offset++
 
 	return &m, false, nil
 }
 
-func (i *postgresInfectionIterator) Cursor() (string, error) {
+func (i *postgresExposureIterator) Cursor() (string, error) {
 	// TODO: this is a pretty weak cursor solution, but not too bad since we'll typcially have queries ahead of the wipeout
 	// and before the current ingestion window, and those should be stable.
 	return encodeCursor(strconv.Itoa(i.offset)), nil
 }
 
-func (i *postgresInfectionIterator) Close() error {
-	if i.rows != nil {
-		i.rows.Close()
-	}
-	return nil
+func (i *postgresExposureIterator) Close() error {
+	return i.iter.close()
 }
 
-func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, error) {
+func generateQuery(criteria IterateExposuresCriteria) (string, []interface{}, error) {
 	q := `
 		SELECT
 			exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
 			created_at, local_provenance, verification_authority_name, sync_id
 		FROM
-			Infection
+			Exposure
 		WHERE 1=1
 		`
 	var args []interface{}
@@ -185,13 +180,13 @@ func generateQuery(criteria IterateInfectionsCriteria) (string, []interface{}, e
 	return q, args, nil
 }
 
-// InsertInfections inserts a set of infections.
-func (db *DB) InsertInfections(ctx context.Context, infections []*model.Infection) error {
-	err := db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		const stmtName = "insert infections"
+// InsertExposures inserts a set of exposures.
+func (db *DB) InsertExposures(ctx context.Context, exposures []*model.Exposure) error {
+	return db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		const stmtName = "insert exposures"
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
-				Infection
+				Exposure
 			    (exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
 			     created_at, local_provenance, verification_authority_name, sync_id)
 			VALUES
@@ -202,34 +197,34 @@ func (db *DB) InsertInfections(ctx context.Context, infections []*model.Infectio
 			return fmt.Errorf("preparing insert statment: %v", err)
 		}
 
-		for _, inf := range infections {
+		for _, inf := range exposures {
+			var syncID *int64
+			if inf.FederationSyncID != 0 {
+				syncID = &inf.FederationSyncID
+			}
 			_, err := tx.Exec(ctx, stmtName, encodeExposureKey(inf.ExposureKey), inf.TransmissionRisk, inf.AppPackageName, inf.Regions, inf.IntervalNumber, inf.IntervalCount,
-				inf.CreatedAt, inf.LocalProvenance, inf.VerificationAuthorityName, inf.FederationSyncID)
+				inf.CreatedAt, inf.LocalProvenance, inf.VerificationAuthorityName, syncID)
 			if err != nil {
-				return fmt.Errorf("inserting infection: %v", err)
+				return fmt.Errorf("inserting exposure: %v", err)
 			}
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
-// DeleteInfections deletes infections created before "before" date. Returns the number of records deleted.
-func (db *DB) DeleteInfections(ctx context.Context, before time.Time) (int64, error) {
+// DeleteExposures deletes exposures created before "before" date. Returns the number of records deleted.
+func (db *DB) DeleteExposures(ctx context.Context, before time.Time) (int64, error) {
 	var count int64
 	// ReadCommitted is sufficient here because we are dealing with historical, immutable rows.
 	err := db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			DELETE FROM
-				Infection
+				Exposure
 			WHERE
 				created_at < $1
 			`, before)
 		if err != nil {
-			return fmt.Errorf("deleting infections: %v", err)
+			return fmt.Errorf("deleting exposures: %v", err)
 		}
 		count = result.RowsAffected()
 		return nil

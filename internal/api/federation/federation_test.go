@@ -46,9 +46,9 @@ var (
 	ddd = &pb.ExposureKey{ExposureKey: []byte("ddd"), IntervalNumber: 4}
 )
 
-// makeInfection returns a mock model.Infection.
-func makeInfection(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, regions ...string) *model.Infection {
-	return &model.Infection{
+// makeExposure returns a mock model.Exposure.
+func makeExposure(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, regions ...string) *model.Exposure {
+	return &model.Exposure{
 		Regions:          regions,
 		TransmissionRisk: int(diagStatus),
 		ExposureKey:      diagKey.ExposureKey,
@@ -58,8 +58,8 @@ func makeInfection(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, regi
 	}
 }
 
-func makeInfectionWithVerification(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, verificationAuthorityName string, regions ...string) *model.Infection {
-	inf := makeInfection(diagKey, diagStatus, regions...)
+func makeExposureWithVerification(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, verificationAuthorityName string, regions ...string) *model.Exposure {
+	inf := makeExposure(diagKey, diagStatus, regions...)
 	inf.VerificationAuthorityName = verificationAuthorityName
 	return inf
 }
@@ -67,7 +67,7 @@ func makeInfectionWithVerification(diagKey *pb.ExposureKey, diagStatus pb.Transm
 // timeout is used by testIterator to indicate that a timeout signal should be sent.
 type timeout struct{}
 
-// testIterator is a mock database iterator. It can return a stream of model.Infections, or send a timeout signal.
+// testIterator is a mock database iterator. It can return a stream of model.Exposures, or send a timeout signal.
 type testIterator struct {
 	iterations []interface{}
 	cancel     context.CancelFunc
@@ -75,7 +75,7 @@ type testIterator struct {
 	cursor     string
 }
 
-func (i *testIterator) Next() (*model.Infection, bool, error) {
+func (i *testIterator) Next() (*model.Exposure, bool, error) {
 	if i.index > len(i.iterations)-1 {
 		// Reached end of results set.
 		return nil, true, nil
@@ -84,10 +84,10 @@ func (i *testIterator) Next() (*model.Infection, bool, error) {
 	item := i.iterations[i.index]
 	i.index++
 
-	// Switch on the type of iteration (either model.Infection or timeout).
+	// Switch on the type of iteration (either model.Exposure or timeout).
 	switch v := item.(type) {
 
-	case *model.Infection:
+	case *model.Exposure:
 		// Set the cursor equal to the most recent diagnosis key, suffixed with "_cursor".
 		i.cursor = string(v.ExposureKey) + "_cursor"
 		return v, false, nil
@@ -127,10 +127,10 @@ func TestFetch(t *testing.T) {
 		{
 			name: "basic results",
 			iterations: []interface{}{
-				makeInfection(aaa, posver, "US"),
-				makeInfection(bbb, posver, "US"),
-				makeInfection(ccc, posver, "GB"),
-				makeInfection(ddd, posver, "US", "GB"),
+				makeExposure(aaa, posver, "US"),
+				makeExposure(bbb, posver, "US"),
+				makeExposure(ccc, posver, "GB"),
+				makeExposure(ddd, posver, "US", "GB"),
 			},
 			want: pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
@@ -159,10 +159,10 @@ func TestFetch(t *testing.T) {
 		{
 			name: "results combined on status",
 			iterations: []interface{}{
-				makeInfection(aaa, posver, "US"),
-				makeInfection(bbb, posver, "US"),
-				makeInfection(ccc, selfver, "US"),
-				makeInfection(ddd, selfver, "CA"),
+				makeExposure(aaa, posver, "US"),
+				makeExposure(bbb, posver, "US"),
+				makeExposure(ccc, selfver, "US"),
+				makeExposure(ddd, selfver, "CA"),
 			},
 			want: pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
@@ -186,10 +186,10 @@ func TestFetch(t *testing.T) {
 		{
 			name: "results combined on status and verification",
 			iterations: []interface{}{
-				makeInfectionWithVerification(aaa, posver, "AAA", "US"),
-				makeInfectionWithVerification(bbb, posver, "AAA", "US"),
-				makeInfectionWithVerification(ccc, posver, "BBB", "US"),
-				makeInfectionWithVerification(ddd, selfver, "AAA", "US"),
+				makeExposureWithVerification(aaa, posver, "AAA", "US"),
+				makeExposureWithVerification(bbb, posver, "AAA", "US"),
+				makeExposureWithVerification(ccc, posver, "BBB", "US"),
+				makeExposureWithVerification(ddd, selfver, "AAA", "US"),
 			},
 			want: pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
@@ -209,10 +209,10 @@ func TestFetch(t *testing.T) {
 			name:           "exclude regions",
 			excludeRegions: []string{"US", "CA"},
 			iterations: []interface{}{
-				makeInfection(aaa, posver, "US"),
-				makeInfection(bbb, posver, "CA"),
-				makeInfection(ccc, posver, "GB"),
-				makeInfection(ddd, posver, "US", "GB"),
+				makeExposure(aaa, posver, "US"),
+				makeExposure(bbb, posver, "CA"),
+				makeExposure(ccc, posver, "GB"),
+				makeExposure(ddd, posver, "US", "GB"),
 			},
 			want: pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
@@ -236,20 +236,20 @@ func TestFetch(t *testing.T) {
 			name:           "exclude all regions",
 			excludeRegions: []string{"US", "CA", "GB"},
 			iterations: []interface{}{
-				makeInfection(aaa, posver, "US"),
-				makeInfection(bbb, posver, "CA"),
-				makeInfection(ccc, posver, "GB"),
-				makeInfection(ddd, posver, "US", "CA", "GB"),
+				makeExposure(aaa, posver, "US"),
+				makeExposure(bbb, posver, "CA"),
+				makeExposure(ccc, posver, "GB"),
+				makeExposure(ddd, posver, "US", "CA", "GB"),
 			},
 			want: pb.FederationFetchResponse{},
 		},
 		{
 			name: "partial result",
 			iterations: []interface{}{
-				makeInfection(aaa, posver, "US"),
-				makeInfection(bbb, posver, "CA"),
+				makeExposure(aaa, posver, "US"),
+				makeExposure(bbb, posver, "CA"),
 				timeout{},
-				makeInfection(ccc, posver, "GB"),
+				makeExposure(ccc, posver, "GB"),
 			},
 			want: pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
@@ -278,7 +278,7 @@ func TestFetch(t *testing.T) {
 			server := federationServer{}
 			req := pb.FederationFetchRequest{ExcludeRegionIdentifiers: tc.excludeRegions}
 			ctx, cancel := context.WithCancel(context.Background())
-			itFunc := func(ctx context.Context, criteria database.IterateInfectionsCriteria) (database.InfectionIterator, error) {
+			itFunc := func(ctx context.Context, criteria database.IterateExposuresCriteria) (database.ExposureIterator, error) {
 				return &testIterator{iterations: tc.iterations, cancel: cancel}, nil
 			}
 

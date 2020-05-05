@@ -43,24 +43,20 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	db, err := database.NewFromEnv(ctx)
+	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
+	if err != nil {
+		logger.Fatalf("unable to connect to secret manager: %v", err)
+	}
+
+	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
 	bsc := export.BatchServerConfig{}
-	createBatchesTimeout := defaultTimeout
-	if timeoutStr := os.Getenv(createBatchesTimeoutEnvVar); timeoutStr != "" {
-		var err error
-		createBatchesTimeout, err = time.ParseDuration(timeoutStr)
-		if err != nil {
-			logger.Warnf("Failed to parse $%s value %q, using default.", createBatchesTimeoutEnvVar, timeoutStr)
-			createBatchesTimeout = defaultTimeout
-		}
-	}
-	logger.Infof("Using create batches timeout %v (override with $%s)", createBatchesTimeout, createBatchesTimeoutEnvVar)
-	bsc.CreateTimeout = createBatchesTimeout
+	bsc.CreateTimeout = serverenv.ParseDuration(ctx, createBatchesTimeoutEnvVar, defaultTimeout)
+	logger.Infof("Using create batches timeout %v (override with $%s)", bsc.CreateTimeout, createBatchesTimeoutEnvVar)
 
 	bsc.MaxRecords, err = strconv.Atoi(os.Getenv(maxRecordsEnvVar))
 	if err != nil {
@@ -77,7 +73,6 @@ func main() {
 	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
 	http.HandleFunc("/create-files", batchServer.CreateFilesHandler)     // worker that executes work
 
-	env := serverenv.New(ctx)
-	logger.Info("starting infection export server")
+	logger.Info("starting exposure export server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }

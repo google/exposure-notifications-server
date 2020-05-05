@@ -53,10 +53,16 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg := h.config.AppPkgConfig(ctx, data.AppPackageName)
+	cfg, err := h.config.AppPkgConfig(ctx, data.AppPackageName)
+	if err != nil {
+		// This will exit the server. Without a valid config, we cannot process
+		// requests.
+		// TODO(mikehelmick) stable fallbacks
+		logger.Fatalf("error loading APIConfig: %v", err)
+	}
 	if cfg == nil {
 		// configs were loaded, but the request app isn't configured.
-		logger.Errorf("unauthorized applicaiton: %v", data.AppPackageName)
+		logger.Errorf("unauthorized application: %v", data.AppPackageName)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -88,20 +94,20 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	batchTime := time.Now().UTC()
-	infections, err := model.TransformPublish(&data, batchTime)
+	exposures, err := model.TransformPublish(&data, batchTime)
 	if err != nil {
 		logger.Errorf("error transforming publish data: %v", err)
 		http.Error(w, "bad API request", http.StatusBadRequest)
 		return
 	}
 
-	err = h.db.InsertInfections(ctx, infections)
+	err = h.db.InsertExposures(ctx, exposures)
 	if err != nil {
-		logger.Errorf("error writing infection record: %v", err)
+		logger.Errorf("error writing exposure record: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
-	logger.Infof("Inserted %d infections.", len(infections))
+	logger.Infof("Inserted %d exposures.", len(exposures))
 
 	w.WriteHeader(http.StatusOK)
 }

@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model"
-
 	pgx "github.com/jackc/pgx/v4"
 )
 
@@ -40,16 +38,16 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 		// Lookup existing lock, if any.
 		row := tx.QueryRow(ctx, `
 			SELECT
-				lock_id, expires 
+				expires
 			FROM
-				Lock 
+				Lock
 			WHERE
 				lock_id=$1
 		`, lockID)
 
 		existing := true
-		var l model.Lock
-		if err := row.Scan(&l.LockID, &l.Expires); err != nil {
+		var expires time.Time
+		if err := row.Scan(&expires); err != nil {
 			if err == pgx.ErrNoRows {
 				existing = false
 			} else {
@@ -60,7 +58,7 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 		expiry := time.Now().UTC().Add(ttl)
 		if existing {
 			// If expired, update lock and return true.
-			if time.Now().UTC().After(l.Expires) {
+			if time.Now().UTC().After(expires) {
 				_, err := tx.Exec(ctx, `
 					UPDATE
 						Lock
@@ -98,7 +96,7 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 
 func makeUnlockFn(ctx context.Context, db *DB, lockID string) UnlockFn {
 	return func() error {
-		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			_, err := tx.Exec(ctx, `
 				DELETE FROM
 					Lock
@@ -110,9 +108,5 @@ func makeUnlockFn(ctx context.Context, db *DB, lockID string) UnlockFn {
 			}
 			return nil
 		})
-		if err != nil {
-			return err
-		}
-		return nil
 	}
 }

@@ -22,16 +22,6 @@ export DATASTORE_PROJECT_ID=$PROJECT_ID
 # local application credentials - you need to get your own credentials
 export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/local/sa.json"
 
-# To use Secret Manager, you need to grant Secret Manager > Secret Manager Accessor to the credentials in the above sa.json file.
-# https://console.cloud.google.com/iam-admin/iam
-#
-# If using a test project, you need to create a test key (one time) in your project:
-#
-#  $ echo -n "<some random string>" | gcloud secrets create safetynetapi --replication-policy=automatic --data-file=-
-#
-export SAFETYNET_API_KEY="projects/$PROJECT_ID/secrets/safetynetapi/versions/latest"
-export SAFETYNET_URL="https://www.googleapis.com/androidcheck/v1/attestations/verify?key="
-
 # Configuration refresh period for the publish API. Set lower than necessary for test environments.
 CONFIG_REFRESH_DURATION="1m"
 
@@ -45,6 +35,10 @@ export DB_PORT=5432
 export DB_DBNAME=apollo
 export DB_USER=apollo
 export DB_PASSWORD=mypassword
+# to resolve the DB password from a Secret Manager secret, commend out above,
+# and uncomment the next 2 lines.
+# export DB_PASSWORD_SECRET="projects/$PROJECT_ID/secrets/dbPassword/versions/latest"
+# export USE_SECRET_MANAGER=T
 export DB_SSLMODE=disable
 
 # GCS variables

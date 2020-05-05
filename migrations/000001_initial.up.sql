@@ -12,18 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-
--- Changes to this file should be paired with migration additions. 
--- Whenever you update this please also update the version here to match.
-CREATE TABLE public.schema_migrations
-(
-    version bigint NOT NULL,
-    dirty boolean NOT NULL,
-    CONSTRAINT schema_migrations_pkey PRIMARY KEY (version)
-);
-
-INSERT INTO public.schema_migrations (version, dirty) VALUES (1, false);
-
+BEGIN;
 CREATE TABLE FederationQuery (
 	query_id VARCHAR(50) PRIMARY KEY,
 	server_addr VARCHAR(100) NOT NULL,
@@ -41,7 +30,7 @@ CREATE TABLE FederationSync (
 	max_timestamp TIMESTAMP
 );
 
-CREATE TABLE Exposure (
+CREATE TABLE Infection (
 	exposure_key VARCHAR(30) PRIMARY KEY,
 	transmission_risk INT NOT NULL,
 	app_package_name VARCHAR(100),
@@ -107,5 +96,4 @@ CREATE TABLE APIConfig (
 	bypass_safetynet bool NOT NULL
 );
 
-
-
+END;

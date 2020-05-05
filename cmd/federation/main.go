@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"time"
 
 	"google.golang.org/grpc"
@@ -41,24 +40,20 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	db, err := database.NewFromEnv(ctx)
+	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
+	if err != nil {
+		logger.Fatalf("unable to connect to secret manager: %v", err)
+	}
+
+	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
-	timeout := defaultTimeout
-	if timeoutStr := os.Getenv(timeoutEnvVar); timeoutStr != "" {
-		var err error
-		timeout, err = time.ParseDuration(timeoutStr)
-		if err != nil {
-			logger.Warnf("Failed to parse $%s value %q, using default.", timeoutEnvVar, timeoutStr)
-			timeout = defaultTimeout
-		}
-	}
+	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
 	logger.Infof("Using fetch timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
-	env := serverenv.New(ctx)
 	grpcEndpoint := fmt.Sprintf(":%s", env.Port())
 	logger.Infof("gRPC endpoint [%s]", grpcEndpoint)
 
