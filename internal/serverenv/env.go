@@ -38,8 +38,9 @@ const (
 
 // ServerEnv represents latent environment configuration for servers in this application.
 type ServerEnv struct {
-	port     string
-	smClient *secretmanager.Client
+	port      string
+	smClient  *secretmanager.Client
+	overrides map[string]string
 }
 
 type ServerEnvOption func(context.Context, *ServerEnv) (*ServerEnv, error)
@@ -120,6 +121,9 @@ func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, 
 // by name, or if the same env var with a postfix of "_SECRET" is set
 // then the value will be resolved as a key into a secret store.
 func (s *ServerEnv) ResolveSecretEnv(ctx context.Context, envVar string) (string, error) {
+	if val, ok := s.overrides[envVar]; ok {
+		return val, nil
+	}
 	return s.getSecretValue(ctx, envVar)
 }
 
@@ -142,6 +146,14 @@ func (s *ServerEnv) WriteSecretToFile(ctx context.Context, envVar string) (strin
 	}
 	logger.Infof("Wrote secret value for %v to file", envVar)
 	return fName, nil
+}
+
+// Set overrides the usual lookup for name so that value is always returned.
+func (s *ServerEnv) Set(name, value string) {
+	if s.overrides == nil {
+		s.overrides = map[string]string{}
+	}
+	s.overrides[name] = value
 }
 
 // ParseDuration parses a duration string stored in the named environment
