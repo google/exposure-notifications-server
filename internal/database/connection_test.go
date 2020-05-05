@@ -161,7 +161,7 @@ func TestProcessEnv(t *testing.T) {
 			ctx := context.Background()
 			setupEnv(t, tc.env)
 
-			connStr, err := processEnv(ctx, tc.configs)
+			connStr, err := processEnv(ctx, tc.configs, nil)
 
 			if err != nil != tc.wantErr {
 				t.Fatalf("processEnv got err %t, want err %t", err != nil, tc.wantErr)

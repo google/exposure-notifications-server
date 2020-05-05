@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/serverenv"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -53,9 +54,9 @@ var (
 		{env: "DB_SSLMODE", part: "sslmode", def: defaultSSLMode, valid: validSSLModes},
 		{env: "DB_CONNECT_TIMEOUT", part: "connect_timeout", def: 0},
 		{env: "DB_PASSWORD", part: "password", def: ""},
-		{env: "DB_SSLCERT", part: "sslcert", def: ""},
-		{env: "DB_SSLKEY", part: "sslkey", def: ""},
-		{env: "DB_SSLROOTCERT", part: "sslrootcert", def: ""},
+		{env: "DB_SSLCERT", part: "sslcert", def: "", writeFile: true},
+		{env: "DB_SSLKEY", part: "sslkey", def: "", writeFile: true},
+		{env: "DB_SSLROOTCERT", part: "sslrootcert", def: "", writeFile: true},
 		{env: "DB_POOL_MAX_CONNS", part: "pool_max_conns", def: ""},
 		{env: "DB_POOL_MIN_CONNS", part: "pool_min_conns", def: ""},
 		{env: "DB_POOL_MAX_CONN_LIFETIME", part: "pool_max_conn_lifetime", def: time.Duration(0)},
@@ -65,11 +66,12 @@ var (
 )
 
 type config struct {
-	env   string
-	part  string
-	def   interface{}
-	req   bool
-	valid []string
+	env       string
+	part      string
+	def       interface{}
+	req       bool
+	valid     []string
+	writeFile bool
 }
 
 type DB struct {
@@ -79,11 +81,11 @@ type DB struct {
 // NewFromEnv sets up the database connections using the configuration in the
 // process's environment variables. This should be called just once per server
 // instance.
-func NewFromEnv(ctx context.Context) (*DB, error) {
+func NewFromEnv(ctx context.Context, env *serverenv.ServerEnv) (*DB, error) {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Creating connection pool.")
 
-	connStr, err := processEnv(ctx, configs)
+	connStr, err := processEnv(ctx, configs, env)
 	if err != nil {
 		return nil, fmt.Errorf("invalid database config: %v", err)
 	}
@@ -103,12 +105,26 @@ func (db *DB) Close(ctx context.Context) {
 	db.pool.Close()
 }
 
-func processEnv(ctx context.Context, configs []config) (string, error) {
+func getenv(ctx context.Context, name string, toFile bool, env *serverenv.ServerEnv) (string, error) {
+	if env == nil {
+		return os.Getenv(name), nil
+	}
+	if toFile {
+		return env.WriteSecretToFile(ctx, name)
+	}
+	return env.ResolveSecretEnv(ctx, name)
+}
+
+func processEnv(ctx context.Context, configs []config, env *serverenv.ServerEnv) (string, error) {
 	logger := logging.FromContext(ctx)
 	var e, p []string
 	for _, c := range configs {
 
-		val := os.Getenv(c.env)
+		val, err := getenv(ctx, c.env, c.writeFile, env)
+		if err != nil {
+			e = append(e, fmt.Sprintf("$%s secret access: %v", c.env, err))
+			continue
+		}
 		if c.req && val == "" {
 			e = append(e, fmt.Sprintf("$%s is required", c.env))
 			continue

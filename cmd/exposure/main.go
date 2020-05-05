@@ -32,14 +32,18 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	db, err := database.NewFromEnv(ctx)
+	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
+	if err != nil {
+		logger.Fatalf("unable to connect to secret manager: %v", err)
+	}
+
+	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
 	cfg := config.New(db)
-	env := serverenv.New(ctx)
 
 	http.Handle("/", publish.NewHandler(db, cfg))
 	logger.Info("starting exposure server")
