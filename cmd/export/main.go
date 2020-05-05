@@ -43,7 +43,7 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	env, err := serverenv.New(ctx).WithSecretManager(ctx)
+	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}

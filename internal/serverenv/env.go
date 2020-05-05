@@ -42,7 +42,9 @@ type ServerEnv struct {
 	smClient *secretmanager.Client
 }
 
-func New(ctx context.Context) *ServerEnv {
+type ServerEnvOption func(context.Context, *ServerEnv) (*ServerEnv, error)
+
+func New(ctx context.Context, opts ...ServerEnvOption) (*ServerEnv, error) {
 	env := &ServerEnv{
 		port: defaultPort,
 	}
@@ -54,10 +56,18 @@ func New(ctx context.Context) *ServerEnv {
 	}
 	logger.Infof("using port %v (override with $%v)", env.port, portEnvVar)
 
-	return env
+	for _, f := range opts {
+		var err error
+		env, err = f(ctx, env)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return env, nil
 }
 
-func (s *ServerEnv) WithSecretManager(ctx context.Context) (*ServerEnv, error) {
+func WithSecretManager(ctx context.Context, s *ServerEnv) (*ServerEnv, error) {
 	use := os.Getenv(useSecretManagerEnvVar)
 	if use == "" {
 		logging.FromContext(ctx).Warnf("secret manager for environment variable resolving not enabled, set %v to enable", useSecretManagerEnvVar)

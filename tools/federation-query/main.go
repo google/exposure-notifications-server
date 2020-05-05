@@ -60,7 +60,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	env, err := serverenv.New(ctx).WithSecretManager(ctx)
+	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
 	if err != nil {
 		log.Fatalf("unable to connect to secret manager: %v", err)
 	}

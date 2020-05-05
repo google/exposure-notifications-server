@@ -40,7 +40,7 @@ func main() {
 	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
 	logger.Infof("Using timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
-	env, err := serverenv.New(ctx).WithSecretManager(ctx)
+	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
