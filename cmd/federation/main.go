@@ -40,7 +40,12 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	db, err := database.NewFromEnv(ctx)
+	env, err := serverenv.New(ctx).WithSecretManager(ctx)
+	if err != nil {
+		logger.Fatalf("unable to connect to secret manager: %v", err)
+	}
+
+	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
@@ -49,7 +54,6 @@ func main() {
 	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
 	logger.Infof("Using fetch timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
-	env := serverenv.New(ctx)
 	grpcEndpoint := fmt.Sprintf(":%s", env.Port())
 	logger.Infof("gRPC endpoint [%s]", grpcEndpoint)
 

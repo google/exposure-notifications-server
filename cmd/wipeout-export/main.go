@@ -40,7 +40,12 @@ func main() {
 	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
 	logger.Infof("Using timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
-	db, err := database.NewFromEnv(ctx)
+	env, err := serverenv.New(ctx).WithSecretManager(ctx)
+	if err != nil {
+		logger.Fatalf("unable to connect to secret manager: %v", err)
+	}
+
+	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
@@ -48,6 +53,5 @@ func main() {
 
 	http.Handle("/", wipeout.NewExportHandler(db, timeout))
 	logger.Info("starting export wipeout server")
-	env := serverenv.New(ctx)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }

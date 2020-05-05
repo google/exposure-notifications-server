@@ -43,7 +43,12 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	db, err := database.NewFromEnv(ctx)
+	env, err := serverenv.New(ctx).WithSecretManager(ctx)
+	if err != nil {
+		logger.Fatalf("unable to connect to secret manager: %v", err)
+	}
+
+	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
@@ -68,7 +73,6 @@ func main() {
 	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
 	http.HandleFunc("/create-files", batchServer.CreateFilesHandler)     // worker that executes work
 
-	env := serverenv.New(ctx)
 	logger.Info("starting exposure export server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }
