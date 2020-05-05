@@ -50,7 +50,7 @@ To build and deploy a service:
     For example, to deploy the exposure key server:
 
     ```
-    ko publish ./cmd/infection
+    ko publish ./cmd/exposure
     ```
 
 You can find a list of services and their corresponding folders below.
@@ -65,6 +65,6 @@ Each service's `main` package is located in the `cmd` directory.
 | exposure key server  | cmd/export | Publishes exposure keys |
 | federation | cmd/federation | gRPC federation requests listener |
 | federation puller | cmd/federation-pull | Pulls federation results from federation partners |
-| infection server | cmd/infection |  Stores infection keys |
+| exposure server | cmd/exposure |  Stores infection keys |
 | exposure wipeout | cmd/wipeout-export | Deletes old exposure keys |
 | export wipeout | cmd/wipeout-infection | Deletes old exported files published by the exposure key export service |
