@@ -93,11 +93,6 @@ func TestVerifySafetyNet(t *testing.T) {
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
 	}
-	// allRegionsNoSafetyCheck := &apiconfig.APIConfig{
-	// 	AppPackageName:  appPkgName,
-	// 	AllowAllRegions: true,
-	// 	BypassSafetynet: false,
-	// }
 	allRegionsSafetyCheckDisabled := &apiconfig.APIConfig{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
