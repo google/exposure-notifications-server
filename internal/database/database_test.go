@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
 var testDB *DB
@@ -46,9 +47,12 @@ func createTestDB(ctx context.Context) (*DB, error) {
 	const testDBName = "exposure-server-test"
 
 	// Connect to the default database to create the test database.
-	env := envMap()
-	env["DB_DBNAME"] = "postgres"
-	db, err := newDB(ctx, env)
+	env, err := serverenv.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+	env.Set("DB_DBNAME", "postgres")
+	db, err := NewFromEnv(ctx, env)
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +62,8 @@ func createTestDB(ctx context.Context) (*DB, error) {
 	db.Close(ctx)
 
 	// Connect to the test database and create its schema by applying all migrations.
-	env["DB_DBNAME"] = testDBName
-	db, err = newDB(ctx, env)
+	env.Set("DB_DBNAME", testDBName)
+	db, err = NewFromEnv(ctx, env)
 	if err != nil {
 		return nil, err
 	}

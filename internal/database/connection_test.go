@@ -16,10 +16,10 @@ package database
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -159,9 +159,14 @@ func TestDBValues(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			setupEnv(t, tc.env)
-
-			got, err := dbValues(ctx, tc.configs, tc.env)
+			env, err := serverenv.New(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for k, v := range tc.env {
+				env.Set(k, v)
+			}
+			got, err := dbValues(ctx, tc.configs, env)
 
 			if err != nil != tc.wantErr {
 				t.Fatalf("processEnv got err %t, want err %t", err != nil, tc.wantErr)
@@ -171,36 +176,4 @@ func TestDBValues(t *testing.T) {
 			}
 		})
 	}
-}
-
-func setupEnv(t *testing.T, env map[string]string) {
-	t.Helper()
-
-	old := map[string]string{}
-	var clear []string
-
-	for key, value := range env {
-		if oldVal, ok := os.LookupEnv(key); ok {
-			old[key] = oldVal
-		} else {
-			clear = append(clear, key)
-		}
-
-		if err := os.Setenv(key, value); err != nil {
-			t.Fatalf("Failed to set %s=%s", key, value)
-		}
-	}
-
-	t.Cleanup(func() {
-		for key, value := range old {
-			if err := os.Setenv(key, value); err != nil {
-				t.Fatalf("Failed to reset %s=%s", key, value)
-			}
-		}
-		for _, key := range clear {
-			if err := os.Unsetenv(key); err != nil {
-				t.Fatalf("Failed to unset %s", key)
-			}
-		}
-	})
 }

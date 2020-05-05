@@ -124,8 +124,8 @@ func dbConnectionString(ctx context.Context, configs []config, env *serverenv.Se
 
 // dbURI builds a Postgres URI suitable for the lib/pq driver, which is used by
 // github.com/golang-migrate/migrate.
-func dbURI(ctx context.Context, configs []config, vars map[string]string) (string, error) {
-	vals, err := dbValues(ctx, configs, vars)
+func dbURI(ctx context.Context, configs []config, env *serverenv.ServerEnv) (string, error) {
+	vals, err := dbValues(ctx, configs, env)
 	if err != nil {
 		return "", err
 	}
