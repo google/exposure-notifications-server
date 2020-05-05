@@ -94,7 +94,7 @@ func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, 
 		return eVal, nil
 	}
 
-	secretVar := fmt.Sprintf("%v%v", envVar, SecretPostfix)
+	secretVar := envVar + SecretPostfix
 	secretLocation := os.Getenv(secretVar)
 	if secretLocation == "" {
 		logger.Warnf("resolving %v with local environment value %v is unset.", envVar, secretVar)
@@ -134,9 +134,9 @@ func (s *ServerEnv) WriteSecretToFile(ctx context.Context, envVar string) (strin
 		return "", err
 	}
 
-	fName := fmt.Sprintf("/tmp/secret-%v", envVar)
+	fName := "/tmp/secret-%v" + envVar
 	data := []byte(secretVal)
-	err = ioutil.WriteFile(fName, data, 0640)
+	err = ioutil.WriteFile(fName, data, 0600)
 	if err != nil {
 		return "", fmt.Errorf("unable to write secret for %v to file: %v", envVar, err)
 	}
