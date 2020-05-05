@@ -30,7 +30,8 @@ import (
 )
 
 const (
-	batchIDParam = "batch-id"
+	batchIDParam   = "batch-id"
+	filenameSuffix = ".zip"
 )
 
 func NewBatchServer(db *database.DB, bsc BatchServerConfig) *BatchServer {
@@ -264,7 +265,7 @@ func (s *BatchServer) createExportFilesForBatch(ctx context.Context, eb model.Ex
 		}
 
 		if recordCount == s.bsc.MaxRecords {
-			objectName := fmt.Sprintf(eb.FilenameRoot+"%s-%d", eb.StartTimestamp.Unix(), batchCount)
+			objectName := fmt.Sprintf(eb.FilenameRoot+"%s-%d"+filenameSuffix, eb.StartTimestamp.Unix(), batchCount)
 			if err = s.createFile(ctx, objectName, exposureKeys, eb, batchCount); err != nil {
 				return err
 			}
@@ -282,7 +283,7 @@ func (s *BatchServer) createExportFilesForBatch(ctx context.Context, eb model.Ex
 	}
 
 	// Create a file for the remaining keys
-	objectName := fmt.Sprintf(eb.FilenameRoot+"%s-%d", eb.StartTimestamp.Unix(), batchCount)
+	objectName := fmt.Sprintf(eb.FilenameRoot+"%s-%d"+filenameSuffix, eb.StartTimestamp.Unix(), batchCount)
 	if err = s.createFile(ctx, objectName, exposureKeys, eb, batchCount); err != nil {
 		return err
 	}
@@ -345,7 +346,7 @@ func (h *testExportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("error marshalling export file: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 	}
-	objectName := fmt.Sprintf("testExport-%d-records.pb", limit)
+	objectName := fmt.Sprintf("testExport-%d-records"+filenameSuffix, limit)
 	if err := storage.CreateObject(ctx, "apollo-public-bucket", objectName, data); err != nil {
 		logger.Errorf("error creating cloud storage object: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
