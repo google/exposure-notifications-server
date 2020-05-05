@@ -25,7 +25,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
 )
 
@@ -36,54 +35,21 @@ const (
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
 func NewHandler(ctx context.Context, db *database.DB, cfg *config.Config) http.Handler {
-	targetDuration := serverenv.ParseDuration(ctx, targetRequestDurationEnv, defaultTargetDuration)
-
 	return &publishHandler{
-		config:         cfg,
-		db:             db,
-		targetDuration: targetDuration,
+		config: cfg,
+		db:     db,
 	}
 }
 
 type publishHandler struct {
-	config         *config.Config
-	db             *database.DB
-	targetDuration time.Duration
-}
-
-func errorFunc(w http.ResponseWriter, msg string, code int) func() {
-	return func() {
-		http.Error(w, msg, code)
-	}
-}
-
-func successFunc(w http.ResponseWriter) func() {
-	return func() {
-		w.WriteHeader(http.StatusOK)
-	}
-}
-
-// Based on the startTime, waits the configured duration before executing the respFunc().
-func (h *publishHandler) delayReturn(ctx context.Context, st time.Time, respFunc func()) {
-	targetTime := st.Add(h.targetDuration)
-	currentTime := time.Now()
-	if !currentTime.After(targetTime) {
-		wait := targetTime.Sub(currentTime)
-		select {
-		case <-time.After(wait):
-		case <-ctx.Done():
-			logging.FromContext(ctx).Errorf("context cancelled before response could be sent")
-			return
-		}
-	}
-	respFunc()
+	config *config.Config
+	db     *database.DB
 }
 
 // There is a target normalized latency for this function. This is to help prevent
 // clients from being able to distinguish from successful or errored requests.
 func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	startTime := time.Now()
 	logger := logging.FromContext(ctx)
 
 	var data model.Publish
@@ -91,7 +57,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
 		logger.Errorf("error unmarhsaling API call, code: %v: %v", code, err)
-		h.delayReturn(ctx, startTime, successFunc(w))
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -100,14 +66,14 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Log the configuraiton error, return error to client.
 		// This is retryable, although won't succede if the error isn't transient.
 		logger.Errorf("no API config, dropping data: %v", err)
-		h.delayReturn(ctx, startTime, errorFunc(w, "internal error", http.StatusInternalServerError))
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	if cfg == nil {
 		// configs were loaded, but the request app isn't configured.
 		logger.Errorf("unauthorized application: %v", data.AppPackageName)
 		// This returns success to the client.
-		h.delayReturn(ctx, startTime, successFunc(w))
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -115,27 +81,27 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Errorf("verification.VerifyRegions: %v", err)
 		// This returns success to the client.
-		h.delayReturn(ctx, startTime, successFunc(w))
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	if cfg.IsIOS() {
 		logger.Errorf("ios devicecheck not supported on this server.")
 		// This returns success to the client.
-		h.delayReturn(ctx, startTime, successFunc(w))
+		w.WriteHeader(http.StatusOK)
 		return
 	} else if cfg.IsAndroid() {
 		err = verification.VerifySafetyNet(ctx, time.Now().UTC(), cfg, data)
 		if err != nil {
 			logger.Errorf("unable to verify safetynet payload: %v", err)
 			// This returns success to the client.
-			h.delayReturn(ctx, startTime, successFunc(w))
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 	} else {
 		logger.Errorf("invalid API configuration for AppPkg: %v, invalid platform", data.AppPackageName)
 		// This returns success to the client.
-		h.delayReturn(ctx, startTime, successFunc(w))
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -144,7 +110,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Errorf("error transforming publish data: %v", err)
 		// This returns success to the client.
-		h.delayReturn(ctx, startTime, successFunc(w))
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -157,5 +123,5 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Infof("Inserted %d exposures.", len(exposures))
 
-	h.delayReturn(ctx, startTime, successFunc(w))
+	w.WriteHeader(http.StatusOK)
 }
