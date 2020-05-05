@@ -1,0 +1,69 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+
+option go_package = "internal/pb/export;export";
+
+// Protobuf definition for exports of confirmed temporary exposure keys.
+//
+// These files have a 16-byte, zero-padded header before the protobuf data
+// starts. They will be contained in a zip archive, alongside a signature
+// file verifying the contents.
+message TemporaryExposureKeyExport {
+  // Time window of keys in this file based on arrival to server, in UTC
+  // seconds
+  optional fixed64 start_timestamp = 1;
+  optional fixed64 end_timestamp = 2;
+
+  // Region for which these keys came from (e.g., country)
+  optional string region = 3;
+
+  // E.g., Batch 2 of 10
+  optional int32 batch_num = 4;
+  optional int32 batch_size = 5;
+
+  // Information about signatures
+  repeated SignatureInfo signature_infos = 6;
+
+  // The TemporaryExposureKeys themselves
+  repeated TemporaryExposureKey keys = 7;
+}
+
+message SignatureInfo {
+  // Apple App Store Application Bundle ID
+  optional string app_bundle_id = 1;
+  // Android App package name
+  optional string android_package = 2;
+  // Key version for rollovers
+  optional string verification_key_version = 3;
+  // Additional identifying information
+  optional string verification_key_id = 4;
+}
+
+message TemporaryExposureKey {
+  // Key of infected user
+  optional bytes key_data = 1;
+
+  // Varying risks associated with exposure depending on type of verification
+  optional int32 transmission_risk_level = 2;
+
+  // Interval number (counting from the epoch) key was broadcast
+  optional int32 rolling_start_interval_number = 3;
+
+  // Number of intervals in period
+  optional int32 rolling_period = 4
+      [default = 144];  // defaults to 10 min intervals
+}
+

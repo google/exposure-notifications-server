@@ -299,7 +299,7 @@ func (s *BatchServer) createExportFilesForBatch(ctx context.Context, eb model.Ex
 
 func (s *BatchServer) createFile(ctx context.Context, objectName string, exposureKeys []*model.Exposure, eb model.ExportBatch, batchCount int) error {
 	// Format keys
-	data, err := MarshalExportFile(eb.StartTimestamp, eb.EndTimestamp, exposureKeys, "US")
+	data, err := MarshalExportFile(eb.StartTimestamp, eb.EndTimestamp, exposureKeys, "US" /* TODO: stop hardcoding */, int32(batchCount), int32(10) /* TODO: pass in actual */)
 	if err != nil {
 		return fmt.Errorf("marshalling export file: %v", err)
 	}
@@ -340,7 +340,7 @@ func (h *testExportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("error getting exposures: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 	}
-	data, err := MarshalExportFile(since, until, exposureKeys, "US")
+	data, err := MarshalExportFile(since, until, exposureKeys, "US", 1, 1)
 	if err != nil {
 		logger.Errorf("error marshalling export file: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
