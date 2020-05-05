@@ -59,7 +59,7 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 
 		if existing {
 			// If expired, update lock and return true.
-			if expires.After(existingExpires) {
+			if time.Now().UTC().After(existingExpires) {
 				_, err := tx.Exec(ctx, `
 					UPDATE
 						Lock
