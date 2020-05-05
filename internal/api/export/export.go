@@ -133,7 +133,7 @@ func (s *BatchServer) maybeCreateBatches(ctx context.Context, ec *model.ExportCo
 
 	ranges := makeBatchRanges(ec.Period, latestEnd, now)
 	if len(ranges) == 0 {
-		logger.Debugf("Batch creation for config %d is not required. Skipping.", ec.ConfigID)
+		logger.Infof("Batch creation for config %d is not required. Skipping.", ec.ConfigID)
 		return nil
 	}
 
