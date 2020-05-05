@@ -45,7 +45,7 @@ func main() {
 
 	cfg := config.New(db)
 
-	http.Handle("/", publish.NewHandler(db, cfg))
+	http.Handle("/", publish.NewHandler(ctx, db, cfg))
 	logger.Info("starting exposure server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }

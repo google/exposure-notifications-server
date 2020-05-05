@@ -111,6 +111,7 @@ func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("failed to access secret version for %v: %v", secretLocation, err)
 	}
+	logger.Infof("loaded %v from secret %v", envVar, secretLocation)
 
 	plaintext := string(result.Payload.Data)
 	return plaintext, nil
