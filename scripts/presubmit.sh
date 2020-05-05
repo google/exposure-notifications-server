@@ -47,4 +47,4 @@ echo "🧪 Test"
 go test ./... -coverprofile=coverage.out
 
 echo "🧑‍🔬 Test Coverage"
-go tool cover -func cover.out | grep total | awk '{print $NF}'             
+go tool cover -func coverage.out | grep total | awk '{print $NF}'             
