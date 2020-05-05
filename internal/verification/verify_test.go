@@ -105,22 +105,28 @@ func TestVerifySafetyNet(t *testing.T) {
 		Cfg               *apiconfig.APIConfig
 		AttestationResult error
 	}{
-		{ // Verify with no config, we return an error
+		{
+			// With no configuration, return err.
 			model.Publish{Regions: []string{"US"}},
 			"cannot enforce safetynet, no application config",
 			nil,
 			nil,
-		}, { // verify that when bypass is enabled we return nil even on fail
+		}, {
+			// Verify when Validate Attestation Passes, return nil.
 			model.Publish{Regions: []string{"US"}},
 			"",
 			allRegions,
 			nil,
-		}, { // verify that with safety check enabled, on error, we declare invalid attestation.
+		}, {
+			// Verify when ValidateAttestation raises err, with safety check
+			// enabled, return err.
 			model.Publish{Regions: []string{"US"}},
 			"android.ValidateAttestation: mocked",
 			allRegions,
 			fmt.Errorf("mocked"),
-		}, { // verify error path for bypass safety net
+		}, {
+			// Verify when ValidateAttestation raises err, with safety check
+			// disabled, return nil.
 			model.Publish{Regions: []string{"US"}},
 			"",
 			allRegionsSafetyCheckDisabled,
