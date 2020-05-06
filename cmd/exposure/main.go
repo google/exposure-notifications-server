@@ -58,4 +58,5 @@ func main() {
 	http.Handle("/", handlers.WithMinimumLatency(minLatency, publish.NewHandler(ctx, db, cfg, env)))
 	logger.Info("starting exposure server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
+	fmt.PrintLn("This was a test")
 }
