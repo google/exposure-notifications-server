@@ -109,3 +109,20 @@ func (db *DB) createDatabase(ctx context.Context, name string) error {
 	_, err = conn.Exec(ctx, fmt.Sprintf(`CREATE DATABASE %q`, name))
 	return err
 }
+
+func resetTestDB(t *testing.T) {
+	ctx := context.Background()
+	conn, err := testDB.pool.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Release()
+
+	_, err = conn.Exec(ctx, `
+		TRUNCATE FederationQuery, FederationSync, Exposure, ExportConfig, ExportBatch,
+				 ExportFile, APIConfig
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
