@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/metrics"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
@@ -36,19 +37,28 @@ const (
 	SecretPostfix = "_SECRET"
 )
 
+// ExporterFunc defines a factory function for creating a context aware metrics exporter.
+type ExporterFunc func(context.Context) metrics.Exporter
+
 // ServerEnv represents latent environment configuration for servers in this application.
 type ServerEnv struct {
 	port      string
 	smClient  *secretmanager.Client
 	overrides map[string]string
+	exporter  ExporterFunc
 }
 
-type ServerEnvOption func(context.Context, *ServerEnv) (*ServerEnv, error)
+// Option defines function types to modify the ServerEnv on creation.
+type Option func(context.Context, *ServerEnv) (*ServerEnv, error)
 
-func New(ctx context.Context, opts ...ServerEnvOption) (*ServerEnv, error) {
+// New creates a new ServerEnv with the requested options.
+func New(ctx context.Context, opts ...Option) (*ServerEnv, error) {
 	env := &ServerEnv{
 		port: defaultPort,
 	}
+	// The default is logs based metrics. This is applied before the opts, which
+	// may override the exporter implementation.
+	env, _ = WithLogsBasedMetrics(ctx, env)
 
 	logger := logging.FromContext(ctx)
 
@@ -66,6 +76,16 @@ func New(ctx context.Context, opts ...ServerEnvOption) (*ServerEnv, error) {
 	}
 
 	return env, nil
+}
+
+// WithLogsBasedMetrics installs a factory function that uses the metrics.NewLogsBasedFromContext
+// to return a metrics exporter.
+// The context passed in here isn't used.
+func WithLogsBasedMetrics(unused context.Context, s *ServerEnv) (*ServerEnv, error) {
+	s.exporter = func(ctx context.Context) metrics.Exporter {
+		return metrics.NewLogsBasedFromContext(ctx)
+	}
+	return s, nil
 }
 
 func WithSecretManager(ctx context.Context, s *ServerEnv) (*ServerEnv, error) {
@@ -155,6 +175,14 @@ func (s *ServerEnv) Set(name, value string) {
 		s.overrides = map[string]string{}
 	}
 	s.overrides[name] = value
+}
+
+// MetricsExporter returns a context appropriate metrics exporter.
+func (s *ServerEnv) MetricsExporter(ctx context.Context) metrics.Exporter {
+	if s.exporter == nil {
+		return nil
+	}
+	return s.exporter(ctx)
 }
 
 // ParseDuration parses a duration string stored in the named environment
