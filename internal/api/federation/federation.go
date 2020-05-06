@@ -140,6 +140,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 			// Reached the end of the result set.
 			break
 		}
+		// Iterator may go one past before returning done==true.
 		if inf == nil {
 			continue
 		}

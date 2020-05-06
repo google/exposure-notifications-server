@@ -74,10 +74,18 @@ func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCri
 		}
 	}
 
-	query, args, err := generateQuery(criteria)
+	where, args, err := generateWhereClause(criteria)
 	if err != nil {
-		return nil, fmt.Errorf("generating query: %v", err)
+		return nil, fmt.Errorf("generating where: %v", err)
 	}
+
+	query := `
+		SELECT
+			exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
+			created_at, local_provenance, verification_authority_name, sync_id
+		FROM
+			Exposure
+		` + where
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -129,16 +137,35 @@ func (i *postgresExposureIterator) Close() error {
 	return i.iter.close()
 }
 
-func generateQuery(criteria IterateExposuresCriteria) (string, []interface{}, error) {
-	q := `
+func (db *DB) CountExposures(ctx context.Context, criteria IterateExposuresCriteria) (int, error) {
+	conn, err := db.pool.Acquire(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("acquiring connection: %v", err)
+	}
+	defer conn.Release()
+
+	where, args, err := generateWhereClause(criteria)
+	if err != nil {
+		return 0, fmt.Errorf("generating where: %v", err)
+	}
+
+	query := `
 		SELECT
-			exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
-			created_at, local_provenance, verification_authority_name, sync_id
+			COUNT(*)
 		FROM
 			Exposure
-		WHERE 1=1
-		`
+		` + where
+	rows := conn.QueryRow(ctx, query, args...)
+	var count int
+	if err := rows.Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func generateWhereClause(criteria IterateExposuresCriteria) (string, []interface{}, error) {
 	var args []interface{}
+	q := "WHERE 1=1 "
 
 	if len(criteria.IncludeRegions) == 1 {
 		args = append(args, criteria.IncludeRegions)

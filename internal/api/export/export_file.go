@@ -23,7 +23,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb/export"
@@ -38,17 +37,17 @@ const (
 	defaultIntervalCount = 144
 )
 
-func MarshalExportFile(since, until time.Time, exposureKeys []*model.Exposure, region string, batchNum, batchSize int32) ([]byte, error) {
+func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int) ([]byte, error) {
 	// create main exposure key export binary
-	expContents, err := marshalContents(since, until, exposureKeys, region, batchNum, batchSize)
+	expContents, err := marshalContents(eb, exposures, batchNum, batchSize)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal exposure keys: %v", err)
+		return nil, fmt.Errorf("unable to marshal exposure keys: %w", err)
 	}
 
 	// sign it
 	sig, err := generateSignature(expContents)
 	if err != nil {
-		return nil, fmt.Errorf("unable to generate signature: %v", err)
+		return nil, fmt.Errorf("unable to generate signature: %w", err)
 	}
 
 	// create compressed archive of binary and signature
@@ -56,27 +55,27 @@ func MarshalExportFile(since, until time.Time, exposureKeys []*model.Exposure, r
 	zw := zip.NewWriter(buf)
 	zf, err := zw.Create(exportBinaryName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create zip entry for export: %v", err)
+		return nil, fmt.Errorf("unable to create zip entry for export: %w", err)
 	}
 	_, err = zf.Write(expContents)
 	if err != nil {
-		return nil, fmt.Errorf("unable to write export to archive: %v", err)
+		return nil, fmt.Errorf("unable to write export to archive: %w", err)
 	}
 	zf, err = zw.Create(exportSignatureName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create zip entry for signature: %v", err)
+		return nil, fmt.Errorf("unable to create zip entry for signature: %w", err)
 	}
 	_, err = zf.Write(sig)
 	if err != nil {
-		return nil, fmt.Errorf("unable to write signature to archive: %v", err)
+		return nil, fmt.Errorf("unable to write signature to archive: %w", err)
 	}
 	if err := zw.Close(); err != nil {
-		return nil, fmt.Errorf("unable to close archive: %v", err)
+		return nil, fmt.Errorf("unable to close archive: %w", err)
 	}
 	return buf.Bytes(), nil
 }
 
-func marshalContents(since, until time.Time, exposureKeys []*model.Exposure, region string, batchNum, batchSize int32) ([]byte, error) {
+func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int) ([]byte, error) {
 	exportBytes := []byte("EK Export v1    ")
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))
@@ -84,35 +83,35 @@ func marshalContents(since, until time.Time, exposureKeys []*model.Exposure, reg
 	// We want to scramble keys to ensure no associations, so arbitrarily sort them.
 	// This could be done at the db layer but doing it here makes it explicit that its
 	// important to the serialization
-	sort.Slice(exposureKeys, func(i, j int) bool {
-		return bytes.Compare(exposureKeys[i].ExposureKey, exposureKeys[j].ExposureKey) < 0
+	sort.Slice(exposures, func(i, j int) bool {
+		return bytes.Compare(exposures[i].ExposureKey, exposures[j].ExposureKey) < 0
 	})
 	var pbeks []*export.TemporaryExposureKey
-	for _, ek := range exposureKeys {
+	for _, exp := range exposures {
 		pbek := export.TemporaryExposureKey{
-			KeyData:               ek.ExposureKey,
-			TransmissionRiskLevel: proto.Int32(int32(ek.TransmissionRisk)),
+			KeyData:               exp.ExposureKey,
+			TransmissionRiskLevel: proto.Int32(int32(exp.TransmissionRisk)),
 		}
-		if ek.IntervalNumber != 0 {
-			pbek.RollingStartIntervalNumber = proto.Int32(ek.IntervalNumber)
+		if exp.IntervalNumber != 0 {
+			pbek.RollingStartIntervalNumber = proto.Int32(exp.IntervalNumber)
 		}
-		if ek.IntervalCount != defaultIntervalCount {
-			pbek.RollingPeriod = proto.Int32(ek.IntervalCount)
+		if exp.IntervalCount != defaultIntervalCount {
+			pbek.RollingPeriod = proto.Int32(exp.IntervalCount)
 		}
 		pbeks = append(pbeks, &pbek)
 	}
 	pbeke := export.TemporaryExposureKeyExport{
-		StartTimestamp: proto.Uint64(uint64(since.Unix())),
-		EndTimestamp:   proto.Uint64(uint64(until.Unix())),
-		Region:         proto.String(region),
-		BatchNum:       proto.Int32(batchNum),
-		BatchSize:      proto.Int32(batchSize),
+		StartTimestamp: proto.Uint64(uint64(eb.StartTimestamp.Unix())),
+		EndTimestamp:   proto.Uint64(uint64(eb.EndTimestamp.Unix())),
+		Region:         proto.String(eb.Region),
+		BatchNum:       proto.Int32(int32(batchNum)),
+		BatchSize:      proto.Int32(int32(batchSize)),
 		Keys:           pbeks,
 		// TODO(guray): SignatureInfos
 	}
 	protoBytes, err := proto.Marshal(&pbeke)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal exposure keys: %v", err)
+		return nil, fmt.Errorf("unable to marshal exposure keys: %w", err)
 	}
 	return append(exportBytes, protoBytes...), nil
 }
@@ -127,7 +126,7 @@ func getSigningKey() (*rsa.PrivateKey, error) {
 func generateSignature(data []byte) ([]byte, error) {
 	key, err := getSigningKey()
 	if err != nil {
-		return nil, fmt.Errorf("unable to generate signing key: %v", err)
+		return nil, fmt.Errorf("unable to generate signing key: %w", err)
 	}
 	digest := sha256.Sum256(data)
 	return rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
