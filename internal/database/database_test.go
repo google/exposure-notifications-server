@@ -23,6 +23,12 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+
+	// imported to register the postgres migration driver
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	// imported to register the "file" source migration driver
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	// imported to register the "postgres" database driver for migrate
 )
 
 var testDB *DB
@@ -34,7 +40,7 @@ func TestMain(m *testing.M) {
 		var err error
 		testDB, err = createTestDB(ctx)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("creating test DB: %v", err)
 		}
 	}
 	os.Exit(m.Run())

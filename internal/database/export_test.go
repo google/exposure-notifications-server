@@ -28,7 +28,7 @@ func TestAddExportConfig(t *testing.T) {
 		t.Skip("no test DB")
 	}
 	ctx := context.Background()
-	fromTime := time.Now()
+	fromTime := time.Now().UTC()
 	thruTime := fromTime.Add(6 * time.Hour)
 	want := &model.ExportConfig{
 		FilenameRoot:   "root",
@@ -41,7 +41,6 @@ func TestAddExportConfig(t *testing.T) {
 	if err := testDB.AddExportConfig(ctx, want); err != nil {
 		t.Fatal(err)
 	}
-
 	conn, err := testDB.pool.Acquire(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +62,10 @@ func TestAddExportConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	got.Period = time.Duration(psecs) * time.Second
-	if diff := cmp.Diff(want, want); diff != "" {
+
+	want.From = want.From.Truncate(time.Microsecond)
+	want.Thru = want.Thru.Truncate(time.Microsecond)
+	if diff := cmp.Diff(want, &got); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 }
