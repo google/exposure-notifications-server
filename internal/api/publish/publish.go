@@ -61,7 +61,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
 		logger.Errorf("error unmarhsaling API call, code: %v: %v", code, err)
-		metrics.WriteInt("publish-bad-json", false, 1)
+		metrics.WriteInt("publish-bad-json", true, 1)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -71,14 +71,14 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Log the configuraiton error, return error to client.
 		// This is retryable, although won't succede if the error isn't transient.
 		logger.Errorf("no API config, dropping data: %v", err)
-		metrics.WriteInt("publish-error-loading-apiconfig", false, 1)
+		metrics.WriteInt("publish-error-loading-apiconfig", true, 1)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	if cfg == nil {
 		// configs were loaded, but the request app isn't configured.
 		logger.Errorf("unauthorized application: %v", data.AppPackageName)
-		metrics.WriteInt("publish-app-not-authorized", false, 1)
+		metrics.WriteInt("publish-app-not-authorized", true, 1)
 		// This returns success to the client.
 		w.WriteHeader(http.StatusOK)
 		return
@@ -87,7 +87,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = verification.VerifyRegions(cfg, data)
 	if err != nil {
 		logger.Errorf("verification.VerifyRegions: %v", err)
-		metrics.WriteInt("publish-region-not-authorized", false, 1)
+		metrics.WriteInt("publish-region-not-authorized", true, 1)
 		// This returns success to the client.
 		w.WriteHeader(http.StatusOK)
 		return
@@ -95,7 +95,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if cfg.IsIOS() {
 		logger.Errorf("ios devicecheck not supported on this server.")
-		metrics.WriteInt("publish-no-ios", false, 1)
+		metrics.WriteInt("publish-no-ios", true, 1)
 		// This returns success to the client.
 		w.WriteHeader(http.StatusOK)
 		return
@@ -103,14 +103,14 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = verification.VerifySafetyNet(ctx, time.Now().UTC(), cfg, data)
 		if err != nil {
 			logger.Errorf("unable to verify safetynet payload: %v", err)
-			metrics.WriteInt("publish-safetnet-invalid", false, 1)
+			metrics.WriteInt("publish-safetnet-invalid", true, 1)
 			// This returns success to the client.
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 	} else {
 		logger.Errorf("invalid API configuration for AppPkg: %v, invalid platform", data.AppPackageName)
-		metrics.WriteInt("publish-apiconfig-missing-platform", false, 1)
+		metrics.WriteInt("publish-apiconfig-missing-platform", true, 1)
 		// This returns success to the client.
 		w.WriteHeader(http.StatusOK)
 		return
@@ -120,7 +120,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	exposures, err := model.TransformPublish(&data, batchTime)
 	if err != nil {
 		logger.Errorf("error transforming publish data: %v", err)
-		metrics.WriteInt("publish-transform-fail", false, 1)
+		metrics.WriteInt("publish-transform-fail", true, 1)
 		// This returns success to the client.
 		w.WriteHeader(http.StatusOK)
 		return
@@ -129,7 +129,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = h.db.InsertExposures(ctx, exposures)
 	if err != nil {
 		logger.Errorf("error writing exposure record: %v", err)
-		metrics.WriteInt("publish-db-write-error", false, 1)
+		metrics.WriteInt("publish-db-write-error", true, 1)
 		// This is retryable at the client - database error at the server.
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
