@@ -87,11 +87,14 @@ by running:
 ```
 
 You can also use `go test` as usual:
+
 ```
 go test ./...
 ```
+
 To run database tests, install postgres or start a server with docker (see
 "Running locally" below), then set some environment variables:
+
 ```
 DB_SSLMODE=disable DB_USER=postgres go test -v ./internal/database
 ```
@@ -123,9 +126,10 @@ chmod a+x .git/hooks/pre-push
     ```
 
 1. Install postgres, or use docker:
-```
-docker run -d -p 5432:5432 -e LANG=C postgres
-```
+
+    ```
+    docker run -d -p 5432:5432 -e LANG=C postgres
+    ```
 
 1. Create a postgres db locally.
 
