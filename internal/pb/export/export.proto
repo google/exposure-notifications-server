@@ -50,6 +50,8 @@ message SignatureInfo {
   optional string verification_key_version = 3;
   // Additional identifying information
   optional string verification_key_id = 4;
+  // E.g. ECDSA using a p-256 curve and SHA-256 as a hash function
+  optional string signature_algorithm = 5;
 }
 
 message TemporaryExposureKey {
@@ -62,7 +64,21 @@ message TemporaryExposureKey {
   // Interval number (counting from the epoch) key was broadcast
   optional int32 rolling_start_interval_number = 3;
 
-  // Number of intervals in period
+  // Increments of 10 minutes describing how long a key is valid
   optional int32 rolling_period = 4
-      [default = 144];  // defaults to 10 min intervals
+      [default = 144];  // defaults to 24 hours
+}
+
+message TEKSignatureList {
+  repeated TEKSignature signatures = 1;
+}
+
+message TEKSignature {
+  // Info about the signing key, version, algorithm, etc
+  optional SignatureInfo signature_info = 1;
+  // E.g., Batch 2 of 10
+  optional int32 batch_num = 2;
+  optional int32 batch_size = 3;
+  // Signature in X9.62 format (ASN.1 SEQUENCE of two INTEGER fields)
+  optional bytes signature = 4;
 }
