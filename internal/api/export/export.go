@@ -369,12 +369,21 @@ func (h *testExportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	logger.Infof("limiting to %v", limit)
+
+	if err := h.doExport(ctx, limit); err != nil {
+		logger.Errorf("test export: %v", err)
+		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *testExportHandler) doExport(ctx context.Context, limit int) error {
 	since := time.Now().UTC().AddDate(0, 0, -5)
 	until := time.Now().UTC()
 	exposureKeys, err := h.queryExposureKeys(ctx, since, until, limit)
 	if err != nil {
-		logger.Errorf("error getting exposures: %v", err)
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return fmt.Errorf("error getting exposures: %v", err)
 	}
 	eb := &model.ExportBatch{
 		StartTimestamp: since,
@@ -383,17 +392,13 @@ func (h *testExportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := MarshalExportFile(eb, exposureKeys, 1, 1)
 	if err != nil {
-		logger.Errorf("error marshalling export file: %v", err)
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return fmt.Errorf("error marshalling export file: %v", err)
 	}
 	objectName := fmt.Sprintf("testExport-%d-records"+filenameSuffix, limit)
 	if err := storage.CreateObject(ctx, "apollo-public-bucket", objectName, data); err != nil {
-		logger.Errorf("error creating cloud storage object: %v", err)
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
-		return
+		return fmt.Errorf("error creating cloud storage object: %v", err)
 	}
-
-	w.WriteHeader(http.StatusOK)
+	return nil
 }
 
 func (h *testExportHandler) queryExposureKeys(ctx context.Context, since, until time.Time, limit int) ([]*model.Exposure, error) {
