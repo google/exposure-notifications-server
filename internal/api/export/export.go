@@ -383,7 +383,7 @@ func (h *testExportHandler) doExport(ctx context.Context, limit int) error {
 	until := time.Now().UTC()
 	exposureKeys, err := h.queryExposureKeys(ctx, since, until, limit)
 	if err != nil {
-		return fmt.Errorf("error getting exposures: %v", err)
+		return fmt.Errorf("error getting exposures: %w", err)
 	}
 	eb := &model.ExportBatch{
 		StartTimestamp: since,
@@ -392,11 +392,11 @@ func (h *testExportHandler) doExport(ctx context.Context, limit int) error {
 	}
 	data, err := MarshalExportFile(eb, exposureKeys, 1, 1)
 	if err != nil {
-		return fmt.Errorf("error marshalling export file: %v", err)
+		return fmt.Errorf("error marshalling export file: %w", err)
 	}
 	objectName := fmt.Sprintf("testExport-%d-records"+filenameSuffix, limit)
 	if err := storage.CreateObject(ctx, "apollo-public-bucket", objectName, data); err != nil {
-		return fmt.Errorf("error creating cloud storage object: %v", err)
+		return fmt.Errorf("error creating cloud storage object: %w", err)
 	}
 	return nil
 }
