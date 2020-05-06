@@ -20,12 +20,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/logging"
 	pgx "github.com/jackc/pgx/v4"
 )
 
 var (
 	// ErrAlreadyLocked is returned if the lock is already in use.
 	ErrAlreadyLocked = errors.New("lock already in use")
+
+	// thePast is a date sufficiently in the past to allow safer comparison to "zero date" from Postgres.
+	thePast = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 )
 
 // UnlockFn can be deferred to release a lock.
@@ -33,79 +37,40 @@ type UnlockFn func() error
 
 // Lock acquires lock with given name that times out after ttl. Returns an UnlockFn that can be used to unlock the lock. ErrAlreadyLocked will be returned if there is already a lock in use.
 func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (UnlockFn, error) {
+	var expires time.Time
 	err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
-
-		// Lookup existing lock, if any.
 		row := tx.QueryRow(ctx, `
-			SELECT
-				expires
-			FROM
-				Lock
-			WHERE
-				lock_id=$1
-		`, lockID)
-
-		existing := true
-		var expires time.Time
+			SELECT AcquireLock($1, $2)
+		`, lockID, int(ttl.Seconds()))
 		if err := row.Scan(&expires); err != nil {
-			if err == pgx.ErrNoRows {
-				existing = false
-			} else {
-				return fmt.Errorf("scanning results: %v", err)
-			}
+			return err
 		}
-
-		expiry := time.Now().UTC().Add(ttl)
-		if existing {
-			// If expired, update lock and return true.
-			if time.Now().UTC().After(expires) {
-				_, err := tx.Exec(ctx, `
-					UPDATE
-						Lock
-					SET
-						expires=$1
-					WHERE
-						lock_id=$2
-				`, expiry, lockID)
-				if err != nil {
-					return fmt.Errorf("updating expired lock: %v", err)
-				}
-				return nil
-			}
+		if expires.Before(thePast) {
 			return ErrAlreadyLocked
-		}
-
-		// Insert a new lock.
-		_, err := tx.Exec(ctx, `
-			INSERT INTO
-				Lock
-				(lock_id, expires)
-			VALUES
-				($1, $2)
-		`, lockID, expiry)
-		if err != nil {
-			return fmt.Errorf("inserting new lock: %v", err)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return makeUnlockFn(ctx, db, lockID), nil
+	logging.FromContext(ctx).Infof("Acquired lock %q", lockID)
+	return makeUnlockFn(ctx, db, lockID, expires), nil
 }
 
-func makeUnlockFn(ctx context.Context, db *DB, lockID string) UnlockFn {
+func makeUnlockFn(ctx context.Context, db *DB, lockID string, expires time.Time) UnlockFn {
 	return func() error {
 		return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
-			_, err := tx.Exec(ctx, `
-				DELETE FROM
-					Lock
-				WHERE
-					lock_id=$1
-		`, lockID)
-			if err != nil {
-				return fmt.Errorf("deleting lock: %v", err)
+			row := tx.QueryRow(ctx, `
+				SELECT ReleaseLock($1, $2)
+			`, lockID, expires)
+			var released bool
+			if err := row.Scan(&released); err != nil {
+				return err
 			}
+			if !released {
+				return fmt.Errorf("cannot delete lock %q that no longer belongs to you; it likely expired and was taken by another process", lockID)
+			}
+			logging.FromContext(ctx).Infof("Released lock %q.", lockID)
 			return nil
 		})
 	}
