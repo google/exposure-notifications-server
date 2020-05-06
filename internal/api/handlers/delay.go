@@ -23,7 +23,7 @@ import (
 )
 
 // WithMinimumLatency wrapps the passed in http handler func and ensures a minimum target duration is reached.
-func WithMinimumLatency(h http.Handler, target time.Duration) http.HandlerFunc {
+func WithMinimumLatency(target time.Duration, h http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		targetTime := time.Now().Add(target)
 		h.ServeHTTP(w, r)

@@ -40,7 +40,7 @@ func TestDelayedReturn(t *testing.T) {
 	handler := &th{}
 
 	for i, c := range cases {
-		handler := WithMinimumLatency(handler, c)
+		handler := WithMinimumLatency(c, handler)
 		st := time.Now()
 		handler(w, r)
 		et := time.Now()

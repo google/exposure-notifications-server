@@ -55,7 +55,7 @@ func main() {
 	minLatency := serverenv.ParseDuration(ctx, minPublishDurationEnv, defaultMinPublishDiration)
 	logger.Info("Request minimum latency is: %v", minLatency.String())
 
-	http.Handle("/", handlers.WithMinimumLatency(publish.NewHandler(ctx, db, cfg), minLatency))
+	http.Handle("/", handlers.WithMinimumLatency(minLatency, publish.NewHandler(ctx, db, cfg)))
 	logger.Info("starting exposure server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }
