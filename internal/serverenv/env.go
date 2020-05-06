@@ -96,7 +96,7 @@ func WithSecretManager(ctx context.Context, s *ServerEnv) (*ServerEnv, error) {
 
 	client, err := secretmanager.NewClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("secretmanager.NewClient: %v", err)
+		return nil, fmt.Errorf("secretmanager.NewClient: %w", err)
 	}
 	s.smClient = client
 	return s, nil
@@ -130,7 +130,7 @@ func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, 
 	// Call the API.
 	result, err := s.smClient.AccessSecretVersion(ctx, accessRequest)
 	if err != nil {
-		return "", fmt.Errorf("failed to access secret version for %v: %v", secretLocation, err)
+		return "", fmt.Errorf("failed to access secret version for %v: %w", secretLocation, err)
 	}
 	logger.Infof("loaded %v from secret %v", envVar, secretLocation)
 
@@ -163,7 +163,7 @@ func (s *ServerEnv) WriteSecretToFile(ctx context.Context, envVar string) (strin
 	data := []byte(secretVal)
 	err = ioutil.WriteFile(fName, data, 0600)
 	if err != nil {
-		return "", fmt.Errorf("unable to write secret for %v to file: %v", envVar, err)
+		return "", fmt.Errorf("unable to write secret for %v to file: %w", envVar, err)
 	}
 	logger.Infof("Wrote secret value for %v to file", envVar)
 	return fName, nil

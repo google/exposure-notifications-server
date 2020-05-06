@@ -119,14 +119,14 @@ func getCutoff(ttlVar string) (cutoff time.Time, err error) {
 	ttlString := os.Getenv(ttlVar)
 	ttlDuration, err := getAndValidateDuration(ttlString)
 	if err != nil {
-		err = fmt.Errorf("TTL env variable error: %v", err)
+		err = fmt.Errorf("TTL env variable error: %w", err)
 		return cutoff, err
 	}
 
 	// Parse and Validate min ttl duration string.
 	minTTL, err := getAndValidateDuration(minCutoffDuration)
 	if err != nil {
-		err = fmt.Errorf("min ttl const error: %v", err)
+		err = fmt.Errorf("min ttl const error: %w", err)
 		return cutoff, err
 	}
 

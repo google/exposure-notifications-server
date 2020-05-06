@@ -28,7 +28,7 @@ import (
 func CreateObject(ctx context.Context, bucket, objectName string, contents []byte) error {
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("storage.NewClient: %v", err)
+		return fmt.Errorf("storage.NewClient: %w", err)
 	}
 	defer client.Close()
 
@@ -37,10 +37,10 @@ func CreateObject(ctx context.Context, bucket, objectName string, contents []byt
 
 	wc := client.Bucket(bucket).Object(objectName).NewWriter(ctx)
 	if _, err = wc.Write(contents); err != nil {
-		return fmt.Errorf("storage.Writer.Write: %v", err)
+		return fmt.Errorf("storage.Writer.Write: %w", err)
 	}
 	if err := wc.Close(); err != nil {
-		return fmt.Errorf("storage.Writer.Close: %v", err)
+		return fmt.Errorf("storage.Writer.Close: %w", err)
 	}
 	return nil
 }
@@ -49,7 +49,7 @@ func CreateObject(ctx context.Context, bucket, objectName string, contents []byt
 func DeleteObject(ctx context.Context, bucket, objectName string) error {
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("storage.NewClient: %v", err)
+		return fmt.Errorf("storage.NewClient: %w", err)
 	}
 	defer client.Close()
 
@@ -61,7 +61,7 @@ func DeleteObject(ctx context.Context, bucket, objectName string) error {
 			// Object doesn't exist; presumably already deleted.
 			return nil
 		}
-		return fmt.Errorf("storage.DeleteObject: %v", err)
+		return fmt.Errorf("storage.DeleteObject: %w", err)
 	}
 	return nil
 }
