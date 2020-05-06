@@ -16,6 +16,7 @@ package database
 
 import (
 	"context"
+	"sort"
 	"testing"
 	"time"
 
@@ -27,7 +28,9 @@ func TestAddExportConfig(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
+	defer resetTestDB(t)
 	ctx := context.Background()
+
 	fromTime := time.Now().UTC()
 	thruTime := fromTime.Add(6 * time.Hour)
 	want := &model.ExportConfig{
@@ -65,6 +68,71 @@ func TestAddExportConfig(t *testing.T) {
 	want.From = want.From.Truncate(time.Microsecond)
 	want.Thru = want.Thru.Truncate(time.Microsecond)
 	if diff := cmp.Diff(want, &got); diff != "" {
+		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+}
+
+func TestIterateExportConfigs(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	defer resetTestDB(t)
+	ctx := context.Background()
+
+	now := time.Now().Truncate(time.Microsecond)
+	ecs := []*model.ExportConfig{
+		{
+			FilenameRoot: "active 1",
+			From:         now.Add(-time.Minute),
+			Thru:         now.Add(time.Minute),
+		},
+		{
+			FilenameRoot: "active 2",
+			From:         now.Add(-time.Minute),
+		},
+		{
+			FilenameRoot: "done",
+			From:         now.Add(-time.Hour),
+			Thru:         now.Add(-time.Minute),
+		},
+		{
+			FilenameRoot: "not yet",
+			From:         now.Add(time.Minute),
+			Thru:         now.Add(time.Hour),
+		},
+	}
+	for _, ec := range ecs {
+		ec.Period = time.Hour
+		ec.Region = "R"
+		if err := testDB.AddExportConfig(ctx, ec); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	iter, err := testDB.IterateExportConfigs(ctx, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := iter.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	var got []*model.ExportConfig
+	for {
+		ec, done, err := iter.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if done {
+			break
+		}
+		got = append(got, ec)
+	}
+	want := ecs[0:2]
+	sort.Slice(got, func(i, j int) bool { return got[i].FilenameRoot < got[j].FilenameRoot })
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 }
