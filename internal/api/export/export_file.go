@@ -17,9 +17,9 @@ package export
 import (
 	"archive/zip"
 	"bytes"
-	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
 	"fmt"
 	"sort"
@@ -35,19 +35,21 @@ const (
 	exportBinaryName     = "export.bin"
 	exportSignatureName  = "export.sig"
 	defaultIntervalCount = 144
+	androidPackage       = "com.google.android.apps.exposurenotification"
+	algorithm            = "ECDSA p-256 SHA-256"
 )
 
 func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int) ([]byte, error) {
 	// create main exposure key export binary
-	expContents, err := marshalContents(eb, exposures, batchNum, batchSize)
+	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize))
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal exposure keys: %w", err)
 	}
 
-	// sign it
-	sig, err := generateSignature(expContents)
+	// create signature file
+	sigContents, err := marshalSignature(expContents, int32(batchNum), int32(batchSize))
 	if err != nil {
-		return nil, fmt.Errorf("unable to generate signature: %w", err)
+		return nil, fmt.Errorf("unable to marshal signature file: %w", err)
 	}
 
 	// create compressed archive of binary and signature
@@ -65,7 +67,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batch
 	if err != nil {
 		return nil, fmt.Errorf("unable to create zip entry for signature: %w", err)
 	}
-	_, err = zf.Write(sig)
+	_, err = zf.Write(sigContents)
 	if err != nil {
 		return nil, fmt.Errorf("unable to write signature to archive: %w", err)
 	}
@@ -75,7 +77,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batch
 	return buf.Bytes(), nil
 }
 
-func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int) ([]byte, error) {
+func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNum int32, batchSize int32) ([]byte, error) {
 	exportBytes := []byte("EK Export v1    ")
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))
@@ -107,7 +109,11 @@ func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNu
 		BatchNum:       proto.Int32(int32(batchNum)),
 		BatchSize:      proto.Int32(int32(batchSize)),
 		Keys:           pbeks,
-		// TODO(guray): SignatureInfos
+		SignatureInfos: []*export.SignatureInfo{
+			{
+				AndroidPackage: proto.String(androidPackage),
+			},
+		},
 	}
 	protoBytes, err := proto.Marshal(&pbeke)
 	if err != nil {
@@ -116,11 +122,34 @@ func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNu
 	return append(exportBytes, protoBytes...), nil
 }
 
-func getSigningKey() (*rsa.PrivateKey, error) {
+func marshalSignature(exportContents []byte, batchNum int32, batchSize int32) ([]byte, error) {
+	sig, err := generateSignature(exportContents)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate signature: %v", err)
+	}
+	teks := &export.TEKSignature{
+		SignatureInfo: &export.SignatureInfo{
+			AndroidPackage:         proto.String(androidPackage),
+			VerificationKeyVersion: proto.String("v1"),
+			SignatureAlgorithm:     proto.String(algorithm),
+		},
+		BatchNum:  proto.Int32(batchNum),
+		BatchSize: proto.Int32(batchSize),
+		Signature: sig,
+	}
+	teksl := export.TEKSignatureList{
+		Signatures: []*export.TEKSignature{teks},
+	}
+	protoBytes, err := proto.Marshal(&teksl)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal signature file: %v", err)
+	}
+	return protoBytes, nil
+}
+
+func getSigningKey() (*ecdsa.PrivateKey, error) {
 	// TODO(guray): get from Cloud Key Store (or other kubernetes secrets storage)?
-	reader := rand.Reader
-	bitSize := 2048
-	return rsa.GenerateKey(reader, bitSize)
+	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 }
 
 func generateSignature(data []byte) ([]byte, error) {
@@ -129,5 +158,9 @@ func generateSignature(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("unable to generate signing key: %w", err)
 	}
 	digest := sha256.Sum256(data)
-	return rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
+	r, s, err := ecdsa.Sign(rand.Reader, key, digest[:])
+	if err != nil {
+		return nil, fmt.Errorf("unable to sign: %w", err)
+	}
+	return elliptic.Marshal(elliptic.P256(), r, s), nil
 }
