@@ -1,0 +1,8 @@
+prowjob_namespace: default
+pod_namespace: test-pods
+in_repo_config:
+  enabled:
+    google/exposure-notification-server: true
+
+  allowed_clusters:
+    "*": ["default"]

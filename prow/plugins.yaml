@@ -1,0 +1,3 @@
+plugins:
+  google/exposure-notification-server:
+  - size

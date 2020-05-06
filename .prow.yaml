@@ -1,0 +1,20 @@
+prowjob_namespace: default
+pod_namespace: test-pods
+presubmits:
+  google/exposure-notification-server:
+  - name: pull-validate-prow-yaml
+    always_run: true
+    decorate: true
+    extra_refs:
+    - org: google
+      repo: exposure-notification-server
+      base_ref: master
+     spec:
+       containers:
+       - image: gcr.io/k8s-prow/checkconfig:v20191205-050b151d0
+         command:
+         - /app/prow/cmd/checkconfig/app.binary
+         args:
+         - --plugin-config=../prow/plugins.yaml
+         - --config-path=../prow/config.yaml
+         - --prow-yaml-repo-name=$(REPO_OWNER)/$(REPO_NAME)
