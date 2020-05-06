@@ -66,4 +66,3 @@ message TemporaryExposureKey {
   optional int32 rolling_period = 4
       [default = 144];  // defaults to 10 min intervals
 }
-

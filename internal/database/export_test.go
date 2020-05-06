@@ -31,12 +31,11 @@ func TestAddExportConfig(t *testing.T) {
 	fromTime := time.Now().UTC()
 	thruTime := fromTime.Add(6 * time.Hour)
 	want := &model.ExportConfig{
-		FilenameRoot:   "root",
-		Period:         3 * time.Hour,
-		IncludeRegions: []string{"i1", "i2"},
-		ExcludeRegions: nil,
-		From:           fromTime,
-		Thru:           thruTime,
+		FilenameRoot: "root",
+		Period:       3 * time.Hour,
+		Region:       "i1",
+		From:         fromTime,
+		Thru:         thruTime,
 	}
 	if err := testDB.AddExportConfig(ctx, want); err != nil {
 		t.Fatal(err)
@@ -52,12 +51,12 @@ func TestAddExportConfig(t *testing.T) {
 	)
 	err = conn.QueryRow(ctx, `
 		SELECT
-			config_id, filename_root, period_seconds, include_regions, exclude_regions, from_timestamp, thru_timestamp
+			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp
 		FROM
 			ExportConfig
 		WHERE
 			config_id = $1
-	`, want.ConfigID).Scan(&got.ConfigID, &got.FilenameRoot, &psecs, &got.IncludeRegions, &got.ExcludeRegions, &got.From, &got.Thru)
+	`, want.ConfigID).Scan(&got.ConfigID, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru)
 	if err != nil {
 		t.Fatal(err)
 	}

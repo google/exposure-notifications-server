@@ -19,10 +19,10 @@ import (
 	"context"
 	"flag"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
@@ -30,19 +30,21 @@ import (
 var (
 	filenameRoot  = flag.String("filename-root", "", "The root filename for the export file.")
 	period        = flag.Duration("period", 24*time.Hour, "The frequency with which to create export files.")
+	region        = flag.String("region", "", "The region for the export batches/files.")
 	fromTimestamp = flag.String("from-timestamp", "", "The timestamp (RFC3339) when this config becomes active.")
 	thruTimestamp = flag.String("thru-timestamp", "", "The timestamp (RFC3339) when this config ends.")
 )
 
 func main() {
-	var includeRegions, excludeRegions cflag.RegionListVar
-	flag.Var(&includeRegions, "regions", "A comma-separated list of regions to query. Leave blank for all regions.")
-	flag.Var(&excludeRegions, "exclude-regions", "A comma-separated list fo regions to exclude from the query.")
 	flag.Parse()
 
 	if *filenameRoot == "" {
 		log.Fatal("--filename-root is required.")
 	}
+	if *region == "" {
+		log.Fatal("--region is required.")
+	}
+	*region = strings.ToUpper(*region)
 
 	fromTime := time.Now().UTC()
 	if *fromTimestamp != "" {
@@ -75,12 +77,11 @@ func main() {
 	defer db.Close(ctx)
 
 	ec := model.ExportConfig{
-		FilenameRoot:   *filenameRoot,
-		Period:         *period,
-		IncludeRegions: includeRegions,
-		ExcludeRegions: excludeRegions,
-		From:           fromTime,
-		Thru:           thruTime,
+		FilenameRoot: *filenameRoot,
+		Period:       *period,
+		Region:       *region,
+		From:         fromTime,
+		Thru:         thruTime,
 	}
 
 	if err := db.AddExportConfig(ctx, &ec); err != nil {
