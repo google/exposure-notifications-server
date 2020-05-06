@@ -32,9 +32,9 @@ import (
 
 const (
 	createBatchesTimeoutEnvVar = "CREATE_BATCHES_TIMEOUT"
+	workerTimeoutEnvVar        = "WORKER_TIMEOUT"
 	defaultTimeout             = 5 * time.Minute
 	bucketEnvVar               = "EXPORT_BUCKET"
-	tmpBucketEnvVar            = "TMP_EXPORT_BUCKET"
 	maxRecordsEnvVar           = "EXPORT_FILE_MAX_RECORDS"
 	defaultMaxRecords          = 30_000
 )
@@ -58,20 +58,32 @@ func main() {
 	bsc.CreateTimeout = serverenv.ParseDuration(ctx, createBatchesTimeoutEnvVar, defaultTimeout)
 	logger.Infof("Using create batches timeout %v (override with $%s)", bsc.CreateTimeout, createBatchesTimeoutEnvVar)
 
-	bsc.MaxRecords, err = strconv.Atoi(os.Getenv(maxRecordsEnvVar))
-	if err != nil {
-		logger.Infof("Failed to parse export batch size env EnvVar: %v, %v", maxRecordsEnvVar, err)
+	bsc.WorkerTimeout = serverenv.ParseDuration(ctx, workerTimeoutEnvVar, defaultTimeout)
+	logger.Infof("Using worker timeout %v (override with $%s)", bsc.WorkerTimeout, workerTimeoutEnvVar)
+
+	if maxRecStr, ok := os.LookupEnv(maxRecordsEnvVar); !ok {
+		logger.Infof("Using export file max size %d (override with $%s)", defaultMaxRecords, maxRecordsEnvVar)
 		bsc.MaxRecords = defaultMaxRecords
+	} else {
+		if maxRec, err := strconv.Atoi(maxRecStr); err != nil {
+			logger.Errorf("Failed to parse $%s value %q, using default %d", maxRecordsEnvVar, maxRecStr, defaultMaxRecords)
+			bsc.MaxRecords = defaultMaxRecords
+		} else {
+			bsc.MaxRecords = maxRec
+		}
 	}
-	bsc.TmpBucket = os.Getenv(tmpBucketEnvVar)
-	bsc.Bucket = os.Getenv(bucketEnvVar)
+	if bucket, ok := os.LookupEnv(bucketEnvVar); !ok {
+		logger.Fatalf("Required $%s is not specified.", bucketEnvVar)
+	} else {
+		bsc.Bucket = bucket
+	}
 
 	// TODO(guray): remove or gate the /test handler
 	http.Handle("/test", export.NewTestExportHandler(db))
 
 	batchServer := export.NewBatchServer(db, bsc)
 	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
-	http.HandleFunc("/create-files", batchServer.CreateFilesHandler)     // worker that executes work
+	http.HandleFunc("/do-work", batchServer.WorkerHandler)               // worker that executes work
 
 	logger.Info("starting exposure export server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))

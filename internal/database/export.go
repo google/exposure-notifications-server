@@ -366,9 +366,11 @@ func (db *DB) LookupExportFiles(ctx context.Context, exportConfigID int64) ([]st
 			ExportBatch eb ON (eb.batch_id = ef.batch_id)
 		WHERE
 			eb.config_id = $1
+		AND
+			eb.status = $2
 		ORDER BY
 			ef.filename
-		`, exportConfigID)
+		`, exportConfigID, model.ExportBatchComplete)
 	if err != nil {
 		return nil, err
 	}

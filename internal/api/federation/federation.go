@@ -136,12 +136,11 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 			return nil, fmt.Errorf("iterating results: %w", err)
 		}
 
-		if done {
-			// Reached the end of the result set.
-			break
-		}
-		// Iterator may go one past before returning done==true.
 		if inf == nil {
+			// Iterator may go one past before returning done==true.
+			if done {
+				break
+			}
 			continue
 		}
 
@@ -234,6 +233,10 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		count++
+
+		if done {
+			break
+		}
 	}
 
 	logger.Infof("Sent %d keys", count)
