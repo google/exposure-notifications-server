@@ -60,8 +60,7 @@ CREATE TABLE ExportConfig (
 	config_id SERIAL PRIMARY KEY,
 	filename_root VARCHAR(100) NOT NULL,
 	period_seconds INT NOT NULL,
-	include_regions VARCHAR(5) [],
-	exclude_regions VARCHAR(5) [],
+	region VARCHAR(5) NOT NULL,
 	from_timestamp TIMESTAMP NOT NULL,
 	thru_timestamp TIMESTAMP
 );
@@ -73,8 +72,7 @@ CREATE TABLE ExportBatch (
 	filename_root VARCHAR(100) NOT NULL,
 	start_timestamp TIMESTAMP NOT NULL,
 	end_timestamp TIMESTAMP NOT NULL,
-	include_regions VARCHAR(5) [],
-	exclude_regions VARCHAR(5) [],
+	region VARCHAR(5) NOT NULL,
 	status ExportBatchStatus NOT NULL DEFAULT 'OPEN',
 	lease_expires TIMESTAMP
 );
@@ -82,7 +80,7 @@ CREATE TABLE ExportBatch (
 CREATE TABLE ExportFile (
 	filename VARCHAR(200) PRIMARY KEY,
 	batch_id INT REFERENCES ExportBatch(batch_id),
-	region VARCHAR(5),
+	region VARCHAR(5) NOT NULL,
 	batch_num INT,
 	batch_size INT,
 	status VARCHAR(10)

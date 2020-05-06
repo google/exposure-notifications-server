@@ -39,7 +39,7 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
+	env, err := serverenv.New(ctx, serverenv.WithSecretManager, serverenv.WithLogsBasedMetrics)
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
@@ -53,9 +53,9 @@ func main() {
 	cfg := config.New(db)
 
 	minLatency := serverenv.ParseDuration(ctx, minPublishDurationEnv, defaultMinPublishDiration)
-	logger.Info("Request minimum latency is: %v", minLatency.String())
+	logger.Infof("Request minimum latency is: %v", minLatency.String())
 
-	http.Handle("/", handlers.WithMinimumLatency(minLatency, publish.NewHandler(ctx, db, cfg)))
+	http.Handle("/", handlers.WithMinimumLatency(minLatency, publish.NewHandler(ctx, db, cfg, env)))
 	logger.Info("starting exposure server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }

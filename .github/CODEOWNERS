@@ -17,9 +17,11 @@
 /cmd/exposure @mikehelmick
 /cmd/wipeout-export @lakshmy88
 /cmd/wipeout-exposure @lakshmy88
- 
+
 
 /docs/ @llatif @crwilcox
+
+/terraform/ @danawillow @ndmckinley @onetwopunch
 
 # /internal/
 # /internal/android/

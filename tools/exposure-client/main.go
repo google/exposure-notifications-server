@@ -119,6 +119,7 @@ func main() {
 
 	sendRequest(jsonData)
 
+	log.Printf("regions: %v", regions[regionIdx.Int64()])
 	log.Printf("wrote %v keys", len(keys))
 	for i, key := range keys {
 		log.Printf(" %v | %v", key, exposureKeys[i].Key)
