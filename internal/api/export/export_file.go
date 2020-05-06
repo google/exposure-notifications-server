@@ -129,8 +129,6 @@ func generateSignature(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate signing key: %v", err)
 	}
-	hash := sha256.New()
-	hash.Write(data)
-	digest := hash.Sum(nil)
-	return rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest)
+	digest := sha256.Sum256(data)
+	return rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
 }
