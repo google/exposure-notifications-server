@@ -20,19 +20,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/config"
-	"github.com/google/exposure-notifications-server/internal/api/handlers"
 	"github.com/google/exposure-notifications-server/internal/api/publish"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-)
-
-const (
-	minPublishDurationEnv     = "MIN_PUBLISH_DURATION"
-	defaultMinPublishDiration = 5 * time.Second
 )
 
 func main() {
@@ -52,10 +45,7 @@ func main() {
 
 	cfg := config.New(db)
 
-	minLatency := serverenv.ParseDuration(ctx, minPublishDurationEnv, defaultMinPublishDiration)
-	logger.Info("Request minimum latency is: %v", minLatency.String())
-
-	http.Handle("/", handlers.WithMinimumLatency(minLatency, publish.NewHandler(ctx, db, cfg)))
+	http.Handle("/", publish.NewHandler(db, cfg))
 	logger.Info("starting exposure server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }
