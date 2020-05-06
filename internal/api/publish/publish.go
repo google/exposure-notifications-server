@@ -16,6 +16,7 @@
 package publish
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -27,8 +28,13 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification"
 )
 
+const (
+	targetRequestDurationEnv = "TARGET_REQUEST_DURATION"
+	defaultTargetDuration    = 5 * time.Second
+)
+
 // NewHandler creates the HTTP handler for the TTK publishing API.
-func NewHandler(db *database.DB, cfg *config.Config) http.Handler {
+func NewHandler(ctx context.Context, db *database.DB, cfg *config.Config) http.Handler {
 	return &publishHandler{
 		config: cfg,
 		db:     db,
@@ -40,6 +46,8 @@ type publishHandler struct {
 	db     *database.DB
 }
 
+// There is a target normalized latency for this function. This is to help prevent
+// clients from being able to distinguish from successful or errored requests.
 func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
@@ -47,49 +55,53 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var data model.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
+		// Log the unparsable JSON, but return success to the client.
 		logger.Errorf("error unmarhsaling API call, code: %v: %v", code, err)
-		// Log but don't return internal decode error message reason.
-		http.Error(w, "bad API request", code)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	cfg, err := h.config.AppPkgConfig(ctx, data.AppPackageName)
 	if err != nil {
-		// This will exit the server. Without a valid config, we cannot process
-		// requests.
-		// TODO(mikehelmick) stable fallbacks
-		logger.Fatalf("error loading APIConfig: %v", err)
+		// Log the configuraiton error, return error to client.
+		// This is retryable, although won't succede if the error isn't transient.
+		logger.Errorf("no API config, dropping data: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 	if cfg == nil {
 		// configs were loaded, but the request app isn't configured.
 		logger.Errorf("unauthorized application: %v", data.AppPackageName)
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		// This returns success to the client.
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	err = verification.VerifyRegions(cfg, data)
 	if err != nil {
 		logger.Errorf("verification.VerifyRegions: %v", err)
-		// TODO(mikehelmick) change error code after clients verify functionality.
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		// This returns success to the client.
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	if cfg.IsIOS() {
 		logger.Errorf("ios devicecheck not supported on this server.")
-		http.Error(w, "bad API request", http.StatusBadRequest)
+		// This returns success to the client.
+		w.WriteHeader(http.StatusOK)
 		return
 	} else if cfg.IsAndroid() {
 		err = verification.VerifySafetyNet(ctx, time.Now().UTC(), cfg, data)
 		if err != nil {
 			logger.Errorf("unable to verify safetynet payload: %v", err)
-			// TODO(mikehelmick) change error code after clients verify functionality.
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			// This returns success to the client.
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 	} else {
 		logger.Errorf("invalid API configuration for AppPkg: %v, invalid platform", data.AppPackageName)
-		http.Error(w, "bad API request", http.StatusBadRequest)
+		// This returns success to the client.
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -97,13 +109,15 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	exposures, err := model.TransformPublish(&data, batchTime)
 	if err != nil {
 		logger.Errorf("error transforming publish data: %v", err)
-		http.Error(w, "bad API request", http.StatusBadRequest)
+		// This returns success to the client.
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	err = h.db.InsertExposures(ctx, exposures)
 	if err != nil {
 		logger.Errorf("error writing exposure record: %v", err)
+		// This is retryable at the client - database error at the server.
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
