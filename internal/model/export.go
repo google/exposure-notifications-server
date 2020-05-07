@@ -26,13 +26,12 @@ var (
 )
 
 type ExportConfig struct {
-	ConfigID       int64         `db:"config_id"`
-	FilenameRoot   string        `db:"filename_root"`
-	Period         time.Duration `db:"period_seconds"`
-	IncludeRegions []string      `db:"include_regions"`
-	ExcludeRegions []string      `db:"exclude_regions"`
-	From           time.Time     `db:"from_timestamp"`
-	Thru           time.Time     `db:"thru_timestamp"`
+	ConfigID     int64         `db:"config_id"`
+	FilenameRoot string        `db:"filename_root"`
+	Period       time.Duration `db:"period_seconds"`
+	Region       string        `db:"region"`
+	From         time.Time     `db:"from_timestamp"`
+	Thru         time.Time     `db:"thru_timestamp"`
 }
 
 type ExportBatch struct {
@@ -41,8 +40,7 @@ type ExportBatch struct {
 	FilenameRoot   string    `db:"filename_root", json:"filenameRoot"`
 	StartTimestamp time.Time `db:"start_timestamp", json:"startTimestamp"`
 	EndTimestamp   time.Time `db:"end_timestamp", json:"endTimestamp"`
-	IncludeRegions []string  `db:"include_regions", json:"includeRegions"`
-	ExcludeRegions []string  `db:"exclude_regions", json:"excludeRegions"`
+	Region         string    `db:"region"`
 	Status         string    `db:"status", json:"status"`
 	LeaseExpires   time.Time `db:"lease_expires", json:"leaseExpires"`
 }

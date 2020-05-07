@@ -16,13 +16,17 @@
 package metrics
 
 import (
-	"fmt"
+	"context"
 
+	"github.com/google/exposure-notifications-server/internal/logging"
 	"go.uber.org/zap"
 )
 
-const logString = "!METRIC! Type = %s cumulative = %t value = %v"
+const logString = "!METRIC! Type = %v cumulative = %v value = %v"
 
+type ExporterFromContext func(context.Context) Exporter
+
+// Exporter defines a generic metric exporter inferface used in this application.
 type Exporter interface {
 	WriteBool(name string, value bool)
 	WriteInt(name string, cumulative bool, value int)
@@ -32,31 +36,38 @@ type Exporter interface {
 }
 
 type exporterImpl struct {
-	logger *zap.Logger
+	logger *zap.SugaredLogger
 }
 
-func NewLogsBasedExporter(log *zap.Logger) Exporter {
+func NewLogsBasedFromContext(ctx context.Context) Exporter {
+	logger := logging.FromContext(ctx)
+	return &exporterImpl{
+		logger: logger,
+	}
+}
+
+func NewLogsBasedExporter(log *zap.SugaredLogger) Exporter {
 	return &exporterImpl{
 		logger: log,
 	}
 }
 
 func (e *exporterImpl) WriteBool(name string, value bool) {
-	e.logger.Info(fmt.Sprintf(logString, name, false, value))
+	e.logger.Infof(logString, name, false, value)
 }
 
 func (e *exporterImpl) WriteInt(name string, cumulative bool, value int) {
-	e.logger.Info(fmt.Sprintf(logString, name, cumulative, value))
+	e.logger.Infof(logString, name, cumulative, value)
 }
 
 func (e *exporterImpl) WriteIntDistribution(name string, cumulative bool, values []int) {
-	e.logger.Info(fmt.Sprintf(logString, name, cumulative, values))
+	e.logger.Infof(logString, name, cumulative, values)
 }
 
 func (e *exporterImpl) WriteFloat64(name string, cumulative bool, value float64) {
-	e.logger.Info(fmt.Sprintf(logString, name, cumulative, value))
+	e.logger.Infof(logString, name, cumulative, value)
 }
 
 func (e *exporterImpl) WriteFloat64Distribution(name string, cumulative bool, values []float64) {
-	e.logger.Info(fmt.Sprintf(logString, name, cumulative, values))
+	e.logger.Infof(logString, name, cumulative, values)
 }

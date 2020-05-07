@@ -17,37 +17,47 @@ package serverenv
 
 import (
 	"context"
+	"crypto"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
-
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
-	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
+	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/internal/secrets"
+	"github.com/google/exposure-notifications-server/internal/signing"
 )
 
 const (
-	portEnvVar             = "PORT"
-	defaultPort            = "8080"
-	useSecretManagerEnvVar = "USE_SECRET_MANAGER"
+	portEnvVar  = "PORT"
+	defaultPort = "8080"
 	// SecretPostfix designates that environment variable ending with this value
 	SecretPostfix = "_SECRET"
 )
 
+// ExporterFunc defines a factory function for creating a context aware metrics exporter.
+type ExporterFunc func(context.Context) metrics.Exporter
+
 // ServerEnv represents latent environment configuration for servers in this application.
 type ServerEnv struct {
-	port      string
-	smClient  *secretmanager.Client
-	overrides map[string]string
+	port          string
+	secretManager secrets.SecretManager // Optional
+	keyManager    signing.KeyManager
+	overrides     map[string]string
+	exporter      metrics.ExporterFromContext
 }
 
-type ServerEnvOption func(context.Context, *ServerEnv) (*ServerEnv, error)
+// Option defines function types to modify the ServerEnv on creation.
+type Option func(*ServerEnv) *ServerEnv
 
-func New(ctx context.Context, opts ...ServerEnvOption) (*ServerEnv, error) {
-	env := &ServerEnv{
-		port: defaultPort,
+// New creates a new ServerEnv with the requested options.
+func New(ctx context.Context, opts ...Option) *ServerEnv {
+	env := &ServerEnv{port: defaultPort}
+	// A metrics exporter is required, installs the default log based one.
+	// Can be overridden by opts.
+	env.exporter = func(ctx context.Context) metrics.Exporter {
+		return metrics.NewLogsBasedFromContext(ctx)
 	}
 
 	logger := logging.FromContext(ctx)
@@ -58,40 +68,60 @@ func New(ctx context.Context, opts ...ServerEnvOption) (*ServerEnv, error) {
 	logger.Infof("using port %v (override with $%v)", env.port, portEnvVar)
 
 	for _, f := range opts {
-		var err error
-		env, err = f(ctx, env)
-		if err != nil {
-			return nil, err
-		}
+		env = f(env)
 	}
 
-	return env, nil
+	return env
 }
 
-func WithSecretManager(ctx context.Context, s *ServerEnv) (*ServerEnv, error) {
-	use := os.Getenv(useSecretManagerEnvVar)
-	if use == "" {
-		logging.FromContext(ctx).Warnf("secret manager for environment variable resolving not enabled, set %v to enable", useSecretManagerEnvVar)
+// WithMetricsExporter creates an Option to install a different metrics exporter.
+func WithMetricsExporter(f metrics.ExporterFromContext) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.exporter = f
+		return s
 	}
-
-	client, err := secretmanager.NewClient(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("secretmanager.NewClient: %v", err)
-	}
-	s.smClient = client
-	return s, nil
 }
 
+// WithSecretManager creates an Option to install a specific secret manager to use.
+func WithSecretManager(sm secrets.SecretManager) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.secretManager = sm
+		return s
+	}
+}
+
+// WithKeyManager creates an Option to install a specific KeyManager to use for signing requests.
+func WithKeyManager(km signing.KeyManager) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.keyManager = km
+		return s
+	}
+}
+
+// Port returns the port that a server should listen on.
 func (s *ServerEnv) Port() string {
 	return s.port
+}
+
+// GetSignerForKey returns the crypto.Singer implementation to use based on the installed KeyManager.
+// If there is no KeyManager installed, this returns an error.
+func (s *ServerEnv) GetSignerForKey(ctx context.Context, keyName string) (crypto.Signer, error) {
+	if s.keyManager == nil {
+		return nil, fmt.Errorf("no key manager installed, use WithKeyManager when creating the ServerEnv")
+	}
+	sign, err := s.keyManager.NewSigner(ctx, keyName)
+	if err != nil {
+		return nil, fmt.Errorf("KeyManager.NewSigner: %w", err)
+	}
+	return sign, nil
 }
 
 func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, error) {
 	logger := logging.FromContext(ctx)
 
 	eVal := os.Getenv(envVar)
-	if s.smClient == nil {
-		logger.Warnf("resolve %v with local environment variable, secret manager not configured", envVar)
+	if s.secretManager == nil {
+		logger.Warnf("resolve %v with local environment variable, no secret manager not configured", envVar)
 		return eVal, nil
 	}
 
@@ -102,19 +132,12 @@ func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, 
 		return eVal, nil
 	}
 
-	// Build the request.
-	accessRequest := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: secretLocation,
-	}
-
-	// Call the API.
-	result, err := s.smClient.AccessSecretVersion(ctx, accessRequest)
+	// Resolve through the installed secret manager.
+	plaintext, err := s.secretManager.GetSecretValue(ctx, secretLocation)
 	if err != nil {
-		return "", fmt.Errorf("failed to access secret version for %v: %v", secretLocation, err)
+		return "", fmt.Errorf("failed to access secret value for %v: %w", secretLocation, err)
 	}
 	logger.Infof("loaded %v from secret %v", envVar, secretLocation)
-
-	plaintext := string(result.Payload.Data)
 	return plaintext, nil
 }
 
@@ -143,7 +166,7 @@ func (s *ServerEnv) WriteSecretToFile(ctx context.Context, envVar string) (strin
 	data := []byte(secretVal)
 	err = ioutil.WriteFile(fName, data, 0600)
 	if err != nil {
-		return "", fmt.Errorf("unable to write secret for %v to file: %v", envVar, err)
+		return "", fmt.Errorf("unable to write secret for %v to file: %w", envVar, err)
 	}
 	logger.Infof("Wrote secret value for %v to file", envVar)
 	return fName, nil
@@ -155,6 +178,14 @@ func (s *ServerEnv) Set(name, value string) {
 		s.overrides = map[string]string{}
 	}
 	s.overrides[name] = value
+}
+
+// MetricsExporter returns a context appropriate metrics exporter.
+func (s *ServerEnv) MetricsExporter(ctx context.Context) metrics.Exporter {
+	if s.exporter == nil {
+		return nil
+	}
+	return s.exporter(ctx)
 }
 
 // ParseDuration parses a duration string stored in the named environment

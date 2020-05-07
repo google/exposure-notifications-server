@@ -27,6 +27,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/api/publish"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
@@ -39,10 +41,14 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
+	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
+	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
+	env := serverenv.New(ctx,
+		serverenv.WithSecretManager(sm),
+		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
 	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
@@ -53,9 +59,9 @@ func main() {
 	cfg := config.New(db)
 
 	minLatency := serverenv.ParseDuration(ctx, minPublishDurationEnv, defaultMinPublishDiration)
-	logger.Info("Request minimum latency is: %v", minLatency.String())
+	logger.Infof("Request minimum latency is: %v", minLatency.String())
 
-	http.Handle("/", handlers.WithMinimumLatency(minLatency, publish.NewHandler(ctx, db, cfg)))
+	http.Handle("/", handlers.WithMinimumLatency(minLatency, publish.NewHandler(ctx, db, cfg, env)))
 	logger.Info("starting exposure server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
 }

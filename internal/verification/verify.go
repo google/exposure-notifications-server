@@ -65,7 +65,7 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *apiconfig.
 			logger.Errorf("safetynet failed, but bypass enabled for app: '%v', failure: %v", data.AppPackageName, err)
 			return nil
 		}
-		return fmt.Errorf("android.ValidateAttestation: %v", err)
+		return fmt.Errorf("android.ValidateAttestation: %w", err)
 	}
 
 	return nil

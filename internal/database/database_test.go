@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 		var err error
 		testDB, err = createTestDB(ctx)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("creating test DB: %v", err)
 		}
 	}
 	os.Exit(m.Run())
@@ -55,10 +55,7 @@ func createTestDB(ctx context.Context) (*DB, error) {
 	const testDBName = "exposure-server-test"
 
 	// Connect to the default database to create the test database.
-	env, err := serverenv.New(ctx)
-	if err != nil {
-		return nil, err
-	}
+	env := serverenv.New(ctx)
 	env.Set("DB_DBNAME", "postgres")
 	db, err := NewFromEnv(ctx, env)
 	if err != nil {
@@ -159,5 +156,22 @@ func mustExec(t *testing.T, conn *pgxpool.Conn, stmt string, args ...interface{}
 	_, err := conn.Exec(context.Background(), stmt, args...)
 	if err != nil {
 		t.Fatalf("executing %s: %v", stmt, err)
+	}
+}
+
+func resetTestDB(t *testing.T) {
+	ctx := context.Background()
+	conn, err := testDB.pool.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Release()
+
+	_, err = conn.Exec(ctx, `
+		TRUNCATE FederationQuery, FederationSync, Exposure, ExportConfig, ExportBatch,
+				 ExportFile, APIConfig
+	`)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

@@ -25,7 +25,12 @@ type loggerKey struct{}
 var fallbackLogger *zap.SugaredLogger
 
 func init() {
-	if logger, err := zap.NewProduction(); err != nil {
+	// Set up Stackdriver keys (see: https://cloud.google.com/run/docs/logging#special-fields)
+	config := zap.NewProductionConfig()
+	config.EncoderConfig.MessageKey = "message"
+	config.EncoderConfig.LevelKey = "severity"
+
+	if logger, err := config.Build(); err != nil {
 		fallbackLogger = zap.NewNop().Sugar()
 	} else {
 		fallbackLogger = logger.Named("default").Sugar()

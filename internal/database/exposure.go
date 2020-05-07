@@ -74,10 +74,11 @@ func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCri
 		}
 	}
 
-	query, args, err := generateQuery(criteria)
+	query, args, err := generateExposureQuery(criteria)
 	if err != nil {
-		return nil, fmt.Errorf("generating query: %v", err)
+		return nil, fmt.Errorf("generating where: %v", err)
 	}
+
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -129,7 +130,8 @@ func (i *postgresExposureIterator) Close() error {
 	return i.iter.close()
 }
 
-func generateQuery(criteria IterateExposuresCriteria) (string, []interface{}, error) {
+func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interface{}, error) {
+	var args []interface{}
 	q := `
 		SELECT
 			exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
@@ -137,8 +139,7 @@ func generateQuery(criteria IterateExposuresCriteria) (string, []interface{}, er
 		FROM
 			Exposure
 		WHERE 1=1
-		`
-	var args []interface{}
+	`
 
 	if len(criteria.IncludeRegions) == 1 {
 		args = append(args, criteria.IncludeRegions)

@@ -146,7 +146,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 
 	syncID, finalizeFn, err := deps.startFederationSync(ctx, q, batchStart)
 	if err != nil {
-		return fmt.Errorf("starting federation sync for query %s: %v", q.QueryID, err)
+		return fmt.Errorf("starting federation sync for query %s: %w", q.QueryID, err)
 	}
 
 	var maxTimestamp time.Time
@@ -163,7 +163,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 
 		response, err := deps.fetch(ctx, request)
 		if err != nil {
-			return fmt.Errorf("fetching query %s: %v", q.QueryID, err)
+			return fmt.Errorf("fetching query %s: %w", q.QueryID, err)
 		}
 
 		responseTimestamp := time.Unix(response.FetchResponseKeyTimestamp, 0).UTC()
@@ -201,7 +201,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 
 					if len(exposures) == fetchBatchSize {
 						if err := deps.insertExposures(ctx, exposures); err != nil {
-							return fmt.Errorf("inserting %d exposures: %v", len(exposures), err)
+							return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 						}
 						total += len(exposures)
 						exposures = nil // Start a new batch.
@@ -211,7 +211,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 		}
 		if len(exposures) > 0 {
 			if err := deps.insertExposures(ctx, exposures); err != nil {
-				return fmt.Errorf("inserting %d exposures: %v", len(exposures), err)
+				return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 			}
 			total += len(exposures)
 		}
@@ -222,7 +222,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 
 	if err := finalizeFn(maxTimestamp, total); err != nil {
 		// TODO(jasonco): how do we clean up here? Just leave the records in and have the exporter eliminate them? Other?
-		return fmt.Errorf("finalizing federation sync for query %s: %v", q.QueryID, err)
+		return fmt.Errorf("finalizing federation sync for query %s: %w", q.QueryID, err)
 	}
 
 	return nil

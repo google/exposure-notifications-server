@@ -51,14 +51,14 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				ExportConfig
-				(filename_root, period_seconds, include_regions, exclude_regions, from_timestamp, thru_timestamp)
+				(filename_root, period_seconds, region, from_timestamp, thru_timestamp)
 			VALUES
-				($1, $2, $3, $4, $5, $6)
+				($1, $2, $3, $4, $5)
 			RETURNING config_id
-		`, ec.FilenameRoot, int(ec.Period.Seconds()), ec.IncludeRegions, ec.ExcludeRegions, ec.From, thru)
+		`, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region, ec.From, thru)
 
 		if err := row.Scan(&ec.ConfigID); err != nil {
-			return fmt.Errorf("fetching config_id: %v", err)
+			return fmt.Errorf("fetching config_id: %w", err)
 		}
 		return nil
 	})
@@ -76,13 +76,13 @@ type ExportConfigIterator interface {
 func (db *DB) IterateExportConfigs(ctx context.Context, now time.Time) (ExportConfigIterator, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %v", err)
+		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
 	// We don't defer Release() here because the iterator's Close() method will do it.
 
 	rows, err := conn.Query(ctx, `
 		SELECT
-			config_id, filename_root, period_seconds, include_regions, exclude_regions, from_timestamp, thru_timestamp
+			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp
 		FROM
 			ExportConfig
 		WHERE
@@ -109,7 +109,7 @@ func (i *postgresExportConfigIterator) Next() (*model.ExportConfig, bool, error)
 	var m model.ExportConfig
 	var periodSeconds int
 	var thru *time.Time
-	if err := i.iter.rows.Scan(&m.ConfigID, &m.FilenameRoot, &periodSeconds, &m.IncludeRegions, &m.ExcludeRegions, &m.From, &thru); err != nil {
+	if err := i.iter.rows.Scan(&m.ConfigID, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru); err != nil {
 		return nil, false, err
 	}
 	m.Period = time.Duration(periodSeconds) * time.Second
@@ -126,10 +126,11 @@ func (i *postgresExportConfigIterator) Close() error {
 // LatestExportBatchEnd returns the end time of the most recent ExportBatch for
 // a given ExportConfig. It returns the zero time if no previous ExportBatch
 // exists.
+// TODO(jasonco): This needs a
 func (db *DB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportConfig) (time.Time, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("acquiring connection: %v", err)
+		return time.Time{}, fmt.Errorf("acquiring connection: %w", err)
 	}
 	defer conn.Release()
 
@@ -149,7 +150,7 @@ func (db *DB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportConfig) 
 		if err == pgx.ErrNoRows {
 			return time.Time{}, nil
 		}
-		return time.Time{}, fmt.Errorf("scanning result: %v", err)
+		return time.Time{}, fmt.Errorf("scanning result: %w", err)
 	}
 	return latestEnd, nil
 }
@@ -161,9 +162,9 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
 				ExportBatch
-				(config_id, filename_root, start_timestamp, end_timestamp, include_regions, exclude_regions, status)
+				(config_id, filename_root, start_timestamp, end_timestamp, region, status)
 			VALUES
-				($1, $2, $3, $4, $5, $6, $7)
+				($1, $2, $3, $4, $5, $6)
 		`)
 		if err != nil {
 			return err
@@ -171,7 +172,7 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 
 		for _, eb := range batches {
 			if _, err := tx.Exec(ctx, stmtName,
-				eb.ConfigID, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.IncludeRegions, eb.ExcludeRegions, eb.Status); err != nil {
+				eb.ConfigID, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.Region, eb.Status); err != nil {
 				return err
 			}
 		}
@@ -186,7 +187,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 	err := func() error { // Use a func to allow defer conn.Release() to work.
 		conn, err := db.pool.Acquire(ctx)
 		if err != nil {
-			return fmt.Errorf("acquiring connection: %v", err)
+			return fmt.Errorf("acquiring connection: %w", err)
 		}
 		defer conn.Release()
 
@@ -213,7 +214,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 
 		for rows.Next() {
 			if err := rows.Err(); err != nil {
-				return fmt.Errorf("iterating rows: %v", err)
+				return fmt.Errorf("iterating rows: %w", err)
 			}
 
 			var id int64
@@ -291,7 +292,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 func (db *DB) LookupExportBatch(ctx context.Context, batchID int64) (*model.ExportBatch, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %v", err)
+		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
 	defer conn.Release()
 
@@ -301,7 +302,7 @@ func (db *DB) LookupExportBatch(ctx context.Context, batchID int64) (*model.Expo
 func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) (*model.ExportBatch, error) {
 	row := queryRow(ctx, `
 		SELECT
-			batch_id, config_id, filename_root, start_timestamp, end_timestamp, include_regions, exclude_regions, status, lease_expires
+			batch_id, config_id, filename_root, start_timestamp, end_timestamp, region, status, lease_expires
 		FROM
 			ExportBatch
 		WHERE
@@ -310,7 +311,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 
 	var expires *time.Time
 	eb := model.ExportBatch{}
-	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.IncludeRegions, &eb.ExcludeRegions, &eb.Status, &expires); err != nil {
+	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.Region, &eb.Status, &expires); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}
@@ -322,28 +323,71 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 	return &eb, nil
 }
 
-func (db *DB) CompleteFileAndBatch(ctx context.Context, files []string, batchID int64, batchCount int) error {
+// FinalizeBatch writes the ExportFile records and marks the ExportBatch as complete.
+func (db *DB) FinalizeBatch(ctx context.Context, eb *model.ExportBatch, files []string, batchSize int) error {
 	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		// Update ExportFile for the files created.
-		for _, file := range files {
+		for i, file := range files {
 			ef := model.ExportFile{
-				Filename: file,
-				BatchID:  batchID,
-				Region:   "", // TODO(lmohanan) figure out where region comes from.
-				BatchNum: batchCount,
-				Status:   model.ExportBatchComplete,
+				Filename:  file,
+				BatchID:   eb.BatchID,
+				Region:    eb.Region,
+				BatchNum:  i + 1,
+				BatchSize: batchSize,
+				Status:    model.ExportBatchComplete,
 			}
 			if err := addExportFile(ctx, tx, &ef); err != nil {
-				return fmt.Errorf("adding export file entry: %v", err)
+				return fmt.Errorf("adding export file entry: %w", err)
 			}
 		}
 
 		// Update ExportFile for the batch to mark it complete.
-		if err := completeBatch(ctx, tx, batchID); err != nil {
-			return fmt.Errorf("marking batch %v complete: %v", batchID, err)
+		if err := completeBatch(ctx, tx, eb.BatchID); err != nil {
+			return fmt.Errorf("marking batch %v complete: %w", eb.BatchID, err)
 		}
 		return nil
 	})
+}
+
+// LookupExportFiles returns a list of export files for the given ExportConfig exportConfigID.
+func (db *DB) LookupExportFiles(ctx context.Context, exportConfigID int64) ([]string, error) {
+	conn, err := db.pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	rows, err := conn.Query(ctx, `
+		SELECT
+			ef.filename
+		FROM
+			ExportFile ef
+		INNER JOIN
+			ExportBatch eb ON (eb.batch_id = ef.batch_id)
+		WHERE
+			eb.config_id = $1
+		AND
+			eb.status = $2
+		ORDER BY
+			ef.filename
+		`, exportConfigID, model.ExportBatchComplete)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var filenames []string
+	for rows.Next() {
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+		var filename string
+		if err := rows.Scan(&filename); err != nil {
+			return nil, err
+		}
+		filenames = append(filenames, filename)
+	}
+	return filenames, nil
 }
 
 type joinedExportBatchFile struct {
@@ -363,34 +407,34 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 	err := func() error { // Use a func to allow defer conn.Release() to work.
 		conn, err := db.pool.Acquire(ctx)
 		if err != nil {
-			return fmt.Errorf("acquiring connection: %v", err)
+			return fmt.Errorf("acquiring connection: %w", err)
 		}
 		defer conn.Release()
 
 		q := `
 			SELECT
-				ExportBatch.batch_id,
-				ExportBatch.status,
-				ExportFile.filename,
-				ExportFile.batch_size,
-				ExportFile.status
+				eb.batch_id,
+				eb.status,
+				ef.filename,
+				ef.batch_size,
+				ef.status
 			FROM 
-				ExportBatch 
+				ExportBatch eb
 			INNER JOIN
-				ExportFile ON (ExportBatch.batch_id = ExportFile.batch_id)
+				ExportFile ef ON (eb.batch_id = ef.batch_id)
 			WHERE
-				ExportBatch.end_timestamp < $1
-				AND ExportBatch.status != $2`
+				eb.end_timestamp < $1
+				AND eb.status != $2`
 		rows, err := conn.Query(ctx, q, before, model.ExportBatchDeleted)
 		if err != nil {
-			return fmt.Errorf("fetching filenames: %v", err)
+			return fmt.Errorf("fetching filenames: %w", err)
 		}
 		defer rows.Close()
 
 		for rows.Next() {
 			var f joinedExportBatchFile
 			if err := rows.Scan(&f.batchID, &f.batchStatus, &f.filename, &f.count, &f.fileStatus); err != nil {
-				return fmt.Errorf("fetching batch_id: %v", err)
+				return fmt.Errorf("fetching batch_id: %w", err)
 			}
 			files = append(files, f)
 		}
@@ -414,19 +458,19 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 
 		// Delete stored file.
 		if err := storage.DeleteObject(ctx, bucket, f.filename); err != nil {
-			return 0, fmt.Errorf("delete object: %v", err)
+			return 0, fmt.Errorf("delete object: %w", err)
 		}
 
 		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Update Status in ExportFile.
 			if err := updateExportFileStatus(ctx, tx, f.filename, model.ExportBatchDeleted); err != nil {
-				return fmt.Errorf("updating ExportFile: %v", err)
+				return fmt.Errorf("updating ExportFile: %w", err)
 			}
 
 			// If batch completely deleted, update in ExportBatch.
 			if batchFileDeleteCounter[f.batchID] == f.count {
 				if err := updateExportBatchStatus(ctx, tx, f.batchID, model.ExportBatchDeleted); err != nil {
-					return fmt.Errorf("updating ExportBatch: %v", err)
+					return fmt.Errorf("updating ExportBatch: %w", err)
 				}
 			}
 			return nil
@@ -435,7 +479,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 			return 0, err
 		}
 
-		logger.Infof("Deleted filename %v", f.filename)
+		logger.Infof("Deleted filename %s", f.filename)
 		count++
 	}
 
@@ -451,7 +495,7 @@ func addExportFile(ctx context.Context, tx pgx.Tx, ef *model.ExportFile) error {
 			($1, $2, $3, $4, $5, $6)
 		`, ef.Filename, ef.BatchID, ef.Region, ef.BatchNum, ef.BatchSize, ef.Status)
 	if err != nil {
-		return fmt.Errorf("inserting to ExportFile: %v", err)
+		return fmt.Errorf("inserting to ExportFile: %w", err)
 	}
 	return nil
 }
@@ -466,7 +510,7 @@ func updateExportFileStatus(ctx context.Context, tx pgx.Tx, filename, status str
 			filename = $2
 		`, status, filename)
 	if err != nil {
-		return fmt.Errorf("updating ExportFile: %v", err)
+		return fmt.Errorf("updating ExportFile: %w", err)
 	}
 	return nil
 }
@@ -481,7 +525,7 @@ func updateExportBatchStatus(ctx context.Context, tx pgx.Tx, batchID int64, stat
 			batch_id = $2
 		`, status, batchID)
 	if err != nil {
-		return fmt.Errorf("updating ExportBatch: %v", err)
+		return fmt.Errorf("updating ExportBatch: %w", err)
 	}
 	return nil
 }

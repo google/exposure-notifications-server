@@ -49,7 +49,7 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 
 	claims, err := parseAttestation(ctx, attestation)
 	if err != nil {
-		return fmt.Errorf("parseAttestation: %v", err)
+		return fmt.Errorf("parseAttestation: %w", err)
 	}
 
 	// Validate claims based on the options passed in.
@@ -60,7 +60,7 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 		}
 		nonceClaimBytes, err := base64.StdEncoding.DecodeString(nonceClaimB64)
 		if err != nil {
-			return fmt.Errorf("unable to decode nonce claim data: %v", err)
+			return fmt.Errorf("unable to decode nonce claim data: %w", err)
 		}
 		nonceClaim := string(nonceClaimBytes)
 		nonceCalculated := opts.Nonce.Nonce()
@@ -134,11 +134,11 @@ func keyFunc(ctx context.Context, tok *jwt.Token) (interface{}, error) {
 		}
 		certData, err := base64.StdEncoding.DecodeString(certStr.(string))
 		if err != nil {
-			return nil, fmt.Errorf("invalid certificate encoding: %v", err)
+			return nil, fmt.Errorf("invalid certificate encoding: %w", err)
 		}
 		x509certs[i], err = x509.ParseCertificate(certData)
 		if err != nil {
-			return nil, fmt.Errorf("invalid certificate: %v", err)
+			return nil, fmt.Errorf("invalid certificate: %w", err)
 		}
 	}
 
@@ -154,7 +154,7 @@ func keyFunc(ctx context.Context, tok *jwt.Token) (interface{}, error) {
 	// Verify the first certificate, with all added as allowed intermediates.
 	_, err := x509certs[0].Verify(opts)
 	if err != nil {
-		return nil, fmt.Errorf("invalid certificate chain: %v", err)
+		return nil, fmt.Errorf("invalid certificate chain: %w", err)
 	}
 
 	// extract the public key for verification.
@@ -175,7 +175,7 @@ func parseAttestation(ctx context.Context, signedAttestation string) (jwt.MapCla
 		})
 
 	if err != nil {
-		return nil, fmt.Errorf("jwt.Parse: %v", err)
+		return nil, fmt.Errorf("jwt.Parse: %w", err)
 	}
 	if !token.Valid {
 		logger.Errorf("invalid JWS attestation passed.")

@@ -20,7 +20,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -30,10 +32,10 @@ import (
 )
 
 const (
-	batchIDParam   = "batch-id"
 	filenameSuffix = ".zip"
 )
 
+// NewBatchServer makes a BatchServer.
 func NewBatchServer(db *database.DB, bsc BatchServerConfig) *BatchServer {
 	return &BatchServer{
 		db:  db,
@@ -47,9 +49,10 @@ type BatchServer struct {
 	bsc BatchServerConfig
 }
 
+// BatchServerConfig is configuratiion for a BatchServer.
 type BatchServerConfig struct {
 	CreateTimeout time.Duration
-	TmpBucket     string
+	WorkerTimeout time.Duration
 	Bucket        string
 	MaxRecords    int
 }
@@ -63,7 +66,7 @@ func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Reques
 
 	// Obtain lock to make sure there are no other processes working to create batches.
 	lock := "create_batches"
-	unlockFn, err := s.db.Lock(ctx, lock, s.bsc.CreateTimeout) // TODO(jasonco): double this?
+	unlockFn, err := s.db.Lock(ctx, lock, s.bsc.CreateTimeout)
 	if err != nil {
 		if errors.Is(err, database.ErrAlreadyLocked) {
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
@@ -86,39 +89,38 @@ func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Reques
 	}
 	defer it.Close()
 
-	done := false
-	for !done {
-
+	for {
 		select {
 		case <-ctx.Done():
-			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled { // May be context.Canceled due to test code.
+			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
 				logger.Errorf("Context error: %v", err)
 				return
 			}
-			logger.Infof("Timed out before iterating batches. Will pick up on next invocation.")
+			logger.Infof("Timed out creating batches. Batch creation will continue on next invocation.")
 			return
-
 		default:
-			// Fallthrough to process a record.
+			// Fallthrough
 		}
 
-		var ec *model.ExportConfig
-		var err error
-		ec, done, err = it.Next()
+		ec, done, err := it.Next()
 		if err != nil {
 			logger.Errorf("Failed to iterate export config: %v", err)
 			http.Error(w, "Failed to iterate export config, check logs.", http.StatusInternalServerError)
 			return
 		}
-		if done {
-			return
-		}
 		if ec == nil {
+			// Iterator may go one past before returning done==true.
+			if done {
+				return
+			}
 			continue
 		}
 
 		if err := s.maybeCreateBatches(ctx, ec, now); err != nil {
-			logger.Errorf("Failed to create batches for config %d: %v. Continuing", ec.ConfigID, err)
+			logger.Errorf("Failed to create batches for config %d: %v. Continuing to next config.", ec.ConfigID, err)
+		}
+		if done {
+			return
 		}
 	}
 }
@@ -128,7 +130,7 @@ func (s *BatchServer) maybeCreateBatches(ctx context.Context, ec *model.ExportCo
 
 	latestEnd, err := s.db.LatestExportBatchEnd(ctx, ec)
 	if err != nil {
-		return fmt.Errorf("fetching most recent batch for config %d: %v", ec.ConfigID, err)
+		return fmt.Errorf("fetching most recent batch for config %d: %w", ec.ConfigID, err)
 	}
 
 	ranges := makeBatchRanges(ec.Period, latestEnd, now)
@@ -144,14 +146,13 @@ func (s *BatchServer) maybeCreateBatches(ctx context.Context, ec *model.ExportCo
 			FilenameRoot:   ec.FilenameRoot,
 			StartTimestamp: br.start,
 			EndTimestamp:   br.end,
-			IncludeRegions: ec.IncludeRegions,
-			ExcludeRegions: ec.ExcludeRegions,
+			Region:         ec.Region,
 			Status:         model.ExportBatchOpen,
 		})
 	}
 
 	if err := s.db.AddExportBatches(ctx, batches); err != nil {
-		return fmt.Errorf("creating export batches for config %d: %v", ec.ConfigID, err)
+		return fmt.Errorf("creating export batches for config %d: %w", ec.ConfigID, err)
 	}
 
 	logger.Infof("Created %d batch(es) for config %d.", len(batches), ec.ConfigID)
@@ -196,123 +197,232 @@ func makeBatchRanges(period time.Duration, latestEnd, now time.Time) []batchRang
 	return ranges
 }
 
-// CreateFilesHandler is a handler to iterate the rows of ExportBatch, and creates GCS files
-func (s *BatchServer) CreateFilesHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+// WorkerHandler is a handler to iterate the rows of ExportBatch, and creates GCS files.
+func (s *BatchServer) WorkerHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), s.bsc.WorkerTimeout)
+	defer cancel()
 	logger := logging.FromContext(ctx)
 
-	// Poll for a batch and obtain a lease for it
-	ttl := 15 * time.Minute // TODO(jasonco): take from args?
-	batch, err := s.db.LeaseBatch(ctx, ttl, time.Now().UTC())
-	if err != nil {
-		logger.Errorf("Failed to lease batch: %v", err)
-		http.Error(w, "Failed to lease batch, check logs.", http.StatusInternalServerError)
-		return
-	}
-	if batch == nil {
-		logger.Debugf("No work to do.")
-		return
-	}
+	for {
+		select {
+		case <-ctx.Done():
+			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
+				logger.Errorf("Context error while processing batches: %v", err)
+				return
+			}
+			msg := "Timed out processing batches. Will continue on next invocation."
+			logger.Info(msg)
+			fmt.Fprintln(w, msg)
+			return
+		default:
+			// Fallthrough
+		}
 
-	ctx, cancel := context.WithDeadline(context.Background(), batch.LeaseExpires)
-	defer cancel()
+		// Check for a batch and obtain a lease for it.
+		batch, err := s.db.LeaseBatch(ctx, s.bsc.WorkerTimeout, time.Now().UTC())
+		if err != nil {
+			logger.Errorf("Failed to lease batch: %v", err)
+			continue
+		}
+		if batch == nil {
+			msg := "No work to do."
+			logger.Debugf(msg)
+			fmt.Fprintln(w, msg)
+			return
+		}
 
-	// Create file(s)
-	if err = s.createExportFilesForBatch(ctx, *batch); err != nil {
-		logger.Errorf("Failed to create files for batch: %v", err)
-		http.Error(w, "Failed to create files for batch, check logs.", http.StatusInternalServerError)
-		return
+		if err = s.exportBatch(ctx, batch); err != nil {
+			logger.Errorf("Failed to create files for batch: %v.", err)
+			continue
+		}
+
+		fmt.Fprintf(w, "Batch %d marked completed. \n", batch.BatchID)
 	}
-
-	fmt.Fprintf(w, "Batch %d marked completed", batch.BatchID)
 }
 
-func (s *BatchServer) createExportFilesForBatch(ctx context.Context, eb model.ExportBatch) error {
+func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) error {
 	logger := logging.FromContext(ctx)
+	logger.Infof("Creating files for export config %#v, max records per file %d.", eb, s.bsc.MaxRecords)
 
-	logger.Infof("Creating files for export config %v, batchID %v", eb.ConfigID, eb.BatchID)
-	logger.Infof("MaxRecords %v, since %v, until %v", s.bsc.MaxRecords, eb.StartTimestamp, eb.EndTimestamp)
-	logger.Infof("Included regions %v, ExcludedRegions %v ", eb.IncludeRegions, eb.ExcludeRegions)
-	logger.Infof("FilenameRoot %v ", eb.FilenameRoot)
-
-	var (
-		done         = false
-		batchCount   = 0
-		recordCount  = 1
-		exposureKeys []*model.Exposure
-		files        []string
-		criteria     = database.IterateExposuresCriteria{
-			SinceTimestamp:      eb.StartTimestamp,
-			UntilTimestamp:      eb.EndTimestamp,
-			IncludeRegions:      eb.IncludeRegions,
-			ExcludeRegions:      eb.ExcludeRegions,
-			OnlyLocalProvenance: false, // include federated ids
-		}
-	)
+	criteria := database.IterateExposuresCriteria{
+		SinceTimestamp:      eb.StartTimestamp,
+		UntilTimestamp:      eb.EndTimestamp,
+		IncludeRegions:      []string{eb.Region},
+		OnlyLocalProvenance: false, // include federated ids
+	}
 
 	it, err := s.db.IterateExposures(ctx, criteria)
 	if err != nil {
-		return fmt.Errorf("iterating exposures: %v", err)
+		return fmt.Errorf("iterating exposures: %w", err)
 	}
 	defer it.Close()
 
-	exp, done, err := it.Next()
-	// TODO(lmohanan): Watch for context deadline
-	for !done && err == nil {
-		if exp != nil {
-			exposureKeys = append(exposureKeys, exp)
-			recordCount++
-		}
-
-		if recordCount == s.bsc.MaxRecords {
-			objectName := fmt.Sprintf(eb.FilenameRoot+"%s-%d"+filenameSuffix, eb.StartTimestamp.Unix(), batchCount)
-			if err = s.createFile(ctx, objectName, exposureKeys, eb, batchCount); err != nil {
+	// Build up groups of exposures in memory. We need to use memory so we can determine the
+	// total number of groups (which is embedded in each export file). This technique avoids
+	// SELECT COUNT which would lock the database slowing new uploads.
+	var groups [][]*model.Exposure
+	var exposures []*model.Exposure
+	for {
+		select {
+		case <-ctx.Done():
+			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
 				return err
 			}
-
-			// Append to files list
-			files = append(files, objectName)
-			batchCount++
-			recordCount = 1
+			logger.Infof("Timed out iterating exposures for batch %s. The entire batch will be retried once the batch lease expires on %v.", eb.BatchID, eb.LeaseExpires)
+			return nil
+		default:
+			// Fallthrough
 		}
 
-		exp, done, err = it.Next()
+		exp, done, err := it.Next()
+		if err != nil {
+			return err
+		}
+		if exp == nil {
+			// Iterator may go one past before returning done==true.
+			if done {
+				break
+			}
+			continue
+		}
+
+		exposures = append(exposures, exp)
+		if len(exposures) == s.bsc.MaxRecords {
+			groups = append(groups, exposures)
+			exposures = nil
+		}
+		if done {
+			break
+		}
 	}
+
+	// Create a group for any remaining keys.
+	if len(exposures) > 0 {
+		groups = append(groups, exposures)
+	}
+
+	// Create the export files.
+	batchSize := len(groups)
+	var objectNames []string
+	for i, exposures := range groups {
+		select {
+		case <-ctx.Done():
+			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
+				return err
+			}
+			logger.Infof("Timed out writing export files for batch %s. The entire batch will be retried once the batch lease expires on %v.", eb.BatchID, eb.LeaseExpires)
+			return nil
+		default:
+			// Fallthrough
+		}
+
+		// TODO(jasonco): Uploading in parallel (to a point) probably makes better use of network.
+		objectName, err := s.createFile(ctx, exposures, eb, i+1, batchSize)
+		if err != nil {
+			return fmt.Errorf("creating export file %d for batch %d: %w", i+1, eb.BatchID, err)
+		}
+		objectNames = append(objectNames, objectName)
+	}
+
+	// Create the index file. The index file includes _all_ batches for an ExportConfig, so multiple
+	// workers may be racing to update it. We use a lock to make them line up after one another.
+	lockID := fmt.Sprintf("export-batch-%d", eb.BatchID)
+	sleep := 10 * time.Second
+	for {
+		select {
+		case <-ctx.Done():
+			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
+				return err
+			}
+			logger.Infof("Timed out acquiring index file lock for batch %s. The entire batch will be retried once the batch lease expires on %v.", eb.BatchID, eb.LeaseExpires)
+			return nil
+		default:
+			// Fallthrough
+		}
+
+		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
+		if err != nil {
+			if err == database.ErrAlreadyLocked {
+				logger.Debugf("Lock %s is locked; sleeping %v and will try again.", lockID, sleep)
+				time.Sleep(sleep)
+				continue
+			}
+			return err
+		}
+
+		if err := s.createIndex(ctx, eb, objectNames); err != nil {
+			if err1 := unlock(); err1 != nil {
+				return fmt.Errorf("releasing lock: %v (original error: %w)", err1, err)
+			}
+			return fmt.Errorf("creating index file for batch %d: %w", eb.BatchID, err)
+		}
+		if err := unlock(); err != nil {
+			return fmt.Errorf("releasing lock: %w", err)
+		}
+		return nil
+	}
+
+	// Write the files records in database and complete the batch.
+	if err := s.db.FinalizeBatch(ctx, eb, objectNames, batchSize); err != nil {
+		return fmt.Errorf("completing batch: %w", err)
+	}
+	logger.Infof("Batch %d completed.", eb.BatchID)
+	return nil
+}
+
+func (s *BatchServer) createFile(ctx context.Context, exposures []*model.Exposure, eb *model.ExportBatch, batchNum, batchSize int) (string, error) {
+	// Format keys.
+	data, err := MarshalExportFile(eb, exposures, batchNum, batchSize)
 	if err != nil {
-		return fmt.Errorf("iterating exposures: %v", err)
+		return "", fmt.Errorf("marshalling export file: %w", err)
 	}
 
-	// Create a file for the remaining keys
-	objectName := fmt.Sprintf(eb.FilenameRoot+"%s-%d"+filenameSuffix, eb.StartTimestamp.Unix(), batchCount)
-	if err = s.createFile(ctx, objectName, exposureKeys, eb, batchCount); err != nil {
-		return err
+	// Write to GCS.
+	objectName := exportFilename(eb, batchNum)
+	if err := storage.CreateObject(ctx, s.bsc.Bucket, objectName, data); err != nil {
+		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, s.bsc.Bucket, err)
+	}
+	return objectName, nil
+}
+
+func (s *BatchServer) createIndex(ctx context.Context, eb *model.ExportBatch, newObjectNames []string) error {
+	objects, err := s.db.LookupExportFiles(ctx, eb.ConfigID)
+	if err != nil {
+		return fmt.Errorf("lookup existing export files for batch %d: %w", eb.BatchID, err)
 	}
 
-	// Append to files list
-	files = append(files, objectName)
-	batchCount++
+	// Add the new objects (they haven't been committed to the database yet).
+	objects = append(objects, newObjectNames...)
 
-	if err = s.db.CompleteFileAndBatch(ctx, files, eb.BatchID, batchCount); err != nil {
-		return err
+	// Remove duplicates, sort.
+	m := map[string]struct{}{}
+	for _, o := range objects {
+		m[o] = struct{}{}
+	}
+	objects = nil
+	for k := range m {
+		objects = append(objects, k)
+	}
+	sort.Strings(objects)
+
+	data := []byte(strings.Join(objects, "\n"))
+
+	indexObjectName := exportIndexFilename(eb)
+	if err := storage.CreateObject(ctx, s.bsc.Bucket, indexObjectName, data); err != nil {
+		return fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, s.bsc.Bucket, err)
 	}
 	return nil
 }
 
-func (s *BatchServer) createFile(ctx context.Context, objectName string, exposureKeys []*model.Exposure, eb model.ExportBatch, batchCount int) error {
-	// Format keys
-	data, err := MarshalExportFile(eb.StartTimestamp, eb.EndTimestamp, exposureKeys, "US" /* TODO: stop hardcoding */, int32(batchCount), int32(10) /* TODO: pass in actual */)
-	if err != nil {
-		return fmt.Errorf("marshalling export file: %v", err)
-	}
-
-	// Write to GCS
-	err = storage.CreateObject(ctx, s.bsc.Bucket, objectName, data)
-	if err != nil {
-		return fmt.Errorf("creating file: %v", err)
-	}
-	return nil
+func exportFilename(eb *model.ExportBatch, batchNum int) string {
+	return fmt.Sprintf("%s/%d-%05d%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), batchNum, filenameSuffix)
 }
 
+func exportIndexFilename(eb *model.ExportBatch) string {
+	return fmt.Sprintf("%s/index.txt", eb.FilenameRoot)
+}
+
+// NewTestExportHandler is a test handler to write a key file in GCS.
 func NewTestExportHandler(db *database.DB) http.Handler {
 	return &testExportHandler{db: db}
 }
@@ -334,26 +444,36 @@ func (h *testExportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	logger.Infof("limiting to %v", limit)
+
+	if err := h.doExport(ctx, limit); err != nil {
+		logger.Errorf("test export: %v", err)
+		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *testExportHandler) doExport(ctx context.Context, limit int) error {
 	since := time.Now().UTC().AddDate(0, 0, -5)
 	until := time.Now().UTC()
 	exposureKeys, err := h.queryExposureKeys(ctx, since, until, limit)
 	if err != nil {
-		logger.Errorf("error getting exposures: %v", err)
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return fmt.Errorf("error getting exposures: %w", err)
 	}
-	data, err := MarshalExportFile(since, until, exposureKeys, "US", 1, 1)
+	eb := &model.ExportBatch{
+		StartTimestamp: since,
+		EndTimestamp:   until,
+		Region:         "US",
+	}
+	data, err := MarshalExportFile(eb, exposureKeys, 1, 1)
 	if err != nil {
-		logger.Errorf("error marshalling export file: %v", err)
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return fmt.Errorf("error marshalling export file: %w", err)
 	}
 	objectName := fmt.Sprintf("testExport-%d-records"+filenameSuffix, limit)
 	if err := storage.CreateObject(ctx, "apollo-public-bucket", objectName, data); err != nil {
-		logger.Errorf("error creating cloud storage object: %v", err)
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
-		return
+		return fmt.Errorf("error creating cloud storage object: %w", err)
 	}
-
-	w.WriteHeader(http.StatusOK)
+	return nil
 }
 
 func (h *testExportHandler) queryExposureKeys(ctx context.Context, since, until time.Time, limit int) ([]*model.Exposure, error) {
@@ -367,18 +487,27 @@ func (h *testExportHandler) queryExposureKeys(ctx context.Context, since, until 
 		return nil, err
 	}
 	defer it.Close()
-	var exposureKeys []*model.Exposure
-	num := 1
-	exp, done, err := it.Next()
-	for !done && err == nil && num <= limit {
-		if exp != nil {
-			exposureKeys = append(exposureKeys, exp)
-			num++
+
+	var exposures []*model.Exposure
+	for {
+		exp, done, err := it.Next()
+		if err != nil {
+			return nil, err
 		}
-		exp, done, err = it.Next()
+		if exp == nil {
+			// Iterator may go one past before returning done==true.
+			if done {
+				break
+			}
+			continue
+		}
+		exposures = append(exposures, exp)
+		if len(exposures) == limit {
+			break
+		}
+		if done {
+			break
+		}
 	}
-	if err != nil {
-		return nil, err
-	}
-	return exposureKeys, nil
+	return exposures, nil
 }

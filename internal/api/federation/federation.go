@@ -99,7 +99,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 
 	it, err := itFunc(ctx, criteria)
 	if err != nil {
-		return nil, fmt.Errorf("querying exposures (criteria: %#v): %v", criteria, err)
+		return nil, fmt.Errorf("querying exposures (criteria: %#v): %w", criteria, err)
 	}
 	defer it.Close()
 
@@ -114,12 +114,12 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		select {
 		case <-ctx.Done():
 			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled { // May be context.Canceled due to test code.
-				return nil, fmt.Errorf("context error: %v", err)
+				return nil, fmt.Errorf("context error: %w", err)
 			}
 
 			cursor, err := it.Cursor()
 			if err != nil {
-				return nil, fmt.Errorf("generating cursor: %v", err)
+				return nil, fmt.Errorf("generating cursor: %w", err)
 			}
 
 			logger.Infof("Fetch request reached time out, returning partial response.")
@@ -133,14 +133,14 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 
 		inf, done, err := it.Next()
 		if err != nil {
-			return nil, fmt.Errorf("iterating results: %v", err)
+			return nil, fmt.Errorf("iterating results: %w", err)
 		}
 
-		if done {
-			// Reached the end of the result set.
-			break
-		}
 		if inf == nil {
+			// Iterator may go one past before returning done==true.
+			if done {
+				break
+			}
 			continue
 		}
 
@@ -233,6 +233,10 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		count++
+
+		if done {
+			break
+		}
 	}
 
 	logger.Infof("Sent %d keys", count)
