@@ -45,7 +45,7 @@ func main() {
 	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
 	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
-		logger.Fatal("unable to connect to secret manager: %w", err)
+		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
 	env := serverenv.New(ctx,
 		serverenv.WithSecretManager(sm),
