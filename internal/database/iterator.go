@@ -44,8 +44,5 @@ func (i *rowIterator) close() error {
 		i.rows.Close()
 		return i.rows.Err()
 	}
-	if i.conn != nil {
-		i.conn.Release()
-	}
 	return nil
 }
