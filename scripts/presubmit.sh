@@ -19,9 +19,6 @@ set -eEuo pipefail
 source_dirs="cmd internal tools"
 
 echo "🚒 Verify Protobufs are up to date"
-# $(dirname $0)/gen_protos.sh
-# git diff *.pb.go| tee /dev/stderr | (! read)
-
 set +e
 $(dirname $0)/gen_protos.sh
 git diff *.pb.go| tee /dev/stderr | (! read) >/dev/null 2>&1
@@ -31,7 +28,6 @@ if [ $? -ne 0 ]; then
    exit 1
 fi
 set -e
-
 
 set +e
 which goimports >/dev/null 2>&1
