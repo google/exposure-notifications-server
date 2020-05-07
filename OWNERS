@@ -1,4 +1,6 @@
 approvers:
-  - exposure-notifications-server
+  - crwilcox
+  - mikehelmick
 reviewers:
-  - exposure-notifications-server
+  - crwilcox
+  - mikehelmick
