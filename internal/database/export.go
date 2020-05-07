@@ -342,7 +342,7 @@ func (db *DB) FinalizeBatch(ctx context.Context, eb *model.ExportBatch, files []
 			}
 		}
 
-		// Update ExportFile for the batch to mark it complete.
+		// Update ExportBatch to mark it complete.
 		if err := completeBatch(ctx, tx, eb.BatchID); err != nil {
 			return fmt.Errorf("marking batch %v complete: %w", eb.BatchID, err)
 		}
@@ -533,6 +533,7 @@ func updateExportBatchStatus(ctx context.Context, tx pgx.Tx, batchID int64, stat
 
 // completeBatch marks a batch as completed.
 func completeBatch(ctx context.Context, tx pgx.Tx, batchID int64) error {
+	logger := logging.FromContext(ctx)
 	batch, err := lookupExportBatch(ctx, batchID, tx.QueryRow)
 	if err != nil {
 		return err
@@ -540,6 +541,7 @@ func completeBatch(ctx context.Context, tx pgx.Tx, batchID int64) error {
 
 	if batch.Status == model.ExportBatchComplete {
 		// Batch is already completed.
+		logger.Warnf("When completing a batch, the status of batch %d was already %s.", batchID, model.ExportBatchComplete)
 		return nil
 	}
 
