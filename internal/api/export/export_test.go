@@ -28,7 +28,7 @@ type simpleBatchRange struct {
 
 // TestMakeBatchRanges tests makeBatchRanges().
 func TestMakeBatchRanges(t *testing.T) {
-	now := "12-10 10:01"
+	now := "12-10 10:11"
 
 	testCases := []struct {
 		name      string
@@ -88,6 +88,18 @@ func TestMakeBatchRanges(t *testing.T) {
 			period:    1 * time.Hour,
 			latestEnd: "12-10 09:15",
 			want:      []simpleBatchRange{{"12-10 09:00", "12-10 10:00"}},
+		},
+		{
+			name:      "small export window doesn't overlap open publish window",
+			period:    time.Minute,
+			latestEnd: "12-10 9:58",
+			want:      []simpleBatchRange{{"12-10 09:58", "12-10 09:59"}, {"12-10 09:59", "12-10 10:00"}},
+		},
+		{
+			name:      "small export window with no history does not create a batch overlapping open publish window",
+			period:    10 * time.Minute,
+			latestEnd: "",
+			want:      []simpleBatchRange{{"12-10 09:50", "12-10 10:00"}},
 		},
 	}
 

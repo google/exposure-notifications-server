@@ -53,7 +53,7 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 	if err != nil {
 		return nil, err
 	}
-	logging.FromContext(ctx).Infof("Acquired lock %q", lockID)
+	logging.FromContext(ctx).Debugf("Acquired lock %q", lockID)
 	return makeUnlockFn(ctx, db, lockID, expires), nil
 }
 
@@ -70,7 +70,7 @@ func makeUnlockFn(ctx context.Context, db *DB, lockID string, expires time.Time)
 			if !released {
 				return fmt.Errorf("cannot delete lock %q that no longer belongs to you; it likely expired and was taken by another process", lockID)
 			}
-			logging.FromContext(ctx).Infof("Released lock %q", lockID)
+			logging.FromContext(ctx).Debugf("Released lock %q", lockID)
 			return nil
 		})
 	}
