@@ -159,10 +159,7 @@ func TestDBValues(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			env, err := serverenv.New(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
+			env := serverenv.New(ctx)
 			for k, v := range tc.env {
 				env.Set(k, v)
 			}

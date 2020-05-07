@@ -24,6 +24,8 @@ import (
 
 const logString = "!METRIC! Type = %v cumulative = %v value = %v"
 
+type ExporterFromContext func(context.Context) Exporter
+
 // Exporter defines a generic metric exporter inferface used in this application.
 type Exporter interface {
 	WriteBool(name string, value bool)
