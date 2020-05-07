@@ -56,7 +56,7 @@ type TemporaryExposureKeyExport struct {
 	EndTimestamp   *uint64 `protobuf:"fixed64,2,opt,name=end_timestamp,json=endTimestamp" json:"end_timestamp,omitempty"`
 	// Region for which these keys came from (e.g., country)
 	Region *string `protobuf:"bytes,3,opt,name=region" json:"region,omitempty"`
-	// E.g., Batch 2 of 10
+	// E.g., Batch 2 of 10. Ordinal, 1-based numbering.
 	BatchNum  *int32 `protobuf:"varint,4,opt,name=batch_num,json=batchNum" json:"batch_num,omitempty"`
 	BatchSize *int32 `protobuf:"varint,5,opt,name=batch_size,json=batchSize" json:"batch_size,omitempty"`
 	// Information about signatures
@@ -239,7 +239,7 @@ type TemporaryExposureKey struct {
 	KeyData []byte `protobuf:"bytes,1,opt,name=key_data,json=keyData" json:"key_data,omitempty"`
 	// Varying risks associated with exposure depending on type of verification
 	TransmissionRiskLevel *int32 `protobuf:"varint,2,opt,name=transmission_risk_level,json=transmissionRiskLevel" json:"transmission_risk_level,omitempty"`
-	// Interval number (counting from the epoch) key was broadcast
+	// The interval number since epoch for which a key starts
 	RollingStartIntervalNumber *int32 `protobuf:"varint,3,opt,name=rolling_start_interval_number,json=rollingStartIntervalNumber" json:"rolling_start_interval_number,omitempty"`
 	// Increments of 10 minutes describing how long a key is valid
 	RollingPeriod *int32 `protobuf:"varint,4,opt,name=rolling_period,json=rollingPeriod,def=144" json:"rolling_period,omitempty"` // defaults to 24 hours
