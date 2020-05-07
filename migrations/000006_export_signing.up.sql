@@ -14,6 +14,10 @@
 
 BEGIN;
 
--- Author the migration here. 
+-- Add a field to ExportConfig to indicate which signing key to use.
+
+ALTER TABLE ExportConfig ADD COLUMN signing_key VARCHAR(500);
+
+ALTER TABLE ExportBatch ADD COLUMN signing_key VARCHAR(500);
 
 END;

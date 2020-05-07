@@ -14,6 +14,8 @@
 
 BEGIN;
 
--- Author the migration here. 
+ALTER TABLE ExportConfig DROP COLUMN signing_key;
+
+ALTER TABLE ExportConfig DROP COLUMN signing_key;
 
 END;

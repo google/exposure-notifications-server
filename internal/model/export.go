@@ -32,17 +32,19 @@ type ExportConfig struct {
 	Region       string        `db:"region"`
 	From         time.Time     `db:"from_timestamp"`
 	Thru         time.Time     `db:"thru_timestamp"`
+	SigningKey   string        `db:"signing_key"`
 }
 
 type ExportBatch struct {
-	BatchID        int64     `db:"batch_id", json:"batchID"`
-	ConfigID       int64     `db:"config_id", json:"configID"`
-	FilenameRoot   string    `db:"filename_root", json:"filenameRoot"`
-	StartTimestamp time.Time `db:"start_timestamp", json:"startTimestamp"`
-	EndTimestamp   time.Time `db:"end_timestamp", json:"endTimestamp"`
-	Region         string    `db:"region"`
-	Status         string    `db:"status", json:"status"`
-	LeaseExpires   time.Time `db:"lease_expires", json:"leaseExpires"`
+	BatchID        int64     `db:"batch_id" json:"batchID"`
+	ConfigID       int64     `db:"config_id" json:"configID"`
+	FilenameRoot   string    `db:"filename_root" json:"filenameRoot"`
+	StartTimestamp time.Time `db:"start_timestamp" json:"startTimestamp"`
+	EndTimestamp   time.Time `db:"end_timestamp" json:"endTimestamp"`
+	Region         string    `db:"region" json:"region"`
+	Status         string    `db:"status" json:"status"`
+	LeaseExpires   time.Time `db:"lease_expires" json:"leaseExpires"`
+	SigningKey     string    `db:"signing_key" json:"signingKey"`
 }
 
 type ExportFile struct {

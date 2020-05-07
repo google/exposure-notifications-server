@@ -90,10 +90,7 @@ func main() {
 		bsc.Bucket = bucket
 	}
 
-	// TODO(guray): remove or gate the /test handler
-	http.Handle("/test", export.NewTestExportHandler(db))
-
-	batchServer := export.NewBatchServer(db, bsc)
+	batchServer := export.NewBatchServer(db, bsc, env)
 	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
 	http.HandleFunc("/do-work", batchServer.WorkerHandler)               // worker that executes work
 
