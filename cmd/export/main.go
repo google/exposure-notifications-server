@@ -30,6 +30,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/internal/signing"
 )
 
 const (
@@ -50,8 +51,13 @@ func main() {
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
+	km, err := signing.NewGCPKMS(ctx)
+	if err != nil {
+		logger.Fatalf("unable to connect to key manager: %v", err)
+	}
 	env := serverenv.New(ctx,
 		serverenv.WithSecretManager(sm),
+		serverenv.WithKeyManager(km),
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
 	db, err := database.NewFromEnv(ctx, env)
