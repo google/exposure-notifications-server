@@ -143,6 +143,7 @@ func (db *DB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportConfig) 
 		    config_id = $1
 		ORDER BY
 		    end_timestamp DESC
+		LIMIT 1
 		`, ec.ConfigID)
 
 	var latestEnd time.Time
