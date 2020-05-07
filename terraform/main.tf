@@ -41,11 +41,18 @@ resource "google_service_account" "svc_acct" {
   }
 }
 
+resource "random_string" "db-name" {
+  length  = 5
+  special = false
+  number  = false
+  upper   = false
+}
+
 resource "google_sql_database_instance" "db-inst" {
   project          = data.google_project.project.project_id
   region           = var.region
   database_version = "POSTGRES_11"
-  name             = "contact-tracing"
+  name             = "contact-tracing-${random_string.db-name.result}"
   settings {
     tier              = "db-custom-1-3840" # "db-custom-32-122880"
     availability_type = "REGIONAL"
@@ -59,6 +66,9 @@ resource "google_sql_database_instance" "db-inst" {
       hour         = 2
       update_track = "stable"
     }
+  }
+  lifecycle {
+    prevent_destroy = true
   }
   depends_on = [google_project_service.services["sql-component.googleapis.com"]]
 }
@@ -92,6 +102,7 @@ resource "google_secret_manager_secret" "db-pwd" {
   replication {
     automatic = true
   }
+  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
 }
 
 resource "google_secret_manager_secret_version" "db-pwd-initial" {
