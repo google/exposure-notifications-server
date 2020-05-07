@@ -50,7 +50,7 @@ message SignatureInfo {
   optional string verification_key_version = 3;
   // Additional identifying information
   optional string verification_key_id = 4;
-  // E.g. ECDSA using a p-256 curve and SHA-256 as a hash function
+  // ASN.1 OID for Algorithm Identifier. E.g. 1.2.840.10045.4.3.2
   optional string signature_algorithm = 5;
 }
 
