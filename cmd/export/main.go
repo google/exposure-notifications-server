@@ -49,11 +49,11 @@ func main() {
 	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
 	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
-		logger.Fatalf("unable to connect to secret manager: %v", err)
+		logger.Fatalf("unable to connect to secret manager: %w", err)
 	}
 	km, err := signing.NewGCPKMS(ctx)
 	if err != nil {
-		logger.Fatalf("unable to connect to key manager: %v", err)
+		logger.Fatalf("unable to connect to key manager: %w", err)
 	}
 	env := serverenv.New(ctx,
 		serverenv.WithSecretManager(sm),
