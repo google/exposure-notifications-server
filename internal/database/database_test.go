@@ -53,10 +53,7 @@ func createTestDB(ctx context.Context) (*DB, error) {
 	const testDBName = "exposure-server-test"
 
 	// Connect to the default database to create the test database.
-	env, err := serverenv.New(ctx)
-	if err != nil {
-		return nil, err
-	}
+	env := serverenv.New(ctx)
 	env.Set("DB_DBNAME", "postgres")
 	db, err := NewFromEnv(ctx, env)
 	if err != nil {

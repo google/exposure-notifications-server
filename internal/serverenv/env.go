@@ -24,15 +24,12 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
-
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
-	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 )
 
 const (
-	portEnvVar             = "PORT"
-	defaultPort            = "8080"
-	useSecretManagerEnvVar = "USE_SECRET_MANAGER"
+	portEnvVar  = "PORT"
+	defaultPort = "8080"
 	// SecretPostfix designates that environment variable ending with this value
 	SecretPostfix = "_SECRET"
 )
@@ -42,23 +39,23 @@ type ExporterFunc func(context.Context) metrics.Exporter
 
 // ServerEnv represents latent environment configuration for servers in this application.
 type ServerEnv struct {
-	port      string
-	smClient  *secretmanager.Client
-	overrides map[string]string
-	exporter  ExporterFunc
+	port          string
+	secretManager secrets.SecretManager // Optional
+	overrides     map[string]string
+	exporter      metrics.ExporterFromContext
 }
 
 // Option defines function types to modify the ServerEnv on creation.
-type Option func(context.Context, *ServerEnv) (*ServerEnv, error)
+type Option func(*ServerEnv) *ServerEnv
 
 // New creates a new ServerEnv with the requested options.
-func New(ctx context.Context, opts ...Option) (*ServerEnv, error) {
-	env := &ServerEnv{
-		port: defaultPort,
+func New(ctx context.Context, opts ...Option) *ServerEnv {
+	env := &ServerEnv{port: defaultPort}
+	// A metrics exporter is required, installs the default log based one.
+	// Can be overridden by opts.
+	env.exporter = func(ctx context.Context) metrics.Exporter {
+		return metrics.NewLogsBasedFromContext(ctx)
 	}
-	// The default is logs based metrics. This is applied before the opts, which
-	// may override the exporter implementation.
-	env, _ = WithLogsBasedMetrics(ctx, env)
 
 	logger := logging.FromContext(ctx)
 
@@ -68,40 +65,29 @@ func New(ctx context.Context, opts ...Option) (*ServerEnv, error) {
 	logger.Infof("using port %v (override with $%v)", env.port, portEnvVar)
 
 	for _, f := range opts {
-		var err error
-		env, err = f(ctx, env)
-		if err != nil {
-			return nil, err
-		}
+		env = f(env)
 	}
 
-	return env, nil
+	return env
 }
 
-// WithLogsBasedMetrics installs a factory function that uses the metrics.NewLogsBasedFromContext
-// to return a metrics exporter.
-// The context passed in here isn't used.
-func WithLogsBasedMetrics(unused context.Context, s *ServerEnv) (*ServerEnv, error) {
-	s.exporter = func(ctx context.Context) metrics.Exporter {
-		return metrics.NewLogsBasedFromContext(ctx)
+// WithMetricsExporter creates an Option to install a different metrics exporter.
+func WithMetricsExporter(f metrics.ExporterFromContext) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.exporter = f
+		return s
 	}
-	return s, nil
 }
 
-func WithSecretManager(ctx context.Context, s *ServerEnv) (*ServerEnv, error) {
-	use := os.Getenv(useSecretManagerEnvVar)
-	if use == "" {
-		logging.FromContext(ctx).Warnf("secret manager for environment variable resolving not enabled, set %v to enable", useSecretManagerEnvVar)
+// WithSecretManager creates an Option to in stall a specific secret manager to use.
+func WithSecretManager(sm secrets.SecretManager) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.secretManager = sm
+		return s
 	}
-
-	client, err := secretmanager.NewClient(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("secretmanager.NewClient: %w", err)
-	}
-	s.smClient = client
-	return s, nil
 }
 
+// Port returns the port that a server should listen on.
 func (s *ServerEnv) Port() string {
 	return s.port
 }
@@ -110,8 +96,8 @@ func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, 
 	logger := logging.FromContext(ctx)
 
 	eVal := os.Getenv(envVar)
-	if s.smClient == nil {
-		logger.Warnf("resolve %v with local environment variable, secret manager not configured", envVar)
+	if s.secretManager == nil {
+		logger.Warnf("resolve %v with local environment variable, no secret manager not configured", envVar)
 		return eVal, nil
 	}
 
@@ -122,19 +108,12 @@ func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, 
 		return eVal, nil
 	}
 
-	// Build the request.
-	accessRequest := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: secretLocation,
-	}
-
-	// Call the API.
-	result, err := s.smClient.AccessSecretVersion(ctx, accessRequest)
+	// Resolve through the installed secret manager.
+	plaintext, err := s.secretManager.GetSecretValue(ctx, secretLocation)
 	if err != nil {
-		return "", fmt.Errorf("failed to access secret version for %v: %w", secretLocation, err)
+		return "", fmt.Errorf("failed to access secret value for %v: %w", secretLocation, err)
 	}
 	logger.Infof("loaded %v from secret %v", envVar, secretLocation)
-
-	plaintext := string(result.Payload.Data)
 	return plaintext, nil
 }
 
