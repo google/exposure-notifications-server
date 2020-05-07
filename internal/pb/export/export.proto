@@ -30,7 +30,7 @@ message TemporaryExposureKeyExport {
   // Region for which these keys came from (e.g., country)
   optional string region = 3;
 
-  // E.g., Batch 2 of 10
+  // E.g., Batch 2 of 10. Ordinal, 1-based numbering.
   optional int32 batch_num = 4;
   optional int32 batch_size = 5;
 
@@ -61,7 +61,7 @@ message TemporaryExposureKey {
   // Varying risks associated with exposure depending on type of verification
   optional int32 transmission_risk_level = 2;
 
-  // Interval number (counting from the epoch) key was broadcast
+  // The interval number since epoch for which a key starts
   optional int32 rolling_start_interval_number = 3;
 
   // Increments of 10 minutes describing how long a key is valid
