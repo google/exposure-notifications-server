@@ -242,7 +242,7 @@ func (s *BatchServer) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) error {
 	logger := logging.FromContext(ctx)
-	logger.Infof("Creating files for export config %#v, max records per file %d.", eb, s.bsc.MaxRecords)
+	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d.", eb.BatchID, eb.FilenameRoot, eb.Region, s.bsc.MaxRecords)
 
 	criteria := database.IterateExposuresCriteria{
 		SinceTimestamp:      eb.StartTimestamp,
@@ -301,6 +301,10 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 		groups = append(groups, exposures)
 	}
 
+	if len(groups) == 0 {
+		logger.Infof("No records for export batch %d.", eb.BatchID)
+	}
+
 	// Create the export files.
 	batchSize := len(groups)
 	var objectNames []string
@@ -321,6 +325,7 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 		if err != nil {
 			return fmt.Errorf("creating export file %d for batch %d: %w", i+1, eb.BatchID, err)
 		}
+		logger.Infof("Wrote export file %q for batch %d", objectName, eb.BatchID)
 		objectNames = append(objectNames, objectName)
 	}
 
@@ -350,16 +355,18 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 			return err
 		}
 
-		if err := s.createIndex(ctx, eb, objectNames); err != nil {
+		indexName, err := s.createIndex(ctx, eb, objectNames)
+		if err != nil {
 			if err1 := unlock(); err1 != nil {
 				return fmt.Errorf("releasing lock: %v (original error: %w)", err1, err)
 			}
 			return fmt.Errorf("creating index file for batch %d: %w", eb.BatchID, err)
 		}
+		logger.Infof("Wrote index file %q (triggered by batch %d)", indexName, eb.BatchID)
 		if err := unlock(); err != nil {
 			return fmt.Errorf("releasing lock: %w", err)
 		}
-		return nil
+		break
 	}
 
 	// Write the files records in database and complete the batch.
@@ -385,10 +392,10 @@ func (s *BatchServer) createFile(ctx context.Context, exposures []*model.Exposur
 	return objectName, nil
 }
 
-func (s *BatchServer) createIndex(ctx context.Context, eb *model.ExportBatch, newObjectNames []string) error {
+func (s *BatchServer) createIndex(ctx context.Context, eb *model.ExportBatch, newObjectNames []string) (string, error) {
 	objects, err := s.db.LookupExportFiles(ctx, eb.ConfigID)
 	if err != nil {
-		return fmt.Errorf("lookup existing export files for batch %d: %w", eb.BatchID, err)
+		return "", fmt.Errorf("lookup existing export files for batch %d: %w", eb.BatchID, err)
 	}
 
 	// Add the new objects (they haven't been committed to the database yet).
@@ -409,9 +416,9 @@ func (s *BatchServer) createIndex(ctx context.Context, eb *model.ExportBatch, ne
 
 	indexObjectName := exportIndexFilename(eb)
 	if err := storage.CreateObject(ctx, s.bsc.Bucket, indexObjectName, data); err != nil {
-		return fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, s.bsc.Bucket, err)
+		return "", fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, s.bsc.Bucket, err)
 	}
-	return nil
+	return indexObjectName, nil
 }
 
 func exportFilename(eb *model.ExportBatch, batchNum int) string {
