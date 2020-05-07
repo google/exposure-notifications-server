@@ -18,8 +18,20 @@ set -eEuo pipefail
 
 source_dirs="cmd internal tools"
 
-echo "🚒 Update Protobufs"
+echo "🚒 Verify Protobufs are up to date"
+# $(dirname $0)/gen_protos.sh
+# git diff *.pb.go| tee /dev/stderr | (! read)
+
+set +e
 $(dirname $0)/gen_protos.sh
+git diff *.pb.go| tee /dev/stderr | (! read) >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+   echo "✋ Found uncommited changes to generated"
+   echo "✋ *.pb.go files. Commit these changes before merging"
+   exit 1
+fi
+set -e
+
 
 set +e
 which goimports >/dev/null 2>&1
@@ -28,17 +40,27 @@ if [ $? -ne 0 ]; then
    echo "✋   go install golang.org/x/tools/cmd/goimports"
    echo "✋ to enable import cleanup. Import cleanup skipped."
 else
-   echo "🧽 Format"
+   echo "🧽 Format with goimports"
    goimports -w $(echo $source_dirs)
 fi
 set -e
 
-echo "🧹 Format Go code"
-find $(echo $source_dirs) -name "*.go" -print0 | xargs -0 gofmt -s -w
+echo "🧹 Verify go format"
+set -x
+diff -u <(echo -n) <(gofmt -d -s .)
+set +x
 
-echo "🌌 Go mod cleanup"
-go mod verify
-go mod tidy
+echo "🌌 Go mod verify"
+set +e
+go mod verify;
+set -e
+
+echo "🌌 Go mod tidy"
+set -x
+go mod tidy;
+git diff go.mod | tee /dev/stderr | (! read)
+[ -f go.sum ] && git diff go.sum | tee /dev/stderr | (! read)
+set +x
 
 echo "🚧 Compile"
 go build ./...
