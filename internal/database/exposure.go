@@ -84,7 +84,7 @@ func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCri
 		return nil, err
 	}
 
-	return &postgresExposureIterator{iter: &rowIterator{conn, rows}, offset: offset}, nil
+	return &postgresExposureIterator{iter: newRowIterator(conn, rows), offset: offset}, nil
 }
 
 type postgresExposureIterator struct {

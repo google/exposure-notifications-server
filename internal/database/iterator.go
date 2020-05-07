@@ -24,6 +24,10 @@ type rowIterator struct {
 	rows pgx.Rows
 }
 
+func newRowIterator(conn *pgxpool.Conn, rows pgx.Rows) *rowIterator {
+	return &rowIterator{conn, rows}
+}
+
 func (i *rowIterator) next() (done bool, err error) {
 	if i.rows == nil {
 		return true, nil

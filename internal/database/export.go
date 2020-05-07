@@ -94,7 +94,7 @@ func (db *DB) IterateExportConfigs(ctx context.Context, now time.Time) (ExportCo
 		return nil, err
 	}
 
-	return &postgresExportConfigIterator{iter: &rowIterator{conn, rows}}, nil
+	return &postgresExportConfigIterator{iter: newRowIterator(conn, rows)}, nil
 }
 
 type postgresExportConfigIterator struct {
