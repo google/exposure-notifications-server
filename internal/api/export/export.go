@@ -69,7 +69,7 @@ func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Reques
 	unlockFn, err := s.db.Lock(ctx, lock, s.bsc.CreateTimeout)
 	if err != nil {
 		if errors.Is(err, database.ErrAlreadyLocked) {
-			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
+			msg := fmt.Sprintf("Lock %s already in use, no work will be performed", lock)
 			logger.Infof(msg)
 			w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.
 			return
@@ -96,7 +96,7 @@ func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Reques
 				logger.Errorf("Context error: %v", err)
 				return
 			}
-			logger.Infof("Timed out creating batches. Batch creation will continue on next invocation.")
+			logger.Infof("Timed out creating batches, batch creation will continue on next invocation")
 			return
 		default:
 			// Fallthrough
@@ -117,7 +117,7 @@ func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Reques
 		}
 
 		if err := s.maybeCreateBatches(ctx, ec, now); err != nil {
-			logger.Errorf("Failed to create batches for config %d: %v. Continuing to next config.", ec.ConfigID, err)
+			logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
 		}
 		if done {
 			return
@@ -135,7 +135,7 @@ func (s *BatchServer) maybeCreateBatches(ctx context.Context, ec *model.ExportCo
 
 	ranges := makeBatchRanges(ec.Period, latestEnd, now)
 	if len(ranges) == 0 {
-		logger.Infof("Batch creation for config %d is not required. Skipping.", ec.ConfigID)
+		logger.Infof("Batch creation for config %d is not required, skipping", ec.ConfigID)
 		return nil
 	}
 
@@ -155,7 +155,7 @@ func (s *BatchServer) maybeCreateBatches(ctx context.Context, ec *model.ExportCo
 		return fmt.Errorf("creating export batches for config %d: %w", ec.ConfigID, err)
 	}
 
-	logger.Infof("Created %d batch(es) for config %d.", len(batches), ec.ConfigID)
+	logger.Infof("Created %d batch(es) for config %d", len(batches), ec.ConfigID)
 	return nil
 }
 
@@ -166,6 +166,21 @@ type batchRange struct {
 var sanityDate = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func makeBatchRanges(period time.Duration, latestEnd, now time.Time) []batchRange {
+
+	// Compute the end of the exposure publish window; we don't want any batches with an end date greater than this time.
+	publishEnd := model.TruncateWindow(now)
+
+	// Special case: if there have not been batches before, return only a single one.
+	// We use sanityDate here because the loop below will happily create batch ranges
+	// until the beginning of time otherwise.
+	if latestEnd.Before(sanityDate) {
+		// We want to create a batch aligned on the period, but not overlapping the current publish window.
+		// To do this, we use the publishEnd and truncate it to the period; this becomes the end date.
+		// Then we just subtract the period to get the start date.
+		end := publishEnd.Truncate(period)
+		start := end.Add(-period)
+		return []batchRange{{start: start, end: end}}
+	}
 
 	// Truncate now to align with period; use this as the end date.
 	end := now.Truncate(period)
@@ -178,19 +193,15 @@ func makeBatchRanges(period time.Duration, latestEnd, now time.Time) []batchRang
 	// Subtract period to get the start date.
 	start := end.Add(-period)
 
-	// Special case: if there have not been batches before, return only a single one.
-	// We use sanityDate here because the loop below will happily create batch ranges
-	// until the beginning of time otherwise.
-	if latestEnd.Before(sanityDate) {
-		return []batchRange{{start: start, end: end}}
-	}
-
 	// Build up a list of batches until we reach that latestEnd.
 	// Allow for overlap so we don't miss keys; this might happen in the event that
 	// an ExportConfig was edited and the new settings don't quite align.
 	ranges := []batchRange{}
 	for end.After(latestEnd) {
-		ranges = append([]batchRange{{start: start, end: end}}, ranges...)
+		// If the batch's end is after the publish window, don't add this range.
+		if !end.After(publishEnd) {
+			ranges = append([]batchRange{{start: start, end: end}}, ranges...)
+		}
 		start = start.Add(-period)
 		end = end.Add(-period)
 	}
@@ -242,7 +253,7 @@ func (s *BatchServer) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) error {
 	logger := logging.FromContext(ctx)
-	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d.", eb.BatchID, eb.FilenameRoot, eb.Region, s.bsc.MaxRecords)
+	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d", eb.BatchID, eb.FilenameRoot, eb.Region, s.bsc.MaxRecords)
 
 	criteria := database.IterateExposuresCriteria{
 		SinceTimestamp:      eb.StartTimestamp,
@@ -268,7 +279,7 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
 				return err
 			}
-			logger.Infof("Timed out iterating exposures for batch %s. The entire batch will be retried once the batch lease expires on %v.", eb.BatchID, eb.LeaseExpires)
+			logger.Infof("Timed out iterating exposures for batch %s, the entire batch will be retried once the batch lease expires on %v", eb.BatchID, eb.LeaseExpires)
 			return nil
 		default:
 			// Fallthrough
@@ -302,7 +313,7 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 	}
 
 	if len(groups) == 0 {
-		logger.Infof("No records for export batch %d.", eb.BatchID)
+		logger.Infof("No records for export batch %d", eb.BatchID)
 	}
 
 	// Create the export files.
@@ -314,7 +325,7 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
 				return err
 			}
-			logger.Infof("Timed out writing export files for batch %s. The entire batch will be retried once the batch lease expires on %v.", eb.BatchID, eb.LeaseExpires)
+			logger.Infof("Timed out writing export files for batch %s, the entire batch will be retried once the batch lease expires on %v", eb.BatchID, eb.LeaseExpires)
 			return nil
 		default:
 			// Fallthrough
@@ -339,7 +350,7 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
 				return err
 			}
-			logger.Infof("Timed out acquiring index file lock for batch %s. The entire batch will be retried once the batch lease expires on %v.", eb.BatchID, eb.LeaseExpires)
+			logger.Infof("Timed out acquiring index file lock for batch %s, the entire batch will be retried once the batch lease expires on %v", eb.BatchID, eb.LeaseExpires)
 			return nil
 		default:
 			// Fallthrough
@@ -348,21 +359,21 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
 		if err != nil {
 			if err == database.ErrAlreadyLocked {
-				logger.Debugf("Lock %s is locked; sleeping %v and will try again.", lockID, sleep)
+				logger.Debugf("Lock %s is locked; sleeping %v and will try again", lockID, sleep)
 				time.Sleep(sleep)
 				continue
 			}
 			return err
 		}
 
-		indexName, err := s.createIndex(ctx, eb, objectNames)
+		indexName, entries, err := s.createIndex(ctx, eb, objectNames)
 		if err != nil {
 			if err1 := unlock(); err1 != nil {
 				return fmt.Errorf("releasing lock: %v (original error: %w)", err1, err)
 			}
 			return fmt.Errorf("creating index file for batch %d: %w", eb.BatchID, err)
 		}
-		logger.Infof("Wrote index file %q (triggered by batch %d)", indexName, eb.BatchID)
+		logger.Infof("Wrote index file %q with %d entries (triggered by batch %d)", indexName, entries, eb.BatchID)
 		if err := unlock(); err != nil {
 			return fmt.Errorf("releasing lock: %w", err)
 		}
@@ -373,7 +384,7 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 	if err := s.db.FinalizeBatch(ctx, eb, objectNames, batchSize); err != nil {
 		return fmt.Errorf("completing batch: %w", err)
 	}
-	logger.Infof("Batch %d completed.", eb.BatchID)
+	logger.Infof("Batch %d completed", eb.BatchID)
 	return nil
 }
 
@@ -392,10 +403,10 @@ func (s *BatchServer) createFile(ctx context.Context, exposures []*model.Exposur
 	return objectName, nil
 }
 
-func (s *BatchServer) createIndex(ctx context.Context, eb *model.ExportBatch, newObjectNames []string) (string, error) {
+func (s *BatchServer) createIndex(ctx context.Context, eb *model.ExportBatch, newObjectNames []string) (string, int, error) {
 	objects, err := s.db.LookupExportFiles(ctx, eb.ConfigID)
 	if err != nil {
-		return "", fmt.Errorf("lookup existing export files for batch %d: %w", eb.BatchID, err)
+		return "", 0, fmt.Errorf("lookup existing export files for batch %d: %w", eb.BatchID, err)
 	}
 
 	// Add the new objects (they haven't been committed to the database yet).
@@ -416,9 +427,9 @@ func (s *BatchServer) createIndex(ctx context.Context, eb *model.ExportBatch, ne
 
 	indexObjectName := exportIndexFilename(eb)
 	if err := storage.CreateObject(ctx, s.bsc.Bucket, indexObjectName, data); err != nil {
-		return "", fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, s.bsc.Bucket, err)
+		return "", 0, fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, s.bsc.Bucket, err)
 	}
-	return indexObjectName, nil
+	return indexObjectName, len(objects), nil
 }
 
 func exportFilename(eb *model.ExportBatch, batchNum int) string {
