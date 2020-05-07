@@ -21,7 +21,7 @@ source_dirs="cmd internal tools"
 echo "🚒 Verify Protobufs are up to date"
 set +e
 $(dirname $0)/gen_protos.sh
-git diff *.pb.go| tee /dev/stderr | (! read) >/dev/null 2>&1
+git diff *.pb.go| tee /dev/stderr | (! read)
 if [ $? -ne 0 ]; then
    echo "✋ Found uncommited changes to generated"
    echo "✋ *.pb.go files. Commit these changes before merging"
