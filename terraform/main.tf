@@ -12,9 +12,14 @@ provider "google-beta" {
 # To generate passwords.
 provider "random" {}
 
-# We'll perform checks in a provisioner here - like whether gcloud is logged in and stuff - so that failures happen early.
-# TODO(ndmckinley) actually do that
+# This is to ensure that the project / gcloud auth are correctly configured.
+resource "null_resource" "n" {
+  provisioner "local-exec" {
+    command = "gcloud projects describe ${var.project} || (echo 'please sign in to gcloud using `gcloud auth login`.' && exit 1)"
+  }
+}
 data "google_project" "project" {
+  depends_on = [null_resource.n]
 }
 
 resource "google_project_service" "services" {
