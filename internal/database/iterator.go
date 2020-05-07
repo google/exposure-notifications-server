@@ -14,9 +14,13 @@
 
 package database
 
-import pgx "github.com/jackc/pgx/v4"
+import (
+	pgx "github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
+)
 
 type rowIterator struct {
+	conn *pgxpool.Conn
 	rows pgx.Rows
 }
 
@@ -31,6 +35,7 @@ func (i *rowIterator) next() (done bool, err error) {
 }
 
 func (i *rowIterator) close() error {
+	defer i.conn.Release()
 	if i.rows != nil {
 		i.rows.Close()
 		return i.rows.Err()
