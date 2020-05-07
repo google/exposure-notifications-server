@@ -17,6 +17,7 @@ package serverenv
 
 import (
 	"context"
+	"crypto"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,6 +26,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
+	"github.com/google/exposure-notifications-server/internal/signing"
 )
 
 const (
@@ -41,6 +43,7 @@ type ExporterFunc func(context.Context) metrics.Exporter
 type ServerEnv struct {
 	port          string
 	secretManager secrets.SecretManager // Optional
+	keyManager    signing.KeyManager
 	overrides     map[string]string
 	exporter      metrics.ExporterFromContext
 }
@@ -79,7 +82,7 @@ func WithMetricsExporter(f metrics.ExporterFromContext) Option {
 	}
 }
 
-// WithSecretManager creates an Option to in stall a specific secret manager to use.
+// WithSecretManager creates an Option to install a specific secret manager to use.
 func WithSecretManager(sm secrets.SecretManager) Option {
 	return func(s *ServerEnv) *ServerEnv {
 		s.secretManager = sm
@@ -87,9 +90,30 @@ func WithSecretManager(sm secrets.SecretManager) Option {
 	}
 }
 
+// WithKeyManager creates an Option to install a specific KeyManager to use for signing requests.
+func WithKeyManager(km signing.KeyManager) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.keyManager = km
+		return s
+	}
+}
+
 // Port returns the port that a server should listen on.
 func (s *ServerEnv) Port() string {
 	return s.port
+}
+
+// GetSignerForKey returns the crypto.Singer implementation to use based on the installed KeyManager.
+// If there is no KeyManager installed, this returns an error.
+func (s *ServerEnv) GetSignerForKey(ctx context.Context, keyName string) (crypto.Signer, error) {
+	if s.keyManager == nil {
+		return nil, fmt.Errorf("no key manager installed, use WithKeyManager when creating the ServerEnv")
+	}
+	sign, err := s.keyManager.NewSigner(ctx, keyName)
+	if err != nil {
+		return nil, fmt.Errorf("KeyManager.NewSigner: %w", err)
+	}
+	return sign, nil
 }
 
 func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, error) {
