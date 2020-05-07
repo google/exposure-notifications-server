@@ -360,7 +360,7 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 			if err1 := unlock(); err1 != nil {
 				return fmt.Errorf("releasing lock: %v (original error: %w)", err1, err)
 			}
-			return fmt.Errorf("creating index file for batch %d: %w", eb.BatchID, err)
+			return fmt.Errorf("creating index file %s for batch %d: %w", indexName, eb.BatchID, err)
 		}
 		logger.Infof("Wrote index file %q (triggered by batch %d)", indexName, eb.BatchID)
 		if err := unlock(); err != nil {
