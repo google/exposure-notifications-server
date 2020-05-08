@@ -67,6 +67,9 @@ resource "google_sql_database_instance" "db-inst" {
       hour         = 2
       update_track = "stable"
     }
+    ip_configuration {
+      require_ssl = true
+    }
   }
   lifecycle {
     prevent_destroy = true
@@ -90,10 +93,10 @@ resource "google_sql_database" "db" {
 
   name    = "main"
   project = data.google_project.project.project_id
-  provisioner "local-exec" {
-    # TODO(ndmckinley) is this the best way to get the schema into the database?
-    command = "gcloud sql connect ${google_sql_database_instance.db-inst.name} -d ${google_sql_database.db.name} -u root --project ${data.google_project.project.project_id} < ../migrations/*.sql"
-  }
+  # TODO(ndmckinley) is this the best way to get the schema into the database?
+  # provisioner "local-exec" {
+  #  command = "gcloud sql connect ${google_sql_database_instance.db-inst.name} -d ${google_sql_database.db.name} -u root --project ${data.google_project.project.project_id} < ../migrations/*.sql"
+  # }
 }
 
 resource "google_secret_manager_secret" "db-pwd" {
@@ -128,7 +131,7 @@ resource "google_cloud_run_service" "exposure" {
   template {
     spec {
       containers {
-        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/exposure:latest"
+        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/exposure:latest"
         env {
           name  = "CONFIG_REFRESH_DURATION"
           value = "5m"
@@ -142,9 +145,8 @@ resource "google_cloud_run_service" "exposure" {
           value = "10"
         }
         env {
-          # TODO(ndmckinley): this isn't ideal, but this is how it's configured now - we should make it read from the secret store.
-          name  = "DB_PASSWORD"
-          value = google_sql_user.user.password
+          name  = "DB_PASSWORD_SECRET"
+          value = google_secret_manager_secret_version.db-pwd-initial.name
         }
         env {
           name  = "DB_HOST"
@@ -174,7 +176,7 @@ resource "google_cloud_run_service" "export" {
   template {
     spec {
       containers {
-        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/export:latest"
+        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/export:latest"
         env {
           name  = "EXPORT_FILE_MAX_RECORDS"
           value = "100"
@@ -192,9 +194,8 @@ resource "google_cloud_run_service" "export" {
           value = "10"
         }
         env {
-          # TODO(ndmckinley): this isn't ideal, but this is how it's configured now - we should make it read from the secret store.
-          name  = "DB_PASSWORD"
-          value = google_sql_user.user.password
+          name  = "DB_PASSWORD_SECRET"
+          value = google_secret_manager_secret_version.db-pwd-initial.name
         }
         env {
           name  = "DB_HOST"
@@ -252,7 +253,7 @@ resource "google_cloudbuild_trigger" "build-and-publish" {
   filename    = "build/deploy.yaml"
   github {
     owner = "google"
-    name  = "exposure-notification"
+    name  = "exposure-notifications-server"
     push {
       branch = "^master$"
     }
