@@ -137,7 +137,7 @@ func getCutoff(ttlVar string) (cutoff time.Time, err error) {
 	}
 
 	// Get cutoff timestamp
-	cutoff = time.Now().UTC().Add(-ttlDuration)
+	cutoff = time.Now().Add(-ttlDuration)
 	return cutoff, nil
 }
 

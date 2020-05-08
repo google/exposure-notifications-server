@@ -100,7 +100,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	} else if cfg.IsAndroid() {
-		err = verification.VerifySafetyNet(ctx, time.Now().UTC(), cfg, data)
+		err = verification.VerifySafetyNet(ctx, time.Now(), cfg, data)
 		if err != nil {
 			logger.Errorf("unable to verify safetynet payload: %v", err)
 			metrics.WriteInt("publish-safetnet-invalid", true, 1)
@@ -116,7 +116,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	batchTime := time.Now().UTC()
+	batchTime := time.Now()
 	exposures, err := model.TransformPublish(&data, batchTime)
 	if err != nil {
 		logger.Errorf("error transforming publish data: %v", err)

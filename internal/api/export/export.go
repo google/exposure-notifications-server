@@ -82,7 +82,7 @@ func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Reques
 	}
 	defer unlockFn()
 
-	now := time.Now().UTC()
+	now := time.Now()
 	err = s.db.IterateExportConfigs(ctx, now, func(ec *model.ExportConfig) error {
 		if err := s.maybeCreateBatches(ctx, ec, now); err != nil {
 			logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
@@ -208,7 +208,7 @@ func (s *BatchServer) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Check for a batch and obtain a lease for it.
-		batch, err := s.db.LeaseBatch(ctx, s.bsc.WorkerTimeout, time.Now().UTC())
+		batch, err := s.db.LeaseBatch(ctx, s.bsc.WorkerTimeout, time.Now())
 		if err != nil {
 			logger.Errorf("Failed to lease batch: %v", err)
 			continue

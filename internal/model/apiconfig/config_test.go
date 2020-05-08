@@ -43,7 +43,7 @@ func durationPtr(d time.Duration) *time.Duration {
 }
 
 func TestVerifyOpts(t *testing.T) {
-	testTime := time.Date(2020, 1, 13, 5, 6, 4, 6, time.UTC)
+	testTime := time.Date(2020, 1, 13, 5, 6, 4, 6, time.Local)
 
 	cases := []struct {
 		cfg  *APIConfig

@@ -49,7 +49,7 @@ func main() {
 	}
 	*region = strings.ToUpper(*region)
 
-	fromTime := time.Now().UTC()
+	fromTime := time.Now()
 	if *fromTimestamp != "" {
 		var err error
 		fromTime, err = time.Parse(time.RFC3339, *fromTimestamp)

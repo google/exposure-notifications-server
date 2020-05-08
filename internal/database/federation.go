@@ -159,7 +159,7 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 
 	// startedTime is used internally to compute a Duration between here and when finalize function below is executed.
 	// This allows the finalize function to not request a completed Time parameter.
-	startedTimer := time.Now().UTC()
+	startedTimer := time.Now()
 
 	var syncID int64
 	row := conn.QueryRow(ctx, `
@@ -175,7 +175,7 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 	}
 
 	finalize := func(maxTimestamp time.Time, totalInserted int) error {
-		completed := started.Add(time.Now().UTC().Sub(startedTimer))
+		completed := started.Add(time.Now().Sub(startedTimer))
 
 		return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Special case: when no keys are pulled, the maxTimestamp will be 0, so we don't update the

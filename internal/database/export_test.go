@@ -32,7 +32,7 @@ func TestAddExportConfig(t *testing.T) {
 	defer resetTestDB(t)
 	ctx := context.Background()
 
-	fromTime := time.Now().UTC()
+	fromTime := time.Now()
 	thruTime := fromTime.Add(6 * time.Hour)
 	want := &model.ExportConfig{
 		FilenameRoot: "root",

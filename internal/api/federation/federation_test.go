@@ -53,7 +53,7 @@ func makeExposure(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, regio
 		TransmissionRisk: int(diagStatus),
 		ExposureKey:      diagKey.ExposureKey,
 		IntervalNumber:   diagKey.IntervalNumber,
-		CreatedAt:        time.Unix(int64(diagKey.IntervalNumber*100), 0).UTC(), // Make unique from IntervalNumber.
+		CreatedAt:        time.Unix(int64(diagKey.IntervalNumber*100), 0), // Make unique from IntervalNumber.
 		LocalProvenance:  true,
 	}
 }
@@ -282,7 +282,7 @@ func TestFetch(t *testing.T) {
 				return &testIterator{iterations: tc.iterations, cancel: cancel}, nil
 			}
 
-			got, err := server.fetch(ctx, &req, itFunc, time.Now().UTC())
+			got, err := server.fetch(ctx, &req, itFunc, time.Now())
 
 			if err != nil {
 				t.Fatalf("fetch() returned err=%v, want err=nil", err)
