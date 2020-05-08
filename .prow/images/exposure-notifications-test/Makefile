@@ -13,8 +13,8 @@
 # limitations under the License.
 
 
-PROJECT := apollo-server-273118
-IMAGE := exposure-notifications-test
+PROJECT := cloud-devrel-public-resources
+IMAGE := exposure-notifications/presubmit-test
 TAG := $(shell date +v%Y%m%d)-$(shell git describe --tags --always --dirty)
 
 .PHONY: create-image
