@@ -123,7 +123,7 @@ func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		insertExposures:     h.db.InsertExposures,
 		startFederationSync: h.db.StartFederationSync,
 	}
-	batchStart := time.Now().UTC()
+	batchStart := time.Now()
 	if err := federationPull(timeoutContext, deps, query, batchStart); err != nil {
 		logger.Errorf("Federation query %q failed: %v", queryID, err)
 		http.Error(w, fmt.Sprintf("Federation query %q fetch failed, check logs.", queryID), http.StatusInternalServerError)
@@ -166,7 +166,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 			return fmt.Errorf("fetching query %s: %w", q.QueryID, err)
 		}
 
-		responseTimestamp := time.Unix(response.FetchResponseKeyTimestamp, 0).UTC()
+		responseTimestamp := time.Unix(response.FetchResponseKeyTimestamp, 0)
 		if responseTimestamp.After(maxTimestamp) {
 			maxTimestamp = responseTimestamp
 		}

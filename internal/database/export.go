@@ -16,6 +16,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -51,11 +52,11 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				ExportConfig
-				(filename_root, period_seconds, region, from_timestamp, thru_timestamp)
+				(filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key)
 			VALUES
-				($1, $2, $3, $4, $5)
+				($1, $2, $3, $4, $5, $6)
 			RETURNING config_id
-		`, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region, ec.From, thru)
+		`, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region, ec.From, thru, toNullString(ec.SigningKey))
 
 		if err := row.Scan(&ec.ConfigID); err != nil {
 			return fmt.Errorf("fetching config_id: %w", err)
@@ -64,63 +65,56 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 	})
 }
 
-// ExportConfigIterator iterates over a set of export configs.
-type ExportConfigIterator interface {
-	// Next returns an export config and a flag indicating if the iterator is done (the config will be nil when done==true).
-	Next() (exposure *model.ExportConfig, done bool, err error)
-	// Close should be called when done iterating.
-	Close() error
-}
+// IterateExportConfigs applies f to each ExportConfig whose FromTimestamp is
+// before the given time. If f returns a non-nil error, the iteration stops, and
+// the returned error will match f's error with errors.Is.
+func (db *DB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*model.ExportConfig) error) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("IterateExportConfigs(%s): %w", t, err)
+		}
+	}()
 
-// IterateExportConfigs returns an ExportConfigIterator to iterate the ExportConfigs.
-func (db *DB) IterateExportConfigs(ctx context.Context, now time.Time) (ExportConfigIterator, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %w", err)
+		return fmt.Errorf("acquiring connection: %w", err)
 	}
-	// We don't defer Release() here because the iterator's Close() method will do it.
+	defer conn.Release()
 
 	rows, err := conn.Query(ctx, `
 		SELECT
-			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp
+			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key
 		FROM
 			ExportConfig
 		WHERE
 			from_timestamp < $1
 			AND
 			(thru_timestamp IS NULL OR thru_timestamp > $1)
-		`, now)
+		`, t)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return &postgresExportConfigIterator{iter: newRowIterator(conn, rows)}, nil
-}
-
-type postgresExportConfigIterator struct {
-	iter *rowIterator
-}
-
-func (i *postgresExportConfigIterator) Next() (*model.ExportConfig, bool, error) {
-	if done, err := i.iter.next(); done {
-		return nil, done, err
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			m             model.ExportConfig
+			periodSeconds int
+			thru          *time.Time
+			skey          sql.NullString
+		)
+		if err := rows.Scan(&m.ConfigID, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru, &skey); err != nil {
+			return err
+		}
+		m.Period = time.Duration(periodSeconds) * time.Second
+		if thru != nil {
+			m.Thru = *thru
+		}
+		m.SigningKey = skey.String
+		if err := f(&m); err != nil {
+			return err
+		}
 	}
-
-	var m model.ExportConfig
-	var periodSeconds int
-	var thru *time.Time
-	if err := i.iter.rows.Scan(&m.ConfigID, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru); err != nil {
-		return nil, false, err
-	}
-	m.Period = time.Duration(periodSeconds) * time.Second
-	if thru != nil {
-		m.Thru = *thru
-	}
-	return &m, false, nil
-}
-
-func (i *postgresExportConfigIterator) Close() error {
-	return i.iter.close()
+	return rows.Err()
 }
 
 // LatestExportBatchEnd returns the end time of the most recent ExportBatch for
@@ -163,9 +157,9 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
 				ExportBatch
-				(config_id, filename_root, start_timestamp, end_timestamp, region, status)
+				(config_id, filename_root, start_timestamp, end_timestamp, region, status, signing_key)
 			VALUES
-				($1, $2, $3, $4, $5, $6)
+				($1, $2, $3, $4, $5, $6, $7)
 		`)
 		if err != nil {
 			return err
@@ -173,7 +167,7 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 
 		for _, eb := range batches {
 			if _, err := tx.Exec(ctx, stmtName,
-				eb.ConfigID, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.Region, eb.Status); err != nil {
+				eb.ConfigID, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.Region, eb.Status, eb.SigningKey); err != nil {
 				return err
 			}
 		}
@@ -303,7 +297,7 @@ func (db *DB) LookupExportBatch(ctx context.Context, batchID int64) (*model.Expo
 func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) (*model.ExportBatch, error) {
 	row := queryRow(ctx, `
 		SELECT
-			batch_id, config_id, filename_root, start_timestamp, end_timestamp, region, status, lease_expires
+			batch_id, config_id, filename_root, start_timestamp, end_timestamp, region, status, lease_expires, signing_key
 		FROM
 			ExportBatch
 		WHERE
@@ -312,7 +306,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 
 	var expires *time.Time
 	eb := model.ExportBatch{}
-	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.Region, &eb.Status, &expires); err != nil {
+	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.Region, &eb.Status, &expires, &eb.SigningKey); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}
@@ -419,7 +413,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 				ef.filename,
 				ef.batch_size,
 				ef.status
-			FROM 
+			FROM
 				ExportBatch eb
 			INNER JOIN
 				ExportFile ef ON (eb.batch_id = ef.batch_id)

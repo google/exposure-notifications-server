@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package wipeout implements the API handlers for running data deletion jobs.
-package wipeout
+// Package cleanup implements the API handlers for running data deletion jobs.
+package cleanup
 
 import (
 	"context"
@@ -35,18 +35,18 @@ const (
 // NewExposureHandler creates a http.Handler for deleting exposure keys
 // from the database.
 func NewExposureHandler(db *database.DB, timeout time.Duration) http.Handler {
-	return &exposureWipeoutHandler{
+	return &exposureCleanupHandler{
 		db:      db,
 		timeout: timeout,
 	}
 }
 
-type exposureWipeoutHandler struct {
+type exposureCleanupHandler struct {
 	db      *database.DB
 	timeout time.Duration
 }
 
-func (h *exposureWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
@@ -56,7 +56,7 @@ func (h *exposureWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
-	logger.Infof("Starting wipeout for records older than %v", cutoff.UTC())
+	logger.Infof("Starting cleanup for records older than %v", cutoff.UTC())
 
 	// Set h.Timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.timeout)
@@ -69,25 +69,25 @@ func (h *exposureWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	logger.Infof("wipeout run complete, deleted %v records.", count)
+	logger.Infof("cleanup run complete, deleted %v records.", count)
 	w.WriteHeader(http.StatusOK)
 }
 
 // NewExportHandler creates a http.Handler that manages deletetion of
 // old export files that are no longer needed by clients for download.
 func NewExportHandler(db *database.DB, timeout time.Duration) http.Handler {
-	return &exportWipeoutHandler{
+	return &exportCleanupHandler{
 		db:      db,
 		timeout: timeout,
 	}
 }
 
-type exportWipeoutHandler struct {
+type exportCleanupHandler struct {
 	db      *database.DB
 	timeout time.Duration
 }
 
-func (h *exportWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
@@ -97,7 +97,7 @@ func (h *exportWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
-	logger.Infof("Starting wipeout for export files older than %v", cutoff.UTC())
+	logger.Infof("Starting cleanup for export files older than %v", cutoff.UTC())
 
 	// Set h.Timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.timeout)
@@ -110,7 +110,7 @@ func (h *exportWipeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	logger.Infof("wipeout run complete, deleted %v files.", count)
+	logger.Infof("cleanup run complete, deleted %v files.", count)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -132,12 +132,12 @@ func getCutoff(ttlVar string) (cutoff time.Time, err error) {
 
 	// Validate that TTL is sufficiently in the past.
 	if ttlDuration < minTTL {
-		err = fmt.Errorf("wipeout ttl is less than configured minumum ttl")
+		err = fmt.Errorf("cleanup ttl is less than configured minumum ttl")
 		return cutoff, err
 	}
 
 	// Get cutoff timestamp
-	cutoff = time.Now().UTC().Add(-ttlDuration)
+	cutoff = time.Now().Add(-ttlDuration)
 	return cutoff, nil
 }
 

@@ -32,7 +32,7 @@ func TestAddExportConfig(t *testing.T) {
 	defer resetTestDB(t)
 	ctx := context.Background()
 
-	fromTime := time.Now().UTC()
+	fromTime := time.Now()
 	thruTime := fromTime.Add(6 * time.Hour)
 	want := &model.ExportConfig{
 		FilenameRoot: "root",
@@ -40,6 +40,7 @@ func TestAddExportConfig(t *testing.T) {
 		Region:       "i1",
 		From:         fromTime,
 		Thru:         thruTime,
+		SigningKey:   "key",
 	}
 	if err := testDB.AddExportConfig(ctx, want); err != nil {
 		t.Fatal(err)
@@ -55,12 +56,12 @@ func TestAddExportConfig(t *testing.T) {
 	)
 	err = conn.QueryRow(ctx, `
 		SELECT
-			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp
+			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key
 		FROM
 			ExportConfig
 		WHERE
 			config_id = $1
-	`, want.ConfigID).Scan(&got.ConfigID, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru)
+	`, want.ConfigID).Scan(&got.ConfigID, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru, &got.SigningKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,26 +111,13 @@ func TestIterateExportConfigs(t *testing.T) {
 		}
 	}
 
-	iter, err := testDB.IterateExportConfigs(ctx, now)
+	var got []*model.ExportConfig
+	err := testDB.IterateExportConfigs(ctx, now, func(m *model.ExportConfig) error {
+		got = append(got, m)
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
-	}
-	defer func() {
-		if err := iter.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	var got []*model.ExportConfig
-	for {
-		ec, done, err := iter.Next()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if done {
-			break
-		}
-		got = append(got, ec)
 	}
 	want := ecs[0:2]
 	sort.Slice(got, func(i, j int) bool { return got[i].FilenameRoot < got[j].FilenameRoot })

@@ -21,6 +21,13 @@ import (
 	"strings"
 )
 
+type Noncer interface {
+	// Nonce returns the expected nonce given input data.
+	Nonce() string
+}
+
+var _ Noncer = (*NonceData)(nil)
+
 type NonceData struct {
 	appPackageName string
 	ttKeysBase64   []string

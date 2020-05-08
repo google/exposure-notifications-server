@@ -66,5 +66,5 @@ Each service's `main` package is located in the `cmd` directory.
 | federation | cmd/federation | gRPC federation requests listener |
 | federation puller | cmd/federation-pull | Pulls federation results from federation partners |
 | exposure server | cmd/exposure |  Stores infection keys |
-| exposure wipeout | cmd/wipeout-export | Deletes old exposure keys |
-| export wipeout | cmd/wipeout-infection | Deletes old exported files published by the exposure key export service |
+| exposure cleanup | cmd/cleanup-export | Deletes old exposure keys |
+| export cleanup | cmd/cleanup-infection | Deletes old exported files published by the exposure key export service |

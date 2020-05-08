@@ -50,7 +50,7 @@ func (s *federationServer) Fetch(ctx context.Context, req *pb.FederationFetchReq
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
-	response, err := s.fetch(ctx, req, s.db.IterateExposures, model.TruncateWindow(time.Now().UTC())) // Don't fetch the current window, which isn't complete yet. TODO(jasonco): should I double this for safety?
+	response, err := s.fetch(ctx, req, s.db.IterateExposures, model.TruncateWindow(time.Now())) // Don't fetch the current window, which isn't complete yet. TODO(jasonco): should I double this for safety?
 	if err != nil {
 		logger.Errorf("Fetch error: %v", err)
 		return nil, errors.New("internal error")
@@ -72,7 +72,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	// TODO(jasonco): Filter out other partner's data; don't re-federate.
 	// TODO(jasonco): moving to CloudSQL will allow this to be simplified.
 	criteria := database.IterateExposuresCriteria{
-		SinceTimestamp:      time.Unix(req.LastFetchResponseKeyTimestamp, 0).UTC(),
+		SinceTimestamp:      time.Unix(req.LastFetchResponseKeyTimestamp, 0),
 		UntilTimestamp:      fetchUntil,
 		LastCursor:          req.NextFetchToken,
 		OnlyLocalProvenance: true, // Do not return results that came from other federation partners.

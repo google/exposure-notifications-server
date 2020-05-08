@@ -21,13 +21,13 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
@@ -36,10 +36,11 @@ const (
 )
 
 // NewBatchServer makes a BatchServer.
-func NewBatchServer(db *database.DB, bsc BatchServerConfig) *BatchServer {
+func NewBatchServer(db *database.DB, bsc BatchServerConfig, env *serverenv.ServerEnv) *BatchServer {
 	return &BatchServer{
 		db:  db,
 		bsc: bsc,
+		env: env,
 	}
 }
 
@@ -47,6 +48,7 @@ func NewBatchServer(db *database.DB, bsc BatchServerConfig) *BatchServer {
 type BatchServer struct {
 	db  *database.DB
 	bsc BatchServerConfig
+	env *serverenv.ServerEnv
 }
 
 // BatchServerConfig is configuratiion for a BatchServer.
@@ -80,48 +82,23 @@ func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Reques
 	}
 	defer unlockFn()
 
-	now := time.Now().UTC()
-	it, err := s.db.IterateExportConfigs(ctx, now)
-	if err != nil {
-		logger.Errorf("Failed to get export config iterator: %v", err)
-		http.Error(w, "Failed to get export config iterator, check logs.", http.StatusInternalServerError)
-		return
-	}
-	defer it.Close()
-
-	for {
-		select {
-		case <-ctx.Done():
-			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
-				logger.Errorf("Context error: %v", err)
-				return
-			}
-			logger.Infof("Timed out creating batches, batch creation will continue on next invocation")
-			return
-		default:
-			// Fallthrough
-		}
-
-		ec, done, err := it.Next()
-		if err != nil {
-			logger.Errorf("Failed to iterate export config: %v", err)
-			http.Error(w, "Failed to iterate export config, check logs.", http.StatusInternalServerError)
-			return
-		}
-		if ec == nil {
-			// Iterator may go one past before returning done==true.
-			if done {
-				return
-			}
-			continue
-		}
-
+	now := time.Now()
+	err = s.db.IterateExportConfigs(ctx, now, func(ec *model.ExportConfig) error {
 		if err := s.maybeCreateBatches(ctx, ec, now); err != nil {
 			logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
 		}
-		if done {
-			return
-		}
+		return nil
+	})
+	switch {
+	case err == nil:
+		return
+	case errors.Is(err, context.DeadlineExceeded):
+		logger.Infof("Timed out creating batches, batch creation will continue on next invocation")
+	case errors.Is(err, context.Canceled):
+		logger.Infof("Canceled while creating batches, batch creation will continue on next invocation")
+	default:
+		logger.Errorf("creating batches: %v", err)
+		http.Error(w, "Failed to create batches, check logs.", http.StatusInternalServerError)
 	}
 }
 
@@ -148,6 +125,7 @@ func (s *BatchServer) maybeCreateBatches(ctx context.Context, ec *model.ExportCo
 			EndTimestamp:   br.end,
 			Region:         ec.Region,
 			Status:         model.ExportBatchOpen,
+			SigningKey:     ec.SigningKey,
 		})
 	}
 
@@ -230,14 +208,14 @@ func (s *BatchServer) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Check for a batch and obtain a lease for it.
-		batch, err := s.db.LeaseBatch(ctx, s.bsc.WorkerTimeout, time.Now().UTC())
+		batch, err := s.db.LeaseBatch(ctx, s.bsc.WorkerTimeout, time.Now())
 		if err != nil {
 			logger.Errorf("Failed to lease batch: %v", err)
 			continue
 		}
 		if batch == nil {
-			msg := "No work to do."
-			logger.Debugf(msg)
+			msg := "No more work to do"
+			logger.Info(msg)
 			fmt.Fprintln(w, msg)
 			return
 		}
@@ -389,14 +367,20 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 }
 
 func (s *BatchServer) createFile(ctx context.Context, exposures []*model.Exposure, eb *model.ExportBatch, batchNum, batchSize int) (string, error) {
+	logger := logging.FromContext(ctx)
+	signer, err := s.env.GetSignerForKey(ctx, eb.SigningKey)
+	if err != nil {
+		return "", fmt.Errorf("unable to get signer for key %v: %w", eb.SigningKey, err)
+	}
 	// Format keys.
-	data, err := MarshalExportFile(eb, exposures, batchNum, batchSize)
+	data, err := MarshalExportFile(eb, exposures, batchNum, batchSize, signer)
 	if err != nil {
 		return "", fmt.Errorf("marshalling export file: %w", err)
 	}
 
 	// Write to GCS.
 	objectName := exportFilename(eb, batchNum)
+	logger.Infof("Created file %v, signed with key %v", objectName, eb.SigningKey)
 	if err := storage.CreateObject(ctx, s.bsc.Bucket, objectName, data); err != nil {
 		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, s.bsc.Bucket, err)
 	}
@@ -438,94 +422,4 @@ func exportFilename(eb *model.ExportBatch, batchNum int) string {
 
 func exportIndexFilename(eb *model.ExportBatch) string {
 	return fmt.Sprintf("%s/index.txt", eb.FilenameRoot)
-}
-
-// NewTestExportHandler is a test handler to write a key file in GCS.
-func NewTestExportHandler(db *database.DB) http.Handler {
-	return &testExportHandler{db: db}
-}
-
-type testExportHandler struct {
-	db *database.DB
-}
-
-func (h *testExportHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	logger := logging.FromContext(ctx)
-
-	limit := 30000
-	limits, ok := r.URL.Query()["limit"]
-	if ok && len(limits) > 0 {
-		lim, err := strconv.Atoi(limits[0])
-		if err == nil {
-			limit = lim
-		}
-	}
-	logger.Infof("limiting to %v", limit)
-
-	if err := h.doExport(ctx, limit); err != nil {
-		logger.Errorf("test export: %v", err)
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-}
-
-func (h *testExportHandler) doExport(ctx context.Context, limit int) error {
-	since := time.Now().UTC().AddDate(0, 0, -5)
-	until := time.Now().UTC()
-	exposureKeys, err := h.queryExposureKeys(ctx, since, until, limit)
-	if err != nil {
-		return fmt.Errorf("error getting exposures: %w", err)
-	}
-	eb := &model.ExportBatch{
-		StartTimestamp: since,
-		EndTimestamp:   until,
-		Region:         "US",
-	}
-	data, err := MarshalExportFile(eb, exposureKeys, 1, 1)
-	if err != nil {
-		return fmt.Errorf("error marshalling export file: %w", err)
-	}
-	objectName := fmt.Sprintf("testExport-%d-records"+filenameSuffix, limit)
-	if err := storage.CreateObject(ctx, "apollo-public-bucket", objectName, data); err != nil {
-		return fmt.Errorf("error creating cloud storage object: %w", err)
-	}
-	return nil
-}
-
-func (h *testExportHandler) queryExposureKeys(ctx context.Context, since, until time.Time, limit int) ([]*model.Exposure, error) {
-	criteria := database.IterateExposuresCriteria{
-		SinceTimestamp:      since,
-		UntilTimestamp:      until,
-		OnlyLocalProvenance: false, // include federated ids
-	}
-	it, err := h.db.IterateExposures(ctx, criteria)
-	if err != nil {
-		return nil, err
-	}
-	defer it.Close()
-
-	var exposures []*model.Exposure
-	for {
-		exp, done, err := it.Next()
-		if err != nil {
-			return nil, err
-		}
-		if exp == nil {
-			// Iterator may go one past before returning done==true.
-			if done {
-				break
-			}
-			continue
-		}
-		exposures = append(exposures, exp)
-		if len(exposures) == limit {
-			break
-		}
-		if done {
-			break
-		}
-	}
-	return exposures, nil
 }

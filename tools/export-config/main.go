@@ -35,6 +35,7 @@ var (
 	region        = flag.String("region", "", "The region for the export batches/files.")
 	fromTimestamp = flag.String("from-timestamp", "", "The timestamp (RFC3339) when this config becomes active.")
 	thruTimestamp = flag.String("thru-timestamp", "", "The timestamp (RFC3339) when this config ends.")
+	signingKey    = flag.String("signing-key", "", "The KMS resource ID to use for signing batches.")
 )
 
 func main() {
@@ -48,7 +49,7 @@ func main() {
 	}
 	*region = strings.ToUpper(*region)
 
-	fromTime := time.Now().UTC()
+	fromTime := time.Now()
 	if *fromTimestamp != "" {
 		var err error
 		fromTime, err = time.Parse(time.RFC3339, *fromTimestamp)
@@ -64,6 +65,10 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to parse --thru-timestamp (use RFC3339): %v", err)
 		}
+	}
+
+	if *signingKey == "" {
+		log.Printf("WARNING - you are creating an export config without a signing key!!")
 	}
 
 	ctx := context.Background()
@@ -88,6 +93,7 @@ func main() {
 		Region:       *region,
 		From:         fromTime,
 		Thru:         thruTime,
+		SigningKey:   *signingKey,
 	}
 
 	if err := db.AddExportConfig(ctx, &ec); err != nil {
