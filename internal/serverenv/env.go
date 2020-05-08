@@ -48,9 +48,9 @@ type ExporterFunc func(context.Context) metrics.Exporter
 // ServerEnv represents latent environment configuration for servers in this application.
 type ServerEnv struct {
 	port          string
-	secretManager secrets.SecretManager // Optional
+	secretManager secrets.SecretManager
 	keyManager    signing.KeyManager
-	storage       storage.Blob
+	storage       storage.Blobstore
 	overrides     map[string]string
 	exporter      metrics.ExporterFromContext
 
@@ -111,7 +111,7 @@ func WithKeyManager(km signing.KeyManager) Option {
 }
 
 // WithBlobStorage creates an Option to install a specific Blob storage system.
-func WithBlobStorage(sto storage.Blob) Option {
+func WithBlobStorage(sto storage.Blobstore) Option {
 	return func(s *ServerEnv) *ServerEnv {
 		s.storage = sto
 		return s
@@ -124,7 +124,7 @@ func (s *ServerEnv) Port() string {
 }
 
 // BlobStorage returns the configured storage interface.
-func (s *ServerEnv) BlobStorage() storage.Blob {
+func (s *ServerEnv) BlobStorage() storage.Blobstore {
 	return s.storage
 }
 

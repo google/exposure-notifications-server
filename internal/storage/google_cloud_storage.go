@@ -19,12 +19,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"cloud.google.com/go/storage"
 )
 
-// GoogleCloudStorage implements the Blob interface and provdes the abilibty
+// GoogleCloudStorage implements the Blob interface and provdes the ability
 // write files to Google Cloud Storage.
 type GoogleCloudStorage struct {
 	client *storage.Client
@@ -32,7 +31,7 @@ type GoogleCloudStorage struct {
 
 // NewGoogleCloudStorage creates a Google Cloud Storage Client, suitable
 // for use with serverenv.ServerEnv
-func NewGoogleCloudStorage(ctx context.Context) (Blob, error) {
+func NewGoogleCloudStorage(ctx context.Context) (Blobstore, error) {
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)
@@ -40,11 +39,8 @@ func NewGoogleCloudStorage(ctx context.Context) (Blob, error) {
 	return &GoogleCloudStorage{client}, nil
 }
 
-// CreateObject creates a new cloud storage object
+// CreateObject creates a new cloud storage object or overwrites an existing one.
 func (gcs *GoogleCloudStorage) CreateObject(ctx context.Context, bucket, objectName string, contents []byte) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
-	defer cancel()
-
 	wc := gcs.client.Bucket(bucket).Object(objectName).NewWriter(ctx)
 	if _, err := wc.Write(contents); err != nil {
 		return fmt.Errorf("storage.Writer.Write: %w", err)
@@ -55,11 +51,9 @@ func (gcs *GoogleCloudStorage) CreateObject(ctx context.Context, bucket, objectN
 	return nil
 }
 
-// DeleteObject deletes a cloud storage object
+// DeleteObject deletes a cloud storage object, returns nil if the object was
+// successfully deleted, or of the object doesn't exist.
 func (gcs *GoogleCloudStorage) DeleteObject(ctx context.Context, bucket, objectName string) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
-	defer cancel()
-
 	if err := gcs.client.Bucket(bucket).Object(objectName).Delete(ctx); err != nil {
 		if errors.Is(err, storage.ErrObjectNotExist) {
 			// Object doesn't exist; presumably already deleted.
