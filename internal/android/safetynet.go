@@ -47,9 +47,9 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 	defer trace.StartRegion(ctx, "ValidateAttestation").End()
 	logger := logging.FromContext(ctx)
 
-	claims, err := parseAttestation(ctx, attestation)
+	claims, err := verifyAttestation(ctx, attestation)
 	if err != nil {
-		return fmt.Errorf("parseAttestation: %w", err)
+		return fmt.Errorf("verifyAttestation: %w", err)
 	}
 
 	// Validate the nonce.
@@ -163,8 +163,10 @@ func keyFunc(ctx context.Context, tok *jwt.Token) (interface{}, error) {
 	return nil, fmt.Errorf("invalid certificate, unable to extract public key")
 }
 
-func parseAttestation(ctx context.Context, signedAttestation string) (jwt.MapClaims, error) {
-	defer trace.StartRegion(ctx, "parseAttestation").End()
+// verifyAttestation extracts and verifies the signature and claims on the
+// attestation. It does NOT validate the attestation, only the signature.
+func verifyAttestation(ctx context.Context, signedAttestation string) (jwt.MapClaims, error) {
+	defer trace.StartRegion(ctx, "verifyAttestation").End()
 	// jwt.Parse also validates the signature after extracting
 	// the key via the keyFunc, which validates the certificate chain.
 	token, err := jwt.Parse(signedAttestation,
