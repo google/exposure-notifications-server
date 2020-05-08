@@ -25,6 +25,7 @@ resource "google_project_service" "services" {
   disable_on_destroy = false
 }
 
+# TODO(ndmckinley): configure these service accounts to do the jobs they are designed for.
 resource "google_service_account" "svc_acct" {
   project      = data.google_project.project.project_id
   account_id   = each.key
@@ -90,9 +91,8 @@ resource "google_sql_database" "db" {
   name    = "main"
   project = data.google_project.project.project_id
   provisioner "local-exec" {
-    # TODO(ndmckinley) this isn't the most up-to-date version of the schema because of the migrations files.
     # TODO(ndmckinley) is this the best way to get the schema into the database?
-    command = "gcloud sql connect ${google_sql_database_instance.db-inst.name} -d ${google_sql_database.db.name} -u root --project ${data.google_project.project.project_id} < ../scripts/schema.sql"
+    command = "gcloud sql connect ${google_sql_database_instance.db-inst.name} -d ${google_sql_database.db.name} -u root --project ${data.google_project.project.project_id} < ../migrations/*.sql"
   }
 }
 
@@ -110,6 +110,151 @@ resource "google_secret_manager_secret_version" "db-pwd-initial" {
   secret      = google_secret_manager_secret.db-pwd.id
   secret_data = google_sql_user.user.password
 }
+resource "random_string" "bucket-name" {
+  length  = 5
+  special = false
+  number  = false
+  upper   = false
+}
 
 
-# TODO(ndmckinley) build the binaries and deploy them.
+resource "google_storage_bucket" "export" {
+  name = "exposure-notification-export-${random_string.bucket-name.result}"
+}
+
+resource "google_cloud_run_service" "exposure" {
+  name     = "exposure"
+  location = var.region
+  template {
+    spec {
+      containers {
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/exposure:latest"
+        env {
+          name  = "CONFIG_REFRESH_DURATION"
+          value = "5m"
+        }
+        env {
+          name  = "DB_POOL_MIN_CONNS"
+          value = "2"
+        }
+        env {
+          name  = "DB_POOL_MAX_CONNS"
+          value = "10"
+        }
+        env {
+          # TODO(ndmckinley): this isn't ideal, but this is how it's configured now - we should make it read from the secret store.
+          name  = "DB_PASSWORD"
+          value = google_sql_user.user.password
+        }
+        env {
+          name  = "DB_HOST"
+          value = "${data.google_project.project.project_id}:${var.region}/${google_sql_database_instance.db-inst.name}"
+        }
+        env {
+          name  = "DB_USER"
+          value = google_sql_user.user.name
+        }
+        env {
+          name  = "DB_DBNAME"
+          value = google_sql_database.db.name
+        }
+      }
+    }
+  }
+  metadata {
+    annotations = {
+      "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}/${google_sql_database_instance.db-inst.name}"
+    }
+  }
+}
+
+resource "google_cloud_run_service" "export" {
+  name     = "export"
+  location = var.region
+  template {
+    spec {
+      containers {
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/export:latest"
+        env {
+          name  = "EXPORT_FILE_MAX_RECORDS"
+          value = "100"
+        }
+        env {
+          name  = "EXPORT_BUCKET"
+          value = google_storage_bucket.export.name
+        }
+        env {
+          name  = "DB_POOL_MIN_CONNS"
+          value = "2"
+        }
+        env {
+          name  = "DB_POOL_MAX_CONNS"
+          value = "10"
+        }
+        env {
+          # TODO(ndmckinley): this isn't ideal, but this is how it's configured now - we should make it read from the secret store.
+          name  = "DB_PASSWORD"
+          value = google_sql_user.user.password
+        }
+        env {
+          name  = "DB_HOST"
+          value = "${data.google_project.project.project_id}:${var.region}/${google_sql_database_instance.db-inst.name}"
+        }
+        env {
+          name  = "DB_USER"
+          value = google_sql_user.user.name
+        }
+        env {
+          name  = "DB_DBNAME"
+          value = google_sql_database.db.name
+        }
+      }
+    }
+  }
+  metadata {
+    annotations = {
+      "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}/${google_sql_database_instance.db-inst.name}"
+    }
+  }
+}
+
+
+
+data "google_iam_policy" "noauth" {
+  binding {
+    role = "roles/run.invoker"
+    members = [
+      "allUsers",
+    ]
+  }
+}
+
+resource "google_cloud_run_service_iam_policy" "export-noauth" {
+  location = google_cloud_run_service.exposure.location
+  project  = google_cloud_run_service.exposure.project
+  service  = google_cloud_run_service.exposure.name
+
+  policy_data = data.google_iam_policy.noauth.policy_data
+}
+
+resource "google_cloud_run_service_iam_policy" "exposure-noauth" {
+  location = google_cloud_run_service.exposure.location
+  project  = google_cloud_run_service.exposure.project
+  service  = google_cloud_run_service.exposure.name
+
+  policy_data = data.google_iam_policy.noauth.policy_data
+}
+
+resource "google_cloudbuild_trigger" "build-and-publish" {
+  provider    = google-beta
+  name        = "build-containers"
+  description = "Build the containers for the exposure notification service and deploy them to cloud run"
+  filename    = "build/deploy.yaml"
+  github {
+    owner = "google"
+    name  = "exposure-notification"
+    push {
+      branch = "^master$"
+    }
+  }
+}
