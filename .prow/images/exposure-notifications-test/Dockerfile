@@ -24,3 +24,5 @@ RUN git clone https://github.com/golang/protobuf; \
 	cd protobuf/protoc-gen-go; \
 	go build; \
 	mv protoc-gen-go $HOME/bin
+
+RUN go get golang.org/x/tools/cmd/goimports
