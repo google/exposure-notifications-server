@@ -127,11 +127,24 @@ func getFederationSync(ctx context.Context, syncID int64, queryRowContext queryR
 		`, syncID)
 
 	s := model.FederationSync{}
-	if err := row.Scan(&s.SyncID, &s.QueryID, &s.Started, &s.Completed, &s.Insertions, &s.MaxTimestamp); err != nil {
+	var (
+		completed, max *time.Time
+		insertions     *int
+	)
+	if err := row.Scan(&s.SyncID, &s.QueryID, &s.Started, &completed, &insertions, &max); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("scanning results: %v", err)
+	}
+	if completed != nil {
+		s.Completed = *completed
+	}
+	if max != nil {
+		s.MaxTimestamp = *max
+	}
+	if insertions != nil {
+		s.Insertions = *insertions
 	}
 	return &s, nil
 }
