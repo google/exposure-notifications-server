@@ -26,6 +26,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/api/handlers"
 	"github.com/google/exposure-notifications-server/internal/api/publish"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/ios"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
@@ -34,8 +35,14 @@ import (
 
 const (
 	minPublishDurationEnv     = "MIN_PUBLISH_DURATION"
-	bypassSafetyNetEnv        = "BYPASS_SAFETYNET"
 	defaultMinPublishDiration = 5 * time.Second
+
+	bypassDeviceCheckEnv = "BYPASS_DEVICECHECK"
+	bypassSafetyNetEnv   = "BYPASS_SAFETYNET"
+
+	deviceCheckPrivateKeyEnv = "DEVICECHECK_PRIVATE_KEY"
+	deviceCheckKeyIDEnv      = "DEVICECHECK_KEY_ID"
+	deviceCheckTeamIDEnv     = "DEVICECHECK_TEAM_ID"
 )
 
 func main() {
@@ -59,10 +66,39 @@ func main() {
 
 	cfg := config.New(db)
 
+	bypassDeviceCheck := serverenv.ParseBool(ctx, bypassDeviceCheckEnv, false)
+	if bypassDeviceCheck {
+		logger.Warn("iOS DeviceCheck verification is bypassed. Do not bypass " +
+			"DeviceCheck verification in production environments!")
+		cfg.BypassDeviceCheck()
+	} else {
+		keyID, err := env.ResolveSecretEnv(ctx, deviceCheckKeyIDEnv)
+		if err != nil {
+			logger.Fatalf("failed to resolve %q: %v", deviceCheckKeyIDEnv, err)
+		}
+		cfg.SetDeviceCheckKeyID(keyID)
+
+		teamID, err := env.ResolveSecretEnv(ctx, deviceCheckTeamIDEnv)
+		if err != nil {
+			logger.Fatalf("failed to resolve %q: %v", deviceCheckTeamIDEnv, err)
+		}
+		cfg.SetDeviceCheckTeamID(teamID)
+
+		privateKeyStr, err := env.ResolveSecretEnv(ctx, deviceCheckPrivateKeyEnv)
+		if err != nil {
+			logger.Fatalf("failed to resolve %q: %v", deviceCheckPrivateKeyEnv, err)
+		}
+		privateKey, err := ios.ParsePrivateKey(privateKeyStr)
+		if err != nil {
+			logger.Fatalf("bad device check private key: %v", err)
+		}
+		cfg.SetDeviceCheckPrivateKey(privateKey)
+	}
+
 	bypassSafetyNet := serverenv.ParseBool(ctx, bypassSafetyNetEnv, false)
 	if bypassSafetyNet {
-		logger.Warn("SafetyNet verification is bypassed. Do not bypass SafetyNet " +
-			"verification in production environments!")
+		logger.Warn("Android SafetyNet verification is bypassed. Do not bypass " +
+			"SafetyNet verification in production environments!")
 		cfg.BypassSafetyNet()
 	}
 

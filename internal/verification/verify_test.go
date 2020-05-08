@@ -42,32 +42,32 @@ func TestVerifyRegions(t *testing.T) {
 	usCaRegions.AllowedRegions["CA"] = true
 
 	cases := []struct {
-		Data model.Publish
+		Data *model.Publish
 		Msg  string
 		Cfg  *apiconfig.APIConfig
 	}{
 		{
-			model.Publish{Regions: []string{"US"}},
+			&model.Publish{Regions: []string{"US"}},
 			"no allowed regions configured",
 			nil,
 		},
 		{
-			model.Publish{Regions: []string{"US"}},
+			&model.Publish{Regions: []string{"US"}},
 			"",
 			allRegions,
 		},
 		{
-			model.Publish{Regions: []string{"US"}},
+			&model.Publish{Regions: []string{"US"}},
 			"",
 			usCaRegions,
 		},
 		{
-			model.Publish{Regions: []string{"US", "CA"}},
+			&model.Publish{Regions: []string{"US", "CA"}},
 			"",
 			usCaRegions,
 		},
 		{
-			model.Publish{Regions: []string{"MX"}},
+			&model.Publish{Regions: []string{"MX"}},
 			fmt.Sprintf("application '%v' tried to write unauthorized region: '%v'", appPkgName, "MX"),
 			usCaRegions,
 		},
@@ -100,34 +100,34 @@ func TestVerifySafetyNet(t *testing.T) {
 	}
 
 	cases := []struct {
-		Data              model.Publish
+		Data              *model.Publish
 		Msg               string
 		Cfg               *apiconfig.APIConfig
 		AttestationResult error
 	}{
 		{
 			// With no configuration, return err.
-			model.Publish{Regions: []string{"US"}},
+			&model.Publish{Regions: []string{"US"}},
 			"cannot enforce safetynet, no application config",
 			nil,
 			nil,
 		}, {
 			// Verify when Validate Attestation Passes, return nil.
-			model.Publish{Regions: []string{"US"}},
+			&model.Publish{Regions: []string{"US"}},
 			"",
 			allRegions,
 			nil,
 		}, {
 			// Verify when ValidateAttestation raises err, with safety check
 			// enabled, return err.
-			model.Publish{Regions: []string{"US"}},
+			&model.Publish{Regions: []string{"US"}},
 			"android.ValidateAttestation: mocked",
 			allRegions,
 			fmt.Errorf("mocked"),
 		}, {
 			// Verify when ValidateAttestation raises err, with safety check
 			// disabled, return nil.
-			model.Publish{Regions: []string{"US"}},
+			&model.Publish{Regions: []string{"US"}},
 			"",
 			allRegionsSafetyCheckDisabled,
 			fmt.Errorf("mocked"),
@@ -136,7 +136,7 @@ func TestVerifySafetyNet(t *testing.T) {
 
 	for i, c := range cases {
 		var ctx = context.Background()
-		ValidateAttestation = func(context.Context, string, android.VerifyOpts) error {
+		androidValidateAttestation = func(context.Context, string, android.VerifyOpts) error {
 			return c.AttestationResult
 		}
 

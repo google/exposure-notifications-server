@@ -15,6 +15,7 @@
 package apiconfig
 
 import (
+	"crypto/ecdsa"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/android"
@@ -39,10 +40,20 @@ type APIConfig struct {
 	AllowedRegions    map[string]bool `db:"allowed_regions"`
 	AllowAllRegions   bool            `db:"all_regions"`
 
-	// BypassSafetyNet is an internal field for testing that bypasses
+	// BypassSafetyNet is an internal field for testing that bypasses Android
 	// SafetyNet verification. It is not read from a database and is used for
 	// testing only.
 	BypassSafetyNet bool
+
+	// BypassDeviceCheck is an internal field for testing that bypasses iOS
+	// DeviceCheck verification. It is not read from a database and is used for
+	// testing only.
+	BypassDeviceCheck bool
+
+	// DeviceCheck configuration.
+	DeviceCheckKeyID      string
+	DeviceCheckTeamID     string
+	DeviceCheckPrivateKey *ecdsa.PrivateKey
 }
 
 // New creates a new, empty API config

@@ -16,6 +16,7 @@ package config
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"os"
 	"sync"
 	"time"
@@ -34,6 +35,11 @@ type Config struct {
 	refreshPeriod time.Duration
 
 	bypassSafetyNet bool
+
+	bypassDeviceCheck     bool
+	deviceCheckKeyID      string
+	deviceCheckTeamID     string
+	deviceCheckPrivateKey *ecdsa.PrivateKey
 
 	mu           sync.RWMutex
 	lastLoadTime time.Time
@@ -85,6 +91,12 @@ func (c *Config) loadConfig(ctx context.Context) error {
 	c.cache = make(map[string]*apiconfig.APIConfig)
 	for _, apiConfig := range configs {
 		apiConfig.BypassSafetyNet = c.bypassSafetyNet
+
+		apiConfig.BypassDeviceCheck = c.bypassDeviceCheck
+		apiConfig.DeviceCheckPrivateKey = c.deviceCheckPrivateKey
+		apiConfig.DeviceCheckKeyID = c.deviceCheckKeyID
+		apiConfig.DeviceCheckTeamID = c.deviceCheckTeamID
+
 		c.cache[apiConfig.AppPackageName] = apiConfig
 	}
 	logger.Info("loaded new APIConfig values")
@@ -92,11 +104,39 @@ func (c *Config) loadConfig(ctx context.Context) error {
 	return nil
 }
 
-// BypassSafetyNet disables verification for testing purposes.
+// BypassSafetyNet disables SafetyNext verification for testing purposes.
 func (c *Config) BypassSafetyNet() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.bypassSafetyNet = true
+}
+
+// BypassDeviceCheck disables DeviceCheck verification for testing purposes.
+func (c *Config) BypassDeviceCheck() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.bypassDeviceCheck = true
+}
+
+// SetDeviceCheckKeyID sets the DeviceCheck key ID.
+func (c *Config) SetDeviceCheckKeyID(s string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.deviceCheckKeyID = s
+}
+
+// SetDeviceCheckTeamID sets the DeviceCheck team ID.
+func (c *Config) SetDeviceCheckTeamID(s string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.deviceCheckTeamID = s
+}
+
+// SetDeviceCheckPrivateKey sets the DeviceCheck private key.
+func (c *Config) SetDeviceCheckPrivateKey(key *ecdsa.PrivateKey) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.deviceCheckPrivateKey = key
 }
 
 func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) (*apiconfig.APIConfig, error) {
