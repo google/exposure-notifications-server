@@ -41,8 +41,10 @@ type VerifyOpts struct {
 	MaxValidTime    *time.Time
 }
 
-//, appPackageName string, base64keys []string, regions []string
-
+// ValidateAttestation validates the the SafetyNet Attestation from this device
+// matches the properties that we expect based on the applications APIConfig entry.
+// See https://developer.android.com/training/safetynet/attestation#use-response-server
+// for details on the format of these attestations.
 func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpts) error {
 	defer trace.StartRegion(ctx, "ValidateAttestation").End()
 	logger := logging.FromContext(ctx)
@@ -88,8 +90,18 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 		return fmt.Errorf("attestation is in the future, must be older than %v, was %v", opts.MaxValidTime.Unix(), issueTime.Unix())
 	}
 
-	// TODO(mikehelmick): Validate APKDigest
-	logger.Warnf("attestation, apkCertificateDigestSha256 validation not implemented")
+	// The apkCertificateDigestSha256 is an array with a single entry.
+	// https://developer.android.com/training/safetynet/attestation#use-response-server
+	digestArr := claims["apkCertificateDigestSha256"].([]interface{})
+	claimApkDigest := ""
+	if len(digestArr) >= 1 {
+		claimApkDigest = digestArr[0].(string)
+	} else {
+		logger.Warnf("attestation didn't contain apkCertificateDigestSha256")
+	}
+	if opts.APKDigest != claimApkDigest {
+		return fmt.Errorf("attestation apkCertificateDigestSha256 value does not match configuration, got %v", claimApkDigest)
+	}
 
 	// Integrity checks.
 	if opts.CTSProfileMatch {

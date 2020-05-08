@@ -55,7 +55,7 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error
 		var apkDigest sql.NullString
 		var allowedPastSeconds, allowedFutureSeconds *int
 		if err := rows.Scan(&config.AppPackageName, &config.Platform, &apkDigest,
-			&config.EnforceApkDigest, &config.CTSProfileMatch, &config.BasicIntegrity,
+			&config.CTSProfileMatch, &config.BasicIntegrity,
 			&allowedPastSeconds, &allowedFutureSeconds, &regions,
 			&config.AllowAllRegions, &config.BypassSafetynet); err != nil {
 			return nil, err
