@@ -24,19 +24,29 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-// CreateObject creates a new cloud storage object
-func CreateObject(ctx context.Context, bucket, objectName string, contents []byte) error {
+// GoogleCloudStorage implements the Blob interface and provdes the abilibty
+// write files to Google Cloud Storage.
+type GoogleCloudStorage struct {
+	client *storage.Client
+}
+
+// NewGoogleCloudStorage creates a Google Cloud Storage Client, suitable
+// for use with serverenv.ServerEnv
+func NewGoogleCloudStorage(ctx context.Context) (Blob, error) {
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return fmt.Errorf("storage.NewClient: %w", err)
+		return nil, fmt.Errorf("storage.NewClient: %w", err)
 	}
-	defer client.Close()
+	return &GoogleCloudStorage{client}, nil
+}
 
+// CreateObject creates a new cloud storage object
+func (gcs *GoogleCloudStorage) CreateObject(ctx context.Context, bucket, objectName string, contents []byte) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
 	defer cancel()
 
-	wc := client.Bucket(bucket).Object(objectName).NewWriter(ctx)
-	if _, err = wc.Write(contents); err != nil {
+	wc := gcs.client.Bucket(bucket).Object(objectName).NewWriter(ctx)
+	if _, err := wc.Write(contents); err != nil {
 		return fmt.Errorf("storage.Writer.Write: %w", err)
 	}
 	if err := wc.Close(); err != nil {
@@ -46,17 +56,11 @@ func CreateObject(ctx context.Context, bucket, objectName string, contents []byt
 }
 
 // DeleteObject deletes a cloud storage object
-func DeleteObject(ctx context.Context, bucket, objectName string) error {
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("storage.NewClient: %w", err)
-	}
-	defer client.Close()
-
+func (gcs *GoogleCloudStorage) DeleteObject(ctx context.Context, bucket, objectName string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
 	defer cancel()
 
-	if err := client.Bucket(bucket).Object(objectName).Delete(ctx); err != nil {
+	if err := gcs.client.Bucket(bucket).Object(objectName).Delete(ctx); err != nil {
 		if errors.Is(err, storage.ErrObjectNotExist) {
 			// Object doesn't exist; presumably already deleted.
 			return nil

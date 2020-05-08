@@ -31,6 +31,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/signing"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
 const (
@@ -46,7 +47,8 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
+	// It is possible to install a different secret management, KMS, and blob
+	// storage systems here.
 	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %w", err)
@@ -55,9 +57,15 @@ func main() {
 	if err != nil {
 		logger.Fatalf("unable to connect to key manager: %w", err)
 	}
+	storage, err := storage.NewGoogleCloudStorage(ctx)
+	if err != nil {
+		logger.Fatalf("unable to connect to storage system: %v", err)
+	}
+	// Construct desired serving environment.
 	env := serverenv.New(ctx,
 		serverenv.WithSecretManager(sm),
 		serverenv.WithKeyManager(km),
+		serverenv.WithBlobStorage(storage),
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
 	db, err := database.NewFromEnv(ctx, env)

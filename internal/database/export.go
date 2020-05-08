@@ -394,7 +394,7 @@ type joinedExportBatchFile struct {
 }
 
 // DeleteFilesBefore deletes the export batch files for batches ending before the time passed in.
-func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, error) {
+func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore storage.Blob) (int, error) {
 	logger := logging.FromContext(ctx)
 
 	// Fetch filenames for  batches where at least one file is not deleted yet.
@@ -452,7 +452,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 		}
 
 		// Delete stored file.
-		if err := storage.DeleteObject(ctx, bucket, f.filename); err != nil {
+		if err := blobstore.DeleteObject(ctx, bucket, f.filename); err != nil {
 			return 0, fmt.Errorf("delete object: %w", err)
 		}
 

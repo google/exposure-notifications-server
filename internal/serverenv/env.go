@@ -29,6 +29,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/signing"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
 const (
@@ -49,6 +50,7 @@ type ServerEnv struct {
 	port          string
 	secretManager secrets.SecretManager // Optional
 	keyManager    signing.KeyManager
+	storage       storage.Blob
 	overrides     map[string]string
 	exporter      metrics.ExporterFromContext
 
@@ -108,9 +110,22 @@ func WithKeyManager(km signing.KeyManager) Option {
 	}
 }
 
+// WithBlobStorage creates an Option to install a specific Blob storage system.
+func WithBlobStorage(sto storage.Blob) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.storage = sto
+		return s
+	}
+}
+
 // Port returns the port that a server should listen on.
 func (s *ServerEnv) Port() string {
 	return s.port
+}
+
+// BlobStorage returns the configured storage interface.
+func (s *ServerEnv) BlobStorage() storage.Blob {
+	return s.storage
 }
 
 // GetSignerForKey returns the crypto.Singer implementation to use based on the installed KeyManager.
