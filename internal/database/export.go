@@ -120,7 +120,7 @@ func (db *DB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*mod
 // LatestExportBatchEnd returns the end time of the most recent ExportBatch for
 // a given ExportConfig. It returns the zero time if no previous ExportBatch
 // exists.
-// TODO(jasonco): This needs a
+// TODO(squee1945): This needs a
 func (db *DB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportConfig) (time.Time, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {

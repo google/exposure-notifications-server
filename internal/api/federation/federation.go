@@ -50,7 +50,7 @@ func (s *federationServer) Fetch(ctx context.Context, req *pb.FederationFetchReq
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
-	response, err := s.fetch(ctx, req, s.db.IterateExposures, model.TruncateWindow(time.Now())) // Don't fetch the current window, which isn't complete yet. TODO(jasonco): should I double this for safety?
+	response, err := s.fetch(ctx, req, s.db.IterateExposures, model.TruncateWindow(time.Now())) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?
 	if err != nil {
 		logger.Errorf("Fetch error: %v", err)
 		return nil, errors.New("internal error")
@@ -69,8 +69,8 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	}
 
 	// If there is only one region, we can let datastore filter it; otherwise we'll have to filter in memory.
-	// TODO(jasonco): Filter out other partner's data; don't re-federate.
-	// TODO(jasonco): moving to CloudSQL will allow this to be simplified.
+	// TODO(squee1945): Filter out other partner's data; don't re-federate.
+	// TODO(squee1945): moving to CloudSQL will allow this to be simplified.
 	criteria := database.IterateExposuresCriteria{
 		SinceTimestamp:      time.Unix(req.LastFetchResponseKeyTimestamp, 0),
 		UntilTimestamp:      fetchUntil,
@@ -84,14 +84,14 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	logger.Infof("Processing request Regions:%v Excluding:%v Since:%v Until:%v HasCursor:%t", req.RegionIdentifiers, req.ExcludeRegionIdentifiers, criteria.SinceTimestamp, criteria.UntilTimestamp, req.NextFetchToken != "")
 
 	// Filter included countries in memory.
-	// TODO(jasonco): move to database query if/when Cloud SQL.
+	// TODO(squee1945): move to database query if/when Cloud SQL.
 	includedRegions := map[string]struct{}{}
 	for _, region := range req.RegionIdentifiers {
 		includedRegions[region] = struct{}{}
 	}
 
 	// Filter excluded countries in memory, using a map for efficiency.
-	// TODO(jasonco): move to database query if/when Cloud SQL.
+	// TODO(squee1945): move to database query if/when Cloud SQL.
 	excludedRegions := map[string]struct{}{}
 	for _, region := range req.ExcludeRegionIdentifiers {
 		excludedRegions[region] = struct{}{}
@@ -170,7 +170,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// If all the regions on the record are excluded, skip it.
-		// TODO(jasonco): move to database query if/when Cloud SQL.
+		// TODO(squee1945): move to database query if/when Cloud SQL.
 		skip := true
 		for _, region := range inf.Regions {
 			if _, excluded := excludedRegions[region]; !excluded {
@@ -185,7 +185,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// If filtering on a region (len(includedRegions) > 0) and none of the regions on the record are included, skip it.
-		// TODO(jasonco): move to database query if/when Cloud SQL.
+		// TODO(squee1945): move to database query if/when Cloud SQL.
 		if len(includedRegions) > 0 {
 			skip = true
 			for _, region := range inf.Regions {

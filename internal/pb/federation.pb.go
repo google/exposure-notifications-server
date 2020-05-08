@@ -304,10 +304,10 @@ type ContactTracingInfo struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// TODO(jasonco | mikehelmick): this should be an int now.
+	// TODO(squee1945 | mikehelmick): this should be an int now.
 	TransmissionRisk          TransmissionRisk `protobuf:"varint,1,opt,name=transmissionRisk,proto3,enum=TransmissionRisk" json:"transmissionRisk,omitempty"` // required
 	ExposureKeys              []*ExposureKey   `protobuf:"bytes,2,rep,name=exposureKeys,proto3" json:"exposureKeys,omitempty"`
-	VerificationAuthorityName string           `protobuf:"bytes,3,opt,name=verificationAuthorityName,proto3" json:"verificationAuthorityName,omitempty"` // TODO(jasonco): need to group on this.
+	VerificationAuthorityName string           `protobuf:"bytes,3,opt,name=verificationAuthorityName,proto3" json:"verificationAuthorityName,omitempty"` // TODO(squee1945): need to group on this.
 }
 
 func (x *ContactTracingInfo) Reset() {
