@@ -16,6 +16,6 @@ BEGIN;
 
 ALTER TABLE ExportConfig DROP COLUMN signing_key;
 
-ALTER TABLE ExportConfig DROP COLUMN signing_key;
+ALTER TABLE ExportBatch DROP COLUMN signing_key;
 
 END;

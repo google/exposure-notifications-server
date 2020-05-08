@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This utility unwrapps the export.TEKSignatureList proto and
+// extracts the sianature so that an export file can be verified with openssl.
 package main
 
 import (
@@ -49,8 +51,9 @@ func main() {
 	log.Printf("Data: \n%v", teksl)
 	sig := teksl.Signatures[0].Signature
 
-	err = ioutil.WriteFile(*outFile, sig, 0666)
+	err = ioutil.WriteFile(*outFile, sig, 0600)
 	if err != nil {
 		log.Fatalf("unable to write output file: %v", err)
 	}
+	log.Printf("success, saved output to %v", *outFile)
 }
