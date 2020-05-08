@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
@@ -240,4 +241,21 @@ func ParseDuration(ctx context.Context, name string, defaultValue time.Duration)
 		return defaultValue
 	}
 	return dur
+}
+
+// ParseBool parses a bool string stored in the named environment variable. If
+// the variable's values is empty or cannot be parsed as a bool, the default
+// value is returned instead.
+func ParseBool(ctx context.Context, name string, defaultValue bool) bool {
+	val := os.Getenv(name)
+	if val == "" {
+		return defaultValue
+	}
+
+	b, err := strconv.ParseBool(val)
+	if err != nil {
+		logging.FromContext(ctx).Warnf("Failed to parse $%s value %q, using default %t", name, val, defaultValue)
+		return defaultValue
+	}
+	return b
 }

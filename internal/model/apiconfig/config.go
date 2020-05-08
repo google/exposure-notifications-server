@@ -39,7 +39,11 @@ type APIConfig struct {
 	AllowedFutureTime time.Duration   `db:"allowed_future_seconds"`
 	AllowedRegions    map[string]bool `db:"allowed_regions"`
 	AllowAllRegions   bool            `db:"all_regions"`
-	BypassSafetynet   bool            `db:"bypass_safetynet"`
+
+	// BypassSafetyNet is an internal field for testing that bypasses
+	// SafetyNet verification. It is not read from a database and is used for
+	// testing only.
+	BypassSafetyNet bool
 }
 
 // New creates a new, empty API config

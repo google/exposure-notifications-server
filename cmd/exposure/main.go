@@ -34,6 +34,7 @@ import (
 
 const (
 	minPublishDurationEnv     = "MIN_PUBLISH_DURATION"
+	bypassSafetyNetEnv        = "BYPASS_SAFETYNET"
 	defaultMinPublishDiration = 5 * time.Second
 )
 
@@ -57,6 +58,13 @@ func main() {
 	defer db.Close(ctx)
 
 	cfg := config.New(db)
+
+	bypassSafetyNet := serverenv.ParseBool(ctx, bypassSafetyNetEnv, false)
+	if bypassSafetyNet {
+		logger.Warn("SafetyNet verification is bypassed. Do not bypass SafetyNet " +
+			"verification in production environments!")
+		cfg.BypassSafetyNet()
+	}
 
 	minLatency := serverenv.ParseDuration(ctx, minPublishDurationEnv, defaultMinPublishDiration)
 	logger.Infof("Request minimum latency is: %v", minLatency.String())

@@ -33,6 +33,8 @@ type Config struct {
 	db            *database.DB
 	refreshPeriod time.Duration
 
+	bypassSafetyNet bool
+
 	mu           sync.RWMutex
 	lastLoadTime time.Time
 	cache        map[string]*apiconfig.APIConfig
@@ -82,11 +84,19 @@ func (c *Config) loadConfig(ctx context.Context) error {
 
 	c.cache = make(map[string]*apiconfig.APIConfig)
 	for _, apiConfig := range configs {
+		apiConfig.BypassSafetyNet = c.bypassSafetyNet
 		c.cache[apiConfig.AppPackageName] = apiConfig
 	}
 	logger.Info("loaded new APIConfig values")
 	c.lastLoadTime = time.Now()
 	return nil
+}
+
+// BypassSafetyNet disables verification for testing purposes.
+func (c *Config) BypassSafetyNet() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.bypassSafetyNet = true
 }
 
 func (c *Config) AppPkgConfig(ctx context.Context, appPkg string) (*apiconfig.APIConfig, error) {

@@ -96,7 +96,7 @@ func TestVerifySafetyNet(t *testing.T) {
 	allRegionsSafetyCheckDisabled := &apiconfig.APIConfig{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
-		BypassSafetynet: true,
+		BypassSafetyNet: true,
 	}
 
 	cases := []struct {
