@@ -35,6 +35,7 @@ var (
 	region        = flag.String("region", "", "The region for the export batches/files.")
 	fromTimestamp = flag.String("from-timestamp", "", "The timestamp (RFC3339) when this config becomes active.")
 	thruTimestamp = flag.String("thru-timestamp", "", "The timestamp (RFC3339) when this config ends.")
+	signingKey    = flag.String("signing-key", "", "The KMS resource ID to use for signing batches.")
 )
 
 func main() {
@@ -66,6 +67,10 @@ func main() {
 		}
 	}
 
+	if *signingKey == "" {
+		log.Printf("WARNING - you are creating an export config without a signing key!!")
+	}
+
 	ctx := context.Background()
 	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
 	sm, err := secrets.NewGCPSecretManager(ctx)
@@ -88,6 +93,7 @@ func main() {
 		Region:       *region,
 		From:         fromTime,
 		Thru:         thruTime,
+		SigningKey:   *signingKey,
 	}
 
 	if err := db.AddExportConfig(ctx, &ec); err != nil {

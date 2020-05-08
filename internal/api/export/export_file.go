@@ -17,8 +17,7 @@ package export
 import (
 	"archive/zip"
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
+	"crypto"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
@@ -39,7 +38,7 @@ const (
 	algorithm            = "ECDSA p-256 SHA-256"
 )
 
-func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int) ([]byte, error) {
+func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int, signer crypto.Signer) ([]byte, error) {
 	// create main exposure key export binary
 	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize))
 	if err != nil {
@@ -47,7 +46,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batch
 	}
 
 	// create signature file
-	sigContents, err := marshalSignature(expContents, int32(batchNum), int32(batchSize))
+	sigContents, err := marshalSignature(expContents, int32(batchNum), int32(batchSize), signer)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal signature file: %w", err)
 	}
@@ -122,8 +121,8 @@ func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNu
 	return append(exportBytes, protoBytes...), nil
 }
 
-func marshalSignature(exportContents []byte, batchNum int32, batchSize int32) ([]byte, error) {
-	sig, err := generateSignature(exportContents)
+func marshalSignature(exportContents []byte, batchNum int32, batchSize int32, signer crypto.Signer) ([]byte, error) {
+	sig, err := generateSignature(exportContents, signer)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate signature: %v", err)
 	}
@@ -147,20 +146,11 @@ func marshalSignature(exportContents []byte, batchNum int32, batchSize int32) ([
 	return protoBytes, nil
 }
 
-func getSigningKey() (*ecdsa.PrivateKey, error) {
-	// TODO(guray): get from Cloud Key Store (or other kubernetes secrets storage)?
-	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-}
-
-func generateSignature(data []byte) ([]byte, error) {
-	key, err := getSigningKey()
-	if err != nil {
-		return nil, fmt.Errorf("unable to generate signing key: %w", err)
-	}
+func generateSignature(data []byte, signer crypto.Signer) ([]byte, error) {
 	digest := sha256.Sum256(data)
-	r, s, err := ecdsa.Sign(rand.Reader, key, digest[:])
+	sig, err := signer.Sign(rand.Reader, digest[:], nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign: %w", err)
 	}
-	return elliptic.Marshal(elliptic.P256(), r, s), nil
+	return sig, nil
 }

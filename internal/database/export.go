@@ -16,6 +16,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -51,11 +52,11 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				ExportConfig
-				(filename_root, period_seconds, region, from_timestamp, thru_timestamp)
+				(filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key)
 			VALUES
-				($1, $2, $3, $4, $5)
+				($1, $2, $3, $4, $5, $6)
 			RETURNING config_id
-		`, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region, ec.From, thru)
+		`, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region, ec.From, thru, toNullString(ec.SigningKey))
 
 		if err := row.Scan(&ec.ConfigID); err != nil {
 			return fmt.Errorf("fetching config_id: %w", err)
@@ -82,7 +83,7 @@ func (db *DB) IterateExportConfigs(ctx context.Context, now time.Time) (ExportCo
 
 	rows, err := conn.Query(ctx, `
 		SELECT
-			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp
+			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key
 		FROM
 			ExportConfig
 		WHERE
@@ -109,13 +110,15 @@ func (i *postgresExportConfigIterator) Next() (*model.ExportConfig, bool, error)
 	var m model.ExportConfig
 	var periodSeconds int
 	var thru *time.Time
-	if err := i.iter.rows.Scan(&m.ConfigID, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru); err != nil {
+	var skey sql.NullString
+	if err := i.iter.rows.Scan(&m.ConfigID, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru, &skey); err != nil {
 		return nil, false, err
 	}
 	m.Period = time.Duration(periodSeconds) * time.Second
 	if thru != nil {
 		m.Thru = *thru
 	}
+	m.SigningKey = skey.String
 	return &m, false, nil
 }
 
@@ -163,9 +166,9 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
 				ExportBatch
-				(config_id, filename_root, start_timestamp, end_timestamp, region, status)
+				(config_id, filename_root, start_timestamp, end_timestamp, region, status, signing_key)
 			VALUES
-				($1, $2, $3, $4, $5, $6)
+				($1, $2, $3, $4, $5, $6, $7)
 		`)
 		if err != nil {
 			return err
@@ -173,7 +176,7 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 
 		for _, eb := range batches {
 			if _, err := tx.Exec(ctx, stmtName,
-				eb.ConfigID, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.Region, eb.Status); err != nil {
+				eb.ConfigID, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.Region, eb.Status, eb.SigningKey); err != nil {
 				return err
 			}
 		}
@@ -303,7 +306,7 @@ func (db *DB) LookupExportBatch(ctx context.Context, batchID int64) (*model.Expo
 func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) (*model.ExportBatch, error) {
 	row := queryRow(ctx, `
 		SELECT
-			batch_id, config_id, filename_root, start_timestamp, end_timestamp, region, status, lease_expires
+			batch_id, config_id, filename_root, start_timestamp, end_timestamp, region, status, lease_expires, signing_key
 		FROM
 			ExportBatch
 		WHERE
@@ -312,7 +315,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 
 	var expires *time.Time
 	eb := model.ExportBatch{}
-	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.Region, &eb.Status, &expires); err != nil {
+	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.Region, &eb.Status, &expires, &eb.SigningKey); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}
@@ -419,7 +422,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time) (int, err
 				ef.filename,
 				ef.batch_size,
 				ef.status
-			FROM 
+			FROM
 				ExportBatch eb
 			INNER JOIN
 				ExportFile ef ON (eb.batch_id = ef.batch_id)
