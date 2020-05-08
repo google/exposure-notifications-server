@@ -34,7 +34,7 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error
 	query := `
 	    SELECT
 	    	app_package_name, platform, apk_digest, enforce_apk_digest, cts_profile_match, basic_integrity,
-        allowed_past_seconds, allowed_future_seconds, allowed_regions, all_regions, bypass_safetynet
+        allowed_past_seconds, allowed_future_seconds, allowed_regions, all_regions
 	    FROM
 	    	APIConfig`
 	rows, err := conn.Query(ctx, query)
@@ -57,7 +57,7 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error
 		if err := rows.Scan(&config.AppPackageName, &config.Platform, &apkDigest,
 			&config.EnforceApkDigest, &config.CTSProfileMatch, &config.BasicIntegrity,
 			&allowedPastSeconds, &allowedFutureSeconds, &regions,
-			&config.AllowAllRegions, &config.BypassSafetynet); err != nil {
+			&config.AllowAllRegions); err != nil {
 			return nil, err
 		}
 		if apkDigest.Valid {

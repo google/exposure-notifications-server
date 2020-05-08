@@ -59,12 +59,12 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *apiconfig.
 	}
 
 	opts := cfg.VerifyOpts(requestTime)
-	err := ValidateAttestation(ctx, data.Verification, opts)
-	if err != nil {
-		if cfg.BypassSafetynet {
-			logger.Errorf("safetynet failed, but bypass enabled for app: '%v', failure: %v", data.AppPackageName, err)
+	if err := ValidateAttestation(ctx, data.Verification, opts); err != nil {
+		if cfg.BypassSafetyNet {
+			logger.Errorf("bypassing safetynet verification for: '%v'", data.AppPackageName)
 			return nil
 		}
+
 		return fmt.Errorf("android.ValidateAttestation: %w", err)
 	}
 
