@@ -18,6 +18,13 @@ set -eEuo pipefail
 
 source_dirs="cmd internal tools"
 
+
+echo "🚒 Verify Protobufs are up to date"
+set +e
+$(dirname $0)/gen_protos.sh
+# Don't verify the *.pb.go files here as we tidy these. Verify after format.
+set -e
+
 echo "🧽 Verify goimports formattting"
 set +e
 which goimports >/dev/null 2>&1
@@ -28,7 +35,10 @@ if [ $? -ne 0 ]; then
 else
    echo "🧽 Format with goimports"
    goimports -w $(echo $source_dirs)
-   git diff *.go| tee /dev/stderr | (! read)
+   # Check if there were uncommited changes.
+   # Ignore comment line changes as sometimes proto gen just updates versions
+   # of the generator
+   git diff -G'(^\s+[^/])' *.go | tee /dev/stderr | (! read)
    if [ $? -ne 0 ]; then
       echo "✋ Found uncommited changes after goimports."
       echo "✋ Commit these changes before merging."
@@ -40,7 +50,7 @@ set -e
 echo "🧹 Verify gofmt format"
 set +e
 diff -u <(echo -n) <(gofmt -d -s .)
-git diff *.go| tee /dev/stderr | (! read)
+git diff -G'(^\s+[^/])' *.go | tee /dev/stderr | (! read)
 if [ $? -ne 0 ]; then
    echo "✋ Found uncommited changes after gofmt."
    echo "✋ Commit these changes before merging."
@@ -81,17 +91,6 @@ set -e
 # set +x
 
 
-echo "🚒 Verify Protobufs are up to date"
-set +e
-$(dirname $0)/gen_protos.sh
-git diff *.pb.go| tee /dev/stderr | (! read)
-if [ $? -ne 0 ]; then
-   echo "✋ Found uncommited changes to generated"
-   echo "✋ *.pb.go files. Commit these changes before merging."
-   # Don't exit here since this command can have small
-   # differences between versions. This is an advisory failure.
-fi
-set -e
 
 echo "🚧 Compile"
 go build ./...
