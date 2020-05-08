@@ -23,6 +23,7 @@ RUN apt-get install -y protobuf-compiler
 RUN git clone https://github.com/golang/protobuf; \
 	cd protobuf/protoc-gen-go; \
 	go build; \
-	mv protoc-gen-go $HOME/bin
+	mv protoc-gen-go $GOPATH/bin; \
+	export PATH=$PATH:$GOPATH/bin/
 
 RUN go get golang.org/x/tools/cmd/goimports
