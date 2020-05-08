@@ -14,10 +14,6 @@
 
 BEGIN;
 
-CREATE TABLE FederationClient (
-	client_id VARCHAR(100) NOT NULL PRIMARY KEY,
-	include_regions VARCHAR(5) [],
-	exclude_regions VARCHAR(5) []
-);
+DROP TABLE FederationAuthorization;
 
 END;

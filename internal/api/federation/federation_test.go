@@ -16,12 +16,14 @@ package federation
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -250,7 +252,7 @@ func TestFetch(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			server := federationServer{config: FederationServerConfig{AllowAnyClient: true}}
+			server := Server{}
 			req := pb.FederationFetchRequest{ExcludeRegionIdentifiers: tc.excludeRegions}
 			got, err := server.fetch(context.Background(), &req, iterFunc(tc.iterations), time.Now())
 			if err != nil {
@@ -258,6 +260,61 @@ func TestFetch(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, got, listsAsSets...); diff != "" {
 				t.Errorf("fetch() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestRawToken tests rawToken().
+func TestRawToken(t *testing.T) {
+	want := "Abc123"
+	md := metadata.New(map[string]string{"authorization": fmt.Sprintf("Bearer %s", want)})
+	ctx := metadata.NewIncomingContext(context.Background(), md)
+
+	got, err := rawToken(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got != want {
+		t.Errorf("rawToken()=%q, want=%q", got, want)
+	}
+}
+
+// TestRawTokenErrors tests error responses from rawToken().
+func TestRawTokenErrors(t *testing.T) {
+	testCases := []struct {
+		name  string
+		mdMap map[string][]string
+	}{
+		{
+			name:  "no metadata",
+			mdMap: map[string][]string{},
+		},
+		{
+			name:  "missing authorization header",
+			mdMap: map[string][]string{"not-auth": {"foo"}},
+		},
+		{
+			name:  "empty authorization header",
+			mdMap: map[string][]string{"authorization": {}},
+		},
+		{
+			name:  "too many authorization headers",
+			mdMap: map[string][]string{"authorization": {"Bearer foo", "Bearer bar"}},
+		},
+		{
+			name:  "incorrect authorization prefix",
+			mdMap: map[string][]string{"authorization": {"not-Bearer foo"}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := metadata.NewIncomingContext(context.Background(), tc.mdMap)
+			_, gotErr := rawToken(ctx)
+			if gotErr == nil {
+				t.Errorf("missing error response")
 			}
 		})
 	}

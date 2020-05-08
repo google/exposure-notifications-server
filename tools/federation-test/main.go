@@ -17,21 +17,28 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"log"
+	"os"
 	"time"
 
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/pb"
 
+	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/oauth"
 )
 
 const (
-	timeout = 30 * time.Second
+	timeout         = 30 * time.Second
+	defaultAudience = "https://foo.bar"
 )
 
 var (
+	// See https://github.com/grpc/grpc-go/blob/master/examples/route_guide/client/client.go
 	serverAddr    = flag.String("server-addr", "localhost:8080", "The server address in the format of host:port")
 	lastTimestamp = flag.String("last-timestamp", "", "The last timestamp (RFC3339) to set; queries start from this point and go forward.")
 	cursor        = flag.String("cursor", "", "Cursor from previous partial response.")
@@ -48,7 +55,7 @@ func main() {
 	if *lastTimestamp != "" {
 		lastTime, err = time.Parse(time.RFC3339, *lastTimestamp)
 		if err != nil {
-			log.Fatalf("failed to parse --last-timestamp (use RFC3339): %v", err)
+			log.Fatalf("Failed to parse --last-timestamp (use RFC3339): %v", err)
 		}
 	}
 
@@ -59,16 +66,29 @@ func main() {
 		LastFetchResponseKeyTimestamp: lastTime.Unix(),
 	}
 
-	// See https://github.com/grpc/grpc-go/blob/master/examples/route_guide/client/client.go
-	conn, err := grpc.Dial(*serverAddr, grpc.WithInsecure())
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
+	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(creds)}
+
+	if cred, ok := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS"); ok {
+		idTokenSource, err := idtoken.NewTokenSource(ctx, defaultAudience, idtoken.WithCredentialsFile(cred))
+		if err != nil {
+			log.Fatalf("Failed to create token source: %v", err)
+		}
+		dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{idTokenSource}))
+	} else {
+		log.Println("$GOOGLE_APPLICATION_CREDENTIALS not set; will attempt an unauthenticated request.")
+	}
+
+	conn, err := grpc.Dial(*serverAddr, dialOpts...)
 	if err != nil {
 		log.Fatalf("Failed to dial %s: %v", *serverAddr, err)
 	}
 	defer conn.Close()
 
 	total := 0
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 	response, err := pb.NewFederationClient(conn).Fetch(ctx, request)
 	if err != nil {
 		log.Fatalf("Error calling fetch: %v", err)

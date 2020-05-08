@@ -70,36 +70,20 @@ func getFederationQuery(ctx context.Context, queryID string, queryRow queryRowFn
 // AddFederationQuery adds a FederationQuery entity. It will overwrite a query with matching q.queryID if it exists.
 func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) error {
 	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
-		existing := true
-		if _, err := getFederationQuery(ctx, q.QueryID, tx.QueryRow); err != nil {
-			if errors.Is(err, ErrNotFound) {
-				existing = false
-			} else {
-				return fmt.Errorf("getting existing federation query %s: %w", q.QueryID, err)
-			}
-		}
-
-		if existing {
-			_, err := tx.Exec(ctx, `
-				DELETE FROM
-					FederationQuery
-				WHERE
-					query_id=$1
-			`, q.QueryID)
-			if err != nil {
-				return fmt.Errorf("deleting existing federation query %s: %w", q.QueryID, err)
-			}
-		}
-
-		_, err := tx.Exec(ctx, `
+		query := `
 			INSERT INTO
 				FederationQuery
 				(query_id, server_addr, include_regions, exclude_regions, last_timestamp)
 			VALUES
 				($1, $2, $3, $4, $5)
-		`, q.QueryID, q.ServerAddr, q.IncludeRegions, q.ExcludeRegions, q.LastTimestamp)
+			ON CONFLICT
+				(query_id)
+			DO UPDATE
+				SET server_addr = $2, include_regions = $3, exclude_regions = $4, last_timestamp = $5
+		`
+		_, err := tx.Exec(ctx, query, q.QueryID, q.ServerAddr, q.IncludeRegions, q.ExcludeRegions, q.LastTimestamp)
 		if err != nil {
-			return fmt.Errorf("inserting federation query: %w", err)
+			return fmt.Errorf("upserting federation query: %w", err)
 		}
 		return nil
 	})
@@ -218,7 +202,30 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 	return syncID, finalize, nil
 }
 
-func (db *DB) GetFederationClient(ctx context.Context, clientID string) (*model.FederationClient, error) {
+// AddFederationAuthorization adds or updates a FederationAuthorization record.
+func (db *DB) AddFederationAuthorization(ctx context.Context, auth *model.FederationAuthorization) error {
+	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		q := `
+			INSERT INTO
+				FederationAuthorization
+				(oidc_issuer, oidc_subject, oidc_audience, note, include_regions, exclude_regions)
+			VALUES
+				($1, $2, $3, $4, $5, $6)
+			ON CONFLICT ON CONSTRAINT
+				federation_authorization_pk
+			DO UPDATE
+				SET oidc_audience = $3, note = $4, include_regions = $5, exclude_regions = $6
+		`
+		_, err := tx.Exec(ctx, q, auth.Issuer, auth.Subject, auth.Audience, auth.Note, auth.IncludeRegions, auth.ExcludeRegions)
+		if err != nil {
+			return fmt.Errorf("upserting federation authorization: %w", err)
+		}
+		return nil
+	})
+}
+
+// GetFederationAuthorization returns a FederationAuthorization record, or ErrNotFound if not found.
+func (db *DB) GetFederationAuthorization(ctx context.Context, issuer, subject string) (*model.FederationAuthorization, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
@@ -227,18 +234,21 @@ func (db *DB) GetFederationClient(ctx context.Context, clientID string) (*model.
 
 	row := conn.QueryRow(ctx, `
 		SELECT
-			client_id, include_regions, exclude_regions
+			oidc_issuer, oidc_subject, oidc_audience, note, include_regions, exclude_regions
 		FROM
-			FederationClient
+			FederationAuthorization
 		WHERE
-			client_id = $1
-		`, clientID)
-	c := model.FederationClient{}
-	if err := row.Scan(&c.ClientID, &c.IncludeRegions, &c.ExcludeRegions); err != nil {
+			oidc_issuer = $1
+		AND
+			oidc_subject = $2
+		LIMIT 1
+		`, issuer, subject)
+	auth := model.FederationAuthorization{}
+	if err := row.Scan(&auth.Issuer, &auth.Subject, &auth.Audience, &auth.Note, &auth.IncludeRegions, &auth.ExcludeRegions); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("scanning results: %w", err)
 	}
-	return &c, nil
+	return &auth, nil
 }

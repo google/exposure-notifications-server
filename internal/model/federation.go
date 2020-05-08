@@ -37,9 +37,13 @@ type FederationSync struct {
 	MaxTimestamp time.Time `db:"max_timestamp"`
 }
 
-// FederatinonClient is a configuration of clients that pull from this server.
-type FederationClient struct {
-	ClientID       string   `db:"client_id"`
+// FederationAuthorization is an authorized client that pulls federation data from this server.
+type FederationAuthorization struct {
+	Issuer  string `db:"oidc_issuer"`
+	Subject string `db:"oidc_subject"`
+	// Audience is optional, but will be validated against the OIDC token if provided.
+	Audience       string   `db:"oidc_audience"`
+	Note           string   `db:"note"`
 	IncludeRegions []string `db:"include_regions"`
 	ExcludeRegions []string `db:"exclude_regions"`
 }

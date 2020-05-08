@@ -21,6 +21,7 @@ import (
 	"net"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/google/exposure-notifications-server/internal/api/federation"
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -28,11 +29,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/secretenv"
 	"github.com/google/exposure-notifications-server/internal/secrets"
-)
-
-const (
-	allowAnyClientEnvVar  = "ALLOW_ANY_CLIENT"
-	defaultAllowAnyClient = false
 )
 
 func main() {
@@ -45,26 +41,30 @@ func main() {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
 
-	envVars := &federation.Environment{}
-	err = secretenv.Process(ctx, "", envVars, sm)
-	if err != nil {
+	var env federation.Environment
+	if err := secretenv.Process(ctx, "", &env, sm); err != nil {
 		logger.Fatalf("error loading environment variables: %v", err)
 	}
 
-	db, err := database.NewFromEnv(ctx, &envVars.Database)
+	db, err := database.NewFromEnv(ctx, &env.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
-	allowAnyClient := serverenv.ParseBool(ctx, allowAnyClientEnvVar, defaultAllowAnyClient)
-	logger.Info("Using allow any client %b (override with $%s)", allowAnyClient, allowAnyClientEnvVar)
-
-	server := federation.NewServer(db, envVars.Timeout)
+	server := federation.NewServer(db, env.Timeout)
 
 	var sopts []grpc.ServerOption
-	if !allowAnyClient {
-		sopts = append(sopts, grpc.UnaryInterceptor(server.(federation.Server).AuthInterceptor))
+	if env.TLSCertFile != "" && env.TLSKeyFile != "" {
+		creds, err := credentials.NewServerTLSFromFile(env.TLSCertFile, env.TLSKeyFile)
+		if err != nil {
+			log.Fatalf("Failed to generate credentials: %v", err)
+		}
+		sopts = append(sopts, grpc.Creds(creds))
+	}
+
+	if !env.AllowAnyClient {
+		sopts = append(sopts, grpc.UnaryInterceptor(server.(*federation.Server).AuthInterceptor))
 	}
 
 	grpcServer := grpc.NewServer(sopts...)

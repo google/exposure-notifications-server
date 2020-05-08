@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is a CLI tool for setting federation queries.
+// This package is a CLI tool for creating FederationAuthorization entries, controlling who can access federation endpoint.
+// If the sub/iss match an existing record, that record will be updated.
 package main
 
 import (
 	"context"
 	"flag"
 	"log"
-	"regexp"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
@@ -28,16 +27,15 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
+const (
+	defaultIssuer = "https://accounts.google.com"
+)
+
 var (
-	validQueryIDStr    = `\A[a-z][a-z0-9-_]*[a-z0-9]\z`
-	validQueryIDRegexp = regexp.MustCompile(validQueryIDStr)
+	testRegions = []string{"TEST", "PROBE"}
 
-	validServerAddrStr    = `\A[a-z0-9.-]+(:\d+)?\z`
-	validServerAddrRegexp = regexp.MustCompile(validServerAddrStr)
-
-	queryID       = flag.String("query-id", "", "(Required) The ID of the federation query to set.")
-	serverAddr    = flag.String("server-addr", "", "(Required) The address of the remote server, in the form some-server:some-port")
-	lastTimestamp = flag.String("last-timestamp", "", "The last timestamp (RFC3339) to set; queries start from this point and go forward.")
+	subject = flag.String("subject", "", "(Required) The OIDC subject (for issuer https://accounts.google.com, this is the obfuscated Gaia ID.)")
+	note    = flag.String("note", "", "An open text note to include on the record.")
 )
 
 func main() {
@@ -46,25 +44,26 @@ func main() {
 	flag.Var(&excludeRegions, "exclude-regions", "A comma-separated list fo regions to exclude from the query.")
 	flag.Parse()
 
-	if *queryID == "" {
-		log.Fatalf("query-id is required")
+	if *subject == "" {
+		log.Fatalf("--subject is required")
 	}
-	if !validQueryIDRegexp.MatchString(*queryID) {
-		log.Fatalf("query-id %q must match %s", *queryID, validQueryIDStr)
-	}
-	if *serverAddr == "" {
-		log.Fatalf("server-addr is required")
-	}
-	if !validServerAddrRegexp.MatchString(*serverAddr) {
-		log.Fatalf("server-addr %q must match %s", *serverAddr, validServerAddrStr)
-	}
-	var lastTime time.Time
-	if *lastTimestamp != "" {
-		var err error
-		lastTime, err = time.Parse(time.RFC3339, *lastTimestamp)
-		if err != nil {
-			log.Fatalf("failed to parse --last-timestamp (use RFC3339): %v", err)
+
+	// Issue warnings about missing test regions in excludeRegions.
+	var missingTestRegions []string
+	for _, testRegion := range testRegions {
+		inExcluded := false
+		for _, excludedRegion := range excludeRegions {
+			if excludedRegion == testRegion {
+				inExcluded = true
+				break
+			}
 		}
+		if !inExcluded {
+			missingTestRegions = append(missingTestRegions, testRegion)
+		}
+	}
+	if len(missingTestRegions) > 0 {
+		log.Printf("\n\nWARNING: This record does not exclude test regions %q and is only appropriate for a test federation authorization.\n\n", missingTestRegions)
 	}
 
 	ctx := context.Background()
@@ -80,17 +79,17 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	query := &model.FederationQuery{
-		QueryID:        *queryID,
-		ServerAddr:     *serverAddr,
+	auth := &model.FederationAuthorization{
+		Issuer:         defaultIssuer, // Authorization interceptor currently only supports defaultIssuer.
+		Subject:        *subject,
+		Note:           *note,
 		IncludeRegions: includeRegions,
 		ExcludeRegions: excludeRegions,
-		LastTimestamp:  lastTime,
 	}
 
-	if err := db.AddFederationQuery(ctx, query); err != nil {
-		log.Fatalf("adding new query %s %#v: %v", *queryID, query, err)
+	if err := db.AddFederationAuthorization(ctx, auth); err != nil {
+		log.Fatalf("adding new federation client authorization %#v: %v", auth, err)
 	}
 
-	log.Printf("Successfully added query %s %#v", *queryID, query)
+	log.Printf("Successfully added federation client authorization %#v", auth)
 }
