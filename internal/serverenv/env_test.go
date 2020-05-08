@@ -50,8 +50,8 @@ func TestServerEnv(t *testing.T) {
 	os.Setenv(portEnvVar, "4000")
 	env := New(ctx)
 
-	if port := env.Port(); port != "4000" {
-		t.Errorf("env.Port got %v want 4000", port)
+	if env.Port != "4000" {
+		t.Errorf("env.Port got %v want 4000", env.Port)
 	}
 }
 

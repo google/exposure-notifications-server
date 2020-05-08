@@ -59,5 +59,5 @@ func main() {
 
 	http.Handle("/", cleanup.NewExposureHandler(db, timeout))
 	logger.Info("starting cleanup server")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port, nil))
 }

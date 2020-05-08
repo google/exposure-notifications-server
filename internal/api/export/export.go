@@ -382,7 +382,7 @@ func (s *BatchServer) createFile(ctx context.Context, exposures []*model.Exposur
 	logger.Infof("Created file %v, signed with key %v", objectName, eb.SigningKey)
 	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
 	defer cancel()
-	if err := s.env.BlobStorage().CreateObject(ctx, s.bsc.Bucket, objectName, data); err != nil {
+	if err := s.env.Blobstore.CreateObject(ctx, s.bsc.Bucket, objectName, data); err != nil {
 		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, s.bsc.Bucket, err)
 	}
 	return objectName, nil
@@ -413,7 +413,7 @@ func (s *BatchServer) createIndex(ctx context.Context, eb *model.ExportBatch, ne
 	indexObjectName := exportIndexFilename(eb)
 	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
 	defer cancel()
-	if err := s.env.BlobStorage().CreateObject(ctx, s.bsc.Bucket, indexObjectName, data); err != nil {
+	if err := s.env.Blobstore.CreateObject(ctx, s.bsc.Bucket, indexObjectName, data); err != nil {
 		return "", 0, fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, s.bsc.Bucket, err)
 	}
 	return indexObjectName, len(objects), nil

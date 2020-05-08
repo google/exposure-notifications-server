@@ -103,5 +103,5 @@ func main() {
 	http.HandleFunc("/do-work", batchServer.WorkerHandler)               // worker that executes work
 
 	logger.Info("starting exposure export server")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port), nil))
 }

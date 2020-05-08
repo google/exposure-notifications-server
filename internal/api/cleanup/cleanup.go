@@ -102,8 +102,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 	logger.Infof("Starting cleanup for export files older than %v", cutoff.UTC())
 
-	storage := h.env.BlobStorage()
-	if storage == nil {
+	if h.env.Blobstore == nil {
 		logger.Errorf("no blob storage system configured")
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
@@ -113,7 +112,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 
-	count, err := h.db.DeleteFilesBefore(timeoutCtx, cutoff, storage)
+	count, err := h.db.DeleteFilesBefore(timeoutCtx, cutoff, h.env.Blobstore)
 	if err != nil {
 		logger.Errorf("Failed deleting export files: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
