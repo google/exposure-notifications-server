@@ -58,7 +58,7 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *apiconfig.
 		return fmt.Errorf("cannot enforce safetynet, no application config")
 	}
 
-	opts := cfg.VerifyOpts(requestTime.UTC())
+	opts := cfg.VerifyOpts(requestTime)
 	err := ValidateAttestation(ctx, data.Verification, opts)
 	if err != nil {
 		if cfg.BypassSafetynet {
