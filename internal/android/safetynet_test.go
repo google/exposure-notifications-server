@@ -26,6 +26,12 @@ const (
 	appPackage = "com.google.android.apps.apollo"
 )
 
+type emptyNonce struct{}
+
+func (e *emptyNonce) Nonce() string {
+	return ""
+}
+
 func TestParseAttestation(t *testing.T) {
 	// **This is not a secret value.**
 	// This is a SafetyNet Attestation payload, https://developer.android.com/training/safetynet/attestation#overview
@@ -100,14 +106,79 @@ func TestVerifyAttestation(t *testing.T) {
 			VerifyOpts{
 				AppPkgName:      appPackage,
 				APKDigest:       "",
-				Nonce:           NewNonce(appPackage, ttKeys, regions),
+				Nonce:           nil,
 				CTSProfileMatch: false,
 				BasicIntegrity:  true,
 				MinValidTime:    &minValidTime,
 				MaxValidTime:    &maxValidTime,
 			},
 			false,
-			"basicIntegrity is false when true is required",
+			"missing nonce",
+		},
+		{
+			VerifyOpts{
+				AppPkgName:      appPackage,
+				APKDigest:       "",
+				Nonce:           &emptyNonce{},
+				CTSProfileMatch: false,
+				BasicIntegrity:  true,
+				MinValidTime:    &minValidTime,
+				MaxValidTime:    &maxValidTime,
+			},
+			false,
+			"missing nonce",
+		},
+		{
+			VerifyOpts{
+				AppPkgName:      appPackage,
+				APKDigest:       "",
+				Nonce:           NewNonce(appPackage, ttKeys, regions),
+				CTSProfileMatch: false,
+				BasicIntegrity:  true,
+				MinValidTime:    nil,
+				MaxValidTime:    nil,
+			},
+			false,
+			"missing timestamp bounds for attestation",
+		},
+		{
+			VerifyOpts{
+				AppPkgName:      appPackage,
+				APKDigest:       "",
+				Nonce:           NewNonce(appPackage, ttKeys, regions),
+				CTSProfileMatch: false,
+				BasicIntegrity:  true,
+				MinValidTime:    nil,
+				MaxValidTime:    nil,
+			},
+			false,
+			"missing timestamp bounds for attestation",
+		},
+		{
+			VerifyOpts{
+				AppPkgName:      appPackage,
+				APKDigest:       "",
+				Nonce:           NewNonce(appPackage, ttKeys, regions),
+				CTSProfileMatch: false,
+				BasicIntegrity:  true,
+				MinValidTime:    &time.Time{},
+				MaxValidTime:    &maxValidTime,
+			},
+			false,
+			"missing timestamp bounds for attestation",
+		},
+		{
+			VerifyOpts{
+				AppPkgName:      appPackage,
+				APKDigest:       "",
+				Nonce:           NewNonce(appPackage, ttKeys, regions),
+				CTSProfileMatch: false,
+				BasicIntegrity:  true,
+				MinValidTime:    &minValidTime,
+				MaxValidTime:    &time.Time{},
+			},
+			false,
+			"missing timestamp bounds for attestation",
 		},
 		{
 			VerifyOpts{
