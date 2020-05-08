@@ -14,6 +14,6 @@
 
 BEGIN;
 
-ALTER TABLE APIConfig ADD COLUMN region VARCHAR(64);
+ALTER TABLE APIConfig ADD COLUMN enforce_apk_digest VARCHAR(64);
 
 END;
