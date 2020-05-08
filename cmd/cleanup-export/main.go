@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -65,5 +64,5 @@ func main() {
 
 	http.Handle("/", cleanup.NewExportHandler(db, timeout, env))
 	logger.Info("starting export cleanup server")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port, nil))
+	log.Fatal(http.ListenAndServe(":"+env.Port, nil))
 }
