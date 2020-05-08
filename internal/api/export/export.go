@@ -317,7 +317,7 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 			// Fallthrough
 		}
 
-		// TODO(jasonco): Uploading in parallel (to a point) probably makes better use of network.
+		// TODO(squee1945): Uploading in parallel (to a point) probably makes better use of network.
 		objectName, err := s.createFile(ctx, exposures, eb, i+1, batchSize)
 		if err != nil {
 			return fmt.Errorf("creating export file %d for batch %d: %w", i+1, eb.BatchID, err)

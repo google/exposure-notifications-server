@@ -106,7 +106,7 @@ func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	}
 	defer unlockFn()
 
-	// TODO(jasonco): make secure
+	// TODO(squee1945): make secure
 	conn, err := grpc.Dial(query.ServerAddr, grpc.WithInsecure())
 	if err != nil {
 		logger.Errorf("Failed to dial for query %q %s: %v", queryID, query.ServerAddr, err)
@@ -159,7 +159,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 	partial := true
 	for partial {
 
-		// TODO(jasonco): react to the context timeout and complete a chunk of work so next invocation can pick up where left off.
+		// TODO(squee1945): react to the context timeout and complete a chunk of work so next invocation can pick up where left off.
 
 		response, err := deps.fetch(ctx, request)
 		if err != nil {
@@ -221,7 +221,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 	}
 
 	if err := finalizeFn(maxTimestamp, total); err != nil {
-		// TODO(jasonco): how do we clean up here? Just leave the records in and have the exporter eliminate them? Other?
+		// TODO(squee1945): how do we clean up here? Just leave the records in and have the exporter eliminate them? Other?
 		return fmt.Errorf("finalizing federation sync for query %s: %w", q.QueryID, err)
 	}
 

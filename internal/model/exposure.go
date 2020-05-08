@@ -32,7 +32,7 @@ type Publish struct {
 	AppPackageName   string        `json:"appPackageName"`
 	TransmissionRisk int           `json:"transmissionRisk"`
 	Verification     string        `json:"verificationPayload"`
-	// TODO(helmick): validate this field
+	// TODO(mikehelmick): validate this field
 	VerificationAuthorityName string `json:"verificationAuthorityName"`
 }
 
@@ -45,7 +45,7 @@ type ExposureKey struct {
 }
 
 // Exposure represents the record as storedin the database
-// TODO(helmick) - refactor this so that there is a public
+// TODO(mikehelmick) - refactor this so that there is a public
 // Exposure struct that doesn't have public fields and an
 // internal struct that does. Separate out the database model
 // from direct access.
@@ -96,7 +96,7 @@ func TransformPublish(inData *Publish, batchTime time.Time) ([]*Exposure, error)
 		if err != nil {
 			return nil, err
 		}
-		// TODO(helmick) - data validation
+		// TODO(mikehelmick) - data validation
 		exposure := &Exposure{
 			ExposureKey:               binKey,
 			TransmissionRisk:          inData.TransmissionRisk,
