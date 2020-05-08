@@ -13,7 +13,7 @@ provider "google-beta" {
 provider "random" {}
 
 # This is to ensure that the project / gcloud auth are correctly configured.
-resource "null_resource" "n" {
+resource "null_resource" "gcloud_check" {
   provisioner "local-exec" {
     command = "gcloud projects describe ${var.project} || (echo 'please sign in to gcloud using `gcloud auth login`.' && exit 1)"
   }
