@@ -121,7 +121,7 @@ func (i *postgresExposureIterator) Next() (*model.Exposure, bool, error) {
 }
 
 func (i *postgresExposureIterator) Cursor() (string, error) {
-	// TODO: this is a pretty weak cursor solution, but not too bad since we'll typcially have queries ahead of the wipeout
+	// TODO: this is a pretty weak cursor solution, but not too bad since we'll typcially have queries ahead of the cleanup
 	// and before the current ingestion window, and those should be stable.
 	return encodeCursor(strconv.Itoa(i.offset)), nil
 }

@@ -34,9 +34,9 @@ resource "google_service_account" "svc_acct" {
     "exporter" : "Export Service Account",
     "fed-recv" : "Federation Receiver Service Account",
     "fed-pull" : "Federation Puller Service Account",
-    "wipeout" : "Wipeout Service Account",
-    "export-wipeout" : "Export Wipeout Service Account",
-    "scheduler-wipeout" : "Wipeout Scheduler Service Account",
+    "cleanup" : "Cleanup Service Account",
+    "export-cleanup" : "Export Cleanup Service Account",
+    "scheduler-cleanup" : "Cleanup Scheduler Service Account",
     "scheduler-export" : "Export Scheduler Service Account",
   }
 }

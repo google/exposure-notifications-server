@@ -33,9 +33,9 @@ steps:
   args:
   - publish
   - -P
-  - ./cmd/wipeout-export
+  - ./cmd/cleanup-export
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
   - -P
-  - ./cmd/wipeout-exposure
+  - ./cmd/cleanup-exposure
