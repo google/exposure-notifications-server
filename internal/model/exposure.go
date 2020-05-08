@@ -65,7 +65,7 @@ type Exposure struct {
 
 const (
 	oneDay       = time.Hour * 24
-	createWindow = time.Minute * 15
+	createWindow = time.Hour
 )
 
 // TruncateWindow truncates a time based on the size of the creation window.
