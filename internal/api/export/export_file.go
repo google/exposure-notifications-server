@@ -35,7 +35,8 @@ const (
 	exportSignatureName  = "export.sig"
 	defaultIntervalCount = 144
 	androidPackage       = "com.google.android.apps.exposurenotification"
-	algorithm            = "ECDSA p-256 SHA-256"
+	// http://oid-info.com/get/1.2.840.10045.4.3.2
+	algorithm = "1.2.840.10045.4.3.2"
 )
 
 func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int, signer crypto.Signer) ([]byte, error) {
