@@ -165,7 +165,6 @@ func keyFunc(ctx context.Context, tok *jwt.Token) (interface{}, error) {
 
 func parseAttestation(ctx context.Context, signedAttestation string) (jwt.MapClaims, error) {
 	defer trace.StartRegion(ctx, "parseAttestation").End()
-	logger := logging.FromContext(ctx)
 	// jwt.Parse also validates the signature after extracting
 	// the key via the keyFunc, which validates the certificate chain.
 	token, err := jwt.Parse(signedAttestation,
@@ -177,8 +176,9 @@ func parseAttestation(ctx context.Context, signedAttestation string) (jwt.MapCla
 		return nil, fmt.Errorf("jwt.Parse: %w", err)
 	}
 	if !token.Valid {
-		logger.Errorf("invalid JWS attestation passed.")
+		return nil, fmt.Errorf("invalid JWS attestation")
 	}
+
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		return nil, fmt.Errorf("claims are of wrong type")
