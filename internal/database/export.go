@@ -54,7 +54,7 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 				ExportConfig
 				(filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key)
 			VALUES
-				($1, $2, $3, $4, $5, %6)
+				($1, $2, $3, $4, $5, $6)
 			RETURNING config_id
 		`, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region, ec.From, thru, toNullString(ec.SigningKey))
 

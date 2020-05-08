@@ -93,7 +93,7 @@ func main() {
 		Region:       *region,
 		From:         fromTime,
 		Thru:         thruTime,
-		SigningKey * signingKey,
+		SigningKey:   *signingKey,
 	}
 
 	if err := db.AddExportConfig(ctx, &ec); err != nil {

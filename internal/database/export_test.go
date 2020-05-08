@@ -40,6 +40,7 @@ func TestAddExportConfig(t *testing.T) {
 		Region:       "i1",
 		From:         fromTime,
 		Thru:         thruTime,
+		SigningKey:   "key",
 	}
 	if err := testDB.AddExportConfig(ctx, want); err != nil {
 		t.Fatal(err)
@@ -55,12 +56,12 @@ func TestAddExportConfig(t *testing.T) {
 	)
 	err = conn.QueryRow(ctx, `
 		SELECT
-			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp
+			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key
 		FROM
 			ExportConfig
 		WHERE
 			config_id = $1
-	`, want.ConfigID).Scan(&got.ConfigID, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru)
+	`, want.ConfigID).Scan(&got.ConfigID, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru, &got.SigningKey)
 	if err != nil {
 		t.Fatal(err)
 	}

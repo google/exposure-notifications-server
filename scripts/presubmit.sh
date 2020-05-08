@@ -44,7 +44,7 @@ echo "🚧 Compile"
 go build ./...
 
 echo "🧪 Test"
-go test ./... -coverprofile=coverage.out
+DB_SSLMODE=disable DB_USER=postgres go test ./... -coverprofile=coverage.out
 
 echo "🧑‍🔬 Test Coverage"
-go tool cover -func coverage.out | grep total | awk '{print $NF}'             
+go tool cover -func coverage.out | grep total | awk '{print $NF}'
