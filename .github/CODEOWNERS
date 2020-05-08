@@ -15,8 +15,8 @@
 /cmd/federation/ @squee1945
 /cmd/federation-pull @squee1945
 /cmd/exposure @mikehelmick
-/cmd/wipeout-export @lakshmy88
-/cmd/wipeout-exposure @lakshmy88
+/cmd/cleanup-export @lakshmy88
+/cmd/cleanup-exposure @lakshmy88
 
 
 /docs/ @llatif @crwilcox
