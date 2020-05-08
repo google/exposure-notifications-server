@@ -31,16 +31,25 @@ import (
 )
 
 const (
-	filenameSuffix = ".zip"
+	filenameSuffix       = ".zip"
+	blobOperationTimeout = 50 * time.Second
 )
 
 // NewBatchServer makes a BatchServer.
-func NewBatchServer(db *database.DB, bsc BatchServerConfig, env *serverenv.ServerEnv) *BatchServer {
+func NewBatchServer(db *database.DB, bsc BatchServerConfig, env *serverenv.ServerEnv) (*BatchServer, error) {
+	// Validate config.
+	if env.Blobstore == nil {
+		return nil, fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv")
+	}
+	if env.KeyManager == nil {
+		return nil, fmt.Errorf("export.NewBatchServer requires KeyMenger present in the ServerEnv")
+	}
+
 	return &BatchServer{
 		db:  db,
 		bsc: bsc,
 		env: env,
-	}
+	}, nil
 }
 
 // BatchServer hosts end points to manage export batches.
@@ -380,7 +389,7 @@ func (s *BatchServer) createFile(ctx context.Context, exposures []*model.Exposur
 	// Write to GCS.
 	objectName := exportFilename(eb, batchNum)
 	logger.Infof("Created file %v, signed with key %v", objectName, eb.SigningKey)
-	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
+	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
 	if err := s.env.Blobstore.CreateObject(ctx, s.bsc.Bucket, objectName, data); err != nil {
 		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, s.bsc.Bucket, err)
@@ -411,7 +420,7 @@ func (s *BatchServer) createIndex(ctx context.Context, eb *model.ExportBatch, ne
 	data := []byte(strings.Join(objects, "\n"))
 
 	indexObjectName := exportIndexFilename(eb)
-	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
+	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
 	if err := s.env.Blobstore.CreateObject(ctx, s.bsc.Bucket, indexObjectName, data); err != nil {
 		return "", 0, fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, s.bsc.Bucket, err)

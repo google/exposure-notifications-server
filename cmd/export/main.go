@@ -98,7 +98,10 @@ func main() {
 		bsc.Bucket = bucket
 	}
 
-	batchServer := export.NewBatchServer(db, bsc, env)
+	batchServer, err := export.NewBatchServer(db, bsc, env)
+	if err != nil {
+		logger.Fatalf("unable to create server: %v", err)
+	}
 	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
 	http.HandleFunc("/do-work", batchServer.WorkerHandler)               // worker that executes work
 
