@@ -70,11 +70,11 @@ func (c *APIConfig) VerifyOpts(from time.Time) android.VerifyOpts {
 	}
 
 	// Calculate the valid time window based on now + config options.
-	if c.AllowedPastTime != 0 {
+	if c.AllowedPastTime > 0 {
 		minTime := from.Add(-c.AllowedPastTime)
 		rtn.MinValidTime = minTime
 	}
-	if c.AllowedFutureTime != 0 {
+	if c.AllowedFutureTime > 0 {
 		maxTime := from.Add(c.AllowedFutureTime)
 		rtn.MaxValidTime = maxTime
 	}
