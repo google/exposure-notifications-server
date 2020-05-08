@@ -67,11 +67,11 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error
 		// Convert time in seconds from DB into time.Duration
 		if allowedPastSeconds != nil {
 			d := time.Duration(*allowedPastSeconds) * time.Second
-			config.AllowedPastTime = &d
+			config.AllowedPastTime = d
 		}
 		if allowedFutureSeconds != nil {
 			d := time.Duration(*allowedFutureSeconds) * time.Second
-			config.AllowedFutureTime = &d
+			config.AllowedFutureTime = d
 		}
 
 		// build the regions map

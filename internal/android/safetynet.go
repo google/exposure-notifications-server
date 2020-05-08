@@ -37,8 +37,8 @@ type VerifyOpts struct {
 	Nonce           Noncer
 	CTSProfileMatch bool
 	BasicIntegrity  bool
-	MinValidTime    *time.Time
-	MaxValidTime    *time.Time
+	MinValidTime    time.Time
+	MaxValidTime    time.Time
 }
 
 //, appPackageName string, base64keys []string, regions []string
@@ -71,8 +71,7 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 	}
 
 	// Validate time interval.
-	if opts.MinValidTime == nil || opts.MinValidTime.IsZero() ||
-		opts.MaxValidTime == nil || opts.MaxValidTime.IsZero() {
+	if opts.MinValidTime.IsZero() || opts.MaxValidTime.IsZero() {
 		return fmt.Errorf("missing timestamp bounds for attestation")
 	}
 	issMsF, ok := claims["timestampMs"].(float64)
@@ -81,10 +80,10 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 	}
 	issueTime := time.Unix(int64(issMsF/1000), 0)
 
-	if opts.MinValidTime != nil && opts.MinValidTime.Unix() > issueTime.Unix() {
+	if opts.MinValidTime.Unix() > issueTime.Unix() {
 		return fmt.Errorf("attestation is too old, must be newer than %v, was %v", opts.MinValidTime.Unix(), issueTime.Unix())
 	}
-	if opts.MaxValidTime != nil && opts.MaxValidTime.Unix() < issueTime.Unix() {
+	if opts.MaxValidTime.Unix() < issueTime.Unix() {
 		return fmt.Errorf("attestation is in the future, must be older than %v, was %v", opts.MaxValidTime.Unix(), issueTime.Unix())
 	}
 
