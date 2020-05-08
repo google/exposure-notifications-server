@@ -83,7 +83,7 @@ You can run the same tests that are used in the continuous integration pipeline
 by running:
 
 ```
-./scripts/kokoro_presubmit.sh "."
+./scripts/presubmit.sh "."
 ```
 
 You can also use `go test` as usual:
