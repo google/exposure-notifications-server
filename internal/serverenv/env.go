@@ -29,6 +29,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/signing"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
 const (
@@ -46,11 +47,12 @@ type ExporterFunc func(context.Context) metrics.Exporter
 
 // ServerEnv represents latent environment configuration for servers in this application.
 type ServerEnv struct {
-	port          string
-	secretManager secrets.SecretManager // Optional
-	keyManager    signing.KeyManager
+	Port          string
+	SecretManager secrets.SecretManager
+	KeyManager    signing.KeyManager
+	Blobstore     storage.Blobstore
 	overrides     map[string]string
-	exporter      metrics.ExporterFromContext
+	Exporter      metrics.ExporterFromContext
 
 	// secretsDir is the path to the directory where secrets are saved.
 	secretsDir string
@@ -61,10 +63,10 @@ type Option func(*ServerEnv) *ServerEnv
 
 // New creates a new ServerEnv with the requested options.
 func New(ctx context.Context, opts ...Option) *ServerEnv {
-	env := &ServerEnv{port: defaultPort}
+	env := &ServerEnv{Port: defaultPort}
 	// A metrics exporter is required, installs the default log based one.
 	// Can be overridden by opts.
-	env.exporter = func(ctx context.Context) metrics.Exporter {
+	env.Exporter = func(ctx context.Context) metrics.Exporter {
 		return metrics.NewLogsBasedFromContext(ctx)
 	}
 
@@ -73,9 +75,9 @@ func New(ctx context.Context, opts ...Option) *ServerEnv {
 	env.secretsDir = defaultSecretsDir
 
 	if override := os.Getenv(portEnvVar); override != "" {
-		env.port = override
+		env.Port = override
 	}
-	logger.Infof("using port %v (override with $%v)", env.port, portEnvVar)
+	logger.Infof("using port %v (override with $%v)", env.Port, portEnvVar)
 
 	for _, f := range opts {
 		env = f(env)
@@ -87,7 +89,7 @@ func New(ctx context.Context, opts ...Option) *ServerEnv {
 // WithMetricsExporter creates an Option to install a different metrics exporter.
 func WithMetricsExporter(f metrics.ExporterFromContext) Option {
 	return func(s *ServerEnv) *ServerEnv {
-		s.exporter = f
+		s.Exporter = f
 		return s
 	}
 }
@@ -95,7 +97,7 @@ func WithMetricsExporter(f metrics.ExporterFromContext) Option {
 // WithSecretManager creates an Option to install a specific secret manager to use.
 func WithSecretManager(sm secrets.SecretManager) Option {
 	return func(s *ServerEnv) *ServerEnv {
-		s.secretManager = sm
+		s.SecretManager = sm
 		return s
 	}
 }
@@ -103,23 +105,26 @@ func WithSecretManager(sm secrets.SecretManager) Option {
 // WithKeyManager creates an Option to install a specific KeyManager to use for signing requests.
 func WithKeyManager(km signing.KeyManager) Option {
 	return func(s *ServerEnv) *ServerEnv {
-		s.keyManager = km
+		s.KeyManager = km
 		return s
 	}
 }
 
-// Port returns the port that a server should listen on.
-func (s *ServerEnv) Port() string {
-	return s.port
+// WithBlobStorage creates an Option to install a specific Blob storage system.
+func WithBlobStorage(sto storage.Blobstore) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.Blobstore = sto
+		return s
+	}
 }
 
 // GetSignerForKey returns the crypto.Singer implementation to use based on the installed KeyManager.
 // If there is no KeyManager installed, this returns an error.
 func (s *ServerEnv) GetSignerForKey(ctx context.Context, keyName string) (crypto.Signer, error) {
-	if s.keyManager == nil {
+	if s.KeyManager == nil {
 		return nil, fmt.Errorf("no key manager installed, use WithKeyManager when creating the ServerEnv")
 	}
-	sign, err := s.keyManager.NewSigner(ctx, keyName)
+	sign, err := s.KeyManager.NewSigner(ctx, keyName)
 	if err != nil {
 		return nil, fmt.Errorf("KeyManager.NewSigner: %w", err)
 	}
@@ -130,7 +135,7 @@ func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, 
 	logger := logging.FromContext(ctx)
 
 	eVal := os.Getenv(envVar)
-	if s.secretManager == nil {
+	if s.SecretManager == nil {
 		logger.Warnf("resolve %v with local environment variable, no secret manager not configured", envVar)
 		return eVal, nil
 	}
@@ -143,7 +148,7 @@ func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, 
 	}
 
 	// Resolve through the installed secret manager.
-	plaintext, err := s.secretManager.GetSecretValue(ctx, secretLocation)
+	plaintext, err := s.SecretManager.GetSecretValue(ctx, secretLocation)
 	if err != nil {
 		return "", fmt.Errorf("failed to access secret value for %v: %w", secretLocation, err)
 	}
@@ -215,10 +220,10 @@ func (s *ServerEnv) Set(name, value string) {
 
 // MetricsExporter returns a context appropriate metrics exporter.
 func (s *ServerEnv) MetricsExporter(ctx context.Context) metrics.Exporter {
-	if s.exporter == nil {
+	if s.Exporter == nil {
 		return nil
 	}
-	return s.exporter(ctx)
+	return s.Exporter(ctx)
 }
 
 // ParseDuration parses a duration string stored in the named environment

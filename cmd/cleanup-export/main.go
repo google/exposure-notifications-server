@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -28,6 +27,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
 const (
@@ -47,8 +47,13 @@ func main() {
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
+	storage, err := storage.NewGoogleCloudStorage(ctx)
+	if err != nil {
+		logger.Fatalf("unable to connect to storage system: %v", err)
+	}
 	env := serverenv.New(ctx,
 		serverenv.WithSecretManager(sm),
+		serverenv.WithBlobStorage(storage),
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
 	db, err := database.NewFromEnv(ctx, env)
@@ -57,7 +62,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	http.Handle("/", cleanup.NewExportHandler(db, timeout))
+	http.Handle("/", cleanup.NewExportHandler(db, timeout, env))
 	logger.Info("starting export cleanup server")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
+	log.Fatal(http.ListenAndServe(":"+env.Port, nil))
 }

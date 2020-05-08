@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
 	"time"
@@ -60,7 +59,7 @@ func main() {
 	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
 	logger.Infof("Using fetch timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
-	grpcEndpoint := fmt.Sprintf(":%s", env.Port())
+	grpcEndpoint := ":" + env.Port
 	logger.Infof("gRPC endpoint [%s]", grpcEndpoint)
 
 	grpcServer := grpc.NewServer()

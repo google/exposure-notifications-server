@@ -59,5 +59,5 @@ func main() {
 
 	http.Handle("/", federation.NewPullHandler(db, timeout))
 	logger.Info("starting federation puller")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port), nil))
 }
