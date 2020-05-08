@@ -48,7 +48,7 @@ steps:
   - |
     gcloud alpha run deploy exposure --image \
       us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/exposure:latest --region us-central1 \
-      --platform managed --update-labels=env=staging --no-traffic# Deploy to Cloud Run.
+      --platform managed --update-labels=env=staging --no-traffic
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
