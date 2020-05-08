@@ -44,7 +44,6 @@ func TestVerifyOpts(t *testing.T) {
 		{
 			cfg: &APIConfig{
 				AppPackageName:    "foo",
-				EnforceApkDigest:  false,
 				CTSProfileMatch:   true,
 				BasicIntegrity:    true,
 				AllowedPastTime:   time.Duration(15 * time.Minute),
@@ -61,7 +60,6 @@ func TestVerifyOpts(t *testing.T) {
 		{
 			cfg: &APIConfig{
 				AppPackageName:    "foo",
-				EnforceApkDigest:  false,
 				CTSProfileMatch:   false,
 				BasicIntegrity:    true,
 				AllowedPastTime:   0,
@@ -79,7 +77,6 @@ func TestVerifyOpts(t *testing.T) {
 			cfg: &APIConfig{
 				AppPackageName:    "foo",
 				ApkDigestSHA256:   "bar",
-				EnforceApkDigest:  true,
 				CTSProfileMatch:   false,
 				BasicIntegrity:    true,
 				AllowedPastTime:   0,

@@ -32,7 +32,6 @@ type APIConfig struct {
 	AppPackageName    string          `db:"app_package_name"`
 	Platform          string          `db:"platform"`
 	ApkDigestSHA256   string          `db:"apk_digest"`
-	EnforceApkDigest  bool            `db:"enforce_apk_digest"`
 	CTSProfileMatch   bool            `db:"cts_profile_match"`
 	BasicIntegrity    bool            `db:"basic_integrity"`
 	AllowedPastTime   time.Duration   `db:"allowed_past_seconds"`
@@ -68,11 +67,8 @@ func (c *APIConfig) VerifyOpts(from time.Time) android.VerifyOpts {
 		AppPkgName:      c.AppPackageName,
 		CTSProfileMatch: c.CTSProfileMatch,
 		BasicIntegrity:  c.BasicIntegrity,
+		APKDigest:       c.ApkDigestSHA256,
 	}
-	if c.EnforceApkDigest && len(c.ApkDigestSHA256) > 0 {
-		rtn.APKDigest = c.ApkDigestSHA256
-	}
-
 	// Calculate the valid time window based on now + config options.
 	if c.AllowedPastTime > 0 {
 		minTime := from.Add(-c.AllowedPastTime)
