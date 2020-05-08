@@ -239,8 +239,8 @@ func (s *BatchServer) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if batch == nil {
-			msg := "No work to do."
-			logger.Debugf(msg)
+			msg := "No more work to do"
+			logger.Info(msg)
 			fmt.Fprintln(w, msg)
 			return
 		}
