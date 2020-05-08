@@ -101,7 +101,7 @@ func TestTransform(t *testing.T) {
 		},
 	}
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
-	batchTimeRounded := time.Date(2020, 3, 1, 10, 30, 0, 0, time.UTC)
+	batchTimeRounded := time.Date(2020, 3, 1, 10, 00, 0, 0, time.UTC)
 	for i, v := range want {
 		want[i] = &Exposure{
 			ExposureKey:      v.ExposureKey,
