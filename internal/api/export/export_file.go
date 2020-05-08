@@ -18,6 +18,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"crypto"
+	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
 	"sort"
@@ -147,7 +148,7 @@ func marshalSignature(exportContents []byte, batchNum int32, batchSize int32, si
 
 func generateSignature(data []byte, signer crypto.Signer) ([]byte, error) {
 	digest := sha256.Sum256(data)
-	sig, err := signer.Sign(nil, digest[:], nil)
+	sig, err := signer.Sign(rand.Reader, digest[:], nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign: %w", err)
 	}
