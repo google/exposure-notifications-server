@@ -34,14 +34,6 @@ func TestBaseAPIConfig(t *testing.T) {
 	}
 }
 
-func timePtr(t time.Time) *time.Time {
-	return &t
-}
-
-func durationPtr(d time.Duration) *time.Duration {
-	return &d
-}
-
 func TestVerifyOpts(t *testing.T) {
 	testTime := time.Date(2020, 1, 13, 5, 6, 4, 6, time.Local)
 
@@ -55,15 +47,15 @@ func TestVerifyOpts(t *testing.T) {
 				EnforceApkDigest:  false,
 				CTSProfileMatch:   true,
 				BasicIntegrity:    true,
-				AllowedPastTime:   durationPtr(time.Duration(15 * time.Minute)),
-				AllowedFutureTime: durationPtr(time.Duration(1 * time.Second)),
+				AllowedPastTime:   time.Duration(15 * time.Minute),
+				AllowedFutureTime: time.Duration(1 * time.Second),
 			},
 			opts: android.VerifyOpts{
 				AppPkgName:      "foo",
 				CTSProfileMatch: true,
 				BasicIntegrity:  true,
-				MinValidTime:    timePtr(testTime.Add(-15 * time.Minute)),
-				MaxValidTime:    timePtr(testTime.Add(1 * time.Second)),
+				MinValidTime:    testTime.Add(-15 * time.Minute),
+				MaxValidTime:    testTime.Add(1 * time.Second),
 			},
 		},
 		{
@@ -72,15 +64,15 @@ func TestVerifyOpts(t *testing.T) {
 				EnforceApkDigest:  false,
 				CTSProfileMatch:   false,
 				BasicIntegrity:    true,
-				AllowedPastTime:   nil,
-				AllowedFutureTime: nil,
+				AllowedPastTime:   0,
+				AllowedFutureTime: 0,
 			},
 			opts: android.VerifyOpts{
 				AppPkgName:      "foo",
 				CTSProfileMatch: false,
 				BasicIntegrity:  true,
-				MinValidTime:    nil,
-				MaxValidTime:    nil,
+				MinValidTime:    time.Time{},
+				MaxValidTime:    time.Time{},
 			},
 		},
 		{
@@ -90,16 +82,16 @@ func TestVerifyOpts(t *testing.T) {
 				EnforceApkDigest:  true,
 				CTSProfileMatch:   false,
 				BasicIntegrity:    true,
-				AllowedPastTime:   nil,
-				AllowedFutureTime: nil,
+				AllowedPastTime:   0,
+				AllowedFutureTime: 0,
 			},
 			opts: android.VerifyOpts{
 				AppPkgName:      "foo",
 				APKDigest:       "bar",
 				CTSProfileMatch: false,
 				BasicIntegrity:  true,
-				MinValidTime:    nil,
-				MaxValidTime:    nil,
+				MinValidTime:    time.Time{},
+				MaxValidTime:    time.Time{},
 			},
 		},
 	}

@@ -26,6 +26,7 @@ type Noncer interface {
 	Nonce() string
 }
 
+// Compile-time check to assert NonceData implements the Noncer interface.
 var _ Noncer = (*NonceData)(nil)
 
 type NonceData struct {

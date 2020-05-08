@@ -35,8 +35,8 @@ type APIConfig struct {
 	EnforceApkDigest  bool            `db:"enforce_apk_digest"`
 	CTSProfileMatch   bool            `db:"cts_profile_match"`
 	BasicIntegrity    bool            `db:"basic_integrity"`
-	AllowedPastTime   *time.Duration  `db:"allowed_past_seconds"`
-	AllowedFutureTime *time.Duration  `db:"allowed_future_seconds"`
+	AllowedPastTime   time.Duration   `db:"allowed_past_seconds"`
+	AllowedFutureTime time.Duration   `db:"allowed_future_seconds"`
 	AllowedRegions    map[string]bool `db:"allowed_regions"`
 	AllowAllRegions   bool            `db:"all_regions"`
 	BypassSafetynet   bool            `db:"bypass_safetynet"`
@@ -70,13 +70,13 @@ func (c *APIConfig) VerifyOpts(from time.Time) android.VerifyOpts {
 	}
 
 	// Calculate the valid time window based on now + config options.
-	if c.AllowedPastTime != nil {
-		minTime := from.Add(-*c.AllowedPastTime)
-		rtn.MinValidTime = &minTime
+	if c.AllowedPastTime != 0 {
+		minTime := from.Add(-c.AllowedPastTime)
+		rtn.MinValidTime = minTime
 	}
-	if c.AllowedFutureTime != nil {
-		maxTime := from.Add(*c.AllowedFutureTime)
-		rtn.MaxValidTime = &maxTime
+	if c.AllowedFutureTime != 0 {
+		maxTime := from.Add(c.AllowedFutureTime)
+		rtn.MaxValidTime = maxTime
 	}
 
 	return rtn
