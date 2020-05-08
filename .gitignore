@@ -13,6 +13,7 @@
 
 # Output of terraform
 *.tfstate
+*.tfstate.*.backup
 *.terraform/
 *.tfstate.backup
 
