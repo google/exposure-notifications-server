@@ -42,7 +42,7 @@ else
    if [ $? -ne 0 ]; then
       echo "✋ Found uncommited changes after goimports."
       echo "✋ Commit these changes before merging."
-      #exit 1
+      exit 1
    fi
 fi
 set -e
