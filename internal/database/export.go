@@ -65,21 +65,21 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 	})
 }
 
-// ExportConfigIterator iterates over a set of export configs.
-type ExportConfigIterator interface {
-	// Next returns an export config and a flag indicating if the iterator is done (the config will be nil when done==true).
-	Next() (exposure *model.ExportConfig, done bool, err error)
-	// Close should be called when done iterating.
-	Close() error
-}
+// IterateExportConfigs applies f to each ExportConfig whose FromTimestamp is
+// before the given time. If f returns a non-nil error, the iteration stops, and
+// the returned error will match f's error with errors.Is.
+func (db *DB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*model.ExportConfig) error) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("IterateExportConfigs(%s): %w", t, err)
+		}
+	}()
 
-// IterateExportConfigs returns an ExportConfigIterator to iterate the ExportConfigs.
-func (db *DB) IterateExportConfigs(ctx context.Context, now time.Time) (ExportConfigIterator, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %w", err)
+		return fmt.Errorf("acquiring connection: %w", err)
 	}
-	// We don't defer Release() here because the iterator's Close() method will do it.
+	defer conn.Release()
 
 	rows, err := conn.Query(ctx, `
 		SELECT
@@ -90,40 +90,31 @@ func (db *DB) IterateExportConfigs(ctx context.Context, now time.Time) (ExportCo
 			from_timestamp < $1
 			AND
 			(thru_timestamp IS NULL OR thru_timestamp > $1)
-		`, now)
+		`, t)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return &postgresExportConfigIterator{iter: newRowIterator(conn, rows)}, nil
-}
-
-type postgresExportConfigIterator struct {
-	iter *rowIterator
-}
-
-func (i *postgresExportConfigIterator) Next() (*model.ExportConfig, bool, error) {
-	if done, err := i.iter.next(); done {
-		return nil, done, err
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			m             model.ExportConfig
+			periodSeconds int
+			thru          *time.Time
+			skey          sql.NullString
+		)
+		if err := rows.Scan(&m.ConfigID, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru, &skey); err != nil {
+			return err
+		}
+		m.Period = time.Duration(periodSeconds) * time.Second
+		if thru != nil {
+			m.Thru = *thru
+		}
+		m.SigningKey = skey.String
+		if err := f(&m); err != nil {
+			return err
+		}
 	}
-
-	var m model.ExportConfig
-	var periodSeconds int
-	var thru *time.Time
-	var skey sql.NullString
-	if err := i.iter.rows.Scan(&m.ConfigID, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru, &skey); err != nil {
-		return nil, false, err
-	}
-	m.Period = time.Duration(periodSeconds) * time.Second
-	if thru != nil {
-		m.Thru = *thru
-	}
-	m.SigningKey = skey.String
-	return &m, false, nil
-}
-
-func (i *postgresExportConfigIterator) Close() error {
-	return i.iter.close()
+	return rows.Err()
 }
 
 // LatestExportBatchEnd returns the end time of the most recent ExportBatch for

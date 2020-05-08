@@ -111,26 +111,13 @@ func TestIterateExportConfigs(t *testing.T) {
 		}
 	}
 
-	iter, err := testDB.IterateExportConfigs(ctx, now)
+	var got []*model.ExportConfig
+	err := testDB.IterateExportConfigs(ctx, now, func(m *model.ExportConfig) error {
+		got = append(got, m)
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
-	}
-	defer func() {
-		if err := iter.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	var got []*model.ExportConfig
-	for {
-		ec, done, err := iter.Next()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if done {
-			break
-		}
-		got = append(got, ec)
 	}
 	want := ecs[0:2]
 	sort.Slice(got, func(i, j int) bool { return got[i].FilenameRoot < got[j].FilenameRoot })

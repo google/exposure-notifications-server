@@ -83,47 +83,22 @@ func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Reques
 	defer unlockFn()
 
 	now := time.Now().UTC()
-	it, err := s.db.IterateExportConfigs(ctx, now)
-	if err != nil {
-		logger.Errorf("Failed to get export config iterator: %v", err)
-		http.Error(w, "Failed to get export config iterator, check logs.", http.StatusInternalServerError)
-		return
-	}
-	defer it.Close()
-
-	for {
-		select {
-		case <-ctx.Done():
-			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
-				logger.Errorf("Context error: %v", err)
-				return
-			}
-			logger.Infof("Timed out creating batches, batch creation will continue on next invocation")
-			return
-		default:
-			// Fallthrough
-		}
-
-		ec, done, err := it.Next()
-		if err != nil {
-			logger.Errorf("Failed to iterate export config: %v", err)
-			http.Error(w, "Failed to iterate export config, check logs.", http.StatusInternalServerError)
-			return
-		}
-		if ec == nil {
-			// Iterator may go one past before returning done==true.
-			if done {
-				return
-			}
-			continue
-		}
-
+	err = s.db.IterateExportConfigs(ctx, now, func(ec *model.ExportConfig) error {
 		if err := s.maybeCreateBatches(ctx, ec, now); err != nil {
 			logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
 		}
-		if done {
-			return
-		}
+		return nil
+	})
+	switch {
+	case err == nil:
+		return
+	case errors.Is(err, context.DeadlineExceeded):
+		logger.Infof("Timed out creating batches, batch creation will continue on next invocation")
+	case errors.Is(err, context.Canceled):
+		logger.Infof("Canceled while creating batches, batch creation will continue on next invocation")
+	default:
+		logger.Errorf("creating batches: %v", err)
+		http.Error(w, "Failed to create batches, check logs.", http.StatusInternalServerError)
 	}
 }
 
