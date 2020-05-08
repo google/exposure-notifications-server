@@ -18,9 +18,11 @@ package serverenv
 import (
 	"context"
 	"crypto"
+	"crypto/sha1"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
@@ -34,6 +36,9 @@ const (
 	defaultPort = "8080"
 	// SecretPostfix designates that environment variable ending with this value
 	SecretPostfix = "_SECRET"
+
+	// defaultSecretsDir is the default directory where secrets are stored.
+	defaultSecretsDir = "/var/run/secrets"
 )
 
 // ExporterFunc defines a factory function for creating a context aware metrics exporter.
@@ -46,6 +51,9 @@ type ServerEnv struct {
 	keyManager    signing.KeyManager
 	overrides     map[string]string
 	exporter      metrics.ExporterFromContext
+
+	// secretsDir is the path to the directory where secrets are saved.
+	secretsDir string
 }
 
 // Option defines function types to modify the ServerEnv on creation.
@@ -61,6 +69,8 @@ func New(ctx context.Context, opts ...Option) *ServerEnv {
 	}
 
 	logger := logging.FromContext(ctx)
+
+	env.secretsDir = defaultSecretsDir
 
 	if override := os.Getenv(portEnvVar); override != "" {
 		env.port = override
@@ -141,6 +151,13 @@ func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, 
 	return plaintext, nil
 }
 
+// filenameForSecret returns the full filepath for the given secret. The
+// filename is the sha1 of the secret name, and the path is secretsDir.
+func (s *ServerEnv) filenameForSecret(name string) string {
+	digest := fmt.Sprintf("%x", sha1.Sum([]byte(name)))
+	return filepath.Join(s.secretsDir, digest)
+}
+
 // ResolveSecretEnv will either resolve a local environment variable
 // by name, or if the same env var with a postfix of "_SECRET" is set
 // then the value will be resolved as a key into a secret store.
@@ -153,23 +170,39 @@ func (s *ServerEnv) ResolveSecretEnv(ctx context.Context, envVar string) (string
 
 // WriteSecretToFile attempt to resolve an environment variable with a name of
 // "envVar_SECRET" by calling the secret manager and writing the returned value
-// to a file in /tmp. The filename is returned.
+// to a file in a temporary directory. The full filepath is returned.
 func (s *ServerEnv) WriteSecretToFile(ctx context.Context, envVar string) (string, error) {
 	logger := logging.FromContext(ctx)
 
-	secretVal, err := s.getSecretValue(ctx, envVar)
+	// Create the parent secretsDir with minimal permissions. If the directory
+	// does not exist, it is created with 0700 permissions. If the directory
+	// exists but has broader permissions that 0700, an error is returned.
+	stat, err := os.Stat(s.secretsDir)
+	if err != nil && !os.IsNotExist(err) {
+		return "", fmt.Errorf("failed to check if secretsDir exists: %w", err)
+	}
+	if os.IsNotExist(err) {
+		if err := os.MkdirAll(s.secretsDir, 0700); err != nil {
+			return "", fmt.Errorf("failed to create secretsDir: %w", err)
+		}
+	} else {
+		if stat.Mode().Perm() != os.FileMode(0700) {
+			return "", fmt.Errorf("secretsDir exists and is not restricted %v", stat.Mode())
+		}
+	}
+
+	secretVal, err := s.ResolveSecretEnv(ctx, envVar)
 	if err != nil {
 		return "", err
 	}
 
-	fName := "/tmp/secret-%v" + envVar
-	data := []byte(secretVal)
-	err = ioutil.WriteFile(fName, data, 0600)
-	if err != nil {
-		return "", fmt.Errorf("unable to write secret for %v to file: %w", envVar, err)
+	secretPath := s.filenameForSecret(envVar)
+	if err := ioutil.WriteFile(secretPath, []byte(secretVal), 0600); err != nil {
+		return "", fmt.Errorf("failed to write secret %q to file: %w", envVar, err)
 	}
+
 	logger.Infof("Wrote secret value for %v to file", envVar)
-	return fName, nil
+	return secretPath, nil
 }
 
 // Set overrides the usual lookup for name so that value is always returned.

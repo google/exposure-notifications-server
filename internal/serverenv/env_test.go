@@ -17,7 +17,9 @@ package serverenv
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -162,5 +164,41 @@ func TestResolveSecretEnv(t *testing.T) {
 		} else if c.want != resolved {
 			t.Errorf("%v env.ResolveSecretEnv want '%v' got '%v'", c.name, c.want, resolved)
 		}
+	}
+}
+
+func TestWriteSecretToFile(t *testing.T) {
+	testKey, testVal := "dbpass", "test data"
+
+	ctx := context.Background()
+	sm := NewTestSecretManager()
+	env := New(ctx, WithSecretManager(sm))
+	env.overrides = map[string]string{testKey: testVal}
+
+	tempDir := filepath.Join(os.TempDir(), fmt.Sprintf("%d", time.Now().Unix()))
+	if err := os.Mkdir(tempDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		os.RemoveAll(tempDir)
+	})
+	env.secretsDir = tempDir
+
+	resolved, err := env.WriteSecretToFile(ctx, testKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(resolved); err != nil {
+		t.Errorf("expected %q to exist: %v", resolved, err)
+	}
+
+	b, err := ioutil.ReadFile(resolved)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if want, got := testVal, string(b); want != got {
+		t.Errorf("expected %q to be %q", got, want)
 	}
 }
