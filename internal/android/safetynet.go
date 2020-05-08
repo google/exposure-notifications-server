@@ -34,7 +34,7 @@ import (
 type VerifyOpts struct {
 	AppPkgName      string
 	APKDigest       string
-	Nonce           *NonceData
+	Nonce           Noncer
 	CTSProfileMatch bool
 	BasicIntegrity  bool
 	MinValidTime    *time.Time
@@ -52,41 +52,40 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 		return fmt.Errorf("parseAttestation: %w", err)
 	}
 
-	// Validate claims based on the options passed in.
-	if opts.Nonce != nil {
-		nonceClaimB64, ok := claims["nonce"].(string)
-		if !ok {
-			return fmt.Errorf("invalid nonce claim, not a string")
-		}
-		nonceClaimBytes, err := base64.StdEncoding.DecodeString(nonceClaimB64)
-		if err != nil {
-			return fmt.Errorf("unable to decode nonce claim data: %w", err)
-		}
-		nonceClaim := string(nonceClaimBytes)
-		nonceCalculated := opts.Nonce.Nonce()
-		if nonceCalculated != nonceClaim {
-			return fmt.Errorf("nonce mismatch: expected %v got %v", nonceCalculated, nonceClaim)
-		}
-	} else {
-		logger.Warnf("ValidateAttestation called without nonce data")
+	// Validate the nonce.
+	if opts.Nonce == nil || opts.Nonce.Nonce() == "" {
+		return fmt.Errorf("missing nonce")
+	}
+	nonceClaimB64, ok := claims["nonce"].(string)
+	if !ok {
+		return fmt.Errorf("invalid nonce claim, not a string")
+	}
+	nonceClaimBytes, err := base64.StdEncoding.DecodeString(nonceClaimB64)
+	if err != nil {
+		return fmt.Errorf("unable to decode nonce claim data: %w", err)
+	}
+	nonceClaim := string(nonceClaimBytes)
+	nonceCalculated := opts.Nonce.Nonce()
+	if nonceCalculated != nonceClaim {
+		return fmt.Errorf("nonce mismatch: expected %v got %v", nonceCalculated, nonceClaim)
 	}
 
-	if opts.MinValidTime != nil || opts.MaxValidTime != nil {
-		issMsF, ok := claims["timestampMs"].(float64)
-		if !ok {
-			return fmt.Errorf("timestampMs is not a readable value: %v", claims["timestampMs"])
-		}
-		issueTime := time.Unix(int64(issMsF/1000), 0)
+	// Validate time interval.
+	if opts.MinValidTime == nil || opts.MinValidTime.IsZero() ||
+		opts.MaxValidTime == nil || opts.MaxValidTime.IsZero() {
+		return fmt.Errorf("missing timestamp bounds for attestation")
+	}
+	issMsF, ok := claims["timestampMs"].(float64)
+	if !ok {
+		return fmt.Errorf("timestampMs is not a readable value: %v", claims["timestampMs"])
+	}
+	issueTime := time.Unix(int64(issMsF/1000), 0)
 
-		if opts.MinValidTime != nil && opts.MinValidTime.Unix() > issueTime.Unix() {
-			return fmt.Errorf("attestation is too old, must be newer than %v, was %v", opts.MinValidTime.Unix(), issueTime.Unix())
-		}
-		if opts.MaxValidTime != nil && opts.MaxValidTime.Unix() < issueTime.Unix() {
-			return fmt.Errorf("attestation is in the future, must be older than %v, was %v", opts.MaxValidTime.Unix(), issueTime.Unix())
-		}
-
-	} else {
-		logger.Warnf("ValidateAttestation is not validating time")
+	if opts.MinValidTime != nil && opts.MinValidTime.Unix() > issueTime.Unix() {
+		return fmt.Errorf("attestation is too old, must be newer than %v, was %v", opts.MinValidTime.Unix(), issueTime.Unix())
+	}
+	if opts.MaxValidTime != nil && opts.MaxValidTime.Unix() < issueTime.Unix() {
+		return fmt.Errorf("attestation is in the future, must be older than %v, was %v", opts.MaxValidTime.Unix(), issueTime.Unix())
 	}
 
 	// TODO(mikehelmick): Validate APKDigest
