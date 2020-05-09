@@ -15,19 +15,45 @@
 package model
 
 import (
+	"crypto/rand"
 	"encoding/base64"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
 
-func IntervalNumber(t time.Time) int32 {
-	tenMin, _ := time.ParseDuration("10m")
-	return int32(t.Truncate(tenMin).Unix()) / int32(tenMin.Seconds())
+func TestInvalidNew(t *testing.T) {
+	errMsg := fmt.Sprintf("maxExposureKeys must be > 0 and <= %v", maxKeysPerPublish)
+	cases := []struct {
+		maxKeys int
+		message string
+	}{
+		{0, errMsg},
+		{1, ""},
+		{5, ""},
+		{maxKeysPerPublish - 1, ""},
+		{maxKeysPerPublish, ""},
+		{maxKeysPerPublish + 1, errMsg},
+	}
+
+	for i, c := range cases {
+		_, err := NewTransformer(c.maxKeys, time.Hour, 0)
+		if err != nil && errMsg == "" {
+			t.Errorf("%v unexpected error: %v", i, err)
+		} else if err != nil && !strings.Contains(err.Error(), c.message) {
+			t.Errorf("%v error want '%v', got '%v'", i, c.message, err)
+		}
+	}
 }
 
 func TestInvalidBase64(t *testing.T) {
+	transformer, err := NewTransformer(1, time.Hour*24, 0)
+	if err != nil {
+		t.Fatalf("error creating transformer: %v", err)
+	}
 	source := &Publish{
 		Keys: []ExposureKey{
 			{
@@ -36,38 +62,190 @@ func TestInvalidBase64(t *testing.T) {
 		},
 		Regions:          []string{"US"},
 		AppPackageName:   "com.google",
-		TransmissionRisk: 0,
+		TransmissionRisk: 1,
 		// Verification doesn't matter for transforming.
 	}
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
 
-	_, err := TransformPublish(source, batchTime)
+	_, err = transformer.TransformPublish(source, batchTime)
 	expErr := `illegal base64 data at input byte 4`
 	if err == nil || err.Error() != expErr {
 		t.Errorf("expected error '%v', got: %v", expErr, err)
 	}
 }
 
+func TestPublishValidation(t *testing.T) {
+	maxAge := 24 * 5 * time.Hour
+
+	captureStartTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
+	currentInteval := IntervalNumber(captureStartTime)
+	minInterval := IntervalNumber(captureStartTime.Add(-1 * maxAge))
+
+	tf, err := NewTransformer(2, maxAge, 0)
+	if err != nil {
+		t.Fatalf("unepected error: %v", err)
+	}
+
+	cases := []struct {
+		name string
+		p    *Publish
+		m    string
+	}{
+		{
+			name: "no keys",
+			p: &Publish{
+				Keys: []ExposureKey{},
+			},
+			m: "no exposure keys in publish request",
+		},
+		{
+			name: "too many exposure keys",
+			p: &Publish{
+				Keys: []ExposureKey{
+					{Key: "foo"},
+					{Key: "bar"},
+					{Key: "baz"},
+				},
+			},
+			m: "too many exposure keys in publish: 3, max of 2",
+		},
+		{
+			name: "transmission risk too low",
+			p: &Publish{
+				Keys:             []ExposureKey{{Key: "invalid"}},
+				TransmissionRisk: minTransmissionRisk - 1,
+			},
+			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", minTransmissionRisk-1, minTransmissionRisk, maxTransmissionRisk),
+		},
+		{
+			name: "tranismission risk too high",
+			p: &Publish{
+				Keys:             []ExposureKey{{Key: "invalid"}},
+				TransmissionRisk: maxTransmissionRisk + 1,
+			},
+			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", maxTransmissionRisk+1, minTransmissionRisk, maxTransmissionRisk),
+		},
+		{
+			name: "key length too short",
+			p: &Publish{
+				Keys: []ExposureKey{
+					{Key: encodeKey(generateKey(t)[0 : keyLength-2])},
+				},
+				TransmissionRisk: maxTransmissionRisk - 1,
+			},
+			m: fmt.Sprintf("invalid key length, %v, must be %v", keyLength-2, keyLength),
+		},
+		{
+			name: "interval count too small",
+			p: &Publish{
+				Keys: []ExposureKey{
+					{
+						Key:           encodeKey(generateKey(t)),
+						IntervalCount: minIntervalCount - 1,
+					},
+				},
+				TransmissionRisk: maxTransmissionRisk - 1,
+			},
+			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", minIntervalCount-1, minIntervalCount, maxIntervalCount),
+		},
+		{
+			name: "interval count too high",
+			p: &Publish{
+				Keys: []ExposureKey{
+					{
+						Key:           encodeKey(generateKey(t)),
+						IntervalCount: maxIntervalCount + 1,
+					},
+				},
+				TransmissionRisk: maxTransmissionRisk - 1,
+			},
+			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", maxIntervalCount+1, minIntervalCount, maxIntervalCount),
+		},
+		{
+			name: "interval number too low",
+			p: &Publish{
+				Keys: []ExposureKey{
+					{
+						Key:            encodeKey(generateKey(t)),
+						IntervalNumber: minInterval - 1,
+						IntervalCount:  maxIntervalCount,
+					},
+				},
+				TransmissionRisk: maxTransmissionRisk - 1,
+			},
+			m: fmt.Sprintf("interval number %v is too old, must be >= %v", minInterval-1, minInterval),
+		},
+		{
+			name: "interval number too high",
+			p: &Publish{
+				Keys: []ExposureKey{
+					{
+						Key:            encodeKey(generateKey(t)),
+						IntervalNumber: currentInteval + 1,
+						IntervalCount:  1,
+					},
+				},
+				TransmissionRisk: maxTransmissionRisk - 1,
+			},
+			m: fmt.Sprintf("interval number %v is in the future, must be <= %v", currentInteval+1, currentInteval),
+		},
+	}
+
+	for _, c := range cases {
+		_, err = tf.TransformPublish(c.p, captureStartTime)
+		if err == nil {
+			t.Errorf("test '%v': want error '%v', got nil", c.name, c.m)
+		} else if !strings.Contains(err.Error(), c.m) {
+			t.Errorf("test '%v': want error '%v', got '%v'", c.name, c.m, err)
+		} else if err != nil && c.m == "" {
+			t.Errorf("test '%v': want error nil, got '%v'", c.name, err)
+		}
+	}
+}
+
+func generateKey(t *testing.T) []byte {
+	key := make([]byte, 16)
+	_, err := rand.Read(key)
+	if err != nil {
+		t.Fatalf("unable to generate random key: %v", err)
+	}
+	return key
+}
+
+func encodeKey(key []byte) string {
+	return base64.StdEncoding.EncodeToString(key)
+}
+
+func decodeKey(b64key string, t *testing.T) []byte {
+	k, err := base64.StdEncoding.DecodeString(b64key)
+	if err != nil {
+		t.Fatalf("unable to decode key: %v", err)
+	}
+	return k
+}
+
 func TestTransform(t *testing.T) {
-	intervalNumber := IntervalNumber(time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC))
+	captureStartTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
+	intervalNumber := IntervalNumber(captureStartTime)
 	source := &Publish{
 		Keys: []ExposureKey{
 			{
-				Key:            base64.StdEncoding.EncodeToString([]byte("ABC")),
+				Key:            encodeKey(generateKey(t)),
 				IntervalNumber: intervalNumber,
-				IntervalCount:  0,
+				IntervalCount:  maxIntervalCount,
 			},
 			{
-				Key:            base64.StdEncoding.EncodeToString([]byte("DEF")),
+				Key:            encodeKey(generateKey(t)),
 				IntervalNumber: intervalNumber + maxIntervalCount,
+				IntervalCount:  maxIntervalCount,
 			},
 			{
-				Key:            base64.StdEncoding.EncodeToString([]byte("123")),
+				Key:            encodeKey(generateKey(t)),
 				IntervalNumber: intervalNumber + 2*maxIntervalCount,
-				IntervalCount:  maxIntervalCount * 10, // Invalid, should get rounded down
+				IntervalCount:  maxIntervalCount, // Invalid, should get rounded down
 			},
 			{
-				Key:            base64.StdEncoding.EncodeToString([]byte("456")),
+				Key:            encodeKey(generateKey(t)),
 				IntervalNumber: intervalNumber + 3*maxIntervalCount,
 				IntervalCount:  42,
 			},
@@ -80,28 +258,28 @@ func TestTransform(t *testing.T) {
 
 	want := []*Exposure{
 		{
-			ExposureKey:    []byte("ABC"),
+			ExposureKey:    decodeKey(source.Keys[0].Key, t),
 			IntervalNumber: intervalNumber,
 			IntervalCount:  maxIntervalCount,
 		},
 		{
-			ExposureKey:    []byte("DEF"),
+			ExposureKey:    decodeKey(source.Keys[1].Key, t),
 			IntervalNumber: intervalNumber + maxIntervalCount,
 			IntervalCount:  maxIntervalCount,
 		},
 		{
-			ExposureKey:    []byte("123"),
+			ExposureKey:    decodeKey(source.Keys[2].Key, t),
 			IntervalNumber: intervalNumber + 2*maxIntervalCount,
 			IntervalCount:  maxIntervalCount,
 		},
 		{
-			ExposureKey:    []byte("456"),
+			ExposureKey:    decodeKey(source.Keys[3].Key, t),
 			IntervalNumber: intervalNumber + 3*maxIntervalCount,
 			IntervalCount:  42,
 		},
 	}
-	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
-	batchTimeRounded := time.Date(2020, 3, 1, 10, 00, 0, 0, time.UTC)
+	batchTime := captureStartTime.Add(time.Hour * 24 * 7)
+	batchTimeRounded := TruncateWindow(batchTime)
 	for i, v := range want {
 		want[i] = &Exposure{
 			ExposureKey:      v.ExposureKey,
@@ -115,7 +293,12 @@ func TestTransform(t *testing.T) {
 		}
 	}
 
-	got, err := TransformPublish(source, batchTime)
+	allowedAge := 14 * 24 * time.Hour
+	transformer, err := NewTransformer(10, allowedAge, 0)
+	if err != nil {
+		t.Fatalf("NewTransformer returned unexpected error: %v", err)
+	}
+	got, err := transformer.TransformPublish(source, batchTime)
 	if err != nil {
 		t.Fatalf("TransformPublish returned unexpected error: %v", err)
 	}
