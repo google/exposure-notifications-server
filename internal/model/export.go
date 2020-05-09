@@ -27,6 +27,7 @@ var (
 
 type ExportConfig struct {
 	ConfigID     int64         `db:"config_id"`
+	BucketName   string        `db:"bucket_name"`
 	FilenameRoot string        `db:"filename_root"`
 	Period       time.Duration `db:"period_seconds"`
 	Region       string        `db:"region"`
@@ -38,6 +39,7 @@ type ExportConfig struct {
 type ExportBatch struct {
 	BatchID        int64     `db:"batch_id" json:"batchID"`
 	ConfigID       int64     `db:"config_id" json:"configID"`
+	BucketName     string    `db:"bucket_name" json:"bucketName"`
 	FilenameRoot   string    `db:"filename_root" json:"filenameRoot"`
 	StartTimestamp time.Time `db:"start_timestamp" json:"startTimestamp"`
 	EndTimestamp   time.Time `db:"end_timestamp" json:"endTimestamp"`
@@ -48,10 +50,11 @@ type ExportBatch struct {
 }
 
 type ExportFile struct {
-	Filename  string `db:"filename"`
-	BatchID   int64  `db:"batch_id"`
-	Region    string `db:"region"`
-	BatchNum  int    `db:"batch_num"`
-	BatchSize int    `db:"batch_size"`
-	Status    string `db:"status"`
+	BucketName string `db:"bucket_name"`
+	Filename   string `db:"filename"`
+	BatchID    int64  `db:"batch_id"`
+	Region     string `db:"region"`
+	BatchNum   int    `db:"batch_num"`
+	BatchSize  int    `db:"batch_size"`
+	Status     string `db:"status"`
 }

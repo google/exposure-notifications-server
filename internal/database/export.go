@@ -52,11 +52,11 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				ExportConfig
-				(filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key)
+				(bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key)
 			VALUES
-				($1, $2, $3, $4, $5, $6)
+				($1, $2, $3, $4, $5, $6, $7)
 			RETURNING config_id
-		`, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region, ec.From, thru, toNullString(ec.SigningKey))
+		`, ec.BucketName, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region, ec.From, thru, toNullString(ec.SigningKey))
 
 		if err := row.Scan(&ec.ConfigID); err != nil {
 			return fmt.Errorf("fetching config_id: %w", err)
@@ -83,7 +83,7 @@ func (db *DB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*mod
 
 	rows, err := conn.Query(ctx, `
 		SELECT
-			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key
+			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key
 		FROM
 			ExportConfig
 		WHERE
@@ -102,7 +102,7 @@ func (db *DB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*mod
 			thru          *time.Time
 			skey          sql.NullString
 		)
-		if err := rows.Scan(&m.ConfigID, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru, &skey); err != nil {
+		if err := rows.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru, &skey); err != nil {
 			return err
 		}
 		m.Period = time.Duration(periodSeconds) * time.Second
@@ -157,9 +157,9 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
 				ExportBatch
-				(config_id, filename_root, start_timestamp, end_timestamp, region, status, signing_key)
+				(config_id, bucket_name, filename_root, start_timestamp, end_timestamp, region, status, signing_key)
 			VALUES
-				($1, $2, $3, $4, $5, $6, $7)
+				($1, $2, $3, $4, $5, $6, $7, $8)
 		`)
 		if err != nil {
 			return err
@@ -167,7 +167,7 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 
 		for _, eb := range batches {
 			if _, err := tx.Exec(ctx, stmtName,
-				eb.ConfigID, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.Region, eb.Status, eb.SigningKey); err != nil {
+				eb.ConfigID, eb.BucketName, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.Region, eb.Status, eb.SigningKey); err != nil {
 				return err
 			}
 		}
@@ -297,7 +297,7 @@ func (db *DB) LookupExportBatch(ctx context.Context, batchID int64) (*model.Expo
 func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) (*model.ExportBatch, error) {
 	row := queryRow(ctx, `
 		SELECT
-			batch_id, config_id, filename_root, start_timestamp, end_timestamp, region, status, lease_expires, signing_key
+			batch_id, config_id, bucket_name, filename_root, start_timestamp, end_timestamp, region, status, lease_expires, signing_key
 		FROM
 			ExportBatch
 		WHERE
@@ -306,7 +306,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 
 	var expires *time.Time
 	eb := model.ExportBatch{}
-	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.Region, &eb.Status, &expires, &eb.SigningKey); err != nil {
+	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.BucketName, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.Region, &eb.Status, &expires, &eb.SigningKey); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}
@@ -324,12 +324,13 @@ func (db *DB) FinalizeBatch(ctx context.Context, eb *model.ExportBatch, files []
 		// Update ExportFile for the files created.
 		for i, file := range files {
 			ef := model.ExportFile{
-				Filename:  file,
-				BatchID:   eb.BatchID,
-				Region:    eb.Region,
-				BatchNum:  i + 1,
-				BatchSize: batchSize,
-				Status:    model.ExportBatchComplete,
+				BucketName: eb.BucketName,
+				Filename:   file,
+				BatchID:    eb.BatchID,
+				Region:     eb.Region,
+				BatchNum:   i + 1,
+				BatchSize:  batchSize,
+				Status:     model.ExportBatchComplete,
 			}
 			if err := addExportFile(ctx, tx, &ef); err != nil {
 				return fmt.Errorf("adding export file entry: %w", err)
@@ -386,6 +387,7 @@ func (db *DB) LookupExportFiles(ctx context.Context, exportConfigID int64) ([]st
 }
 
 type joinedExportBatchFile struct {
+	bucketName  string
 	filename    string
 	batchID     int64
 	count       int
@@ -410,6 +412,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 			SELECT
 				eb.batch_id,
 				eb.status,
+				eb.bucket_name
 				ef.filename,
 				ef.batch_size,
 				ef.status
@@ -428,7 +431,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 
 		for rows.Next() {
 			var f joinedExportBatchFile
-			if err := rows.Scan(&f.batchID, &f.batchStatus, &f.filename, &f.count, &f.fileStatus); err != nil {
+			if err := rows.Scan(&f.batchID, &f.batchStatus, &f.bucketName, &f.filename, &f.count, &f.fileStatus); err != nil {
 				return fmt.Errorf("fetching batch_id: %w", err)
 			}
 			files = append(files, f)
@@ -440,6 +443,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 	}
 
 	count := 0
+	// TODO: crwilcox
 	bucket := os.Getenv(bucketEnvVar)
 	batchFileDeleteCounter := make(map[int64]int)
 
@@ -487,10 +491,10 @@ func addExportFile(ctx context.Context, tx pgx.Tx, ef *model.ExportFile) error {
 	_, err := tx.Exec(ctx, `
 		INSERT INTO
 			ExportFile
-			(filename, batch_id, region, batch_num, batch_size, status)
+			(bucket_name, filename, batch_id, region, batch_num, batch_size, status)
 		VALUES
 			($1, $2, $3, $4, $5, $6)
-		`, ef.Filename, ef.BatchID, ef.Region, ef.BatchNum, ef.BatchSize, ef.Status)
+		`, ef.BucketName, ef.Filename, ef.BatchID, ef.Region, ef.BatchNum, ef.BatchSize, ef.Status)
 	if err != nil {
 		return fmt.Errorf("inserting to ExportFile: %w", err)
 	}
