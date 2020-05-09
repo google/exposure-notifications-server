@@ -19,13 +19,14 @@ resource "null_resource" "gcloud_check" {
   }
 }
 data "google_project" "project" {
-  depends_on = [null_resource.n]
+  project_id = var.project
+  depends_on = [null_resource.gcloud_check]
 }
 
 resource "google_project_service" "services" {
   project = data.google_project.project.project_id
   for_each = toset(["run.googleapis.com", "cloudkms.googleapis.com", "secretmanager.googleapis.com", "storage-api.googleapis.com", "cloudscheduler.googleapis.com",
-  "sql-component.googleapis.com", "cloudbuild.googleapis.com"])
+  "sql-component.googleapis.com", "cloudbuild.googleapis.com", "servicenetworking.googleapis.com"])
   service            = each.value
   disable_on_destroy = false
 }
@@ -54,6 +55,25 @@ resource "random_string" "db-name" {
   upper   = false
 }
 
+resource "google_compute_global_address" "private_ip_address" {
+  provider = google-beta
+
+  name          = "private-ip-address"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = "default"
+}
+
+resource "google_service_networking_connection" "private_vpc_connection" {
+  provider = google-beta
+
+  network                 = "default"
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+
+}
+
 resource "google_sql_database_instance" "db-inst" {
   project          = data.google_project.project.project_id
   region           = var.region
@@ -73,13 +93,64 @@ resource "google_sql_database_instance" "db-inst" {
       update_track = "stable"
     }
     ip_configuration {
-      require_ssl = true
+      require_ssl     = true
+      private_network = "projects/${data.google_project.project.project_id}/global/networks/${google_service_networking_connection.private_vpc_connection.network}"
     }
   }
   lifecycle {
     prevent_destroy = true
   }
   depends_on = [google_project_service.services["sql-component.googleapis.com"]]
+}
+
+resource "google_sql_ssl_cert" "client_cert" {
+  common_name = "apollo"
+  instance    = google_sql_database_instance.db-inst.name
+}
+
+resource "google_secret_manager_secret" "ssl-ca-cert" {
+  provider  = google-beta
+  secret_id = "dbServerCA"
+  replication {
+    automatic = true
+  }
+  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
+}
+
+resource "google_secret_manager_secret_version" "db-ca-cert" {
+  provider    = google-beta
+  secret      = google_secret_manager_secret.ssl-ca-cert.id
+  secret_data = google_sql_ssl_cert.client_cert.server_ca_cert
+}
+
+resource "google_secret_manager_secret" "ssl-key" {
+  provider  = google-beta
+  secret_id = "dbClientKey"
+  replication {
+    automatic = true
+  }
+  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
+}
+
+resource "google_secret_manager_secret_version" "db-key" {
+  provider    = google-beta
+  secret      = google_secret_manager_secret.ssl-key.id
+  secret_data = google_sql_ssl_cert.client_cert.private_key
+}
+
+resource "google_secret_manager_secret" "ssl-cert" {
+  provider  = google-beta
+  secret_id = "dbClientCert"
+  replication {
+    automatic = true
+  }
+  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
+}
+
+resource "google_secret_manager_secret_version" "db-cert" {
+  provider    = google-beta
+  secret      = google_secret_manager_secret.ssl-cert.id
+  secret_data = google_sql_ssl_cert.client_cert.cert
 }
 
 resource "random_password" "userpassword" {
@@ -154,8 +225,24 @@ resource "google_cloud_run_service" "exposure" {
           value = google_secret_manager_secret_version.db-pwd-initial.name
         }
         env {
+          name  = "DB_SSLKEY_SECRET"
+          value = google_secret_manager_secret_version.db-key.name
+        }
+        env {
+          name  = "DB_SSLCERT_SECRET"
+          value = google_secret_manager_secret_version.db-cert.name
+        }
+        env {
+          name  = "DB_SSLROOTCERT_SECRET"
+          value = google_secret_manager_secret_version.db-ca-cert.name
+        }
+        env {
+          name  = "DB_SSLMODE"
+          value = "require"
+        }
+        env {
           name  = "DB_HOST"
-          value = "${data.google_project.project.project_id}:${var.region}/${google_sql_database_instance.db-inst.name}"
+          value = "/cloudsql/${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
         }
         env {
           name  = "DB_USER"
@@ -167,10 +254,10 @@ resource "google_cloud_run_service" "exposure" {
         }
       }
     }
-  }
-  metadata {
-    annotations = {
-      "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}/${google_sql_database_instance.db-inst.name}"
+    metadata {
+      annotations = {
+        "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+      }
     }
   }
 }
@@ -203,8 +290,24 @@ resource "google_cloud_run_service" "export" {
           value = google_secret_manager_secret_version.db-pwd-initial.name
         }
         env {
+          name  = "DB_SSLKEY_SECRET"
+          value = google_secret_manager_secret_version.db-key.name
+        }
+        env {
+          name  = "DB_SSLCERT_SECRET"
+          value = google_secret_manager_secret_version.db-cert.name
+        }
+        env {
+          name  = "DB_SSLROOTCERT_SECRET"
+          value = google_secret_manager_secret_version.db-ca-cert.name
+        }
+        env {
+          name  = "DB_SSLMODE"
+          value = "require"
+        }
+        env {
           name  = "DB_HOST"
-          value = "${data.google_project.project.project_id}:${var.region}/${google_sql_database_instance.db-inst.name}"
+          value = "/cloudsql/${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
         }
         env {
           name  = "DB_USER"
@@ -216,10 +319,10 @@ resource "google_cloud_run_service" "export" {
         }
       }
     }
-  }
-  metadata {
-    annotations = {
-      "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}/${google_sql_database_instance.db-inst.name}"
+    metadata {
+      annotations = {
+        "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+      }
     }
   }
 }
