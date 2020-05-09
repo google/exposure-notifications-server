@@ -461,7 +461,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 
 		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Update Status in ExportFile.
-			if err := updateExportFileStatus(ctx, tx, f.filename, f.batchID, model.ExportBatchDeleted); err != nil {
+			if err := updateExportFileStatus(ctx, tx, f.batchID, f.filename, model.ExportBatchDeleted); err != nil {
 				return fmt.Errorf("updating ExportFile: %w", err)
 			}
 
@@ -498,7 +498,7 @@ func addExportFile(ctx context.Context, tx pgx.Tx, ef *model.ExportFile) error {
 	return nil
 }
 
-func updateExportFileStatus(ctx context.Context, tx pgx.Tx, filename, batchID, status string) error {
+func updateExportFileStatus(ctx context.Context, tx pgx.Tx, batchID int64, filename, status string) error {
 	_, err := tx.Exec(ctx, `
 		UPDATE
 			ExportFile
