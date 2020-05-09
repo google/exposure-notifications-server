@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
@@ -443,8 +442,6 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 	}
 
 	count := 0
-	// TODO: crwilcox
-	bucket := os.Getenv(bucketEnvVar)
 	batchFileDeleteCounter := make(map[int64]int)
 
 	for _, f := range files {
@@ -458,13 +455,13 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 		// Delete stored file.
 		gcsCtx, cancel := context.WithTimeout(ctx, time.Second*50)
 		defer cancel()
-		if err := blobstore.DeleteObject(gcsCtx, bucket, f.filename); err != nil {
+		if err := blobstore.DeleteObject(gcsCtx, f.bucketName, f.filename); err != nil {
 			return 0, fmt.Errorf("delete object: %w", err)
 		}
 
 		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Update Status in ExportFile.
-			if err := updateExportFileStatus(ctx, tx, f.filename, model.ExportBatchDeleted); err != nil {
+			if err := updateExportFileStatus(ctx, tx, f.filename, f.batchID, model.ExportBatchDeleted); err != nil {
 				return fmt.Errorf("updating ExportFile: %w", err)
 			}
 
@@ -501,7 +498,7 @@ func addExportFile(ctx context.Context, tx pgx.Tx, ef *model.ExportFile) error {
 	return nil
 }
 
-func updateExportFileStatus(ctx context.Context, tx pgx.Tx, filename, status string) error {
+func updateExportFileStatus(ctx context.Context, tx pgx.Tx, filename, batchID, status string) error {
 	_, err := tx.Exec(ctx, `
 		UPDATE
 			ExportFile
@@ -509,7 +506,8 @@ func updateExportFileStatus(ctx context.Context, tx pgx.Tx, filename, status str
 			status = $1
 		WHERE
 			filename = $2
-		`, status, filename)
+			batch_id = $3
+		`, status, filename, batchID)
 	if err != nil {
 		return fmt.Errorf("updating ExportFile: %w", err)
 	}

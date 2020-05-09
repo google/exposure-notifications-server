@@ -35,7 +35,7 @@ func TestAddExportConfig(t *testing.T) {
 	fromTime := time.Now()
 	thruTime := fromTime.Add(6 * time.Hour)
 	want := &model.ExportConfig{
-		BucketName:   "",
+		BucketName:   "mocked",
 		FilenameRoot: "root",
 		Period:       3 * time.Hour,
 		Region:       "i1",
