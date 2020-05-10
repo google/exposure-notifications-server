@@ -32,14 +32,17 @@ type APIConfig struct {
 	AppPackageName    string          `db:"app_package_name"`
 	Platform          string          `db:"platform"`
 	ApkDigestSHA256   string          `db:"apk_digest"`
-	EnforceApkDigest  bool            `db:"enforce_apk_digest"`
 	CTSProfileMatch   bool            `db:"cts_profile_match"`
 	BasicIntegrity    bool            `db:"basic_integrity"`
-	AllowedPastTime   *time.Duration  `db:"allowed_past_seconds"`
-	AllowedFutureTime *time.Duration  `db:"allowed_future_seconds"`
+	AllowedPastTime   time.Duration   `db:"allowed_past_seconds"`
+	AllowedFutureTime time.Duration   `db:"allowed_future_seconds"`
 	AllowedRegions    map[string]bool `db:"allowed_regions"`
 	AllowAllRegions   bool            `db:"all_regions"`
-	BypassSafetynet   bool            `db:"bypass_safetynet"`
+
+	// BypassSafetyNet is an internal field for testing that bypasses
+	// SafetyNet verification. It is not read from a database and is used for
+	// testing only.
+	BypassSafetyNet bool
 }
 
 // New creates a new, empty API config
@@ -64,19 +67,16 @@ func (c *APIConfig) VerifyOpts(from time.Time) android.VerifyOpts {
 		AppPkgName:      c.AppPackageName,
 		CTSProfileMatch: c.CTSProfileMatch,
 		BasicIntegrity:  c.BasicIntegrity,
+		APKDigest:       c.ApkDigestSHA256,
 	}
-	if c.EnforceApkDigest && len(c.ApkDigestSHA256) > 0 {
-		rtn.APKDigest = c.ApkDigestSHA256
-	}
-
 	// Calculate the valid time window based on now + config options.
-	if c.AllowedPastTime != nil {
-		minTime := from.UTC().Add(-*c.AllowedPastTime)
-		rtn.MinValidTime = &minTime
+	if c.AllowedPastTime > 0 {
+		minTime := from.Add(-c.AllowedPastTime)
+		rtn.MinValidTime = minTime
 	}
-	if c.AllowedFutureTime != nil {
-		maxTime := from.UTC().Add(*c.AllowedFutureTime)
-		rtn.MaxValidTime = &maxTime
+	if c.AllowedFutureTime > 0 {
+		maxTime := from.Add(c.AllowedFutureTime)
+		rtn.MaxValidTime = maxTime
 	}
 
 	return rtn

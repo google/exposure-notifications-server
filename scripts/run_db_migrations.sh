@@ -19,11 +19,11 @@
 command -v migrate >/dev/null 2>&1 || {
     echo >&2 "Migrate command not found. Have you installed golang-migrate?";
     echo >&2 "https://github.com/golang-migrate/migrate/blob/master/cmd/migrate/README.md#installation";
-    exit 1; 
+    exit 1;
 }
 
 if [[ -z "$1" ]]; then
-    echo "Expected the type of migration to run as an argument (up, down, force, version)."
+    echo "Expected the type of migration to run as an argument (up, down, goto, force, version)."
     exit 1
 fi
 

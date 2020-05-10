@@ -25,7 +25,7 @@ export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/local/sa.json"
 # Configuration refresh period for the publish API. Set lower than necessary for test environments.
 CONFIG_REFRESH_DURATION="1m"
 
-# wipeout variables
+# cleanup variables
 export TTL_DURATION="14d"
 
 # Set up environment for local postgres database; see pkg/database/schema.sql for the schema to use.

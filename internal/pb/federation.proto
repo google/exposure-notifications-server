@@ -39,10 +39,10 @@ message ContactTracingResponse {
 }
 
 message ContactTracingInfo {
-	// TODO(jasonco | mikehelmick): this should be an int now.
+	// TODO(squee1945 | mikehelmick): this should be an int now.
 	TransmissionRisk transmissionRisk = 1;  // required
 	repeated ExposureKey exposureKeys = 2;
-	string verificationAuthorityName = 3;  // TODO(jasonco): need to group on this.
+	string verificationAuthorityName = 3;  // TODO(squee1945): need to group on this.
 }
 
 enum TransmissionRisk {

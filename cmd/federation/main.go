@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
 	"time"
@@ -27,7 +26,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/api/federation"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
@@ -40,10 +41,14 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
+	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
+	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
+	env := serverenv.New(ctx,
+		serverenv.WithSecretManager(sm),
+		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
 	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
@@ -54,7 +59,7 @@ func main() {
 	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
 	logger.Infof("Using fetch timeout %v (override with $%s)", timeout, timeoutEnvVar)
 
-	grpcEndpoint := fmt.Sprintf(":%s", env.Port())
+	grpcEndpoint := ":" + env.Port
 	logger.Infof("gRPC endpoint [%s]", grpcEndpoint)
 
 	grpcServer := grpc.NewServer()

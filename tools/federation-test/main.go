@@ -56,7 +56,7 @@ func main() {
 		RegionIdentifiers:             includeRegions,
 		ExcludeRegionIdentifiers:      excludeRegions,
 		NextFetchToken:                *cursor,
-		LastFetchResponseKeyTimestamp: lastTime.UTC().Unix(),
+		LastFetchResponseKeyTimestamp: lastTime.Unix(),
 	}
 
 	// See https://github.com/grpc/grpc-go/blob/master/examples/route_guide/client/client.go

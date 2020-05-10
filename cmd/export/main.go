@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -27,14 +26,18 @@ import (
 	"github.com/google/exposure-notifications-server/internal/api/export"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/internal/signing"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
 const (
 	createBatchesTimeoutEnvVar = "CREATE_BATCHES_TIMEOUT"
+	workerTimeoutEnvVar        = "WORKER_TIMEOUT"
 	defaultTimeout             = 5 * time.Minute
 	bucketEnvVar               = "EXPORT_BUCKET"
-	tmpBucketEnvVar            = "TMP_EXPORT_BUCKET"
 	maxRecordsEnvVar           = "EXPORT_FILE_MAX_RECORDS"
 	defaultMaxRecords          = 30_000
 )
@@ -43,14 +46,30 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
+	// It is possible to install a different secret management, KMS, and blob
+	// storage systems here.
+	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
-		logger.Fatalf("unable to connect to secret manager: %v", err)
+		logger.Fatalf("unable to connect to secret manager: %w", err)
 	}
+	km, err := signing.NewGCPKMS(ctx)
+	if err != nil {
+		logger.Fatalf("unable to connect to key manager: %w", err)
+	}
+	storage, err := storage.NewGoogleCloudStorage(ctx)
+	if err != nil {
+		logger.Fatalf("unable to connect to storage system: %v", err)
+	}
+	// Construct desired serving environment.
+	env := serverenv.New(ctx,
+		serverenv.WithSecretManager(sm),
+		serverenv.WithKeyManager(km),
+		serverenv.WithBlobStorage(storage),
+		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
 	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
-		logger.Fatalf("unable to connect to database: %v", err)
+		logger.Fatalf("unable to connect to database: %w", err)
 	}
 	defer db.Close(ctx)
 
@@ -58,21 +77,33 @@ func main() {
 	bsc.CreateTimeout = serverenv.ParseDuration(ctx, createBatchesTimeoutEnvVar, defaultTimeout)
 	logger.Infof("Using create batches timeout %v (override with $%s)", bsc.CreateTimeout, createBatchesTimeoutEnvVar)
 
-	bsc.MaxRecords, err = strconv.Atoi(os.Getenv(maxRecordsEnvVar))
-	if err != nil {
-		logger.Infof("Failed to parse export batch size env EnvVar: %v, %v", maxRecordsEnvVar, err)
+	bsc.WorkerTimeout = serverenv.ParseDuration(ctx, workerTimeoutEnvVar, defaultTimeout)
+	logger.Infof("Using worker timeout %v (override with $%s)", bsc.WorkerTimeout, workerTimeoutEnvVar)
+
+	if maxRecStr, ok := os.LookupEnv(maxRecordsEnvVar); !ok {
+		logger.Infof("Using export file max size %d (override with $%s)", defaultMaxRecords, maxRecordsEnvVar)
 		bsc.MaxRecords = defaultMaxRecords
+	} else {
+		if maxRec, err := strconv.Atoi(maxRecStr); err != nil {
+			logger.Errorf("Failed to parse $%s value %q, using default %d", maxRecordsEnvVar, maxRecStr, defaultMaxRecords)
+			bsc.MaxRecords = defaultMaxRecords
+		} else {
+			bsc.MaxRecords = maxRec
+		}
 	}
-	bsc.TmpBucket = os.Getenv(tmpBucketEnvVar)
-	bsc.Bucket = os.Getenv(bucketEnvVar)
+	if bucket, ok := os.LookupEnv(bucketEnvVar); !ok {
+		logger.Fatalf("Required $%s is not specified.", bucketEnvVar)
+	} else {
+		bsc.Bucket = bucket
+	}
 
-	// TODO(guray): remove or gate the /test handler
-	http.Handle("/test", export.NewTestExportHandler(db))
-
-	batchServer := export.NewBatchServer(db, bsc)
+	batchServer, err := export.NewBatchServer(db, bsc, env)
+	if err != nil {
+		logger.Fatalf("unable to create server: %v", err)
+	}
 	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
-	http.HandleFunc("/create-files", batchServer.CreateFilesHandler)     // worker that executes work
+	http.HandleFunc("/do-work", batchServer.WorkerHandler)               // worker that executes work
 
 	logger.Info("starting exposure export server")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
+	log.Fatal(http.ListenAndServe(":"+env.Port, nil))
 }

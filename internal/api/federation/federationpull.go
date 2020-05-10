@@ -106,7 +106,7 @@ func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	}
 	defer unlockFn()
 
-	// TODO(jasonco): make secure
+	// TODO(squee1945): make secure
 	conn, err := grpc.Dial(query.ServerAddr, grpc.WithInsecure())
 	if err != nil {
 		logger.Errorf("Failed to dial for query %q %s: %v", queryID, query.ServerAddr, err)
@@ -123,7 +123,7 @@ func (h *federationPullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		insertExposures:     h.db.InsertExposures,
 		startFederationSync: h.db.StartFederationSync,
 	}
-	batchStart := time.Now().UTC()
+	batchStart := time.Now()
 	if err := federationPull(timeoutContext, deps, query, batchStart); err != nil {
 		logger.Errorf("Federation query %q failed: %v", queryID, err)
 		http.Error(w, fmt.Sprintf("Federation query %q fetch failed, check logs.", queryID), http.StatusInternalServerError)
@@ -146,7 +146,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 
 	syncID, finalizeFn, err := deps.startFederationSync(ctx, q, batchStart)
 	if err != nil {
-		return fmt.Errorf("starting federation sync for query %s: %v", q.QueryID, err)
+		return fmt.Errorf("starting federation sync for query %s: %w", q.QueryID, err)
 	}
 
 	var maxTimestamp time.Time
@@ -159,14 +159,14 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 	partial := true
 	for partial {
 
-		// TODO(jasonco): react to the context timeout and complete a chunk of work so next invocation can pick up where left off.
+		// TODO(squee1945): react to the context timeout and complete a chunk of work so next invocation can pick up where left off.
 
 		response, err := deps.fetch(ctx, request)
 		if err != nil {
-			return fmt.Errorf("fetching query %s: %v", q.QueryID, err)
+			return fmt.Errorf("fetching query %s: %w", q.QueryID, err)
 		}
 
-		responseTimestamp := time.Unix(response.FetchResponseKeyTimestamp, 0).UTC()
+		responseTimestamp := time.Unix(response.FetchResponseKeyTimestamp, 0)
 		if responseTimestamp.After(maxTimestamp) {
 			maxTimestamp = responseTimestamp
 		}
@@ -201,7 +201,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 
 					if len(exposures) == fetchBatchSize {
 						if err := deps.insertExposures(ctx, exposures); err != nil {
-							return fmt.Errorf("inserting %d exposures: %v", len(exposures), err)
+							return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 						}
 						total += len(exposures)
 						exposures = nil // Start a new batch.
@@ -211,7 +211,7 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 		}
 		if len(exposures) > 0 {
 			if err := deps.insertExposures(ctx, exposures); err != nil {
-				return fmt.Errorf("inserting %d exposures: %v", len(exposures), err)
+				return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 			}
 			total += len(exposures)
 		}
@@ -221,8 +221,8 @@ func federationPull(ctx context.Context, deps pullDependencies, q *model.Federat
 	}
 
 	if err := finalizeFn(maxTimestamp, total); err != nil {
-		// TODO(jasonco): how do we clean up here? Just leave the records in and have the exporter eliminate them? Other?
-		return fmt.Errorf("finalizing federation sync for query %s: %v", q.QueryID, err)
+		// TODO(squee1945): how do we clean up here? Just leave the records in and have the exporter eliminate them? Other?
+		return fmt.Errorf("finalizing federation sync for query %s: %w", q.QueryID, err)
 	}
 
 	return nil

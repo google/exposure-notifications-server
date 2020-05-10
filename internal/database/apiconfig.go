@@ -33,8 +33,8 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error
 
 	query := `
 	    SELECT
-	    	app_package_name, platform, apk_digest, enforce_apk_digest, cts_profile_match, basic_integrity,
-        allowed_past_seconds, allowed_future_seconds, allowed_regions, all_regions, bypass_safetynet
+	    	app_package_name, platform, apk_digest, cts_profile_match, basic_integrity,
+        allowed_past_seconds, allowed_future_seconds, allowed_regions, all_regions
 	    FROM
 	    	APIConfig`
 	rows, err := conn.Query(ctx, query)
@@ -55,9 +55,9 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error
 		var apkDigest sql.NullString
 		var allowedPastSeconds, allowedFutureSeconds *int
 		if err := rows.Scan(&config.AppPackageName, &config.Platform, &apkDigest,
-			&config.EnforceApkDigest, &config.CTSProfileMatch, &config.BasicIntegrity,
+			&config.CTSProfileMatch, &config.BasicIntegrity,
 			&allowedPastSeconds, &allowedFutureSeconds, &regions,
-			&config.AllowAllRegions, &config.BypassSafetynet); err != nil {
+			&config.AllowAllRegions); err != nil {
 			return nil, err
 		}
 		if apkDigest.Valid {
@@ -67,11 +67,11 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error
 		// Convert time in seconds from DB into time.Duration
 		if allowedPastSeconds != nil {
 			d := time.Duration(*allowedPastSeconds) * time.Second
-			config.AllowedPastTime = &d
+			config.AllowedPastTime = d
 		}
 		if allowedFutureSeconds != nil {
 			d := time.Duration(*allowedFutureSeconds) * time.Second
-			config.AllowedFutureTime = &d
+			config.AllowedFutureTime = d
 		}
 
 		// build the regions map

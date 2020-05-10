@@ -78,10 +78,10 @@ type syncDB struct {
 
 func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.FederationQuery, start time.Time) (int64, database.FinalizeSyncFn, error) {
 	sdb.syncStarted = true
-	timerStart := time.Now().UTC()
+	timerStart := time.Now()
 	return syncID, func(maxTimestamp time.Time, totalInserted int) error {
 		sdb.syncCompleted = true
-		sdb.completed = start.Add(time.Now().UTC().Sub(timerStart))
+		sdb.completed = start.Add(time.Now().Sub(timerStart))
 		sdb.maxTimestamp = maxTimestamp
 		sdb.totalInserted = totalInserted
 		return nil
@@ -101,7 +101,7 @@ func TestFederationPull(t *testing.T) {
 		{
 			name:             "no results",
 			wantTokens:       []string{""},
-			wantMaxTimestamp: time.Unix(0, 0).UTC(),
+			wantMaxTimestamp: time.Unix(0, 0),
 		},
 		{
 			name: "basic results",
@@ -137,7 +137,7 @@ func TestFederationPull(t *testing.T) {
 				makeRemoteExposure(ddd, selfver, "", "US"),
 			},
 			wantTokens:       []string{""},
-			wantMaxTimestamp: time.Unix(400, 0).UTC(),
+			wantMaxTimestamp: time.Unix(400, 0),
 		},
 		{
 			name: "partial results",
@@ -180,7 +180,7 @@ func TestFederationPull(t *testing.T) {
 				makeRemoteExposure(ddd, selfver, "AAA", "CA"),
 			},
 			wantTokens:       []string{"", "abcdef"},
-			wantMaxTimestamp: time.Unix(400, 0).UTC(),
+			wantMaxTimestamp: time.Unix(400, 0),
 		},
 		{
 			name:      "too large for batch",
@@ -217,7 +217,7 @@ func TestFederationPull(t *testing.T) {
 				makeRemoteExposure(ddd, selfver, "", "US"),
 			},
 			wantTokens:       []string{""},
-			wantMaxTimestamp: time.Unix(400, 0).UTC(),
+			wantMaxTimestamp: time.Unix(400, 0),
 		},
 	}
 
@@ -228,7 +228,7 @@ func TestFederationPull(t *testing.T) {
 			remote := remoteFetchServer{responses: tc.fetchResponses}
 			idb := exposureDB{}
 			sdb := syncDB{}
-			batchStart := time.Now().UTC()
+			batchStart := time.Now()
 			if tc.batchSize > 0 {
 				oldBatchSize := fetchBatchSize
 				fetchBatchSize = tc.batchSize
@@ -263,7 +263,7 @@ func TestFederationPull(t *testing.T) {
 			if sdb.totalInserted != len(tc.wantExposures) {
 				t.Errorf("federation sync total inserted got %d, want %d", sdb.totalInserted, len(tc.wantExposures))
 			}
-			if sdb.maxTimestamp != tc.wantMaxTimestamp {
+			if !sdb.maxTimestamp.Equal(tc.wantMaxTimestamp) {
 				t.Errorf("federation sync max timestamp got %v, want %v", sdb.maxTimestamp, tc.wantMaxTimestamp)
 			}
 		})

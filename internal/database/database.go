@@ -16,10 +16,21 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	pgx "github.com/jackc/pgx/v4"
 )
+
+func toNullString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{
+		String: s,
+		Valid:  true,
+	}
+}
 
 // inTx runs the given function f within a transaction with isolation level isoLevel.
 func (db *DB) inTx(ctx context.Context, isoLevel pgx.TxIsoLevel, f func(tx pgx.Tx) error) error {

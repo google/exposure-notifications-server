@@ -20,22 +20,36 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/config"
+	"github.com/google/exposure-notifications-server/internal/api/handlers"
 	"github.com/google/exposure-notifications-server/internal/api/publish"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+)
+
+const (
+	minPublishDurationEnv     = "MIN_PUBLISH_DURATION"
+	bypassSafetyNetEnv        = "BYPASS_SAFETYNET"
+	defaultMinPublishDiration = 5 * time.Second
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
+	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
+	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
+	env := serverenv.New(ctx,
+		serverenv.WithSecretManager(sm),
+		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
 	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
@@ -45,7 +59,21 @@ func main() {
 
 	cfg := config.New(db)
 
-	http.Handle("/", publish.NewHandler(db, cfg))
+	bypassSafetyNet := serverenv.ParseBool(ctx, bypassSafetyNetEnv, false)
+	if bypassSafetyNet {
+		logger.Warn("SafetyNet verification is bypassed. Do not bypass SafetyNet " +
+			"verification in production environments!")
+		cfg.BypassSafetyNet()
+	}
+
+	minLatency := serverenv.ParseDuration(ctx, minPublishDurationEnv, defaultMinPublishDiration)
+	logger.Infof("Request minimum latency is: %v", minLatency.String())
+
+	handler, err := publish.NewHandler(ctx, db, cfg, env)
+	if err != nil {
+		logger.Fatalf("unable to create publish handler: %v", err)
+	}
+	http.Handle("/", handlers.WithMinimumLatency(minLatency, handler))
 	logger.Info("starting exposure server")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port()), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port), nil))
 }

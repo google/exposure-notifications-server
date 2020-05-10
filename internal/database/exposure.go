@@ -74,16 +74,17 @@ func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCri
 		}
 	}
 
-	query, args, err := generateQuery(criteria)
+	query, args, err := generateExposureQuery(criteria)
 	if err != nil {
-		return nil, fmt.Errorf("generating query: %v", err)
+		return nil, fmt.Errorf("generating where: %v", err)
 	}
+
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	return &postgresExposureIterator{iter: &rowIterator{rows}, offset: offset}, nil
+	return &postgresExposureIterator{iter: newRowIterator(conn, rows), offset: offset}, nil
 }
 
 type postgresExposureIterator struct {
@@ -120,7 +121,7 @@ func (i *postgresExposureIterator) Next() (*model.Exposure, bool, error) {
 }
 
 func (i *postgresExposureIterator) Cursor() (string, error) {
-	// TODO: this is a pretty weak cursor solution, but not too bad since we'll typcially have queries ahead of the wipeout
+	// TODO: this is a pretty weak cursor solution, but not too bad since we'll typcially have queries ahead of the cleanup
 	// and before the current ingestion window, and those should be stable.
 	return encodeCursor(strconv.Itoa(i.offset)), nil
 }
@@ -129,7 +130,8 @@ func (i *postgresExposureIterator) Close() error {
 	return i.iter.close()
 }
 
-func generateQuery(criteria IterateExposuresCriteria) (string, []interface{}, error) {
+func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interface{}, error) {
+	var args []interface{}
 	q := `
 		SELECT
 			exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
@@ -137,8 +139,7 @@ func generateQuery(criteria IterateExposuresCriteria) (string, []interface{}, er
 		FROM
 			Exposure
 		WHERE 1=1
-		`
-	var args []interface{}
+	`
 
 	if len(criteria.IncludeRegions) == 1 {
 		args = append(args, criteria.IncludeRegions)

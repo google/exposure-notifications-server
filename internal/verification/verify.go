@@ -25,6 +25,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
 
+var ValidateAttestation = android.ValidateAttestation
+
 // VerifyRegions checks the request regions against the regions allowed by
 // the configuration for the application.
 func VerifyRegions(cfg *apiconfig.APIConfig, data model.Publish) error {
@@ -56,14 +58,14 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *apiconfig.
 		return fmt.Errorf("cannot enforce safetynet, no application config")
 	}
 
-	opts := cfg.VerifyOpts(requestTime.UTC())
-	err := android.ValidateAttestation(ctx, data.Verification, opts)
-	if err != nil {
-		if cfg.BypassSafetynet {
-			logger.Errorf("safetynet failed, but bypass enabled for app: '%v', failure: %v", data.AppPackageName, err)
+	opts := cfg.VerifyOpts(requestTime)
+	if err := ValidateAttestation(ctx, data.Verification, opts); err != nil {
+		if cfg.BypassSafetyNet {
+			logger.Errorf("bypassing safetynet verification for: '%v'", data.AppPackageName)
 			return nil
 		}
-		return fmt.Errorf("android.ValidateAttestation: %v", err)
+
+		return fmt.Errorf("android.ValidateAttestation: %w", err)
 	}
 
 	return nil

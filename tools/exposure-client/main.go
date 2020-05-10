@@ -61,7 +61,7 @@ func main() {
 
 	// When publishing multiple keys - they'll be on different days.
 	intervalCount := randIntervalCount()
-	intervalNumber := int32(time.Now().UTC().Unix()/600) - intervalCount
+	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
 
 	exposureKeys := make([]model.ExposureKey, *numKeys)
 	for i, rawKey := range keys {
@@ -119,6 +119,7 @@ func main() {
 
 	sendRequest(jsonData)
 
+	log.Printf("regions: %v", regions[regionIdx.Int64()])
 	log.Printf("wrote %v keys", len(keys))
 	for i, key := range keys {
 		log.Printf(" %v | %v", key, exposureKeys[i].Key)

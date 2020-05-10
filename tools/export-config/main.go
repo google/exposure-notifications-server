@@ -19,32 +19,37 @@ import (
 	"context"
 	"flag"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-	cflag "github.com/google/exposure-notifications-server/internal/flag"
+	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
 var (
 	filenameRoot  = flag.String("filename-root", "", "The root filename for the export file.")
 	period        = flag.Duration("period", 24*time.Hour, "The frequency with which to create export files.")
+	region        = flag.String("region", "", "The region for the export batches/files.")
 	fromTimestamp = flag.String("from-timestamp", "", "The timestamp (RFC3339) when this config becomes active.")
 	thruTimestamp = flag.String("thru-timestamp", "", "The timestamp (RFC3339) when this config ends.")
+	signingKey    = flag.String("signing-key", "", "The KMS resource ID to use for signing batches.")
 )
 
 func main() {
-	var includeRegions, excludeRegions cflag.RegionListVar
-	flag.Var(&includeRegions, "regions", "A comma-separated list of regions to query. Leave blank for all regions.")
-	flag.Var(&excludeRegions, "exclude-regions", "A comma-separated list fo regions to exclude from the query.")
 	flag.Parse()
 
 	if *filenameRoot == "" {
 		log.Fatal("--filename-root is required.")
 	}
+	if *region == "" {
+		log.Fatal("--region is required.")
+	}
+	*region = strings.ToUpper(*region)
 
-	fromTime := time.Now().UTC()
+	fromTime := time.Now()
 	if *fromTimestamp != "" {
 		var err error
 		fromTime, err = time.Parse(time.RFC3339, *fromTimestamp)
@@ -62,11 +67,19 @@ func main() {
 		}
 	}
 
+	if *signingKey == "" {
+		log.Printf("WARNING - you are creating an export config without a signing key!!")
+	}
+
 	ctx := context.Background()
-	env, err := serverenv.New(ctx, serverenv.WithSecretManager)
+	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
+	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
 		log.Fatalf("unable to connect to secret manager: %v", err)
 	}
+	env := serverenv.New(ctx,
+		serverenv.WithSecretManager(sm),
+		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
 	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
@@ -75,12 +88,12 @@ func main() {
 	defer db.Close(ctx)
 
 	ec := model.ExportConfig{
-		FilenameRoot:   *filenameRoot,
-		Period:         *period,
-		IncludeRegions: includeRegions,
-		ExcludeRegions: excludeRegions,
-		From:           fromTime,
-		Thru:           thruTime,
+		FilenameRoot: *filenameRoot,
+		Period:       *period,
+		Region:       *region,
+		From:         fromTime,
+		Thru:         thruTime,
+		SigningKey:   *signingKey,
 	}
 
 	if err := db.AddExportConfig(ctx, &ec); err != nil {

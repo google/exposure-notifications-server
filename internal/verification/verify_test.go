@@ -15,9 +15,12 @@
 package verification
 
 import (
+	"context"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/google/exposure-notifications-server/internal/android"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
@@ -72,6 +75,72 @@ func TestVerifyRegions(t *testing.T) {
 
 	for i, c := range cases {
 		err := VerifyRegions(c.Cfg, c.Data)
+		if c.Msg == "" && err == nil {
+			continue
+		}
+		if c.Msg == "" && err != nil {
+			t.Errorf("%v got %v, wanted no error", i, err)
+			continue
+		}
+		if err.Error() != c.Msg {
+			t.Errorf("%v wrong error, got %v, want %v", i, err, c.Msg)
+		}
+	}
+}
+
+func TestVerifySafetyNet(t *testing.T) {
+	allRegions := &apiconfig.APIConfig{
+		AppPackageName:  appPkgName,
+		AllowAllRegions: true,
+	}
+	allRegionsSafetyCheckDisabled := &apiconfig.APIConfig{
+		AppPackageName:  appPkgName,
+		AllowAllRegions: true,
+		BypassSafetyNet: true,
+	}
+
+	cases := []struct {
+		Data              model.Publish
+		Msg               string
+		Cfg               *apiconfig.APIConfig
+		AttestationResult error
+	}{
+		{
+			// With no configuration, return err.
+			model.Publish{Regions: []string{"US"}},
+			"cannot enforce safetynet, no application config",
+			nil,
+			nil,
+		}, {
+			// Verify when Validate Attestation Passes, return nil.
+			model.Publish{Regions: []string{"US"}},
+			"",
+			allRegions,
+			nil,
+		}, {
+			// Verify when ValidateAttestation raises err, with safety check
+			// enabled, return err.
+			model.Publish{Regions: []string{"US"}},
+			"android.ValidateAttestation: mocked",
+			allRegions,
+			fmt.Errorf("mocked"),
+		}, {
+			// Verify when ValidateAttestation raises err, with safety check
+			// disabled, return nil.
+			model.Publish{Regions: []string{"US"}},
+			"",
+			allRegionsSafetyCheckDisabled,
+			fmt.Errorf("mocked"),
+		},
+	}
+
+	for i, c := range cases {
+		var ctx = context.Background()
+		ValidateAttestation = func(context.Context, string, android.VerifyOpts) error {
+			return c.AttestationResult
+		}
+
+		err := VerifySafetyNet(ctx, time.Now(), c.Cfg, c.Data)
 		if c.Msg == "" && err == nil {
 			continue
 		}
