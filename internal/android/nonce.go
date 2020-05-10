@@ -21,21 +21,25 @@ import (
 	"strings"
 )
 
+// Noncer definces an interface for providing Nonce strings.
 type Noncer interface {
 	// Nonce returns the expected nonce given input data.
 	Nonce() string
 }
 
 // Compile-time check to assert NonceData implements the Noncer interface.
-var _ Noncer = (*NonceData)(nil)
+var _ Noncer = (*nonceData)(nil)
 
-type NonceData struct {
+type nonceData struct {
 	appPackageName string
 	ttKeysBase64   []string
 	regions        []string
 }
 
-func NewNonce(appPackageName string, ttKeysBase64, regions []string) *NonceData {
+// NewNonce creates the expected nonce based on the data in the request.
+// This ensures that the data in the request is the same data that was used
+// to create the device attestation.
+func NewNonce(appPackageName string, ttKeysBase64, regions []string) Noncer {
 	// base64 keys are to be lexographically sorted
 	sortedKeys := make([]string, len(ttKeysBase64))
 	copy(sortedKeys, ttKeysBase64)
@@ -48,7 +52,7 @@ func NewNonce(appPackageName string, ttKeysBase64, regions []string) *NonceData 
 	}
 	sort.Strings(sortedRegions)
 
-	return &NonceData{
+	return &nonceData{
 		appPackageName: appPackageName,
 		ttKeysBase64:   sortedKeys,
 		regions:        sortedRegions,
@@ -56,9 +60,12 @@ func NewNonce(appPackageName string, ttKeysBase64, regions []string) *NonceData 
 }
 
 // Nonce returns the expected nonce for this data, from this application.
-func (n *NonceData) Nonce() string {
+func (n *nonceData) Nonce() string {
 	// The nonce is the appPackageName, keys, and regions put together
-	cleartext := n.appPackageName + strings.Join(n.ttKeysBase64, "") + strings.Join(n.regions, "")
+	cleartext :=
+		base64.RawStdEncoding.EncodeToString([]byte(n.appPackageName)) + "." +
+			base64.RawStdEncoding.EncodeToString([]byte(strings.Join(n.ttKeysBase64, ""))) + "." +
+			base64.RawStdEncoding.EncodeToString([]byte(strings.Join(n.regions, "")))
 	// Take the sha256 checksum of that data
 	sum := sha256.Sum256([]byte(cleartext))
 	// Base64 encode the result.
