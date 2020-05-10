@@ -38,7 +38,7 @@ func TestGetNonce(t *testing.T) {
 				TransmissionRisk:          4,
 				VerificationAuthorityName: "QRTH-ROWO-LOLO-FOOB",
 			},
-			Expected: "xH8QNR09EKuCCuNitam1RgjPaGHO/9p54VikqFdirVY",
+			Expected: "xH8QNR09EKuCCuNitam1RgjPaGHO/9p54VikqFdirVY=",
 		},
 		{
 			Data: model.Publish{
@@ -52,7 +52,7 @@ func TestGetNonce(t *testing.T) {
 				TransmissionRisk:          7,
 				VerificationAuthorityName: "BREA-KMEO-FFAP-IECE",
 			},
-			Expected: "LHSwWAjTf3nMVTk7LBwMx9Wg7jEPRjEJf1zRtoxQI64",
+			Expected: "LHSwWAjTf3nMVTk7LBwMx9Wg7jEPRjEJf1zRtoxQI64=",
 		},
 	}
 

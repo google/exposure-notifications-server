@@ -90,8 +90,9 @@ func (n *nonceData) Nonce() string {
 			strings.Join(keys, ",") + "|" + // where key is b64key.intervalNum.intervalCount
 			strings.Join(n.regions, ",") + "|" +
 			n.verification
+
 	// Take the sha256 checksum of that data
 	sum := sha256.Sum256([]byte(cleartext))
 	// Base64 encode the result.
-	return base64.RawStdEncoding.EncodeToString(sum[:])
+	return base64.StdEncoding.EncodeToString(sum[:])
 }
