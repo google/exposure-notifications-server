@@ -233,9 +233,6 @@ Signs payloads for verification on device.
 
 
 
-## 
-
-
 ## 1. GKE On-Prem
 
 Data and Compute Hosted on Premises

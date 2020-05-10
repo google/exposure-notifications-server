@@ -31,3 +31,5 @@ Server here:
 * [User guide](user-guide.md)
 * [Contributor guide](/CONTRIBUTING.md)
 * [Reference documentation](https://godoc.org/github.com/google/exposure-notifications-server)
+* [Server Functional Requirements](server_functional_requirements.md)
+* [Server Deployment Options](server_deployment_options.md)
