@@ -49,7 +49,7 @@ func NewNonce(publish *model.Publish) Noncer {
 	sortedKeys := make([]model.ExposureKey, len(publish.Keys))
 	copy(sortedKeys, publish.Keys)
 	sort.Slice(sortedKeys, func(i int, j int) bool {
-		return strings.Compare(sortedKeys[i].Key, sortedKeys[i].Key) <= 0
+		return sortedKeys[i].Key < sortedKeys[j].Key
 	})
 
 	// regions are to be uppercased and then lexographically sorted
@@ -64,7 +64,7 @@ func NewNonce(publish *model.Publish) Noncer {
 		transmissionRisk: publish.TransmissionRisk,
 		ttKeysBase64:     sortedKeys,
 		regions:          sortedRegions,
-		verification:     publish.Verification,
+		verification:     publish.VerificationAuthorityName,
 	}
 }
 
