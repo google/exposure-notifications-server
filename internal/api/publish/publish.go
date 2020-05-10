@@ -17,7 +17,10 @@ package publish
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/config"
@@ -32,21 +35,51 @@ import (
 const (
 	targetRequestDurationEnv = "TARGET_REQUEST_DURATION"
 	defaultTargetDuration    = 5 * time.Second
+
+	maxExposureKeysEnv       = "MAX_KEYS_ON_PUBLISH"
+	maxExposureKeysDefault   = 14
+	maxIntervalStartEnv      = "MAX_INTERVAL_AGE_ON_PUBLISH"
+	maxIntervalStartDefault  = 15 * 24 * time.Hour // 15 days
+	maxIntervalFutureEnv     = "MAX_INTERVAL_FUTURE_ON_PUBLISH"
+	maxIntervalFutureDefault = 2 * time.Hour
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
-func NewHandler(ctx context.Context, db *database.DB, cfg *config.Config, env *serverenv.ServerEnv) http.Handler {
-	return &publishHandler{
-		config: cfg,
-		db:     db,
-		env:    env,
+func NewHandler(ctx context.Context, db *database.DB, cfg *config.Config, env *serverenv.ServerEnv) (http.Handler, error) {
+	logger := logging.FromContext(ctx)
+
+	maxKeys := maxExposureKeysDefault
+	if val := os.Getenv(maxExposureKeysEnv); val != "" {
+		parsed, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			logger.Errorf("couldn't parse env var %v, using defualt value %v", maxExposureKeysEnv, maxExposureKeysDefault)
+		} else {
+			maxKeys = int(parsed)
+		}
 	}
+	maxAge := serverenv.ParseDuration(ctx, maxIntervalStartEnv, maxIntervalStartDefault)
+	maxFuture := serverenv.ParseDuration(ctx, maxIntervalFutureEnv, maxIntervalFutureDefault)
+	transformer, err := model.NewTransformer(maxKeys, maxAge, maxFuture)
+	if err != nil {
+		return nil, fmt.Errorf("model.NewTransformer: %w", err)
+	}
+	logger.Infof("max keys per upload: %v", maxKeys)
+	logger.Infof("max interval start age: %v", maxAge)
+	logger.Infof("max interval start future: %v", maxFuture)
+
+	return &publishHandler{
+		config:      cfg,
+		db:          db,
+		env:         env,
+		transformer: transformer,
+	}, nil
 }
 
 type publishHandler struct {
-	config *config.Config
-	db     *database.DB
-	env    *serverenv.ServerEnv
+	config      *config.Config
+	db          *database.DB
+	env         *serverenv.ServerEnv
+	transformer *model.Transformer
 }
 
 // There is a target normalized latency for this function. This is to help prevent
@@ -117,7 +150,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	batchTime := time.Now()
-	exposures, err := model.TransformPublish(&data, batchTime)
+	exposures, err := h.transformer.TransformPublish(&data, batchTime)
 	if err != nil {
 		logger.Errorf("error transforming publish data: %v", err)
 		metrics.WriteInt("publish-transform-fail", true, 1)

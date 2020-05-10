@@ -33,7 +33,7 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error
 
 	query := `
 	    SELECT
-	    	app_package_name, platform, apk_digest, enforce_apk_digest, cts_profile_match, basic_integrity,
+	    	app_package_name, platform, apk_digest, cts_profile_match, basic_integrity,
         allowed_past_seconds, allowed_future_seconds, allowed_regions, all_regions
 	    FROM
 	    	APIConfig`
