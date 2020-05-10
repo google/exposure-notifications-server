@@ -27,11 +27,11 @@ func TestGetNonce(t *testing.T) {
 	}{
 		{[]string{"x21Goi8X9m/glOZ0+wz8fA", "2mvFSmRsFmJR5r07dxGSjg", "6bAd3dv7p+VEuaJVkVItaQ"},
 			[]string{"GB", "US"},
-			"oBH7rpUdv4CmAYRCqfuoruPaIKoey4QM+glTrNvhF6s",
+			"UWvJuvgf7SGAAprY8iH1rQzm/lstr1SGRWQu4i7FMEs",
 		},
 		{[]string{"zdCW5HrOKbirxmQVc0L/eA", "t+k51ifogJo9jq3GH9LWGQ", "3uXRrSlcv1+OMI3oFtdaUw"},
 			[]string{"gB", "us"},
-			"Mb668YLw6ePJPK/s3cotpEi8FQM1S2odugnvxb3mPBI",
+			"R6k7EOVS8kpV4zmPm9DbAbEspN1FA6qHC1T9q8bPvyo",
 		},
 	}
 
