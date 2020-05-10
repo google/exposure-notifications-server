@@ -32,16 +32,6 @@ const (
 	InsertExposuresBatchSize = 500
 )
 
-// ExposureIterator iterates over a set of exposures.
-type ExposureIterator interface {
-	// Next returns an exposure and a flag indicating if the iterator is done (the exposure will be nil when done==true).
-	Next() (exposure *model.Exposure, done bool, err error)
-	// Cursor returns a string that can be passed as LastCursor in FetchExposuresCriteria when generating another iterator.
-	Cursor() (string, error)
-	// Close should be called when done iterating.
-	Close() error
-}
-
 // IterateExposuresCriteria is criteria to iterate exposures.
 type IterateExposuresCriteria struct {
 	IncludeRegions []string
@@ -54,80 +44,78 @@ type IterateExposuresCriteria struct {
 	OnlyLocalProvenance bool
 }
 
-// IterateExposures returns an iterator for exposures meeting the criteria. Must call iterator's Close() method when done.
-func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria) (ExposureIterator, error) {
+// IterateExposures calls f on each Exposure in the database that matches the
+// given criteria. If f returns an error, the iteration stops, and the returned
+// error will match f's error with errors.Is.
+//
+// If an error occurs during the query, IterateExposures will return a non-empty
+// string along with a non-nil error. That string, when passed as
+// criteria.LastCursor in a subsequent call to IterateExposures, will continue
+// the iteration at the failed row. If IterateExposures returns a nil error,
+// the first return value will be the empty string.
+func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*model.Exposure) error) (cur string, err error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %v", err)
+		return "", fmt.Errorf("acquiring connection: %v", err)
 	}
-	// We don't defer Release() here because the iterator's Close() method will do it.
-
+	defer conn.Release()
 	offset := 0
 	if criteria.LastCursor != "" {
 		offsetStr, err := decodeCursor(criteria.LastCursor)
 		if err != nil {
-			return nil, fmt.Errorf("decoding cursor: %v", err)
+			return "", fmt.Errorf("decoding cursor: %v", err)
 		}
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil {
-			return nil, fmt.Errorf("decoding cursor %v", err)
+			return "", fmt.Errorf("decoding cursor %v", err)
 		}
 	}
 
 	query, args, err := generateExposureQuery(criteria)
 	if err != nil {
-		return nil, fmt.Errorf("generating where: %v", err)
+		return "", fmt.Errorf("generating where: %v", err)
 	}
+
+	// TODO: this is a pretty weak cursor solution, but not too bad since we'll
+	// typcially have queries ahead of the cleanup and before the current
+	// ingestion window, and those should be stable.
+	cursor := func() string { return encodeCursor(strconv.Itoa(offset)) }
 
 	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return cursor(), err
 	}
-
-	return &postgresExposureIterator{iter: newRowIterator(conn, rows), offset: offset}, nil
-}
-
-type postgresExposureIterator struct {
-	iter   *rowIterator
-	offset int
-}
-
-func (i *postgresExposureIterator) Next() (*model.Exposure, bool, error) {
-	if done, err := i.iter.next(); done {
-		return nil, done, err
+	defer rows.Close()
+	for rows.Next() {
+		if err := ctx.Err(); err != nil {
+			return cursor(), err
+		}
+		var (
+			m          model.Exposure
+			encodedKey string
+			syncID     *int64
+		)
+		if err := rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
+			&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &syncID); err != nil {
+			return cursor(), err
+		}
+		var err error
+		m.ExposureKey, err = decodeExposureKey(encodedKey)
+		if err != nil {
+			return cursor(), err
+		}
+		if syncID != nil {
+			m.FederationSyncID = *syncID
+		}
+		if err := f(&m); err != nil {
+			return cursor(), err
+		}
+		offset++
 	}
-
-	var (
-		m          model.Exposure
-		encodedKey string
-		syncID     *int64
-	)
-	if err := i.iter.rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
-		&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &syncID); err != nil {
-		return nil, false, err
+	if err := rows.Err(); err != nil {
+		return cursor(), err
 	}
-
-	var err error
-	m.ExposureKey, err = decodeExposureKey(encodedKey)
-	if err != nil {
-		return nil, false, err
-	}
-	if syncID != nil {
-		m.FederationSyncID = *syncID
-	}
-	i.offset++
-
-	return &m, false, nil
-}
-
-func (i *postgresExposureIterator) Cursor() (string, error) {
-	// TODO: this is a pretty weak cursor solution, but not too bad since we'll typcially have queries ahead of the cleanup
-	// and before the current ingestion window, and those should be stable.
-	return encodeCursor(strconv.Itoa(i.offset)), nil
-}
-
-func (i *postgresExposureIterator) Close() error {
-	return i.iter.close()
+	return "", nil
 }
 
 func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interface{}, error) {

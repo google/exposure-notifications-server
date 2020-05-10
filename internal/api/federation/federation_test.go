@@ -16,7 +16,6 @@ package federation
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -67,49 +66,25 @@ func makeExposureWithVerification(diagKey *pb.ExposureKey, diagStatus pb.Transmi
 // timeout is used by testIterator to indicate that a timeout signal should be sent.
 type timeout struct{}
 
-// testIterator is a mock database iterator. It can return a stream of model.Exposures, or send a timeout signal.
-type testIterator struct {
-	iterations []interface{}
-	cancel     context.CancelFunc
-	index      int
-	cursor     string
-}
-
-func (i *testIterator) Next() (*model.Exposure, bool, error) {
-	if i.index > len(i.iterations)-1 {
-		// Reached end of results set.
-		return nil, true, nil
-	}
-
-	item := i.iterations[i.index]
-	i.index++
-
-	// Switch on the type of iteration (either model.Exposure or timeout).
-	switch v := item.(type) {
-
-	case *model.Exposure:
-		// Set the cursor equal to the most recent diagnosis key, suffixed with "_cursor".
-		i.cursor = string(v.ExposureKey) + "_cursor"
-		return v, false, nil
-
-	case timeout:
-		if i.cancel == nil {
-			return nil, false, errors.New("timeout encountered, but no CancelFunc configured")
+func iterFunc(elements []interface{}) iterateExposuresFunc {
+	return func(_ context.Context, _ database.IterateExposuresCriteria, f func(*model.Exposure) error) (string, error) {
+		var cursor string
+		for _, el := range elements {
+			switch v := el.(type) {
+			case *model.Exposure:
+				// Set the cursor to the most recent diagnosis key, suffixed with "_cursor".
+				cursor = string(v.ExposureKey) + "_cursor"
+				if err := f(v); err != nil {
+					return cursor, err
+				}
+			case timeout:
+				return cursor, context.Canceled
+			default:
+				panic("bad element")
+			}
 		}
-
-		i.cancel()
-		return nil, false, nil
+		return cursor, nil
 	}
-
-	return nil, false, errors.New("unexpected end of result set")
-}
-
-func (i *testIterator) Cursor() (string, error) {
-	return i.cursor, nil
-}
-
-func (i *testIterator) Close() error {
-	return nil
 }
 
 // TestFetch tests the fetch() function.
@@ -277,13 +252,7 @@ func TestFetch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			server := federationServer{}
 			req := pb.FederationFetchRequest{ExcludeRegionIdentifiers: tc.excludeRegions}
-			ctx, cancel := context.WithCancel(context.Background())
-			itFunc := func(ctx context.Context, criteria database.IterateExposuresCriteria) (database.ExposureIterator, error) {
-				return &testIterator{iterations: tc.iterations, cancel: cancel}, nil
-			}
-
-			got, err := server.fetch(ctx, &req, itFunc, time.Now())
-
+			got, err := server.fetch(context.Background(), &req, iterFunc(tc.iterations), time.Now())
 			if err != nil {
 				t.Fatalf("fetch() returned err=%v, want err=nil", err)
 			}

@@ -33,7 +33,7 @@ import (
 // type diagKeyList []*pb.ExposureKey
 // type diagKeys map[pb.TransmissionRisk]diagKeyList
 // type collator map[string]diagKeys
-type fetchIterator func(context.Context, database.IterateExposuresCriteria) (database.ExposureIterator, error)
+type iterateExposuresFunc func(context.Context, database.IterateExposuresCriteria, func(*model.Exposure) error) (string, error)
 
 // NewServer builds a new FederationServer.
 func NewServer(db *database.DB, timeout time.Duration) pb.FederationServer {
@@ -58,7 +58,7 @@ func (s *federationServer) Fetch(ctx context.Context, req *pb.FederationFetchReq
 	return response, nil
 }
 
-func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFunc fetchIterator, fetchUntil time.Time) (*pb.FederationFetchResponse, error) {
+func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFunc iterateExposuresFunc, fetchUntil time.Time) (*pb.FederationFetchResponse, error) {
 	logger := logging.FromContext(ctx)
 
 	for i := range req.RegionIdentifiers {
@@ -97,76 +97,34 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		excludedRegions[region] = struct{}{}
 	}
 
-	it, err := itFunc(ctx, criteria)
-	if err != nil {
-		return nil, fmt.Errorf("querying exposures (criteria: %#v): %w", criteria, err)
-	}
-	defer it.Close()
-
 	ctrMap := map[string]*pb.ContactTracingResponse{} // local index into the response being assembled; keyed on unique set of regions.
 	ctiMap := map[string]*pb.ContactTracingInfo{}     // local index into the response being assembled; keys on unique set of (ctrMap key, transmissionRisk, verificationAuthorityName)
 	response := &pb.FederationFetchResponse{}
-
 	count := 0
-	for !response.PartialResponse { // This loop will end on break, or if the context is interrupted and we send a partial response.
-
-		// Check the context to see if we've been interrupted (e.g., timeout).
-		select {
-		case <-ctx.Done():
-			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled { // May be context.Canceled due to test code.
-				return nil, fmt.Errorf("context error: %w", err)
-			}
-
-			cursor, err := it.Cursor()
-			if err != nil {
-				return nil, fmt.Errorf("generating cursor: %w", err)
-			}
-
-			logger.Infof("Fetch request reached time out, returning partial response.")
-			response.PartialResponse = true
-			response.NextFetchToken = cursor
-			continue
-
-		default:
-			// Fallthrough to process a record.
-		}
-
-		inf, done, err := it.Next()
-		if err != nil {
-			return nil, fmt.Errorf("iterating results: %w", err)
-		}
-
-		if inf == nil {
-			// Iterator may go one past before returning done==true.
-			if done {
-				break
-			}
-			continue
-		}
-
+	cursor, err := itFunc(ctx, criteria, func(inf *model.Exposure) error {
 		// If the diagnosis key is empty, it's malformed, so skip it.
 		if len(inf.ExposureKey) == 0 {
 			logger.Debugf("Exposure %s missing ExposureKey, skipping.", inf.ExposureKey)
-			continue
+			return nil
 		}
 
 		// If there are no regions on the exposure, it's malformed, so skip it.
 		if len(inf.Regions) == 0 {
 			logger.Debugf("Exposure %s missing Regions, skipping.", inf.ExposureKey)
-			continue
+			return nil
 		}
 
 		// Filter out non-LocalProvenance results; we should not re-federate.
 		// This may already be handled by the database query and is included here for completeness.
 		if !inf.LocalProvenance {
 			logger.Debugf("Exposure %s not LocalProvenance, skipping.", inf.ExposureKey)
-			continue
+			return nil
 		}
 
 		// If the exposure has an unknown status, it's malformed, so skip it.
 		if _, ok := pb.TransmissionRisk_name[int32(inf.TransmissionRisk)]; !ok {
 			logger.Debugf("Exposure %s has invalid TransmissionRisk, skipping.", inf.ExposureKey)
-			continue
+			return nil
 		}
 
 		// If all the regions on the record are excluded, skip it.
@@ -181,7 +139,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 		if skip {
 			logger.Debugf("Exposure %s contains only excluded regions, skipping.", inf.ExposureKey)
-			continue
+			return nil
 		}
 
 		// If filtering on a region (len(includedRegions) > 0) and none of the regions on the record are included, skip it.
@@ -196,7 +154,7 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 			}
 			if skip {
 				logger.Debugf("Exposure %s does not contain requested regions, skipping.", inf.ExposureKey)
-				continue
+				return nil
 			}
 		}
 
@@ -233,12 +191,17 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		count++
-
-		if done {
-			break
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			logger.Infof("Fetch request reached time out, returning partial response.")
+			response.PartialResponse = true
+			response.NextFetchToken = cursor
+		} else {
+			return nil, err
 		}
 	}
-
 	logger.Infof("Sent %d keys", count)
 	return response, nil
 }
