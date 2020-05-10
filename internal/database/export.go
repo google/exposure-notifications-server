@@ -505,7 +505,7 @@ func updateExportFileStatus(ctx context.Context, tx pgx.Tx, batchID int64, filen
 		SET
 			status = $1
 		WHERE
-			filename = $2
+			filename = $2 AND
 			batch_id = $3
 		`, status, filename, batchID)
 	if err != nil {
