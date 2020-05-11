@@ -18,23 +18,34 @@ The server components are responsible for the following functions:
 mobile devices, validating those keys via device attestation APIs, and
 storing those keys in a database.
 
-* Periodically, generating incremental files for download by client devices for performing the key matching algorithm (all key matching happens on the mobile devices, not on the server). These incremental files must be digitally signed with a private key. The corresponding public key is pushed to mobile devices via separate configuration.
+* Periodically generating incremental files for download by client
+devices for performing the key matching algorithm that is run on the mobile
+device. The incremental files **must be digitally signed with a private key**.
+The corresponding public key is pushed to mobile device separately.
 
-  * Recommended: serving these files from a content delivery network (CDN).
-
-* Recommended: periodically deleting old temporary exposure keys. After 14 days (or configurable different time periods) they can no longer be matched to devices.
-
-There are some additional required and recommended dependencies:
+  * Recommended: You should use a content delivery network (CDN) to serve these
+  files.
 
 * Required: A database for storage of published diagnosis keys.
 
 * Required: A key/secret management system for storage of API keys, other authorization credentials (CDN for example), and private keys for signing device download content.
 
-* Recommended: Content Distribution Network (CDN) for distributing the temporary exposure keys of affected users to mobile devices.
+* Recommended: Periodically deleting old temporary exposure keys. After 14
+days (or configured time period) the keys can no longer be matched to devices.
+
+* Recommended: Using a CDN to distribute the temporary exposure keys of affected
+users to mobile devices.
 
 ### Publishing temporary exposure keys
 
-When a user reports a diagnosis, it is reported using the publish API server. The specific protocol or encoding doesn’t matter, for reference we are providing a JSON over HTTPS API to show the required data fields. A given mobile application and server pair could agree upon additional information to be shared. The information described in this section is the minimum required set in order to validate the uploads and to generate the necessary client batches for ingestion into the device for key matching.
+When a user reports a diagnosis, it is reported using the publish API server.
+In the reference server implementation, the data is encoded in JSON and sent
+over HTTPS, however you can use any encoding and protocol.
+
+A given mobile application and server pair could agree upon additional information
+to be shared. The information described in this section is the minimum required
+set in order to validate the uploads and to generate the necessary client
+batches for ingestion into the device for key matching.
 
 Minimum required fields, followed by a JSON example:
 
@@ -74,7 +85,7 @@ Minimum required fields, followed by a JSON example:
     *   Description: Mobile device platform, i.e. “ios” or “android” used to indicate which device attestation verification APIs should be used.
 *   transmissionRisk: 
     *   Type: Integer
-    *   **The values and meanings of this enum are not finalized at this time.**
+    *   **The values and meanings of this enum are not finalized at this time.** //TODO(llatif): check status
     *   Constraints:
         *   REQUIRED
         *   Valid values range from 1-9
@@ -92,7 +103,7 @@ Example additional fields that an application might want to collect:
 
 *   regions:
     *   Type: Array of string
-    *   Description: 2 letter country code a.k.a [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) 
+    *   Description: 2 letter country code a.k.a [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2)
         *   _It is possible for a server operator to maintain a more fine grained definition of region or use different identifiers altogether._
     *   **Required for federation between regions. Exact region identifier needed for federation is subject to change.**
 *   appPackageName
@@ -130,17 +141,17 @@ Example POST request payload, assuming JSON over HTTP.
 
 Other implementation details / requirements / suggestions:
 
-*   Required: Implement a whitelist check for appPackageName and the regions in which the app is allowed to report on.
-*   Required: Android device verification. The SafetyNet device attestation API can be used to confirm a genuine Android device is used to prevent abuse, see https://developer.android.com/training/safetynet/attestation
-    *   Having the temporaryTracingKeys and regions be part of the device attestation prevents this attestation from being used to upload different data than what was used to verify the device.
-    *   For verification instructions, see [Verify the SafetyNet attestation response.](https://developer.android.com/training/safetynet/attestation#verify-attestation-response)
-*   Required: iOS device verification. The DeviceCheck API can be used to confirm a genuine iOS device is used to prevent abuse, see https://developer.apple.com/documentation/devicecheck 
-    *   _iOS device uploads must also be verified with the iOS device attestation API._
-    *   We recommend the `transaction_id` in the payload be calculated as the SHA256 hash of the concatenation of:
-        *   appPackageName
-        *   Concatenation of the TrackingKey.Key values in their base64 encoding, sorted lexicographically
-        *   Concatenation of regions, uppercased, sorted lexicographically
-    *   Having the temporaryTracingKeys and regions be part of the device attestation prevents this attestation from being used to upload different data than what was used to verify the device.
+* Required: Implement a whitelist check for appPackageName and the regions in which the app is allowed to report on.
+* Required: Android device verification. The SafetyNet device attestation API can be used to confirm a genuine Android device is used to prevent abuse, see https://developer.android.com/training/safetynet/attestation
+  * Having the temporaryTracingKeys and regions be part of the device attestation prevents this attestation from being used to upload different data than what was used to verify the device.
+    * For verification instructions, see [Verify the SafetyNet attestation response.](https://developer.android.com/training/safetynet/attestation#verify-attestation-response)
+* Required: iOS device verification. The DeviceCheck API can be used to confirm a genuine iOS device is used to prevent abuse, see https://developer.apple.com/documentation/devicecheck 
+  *_iOS device uploads must also be verified with the iOS device attestation API._
+    * We recommend the `transaction_id` in the payload be calculated as the SHA256 hash of the concatenation of:
+        * appPackageName
+        * Concatenation of the TrackingKey.Key values in their base64 encoding, sorted lexicographically
+        * Concatenation of regions, uppercased, sorted lexicographically
+    * Having the temporaryTracingKeys and regions be part of the device attestation prevents this attestation from being used to upload different data than what was used to verify the device.
     *   DeviceCheck verification requests are validated with a server request to: https://api.development.devicecheck.apple.com/v1/validate\_device\_token
         *   Verification requires a JWT for API access:
             *   https://help.apple.com/developer-account/#/deva05921840
@@ -151,16 +162,16 @@ Other implementation details / requirements / suggestions:
 
 ### Batch creation and publishing
 
-A regularly scheduled job should be triggered that generates download files for
-download over HTTPS protocol to client devices. Due to the generation being a
-frequent operation (at least once a day for every device), we recommend that you
-generate the data in a single operation rather than on-demand, and distribute it
-using a CDN.
+You should schedule a script that generates files for download over the HTTPS
+protocol to client devices. The generation of these files are a regular and
+frequent operation (at least once a day per device), we recommend that you
+generate the files in a single operation rather than on-demand, and distribute
+the files using a CDN.
 
-The batch generation should be per-region, incremental feeds of new data. While
-additional data can be included in the downloads, there is a minimum set that is
-required by the exposure notification API, which is relayed from affected users
-in an unmodified form.
+The batch file generation should be per-region, incremental feeds of new data.
+While additional data can be included in the downloads, there is a minimum set
+that is required by the exposure notification API, which is relayed from
+affected users in an unmodified form.
 
 The device operating system and libraries will use the known public key to verify
 an attached data signature before loading the data. To make the data verifiable:
@@ -185,7 +196,7 @@ Export files is a zip archive containing two files:
 
 #### Exposure File Binary Format
 
-The `export.bin` file of the archive contains the Temporary Exposure Keys
+The `export.bin` file of the archive contains the temporary exposure Keys
 broadcast by confirmed devices. It is an incremental file containing the
 latest keys the server was made aware of in a given time window. This time
 window is typically daily, allowing devices to perform nightly matching.
@@ -256,7 +267,7 @@ from a device. This can be achieved by sorting by key, as they are random.
 The `export.sig` file contains the signature and information needed for
 verification. The `export.bin` file will be signed with the key exchanged when
 the app was whitelisted to use the API and the server was on boarded. The
-signature file is the serialization of the TEKSignatureList protocol buffer
+signature file is the serialization of the `TEKSignatureList` Protocol Buffer
 message defined as follows:
 
 ```
@@ -278,49 +289,76 @@ message TEKSignature {
 
 **Important: The public keys used to verify these signatures must be shared with Apple and Google for distribution to devices in order for the exports to be processed by mobile devices.**
 
-These files could grow to a size that makes them unfeasible to download in their entirety, especially for devices that may never have WiFi access. You can break files up into batches to keep the file size below 16MB (about 750,000 keys). In this case, each chunk of data in the overall batch will be its own zip archive with its own signature covering just that portion of the batch. The serialized protocol buffers should populate the batch\_num and batch\_size fields accordingly.
+#### Considerations and recommendations
 
-The application on the device must also know which files to download. While we don’t have a specific recommendation on file naming format, we recommend that a consistent index file is used so that a client would download that index file to discover any new, unprocessed batches. 
+* These files could grow to a size that makes them unfeasible to download in
+their entirety, especially for devices that may never have WiFi access. You
+can break files up into batches to keep the file size below 16MB which is
+approximately 750,000 keys.
 
-If you are using a CDN to distribute these files, ensure that the cache control expiration is set so that the file is refreshed frequently for distribution.
+  When the files are split into chunks, each chunk of data in the overall batch
+will be its own zip archive. Each zip archive will have a signature file that
+represents the chunk. The serialized Protocol Buffers should populate the
+`batch_num` and `batch_size` fields accordingly.
 
-Note that while a CDN is the recommended distribution mechanism, you can use other mechanisms to distribute these  files.
+* The app on the device must know which files to download. We recommend that
+a consistent index file is used so that a client would download that index file
+to discover any new, unprocessed batches.
+
+* If you are using a CDN to distribute these files, ensure that the cache
+control expiration is set so that the file is refreshed frequently for distribution.
+
+  Note that while a CDN is the recommended distribution mechanism, you can use
+ other mechanisms to distribute these  files.
 
 #### Signature verification
 
-The API will verify the signature against the content of the exposure binary file. It will use the metadata included in the signature file to identify which verification key to use for the specific application. The on device API will verify that:
+The API will verify the signature against the content of the exposure binary
+file. It will use the metadata included in the signature file to identify
+which verification key to use for the specific application. The on device
+API will verify that:
 
-* The metadata in the signature file matches that in the export file. Specifically, the API will verify that the following fields match (all other fields can be left blank in the SignatureInfo message inside of TemporaryExposureKeyExport but are needed in TEKSignature)
-  * app\_bundle\_id
-    *   Android\_package
-*   the start\_timestamp of the current batch matches the end\_timestamp of the last batch if batch\_num is set:
-    *   the signatures of all files in the batch match their corresponding export file
-    *   there are batch\_size number of files in the batch
-    *   all files in the batch have the same start\_timestamp and end\_timestamp
+* The metadata in the signature file matches that in the export file.
+Specifically, the API will verify that the following fields match (all other
+fields can be left blank in the SignatureInfo message inside of
+`TemporaryExposureKeyExport` but are needed in `TEKSignature`)
+
+  * app_bundle_id
+    * Android\_package
+  * the start\_timestamp of the current batch matches the end\_timestamp of the last batch if batch\_num is set:
+    * The signatures of all files in the batch match their corresponding export file
+    * There are batch\_size number of files in the batch
+    * All files in the batch have the same start\_timestamp and end\_timestamp
 
 The API will ensure that it has completed all verifications prior to invoking and releasing the matching results.
 
+### Managing secrets
 
-### Secret Manager
+The use of a secure secret manager (for example,
+[Hashicorp](https://www.hashicorp.com/),
+[Key Vault](https://azure.microsoft.com/en-us/services/key-vault/),
+[Cloud Secret](https://cloud.google.com/secret-manager)) or a hardened
+on-premises equivalent is required to store the following data:
 
-The use of a secure secret manager (e.g. [Hashicorp](https://www.hashicorp.com/), [Key Vault](https://azure.microsoft.com/en-us/services/key-vault/), [Cloud Secret](https://cloud.google.com/secret-manager)) or hardened onsite equivalent is required to store the following data:
-
-* API Keys
+* API keys
   * Android SafetyNet API key
-  * API Keys / credentials needed to publish to the CDN
+  * API keys and credentials needed for publication to the CDN
 
-* Private Signing Key
+* Private signing key
   * The private key for signing the client download files
 
 ### Data Deletion
 
-Since devices will only be retaining the temporary exposure keys for a limited time (configurable number of days), we recommend:
+Since devices will only be retaining the temporary exposure keys for a limited
+time (a configurable number of days), we recommend:
 
-* Dropping keys from the database on a similar schedule as they would be dropped from devices.
+* Dropping keys from the database on a similar schedule as they would be dropped
+from devices.
 
-* Remove files from the CDN once they are no longer needed. 
+* Removing obsolete files from the CDN.
 
-* If used, the index file on the CDN should be updated to no longer point to deleted files.
+* If used, the index file on the CDN should be updated to no longer point to
+deleted files.
 
-Although current protocols do not provide a mechanism for the server to share revocation status with clients, nor allow secure change of client status after publication, the database should be designed to accommodate bulk deletion due to abuse, broken apps, human error, or mass incorrect lab results.
-
+You should design your database to accommodate bulk deletion due to abuse,
+broken apps, human error, or incorrect lab results.
