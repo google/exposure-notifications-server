@@ -248,51 +248,22 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 		OnlyLocalProvenance: false, // include federated ids
 	}
 
-	it, err := s.db.IterateExposures(ctx, criteria)
-	if err != nil {
-		return fmt.Errorf("iterating exposures: %w", err)
-	}
-	defer it.Close()
-
 	// Build up groups of exposures in memory. We need to use memory so we can determine the
 	// total number of groups (which is embedded in each export file). This technique avoids
 	// SELECT COUNT which would lock the database slowing new uploads.
 	var groups [][]*model.Exposure
 	var exposures []*model.Exposure
-	for {
-		select {
-		case <-ctx.Done():
-			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
-				return err
-			}
-			logger.Infof("Timed out iterating exposures for batch %s, the entire batch will be retried once the batch lease expires on %v", eb.BatchID, eb.LeaseExpires)
-			return nil
-		default:
-			// Fallthrough
-		}
-
-		exp, done, err := it.Next()
-		if err != nil {
-			return err
-		}
-		if exp == nil {
-			// Iterator may go one past before returning done==true.
-			if done {
-				break
-			}
-			continue
-		}
-
+	_, err := s.db.IterateExposures(ctx, criteria, func(exp *model.Exposure) error {
 		exposures = append(exposures, exp)
 		if len(exposures) == s.bsc.MaxRecords {
 			groups = append(groups, exposures)
 			exposures = nil
 		}
-		if done {
-			break
-		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("iterating exposures: %w", err)
 	}
-
 	// Create a group for any remaining keys.
 	if len(exposures) > 0 {
 		groups = append(groups, exposures)
