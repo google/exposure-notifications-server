@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/config"
@@ -43,6 +44,8 @@ const (
 	deviceCheckPrivateKeyEnv = "DEVICECHECK_PRIVATE_KEY"
 	deviceCheckKeyIDEnv      = "DEVICECHECK_KEY_ID"
 	deviceCheckTeamIDEnv     = "DEVICECHECK_TEAM_ID"
+
+	secretsDirEnv = "SECRETS_DIR"
 )
 
 func main() {
@@ -54,9 +57,17 @@ func main() {
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
-	env := serverenv.New(ctx,
+
+	opts := []serverenv.Option{
 		serverenv.WithSecretManager(sm),
-		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
+		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext),
+	}
+
+	if v := os.Getenv(secretsDirEnv); v != "" {
+		opts = append(opts, serverenv.WithSecretsDir(v))
+	}
+
+	env := serverenv.New(ctx, opts...)
 
 	db, err := database.NewFromEnv(ctx, env)
 	if err != nil {
