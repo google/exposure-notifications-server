@@ -103,7 +103,8 @@ go test ./... -coverprofile=coverage.out
 
 
 echo "🧪 Test DB Tests"
-
+echo "CGROUP"
+cat /proc/1/cgroup
 if ($( cat /proc/1/cgroup | grep docker > /dev/null )); then
    echo "🚒 In CI Container, start postgres process"
    export DB_USER=postgres
