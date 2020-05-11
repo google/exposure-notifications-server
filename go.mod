@@ -12,10 +12,7 @@ require (
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/lib/pq v1.4.0 // indirect
-<<<<<<< HEAD
-=======
 	github.com/sethvargo/go-gcpkms v0.0.0-20200417004547-e50d0c7083d9
->>>>>>> c73174da14f1a04ff8a4f551c1521f10fd8ef930
 	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
 	go.uber.org/zap v1.14.1
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect
