@@ -16,6 +16,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -137,25 +138,74 @@ func TestExposures(t *testing.T) {
 }
 
 func listExposures(ctx context.Context, c IterateExposuresCriteria) (_ []*model.Exposure, err error) {
-	iter, err := testDB.IterateExposures(ctx, c)
+	var exps []*model.Exposure
+	_, err = testDB.IterateExposures(ctx, c, func(e *model.Exposure) error {
+		exps = append(exps, e)
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err2 := iter.Close(); err2 != nil && err == nil {
-			err = err2
-		}
-	}()
-	var exps []*model.Exposure
-	for {
-		exp, done, err := iter.Next()
-		if err != nil {
-			return nil, err
-		}
-		if done {
-			break
-		}
-		exps = append(exps, exp)
-	}
 	return exps, nil
+}
+
+func TestIterateExposuresCursor(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	defer resetTestDB(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	// Insert some Exposures.
+	exposures := []*model.Exposure{
+		{
+			ExposureKey:    []byte("ABC"),
+			Regions:        []string{"US", "CA", "MX"},
+			IntervalNumber: 18,
+		},
+		{
+			ExposureKey:    []byte("DEF"),
+			Regions:        []string{"CA"},
+			IntervalNumber: 118,
+		},
+		{
+			ExposureKey:    []byte("123"),
+			IntervalNumber: 218,
+			Regions:        []string{"MX", "CA"},
+		},
+	}
+	if err := testDB.InsertExposures(ctx, exposures); err != nil {
+		t.Fatal(err)
+	}
+	// Iterate over them, canceling the context in the middle.
+	var seen []*model.Exposure
+	cursor, err := testDB.IterateExposures(ctx, IterateExposuresCriteria{}, func(e *model.Exposure) error {
+		seen = append(seen, e)
+		if len(seen) == 2 {
+			cancel()
+		}
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("got %v, wanted context.Canceled", err)
+	}
+	if diff := cmp.Diff(exposures[:2], seen); diff != "" {
+		t.Fatalf("exposures mismatch (-want, +got):\n%s", diff)
+	}
+	if want := encodeCursor("2"); cursor != want {
+		t.Fatalf("cursor: got %q, want %q", cursor, want)
+	}
+	// Resume from the cursor.
+	ctx = context.Background()
+	seen = nil
+	cursor, err = testDB.IterateExposures(ctx, IterateExposuresCriteria{LastCursor: cursor},
+		func(e *model.Exposure) error { seen = append(seen, e); return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(exposures[2:], seen); diff != "" {
+		t.Fatalf("exposures mismatch (-want, +got):\n%s", diff)
+	}
+	if cursor != "" {
+		t.Fatalf("cursor: got %q, want empty", cursor)
+	}
 }
