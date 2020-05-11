@@ -20,4 +20,7 @@ ALTER TABLE ExportConfig ADD COLUMN bucket_name VARCHAR(64) NOT NULL;
 ALTER TABLE ExportBatch ADD COLUMN bucket_name VARCHAR(64) NOT NULL;
 ALTER TABLE ExportFile ADD COLUMN bucket_name VARCHAR(64) NOT NULL;
 
+-- Ensure filename_root is unique to avoid collisions if multiple configs
+ALTER TABLE ExportConfig ADD CONSTRAINT filename_root_unique UNIQUE (filename_root);
+
 END;

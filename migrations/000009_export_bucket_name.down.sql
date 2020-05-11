@@ -19,4 +19,6 @@ ALTER TABLE ExportConfig DROP COLUMN bucket_name;
 ALTER TABLE ExportBatch DROP COLUMN bucket_name;
 ALTER TABLE ExportFile DROP COLUMN bucket_name;
 
+ALTER TABLE ExportConfig DROP CONSTRAINT filename_root_unique;
+
 END;
