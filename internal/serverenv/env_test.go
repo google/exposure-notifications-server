@@ -182,7 +182,7 @@ func TestWriteSecretToFile(t *testing.T) {
 	t.Cleanup(func() {
 		os.RemoveAll(tempDir)
 	})
-	env.SecretsDir = tempDir
+	env.secretsDir = tempDir
 
 	resolved, err := env.WriteSecretToFile(ctx, testKey)
 	if err != nil {
