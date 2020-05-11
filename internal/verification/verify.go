@@ -20,16 +20,20 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/android"
+	"github.com/google/exposure-notifications-server/internal/ios"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
 
-var ValidateAttestation = android.ValidateAttestation
+var (
+	androidValidateAttestation = android.ValidateAttestation
+	iosValidateDeviceToken     = ios.ValidateDeviceToken
+)
 
 // VerifyRegions checks the request regions against the regions allowed by
 // the configuration for the application.
-func VerifyRegions(cfg *apiconfig.APIConfig, data model.Publish) error {
+func VerifyRegions(cfg *apiconfig.APIConfig, data *model.Publish) error {
 	if cfg == nil {
 		return fmt.Errorf("no allowed regions configured")
 	}
@@ -48,8 +52,9 @@ func VerifyRegions(cfg *apiconfig.APIConfig, data model.Publish) error {
 	return nil
 }
 
-// VerifySafetyNet verifies the SafetyNet device attestation against the allowed configuration for the application.
-func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *apiconfig.APIConfig, data model.Publish) error {
+// VerifySafetyNet verifies the Android SafetyNet device attestation against the
+// allowed configuration for the application.
+func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *apiconfig.APIConfig, data *model.Publish) error {
 	logger := logging.FromContext(ctx)
 
 	if cfg == nil {
@@ -58,14 +63,39 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *apiconfig.
 		return fmt.Errorf("cannot enforce safetynet, no application config")
 	}
 
-	opts := cfg.VerifyOpts(requestTime, android.NewNonce(&data))
-	if err := ValidateAttestation(ctx, data.Verification, opts); err != nil {
+	opts := cfg.VerifyOpts(requestTime, android.NewNonce(data))
+	if err := androidValidateAttestation(ctx, data.Verification, opts); err != nil {
 		if cfg.BypassSafetyNet {
 			logger.Errorf("bypassing safetynet verification for: '%v'", data.AppPackageName)
 			return nil
 		}
-
 		return fmt.Errorf("android.ValidateAttestation: %w", err)
+	}
+
+	return nil
+}
+
+// VerifyDeviceCheck verifies an iOS DeviceCheck token against the Apple API.
+func VerifyDeviceCheck(ctx context.Context, cfg *apiconfig.APIConfig, data *model.Publish) error {
+	logger := logging.FromContext(ctx)
+
+	if cfg == nil {
+		return fmt.Errorf("cannot enforce devicecheck, missing config")
+	}
+
+	// TODO(sethvargo): Pull these values from cfg and plumb through.
+	opts := &ios.VerifyOpts{
+		KeyID:      cfg.DeviceCheckKeyID,
+		TeamID:     cfg.DeviceCheckTeamID,
+		PrivateKey: cfg.DeviceCheckPrivateKey,
+	}
+
+	if err := iosValidateDeviceToken(ctx, data.Verification, opts); err != nil {
+		if cfg.BypassDeviceCheck {
+			logger.Errorf("devicecheck failed, but bypass enabled for app: '%v', failure: '%v'", data.AppPackageName, err)
+			return nil
+		}
+		return fmt.Errorf("ios.ValidateDeviceToken: %w", err)
 	}
 
 	return nil

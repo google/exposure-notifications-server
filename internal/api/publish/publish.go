@@ -89,7 +89,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)
 
-	var data model.Publish
+	var data *model.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
@@ -127,17 +127,18 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cfg.IsIOS() {
-		logger.Errorf("ios devicecheck not supported on this server.")
-		metrics.WriteInt("publish-no-ios", true, 1)
-		// This returns success to the client.
-		w.WriteHeader(http.StatusOK)
-		return
+		if err := verification.VerifyDeviceCheck(ctx, cfg, data); err != nil {
+			logger.Errorf("unable to verify devicecheck payload: %v", err)
+			metrics.WriteInt("publish-devicecheck-invalid", true, 1)
+			// Return success to the client.
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 	} else if cfg.IsAndroid() {
-		err = verification.VerifySafetyNet(ctx, time.Now(), cfg, data)
-		if err != nil {
+		if err := verification.VerifySafetyNet(ctx, time.Now(), cfg, data); err != nil {
 			logger.Errorf("unable to verify safetynet payload: %v", err)
 			metrics.WriteInt("publish-safetnet-invalid", true, 1)
-			// This returns success to the client.
+			// Return success to the client.
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -150,7 +151,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	batchTime := time.Now()
-	exposures, err := h.transformer.TransformPublish(&data, batchTime)
+	exposures, err := h.transformer.TransformPublish(data, batchTime)
 	if err != nil {
 		logger.Errorf("error transforming publish data: %v", err)
 		metrics.WriteInt("publish-transform-fail", true, 1)
