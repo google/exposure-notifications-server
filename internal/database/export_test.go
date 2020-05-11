@@ -35,6 +35,7 @@ func TestAddExportConfig(t *testing.T) {
 	fromTime := time.Now()
 	thruTime := fromTime.Add(6 * time.Hour)
 	want := &model.ExportConfig{
+		BucketName:   "mocked",
 		FilenameRoot: "root",
 		Period:       3 * time.Hour,
 		Region:       "i1",
@@ -56,12 +57,12 @@ func TestAddExportConfig(t *testing.T) {
 	)
 	err = conn.QueryRow(ctx, `
 		SELECT
-			config_id, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key
+			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key
 		FROM
 			ExportConfig
 		WHERE
 			config_id = $1
-	`, want.ConfigID).Scan(&got.ConfigID, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru, &got.SigningKey)
+	`, want.ConfigID).Scan(&got.ConfigID, &got.BucketName, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru, &got.SigningKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,20 +85,24 @@ func TestIterateExportConfigs(t *testing.T) {
 	now := time.Now().Truncate(time.Microsecond)
 	ecs := []*model.ExportConfig{
 		{
+			BucketName:   "b 1",
 			FilenameRoot: "active 1",
 			From:         now.Add(-time.Minute),
 			Thru:         now.Add(time.Minute),
 		},
 		{
+			BucketName:   "b 2",
 			FilenameRoot: "active 2",
 			From:         now.Add(-time.Minute),
 		},
 		{
+			BucketName:   "b 3",
 			FilenameRoot: "done",
 			From:         now.Add(-time.Hour),
 			Thru:         now.Add(-time.Minute),
 		},
 		{
+			BucketName:   "b 4",
 			FilenameRoot: "not yet",
 			From:         now.Add(time.Minute),
 			Thru:         now.Add(time.Hour),
@@ -135,6 +140,7 @@ func TestBatches(t *testing.T) {
 
 	now := time.Now().Truncate(time.Microsecond)
 	config := &model.ExportConfig{
+		BucketName:   "mocked",
 		FilenameRoot: "root",
 		Period:       time.Hour,
 		Region:       "R",
@@ -152,6 +158,7 @@ func TestBatches(t *testing.T) {
 		wantLatest = end
 		batches = append(batches, &model.ExportBatch{
 			ConfigID:       config.ConfigID,
+			BucketName:     config.BucketName,
 			FilenameRoot:   config.FilenameRoot,
 			Region:         config.Region,
 			Status:         model.ExportBatchOpen,
@@ -183,10 +190,11 @@ func TestBatches(t *testing.T) {
 			if got == nil {
 				t.Fatal("could not lease a batch")
 			}
-			if got.ConfigID != config.ConfigID || got.FilenameRoot != config.FilenameRoot || got.Region != config.Region {
-				t.Errorf("LeaseBatch: got (%d, %q, %q), want (%d, %q, %q)",
-					got.ConfigID, got.FilenameRoot, got.Region,
-					config.ConfigID, config.FilenameRoot, config.Region)
+			if got.ConfigID != config.ConfigID || got.FilenameRoot != config.FilenameRoot ||
+				got.Region != config.Region || got.BucketName != config.BucketName {
+				t.Errorf("LeaseBatch: got (%d, %q, %q, %q), want (%d, %q, %q, %q)",
+					got.ConfigID, got.BucketName, got.FilenameRoot, got.Region,
+					config.ConfigID, config.BucketName, config.FilenameRoot, config.Region)
 			}
 			if got.Status != model.ExportBatchPending {
 				t.Errorf("LeaseBatch: got status %q, want pending", got.Status)
