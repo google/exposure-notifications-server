@@ -17,7 +17,6 @@ package cleanup
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -29,8 +28,8 @@ import (
 )
 
 const (
-	ttlEnvVar         = "TTL_DURATION"
-	minCutoffDuration = "10d"
+	ttlEnvVar = "TTL_DURATION"
+	minTTL    = 10 * 24 * time.Hour
 )
 
 // NewExposureHandler creates a http.Handler for deleting exposure keys
@@ -126,37 +125,19 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 func getCutoff(ttlVar string) (cutoff time.Time, err error) {
 	// Parse and Validate TTL duration string.
 	ttlString := os.Getenv(ttlVar)
-	ttlDuration, err := getAndValidateDuration(ttlString)
-	if err != nil {
-		err = fmt.Errorf("TTL env variable error: %w", err)
-		return cutoff, err
+	if ttlString == "" {
+		return time.Time{}, fmt.Errorf("empty env variable %q", ttlVar)
 	}
-
-	// Parse and Validate min ttl duration string.
-	minTTL, err := getAndValidateDuration(minCutoffDuration)
+	ttlDuration, err := time.ParseDuration(ttlString)
 	if err != nil {
-		err = fmt.Errorf("min ttl const error: %w", err)
-		return cutoff, err
+		return time.Time{}, fmt.Errorf("TTL env variable %q: %w", ttlVar, err)
 	}
 
 	// Validate that TTL is sufficiently in the past.
 	if ttlDuration < minTTL {
-		err = fmt.Errorf("cleanup ttl is less than configured minumum ttl")
-		return cutoff, err
+		return time.Time{}, fmt.Errorf("cleanup ttl is less than configured minumum ttl")
 	}
 
 	// Get cutoff timestamp
-	cutoff = time.Now().Add(-ttlDuration)
-	return cutoff, nil
-}
-
-func getAndValidateDuration(durationString string) (time.Duration, error) {
-	if durationString == "" {
-		return 0, errors.New("not set")
-	}
-	duration, err := time.ParseDuration(durationString)
-	if err != nil {
-		return 0, err
-	}
-	return duration, nil
+	return time.Now().Add(-ttlDuration), nil
 }
