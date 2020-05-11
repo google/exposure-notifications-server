@@ -29,6 +29,7 @@ func TestGetCutoff(t *testing.T) {
 		{"", 0},                           // no env var
 		{"foo", 0},                        // invalid duration
 		{"216h", 0},                       // 9 days: duration too short
+		{"-10m", 0},                       // negative
 		{"241h", (10*24 + 1) * time.Hour}, // 10 days, 1 hour: OK
 	} {
 		os.Setenv(ttlEnvVar, test.val)
