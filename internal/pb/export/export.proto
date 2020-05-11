@@ -44,13 +44,14 @@ message TemporaryExposureKeyExport {
 message SignatureInfo {
   // Apple App Store Application Bundle ID
   optional string app_bundle_id = 1;
-  // Android App package name
+  // Android App package name + sha256 of APK signing cert
   optional string android_package = 2;
   // Key version for rollovers
   optional string verification_key_version = 3;
   // Additional identifying information
   optional string verification_key_id = 4;
-  // ASN.1 OID for Algorithm Identifier. E.g. 1.2.840.10045.4.3.2
+  // ASN.1 OID for Algorithm Identifier. Supported algorithms are
+  // either 1.2.840.10045.4.3.2 or 1.2.840.10045.4.3.4
   optional string signature_algorithm = 5;
 }
 
