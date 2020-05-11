@@ -37,7 +37,6 @@ const (
 	createBatchesTimeoutEnvVar = "CREATE_BATCHES_TIMEOUT"
 	workerTimeoutEnvVar        = "WORKER_TIMEOUT"
 	defaultTimeout             = 5 * time.Minute
-	bucketEnvVar               = "EXPORT_BUCKET"
 	maxRecordsEnvVar           = "EXPORT_FILE_MAX_RECORDS"
 	defaultMaxRecords          = 30_000
 )
@@ -90,11 +89,6 @@ func main() {
 		} else {
 			bsc.MaxRecords = maxRec
 		}
-	}
-	if bucket, ok := os.LookupEnv(bucketEnvVar); !ok {
-		logger.Fatalf("Required $%s is not specified.", bucketEnvVar)
-	} else {
-		bsc.Bucket = bucket
 	}
 
 	batchServer, err := export.NewBatchServer(db, bsc, env)

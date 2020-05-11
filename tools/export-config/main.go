@@ -30,6 +30,7 @@ import (
 )
 
 var (
+	bucketName    = flag.String("bucket-name", "", "The bucket name to store the export file.")
 	filenameRoot  = flag.String("filename-root", "", "The root filename for the export file.")
 	period        = flag.Duration("period", 24*time.Hour, "The frequency with which to create export files.")
 	region        = flag.String("region", "", "The region for the export batches/files.")
@@ -41,6 +42,9 @@ var (
 func main() {
 	flag.Parse()
 
+	if *bucketName == "" {
+		log.Fatal("--bucket-name is required.")
+	}
 	if *filenameRoot == "" {
 		log.Fatal("--filename-root is required.")
 	}
@@ -88,6 +92,7 @@ func main() {
 	defer db.Close(ctx)
 
 	ec := model.ExportConfig{
+		BucketName:   *bucketName,
 		FilenameRoot: *filenameRoot,
 		Period:       *period,
 		Region:       *region,

@@ -63,7 +63,6 @@ type BatchServer struct {
 type BatchServerConfig struct {
 	CreateTimeout time.Duration
 	WorkerTimeout time.Duration
-	Bucket        string
 	MaxRecords    int
 }
 
@@ -128,6 +127,7 @@ func (s *BatchServer) maybeCreateBatches(ctx context.Context, ec *model.ExportCo
 	for _, br := range ranges {
 		batches = append(batches, &model.ExportBatch{
 			ConfigID:       ec.ConfigID,
+			BucketName:     ec.BucketName,
 			FilenameRoot:   ec.FilenameRoot,
 			StartTimestamp: br.start,
 			EndTimestamp:   br.end,
@@ -391,8 +391,8 @@ func (s *BatchServer) createFile(ctx context.Context, exposures []*model.Exposur
 	logger.Infof("Created file %v, signed with key %v", objectName, eb.SigningKey)
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
-	if err := s.env.Blobstore.CreateObject(ctx, s.bsc.Bucket, objectName, data); err != nil {
-		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, s.bsc.Bucket, err)
+	if err := s.env.Blobstore.CreateObject(ctx, eb.BucketName, objectName, data); err != nil {
+		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, eb.BucketName, err)
 	}
 	return objectName, nil
 }
@@ -422,8 +422,8 @@ func (s *BatchServer) createIndex(ctx context.Context, eb *model.ExportBatch, ne
 	indexObjectName := exportIndexFilename(eb)
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
-	if err := s.env.Blobstore.CreateObject(ctx, s.bsc.Bucket, indexObjectName, data); err != nil {
-		return "", 0, fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, s.bsc.Bucket, err)
+	if err := s.env.Blobstore.CreateObject(ctx, eb.BucketName, indexObjectName, data); err != nil {
+		return "", 0, fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, eb.BucketName, err)
 	}
 	return indexObjectName, len(objects), nil
 }
