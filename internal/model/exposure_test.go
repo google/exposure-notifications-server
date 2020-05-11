@@ -74,6 +74,44 @@ func TestInvalidBase64(t *testing.T) {
 	}
 }
 
+func decode(b64 string) ([]byte, error) {
+	data, err := base64.RawStdEncoding.DecodeString(b64)
+	if err != nil {
+		data, err = base64.StdEncoding.DecodeString(b64)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return data, nil
+}
+
+func TestDifferentEncodings(t *testing.T) {
+	data := "this is some data"
+
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "std encoding",
+			input: base64.StdEncoding.EncodeToString([]byte(data)),
+		},
+		{
+			name:  "raw std encoding",
+			input: base64.RawStdEncoding.EncodeToString([]byte(data)),
+		},
+	}
+
+	for _, c := range cases {
+		decoded, err := decode(c.input)
+		if err != nil {
+			t.Errorf("%v error: %v", c.name, err)
+		} else if string(decoded) != data {
+			t.Errorf("%v: want %v got %v", c.name, data, decoded)
+		}
+	}
+}
+
 func TestPublishValidation(t *testing.T) {
 	maxAge := 24 * 5 * time.Hour
 
