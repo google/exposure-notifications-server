@@ -34,6 +34,14 @@ Server here:
 * [Server Functional Requirements](docs/server_functional_requirements.md)
 * [Server Deployment Options](docs/server_deployment_options.md)
 
+# Issues and Questions
+
+You can open a
+[GitHub Issue](https://github.com/google/exposure-notifications-server/issues/new).
+Please be sure to include as much detail as you can to help aid in addressing
+your concern. If you wish to reach out privately, you can send an e-mail
+exposure-notifications-feedback@google.com.
+
 ## Contributing to this project
 
 Contributions to this project are welcomed. For more information about

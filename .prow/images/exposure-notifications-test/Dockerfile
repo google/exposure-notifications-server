@@ -16,7 +16,18 @@
 
 FROM golang:1.14-buster
 
-RUN apt-get update
+RUN apt-get update;
+
+# Install Postgres
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ buster-pgdg main" >> /etc/apt/sources.list.d/pgdg.list; \
+	wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc |  apt-key add -; \
+	apt-get update; \
+	apt-get install -y postgresql-12 postgresql-client-12
+
+# Configure Postgres, password for test db user, set a timezone
+RUN ln -sf /usr/share/zoneinfo/US/Pacific /etc/localtime
+RUN service postgresql start; \
+	runuser -l postgres -c "psql -c \"ALTER USER postgres WITH PASSWORD 'mypassword'\" -d postgres;"
 
 # Install protoc components
 RUN apt-get install -y protobuf-compiler
