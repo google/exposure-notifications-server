@@ -3,6 +3,12 @@ options:
   - 'KO_DOCKER_REPO=us.gcr.io/${PROJECT_ID}'
   - 'DOCKER_REPO_OVERRIDE=us.gcr.io/${PROJECT_ID}'
 steps:
+# Build ko, prerequisite.
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '--tag=gcr.io/$PROJECT_ID/ko', '-f', 'ko.Dockerfile' 'terraform/']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/$PROJECT_ID/ko']
+
 # Tests
 - name: 'mirror.gcr.io/library/golang'
   env:
