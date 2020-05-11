@@ -24,9 +24,9 @@ The Exposure Notification Server has multiple components which can be
 categorized as compute and data. To understand deployment scenarios, you should
 look at the architecture of the server and data flow between servers and devices.
 
-![Exposure Notification Server data ingress flow](images/data-ingress.png "Exposure Notification Server data ingres flow")
+![Exposure Notification Server data ingress flow](images/data-ingress.svg "Exposure Notification Server data ingres flow")
 
-![Exposure Notification Server data egress flow](images/data-retrieval.png "Exposure Notification Server data egress flow")
+![Exposure Notification Server data egress flow](images/data-retrieval.svg "Exposure Notification Server data egress flow")
 
 The compute components are a good candidate for deployment on
 [serverless architectures](https://en.wikipedia.org/wiki/Serverless_computing).
