@@ -90,7 +90,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	metrics := h.env.MetricsExporter(ctx)
 
 	var data *model.Publish
-	code, err := jsonutil.Unmarshal(w, r, data)
+	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
 		logger.Errorf("error unmarhsaling API call, code: %v: %v", code, err)
@@ -127,8 +127,6 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cfg.IsIOS() {
-		logger.Errorf("ios devicecheck not supported on this server.")
-
 		if err := verification.VerifyDeviceCheck(ctx, cfg, data); err != nil {
 			logger.Errorf("unable to verify devicecheck payload: %v", err)
 			metrics.WriteInt("publish-devicecheck-invalid", true, 1)

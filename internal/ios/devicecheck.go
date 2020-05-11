@@ -32,10 +32,8 @@ import (
 )
 
 const (
-	endpoint = "https://api.development.devicecheck.apple.com/v1/validate_device_token"
-
-	// TODO: switch to production URL:
-	// endpoint = "https://api.devicecheck.apple.com/v1/validate_device_token"
+	// endpoint is the production Apple DeviceCheck endpoint.
+	endpoint = "https://api.devicecheck.apple.com/v1/validate_device_token"
 
 	// httpTimeout is the maximum amount of time to wait for a response.
 	httpTimeout = 5 * time.Second
