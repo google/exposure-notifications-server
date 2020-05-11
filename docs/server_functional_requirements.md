@@ -1,49 +1,44 @@
-# Google Exposure Notifications Server - Functional Requirements
-Here we provide the functional requirements for deploying an exposure notification server.
+# Google Exposure Notification Server
 
-Created: 2020-04-22
+## Functional requirements
 
-Updated: 2020-05-09
+This documents the functional requirements for building a decentralized exposure
+notification system. For deployment stratgies, see [Server Deployment Options](docs/server_deployment_options.md).
 
+### System Components
 
-## Objective
+The Exposure Notification Server's archicture has been split into components.
+The following diagram shows the relationship between the different components:
 
-This document presents the functional requirements for building a server for powering decentralized exposure notifications. For possible ways of deploying, please view the [Server Deployment Options](server_deployment_options.md).
-
+![A diagram showing the Exposure Notification Server components and their relationship](images/Server-Requirements-Diagram.png "Server Requirements Diagram")
 
 The server components are responsible for the following functions:
 
+* Accepting the temporary exposure keys of positively diagnosed users from
+mobile devices, validating those keys via device attestation APIs, and
+storing those keys in a database.
 
+* Periodically, generating incremental files for download by client devices for performing the key matching algorithm (all key matching happens on the mobile devices, not on the server). These incremental files must be digitally signed with a private key. The corresponding public key is pushed to mobile devices via separate configuration.
 
-*   Accepting the temporary exposure keys of positively diagnosed users from mobile devices, validating those keys via device attestation APIs, and storing those keys in a database.
-*   Periodically, generating incremental files for download by client devices for performing the key matching algorithm (all key matching happens on the mobile devices, not on the server). These incremental files must be digitally signed with a private key. The corresponding public key is pushed to mobile devices via separate configuration.
-    *   Recommended: serving these files from a CDN
-*   Recommended: periodically deleting old temporary exposure keys. After 14 days (or configurable different time periods) they can no longer be matched to devices.
+  * Recommended: serving these files from a content delivery network (CDN).
 
-The server components are a good candidate for deployment on [serverless architectures](https://en.wikipedia.org/wiki/Serverless_computing). The request load is uneven throughout the day, likely scaling down to zero if the deployment only covers a single or small number of countries. Likewise, the server should scale up to meet peak demand during the day. Each of these components can be deployed in a “serverless” way where the services themselves are stateless, easily scaling and relying on data stored in a shared database.
+* Recommended: periodically deleting old temporary exposure keys. After 14 days (or configurable different time periods) they can no longer be matched to devices.
 
 There are some additional required and recommended dependencies:
 
+* Required: A database for storage of published diagnosis keys.
 
+* Required: A key/secret management system for storage of API keys, other authorization credentials (CDN for example), and private keys for signing device download content.
 
-*   Required: A database for storage of published diagnosis keys.
-*   Required: A key/secret management system for storage of API keys, other authorization credentials (CDN for example), and private keys for signing device download content.
-*   Recommended: Content Distribution Network (CDN) for distributing the temporary exposure keys of affected users to mobile devices.
+* Recommended: Content Distribution Network (CDN) for distributing the temporary exposure keys of affected users to mobile devices.
 
-
-## System Components
-
-![Server Requirements Diagram](images/Server-Requirements-Diagram.png "Server Requirements Diagram")
-
-
-
-### Publish Temporary Exposure Keys
+### Publishing temporary exposure keys
 
 When a user reports a diagnosis, it is reported using the publish API server. The specific protocol or encoding doesn’t matter, for reference we are providing a JSON over HTTPS API to show the required data fields. A given mobile application and server pair could agree upon additional information to be shared. The information described in this section is the minimum required set in order to validate the uploads and to generate the necessary client batches for ingestion into the device for key matching.
 
 Minimum required fields, followed by a JSON example:
 
-
+//TODO(llatif): Put this into a table
 
 *   temporaryExposureKeys
     *   Type: Array of TemporaryExposureKey JSON objects
@@ -95,8 +90,6 @@ Minimum required fields, followed by a JSON example:
 
 Example additional fields that an application might want to collect:
 
-
-
 *   regions:
     *   Type: Array of string
     *   Description: 2 letter country code a.k.a [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) 
@@ -119,7 +112,6 @@ Example additional fields that an application might want to collect:
 
 Example POST request payload, assuming JSON over HTTP.
 
-
 ```
 {
   "temporaryTracingKeys": [
@@ -136,10 +128,7 @@ Example POST request payload, assuming JSON over HTTP.
 }
 ```
 
-
 Other implementation details / requirements / suggestions:
-
-
 
 *   Required: Implement a whitelist check for appPackageName and the regions in which the app is allowed to report on.
 *   Required: Android device verification. The SafetyNet device attestation API can be used to confirm a genuine Android device is used to prevent abuse, see https://developer.android.com/training/safetynet/attestation
@@ -160,32 +149,51 @@ Other implementation details / requirements / suggestions:
 *   This service is a good candidate for serverless architectures. The request load is uneven throughout the day, likely scaling down to zero if the deployment only covers a single or small number of countries. Likewise, the server should scale up to meet the peak demand during the day.
 *   Appropriate denial of service protection should be put in place.
 
+### Batch creation and publishing
 
-### Batch Creation / Publishing
+A regularly scheduled job should be triggered that generates download files for
+download over HTTPS protocol to client devices. Due to the generation being a
+frequent operation (at least once a day for every device), we recommend that you
+generate the data in a single operation rather than on-demand, and distribute it
+using a CDN.
 
-A regularly scheduled job should be triggered that generates download files for download over HTTPS protocol to client devices. Due to the generation being a frequent operation (at least once a day for every device), we recommend that you generate the data in a single operation rather than on-demand, and distribute it using a Content Delivery Network (CDN).
+The batch generation should be per-region, incremental feeds of new data. While
+additional data can be included in the downloads, there is a minimum set that is
+required by the exposure notification API, which is relayed from affected users
+in an unmodified form.
 
-The batch generation should be per-region, incremental feeds of new data. While additional data can be included in the downloads, there is a minimum set that is required by the exposure notification API, which is relayed from affected users in an unmodified form.
+The device operating system and libraries will use the known public key to verify
+an attached data signature before loading the data. To make the data verifiable:
 
-The device operating system / libraries will use the known public key to verify an attached data signature before loading the data. To make the data verifiable:
+* The data must be signed with the private key of the server.
 
+* The public key for the server will be distributed by Apple and Google to
+devices along with a list containing the countries for which the server
+can provide data to.
 
+* Export files must be signed using the ECDSA on the P-256 Curve with a
+SHA-256 digest.
 
-*   The data must be signed with the private key of the server. 
-*   The public key for the server will be distributed by Apple and Google to devices along with a list of countries that server may provide data for. 
-*   Export files must be signed using the ECDSA on the P-256 Curve with a SHA-256 digest. 
+**Important: The matching algorithm only runs on data that has been verified
+with the public key distributed by the device configuration mechanism.**
 
-**The matching algorithm only runs on data that has been verified with the public key distributed by the device configuration mechanism.**
+Export files is a zip archive containing two files:
 
-Export files consist of a zip archive containing two entries: (1) export.bin, the binary containing the exposure keys, and (2) export.sig, a signature.
+* `export.bin` - the binary containing the exposure keys
 
+* `export.sig` - a signature
 
 #### Exposure File Binary Format
 
-The export.bin file of the archive contains the Temporary Exposure Keys broadcast by confirmed devices. It is an incremental file containing the latest keys the server was made aware of in a given time window. This time window is typically daily, allowing devices to perform nightly matching.
+The `export.bin` file of the archive contains the Temporary Exposure Keys
+broadcast by confirmed devices. It is an incremental file containing the
+latest keys the server was made aware of in a given time window. This time
+window is typically daily, allowing devices to perform nightly matching.
 
-The binary format file consists of a 16 byte header, containing “EK Export v1” right padded with whitespaces in UTF-8, representing this current version of the exposure key binary format. This is followed by the serialization of a Protocol Buffer message named TemporaryExposureKeyExport defined as follows:
-
+The binary format file consists of a 16 byte header, containing “EK Export v1”
+right padded with whitespaces in UTF-8, representing this current version of
+the exposure key binary format. This is followed by the serialization of a
+Protocol Buffer message named `TemporaryExposureKeyExport` defined as follows:
 
 ```
 syntax = "proto2";
@@ -239,14 +247,17 @@ message TemporaryExposureKey {
 }
 ```
 
+If the server stores exposure keys in the order that they were uploaded from
+devices, they should be shuffled on export to ensure no linkage between keys
+from a device. This can be achieved by sorting by key, as they are random.
 
-If the server stores exposure keys in the order that they were uploaded from devices, they should be shuffled on export to ensure no linkage between keys from a device. Since the keys are random, a simple way to achieve this is to sort by key.
+#### Exposure file signature
 
-
-#### Exposure File Signature
-
-The archive’s export.sig file contains the signature and information needed for verification. The export.bin will be signed with the key exchanged when the app was whitelisted to use the API and the server was on boarded. The signature file is the serialization of the TEKSignatureList protocol buffer message defined as follows:
-
+The `export.sig` file contains the signature and information needed for
+verification. The `export.bin` file will be signed with the key exchanged when
+the app was whitelisted to use the API and the server was on boarded. The
+signature file is the serialization of the TEKSignatureList protocol buffer
+message defined as follows:
 
 ```
 message TEKSignatureList {
@@ -265,8 +276,7 @@ message TEKSignature {
 }
 ```
 
-
-**The public keys used to verify these signatures must be shared with Apple and Google for distribution to devices in order for the exports to be processed by mobile devices.**
+**Important: The public keys used to verify these signatures must be shared with Apple and Google for distribution to devices in order for the exports to be processed by mobile devices.**
 
 These files could grow to a size that makes them unfeasible to download in their entirety, especially for devices that may never have WiFi access. You can break files up into batches to keep the file size below 16MB (about 750,000 keys). In this case, each chunk of data in the overall batch will be its own zip archive with its own signature covering just that portion of the batch. The serialized protocol buffers should populate the batch\_num and batch\_size fields accordingly.
 
@@ -276,15 +286,12 @@ If you are using a CDN to distribute these files, ensure that the cache control 
 
 Note that while a CDN is the recommended distribution mechanism, you can use other mechanisms to distribute these  files.
 
-
-#### Verification
+#### Signature verification
 
 The API will verify the signature against the content of the exposure binary file. It will use the metadata included in the signature file to identify which verification key to use for the specific application. The on device API will verify that:
 
-
-
-*   The metadata in the signature file matches that in the export file. Specifically, the API will verify that the following fields match (all other fields can be left blank in the SignatureInfo message inside of TemporaryExposureKeyExport but are needed in TEKSignature)
-    *   app\_bundle\_id
+* The metadata in the signature file matches that in the export file. Specifically, the API will verify that the following fields match (all other fields can be left blank in the SignatureInfo message inside of TemporaryExposureKeyExport but are needed in TEKSignature)
+  * app\_bundle\_id
     *   Android\_package
 *   the start\_timestamp of the current batch matches the end\_timestamp of the last batch if batch\_num is set:
     *   the signatures of all files in the batch match their corresponding export file
@@ -298,29 +305,22 @@ The API will ensure that it has completed all verifications prior to invoking an
 
 The use of a secure secret manager (e.g. [Hashicorp](https://www.hashicorp.com/), [Key Vault](https://azure.microsoft.com/en-us/services/key-vault/), [Cloud Secret](https://cloud.google.com/secret-manager)) or hardened onsite equivalent is required to store the following data:
 
+* API Keys
+  * Android SafetyNet API key
+  * API Keys / credentials needed to publish to the CDN
 
-
-*   API Keys
-    *   Android SafetyNet API key
-    *   API Keys / credentials needed to publish to the CDN
-*   Private Signing Key
-    *   The private key for signing the client download files
-
+* Private Signing Key
+  * The private key for signing the client download files
 
 ### Data Deletion
 
 Since devices will only be retaining the temporary exposure keys for a limited time (configurable number of days), we recommend:
 
-*   Dropping keys from the database on a similar schedule as they would be dropped from devices.
-*   Remove files from the CDN once they are no longer needed. 
-*   If used, the index file on the CDN should be updated to no longer point to deleted files.
+* Dropping keys from the database on a similar schedule as they would be dropped from devices.
+
+* Remove files from the CDN once they are no longer needed. 
+
+* If used, the index file on the CDN should be updated to no longer point to deleted files.
 
 Although current protocols do not provide a mechanism for the server to share revocation status with clients, nor allow secure change of client status after publication, the database should be designed to accommodate bulk deletion due to abuse, broken apps, human error, or mass incorrect lab results.
-
-
-## Change Log
-
-* 29 Apr 2020 - Renamed diagnosisStatus to transmissionRisk to align with changes in device protocol - mikehelmick
-* 6 May 2020 - Updated to include the latest export file format details - mikehelmick
-* 8 May 2020 - Updated to include specific signing algorithm - mikehelmick
 
