@@ -56,6 +56,8 @@ func createTestDB(ctx context.Context) (*DB, error) {
 
 	// Connect to the default database to create the test database.
 	env := serverenv.New(ctx)
+	env.SecretsDir = "../../local/test_secrets"
+
 	env.Set("DB_DBNAME", "postgres")
 	db, err := NewFromEnv(ctx, env)
 	if err != nil {
