@@ -90,7 +90,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	metrics := h.env.MetricsExporter(ctx)
 
 	var data *model.Publish
-	code, err := jsonutil.Unmarshal(w, r, &data)
+	code, err := jsonutil.Unmarshal(w, r, data)
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
 		logger.Errorf("error unmarhsaling API call, code: %v: %v", code, err)

@@ -36,6 +36,9 @@ const (
 
 	// TODO: switch to production URL:
 	// endpoint = "https://api.devicecheck.apple.com/v1/validate_device_token"
+
+	// httpTimeout is the maximum amount of time to wait for a response.
+	httpTimeout = 5 * time.Second
 )
 
 type VerifyOpts struct {
@@ -90,7 +93,7 @@ func ValidateDeviceToken(ctx context.Context, deviceToken string, opts *VerifyOp
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", signedJwt))
 
 	// Call Apple's API.
-	client := &http.Client{}
+	client := &http.Client{Timeout: httpTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to make request: %w", err)
