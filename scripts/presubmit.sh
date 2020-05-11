@@ -25,6 +25,7 @@ $(dirname $0)/gen_protos.sh
 # Don't verify the *.pb.go files here as we tidy these. Verify after format.
 set -e
 
+
 echo "🧽 Verify goimports formattting"
 set +e
 which goimports >/dev/null 2>&1
@@ -47,6 +48,7 @@ else
 fi
 set -e
 
+
 echo "🧹 Verify gofmt format"
 set +e
 diff -u <(echo -n) <(gofmt -d -s .)
@@ -57,6 +59,7 @@ if [ $? -ne 0 ]; then
    exit 1
 fi
 set -e
+
 
 echo "🌌 Go mod verify"
 set +e
@@ -91,12 +94,25 @@ set -e
 # set +x
 
 
-
 echo "🚧 Compile"
 go build ./...
 
+
 echo "🧪 Test"
 go test ./... -coverprofile=coverage.out
+
+
+echo "🧪 Test DB Tests"
+
+if ($( cat /proc/1/cgroup | grep docker > /dev/null )); then
+   echo "🚒 In CI Container, start postgres process"
+   export DB_USER=postgres
+   export DB_PASSWORD=mypassword
+   service postgresql start
+fi
+
+DB_SSLMODE=disable DB_USER=postgres go test -v ./internal/database -coverprofile=coverage.out
+
 
 echo "🧑‍🔬 Test Coverage"
 go tool cover -func coverage.out | grep total | awk '{print $NF}'
