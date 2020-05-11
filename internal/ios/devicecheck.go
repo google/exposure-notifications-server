@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -45,45 +46,22 @@ type VerifyOpts struct {
 	PrivateKey *ecdsa.PrivateKey
 }
 
-type validateRequest struct {
-	// DeviceToken is the provided iOS device token.
-	DeviceToken string `json:"device_token"`
-
-	// TransactionID is a randomly-generated UUID.
-	TransactionID string `json:"transaction_id"`
-
-	// Timestamp is the current UNIX timestamp in _milliseconds_.
-	Timestamp int64 `json:"timestamp"`
-}
-
 // ValidateDeviceToken validates the given device token with Apple's servers.
 func ValidateDeviceToken(ctx context.Context, deviceToken string, opts *VerifyOpts) error {
 	// Generate a JWT.
-	jwtToken := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
-		"iss": opts.TeamID,
-		"iat": time.Now().UTC().Unix(),
-	})
-	jwtToken.Header["alg"] = "ES256"
-	jwtToken.Header["kid"] = opts.KeyID
-
-	signedJwt, err := jwtToken.SignedString(opts.PrivateKey)
+	signedJwt, err := newSignedJWT(opts.TeamID, opts.KeyID, opts.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("failed to generate jwt: %w", err)
 	}
 
 	// Create the JSON body.
-	i := &validateRequest{
-		DeviceToken:   deviceToken,
-		TransactionID: uuid.New().String(),
-		Timestamp:     time.Now().UTC().UnixNano() / int64(time.Millisecond),
-	}
-	var b bytes.Buffer
-	if err := json.NewEncoder(&b).Encode(i); err != nil {
-		return fmt.Errorf("failed to marshal json: %w", err)
+	requestBody, err := newValidateRequestBody(deviceToken)
+	if err != nil {
+		return fmt.Errorf("failed to generated request body: %w", err)
 	}
 
 	// Build the request and add the authorization header.
-	req, err := http.NewRequest(http.MethodPost, endpoint, &b)
+	req, err := http.NewRequest(http.MethodPost, endpoint, requestBody)
 	if err != nil {
 		return fmt.Errorf("failed to build request: %w", err)
 	}
@@ -98,15 +76,15 @@ func ValidateDeviceToken(ctx context.Context, deviceToken string, opts *VerifyOp
 	}
 	defer resp.Body.Close()
 
+	// Return on success.
 	if resp.StatusCode == 200 {
 		return nil
 	}
 
-	// TODO(sethvargo): Better error handling here, retry on 500, handle bad auth.
-	// See: https://developer.apple.com/documentation/devicecheck/accessing_and_modifying_per-device_data
+	// Return error upstream.
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to copy error body, status code was %d", resp.StatusCode)
+		return fmt.Errorf("failed to copy error body (%d): %w", resp.StatusCode, err)
 	}
 	return fmt.Errorf("failed to attest: (%d) %s", resp.StatusCode, body)
 }
@@ -132,4 +110,42 @@ func ParsePrivateKey(s string) (*ecdsa.PrivateKey, error) {
 	}
 
 	return ecKey, nil
+}
+
+// newSignedJWT creates a new signed JWT suitable for authenticating to Apple's
+// servers.
+func newSignedJWT(teamID, keyID string, privateKey *ecdsa.PrivateKey) (string, error) {
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
+		"iss": teamID,
+		"iat": time.Now().UTC().Unix(),
+	})
+	jwtToken.Header["alg"] = "ES256"
+	jwtToken.Header["kid"] = keyID
+
+	return jwtToken.SignedString(privateKey)
+}
+
+// newValidateRequestBody creates a request body used for devicecheck.
+func newValidateRequestBody(deviceToken string) (io.Reader, error) {
+	i := &validateRequest{
+		DeviceToken:   deviceToken,
+		TransactionID: uuid.New().String(),
+		Timestamp:     time.Now().UTC().UnixNano() / int64(time.Millisecond),
+	}
+	var b bytes.Buffer
+	if err := json.NewEncoder(&b).Encode(i); err != nil {
+		return nil, fmt.Errorf("failed to marshal json: %w", err)
+	}
+	return &b, nil
+}
+
+type validateRequest struct {
+	// DeviceToken is the provided iOS device token.
+	DeviceToken string `json:"device_token"`
+
+	// TransactionID is a randomly-generated UUID.
+	TransactionID string `json:"transaction_id"`
+
+	// Timestamp is the current UNIX timestamp in _milliseconds_.
+	Timestamp int64 `json:"timestamp"`
 }
