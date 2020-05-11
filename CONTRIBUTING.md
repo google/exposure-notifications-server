@@ -147,6 +147,14 @@ chmod a+x .git/hooks/pre-push
     ./scripts/run_db_migrations.sh up
     ```
 
+1. Create the secrets directory
+
+   ```
+   sudo mkdir /var/run/secrets
+   sudo chown $USER /var/run/secrets
+   chmod 0700 /var/run/secrets
+   ```
+
 1. Run with go
 
     ```
