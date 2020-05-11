@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/api/config"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
@@ -48,12 +49,13 @@ type ExporterFunc func(context.Context) metrics.Exporter
 
 // ServerEnv represents latent environment configuration for servers in this application.
 type ServerEnv struct {
-	Port          string
-	SecretManager secrets.SecretManager
-	KeyManager    signing.KeyManager
-	Blobstore     storage.Blobstore
-	overrides     map[string]string
-	Exporter      metrics.ExporterFromContext
+	Port             string
+	SecretManager    secrets.SecretManager
+	KeyManager       signing.KeyManager
+	Blobstore        storage.Blobstore
+	overrides        map[string]string
+	Exporter         metrics.ExporterFromContext
+	APIConfigProvier config.Provider
 
 	// secretsDir is the path to the directory where secrets are saved.
 	secretsDir string
@@ -85,6 +87,14 @@ func New(ctx context.Context, opts ...Option) *ServerEnv {
 	}
 
 	return env
+}
+
+// WithAPIConfigProvider installs a provider of APIConfig.
+func WithAPIConfigProvider(p config.Provider) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.APIConfigProvier = p
+		return s
+	}
 }
 
 // WithMetricsExporter creates an Option to install a different metrics exporter.

@@ -19,7 +19,6 @@ import (
 	"context"
 	"log"
 	"net"
-	"time"
 
 	"google.golang.org/grpc"
 
@@ -30,16 +29,18 @@ import (
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-)
-
-const (
-	timeoutEnvVar  = "FETCH_TIMEOUT"
-	defaultTimeout = 5 * time.Minute
+	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
+
+	envVars := &federation.Environment{}
+	err := envconfig.Process("federation", envVars)
+	if err != nil {
+		logger.Fatalf("error loading environment variables: %v", err)
+	}
 
 	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
 	sm, err := secrets.NewGCPSecretManager(ctx)
@@ -50,20 +51,17 @@ func main() {
 		serverenv.WithSecretManager(sm),
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
-	db, err := database.NewFromEnv(ctx, env)
+	db, err := database.NewFromEnv(ctx, &envVars.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
-	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
-	logger.Infof("Using fetch timeout %v (override with $%s)", timeout, timeoutEnvVar)
-
 	grpcEndpoint := ":" + env.Port
 	logger.Infof("gRPC endpoint [%s]", grpcEndpoint)
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterFederationServer(grpcServer, federation.NewServer(db, timeout))
+	pb.RegisterFederationServer(grpcServer, federation.NewServer(db, envVars.Timeout))
 
 	listen, err := net.Listen("tcp", grpcEndpoint)
 	if err != nil {

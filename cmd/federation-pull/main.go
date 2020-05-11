@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/federation"
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -28,19 +27,18 @@ import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-)
-
-var (
-	timeoutEnvVar  = "PULL_TIMEOUT"
-	defaultTimeout = 5 * time.Minute
+	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
-	logger.Infof("Using fetch timeout %v (override with $%s)", timeout, timeoutEnvVar)
+	envVars := &federation.Environment{}
+	err := envconfig.Process("federation", envVars)
+	if err != nil {
+		logger.Fatalf("error loading environment variables: %v", err)
+	}
 
 	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
 	sm, err := secrets.NewGCPSecretManager(ctx)
@@ -51,13 +49,13 @@ func main() {
 		serverenv.WithSecretManager(sm),
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
-	db, err := database.NewFromEnv(ctx, env)
+	db, err := database.NewFromEnv(ctx, &envVars.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
-	http.Handle("/", federation.NewPullHandler(db, timeout))
+	http.Handle("/", federation.NewPullHandler(db, envVars.Timeout))
 	logger.Info("starting federation puller")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port), nil))
 }

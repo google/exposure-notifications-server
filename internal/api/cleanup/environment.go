@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package cleanup
 
 import (
-	"context"
+	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/database"
 )
 
-// Provider defines possible APIConfig providers.
-type Provider interface {
-	AppPkgConfig(ctx context.Context, appPkg string) (*apiconfig.APIConfig, error)
+// Environment represents the environment variables for the cleanup servers.
+type Environment struct {
+	Timeout  time.Duration `envconfig:"CLEANUP_TIMEOUT" default:"10m"`
+	Database database.Environment
 }

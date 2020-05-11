@@ -19,7 +19,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/cleanup"
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -28,19 +27,18 @@ import (
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
-)
-
-const (
-	timeoutEnvVar  = "WIPEOUT_TIMEOUT"
-	defaultTimeout = 10 * time.Minute
+	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	timeout := serverenv.ParseDuration(ctx, timeoutEnvVar, defaultTimeout)
-	logger.Infof("Using timeout %v (override with $%s)", timeout, timeoutEnvVar)
+	envVars := &cleanup.Environment{}
+	err := envconfig.Process("cleanup-export", envVars)
+	if err != nil {
+		logger.Fatalf("error loading environment variables: %v", err)
+	}
 
 	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
 	sm, err := secrets.NewGCPSecretManager(ctx)
@@ -56,13 +54,13 @@ func main() {
 		serverenv.WithBlobStorage(storage),
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
-	db, err := database.NewFromEnv(ctx, env)
+	db, err := database.NewFromEnv(ctx, &envVars.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
-	http.Handle("/", cleanup.NewExportHandler(db, timeout, env))
+	http.Handle("/", cleanup.NewExportHandler(db, envVars.Timeout, env))
 	logger.Info("starting export cleanup server")
 	log.Fatal(http.ListenAndServe(":"+env.Port, nil))
 }
