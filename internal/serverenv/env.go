@@ -56,7 +56,7 @@ type ServerEnv struct {
 	Exporter      metrics.ExporterFromContext
 
 	// secretsDir is the path to the directory where secrets are saved.
-	SecretsDir string
+	secretsDir string
 }
 
 // Option defines function types to modify the ServerEnv on creation.
@@ -73,7 +73,7 @@ func New(ctx context.Context, opts ...Option) *ServerEnv {
 
 	logger := logging.FromContext(ctx)
 
-	env.SecretsDir = defaultSecretsDir
+	env.secretsDir = defaultSecretsDir
 
 	if override := os.Getenv(portEnvVar); override != "" {
 		env.Port = override
@@ -99,6 +99,15 @@ func WithMetricsExporter(f metrics.ExporterFromContext) Option {
 func WithSecretManager(sm secrets.SecretManager) Option {
 	return func(s *ServerEnv) *ServerEnv {
 		s.SecretManager = sm
+		return s
+	}
+}
+
+// WithSecretsDir creates an Option to specify where secrets are stored when
+// resolved to the filesystem.
+func WithSecretsDir(pth string) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.secretsDir = pth
 		return s
 	}
 }
@@ -161,7 +170,7 @@ func (s *ServerEnv) getSecretValue(ctx context.Context, envVar string) (string, 
 // filename is the sha1 of the secret name, and the path is secretsDir.
 func (s *ServerEnv) filenameForSecret(name string) string {
 	digest := fmt.Sprintf("%x", sha1.Sum([]byte(name)))
-	return filepath.Join(s.SecretsDir, digest)
+	return filepath.Join(s.secretsDir, digest)
 }
 
 // ResolveSecretEnv will either resolve a local environment variable
@@ -183,12 +192,12 @@ func (s *ServerEnv) WriteSecretToFile(ctx context.Context, envVar string) (strin
 	// Create the parent secretsDir with minimal permissions. If the directory
 	// does not exist, it is created with 0700 permissions. If the directory
 	// exists but has broader permissions that 0700, an error is returned.
-	stat, err := os.Stat(s.SecretsDir)
+	stat, err := os.Stat(s.secretsDir)
 	if err != nil && !os.IsNotExist(err) {
 		return "", fmt.Errorf("failed to check if secretsDir exists: %w", err)
 	}
 	if os.IsNotExist(err) {
-		if err := os.MkdirAll(s.SecretsDir, 0700); err != nil {
+		if err := os.MkdirAll(s.secretsDir, 0700); err != nil {
 			return "", fmt.Errorf("failed to create secretsDir: %w", err)
 		}
 	} else {
