@@ -62,13 +62,15 @@ func (c *APIConfig) IsAndroid() bool {
 
 // VerifyOpts returns the Android SafetyNet verification options to be used
 // based on the API config.
-func (c *APIConfig) VerifyOpts(from time.Time) android.VerifyOpts {
+func (c *APIConfig) VerifyOpts(from time.Time, noncer android.Noncer) android.VerifyOpts {
 	rtn := android.VerifyOpts{
 		AppPkgName:      c.AppPackageName,
 		CTSProfileMatch: c.CTSProfileMatch,
 		BasicIntegrity:  c.BasicIntegrity,
 		APKDigest:       c.ApkDigestSHA256,
+		Nonce:           noncer,
 	}
+
 	// Calculate the valid time window based on now + config options.
 	if c.AllowedPastTime > 0 {
 		minTime := from.Add(-c.AllowedPastTime)

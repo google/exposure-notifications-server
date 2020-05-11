@@ -58,7 +58,7 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *apiconfig.
 		return fmt.Errorf("cannot enforce safetynet, no application config")
 	}
 
-	opts := cfg.VerifyOpts(requestTime)
+	opts := cfg.VerifyOpts(requestTime, android.NewNonce(&data))
 	if err := ValidateAttestation(ctx, data.Verification, opts); err != nil {
 		if cfg.BypassSafetyNet {
 			logger.Errorf("bypassing safetynet verification for: '%v'", data.AppPackageName)

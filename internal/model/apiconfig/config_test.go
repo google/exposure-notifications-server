@@ -94,7 +94,7 @@ func TestVerifyOpts(t *testing.T) {
 	}
 
 	for i, tst := range cases {
-		got := tst.cfg.VerifyOpts(testTime)
+		got := tst.cfg.VerifyOpts(testTime, nil /* noncer */)
 		if diff := cmp.Diff(tst.opts, got); diff != "" {
 			t.Errorf("%v verify opts (-want +got):\n%v", i, diff)
 		}

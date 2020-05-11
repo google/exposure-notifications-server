@@ -17,50 +17,82 @@ package android
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/google/exposure-notifications-server/internal/model"
 )
 
+// Noncer definces an interface for providing Nonce strings.
 type Noncer interface {
 	// Nonce returns the expected nonce given input data.
 	Nonce() string
 }
 
 // Compile-time check to assert NonceData implements the Noncer interface.
-var _ Noncer = (*NonceData)(nil)
+var _ Noncer = (*nonceData)(nil)
 
-type NonceData struct {
-	appPackageName string
-	ttKeysBase64   []string
-	regions        []string
+type nonceData struct {
+	appPackageName   string
+	transmissionRisk int
+	ttKeysBase64     []model.ExposureKey
+	regions          []string
+	verification     string
 }
 
-func NewNonce(appPackageName string, ttKeysBase64, regions []string) *NonceData {
+// NewNonce Creates a new `Noncer{}` based on the inbound publish request.
+// This ensures that the data in the request is the same data that was used
+// to create the device attestation.
+func NewNonce(publish *model.Publish) Noncer {
 	// base64 keys are to be lexographically sorted
-	sortedKeys := make([]string, len(ttKeysBase64))
-	copy(sortedKeys, ttKeysBase64)
-	sort.Strings(sortedKeys)
+	sortedKeys := make([]model.ExposureKey, len(publish.Keys))
+	copy(sortedKeys, publish.Keys)
+	sort.Slice(sortedKeys, func(i int, j int) bool {
+		return sortedKeys[i].Key < sortedKeys[j].Key
+	})
 
 	// regions are to be uppercased and then lexographically sorted
-	sortedRegions := make([]string, len(regions))
-	for i, r := range regions {
+	sortedRegions := make([]string, len(publish.Regions))
+	for i, r := range publish.Regions {
 		sortedRegions[i] = strings.ToUpper(r)
 	}
 	sort.Strings(sortedRegions)
 
-	return &NonceData{
-		appPackageName: appPackageName,
-		ttKeysBase64:   sortedKeys,
-		regions:        sortedRegions,
+	return &nonceData{
+		appPackageName:   publish.AppPackageName,
+		transmissionRisk: publish.TransmissionRisk,
+		ttKeysBase64:     sortedKeys,
+		regions:          sortedRegions,
+		verification:     publish.VerificationAuthorityName,
 	}
 }
 
 // Nonce returns the expected nonce for this data, from this application.
-func (n *NonceData) Nonce() string {
-	// The nonce is the appPackageName, keys, and regions put together
-	cleartext := n.appPackageName + strings.Join(n.ttKeysBase64, "") + strings.Join(n.regions, "")
+func (n *nonceData) Nonce() string {
+	keys := make([]string, 0, len(n.ttKeysBase64))
+	for _, k := range n.ttKeysBase64 {
+		keys = append(keys, fmt.Sprintf("%v.%v.%v", k.Key, k.IntervalNumber, k.IntervalCount))
+	}
+
+	// The cleartext is a combination of all of the data on the request
+	// in a specific order.
+	//
+	// appPackageName|transmissionRisk|key[,key]|region[,region]|verificationAuthorityName
+	// Keys are ancoded as
+	//     base64(exposureKey).itnervalNumber.IntervalCount
+	// When there is > 1 key, keys are comma separated.
+	// Keys must in sorted order based on the sorting of the base64 exposure key.
+	// Regions are uppercased, sorted, and comma sepreated
+	cleartext :=
+		n.appPackageName + "|" +
+			fmt.Sprintf("%v", n.transmissionRisk) + "|" +
+			strings.Join(keys, ",") + "|" + // where key is b64key.intervalNum.intervalCount
+			strings.Join(n.regions, ",") + "|" +
+			n.verification
+
 	// Take the sha256 checksum of that data
 	sum := sha256.Sum256([]byte(cleartext))
 	// Base64 encode the result.
-	return base64.RawStdEncoding.EncodeToString(sum[:])
+	return base64.StdEncoding.EncodeToString(sum[:])
 }
