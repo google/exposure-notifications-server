@@ -32,7 +32,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
+var (
 	// endpoint is the production Apple DeviceCheck endpoint.
 	endpoint = "https://api.devicecheck.apple.com/v1/validate_device_token"
 
