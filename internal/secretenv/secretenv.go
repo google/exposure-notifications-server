@@ -32,20 +32,14 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-// SecretManager defines the minimum shared functionality for a secret manager
-// used by this application.
-//type SecretManager interface {
-//	GetSecretValue(ctx context.Context, name string) (string, error)
-//}
-
 const (
-	// SecretProto is the prefix, that if the value of an env var starts with
+	// SecretPrefix is the prefix, that if the value of an env var starts with
 	// will be resolved through the configured secret store.
-	SecretProto = "secret://"
+	SecretPrefix = "secret://"
 )
 
 type Config struct {
-	SecretFileDir string `envconfig:"SECRETS_DIR" default:"/var/run/secrets"`
+	SecretDir string `envconfig:"SECRETS_DIR" default:"/var/run/secrets"`
 }
 
 // Process uses `envconfig.Process` first, and then crawls the structure again
@@ -55,7 +49,7 @@ func Process(ctx context.Context, prefix string, spec interface{}, sm secrets.Se
 	logger := logging.FromContext(ctx)
 	// Always load secret config first
 	config := &Config{}
-	err := envconfig.Process("sercretenv", config)
+	err := envconfig.Process("", config)
 	if err != nil {
 		return fmt.Errorf("error loading secretenv.Config: %w", err)
 	}
@@ -78,19 +72,19 @@ func Process(ctx context.Context, prefix string, spec interface{}, sm secrets.Se
 // filename is the sha1 of the secret name, and the path is secretsDir.
 func (c *Config) filenameForSecret(name string) string {
 	digest := fmt.Sprintf("%x", sha1.Sum([]byte(name)))
-	return filepath.Join(c.SecretFileDir, digest)
+	return filepath.Join(c.SecretDir, digest)
 }
 
 func (c *Config) ensureSecretDirExists() error {
 	// Create the parent secretsDir with minimal permissions. If the directory
 	// does not exist, it is created with 0700 permissions. If the directory
 	// exists but has broader permissions that 0700, an error is returned.
-	stat, err := os.Stat(c.SecretFileDir)
+	stat, err := os.Stat(c.SecretDir)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to check if secretsDir exists: %w", err)
 	}
 	if os.IsNotExist(err) {
-		if err := os.MkdirAll(c.SecretFileDir, 0700); err != nil {
+		if err := os.MkdirAll(c.SecretDir, 0700); err != nil {
 			return fmt.Errorf("failed to create secretsDir: %w", err)
 		}
 	} else {
@@ -122,12 +116,12 @@ func (c *Config) processSecrets(ctx context.Context, spec interface{}, sm secret
 
 		if f.Kind() == reflect.String {
 			curValue := f.String()
-			if strings.Index(curValue, SecretProto) == 0 {
+			if strings.Index(curValue, SecretPrefix) == 0 {
 				if sm == nil {
 					return fmt.Errorf("environment contains secret values, but there is no secret manager configured")
 				}
 
-				secretName := strings.Join(strings.Split(curValue, SecretProto), "")
+				secretName := strings.Join(strings.Split(curValue, SecretPrefix), "")
 				secretValue, err := sm.GetSecretValue(ctx, secretName)
 				if err != nil {
 					return fmt.Errorf("GetSecretValue: %v, error: %w", secretName, err)
