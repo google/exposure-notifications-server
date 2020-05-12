@@ -9,7 +9,6 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.10.0
 	github.com/golang/protobuf v1.4.0
 	github.com/google/go-cmp v0.4.0
-	github.com/google/ko v0.4.0 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/kelseyhightower/envconfig v1.4.0
