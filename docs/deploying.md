@@ -68,3 +68,4 @@ Each service's `main` package is located in the `cmd` directory.
 | exposure server | cmd/exposure |  Stores infection keys |
 | exposure cleanup | cmd/cleanup-export | Deletes old exposure keys |
 | export cleanup | cmd/cleanup-infection | Deletes old exported files published by the exposure key export service |
+| exposure wipeout | cmd/wipeout-export | Deletes old exposure keys |
