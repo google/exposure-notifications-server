@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package android managed device attestation inegation with Android's
+// Package android managed device attestation inegation with Android's
 // SafetyNet API.
 package android
 
@@ -33,7 +33,7 @@ import (
 // The VerifyOpts determine the fields that are required for verification
 type VerifyOpts struct {
 	AppPkgName      string
-	APKDigest       string
+	APKDigest       []string
 	Nonce           Noncer
 	CTSProfileMatch bool
 	BasicIntegrity  bool
@@ -98,7 +98,15 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 	} else {
 		logger.Warnf("attestation didn't contain apkCertificateDigestSha256")
 	}
-	if opts.APKDigest != claimApkDigest {
+
+	match := false
+	for _, digest := range opts.APKDigest {
+		if digest != claimApkDigest {
+			match = true
+			break
+		}
+	}
+	if !match {
 		return fmt.Errorf("attestation apkCertificateDigestSha256 value does not match configuration, got %v", claimApkDigest)
 	}
 
