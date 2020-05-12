@@ -33,7 +33,23 @@ type myEnv struct {
 	Food string `envconfig:"VERY_FAKE_ENV_VAR"`
 }
 
+func clearSecrets() {
+	for _, e := range os.Environ() {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		name := parts[0]
+		val := parts[1]
+		if strings.HasPrefix(val, SecretPrefix) {
+			os.Unsetenv(name)
+		}
+	}
+}
+
 func TestResolveSecretNoSecretManager(t *testing.T) {
+	clearSecrets()
+
 	ctx := context.Background()
 	env := &myEnv{}
 	os.Setenv(testEnvVar, "secret://yo/secret/value")
@@ -67,10 +83,12 @@ func (s *TestSecretManager) GetSecretValue(ctx context.Context, name string) (st
 	if v, ok := s.values[name]; ok {
 		return v, nil
 	}
-	return "", nil
+	return "", fmt.Errorf("value not found")
 }
 
 func TestResolveSecretEnv(t *testing.T) {
+	clearSecrets()
+
 	cases := []struct {
 		name        string
 		varValue    string
