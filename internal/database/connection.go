@@ -19,19 +19,12 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
 
 	"github.com/jackc/pgx/v4/pgxpool"
-)
-
-const (
-	defaultMaxIdleConnections = 10
-	defaultMaxOpenConnections = 10
 )
 
 var (
@@ -104,16 +97,6 @@ func dbURI(env *Environment) string {
 		url.QueryEscape(env.Password), url.QueryEscape(env.Port))
 }
 
-func getenv(ctx context.Context, name string, toFile bool, env *serverenv.ServerEnv) (string, error) {
-	if env == nil {
-		return os.Getenv(name), nil
-	}
-	if toFile {
-		return env.WriteSecretToFile(ctx, name)
-	}
-	return env.ResolveSecretEnv(ctx, name)
-}
-
 func setIfNotEmpty(m map[string]string, key, val string) {
 	if val != "" {
 		m[key] = val
@@ -141,9 +124,9 @@ func dbValues(env *Environment) map[string]string {
 	setIfNotEmpty(p, "sslmode", env.SSLMode)
 	setIfPositive(p, "connect_timeout", env.ConnectionTimeout)
 	setIfNotEmpty(p, "password", env.Password)
-	setIfNotEmpty(p, "sslcert", env.SSLCert)
-	setIfNotEmpty(p, "sslkey", env.SSLKey)
-	setIfNotEmpty(p, "sslrootcert", env.SSLRootCert)
+	setIfNotEmpty(p, "sslcert", env.SSLCertPath)
+	setIfNotEmpty(p, "sslkey", env.SSLKeyPath)
+	setIfNotEmpty(p, "sslrootcert", env.SSLRootCertPath)
 	setIfNotEmpty(p, "pool_min_conns", env.PoolMinConnections)
 	setIfNotEmpty(p, "pool_max_conns", env.PoolMaxConnections)
 	setIfPositiveDuration(p, "pool_max_conn_lifetime", env.PoolMaxConnLife)
