@@ -23,9 +23,9 @@ import (
 
 func TestDBValues(t *testing.T) {
 	testCases := []struct {
-		name string
-		env  Environment
-		want map[string]string
+		name   string
+		config Config
+		want   map[string]string
 	}{
 		{
 			name: "empty configs",
@@ -33,7 +33,7 @@ func TestDBValues(t *testing.T) {
 		},
 		{
 			name: "some config",
-			env: Environment{
+			config: Config{
 				Name:              "myDatabase",
 				User:              "superuser",
 				Password:          "notAG00DP@ssword",
@@ -54,7 +54,7 @@ func TestDBValues(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := dbValues(&tc.env)
+			got := dbValues(&tc.config)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}

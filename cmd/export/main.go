@@ -22,9 +22,9 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/api/export"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
-	"github.com/google/exposure-notifications-server/internal/secretenv"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/signing"
@@ -42,9 +42,8 @@ func main() {
 		logger.Fatalf("unable to connect to secret manager: %w", err)
 	}
 
-	envVars := &export.Environment{}
-	err = secretenv.Process(ctx, "", envVars, sm)
-	if err != nil {
+	var config export.Config
+	if err := envconfig.Process(ctx, &config, nil); err != nil {
 		logger.Fatalf("error loading environment variables: %v", err)
 	}
 
@@ -63,19 +62,19 @@ func main() {
 		serverenv.WithBlobStorage(storage),
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
-	db, err := database.NewFromEnv(ctx, &envVars.Database)
+	db, err := database.NewFromEnv(ctx, config.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %w", err)
 	}
 	defer db.Close(ctx)
 
-	batchServer, err := export.NewBatchServer(db, envVars, env)
+	batchServer, err := export.NewBatchServer(db, &config, env)
 	if err != nil {
 		logger.Fatalf("unable to create server: %v", err)
 	}
 	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
 	http.HandleFunc("/do-work", batchServer.WorkerHandler)               // worker that executes work
 
-	logger.Info("starting exposure export server")
-	log.Fatal(http.ListenAndServe(":"+envVars.Port, nil))
+	logger.Info("starting exposure export server on :%s", config.Port)
+	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
 }

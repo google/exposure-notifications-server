@@ -25,9 +25,9 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/api/federation"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/pb"
-	"github.com/google/exposure-notifications-server/internal/secretenv"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 )
 
@@ -41,36 +41,36 @@ func main() {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
 
-	var env federation.Environment
-	if err := secretenv.Process(ctx, "", &env, sm); err != nil {
+	var config federation.Config
+	if err := envconfig.Process(ctx, &config, sm); err != nil {
 		logger.Fatalf("error loading environment variables: %v", err)
 	}
 
-	db, err := database.NewFromEnv(ctx, &env.Database)
+	db, err := database.NewFromEnv(ctx, config.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
-	server := federation.NewServer(db, env.Timeout)
+	server := federation.NewServer(db, config.Timeout)
 
 	var sopts []grpc.ServerOption
-	if env.TLSCertFile != "" && env.TLSKeyFile != "" {
-		creds, err := credentials.NewServerTLSFromFile(env.TLSCertFile, env.TLSKeyFile)
+	if config.TLSCertFile != "" && config.TLSKeyFile != "" {
+		creds, err := credentials.NewServerTLSFromFile(config.TLSCertFile, config.TLSKeyFile)
 		if err != nil {
 			log.Fatalf("Failed to generate credentials: %v", err)
 		}
 		sopts = append(sopts, grpc.Creds(creds))
 	}
 
-	if !env.AllowAnyClient {
+	if !config.AllowAnyClient {
 		sopts = append(sopts, grpc.UnaryInterceptor(server.(*federation.Server).AuthInterceptor))
 	}
 
 	grpcServer := grpc.NewServer(sopts...)
 	pb.RegisterFederationServer(grpcServer, server)
 
-	grpcEndpoint := ":" + env.Port
+	grpcEndpoint := ":" + config.Port
 	listen, err := net.Listen("tcp", grpcEndpoint)
 	if err != nil {
 		logger.Fatalf("Failed to start server: %v", err)

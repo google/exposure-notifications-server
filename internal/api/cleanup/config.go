@@ -20,9 +20,10 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 )
 
-// Environment represents the environment variables for the cleanup servers.
-type Environment struct {
+// Config represents the configuration and associated environment variables for
+// the cleanup components.
+type Config struct {
 	Port     string        `envconfig:"PORT" default:"8080"`
 	Timeout  time.Duration `envconfig:"CLEANUP_TIMEOUT" default:"10m"`
-	Database database.Environment
+	Database *database.Config
 }

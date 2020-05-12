@@ -17,14 +17,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/api/federation"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/secretenv"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 )
 
@@ -38,19 +37,18 @@ func main() {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
 
-	envVars := &federation.Environment{}
-	err = secretenv.Process(ctx, "", envVars, sm)
-	if err != nil {
+	var config federation.Config
+	if err := envconfig.Process(ctx, &config, sm); err != nil {
 		logger.Fatalf("error loading environment variables: %v", err)
 	}
 
-	db, err := database.NewFromEnv(ctx, &envVars.Database)
+	db, err := database.NewFromEnv(ctx, config.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
-	http.Handle("/", federation.NewPullHandler(db, envVars.Timeout))
-	logger.Info("starting federation puller")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", envVars.Port), nil))
+	http.Handle("/", federation.NewPullHandler(db, config.Timeout))
+	logger.Infof("starting federation puller on :%s", config.Port)
+	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
 }

@@ -55,14 +55,14 @@ func createTestDB(ctx context.Context) (*DB, error) {
 	const testDBName = "exposure-server-test"
 
 	// Connect to the default database to create the test database.
-	pgsqlEnv := &Environment{}
-	err := envconfig.Process("dbtestEnvironment", pgsqlEnv)
+	var config Config
+	err := envconfig.Process("dbtestEnvironment", &config)
 	if err != nil {
 		return nil, err
 	}
 	// Override DB name.
-	pgsqlEnv.Name = "postgres"
-	db, err := NewFromEnv(ctx, pgsqlEnv)
+	config.Name = "postgres"
+	db, err := NewFromEnv(ctx, &config)
 	if err != nil {
 		return nil, err
 	}
@@ -72,13 +72,13 @@ func createTestDB(ctx context.Context) (*DB, error) {
 	db.Close(ctx)
 
 	// Connect to the test database and create its schema by applying all migrations.
-	pgsqlEnv.Name = testDBName
-	db, err = NewFromEnv(ctx, pgsqlEnv)
+	config.Name = testDBName
+	db, err = NewFromEnv(ctx, &config)
 	if err != nil {
 		return nil, err
 	}
 	const source = "file://../../migrations"
-	uri := dbURI(pgsqlEnv)
+	uri := dbURI(&config)
 	m, err := migrate.New(source, uri)
 	if err != nil {
 		return nil, err

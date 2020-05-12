@@ -20,11 +20,12 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 )
 
-// Environment is the environment for the federation (data outbound) end point.
-type Environment struct {
+// Config represents the configuration and associated environment variables for
+// the federation components.
+type Config struct {
 	Port     string        `envconfig:"PORT" default:"8080"`
 	Timeout  time.Duration `envconfig:"RPC_TIMEOUT" default:"5m"`
-	Database database.Environment
+	Database *database.Config
 
 	// AllowAnyClient, if true, removes authentication requirements on the federation endpoint.
 	// In practise, this is only useful in local testing.

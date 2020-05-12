@@ -16,7 +16,7 @@ package database
 
 import "time"
 
-type Environment struct {
+type Config struct {
 	Name               string        `envconfig:"DB_DBNAME"`
 	User               string        `envconfig:"DB_USER"`
 	Host               string        `envconfig:"DB_HOST" default:"localhost"`

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package secretenv
+package envconfig
 
 import (
 	"context"
@@ -54,12 +54,12 @@ func TestResolveSecretNoSecretManager(t *testing.T) {
 	env := &myEnv{}
 	os.Setenv(testEnvVar, "secret://yo/secret/value")
 
-	expected := "environment contains secret values, but there is no secret manager configured"
+	expected := "no secret manager is configured"
 
-	err := Process(ctx, "", env, nil)
+	err := Process(ctx, env, nil)
 	if err == nil {
 		t.Errorf("expected error, got nil")
-	} else if err.Error() != expected {
+	} else if !strings.Contains(err.Error(), expected) {
 		t.Errorf("wrong error, want: `%v` got: %v", expected, err)
 	}
 }
@@ -137,7 +137,7 @@ func TestResolveSecretEnv(t *testing.T) {
 		ctx := context.Background()
 
 		env := &myEnv{}
-		err := Process(ctx, "", env, sm)
+		err := Process(ctx, env, sm)
 
 		if c.wantError != "" && err == nil {
 			t.Errorf("%v process want error: '%v' got: nil", c.name, c.wantError)
@@ -174,7 +174,7 @@ func TestWriteSecretToFile(t *testing.T) {
 	sm.values["path/to/secret"] = testVal
 
 	env := &myEnvToFile{}
-	err := Process(ctx, "", env, sm)
+	err := Process(ctx, env, sm)
 
 	if err != nil {
 		t.Fatalf("unable to process environment: %v", err)

@@ -30,30 +30,30 @@ import (
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
-func NewHandler(ctx context.Context, db *database.DB, env *serverenv.ServerEnv, envVars *Environment) (http.Handler, error) {
+func NewHandler(ctx context.Context, db *database.DB, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
 	logger := logging.FromContext(ctx)
 
-	transformer, err := model.NewTransformer(envVars.MaxKeysOnPublish, envVars.MaxIntervalAge, envVars.MaxIntervalFuture)
+	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.MaxIntervalFuture)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
-	logger.Infof("max keys per upload: %v", envVars.MaxKeysOnPublish)
-	logger.Infof("max interval start age: %v", envVars.MaxIntervalAge)
-	logger.Infof("max interval start future: %v", envVars.MaxIntervalFuture)
+	logger.Infof("max keys per upload: %v", config.MaxKeysOnPublish)
+	logger.Infof("max interval start age: %v", config.MaxIntervalAge)
+	logger.Infof("max interval start future: %v", config.MaxIntervalFuture)
 
 	return &publishHandler{
 		db:          db,
 		serverenv:   env,
 		transformer: transformer,
-		envvars:     envVars,
+		config:      config,
 	}, nil
 }
 
 type publishHandler struct {
 	db          *database.DB
+	config      *Config
 	serverenv   *serverenv.ServerEnv
 	transformer *model.Transformer
-	envvars     *Environment
 }
 
 // There is a target normalized latency for this function. This is to help prevent
