@@ -15,7 +15,7 @@
 // Package secretenv wraps envconfig with functionality that can resolve
 // secrets from the environment.
 //
-// This works by transofirming the environment variables set by this process and
+// This works by transforming the environment variables set by this process and
 // then invoking github.com/kelseyhightower/envconfig to resolve environment
 // variables to your configuration struct.
 //
@@ -58,7 +58,7 @@ const (
 	FileSuffix = "?target=file"
 )
 
-type Config struct {
+type envConfig struct {
 	SecretDir string `envconfig:"SECRETS_DIR" default:"/var/run/secrets"`
 }
 
@@ -68,7 +68,7 @@ type Config struct {
 func Process(ctx context.Context, prefix string, spec interface{}, sm secrets.SecretManager) error {
 	logger := logging.FromContext(ctx)
 	// Always load secret config first
-	config := &Config{}
+	config := &envConfig{}
 	err := envconfig.Process("", config)
 	if err != nil {
 		return fmt.Errorf("error loading secretenv.Config: %w", err)
@@ -90,12 +90,12 @@ func Process(ctx context.Context, prefix string, spec interface{}, sm secrets.Se
 
 // filenameForSecret returns the full filepath for the given secret. The
 // filename is the sha1 of the secret name, and the path is secretsDir.
-func (c *Config) filenameForSecret(name string) string {
+func (c *envConfig) filenameForSecret(name string) string {
 	digest := fmt.Sprintf("%x", sha1.Sum([]byte(name)))
 	return filepath.Join(c.SecretDir, digest)
 }
 
-func (c *Config) ensureSecretDirExists() error {
+func (c *envConfig) ensureSecretDirExists() error {
 	// Create the parent secretsDir with minimal permissions. If the directory
 	// does not exist, it is created with 0700 permissions. If the directory
 	// exists but has broader permissions that 0700, an error is returned.
@@ -129,7 +129,7 @@ func secretPath(s string) string {
 	return s
 }
 
-func (c *Config) resolveSecrets(ctx context.Context, sm secrets.SecretManager) error {
+func (c *envConfig) resolveSecrets(ctx context.Context, sm secrets.SecretManager) error {
 	logger := logging.FromContext(ctx)
 	for _, e := range os.Environ() {
 		parts := strings.SplitN(e, "=", 2)
@@ -164,6 +164,12 @@ func (c *Config) resolveSecrets(ctx context.Context, sm secrets.SecretManager) e
 				logger.Infof("wrote secret file for %v", name)
 				secretValue = secretFilePath
 			}
+			// Replace the value of the envrionment variable with the either the resolved secret value
+			// or the file path to the secret value saved on the filesystem.
+			// This takes effect for this process and any child processes only.
+			// When envconfig is used to load a variable if
+			//  DB_PASS was "secret://pathto/databasepassword"
+			//  DB_PASS will not be the actual database password for the application to consume.
 			os.Setenv(name, secretValue)
 		}
 	}

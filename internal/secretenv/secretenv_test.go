@@ -152,7 +152,7 @@ func TestResolveSecretEnv(t *testing.T) {
 }
 
 type myEnvToFile struct {
-	EnvToFile string `envconfig:"VERY_FAKE_ENV_VAR" secretfile:"true"`
+	EnvToFile string `envconfig:"VERY_FAKE_ENV_VAR"`
 }
 
 func TestWriteSecretToFile(t *testing.T) {
