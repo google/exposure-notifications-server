@@ -9,12 +9,13 @@ The server is responsible for the following functions:
 
 * Accepting the temporary exposure keys of affected users from mobile devices.
 
-* Validating the temporary exposure keys using the device attestation API.
+* Validating the temporary exposure keys using the
+[device attestation API](https://developer.android.com/training/safetynet/attestation).
 
 * Storing the temporary exposure keys in a database.
 
 * Periodically generating incremental files that will be downloaded by mobile
-  devices to perform the key matching algorithm on the mobile device.
+  devices to perform the key-matching algorithm on the mobile device.
 
 * Sending a public key to devices to digitally sign the incremental files with
   a private key on the device.
