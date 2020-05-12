@@ -36,7 +36,7 @@ const (
 )
 
 // NewBatchServer makes a BatchServer.
-func NewBatchServer(db *database.DB, bsc BatchServerConfig, env *serverenv.ServerEnv) (*BatchServer, error) {
+func NewBatchServer(db *database.DB, envVars *Environment, env *serverenv.ServerEnv) (*BatchServer, error) {
 	// Validate config.
 	if env.Blobstore == nil {
 		return nil, fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv")
@@ -46,36 +46,29 @@ func NewBatchServer(db *database.DB, bsc BatchServerConfig, env *serverenv.Serve
 	}
 
 	return &BatchServer{
-		db:  db,
-		bsc: bsc,
-		env: env,
+		db:     db,
+		config: envVars,
+		env:    env,
 	}, nil
 }
 
 // BatchServer hosts end points to manage export batches.
 type BatchServer struct {
-	db  *database.DB
-	bsc BatchServerConfig
-	env *serverenv.ServerEnv
-}
-
-// BatchServerConfig is configuratiion for a BatchServer.
-type BatchServerConfig struct {
-	CreateTimeout time.Duration
-	WorkerTimeout time.Duration
-	MaxRecords    int
+	db     *database.DB
+	config *Environment
+	env    *serverenv.ServerEnv
 }
 
 // CreateBatchesHandler is a handler to iterate the rows of ExportConfig and
 // create entries in ExportBatchJob as appropriate.
 func (s *BatchServer) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), s.bsc.CreateTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), s.config.CreateTimeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
 
 	// Obtain lock to make sure there are no other processes working to create batches.
 	lock := "create_batches"
-	unlockFn, err := s.db.Lock(ctx, lock, s.bsc.CreateTimeout)
+	unlockFn, err := s.db.Lock(ctx, lock, s.config.CreateTimeout)
 	if err != nil {
 		if errors.Is(err, database.ErrAlreadyLocked) {
 			msg := fmt.Sprintf("Lock %s already in use, no work will be performed", lock)
@@ -196,7 +189,7 @@ func makeBatchRanges(period time.Duration, latestEnd, now time.Time) []batchRang
 
 // WorkerHandler is a handler to iterate the rows of ExportBatch, and creates GCS files.
 func (s *BatchServer) WorkerHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), s.bsc.WorkerTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), s.config.WorkerTimeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
 
@@ -216,7 +209,7 @@ func (s *BatchServer) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Check for a batch and obtain a lease for it.
-		batch, err := s.db.LeaseBatch(ctx, s.bsc.WorkerTimeout, time.Now())
+		batch, err := s.db.LeaseBatch(ctx, s.config.WorkerTimeout, time.Now())
 		if err != nil {
 			logger.Errorf("Failed to lease batch: %v", err)
 			continue
@@ -239,7 +232,7 @@ func (s *BatchServer) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) error {
 	logger := logging.FromContext(ctx)
-	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d", eb.BatchID, eb.FilenameRoot, eb.Region, s.bsc.MaxRecords)
+	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d", eb.BatchID, eb.FilenameRoot, eb.Region, s.config.MaxRecords)
 
 	criteria := database.IterateExposuresCriteria{
 		SinceTimestamp:      eb.StartTimestamp,
@@ -255,7 +248,7 @@ func (s *BatchServer) exportBatch(ctx context.Context, eb *model.ExportBatch) er
 	var exposures []*model.Exposure
 	_, err := s.db.IterateExposures(ctx, criteria, func(exp *model.Exposure) error {
 		exposures = append(exposures, exp)
-		if len(exposures) == s.bsc.MaxRecords {
+		if len(exposures) == s.config.MaxRecords {
 			groups = append(groups, exposures)
 			exposures = nil
 		}

@@ -20,60 +20,55 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
-	"github.com/google/exposure-notifications-server/internal/api/config"
 	"github.com/google/exposure-notifications-server/internal/api/handlers"
 	"github.com/google/exposure-notifications-server/internal/api/publish"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-)
 
-const (
-	minPublishDurationEnv     = "MIN_PUBLISH_DURATION"
-	bypassSafetyNetEnv        = "BYPASS_SAFETYNET"
-	defaultMinPublishDiration = 5 * time.Second
+	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
-	sm, err := secrets.NewGCPSecretManager(ctx)
+	envVars := &publish.Environment{}
+	err := envconfig.Process("exposure", envVars)
 	if err != nil {
-		logger.Fatalf("unable to connect to secret manager: %v", err)
+		logger.Fatalf("error loading environment variables: %v", err)
 	}
-	env := serverenv.New(ctx,
-		serverenv.WithSecretManager(sm),
-		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
-	db, err := database.NewFromEnv(ctx, env)
+	db, err := database.NewFromEnv(ctx, &envVars.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
-	cfg := config.New(db)
-
-	bypassSafetyNet := serverenv.ParseBool(ctx, bypassSafetyNetEnv, false)
-	if bypassSafetyNet {
-		logger.Warn("SafetyNet verification is bypassed. Do not bypass SafetyNet " +
-			"verification in production environments!")
-		cfg.BypassSafetyNet()
+	sm, err := secrets.NewGCPSecretManager(ctx)
+	if err != nil {
+		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
+	cfgProvider, err := dbapiconfig.NewConfigProvider(db, envVars.APIConfigOpts)
+	if err != nil {
+		logger.Fatalf("unable to create APIConfig provider: %v", err)
+	}
+	opts := []serverenv.Option{
+		serverenv.WithSecretManager(sm),
+		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext),
+		serverenv.WithAPIConfigProvider(cfgProvider),
+	}
+	env := serverenv.New(ctx, opts...)
 
-	minLatency := serverenv.ParseDuration(ctx, minPublishDurationEnv, defaultMinPublishDiration)
-	logger.Infof("Request minimum latency is: %v", minLatency.String())
-
-	handler, err := publish.NewHandler(ctx, db, cfg, env)
+	handler, err := publish.NewHandler(ctx, db, env, envVars)
 	if err != nil {
 		logger.Fatalf("unable to create publish handler: %v", err)
 	}
-	http.Handle("/", handlers.WithMinimumLatency(minLatency, handler))
+	http.Handle("/", handlers.WithMinimumLatency(envVars.MinRequestDuration, handler))
 	logger.Info("starting exposure server")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port), nil))
 }

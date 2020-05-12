@@ -15,159 +15,46 @@
 package database
 
 import (
-	"context"
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestDBValues(t *testing.T) {
 	testCases := []struct {
-		name    string
-		configs []config
-		env     map[string]string
-		want    map[string]string
-		wantErr bool
+		name string
+		env  Environment
+		want map[string]string
 	}{
 		{
 			name: "empty configs",
+			want: make(map[string]string),
 		},
 		{
-			name: "required missing",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: "", req: true},
+			name: "some config",
+			env: Environment{
+				Name:              "myDatabase",
+				User:              "superuser",
+				Password:          "notAG00DP@ssword",
+				Port:              "1234",
+				ConnectionTimeout: 5,
+				PoolHealthCheck:   5 * time.Minute,
 			},
-			wantErr: true,
-		},
-		{
-			name: "required present",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: "", req: true},
+			want: map[string]string{
+				"dbname":                   "myDatabase",
+				"password":                 "notAG00DP@ssword",
+				"port":                     "1234",
+				"user":                     "superuser",
+				"connect_timeout":          "5",
+				"pool_health_check_period": "5m0s",
 			},
-			env:  map[string]string{"AAA": "a_a"},
-			want: map[string]string{"aaa": "a_a"},
-		},
-		{
-			name: "optional not required",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: ""},
-			},
-		},
-		{
-			name: "no default string",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: ""},
-			},
-		},
-		{
-			name: "default string",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: "default"},
-			},
-			want: map[string]string{"aaa": "default"},
-		},
-		{
-			name: "valid enum",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: "", valid: []string{"a1", "a2"}},
-			},
-			env:  map[string]string{"AAA": "a2"},
-			want: map[string]string{"aaa": "a2"},
-		},
-		{
-			name: "invalid enum",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: "", valid: []string{"a1", "a2"}},
-			},
-			env:     map[string]string{"AAA": "not-a-valid-enum"},
-			wantErr: true,
-		},
-		{
-			name: "valid int",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: 0},
-			},
-			env:  map[string]string{"AAA": "99"},
-			want: map[string]string{"aaa": "99"},
-		},
-		{
-			name: "invalid int",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: 0},
-			},
-			env:     map[string]string{"AAA": "not-an-int"},
-			wantErr: true,
-		},
-		{
-			name: "no default int",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: 0},
-			},
-		},
-		{
-			name: "default int",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: 99},
-			},
-			want: map[string]string{"aaa": "99"},
-		},
-		{
-			name: "valid duration",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: time.Duration(0)},
-			},
-			env:  map[string]string{"AAA": "10s"},
-			want: map[string]string{"aaa": "10s"},
-		},
-		{
-			name: "invalid duration",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: time.Duration(0)},
-			},
-			env:     map[string]string{"AAA": "not-a-duration"},
-			wantErr: true,
-		},
-		{
-			name: "default duration",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: 5 * time.Second},
-			},
-			want: map[string]string{"aaa": "5s"},
-		},
-		{
-			name: "no default duration",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: time.Duration(0)},
-			},
-		},
-		{
-			name: "complex",
-			configs: []config{
-				{env: "AAA", part: "aaa", def: "", req: true},
-				{env: "BBB", part: "bbb", def: 0},
-				{env: "CCC", part: "ccc", def: time.Duration(0)},
-				{env: "DDD", part: "ddd", def: "d_d"},
-			},
-			env:     map[string]string{"AAA": "a_a", "CCC": "10s"},
-			want:    map[string]string{"aaa": "a_a", "ccc": "10s", "ddd": "d_d"},
-			wantErr: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			env := serverenv.New(ctx)
-			for k, v := range tc.env {
-				env.Set(k, v)
-			}
-			got, err := dbValues(ctx, tc.configs, env)
-
-			if err != nil != tc.wantErr {
-				t.Fatalf("processEnv got err %t, want err %t", err != nil, tc.wantErr)
-			}
+			got := dbValues(&tc.env)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}

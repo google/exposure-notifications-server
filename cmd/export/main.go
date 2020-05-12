@@ -19,9 +19,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/export"
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -31,19 +28,18 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
-)
-
-const (
-	createBatchesTimeoutEnvVar = "CREATE_BATCHES_TIMEOUT"
-	workerTimeoutEnvVar        = "WORKER_TIMEOUT"
-	defaultTimeout             = 5 * time.Minute
-	maxRecordsEnvVar           = "EXPORT_FILE_MAX_RECORDS"
-	defaultMaxRecords          = 30_000
+	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
+
+	envVars := &export.Environment{}
+	err := envconfig.Process("exposure", envVars)
+	if err != nil {
+		logger.Fatalf("error loading environment variables: %v", err)
+	}
 
 	// It is possible to install a different secret management, KMS, and blob
 	// storage systems here.
@@ -66,32 +62,13 @@ func main() {
 		serverenv.WithBlobStorage(storage),
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
-	db, err := database.NewFromEnv(ctx, env)
+	db, err := database.NewFromEnv(ctx, &envVars.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %w", err)
 	}
 	defer db.Close(ctx)
 
-	bsc := export.BatchServerConfig{}
-	bsc.CreateTimeout = serverenv.ParseDuration(ctx, createBatchesTimeoutEnvVar, defaultTimeout)
-	logger.Infof("Using create batches timeout %v (override with $%s)", bsc.CreateTimeout, createBatchesTimeoutEnvVar)
-
-	bsc.WorkerTimeout = serverenv.ParseDuration(ctx, workerTimeoutEnvVar, defaultTimeout)
-	logger.Infof("Using worker timeout %v (override with $%s)", bsc.WorkerTimeout, workerTimeoutEnvVar)
-
-	if maxRecStr, ok := os.LookupEnv(maxRecordsEnvVar); !ok {
-		logger.Infof("Using export file max size %d (override with $%s)", defaultMaxRecords, maxRecordsEnvVar)
-		bsc.MaxRecords = defaultMaxRecords
-	} else {
-		if maxRec, err := strconv.Atoi(maxRecStr); err != nil {
-			logger.Errorf("Failed to parse $%s value %q, using default %d", maxRecordsEnvVar, maxRecStr, defaultMaxRecords)
-			bsc.MaxRecords = defaultMaxRecords
-		} else {
-			bsc.MaxRecords = maxRec
-		}
-	}
-
-	batchServer, err := export.NewBatchServer(db, bsc, env)
+	batchServer, err := export.NewBatchServer(db, envVars, env)
 	if err != nil {
 		logger.Fatalf("unable to create server: %v", err)
 	}
