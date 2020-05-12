@@ -25,31 +25,26 @@ import (
 	"github.com/google/exposure-notifications-server/internal/api/federation"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/secretenv"
 	"github.com/google/exposure-notifications-server/internal/secrets"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	envVars := &federation.Environment{}
-	err := envconfig.Process("federation", envVars)
-	if err != nil {
-		logger.Fatalf("error loading environment variables: %v", err)
-	}
-
 	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
 	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
-	env := serverenv.New(ctx,
-		serverenv.WithSecretManager(sm),
-		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
+
+	envVars := &federation.Environment{}
+	err = secretenv.Process(ctx, "", envVars, sm)
+	if err != nil {
+		logger.Fatalf("error loading environment variables: %v", err)
+	}
 
 	db, err := database.NewFromEnv(ctx, &envVars.Database)
 	if err != nil {
@@ -57,7 +52,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	grpcEndpoint := ":" + env.Port
+	grpcEndpoint := ":" + envVars.Port
 	logger.Infof("gRPC endpoint [%s]", grpcEndpoint)
 
 	grpcServer := grpc.NewServer()

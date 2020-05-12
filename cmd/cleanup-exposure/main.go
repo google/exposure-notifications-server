@@ -23,30 +23,25 @@ import (
 	"github.com/google/exposure-notifications-server/internal/api/cleanup"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/internal/secretenv"
 	"github.com/google/exposure-notifications-server/internal/secrets"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	envVars := &cleanup.Environment{}
-	err := envconfig.Process("cleanup-exposure", envVars)
-	if err != nil {
-		logger.Fatalf("error loading environment variables: %v", err)
-	}
-
 	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
 	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
-	env := serverenv.New(ctx,
-		serverenv.WithSecretManager(sm),
-		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
+
+	envVars := &cleanup.Environment{}
+	err = secretenv.Process(ctx, "", envVars, sm)
+	if err != nil {
+		logger.Fatalf("error loading environment variables: %v", err)
+	}
 
 	db, err := database.NewFromEnv(ctx, &envVars.Database)
 	if err != nil {
@@ -56,5 +51,5 @@ func main() {
 
 	http.Handle("/", cleanup.NewExposureHandler(db, envVars.Timeout))
 	logger.Info("starting cleanup server")
-	log.Fatal(http.ListenAndServe(":"+env.Port, nil))
+	log.Fatal(http.ListenAndServe(":"+envVars.Port, nil))
 }

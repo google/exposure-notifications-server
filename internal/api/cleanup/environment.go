@@ -22,6 +22,7 @@ import (
 
 // Environment represents the environment variables for the cleanup servers.
 type Environment struct {
+	Port     string        `envconfig:"PORT" default:"8080"`
 	Timeout  time.Duration `envconfig:"CLEANUP_TIMEOUT" default:"10m"`
 	Database database.Environment
 }

@@ -24,27 +24,28 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/internal/secretenv"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
-	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	envVars := &cleanup.Environment{}
-	err := envconfig.Process("cleanup-export", envVars)
-	if err != nil {
-		logger.Fatalf("error loading environment variables: %v", err)
-	}
-
 	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
 	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
+
+	envVars := &cleanup.Environment{}
+	err = secretenv.Process(ctx, "", envVars, sm)
+	if err != nil {
+		logger.Fatalf("error loading environment variables: %v", err)
+	}
+
 	storage, err := storage.NewGoogleCloudStorage(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to storage system: %v", err)
@@ -62,5 +63,5 @@ func main() {
 
 	http.Handle("/", cleanup.NewExportHandler(db, envVars.Timeout, env))
 	logger.Info("starting export cleanup server")
-	log.Fatal(http.ListenAndServe(":"+env.Port, nil))
+	log.Fatal(http.ListenAndServe(":"+envVars.Port, nil))
 }

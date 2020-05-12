@@ -22,6 +22,7 @@ import (
 
 // Environment represents the environment variables suported by the export APIs.
 type Environment struct {
+	Port          string        `envconfig:"PORT" default:"8080"`
 	CreateTimeout time.Duration `envconfig:"CREATE_BATCHES_TIMEOUT" default:"5m"`
 	WorkerTimeout time.Duration `envconfig:"WORKER_TIMEOUT" default:"5m"`
 	MaxRecords    int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`

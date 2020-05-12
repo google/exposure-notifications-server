@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -27,18 +26,22 @@ import (
 	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/internal/secretenv"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-
-	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
+	sm, err := secrets.NewGCPSecretManager(ctx)
+	if err != nil {
+		logger.Fatalf("unable to connect to secret manager: %v", err)
+	}
+
 	envVars := &publish.Environment{}
-	err := envconfig.Process("exposure", envVars)
+	err = secretenv.Process(ctx, "", envVars, sm)
 	if err != nil {
 		logger.Fatalf("error loading environment variables: %v", err)
 	}
@@ -49,10 +52,6 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	sm, err := secrets.NewGCPSecretManager(ctx)
-	if err != nil {
-		logger.Fatalf("unable to connect to secret manager: %v", err)
-	}
 	cfgProvider, err := dbapiconfig.NewConfigProvider(db, envVars.APIConfigOpts)
 	if err != nil {
 		logger.Fatalf("unable to create APIConfig provider: %v", err)
@@ -70,5 +69,5 @@ func main() {
 	}
 	http.Handle("/", handlers.WithMinimumLatency(envVars.MinRequestDuration, handler))
 	logger.Info("starting exposure server")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port), nil))
+	log.Fatal(http.ListenAndServe(":"+envVars.Port, nil))
 }

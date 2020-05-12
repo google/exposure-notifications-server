@@ -19,19 +19,12 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
 
 	"github.com/jackc/pgx/v4/pgxpool"
-)
-
-const (
-	defaultMaxIdleConnections = 10
-	defaultMaxOpenConnections = 10
 )
 
 var (
@@ -102,16 +95,6 @@ func dbURI(env *Environment) string {
 	return fmt.Sprintf("postgres://%s/%s?sslmode=disable&user=%s&password=%s&port=%s",
 		env.Host, env.Name, env.User,
 		url.QueryEscape(env.Password), url.QueryEscape(env.Port))
-}
-
-func getenv(ctx context.Context, name string, toFile bool, env *serverenv.ServerEnv) (string, error) {
-	if env == nil {
-		return os.Getenv(name), nil
-	}
-	if toFile {
-		return env.WriteSecretToFile(ctx, name)
-	}
-	return env.ResolveSecretEnv(ctx, name)
 }
 
 func setIfNotEmpty(m map[string]string, key, val string) {

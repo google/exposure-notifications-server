@@ -24,6 +24,7 @@ import (
 
 // Environment repsresnts the supported environment variables for the exposure server.
 type Environment struct {
+	Port                     string        `envconfig:"PORT" default:"8080"`
 	MinRequestDuration       time.Duration `envconfig:"TARGET_REQUEST_DURATION" default:"5s"`
 	MaxKeysOnPublish         int           `envconfig:"MAX_KEYS_ON_PUBLISH" default:"14"`
 	MaxIntervalAge           time.Duration `envconfig:"MAX_INTERVAL_AGE_ON_PUBLISH" default:"360h"`

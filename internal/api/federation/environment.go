@@ -21,6 +21,7 @@ import (
 )
 
 type Environment struct {
+	Port     string        `envconfig:"PORT" default:"8080"`
 	Timeout  time.Duration `envconfig:"RPC_TIMEOUT" default:"5m"`
 	Database database.Environment
 }
