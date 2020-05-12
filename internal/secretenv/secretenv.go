@@ -14,6 +14,24 @@
 
 // Package secretenv wraps envconfig with functionality that can resolve
 // secrets from the environment.
+//
+// This works by transofirming the environment variables set by this process and
+// then invoking github.com/kelseyhightower/envconfig to resolve environment
+// variables to your configuration struct.
+//
+// If an environment variable starts with 'secret://', for example
+//   secret://RESTOFVAR
+// Then RESTOFVAR is used as a key to resolve that value in your configured
+// secret manager.
+// The OS level environment variable is rewritten to be the secret value (which
+// only has visability for this running process and any child processes).
+//
+// If an envirnment variable starts with 'secret://' and ends with '?target=file'
+// then, after resolution that value will be written to a file in the SECRETS_DIR
+// and the environment variable will be rewritten to be the local path to that file.
+//
+// This can be used with any secret manager that implements the 'secrets.SecretManager'
+// interface.
 package secretenv
 
 import (
@@ -23,8 +41,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
@@ -36,6 +52,10 @@ const (
 	// SecretPrefix is the prefix, that if the value of an env var starts with
 	// will be resolved through the configured secret store.
 	SecretPrefix = "secret://"
+
+	// FileSuffix is the suffix to use, if this secret path should be written to a file.
+	// only inteprted on environment variable values that start w/ secret://
+	FileSuffix = "?target=file"
 )
 
 type Config struct {
@@ -54,16 +74,16 @@ func Process(ctx context.Context, prefix string, spec interface{}, sm secrets.Se
 		return fmt.Errorf("error loading secretenv.Config: %w", err)
 	}
 
+	err = config.resolveSecrets(ctx, sm)
+	if err != nil {
+		return err
+	}
+
 	err = envconfig.Process(prefix, spec)
 	if err != nil {
 		return fmt.Errorf("error loading environment variables: %w", err)
 	}
 	logger.Infof("Loaded environment: %v", spec)
-
-	err = config.processSecrets(ctx, spec, sm)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -95,64 +115,57 @@ func (c *Config) ensureSecretDirExists() error {
 	return nil
 }
 
-// Even if sm is nil, look for fields w/ the secret tag.
-func (c *Config) processSecrets(ctx context.Context, spec interface{}, sm secrets.SecretManager) error {
-	logger := logging.FromContext(ctx)
-
-	s := reflect.ValueOf(spec).Elem()
-	typeOfSpec := s.Type()
-
-	for i := 0; i < s.NumField(); i++ {
-		f := s.Field(i)
-		fType := typeOfSpec.Field(i)
-		if !f.CanSet() || isTrue(fType.Tag.Get("ignored")) {
-			continue
-		}
-
-		if f.Kind() == reflect.Struct {
-			c.processSecrets(ctx, f.Addr().Interface(), sm)
-			continue
-		}
-
-		if f.Kind() == reflect.String {
-			curValue := f.String()
-			if strings.Index(curValue, SecretPrefix) == 0 {
-				if sm == nil {
-					return fmt.Errorf("environment contains secret values, but there is no secret manager configured")
-				}
-
-				secretName := strings.Join(strings.Split(curValue, SecretPrefix), "")
-				secretValue, err := sm.GetSecretValue(ctx, secretName)
-				if err != nil {
-					return fmt.Errorf("GetSecretValue: %v, error: %w", secretName, err)
-				}
-
-				if isTrue(fType.Tag.Get("secretfile")) {
-					if err := c.ensureSecretDirExists(); err != nil {
-						return err
-					}
-					envVar := fType.Tag.Get("envconfig")
-					if envVar == "" {
-						envVar = typeOfSpec.PkgPath() + "." + typeOfSpec.Name() + "." + fType.Name
-					}
-
-					secretPath := c.filenameForSecret(envVar)
-					if err := ioutil.WriteFile(secretPath, []byte(secretValue), 0600); err != nil {
-						return fmt.Errorf("failed to write secret %q to file: %w", envVar, err)
-					}
-					logger.Infof("wrote secret file for %v", envVar)
-					f.SetString(secretPath)
-				} else {
-					f.SetString(secretValue)
-				}
-			}
-		}
+func checkFileTarget(s string) (string, bool) {
+	if strings.HasSuffix(s, FileSuffix) {
+		return strings.TrimSuffix(s, FileSuffix), true
 	}
-
-	return nil
+	return s, false
 }
 
-func isTrue(s string) bool {
-	b, _ := strconv.ParseBool(s)
-	return b
+func secretPath(s string) string {
+	if strings.HasPrefix(s, SecretPrefix) {
+		return strings.TrimPrefix(s, SecretPrefix)
+	}
+	return s
+}
+
+func (c *Config) resolveSecrets(ctx context.Context, sm secrets.SecretManager) error {
+	logger := logging.FromContext(ctx)
+	for _, e := range os.Environ() {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) != 2 {
+			logger.Errorf("environment variable unexpected format: %v", e)
+			continue
+		}
+		name := parts[0]
+		val := parts[1]
+		if strings.HasPrefix(val, SecretPrefix) {
+			if sm == nil {
+				return fmt.Errorf("environment contains secret values, but there is no secret manager configured")
+			}
+
+			val, shouldWriteFile := checkFileTarget(val)
+			logger.Infof("resolving secret value for environment variable: %v  toFile: %v", name, shouldWriteFile)
+
+			secretName := secretPath(val)
+			secretValue, err := sm.GetSecretValue(ctx, secretName)
+			if err != nil {
+				return fmt.Errorf("GetSecretValue: %v, error: %w", secretName, err)
+			}
+
+			if shouldWriteFile {
+				if err := c.ensureSecretDirExists(); err != nil {
+					return err
+				}
+				secretFilePath := c.filenameForSecret(name)
+				if err := ioutil.WriteFile(secretFilePath, []byte(secretValue), 0600); err != nil {
+					return fmt.Errorf("failed to write secret %q to file: %w", name, err)
+				}
+				logger.Infof("wrote secret file for %v", name)
+				secretValue = secretFilePath
+			}
+			os.Setenv(name, secretValue)
+		}
+	}
+	return nil
 }

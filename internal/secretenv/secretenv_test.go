@@ -150,7 +150,7 @@ func TestWriteSecretToFile(t *testing.T) {
 	})
 
 	os.Setenv("SECRETS_DIR", tempDir)
-	os.Setenv("VERY_FAKE_ENV_VAR", "secret://path/to/secret")
+	os.Setenv("VERY_FAKE_ENV_VAR", "secret://path/to/secret?target=file")
 
 	sm := NewTestSecretManager()
 	sm.values["path/to/secret"] = testVal
