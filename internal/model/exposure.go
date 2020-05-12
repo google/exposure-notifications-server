@@ -15,10 +15,11 @@
 package model
 
 import (
-	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/google/exposure-notifications-server/internal/base64util"
 )
 
 const (
@@ -177,7 +178,7 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 	}
 
 	for _, exposureKey := range inData.Keys {
-		binKey, err := base64.StdEncoding.DecodeString(exposureKey.Key)
+		binKey, err := base64util.DecodeString(exposureKey.Key)
 		if err != nil {
 			return nil, err
 		}
