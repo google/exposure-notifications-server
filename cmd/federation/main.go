@@ -30,6 +30,11 @@ import (
 	"github.com/google/exposure-notifications-server/internal/secrets"
 )
 
+const (
+	allowAnyClientEnvVar  = "ALLOW_ANY_CLIENT"
+	defaultAllowAnyClient = false
+)
+
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
@@ -52,12 +57,20 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	grpcEndpoint := ":" + envVars.Port
-	logger.Infof("gRPC endpoint [%s]", grpcEndpoint)
+	allowAnyClient := serverenv.ParseBool(ctx, allowAnyClientEnvVar, defaultAllowAnyClient)
+	logger.Info("Using allow any client %b (override with $%s)", allowAnyClient, allowAnyClientEnvVar)
 
-	grpcServer := grpc.NewServer()
-	pb.RegisterFederationServer(grpcServer, federation.NewServer(db, envVars.Timeout))
+	server := federation.NewServer(db, envVars.Timeout)
 
+	var sopts []grpc.ServerOption
+	if !allowAnyClient {
+		sopts = append(sopts, grpc.UnaryInterceptor(server.(federation.Server).AuthInterceptor))
+	}
+
+	grpcServer := grpc.NewServer(sopts...)
+	pb.RegisterFederationServer(grpcServer, server)
+
+	grpcEndpoint := ":" + env.Port
 	listen, err := net.Listen("tcp", grpcEndpoint)
 	if err != nil {
 		logger.Fatalf("Failed to start server: %v", err)

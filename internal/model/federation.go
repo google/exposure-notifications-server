@@ -18,6 +18,7 @@ import (
 	"time"
 )
 
+// FederationQuery represents a configuration to pull federation results from other servers.
 type FederationQuery struct {
 	QueryID        string    `db:"query_id"`
 	ServerAddr     string    `db:"server_addr"`
@@ -26,6 +27,7 @@ type FederationQuery struct {
 	LastTimestamp  time.Time `db:"last_timestamp"`
 }
 
+// FederationSync is the result of a federation query pulled from other servers.
 type FederationSync struct {
 	SyncID       int64     `db:"sync_id"`
 	QueryID      string    `db:"query_id"`
@@ -33,4 +35,11 @@ type FederationSync struct {
 	Completed    time.Time `db:"completed"`
 	Insertions   int       `db:"insertions"`
 	MaxTimestamp time.Time `db:"max_timestamp"`
+}
+
+// FederatinonClient is a configuration of clients that pull from this server.
+type FederationClient struct {
+	ClientID       string   `db:"client_id"`
+	IncludeRegions []string `db:"include_regions"`
+	ExcludeRegions []string `db:"exclude_regions"`
 }

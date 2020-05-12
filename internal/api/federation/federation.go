@@ -37,16 +37,16 @@ type iterateExposuresFunc func(context.Context, database.IterateExposuresCriteri
 
 // NewServer builds a new FederationServer.
 func NewServer(db *database.DB, timeout time.Duration) pb.FederationServer {
-	return &federationServer{db: db, timeout: timeout}
+	return &Server{db: db, timeout: timeout}
 }
 
-type federationServer struct {
+type Server struct {
 	db      *database.DB
 	timeout time.Duration
 }
 
 // Fetch implements the FederationServer Fetch endpoint.
-func (s *federationServer) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.FederationFetchResponse, error) {
+func (s Server) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.FederationFetchResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
@@ -58,7 +58,7 @@ func (s *federationServer) Fetch(ctx context.Context, req *pb.FederationFetchReq
 	return response, nil
 }
 
-func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFunc iterateExposuresFunc, fetchUntil time.Time) (*pb.FederationFetchResponse, error) {
+func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFunc iterateExposuresFunc, fetchUntil time.Time) (*pb.FederationFetchResponse, error) {
 	logger := logging.FromContext(ctx)
 
 	for i := range req.RegionIdentifiers {
@@ -67,6 +67,24 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	for i := range req.ExcludeRegionIdentifiers {
 		req.ExcludeRegionIdentifiers[i] = strings.ToUpper(req.ExcludeRegionIdentifiers[i])
 	}
+
+	// // If configured, fetch the federation client (TODO: based on auth); we limit the regions based on this record.
+	// if !s.config.AllowAnyClient {
+	// 	clientID := "TODO"
+	// 	client, err := s.db.GetFederationClient(ctx, clientID)
+	// 	if err != nil {
+	// 		if err == database.ErrNotFound {
+	// 			return nil, fmt.Errorf("unknown client %q", clientID)
+	// 		}
+	// 		return nil, fmt.Errorf("fetching client: %w", err)
+	// 	}
+
+	// 	// For included regions, we INTERSECT the requested included regions with the configured included regions.
+	// 	req.RegionIdentifiers = intersect(req.RegionIdentifiers, client.IncludeRegions)
+
+	// 	// For excluded regions, we UNION the the requested excluded regions with the configured excluded regions.
+	// 	req.ExcludeRegionIdentifiers = union(req.ExcludeRegionIdentifiers, client.ExcludeRegions)
+	// }
 
 	// If there is only one region, we can let datastore filter it; otherwise we'll have to filter in memory.
 	// TODO(squee1945): Filter out other partner's data; don't re-federate.
@@ -204,4 +222,46 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	}
 	logger.Infof("Sent %d keys", count)
 	return response, nil
+}
+
+func intersect(aa, bb []string) []string {
+	if len(aa) == 0 || len(bb) == 0 {
+		return []string{}
+	}
+	result := []string{}
+	for _, a := range aa {
+		found := false
+		for _, b := range bb {
+			if a == b {
+				found = true
+				break
+			}
+		}
+		if found {
+			result = append(result, a)
+		}
+	}
+	return result
+}
+
+func union(aa, bb []string) []string {
+	if len(aa) == 0 {
+		return bb
+	}
+	if len(bb) == 0 {
+		return aa
+	}
+	m := map[string]struct{}{}
+	for _, a := range aa {
+		m[a] = struct{}{}
+	}
+	for _, b := range bb {
+		m[b] = struct{}{}
+	}
+	var result []string
+	for k := range m {
+		result = append(result, k)
+	}
+	sort.Strings(result)
+	return result
 }

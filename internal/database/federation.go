@@ -39,7 +39,7 @@ type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx
 func (db *DB) GetFederationQuery(ctx context.Context, queryID string) (*model.FederationQuery, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %v", err)
+		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
 	defer conn.Release()
 
@@ -62,7 +62,7 @@ func getFederationQuery(ctx context.Context, queryID string, queryRow queryRowFn
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("scanning results: %v", err)
+		return nil, fmt.Errorf("scanning results: %w", err)
 	}
 	return &q, nil
 }
@@ -75,7 +75,7 @@ func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) 
 			if errors.Is(err, ErrNotFound) {
 				existing = false
 			} else {
-				return fmt.Errorf("getting existing federation query %s: %v", q.QueryID, err)
+				return fmt.Errorf("getting existing federation query %s: %w", q.QueryID, err)
 			}
 		}
 
@@ -87,7 +87,7 @@ func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) 
 					query_id=$1
 			`, q.QueryID)
 			if err != nil {
-				return fmt.Errorf("deleting existing federation query %s: %v", q.QueryID, err)
+				return fmt.Errorf("deleting existing federation query %s: %w", q.QueryID, err)
 			}
 		}
 
@@ -99,7 +99,7 @@ func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) 
 				($1, $2, $3, $4, $5)
 		`, q.QueryID, q.ServerAddr, q.IncludeRegions, q.ExcludeRegions, q.LastTimestamp)
 		if err != nil {
-			return fmt.Errorf("inserting federation query: %v", err)
+			return fmt.Errorf("inserting federation query: %w", err)
 		}
 		return nil
 	})
@@ -109,7 +109,7 @@ func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) 
 func (db *DB) GetFederationSync(ctx context.Context, syncID int64) (*model.FederationSync, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %v", err)
+		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
 	defer conn.Release()
 
@@ -135,7 +135,7 @@ func getFederationSync(ctx context.Context, syncID int64, queryRowContext queryR
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("scanning results: %v", err)
+		return nil, fmt.Errorf("scanning results: %w", err)
 	}
 	if completed != nil {
 		s.Completed = *completed
@@ -153,7 +153,7 @@ func getFederationSync(ctx context.Context, syncID int64, queryRowContext queryR
 func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery, started time.Time) (int64, FinalizeSyncFn, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
-		return 0, nil, fmt.Errorf("acquiring connection: %v", err)
+		return 0, nil, fmt.Errorf("acquiring connection: %w", err)
 	}
 	defer conn.Release()
 
@@ -171,7 +171,7 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 		RETURNING sync_id
 		`, q.QueryID, started)
 	if err := row.Scan(&syncID); err != nil {
-		return 0, nil, fmt.Errorf("fetching sync_id: %v", err)
+		return 0, nil, fmt.Errorf("fetching sync_id: %w", err)
 	}
 
 	finalize := func(maxTimestamp time.Time, totalInserted int) error {
@@ -190,7 +190,7 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 						query_id = $2
 			`, maxTimestamp, q.QueryID)
 				if err != nil {
-					return fmt.Errorf("updating federation query: %v", err)
+					return fmt.Errorf("updating federation query: %w", err)
 				}
 			}
 
@@ -209,11 +209,36 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 					sync_id = $4
 			`, completed, totalInserted, max, syncID)
 			if err != nil {
-				return fmt.Errorf("updating federation sync: %v", err)
+				return fmt.Errorf("updating federation sync: %w", err)
 			}
 			return nil
 		})
 	}
 
 	return syncID, finalize, nil
+}
+
+func (db *DB) GetFederationClient(ctx context.Context, clientID string) (*model.FederationClient, error) {
+	conn, err := db.pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	row := conn.QueryRow(ctx, `
+		SELECT
+			client_id, include_regions, exclude_regions
+		FROM
+			FederationClient
+		WHERE
+			client_id = $1
+		`, clientID)
+	c := model.FederationClient{}
+	if err := row.Scan(&c.ClientID, &c.IncludeRegions, &c.ExcludeRegions); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("scanning results: %w", err)
+	}
+	return &c, nil
 }
