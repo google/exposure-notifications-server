@@ -21,6 +21,7 @@ import (
 	"net"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/google/exposure-notifications-server/internal/api/federation"
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -40,24 +41,36 @@ func main() {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
 
-	envVars := &federation.Environment{}
-	err = secretenv.Process(ctx, "", envVars, sm)
-	if err != nil {
+	var env federation.Environment
+	if err := secretenv.Process(ctx, "", &env, sm); err != nil {
 		logger.Fatalf("error loading environment variables: %v", err)
 	}
 
-	db, err := database.NewFromEnv(ctx, &envVars.Database)
+	db, err := database.NewFromEnv(ctx, &env.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
-	grpcEndpoint := ":" + envVars.Port
-	logger.Infof("gRPC endpoint [%s]", grpcEndpoint)
+	server := federation.NewServer(db, env.Timeout)
 
-	grpcServer := grpc.NewServer()
-	pb.RegisterFederationServer(grpcServer, federation.NewServer(db, envVars.Timeout))
+	var sopts []grpc.ServerOption
+	if env.TLSCertFile != "" && env.TLSKeyFile != "" {
+		creds, err := credentials.NewServerTLSFromFile(env.TLSCertFile, env.TLSKeyFile)
+		if err != nil {
+			log.Fatalf("Failed to generate credentials: %v", err)
+		}
+		sopts = append(sopts, grpc.Creds(creds))
+	}
 
+	if !env.AllowAnyClient {
+		sopts = append(sopts, grpc.UnaryInterceptor(server.(*federation.Server).AuthInterceptor))
+	}
+
+	grpcServer := grpc.NewServer(sopts...)
+	pb.RegisterFederationServer(grpcServer, server)
+
+	grpcEndpoint := ":" + env.Port
 	listen, err := net.Listen("tcp", grpcEndpoint)
 	if err != nil {
 		logger.Fatalf("Failed to start server: %v", err)

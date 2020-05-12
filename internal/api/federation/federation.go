@@ -28,25 +28,34 @@ import (
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"google.golang.org/api/idtoken"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
-// type diagKeyList []*pb.ExposureKey
-// type diagKeys map[pb.TransmissionRisk]diagKeyList
-// type collator map[string]diagKeys
+const (
+	authHeader = "authorization"
+	bearer     = "Bearer"
+)
+
 type iterateExposuresFunc func(context.Context, database.IterateExposuresCriteria, func(*model.Exposure) error) (string, error)
 
 // NewServer builds a new FederationServer.
 func NewServer(db *database.DB, timeout time.Duration) pb.FederationServer {
-	return &federationServer{db: db, timeout: timeout}
+	return &Server{db: db, timeout: timeout}
 }
 
-type federationServer struct {
+type Server struct {
 	db      *database.DB
 	timeout time.Duration
 }
 
+type authKey struct{}
+
 // Fetch implements the FederationServer Fetch endpoint.
-func (s *federationServer) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.FederationFetchResponse, error) {
+func (s Server) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.FederationFetchResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
@@ -58,7 +67,7 @@ func (s *federationServer) Fetch(ctx context.Context, req *pb.FederationFetchReq
 	return response, nil
 }
 
-func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFunc iterateExposuresFunc, fetchUntil time.Time) (*pb.FederationFetchResponse, error) {
+func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFunc iterateExposuresFunc, fetchUntil time.Time) (*pb.FederationFetchResponse, error) {
 	logger := logging.FromContext(ctx)
 
 	for i := range req.RegionIdentifiers {
@@ -68,30 +77,34 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		req.ExcludeRegionIdentifiers[i] = strings.ToUpper(req.ExcludeRegionIdentifiers[i])
 	}
 
-	// If there is only one region, we can let datastore filter it; otherwise we'll have to filter in memory.
-	// TODO(squee1945): Filter out other partner's data; don't re-federate.
-	// TODO(squee1945): moving to CloudSQL will allow this to be simplified.
+	logger.Infof("Processing client request %#v", req)
+
+	// If there is a FederationAuthorization on the context, set the query to operate within its limits.
+	if auth, ok := ctx.Value(authKey{}).(*model.FederationAuthorization); ok {
+		// For included regions, we INTERSECT the requested included regions with the configured included regions.
+		req.RegionIdentifiers = intersect(req.RegionIdentifiers, auth.IncludeRegions)
+		// For excluded regions, we UNION the the requested excluded regions with the configured excluded regions.
+		req.ExcludeRegionIdentifiers = union(req.ExcludeRegionIdentifiers, auth.ExcludeRegions)
+	}
+
 	criteria := database.IterateExposuresCriteria{
+		IncludeRegions:      req.RegionIdentifiers,
+		ExcludeRegions:      req.ExcludeRegionIdentifiers,
 		SinceTimestamp:      time.Unix(req.LastFetchResponseKeyTimestamp, 0),
 		UntilTimestamp:      fetchUntil,
 		LastCursor:          req.NextFetchToken,
 		OnlyLocalProvenance: true, // Do not return results that came from other federation partners.
 	}
-	if len(req.RegionIdentifiers) == 1 {
-		criteria.IncludeRegions = req.RegionIdentifiers
-	}
 
-	logger.Infof("Processing request Regions:%v Excluding:%v Since:%v Until:%v HasCursor:%t", req.RegionIdentifiers, req.ExcludeRegionIdentifiers, criteria.SinceTimestamp, criteria.UntilTimestamp, req.NextFetchToken != "")
+	logger.Infof("Query criteria: %#v", criteria)
 
 	// Filter included countries in memory.
-	// TODO(squee1945): move to database query if/when Cloud SQL.
 	includedRegions := map[string]struct{}{}
 	for _, region := range req.RegionIdentifiers {
 		includedRegions[region] = struct{}{}
 	}
 
 	// Filter excluded countries in memory, using a map for efficiency.
-	// TODO(squee1945): move to database query if/when Cloud SQL.
 	excludedRegions := map[string]struct{}{}
 	for _, region := range req.ExcludeRegionIdentifiers {
 		excludedRegions[region] = struct{}{}
@@ -128,7 +141,6 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// If all the regions on the record are excluded, skip it.
-		// TODO(squee1945): move to database query if/when Cloud SQL.
 		skip := true
 		for _, region := range inf.Regions {
 			if _, excluded := excludedRegions[region]; !excluded {
@@ -143,7 +155,6 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 		}
 
 		// If filtering on a region (len(includedRegions) > 0) and none of the regions on the record are included, skip it.
-		// TODO(squee1945): move to database query if/when Cloud SQL.
 		if len(includedRegions) > 0 {
 			skip = true
 			for _, region := range inf.Regions {
@@ -204,4 +215,106 @@ func (s *federationServer) fetch(ctx context.Context, req *pb.FederationFetchReq
 	}
 	logger.Infof("Sent %d keys", count)
 	return response, nil
+}
+
+// AuthInterceptor validates incoming OIDC bearer token and adds corresponding FederationAuthorization record to the context.
+func (s Server) AuthInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	logger := logging.FromContext(ctx)
+
+	raw, err := rawToken(ctx)
+	if err != nil {
+		logger.Infof("Invalid headers: %v", err)
+		return nil, err
+	}
+
+	token, err := idtoken.Validate(ctx, raw, "")
+	if err != nil {
+		logger.Infof("Invalid token: %v", err)
+		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
+	}
+
+	auth, err := s.db.GetFederationAuthorization(ctx, token.Issuer, token.Subject)
+	if err != nil {
+		if err == database.ErrNotFound {
+			logger.Infof("Authorization not found (issuer %q, subject %s)", token.Issuer, token.Subject)
+			return nil, status.Errorf(codes.Unauthenticated, "Invalid issuer/subject")
+		}
+		logger.Errorf("Failed to fetch authorization (issuer %q, subject %s): %v", token.Issuer, token.Subject, err)
+		return nil, status.Errorf(codes.Internal, "Internal error")
+	}
+
+	if auth.Audience != "" && auth.Audience != token.Audience {
+		logger.Infof("Invalid audience, got %q, want %q", token.Audience, auth.Audience)
+		return nil, status.Errorf(codes.Unauthenticated, "Invalid audience")
+	}
+
+	// Store the FederationAuthorization on the context.
+	logger.Infof("Caller: issuer %q subject %q", auth.Issuer, auth.Subject)
+	ctx = context.WithValue(ctx, authKey{}, auth)
+	return handler(ctx, req)
+}
+
+func rawToken(ctx context.Context) (string, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return "", status.Errorf(codes.Unauthenticated, "Missing metadata")
+	}
+	if _, ok := md[authHeader]; !ok {
+		return "", status.Errorf(codes.Unauthenticated, "Missing authorization header [1]")
+	}
+	if len(md[authHeader]) == 0 {
+		return "", status.Errorf(codes.Unauthenticated, "Missing authorization header [2]")
+	}
+	if len(md[authHeader]) > 1 {
+		return "", status.Errorf(codes.Unauthenticated, "Multiple authorization headers")
+	}
+
+	authHeader := md[authHeader][0]
+	if !strings.HasPrefix(authHeader, bearer) {
+		return "", status.Errorf(codes.Unauthenticated, "Invalid authorization header")
+	}
+	rawToken := strings.TrimSpace(strings.TrimPrefix(authHeader, bearer))
+	return rawToken, nil
+}
+
+func intersect(aa, bb []string) []string {
+	if len(aa) == 0 || len(bb) == 0 {
+		return []string{}
+	}
+	result := []string{}
+	for _, a := range aa {
+		found := false
+		for _, b := range bb {
+			if a == b {
+				found = true
+				break
+			}
+		}
+		if found {
+			result = append(result, a)
+		}
+	}
+	return result
+}
+
+func union(aa, bb []string) []string {
+	if len(aa) == 0 {
+		return bb
+	}
+	if len(bb) == 0 {
+		return aa
+	}
+	m := map[string]struct{}{}
+	for _, a := range aa {
+		m[a] = struct{}{}
+	}
+	for _, b := range bb {
+		m[b] = struct{}{}
+	}
+	var result []string
+	for k := range m {
+		result = append(result, k)
+	}
+	sort.Strings(result)
+	return result
 }

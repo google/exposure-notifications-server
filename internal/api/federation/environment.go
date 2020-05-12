@@ -20,8 +20,19 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 )
 
+// Environment is the environment for the federation (data outbound) end point.
 type Environment struct {
 	Port     string        `envconfig:"PORT" default:"8080"`
 	Timeout  time.Duration `envconfig:"RPC_TIMEOUT" default:"5m"`
 	Database database.Environment
+
+	// AllowAnyClient, if true, removes authentication requirements on the federation endpoint.
+	// In practise, this is only useful in local testing.
+	AllowAnyClient bool `envconfig:"ALLOW_ANY_CLIENT" default:"false"`
+
+	// TLSCertFile is the certificate file to use if TLS encryption is enabled on the server.
+	// If present, TLSKeyFile must also be present. These settings should be left blank on
+	// Managed Cloud Run where the TLS termination is handled by the environment.
+	TLSCertFile string `envconfig:"TLS_CERT_FILE"`
+	TLSKeyFile  string `envconfig:"TLS_KEY_FILE"`
 }
