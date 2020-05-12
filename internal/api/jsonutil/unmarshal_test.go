@@ -113,7 +113,7 @@ func TestInvalidStructure(t *testing.T) {
 }
 
 func TestValidPublisMessage(t *testing.T) {
-	intervalNumber := int32(time.Date(2020, 04, 17, 20, 04, 01, 1, time.UTC).Unix() / 600)
+	intervalNumber := uint32(time.Date(2020, 04, 17, 20, 04, 01, 1, time.UTC).Unix() / 600)
 	json := `{"exposureKeys": [
 		  {"key": "ABC", "intervalNumber": %v},
 		  {"key": "DEF", "intervalNumber": %v},

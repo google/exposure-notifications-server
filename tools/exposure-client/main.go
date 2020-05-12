@@ -38,12 +38,12 @@ var (
 	twice   = flag.Bool("twice", false, "send the same request twice w/ delay")
 )
 
-func randIntervalCount() int32 {
+func randIntervalCount() uint32 {
 	n, err := rand.Int(rand.Reader, big.NewInt(144))
 	if err != nil {
 		log.Fatalf("rand.Int: %v", err)
 	}
-	return int32(n.Int64() + 1) // valid values are 1-144
+	return uint32(n.Int64() + 1) // valid values are 1-144
 }
 
 // This is a simple tester to call the exposure API.
@@ -61,7 +61,7 @@ func main() {
 
 	// When publishing multiple keys - they'll be on different days.
 	intervalCount := randIntervalCount()
-	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
+	intervalNumber := uint32(time.Now().Unix()/600) - intervalCount
 
 	exposureKeys := make([]model.ExposureKey, *numKeys)
 	for i, rawKey := range keys {

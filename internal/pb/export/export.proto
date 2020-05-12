@@ -63,10 +63,10 @@ message TemporaryExposureKey {
   optional int32 transmission_risk_level = 2;
 
   // The interval number since epoch for which a key starts
-  optional int32 rolling_start_interval_number = 3;
+  optional uint32 rolling_start_interval_number = 3;
 
   // Increments of 10 minutes describing how long a key is valid
-  optional int32 rolling_period = 4
+  optional uint32 rolling_period = 4
       [default = 144];  // defaults to 24 hours
 }
 

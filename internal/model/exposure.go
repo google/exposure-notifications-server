@@ -84,8 +84,8 @@ type Publish struct {
 //   1 - 144 inclusive.
 type ExposureKey struct {
 	Key            string `json:"key"`
-	IntervalNumber int32  `json:"intervalNumber"`
-	IntervalCount  int32  `json:"intervalCount"`
+	IntervalNumber uint32 `json:"intervalNumber"`
+	IntervalCount  uint32 `json:"intervalCount"`
 }
 
 // Exposure represents the record as storedin the database
@@ -99,8 +99,8 @@ type Exposure struct {
 	TransmissionRisk          int       `db:"transmission_risk"`
 	AppPackageName            string    `db:"app_package_name"`
 	Regions                   []string  `db:"regions"`
-	IntervalNumber            int32     `db:"interval_number"`
-	IntervalCount             int32     `db:"interval_count"`
+	IntervalNumber            uint32    `db:"interval_number"`
+	IntervalCount             uint32    `db:"interval_count"`
 	CreatedAt                 time.Time `db:"created_at"`
 	LocalProvenance           bool      `db:"local_provenance"`
 	VerificationAuthorityName string    `db:"verification_authority_name"`
@@ -109,8 +109,8 @@ type Exposure struct {
 
 // IntervalNumber calculates the exposure notification system interval
 // number based on the input time.
-func IntervalNumber(t time.Time) int32 {
-	return int32(t.UTC().Unix()) / int32(intervalLength.Seconds())
+func IntervalNumber(t time.Time) uint32 {
+	return uint32(t.UTC().Unix()) / uint32(intervalLength.Seconds())
 }
 
 // TruncateWindow truncates a time based on the size of the creation window.

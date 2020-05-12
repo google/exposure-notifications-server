@@ -95,10 +95,10 @@ func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNu
 			TransmissionRiskLevel: proto.Int32(int32(exp.TransmissionRisk)),
 		}
 		if exp.IntervalNumber != 0 {
-			pbek.RollingStartIntervalNumber = proto.Int32(exp.IntervalNumber)
+			pbek.RollingStartIntervalNumber = proto.Uint32(exp.IntervalNumber)
 		}
 		if exp.IntervalCount != defaultIntervalCount {
-			pbek.RollingPeriod = proto.Int32(exp.IntervalCount)
+			pbek.RollingPeriod = proto.Uint32(exp.IntervalCount)
 		}
 		pbeks = append(pbeks, &pbek)
 	}
