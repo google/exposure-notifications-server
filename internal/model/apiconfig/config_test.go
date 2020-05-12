@@ -51,6 +51,7 @@ func TestVerifyOpts(t *testing.T) {
 			},
 			opts: android.VerifyOpts{
 				AppPkgName:      "foo",
+				APKDigest:       []string{},
 				CTSProfileMatch: true,
 				BasicIntegrity:  true,
 				MinValidTime:    testTime.Add(-15 * time.Minute),
@@ -67,6 +68,7 @@ func TestVerifyOpts(t *testing.T) {
 			},
 			opts: android.VerifyOpts{
 				AppPkgName:      "foo",
+				APKDigest:       []string{},
 				CTSProfileMatch: false,
 				BasicIntegrity:  true,
 				MinValidTime:    time.Time{},
@@ -76,7 +78,7 @@ func TestVerifyOpts(t *testing.T) {
 		{
 			cfg: &APIConfig{
 				AppPackageName:    "foo",
-				ApkDigestSHA256:   "bar",
+				ApkDigestSHA256:   []string{"bar"},
 				CTSProfileMatch:   false,
 				BasicIntegrity:    true,
 				AllowedPastTime:   0,
@@ -84,7 +86,7 @@ func TestVerifyOpts(t *testing.T) {
 			},
 			opts: android.VerifyOpts{
 				AppPkgName:      "foo",
-				APKDigest:       "bar",
+				APKDigest:       []string{"bar"},
 				CTSProfileMatch: false,
 				BasicIntegrity:  true,
 				MinValidTime:    time.Time{},
