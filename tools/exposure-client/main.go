@@ -30,10 +30,11 @@ import (
 	"github.com/google/exposure-notifications-server/internal/model"
 )
 
-// the length of a diagnosis key, always 16 bytes
-const dkLen = 16
-
-const MAX_TRANSMISSION_RISK = 3
+const (
+	// the length of a diagnosis key, always 16 bytes
+	dkLen                 = 16
+	MAX_TRANSMISSION_RISK = 8
+)
 
 var (
 	url                  = flag.String("url", "http://localhost:8080", "http(s) destination to send test record")
@@ -63,7 +64,7 @@ var (
 func main() {
 	flag.Parse()
 
-	_, exposureKeys := generateExposureKeys()
+	exposureKeys := generateExposureKeys(*numKeys)
 
 	transmissionRisk := *transmissionRiskFlag
 	if transmissionRisk < 0 {
@@ -98,14 +99,14 @@ func main() {
 
 	sendRequest(jsonData)
 
+	prettyJson, err := json.MarshalIndent(data, "", "  ")
+	log.Printf("payload: \n%v", string(prettyJson))
+
 	if *twice {
 		time.Sleep(1 * time.Second)
 		log.Printf("sending the request again...")
 		sendRequest(jsonData)
 	}
-
-	prettyJson, err := json.MarshalIndent(data, "", "  ")
-	log.Printf("payload: \n%v", string(prettyJson))
 }
 
 func randIntervalCount() int32 {
@@ -128,9 +129,9 @@ func randomArrValue(arr []string) string {
 	return arr[randomInt(len(arr))]
 }
 
-func generateExposureKeys() ([][]byte, []model.ExposureKey) {
-	keys := make([][]byte, *numKeys)
-	for i := 0; i < *numKeys; i++ {
+func generateExposureKeys(numKeys int) []model.ExposureKey {
+	keys := make([][]byte, numKeys)
+	for i := 0; i < numKeys; i++ {
 		keys[i] = make([]byte, dkLen)
 		_, err := rand.Read(keys[i])
 		if err != nil {
@@ -140,7 +141,7 @@ func generateExposureKeys() ([][]byte, []model.ExposureKey) {
 	// When publishing multiple keys - they'll be on different days.
 	intervalCount := randIntervalCount()
 	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
-	exposureKeys := make([]model.ExposureKey, *numKeys)
+	exposureKeys := make([]model.ExposureKey, numKeys)
 	for i, rawKey := range keys {
 		exposureKeys[i].Key = base64.StdEncoding.EncodeToString(rawKey)
 		exposureKeys[i].IntervalNumber = intervalNumber
@@ -149,7 +150,7 @@ func generateExposureKeys() ([][]byte, []model.ExposureKey) {
 		intervalCount = randIntervalCount()
 		intervalNumber -= intervalCount
 	}
-	return keys, exposureKeys
+	return exposureKeys
 }
 
 func sendRequest(jsonData []byte) {
