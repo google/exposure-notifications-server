@@ -192,7 +192,7 @@ func TestNewBatchServer(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := NewBatchServer(&database.DB{}, &Environment{}, tc.env)
+			got, err := NewBatchServer(&database.DB{}, &Config{}, tc.env)
 			if tc.err != nil {
 				if err.Error() != tc.err.Error() {
 					t.Fatalf("got %+v: want %v", err, tc.err)

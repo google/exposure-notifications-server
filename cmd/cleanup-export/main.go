@@ -22,9 +22,9 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/api/cleanup"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
-	"github.com/google/exposure-notifications-server/internal/secretenv"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
@@ -40,9 +40,8 @@ func main() {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
 
-	envVars := &cleanup.Environment{}
-	err = secretenv.Process(ctx, "", envVars, sm)
-	if err != nil {
+	var config cleanup.Config
+	if err := envconfig.Process(ctx, &config, sm); err != nil {
 		logger.Fatalf("error loading environment variables: %v", err)
 	}
 
@@ -55,13 +54,13 @@ func main() {
 		serverenv.WithBlobStorage(storage),
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
-	db, err := database.NewFromEnv(ctx, &envVars.Database)
+	db, err := database.NewFromEnv(ctx, config.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
-	http.Handle("/", cleanup.NewExportHandler(db, envVars.Timeout, env))
-	logger.Info("starting export cleanup server")
-	log.Fatal(http.ListenAndServe(":"+envVars.Port, nil))
+	http.Handle("/", cleanup.NewExportHandler(db, config.Timeout, env))
+	logger.Infof("starting export cleanup server on :%s", config.Port)
+	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
 }

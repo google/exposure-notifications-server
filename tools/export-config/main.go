@@ -74,13 +74,13 @@ func main() {
 	}
 
 	ctx := context.Background()
-	dbEnv := &database.Environment{}
-	err := envconfig.Process("database", dbEnv)
+	var config database.Config
+	err := envconfig.Process("database", &config)
 	if err != nil {
 		log.Fatalf("error loading environment variables: %v", err)
 	}
 
-	db, err := database.NewFromEnv(ctx, dbEnv)
+	db, err := database.NewFromEnv(ctx, &config)
 	if err != nil {
 		log.Fatalf("unable to connect to database: %v", err)
 	}

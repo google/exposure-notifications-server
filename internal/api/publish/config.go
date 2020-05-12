@@ -22,8 +22,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
 )
 
-// Environment repsresnts the supported environment variables for the exposure server.
-type Environment struct {
+// Config represents the configuration and associated environment variables for
+// the publish components.
+type Config struct {
 	Port                     string        `envconfig:"PORT" default:"8080"`
 	MinRequestDuration       time.Duration `envconfig:"TARGET_REQUEST_DURATION" default:"5s"`
 	MaxKeysOnPublish         int           `envconfig:"MAX_KEYS_ON_PUBLISH" default:"14"`
@@ -31,7 +32,7 @@ type Environment struct {
 	MaxIntervalFuture        time.Duration `envconfig:"MAX_INTERVAL_FUTURE_ON_PUBLISH" default:"2h"`
 	APIConfigRefreshDuration time.Duration `envconfig:"CONFIG_REFRESH_DURATION" default:"5m"`
 
-	APIConfigOpts dbapiconfig.ConfigOpts
+	APIConfigOpts *dbapiconfig.ConfigOpts
 
-	Database database.Environment
+	Database *database.Config
 }

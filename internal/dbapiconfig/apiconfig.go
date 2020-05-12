@@ -55,7 +55,7 @@ type ConfigOpts struct {
 	DeviceCheckPrivateKey string        `envconfig:"DEVICECHECK_PRIVATE_KEY"`
 }
 
-func NewConfigProvider(db *database.DB, opts ConfigOpts) (provider.Provider, error) {
+func NewConfigProvider(db *database.DB, opts *ConfigOpts) (provider.Provider, error) {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 

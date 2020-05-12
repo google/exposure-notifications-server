@@ -36,7 +36,7 @@ const (
 )
 
 // NewBatchServer makes a BatchServer.
-func NewBatchServer(db *database.DB, envVars *Environment, env *serverenv.ServerEnv) (*BatchServer, error) {
+func NewBatchServer(db *database.DB, config *Config, env *serverenv.ServerEnv) (*BatchServer, error) {
 	// Validate config.
 	if env.Blobstore == nil {
 		return nil, fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv")
@@ -47,7 +47,7 @@ func NewBatchServer(db *database.DB, envVars *Environment, env *serverenv.Server
 
 	return &BatchServer{
 		db:     db,
-		config: envVars,
+		config: config,
 		env:    env,
 	}, nil
 }
@@ -55,7 +55,7 @@ func NewBatchServer(db *database.DB, envVars *Environment, env *serverenv.Server
 // BatchServer hosts end points to manage export batches.
 type BatchServer struct {
 	db     *database.DB
-	config *Environment
+	config *Config
 	env    *serverenv.ServerEnv
 }
 

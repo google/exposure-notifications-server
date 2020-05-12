@@ -53,11 +53,11 @@ type DB struct {
 // process's environment variables. This should be called just once per server
 // instance.
 
-func NewFromEnv(ctx context.Context, env *Environment) (*DB, error) {
+func NewFromEnv(ctx context.Context, config *Config) (*DB, error) {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Creating connection pool.")
 
-	connStr, err := dbConnectionString(ctx, env)
+	connStr, err := dbConnectionString(ctx, config)
 
 	if err != nil {
 		return nil, fmt.Errorf("invalid database config: %v", err)
@@ -80,8 +80,8 @@ func (db *DB) Close(ctx context.Context) {
 
 // dbConnectionString builds a connection string suitable for the pgx Postgres driver, using the
 // values of vars.
-func dbConnectionString(ctx context.Context, env *Environment) (string, error) {
-	vals := dbValues(env)
+func dbConnectionString(ctx context.Context, config *Config) (string, error) {
+	vals := dbValues(config)
 	var p []string
 	for k, v := range vals {
 		p = append(p, fmt.Sprintf("%s=%s", k, v))
@@ -91,10 +91,10 @@ func dbConnectionString(ctx context.Context, env *Environment) (string, error) {
 
 // dbURI builds a Postgres URI suitable for the lib/pq driver, which is used by
 // github.com/golang-migrate/migrate.
-func dbURI(env *Environment) string {
+func dbURI(config *Config) string {
 	return fmt.Sprintf("postgres://%s/%s?sslmode=disable&user=%s&password=%s&port=%s",
-		env.Host, env.Name, env.User,
-		url.QueryEscape(env.Password), url.QueryEscape(env.Port))
+		config.Host, config.Name, config.User,
+		url.QueryEscape(config.Password), url.QueryEscape(config.Port))
 }
 
 func setIfNotEmpty(m map[string]string, key, val string) {
@@ -115,22 +115,22 @@ func setIfPositiveDuration(m map[string]string, key string, d time.Duration) {
 	}
 }
 
-func dbValues(env *Environment) map[string]string {
+func dbValues(config *Config) map[string]string {
 	p := map[string]string{}
-	setIfNotEmpty(p, "dbname", env.Name)
-	setIfNotEmpty(p, "user", env.User)
-	setIfNotEmpty(p, "host", env.Host)
-	setIfNotEmpty(p, "port", env.Port)
-	setIfNotEmpty(p, "sslmode", env.SSLMode)
-	setIfPositive(p, "connect_timeout", env.ConnectionTimeout)
-	setIfNotEmpty(p, "password", env.Password)
-	setIfNotEmpty(p, "sslcert", env.SSLCertPath)
-	setIfNotEmpty(p, "sslkey", env.SSLKeyPath)
-	setIfNotEmpty(p, "sslrootcert", env.SSLRootCertPath)
-	setIfNotEmpty(p, "pool_min_conns", env.PoolMinConnections)
-	setIfNotEmpty(p, "pool_max_conns", env.PoolMaxConnections)
-	setIfPositiveDuration(p, "pool_max_conn_lifetime", env.PoolMaxConnLife)
-	setIfPositiveDuration(p, "pool_max_conn_idle_time", env.PoolMaxConnIdle)
-	setIfPositiveDuration(p, "pool_health_check_period", env.PoolHealthCheck)
+	setIfNotEmpty(p, "dbname", config.Name)
+	setIfNotEmpty(p, "user", config.User)
+	setIfNotEmpty(p, "host", config.Host)
+	setIfNotEmpty(p, "port", config.Port)
+	setIfNotEmpty(p, "sslmode", config.SSLMode)
+	setIfPositive(p, "connect_timeout", config.ConnectionTimeout)
+	setIfNotEmpty(p, "password", config.Password)
+	setIfNotEmpty(p, "sslcert", config.SSLCertPath)
+	setIfNotEmpty(p, "sslkey", config.SSLKeyPath)
+	setIfNotEmpty(p, "sslrootcert", config.SSLRootCertPath)
+	setIfNotEmpty(p, "pool_min_conns", config.PoolMinConnections)
+	setIfNotEmpty(p, "pool_max_conns", config.PoolMaxConnections)
+	setIfPositiveDuration(p, "pool_max_conn_lifetime", config.PoolMaxConnLife)
+	setIfPositiveDuration(p, "pool_max_conn_idle_time", config.PoolMaxConnIdle)
+	setIfPositiveDuration(p, "pool_health_check_period", config.PoolHealthCheck)
 	return p
 }
