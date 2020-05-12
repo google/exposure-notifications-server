@@ -32,7 +32,7 @@ const (
 type APIConfig struct {
 	AppPackageName    string          `db:"app_package_name"`
 	Platform          string          `db:"platform"`
-	ApkDigestSHA256   string          `db:"apk_digest"`
+	ApkDigestSHA256   []string        `db:"apk_digest"`
 	CTSProfileMatch   bool            `db:"cts_profile_match"`
 	BasicIntegrity    bool            `db:"basic_integrity"`
 	AllowedPastTime   time.Duration   `db:"allowed_past_seconds"`
@@ -74,11 +74,13 @@ func (c *APIConfig) IsAndroid() bool {
 // VerifyOpts returns the Android SafetyNet verification options to be used
 // based on the API config.
 func (c *APIConfig) VerifyOpts(from time.Time, noncer android.Noncer) android.VerifyOpts {
+	digests := make([]string, len(c.ApkDigestSHA256))
+	copy(digests, c.ApkDigestSHA256)
 	rtn := android.VerifyOpts{
 		AppPkgName:      c.AppPackageName,
 		CTSProfileMatch: c.CTSProfileMatch,
 		BasicIntegrity:  c.BasicIntegrity,
-		APKDigest:       c.ApkDigestSHA256,
+		APKDigest:       digests,
 		Nonce:           noncer,
 	}
 

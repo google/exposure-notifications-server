@@ -93,7 +93,7 @@ func TestValidateAttestation(t *testing.T) {
 		{
 			VerifyOpts{
 				AppPkgName:      appPackage,
-				APKDigest:       apkDigest,
+				APKDigest:       []string{"other digest", apkDigest},
 				Nonce:           nonce,
 				CTSProfileMatch: false,
 				BasicIntegrity:  false,
@@ -106,7 +106,7 @@ func TestValidateAttestation(t *testing.T) {
 		{
 			VerifyOpts{
 				AppPkgName:      appPackage,
-				APKDigest:       "",
+				APKDigest:       []string{""},
 				Nonce:           nil,
 				CTSProfileMatch: false,
 				BasicIntegrity:  true,
@@ -119,7 +119,7 @@ func TestValidateAttestation(t *testing.T) {
 		{
 			VerifyOpts{
 				AppPkgName:      appPackage,
-				APKDigest:       "",
+				APKDigest:       []string{""},
 				Nonce:           &emptyNonce{},
 				CTSProfileMatch: false,
 				BasicIntegrity:  true,
@@ -132,7 +132,7 @@ func TestValidateAttestation(t *testing.T) {
 		{
 			VerifyOpts{
 				AppPkgName:      appPackage,
-				APKDigest:       "",
+				APKDigest:       []string{""},
 				Nonce:           nonce,
 				CTSProfileMatch: false,
 				BasicIntegrity:  true,
@@ -145,7 +145,7 @@ func TestValidateAttestation(t *testing.T) {
 		{
 			VerifyOpts{
 				AppPkgName:      appPackage,
-				APKDigest:       "",
+				APKDigest:       []string{""},
 				Nonce:           nonce,
 				CTSProfileMatch: false,
 				BasicIntegrity:  true,
@@ -158,7 +158,7 @@ func TestValidateAttestation(t *testing.T) {
 		{
 			VerifyOpts{
 				AppPkgName:      appPackage,
-				APKDigest:       apkDigest,
+				APKDigest:       []string{apkDigest},
 				Nonce:           nonce,
 				CTSProfileMatch: true,
 				BasicIntegrity:  true,
@@ -171,7 +171,7 @@ func TestValidateAttestation(t *testing.T) {
 		{
 			VerifyOpts{
 				AppPkgName:      appPackage,
-				APKDigest:       apkDigest,
+				APKDigest:       []string{apkDigest},
 				Nonce:           nonce,
 				CTSProfileMatch: false,
 				BasicIntegrity:  false,
@@ -184,7 +184,7 @@ func TestValidateAttestation(t *testing.T) {
 		{
 			VerifyOpts{
 				AppPkgName:      appPackage,
-				APKDigest:       "",
+				APKDigest:       []string{""},
 				Nonce:           nonce,
 				CTSProfileMatch: false,
 				BasicIntegrity:  false,
