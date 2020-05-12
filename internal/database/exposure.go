@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/model"
 
 	pgx "github.com/jackc/pgx/v4"
@@ -229,7 +230,7 @@ func encodeCursor(s string) string {
 }
 
 func decodeCursor(encoded string) (string, error) {
-	b, err := base64.StdEncoding.DecodeString(encoded)
+	b, err := base64util.DecodeString(encoded)
 	if err != nil {
 		return "", fmt.Errorf("decoding cursor: %v", err)
 	}
@@ -241,5 +242,5 @@ func encodeExposureKey(b []byte) string {
 }
 
 func decodeExposureKey(encoded string) ([]byte, error) {
-	return base64.StdEncoding.DecodeString(encoded)
+	return base64util.DecodeString(encoded)
 }

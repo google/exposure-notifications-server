@@ -23,10 +23,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/model"
-	"github.com/google/exposure-notifications-server/internal/secrets"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/kelseyhightower/envconfig"
 )
 
 var (
@@ -76,16 +74,13 @@ func main() {
 	}
 
 	ctx := context.Background()
-	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
-	sm, err := secrets.NewGCPSecretManager(ctx)
+	dbEnv := &database.Environment{}
+	err := envconfig.Process("database", dbEnv)
 	if err != nil {
-		log.Fatalf("unable to connect to secret manager: %v", err)
+		log.Fatalf("error loading environment variables: %v", err)
 	}
-	env := serverenv.New(ctx,
-		serverenv.WithSecretManager(sm),
-		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
-	db, err := database.NewFromEnv(ctx, env)
+	db, err := database.NewFromEnv(ctx, dbEnv)
 	if err != nil {
 		log.Fatalf("unable to connect to database: %v", err)
 	}

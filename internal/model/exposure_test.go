@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -74,17 +75,6 @@ func TestInvalidBase64(t *testing.T) {
 	}
 }
 
-func decode(b64 string) ([]byte, error) {
-	data, err := base64.RawStdEncoding.DecodeString(b64)
-	if err != nil {
-		data, err = base64.StdEncoding.DecodeString(b64)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return data, nil
-}
-
 func TestDifferentEncodings(t *testing.T) {
 	data := "this is some data"
 
@@ -103,7 +93,7 @@ func TestDifferentEncodings(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		decoded, err := decode(c.input)
+		decoded, err := base64util.DecodeString(c.input)
 		if err != nil {
 			t.Errorf("%v error: %v", c.name, err)
 		} else if string(decoded) != data {
@@ -255,7 +245,7 @@ func encodeKey(key []byte) string {
 }
 
 func decodeKey(b64key string, t *testing.T) []byte {
-	k, err := base64.StdEncoding.DecodeString(b64key)
+	k, err := base64util.DecodeString(b64key)
 	if err != nil {
 		t.Fatalf("unable to decode key: %v", err)
 	}

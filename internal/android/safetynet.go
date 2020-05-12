@@ -20,11 +20,11 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base64"
 	"fmt"
 	"runtime/trace"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/logging"
 
 	"github.com/dgrijalva/jwt-go"
@@ -62,7 +62,7 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 	if !ok {
 		return fmt.Errorf("invalid nonce claim, not a string")
 	}
-	nonceClaimBytes, err := base64.StdEncoding.DecodeString(nonceClaimB64)
+	nonceClaimBytes, err := base64util.DecodeString(nonceClaimB64)
 	if err != nil {
 		return fmt.Errorf("unable to decode nonce claim data: %w", err)
 	}
@@ -142,7 +142,7 @@ func keyFunc(ctx context.Context, tok *jwt.Token) (interface{}, error) {
 		if certStr == "" {
 			return nil, fmt.Errorf("certificate is empty")
 		}
-		certData, err := base64.StdEncoding.DecodeString(certStr.(string))
+		certData, err := base64util.DecodeString(certStr.(string))
 		if err != nil {
 			return nil, fmt.Errorf("invalid certificate encoding: %w", err)
 		}

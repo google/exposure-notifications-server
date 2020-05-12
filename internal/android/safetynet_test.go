@@ -16,10 +16,10 @@ package android
 
 import (
 	"context"
-	"encoding/base64"
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/model"
 )
 
@@ -66,7 +66,7 @@ func TestVerifyAttestation(t *testing.T) {
 	}
 
 	expectedNonce := NewNonce(publish).Nonce()
-	actualBytes, err := base64.StdEncoding.DecodeString(claims["nonce"].(string))
+	actualBytes, err := base64util.DecodeString(claims["nonce"].(string))
 	actualNonce := string(actualBytes)
 	if err != nil {
 		t.Fatalf("unable to decode nonce from attestation: %v", err)
