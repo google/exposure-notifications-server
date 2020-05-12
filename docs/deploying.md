@@ -11,7 +11,7 @@ To build and deploy a service, you need to install and configure the following:
 
 1. Download and install the [Google Cloud SDK](https://cloud.google.com/sdk/install).
 
-    For more information on installation and setup, see the
+    For more information on installation and to set up, see the
     [Cloud SDK Quickstarts](https://cloud.google.com/sdk/docs/quickstarts).
 
 1. Download and install [Go 1.14.0 or newer](https://golang.org/dl/).
