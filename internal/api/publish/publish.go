@@ -19,11 +19,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"strconv"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/api/config"
 	"github.com/google/exposure-notifications-server/internal/api/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
@@ -32,54 +29,31 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification"
 )
 
-const (
-	targetRequestDurationEnv = "TARGET_REQUEST_DURATION"
-	defaultTargetDuration    = 5 * time.Second
-
-	maxExposureKeysEnv       = "MAX_KEYS_ON_PUBLISH"
-	maxExposureKeysDefault   = 14
-	maxIntervalStartEnv      = "MAX_INTERVAL_AGE_ON_PUBLISH"
-	maxIntervalStartDefault  = 15 * 24 * time.Hour // 15 days
-	maxIntervalFutureEnv     = "MAX_INTERVAL_FUTURE_ON_PUBLISH"
-	maxIntervalFutureDefault = 2 * time.Hour
-)
-
 // NewHandler creates the HTTP handler for the TTK publishing API.
-func NewHandler(ctx context.Context, db *database.DB, cfg *config.Config, env *serverenv.ServerEnv) (http.Handler, error) {
+func NewHandler(ctx context.Context, db *database.DB, env *serverenv.ServerEnv, envVars *Environment) (http.Handler, error) {
 	logger := logging.FromContext(ctx)
 
-	maxKeys := maxExposureKeysDefault
-	if val := os.Getenv(maxExposureKeysEnv); val != "" {
-		parsed, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			logger.Errorf("couldn't parse env var %v, using defualt value %v", maxExposureKeysEnv, maxExposureKeysDefault)
-		} else {
-			maxKeys = int(parsed)
-		}
-	}
-	maxAge := serverenv.ParseDuration(ctx, maxIntervalStartEnv, maxIntervalStartDefault)
-	maxFuture := serverenv.ParseDuration(ctx, maxIntervalFutureEnv, maxIntervalFutureDefault)
-	transformer, err := model.NewTransformer(maxKeys, maxAge, maxFuture)
+	transformer, err := model.NewTransformer(envVars.MaxKeysOnPublish, envVars.MaxIntervalAge, envVars.MaxIntervalFuture)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
-	logger.Infof("max keys per upload: %v", maxKeys)
-	logger.Infof("max interval start age: %v", maxAge)
-	logger.Infof("max interval start future: %v", maxFuture)
+	logger.Infof("max keys per upload: %v", envVars.MaxKeysOnPublish)
+	logger.Infof("max interval start age: %v", envVars.MaxIntervalAge)
+	logger.Infof("max interval start future: %v", envVars.MaxIntervalFuture)
 
 	return &publishHandler{
-		config:      cfg,
 		db:          db,
-		env:         env,
+		serverenv:   env,
 		transformer: transformer,
+		envvars:     envVars,
 	}, nil
 }
 
 type publishHandler struct {
-	config      *config.Config
 	db          *database.DB
-	env         *serverenv.ServerEnv
+	serverenv   *serverenv.ServerEnv
 	transformer *model.Transformer
+	envvars     *Environment
 }
 
 // There is a target normalized latency for this function. This is to help prevent
@@ -87,7 +61,7 @@ type publishHandler struct {
 func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
-	metrics := h.env.MetricsExporter(ctx)
+	metrics := h.serverenv.MetricsExporter(ctx)
 
 	var data *model.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
@@ -99,7 +73,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := h.config.AppPkgConfig(ctx, data.AppPackageName)
+	cfg, err := h.serverenv.APIConfigProvier.AppPkgConfig(ctx, data.AppPackageName)
 	if err != nil {
 		// Log the configuraiton error, return error to client.
 		// This is retryable, although won't succede if the error isn't transient.

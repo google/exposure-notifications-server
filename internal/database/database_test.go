@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/kelseyhightower/envconfig"
 
 	// imported to register the postgres migration driver
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -55,11 +55,14 @@ func createTestDB(ctx context.Context) (*DB, error) {
 	const testDBName = "exposure-server-test"
 
 	// Connect to the default database to create the test database.
-	env := serverenv.New(ctx,
-		serverenv.WithSecretsDir("../../local/test_secrets"))
-
-	env.Set("DB_DBNAME", "postgres")
-	db, err := NewFromEnv(ctx, env)
+	pgsqlEnv := &Environment{}
+	err := envconfig.Process("dbtestEnvironment", pgsqlEnv)
+	if err != nil {
+		return nil, err
+	}
+	// Override DB name.
+	pgsqlEnv.Name = "postgres"
+	db, err := NewFromEnv(ctx, pgsqlEnv)
 	if err != nil {
 		return nil, err
 	}
@@ -69,16 +72,13 @@ func createTestDB(ctx context.Context) (*DB, error) {
 	db.Close(ctx)
 
 	// Connect to the test database and create its schema by applying all migrations.
-	env.Set("DB_DBNAME", testDBName)
-	db, err = NewFromEnv(ctx, env)
+	pgsqlEnv.Name = testDBName
+	db, err = NewFromEnv(ctx, pgsqlEnv)
 	if err != nil {
 		return nil, err
 	}
 	const source = "file://../../migrations"
-	uri, err := dbURI(ctx, configs, env)
-	if err != nil {
-		return nil, err
-	}
+	uri := dbURI(pgsqlEnv)
 	m, err := migrate.New(source, uri)
 	if err != nil {
 		return nil, err

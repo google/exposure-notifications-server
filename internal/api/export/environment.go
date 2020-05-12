@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package export
 
 import (
-	"context"
+	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/database"
 )
 
-// Provider defines possible APIConfig providers.
-type Provider interface {
-	AppPkgConfig(ctx context.Context, appPkg string) (*apiconfig.APIConfig, error)
+// Environment represents the environment variables suported by the export APIs.
+type Environment struct {
+	CreateTimeout time.Duration `envconfig:"CREATE_BATCHES_TIMEOUT" default:"5m"`
+	WorkerTimeout time.Duration `envconfig:"WORKER_TIMEOUT" default:"5m"`
+	MaxRecords    int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
+	Database      database.Environment
 }
