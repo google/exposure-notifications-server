@@ -18,6 +18,7 @@ resource "null_resource" "gcloud_check" {
     command = "gcloud projects describe ${var.project} || (echo 'please sign in to gcloud using `gcloud auth login`.' && exit 1)"
   }
 }
+
 data "google_project" "project" {
   project_id = var.project
   depends_on = [null_resource.gcloud_check]
@@ -366,4 +367,50 @@ resource "google_cloudbuild_trigger" "build-and-publish" {
       branch = "^master$"
     }
   }
+}
+
+resource "google_project_iam_member" "export-worker" {
+  project = data.google_project.project.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.svc_acct["scheduler-export"].email}"
+}
+
+resource "google_cloud_scheduler_job" "export-worker" {
+  name             = "export-worker"
+  schedule         = "* * * * *"
+  time_zone        = "America/Los_Angeles"
+  attempt_deadline = "60s"
+
+  retry_config {
+    retry_count = 1
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "${google_cloud_run_service.export.status.0.url}/do-work"
+    oidc_token {
+      service_account_email = google_service_account.svc_acct["scheduler-export"].email
+    }
+  }
+  depends_on = [google_project_iam_member.export-worker]
+}
+
+resource "google_cloud_scheduler_job" "export-create-batches" {
+  name             = "export-create-batches"
+  schedule         = "* * * * *"
+  time_zone        = "America/Los_Angeles"
+  attempt_deadline = "60s"
+
+  retry_config {
+    retry_count = 1
+  }
+
+  http_target {
+    http_method = "GET"
+    uri         = "${google_cloud_run_service.export.status.0.url}/create-batches"
+    oidc_token {
+      service_account_email = google_service_account.svc_acct["scheduler-export"].email
+    }
+  }
+  depends_on = [google_project_iam_member.export-worker]
 }
