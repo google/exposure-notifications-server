@@ -43,20 +43,20 @@ const (
 type iterateExposuresFunc func(context.Context, database.IterateExposuresCriteria, func(*model.Exposure) error) (string, error)
 
 // NewServer builds a new FederationServer.
-func NewServer(db *database.DB, timeout time.Duration) pb.FederationServer {
-	return &Server{db: db, timeout: timeout}
+func NewServer(db *database.DB, config Config) pb.FederationServer {
+	return &Server{db: db, config: config}
 }
 
 type Server struct {
-	db      *database.DB
-	timeout time.Duration
+	db     *database.DB
+	config Config
 }
 
 type authKey struct{}
 
 // Fetch implements the FederationServer Fetch endpoint.
 func (s Server) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.FederationFetchResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
 	response, err := s.fetch(ctx, req, s.db.IterateExposures, model.TruncateWindow(time.Now())) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?

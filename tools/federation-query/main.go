@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/api/federation"
 	"github.com/google/exposure-notifications-server/internal/database"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/model"
@@ -37,6 +38,7 @@ var (
 
 	queryID       = flag.String("query-id", "", "(Required) The ID of the federation query to set.")
 	serverAddr    = flag.String("server-addr", "", "(Required) The address of the remote server, in the form some-server:some-port")
+	audience      = flag.String("audience", federation.DefaultAudience, "(Required) The OIDC audience to use when creating client tokens.")
 	lastTimestamp = flag.String("last-timestamp", "", "The last timestamp (RFC3339) to set; queries start from this point and go forward.")
 )
 
@@ -47,16 +49,22 @@ func main() {
 	flag.Parse()
 
 	if *queryID == "" {
-		log.Fatalf("query-id is required")
+		log.Fatalf("--query-id is required")
 	}
 	if !validQueryIDRegexp.MatchString(*queryID) {
-		log.Fatalf("query-id %q must match %s", *queryID, validQueryIDStr)
+		log.Fatalf("--query-id %q must match %s", *queryID, validQueryIDStr)
 	}
 	if *serverAddr == "" {
-		log.Fatalf("server-addr is required")
+		log.Fatalf("--server-addr is required")
 	}
 	if !validServerAddrRegexp.MatchString(*serverAddr) {
-		log.Fatalf("server-addr %q must match %s", *serverAddr, validServerAddrStr)
+		log.Fatalf("--server-addr %q must match %s", *serverAddr, validServerAddrStr)
+	}
+	if *audience == "" {
+		log.Fatalf("--audience is required")
+	}
+	if !federation.ValidAudienceRegexp.MatchString(*audience) {
+		log.Fatalf("--audience %q must match %s", *audience, federation.ValidAudienceStr)
 	}
 	var lastTime time.Time
 	if *lastTimestamp != "" {
@@ -83,6 +91,7 @@ func main() {
 	query := &model.FederationQuery{
 		QueryID:        *queryID,
 		ServerAddr:     *serverAddr,
+		Audience:       *audience,
 		IncludeRegions: includeRegions,
 		ExcludeRegions: excludeRegions,
 		LastTimestamp:  lastTime,

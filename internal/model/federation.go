@@ -22,6 +22,7 @@ import (
 type FederationQuery struct {
 	QueryID        string    `db:"query_id"`
 	ServerAddr     string    `db:"server_addr"`
+	Audience       string    `db:"oidc_audience"`
 	IncludeRegions []string  `db:"include_regions"`
 	ExcludeRegions []string  `db:"exclude_regions"`
 	LastTimestamp  time.Time `db:"last_timestamp"`

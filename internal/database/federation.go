@@ -49,7 +49,7 @@ func (db *DB) GetFederationQuery(ctx context.Context, queryID string) (*model.Fe
 func getFederationQuery(ctx context.Context, queryID string, queryRow queryRowFn) (*model.FederationQuery, error) {
 	row := queryRow(ctx, `
 		SELECT
-			query_id, server_addr, include_regions, exclude_regions, last_timestamp
+			query_id, server_addr, oidc_audience, include_regions, exclude_regions, last_timestamp
 		FROM
 			FederationQuery 
 		WHERE 
@@ -58,7 +58,7 @@ func getFederationQuery(ctx context.Context, queryID string, queryRow queryRowFn
 
 	// See https://www.opsdash.com/blog/postgres-arrays-golang.html for working with Postgres arrays in Go.
 	q := model.FederationQuery{}
-	if err := row.Scan(&q.QueryID, &q.ServerAddr, &q.IncludeRegions, &q.ExcludeRegions, &q.LastTimestamp); err != nil {
+	if err := row.Scan(&q.QueryID, &q.ServerAddr, &q.Audience, &q.IncludeRegions, &q.ExcludeRegions, &q.LastTimestamp); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}
@@ -73,15 +73,15 @@ func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) 
 		query := `
 			INSERT INTO
 				FederationQuery
-				(query_id, server_addr, include_regions, exclude_regions, last_timestamp)
+				(query_id, server_addr, oidc_audience, include_regions, exclude_regions, last_timestamp)
 			VALUES
-				($1, $2, $3, $4, $5)
+				($1, $2, $3, $4, $5, $6)
 			ON CONFLICT
 				(query_id)
 			DO UPDATE
-				SET server_addr = $2, include_regions = $3, exclude_regions = $4, last_timestamp = $5
+				SET server_addr = $2, oidc_audience = $3, include_regions = $4, exclude_regions = $5, last_timestamp = $6
 		`
-		_, err := tx.Exec(ctx, query, q.QueryID, q.ServerAddr, q.IncludeRegions, q.ExcludeRegions, q.LastTimestamp)
+		_, err := tx.Exec(ctx, query, q.QueryID, q.ServerAddr, q.Audience, q.IncludeRegions, q.ExcludeRegions, q.LastTimestamp)
 		if err != nil {
 			return fmt.Errorf("upserting federation query: %w", err)
 		}
