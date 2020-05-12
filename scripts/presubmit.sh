@@ -99,7 +99,7 @@ go build ./...
 
 
 echo "🧪 Test"
-go test ./... -coverprofile=coverage.out
+DB_USER= go test ./... -coverprofile=coverage.out
 
 
 echo "🧪 Test DB Tests"
@@ -110,8 +110,8 @@ if ($( cat /proc/1/cgroup | grep 'kubepods\|docker' > /dev/null )); then
    service postgresql start
 fi
 
-DB_SSLMODE=disable DB_USER=postgres go test -v ./internal/database -coverprofile=coverage.out
-
+DB_USER=postgres DB_SSLMODE=disable \
+go test -v ./internal/database -coverprofile=coverage.out
 
 echo "🧑‍🔬 Test Coverage"
 go tool cover -func coverage.out | grep total | awk '{print $NF}'
