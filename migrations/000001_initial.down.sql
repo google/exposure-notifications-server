@@ -24,4 +24,6 @@ DROP TABLE Exposure;
 DROP TABLE FederationSync;
 DROP TABLE FederationQuery;
 
+DROP TYPE exportbatchstatus;
+
 END;
