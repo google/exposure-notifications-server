@@ -42,7 +42,7 @@ func NewBatchServer(db *database.DB, envVars *Environment, env *serverenv.Server
 		return nil, fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv")
 	}
 	if env.KeyManager == nil {
-		return nil, fmt.Errorf("export.NewBatchServer requires KeyMenger present in the ServerEnv")
+		return nil, fmt.Errorf("export.NewBatchServer requires KeyManager present in the ServerEnv")
 	}
 
 	return &BatchServer{
