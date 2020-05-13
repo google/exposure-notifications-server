@@ -6,10 +6,8 @@ This document describes possible strategies for building and hosting the
 Exposure Notification Server components. You should use this information
 explore and compare trade-offs when making hosting decisions.
 
-We have outlined a number of options, ranging from an entirely
-self-hosted service to a fully managed Google Cloud deployment. The BLE
-Proximity Notifications Server architecture can be deployed in the
-following environments:
+The Exposure Notifications Server can be deployed in the following
+environments:
 
 * Fully self-hosted or on-premises
 * Fully managed Google Cloud
@@ -29,16 +27,15 @@ devices.
 
 ![Exposure Notification Server data egress flow](images/data-retrieval.svg "Exposure Notification Server data egress flow")
 
-The compute components are a good candidate for deployment on
-[serverless architectures](https://en.wikipedia.org/wiki/Serverless_computing).
+The Exposure Notification Server compute components have been designed to be stateless,
+scalable, and rely on data stored in a shared databased. This makes the compute
+components suited to deployment on
+[serverless compute platforms](https://en.wikipedia.org/wiki/Serverless_computing).
 
-Since the request load is uneven throughout the day, likely scaling down to
-zero if the deployment only covers a single or small number of countries.
-Likewise, the server should scale up to meet peak demand during the day.
-
-Each of these components can be deployed in a “serverless” way where the
-services themselves are stateless, easily scaling and relying on data stored
-in a shared database.
+Serverless platforms can scale down to zero during times of zero usage, which is
+likely if the Exposure Notification Server deployment covers a single or small
+number of countries. During times of high demand, serverless platforms can
+scale to meet demand.
 
 ## Server components
 
@@ -75,7 +72,7 @@ in a shared database.
   <tr>
    <td><strong>Tracing key batches storage</strong>
    </td>
-   <td>Daily batches of database for client use.
+   <td>Storing batches of tracing keys that will be sent to devices.
    </td>
    <td><a href="https://cloud.google.com/storage/">Google Cloud Storage</a>
    </td>
@@ -91,9 +88,9 @@ in a shared database.
    </td>
    <td><a href="https://cloud.google.com/secret-manager">Secret Manager</a>
    </td>
-   <td><a href="https://cloud.google.com/anthos">Anthos GKE on Prem</a> + KMS 
+   <td><a href="https://cloud.google.com/anthos">Anthos GKE on Prem</a> + KMS
    </td>
-   <td>HashiCorp Vault 
+   <td>HashiCorp Vault
    </td>
   </tr>
   <tr>
@@ -209,13 +206,15 @@ in a shared database.
 
 ### Data and compute hosted on premises
 
+You can host all components of the Exposure Notification Server on-premises.
+
 ![A diagram of the Exposure Notification Server deployed on-premises](images/on_prem.png "Exposure Notification Server on-premises deployment")
 
-This deployment allows you to have complete control of all components in
-and deploy them in any location by using an on-premises Google Kubernetes
-Engine cluster. However, this deployment will require you to
-configure and maintain the underlying infrastructure, and ensure it is able to
-meet usage demands.
+Deploying compute and data components on-premises allows you to have complete
+control of all components and deploy them in any location by using an
+on-premises Google Kubernetes Engine cluster. However, an on-premises
+deployment will require you to configure and maintain the underlying
+infrastructure, and ensure it is able to meet usage demands.
 
 When the Exposure Notification Server is deployed on-premises, we recommend you
 deploy audit and access logging to the data and API endpoints. This is
@@ -223,24 +222,24 @@ automatically available in the fully managed, and hybrid deployment scenarios.
 
 ### Storing data on-premises and using Google-managed compute
 
-![alt_text](images/hybrid_in.png "image_tooltip")
+The Exposure Notification Server supports either compute or data components to
+be hosted on-premises or on Google Cloud.
 
-![alt_text](images/hybrid_out.png "image_tooltip")
+![A diagram of data ingress with the Exposure Notification Server that has compute components on Google Cloud and data on-premises](images/hybrid_in.png "image_tooltip")
 
-The Exposure Notification Server architecture allows for flexibility in how you
-combine on-premises and cloud-based components. This example deployment has
-compute components running on Google Cloud Serverless products, with databases
-hosted on-premises.
+![A diagram of data egress with the Exposure Notification Server that has compute components on Google Cloud and data on-premises](images/hybrid_out.png "image_tooltip")
 
-You can use an [Anthos](https://cloud.google.com/anthos/) cluster to host
+This example deployment has compute components running on Google Cloud
+Serverless products, with databases hosted on-premises. Alternatively, you
+could use an [Anthos](https://cloud.google.com/anthos/) cluster to host
 compute components on premises, and have the data components hosted on Google
 Cloud as a fully managed service.
 
 ### Fully hosted on Google Cloud
 
-![A diagram of the Exposure Notification Server deployed on Google Cloud](images/google_cloud_run.png "Exposure Notification Server deployed on Google Cloud")
-
 This example deployment hosts all components of the system on Google Cloud.
+
+![A diagram of the Exposure Notification Server deployed on Google Cloud](images/google_cloud_run.png "Exposure Notification Server deployed on Google Cloud")
 
 By using fully hosted components most of the service’s operation can be
 delegated to Google Cloud, which will provide audit and access logging of the

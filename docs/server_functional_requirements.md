@@ -49,81 +49,68 @@ batches for ingestion into the device for key matching.
 
 Minimum required fields, followed by a JSON example:
 
-//TODO(llatif): Put this into a table
+`temporaryExposureKeys`  
+**Type**: Array of `TemporaryExposureKey` JSON objects  
+**REQUIRED**: contain at least 1 `TracingKey` object  
+**OPTIONAL**: contain up to 14 (or more if an application is keeping longer history) `TracingKey` objects.  
+**Description**: The verified temporary exposure keys
 
-*   temporaryExposureKeys
-    *   Type: Array of TemporaryExposureKey JSON objects
-    *   Description: The verified temporary exposure keys 
-    *   Constraints:
-        *   REQUIRED: contain at least 1 TracingKey objects (below)
-        *   OPTIONAL: contain up to 14 (or more if an application is keeping longer history) TracingKey objects.
-    *   TemporaryExposureKey Object properties
-        *   keyData
-            *   Type: String
-            *   Description: Base64 encoded temporary exposure key from the device
-            *   Constraints
-                *   REQUIRED
-        *   rollingStartNumber
-            *   Type: integer (uint32)
-            *   Description: Intervals are 10 minute increments since the UTC epoch
-            *   Constraints
-                *   REQUIRED
-        *   rollingPeriod
-            *   Type: integer (uint32)
-            *   Description: Number of intervals that the key is valid for
-            *   Constraints
-                *   OPTIONAL (may not be present for some keys)
-                *   Valid values are [1..144]
-                *   If not present, 144 is the default value (1 day of intervals)
-*   regions:
-    *   Type: Array of string
-    *   Description: 2 letter country code a.k.a [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) 
-        *   _It is possible for a server operator to maintain a more fine grained definition of region or use different identifiers altogether._
-    *   **Required for federation between regions.**
-*   platform
-    *   Type: string
-    *   Description: Mobile device platform, i.e. “ios” or “android” used to indicate which device attestation verification APIs should be used.
-*   transmissionRisk: 
-    *   Type: Integer
-    *   **The values and meanings of this enum are not finalized at this time.** //TODO(llatif): check status
-    *   Constraints:
-        *   REQUIRED
-        *   Valid values range from 1-9
-*   deviceVerificationPayload
-    *   Type: String
-    *   Description:
-        *   Verification payload.
-        *   In the Android case, this is a SafetyNet device attestation (see below).
-            *   JSON Web Signature (JWS) format.
-        *   In the iOS case, this is a DeviceCheck attestation (see below).
-    *   Constraints:
-        *   REQUIRED
+* `temporaryExposureKeys` object properties
+  * `keyData` (**REQUIRED**)
+    * Type: String
+    * Description: Base64 encoded temporary exposure key from the device
+  * `rollingStartNumber` (**REQUIRED**)
+    * Type: integer (uint32)
+    * Description: Intervals are 10 minute increments since the UTC epoch
+  * `rollingPeriod` (**OPTIONAL** - this may not be present for some keys)
+    * Type: integer (uint32)
+    * Constraints
+      * Valid values are [1..144]
+      * If not present, 144 is the default value (1 day of intervals)
+    * Description: Number of intervals that the key is valid for
+* `regions` (**REQUIRED for federation between regions**)
+  [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) format.
+  * Type: Array of string
+  * Note: A server operator can use a finer grain definition of region or
+  * Description: 2 letter country code in
+  use different identifiers altogether.
+* `platform` (**REQUIRED**)
+  * Type: string
+  * Description: Mobile device platform, i.e. “ios” or “android” used to indicate which device attestation verification APIs should be used.
+* `transmissionRisk` (**REQUIRED**)
+  * Type: Integer
+  * **The values and meanings of this enum are not finalized at this time.** //TODO(llatif): check status
+  * Constraints:
+    * Valid values range from 1-9
+  * Description: //TODO(llatif): Add description
+* `deviceVerificationPayload` (**REQUIRED**)
+  * Type: String
+  * Description:  Verification payload.
+    * For Android devices this is a SafetyNet device attestation in JSON Web
+    Signature (JWS) format.
+    * For iOS devices, this is a DeviceCheck attestation.
 
 Example additional fields that an application might want to collect:
 
-*   regions:
-    *   Type: Array of string
-    *   Description: 2 letter country code a.k.a [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2)
-        *   _It is possible for a server operator to maintain a more fine grained definition of region or use different identifiers altogether._
-    *   **Required for federation between regions. Exact region identifier needed for federation is subject to change.**
-*   appPackageName
-    *   Type: string
-    *   Description: name of the application bundle that sent the request.
-    *   Constraints:
-        *   For Android, MUST match the device appPackageName in the SafetyNet verification payload
-*   verificationAuthorityName
-    *   Type: String
-    *   Description: opaque string, name of the authority that has verified the diagnosis.
-*   verificationPayload:
-    *   Type: String
-    *   Description: some signature / code confirming authorization by the verification authority.
-*   padding:
-    *   Type: String
-    *   Description: Random data to obscure the size of the request from people sniffing network packets.
+* `appPackageName`
+  * Type: string
+  * Constraints:
+    * For Android device, this must match the device `appPackageName` in the
+    SafetyNet verification payload
+  * Description: name of the application bundle that sent the request.
+* `verificationAuthorityName`
+  * Type: String
+  * Description: opaque string, name of the authority that has verified the diagnosis.
+* `verificationPayload`
+  * Type: String
+  * Description: some signature / code confirming authorization by the verification authority.
+* `padding`
+  * Type: String
+  * Description: Random data to obscure the size of the request network packet sniffers.
 
-Example POST request payload, assuming JSON over HTTP.
+The following snippet is an example POST request payload in JSON format.
 
-```
+```json
 {
   "temporaryTracingKeys": [
     {"key": "base64 KEY1", "intervalNumber": 12345, "intervalCount": 144},
@@ -139,6 +126,7 @@ Example POST request payload, assuming JSON over HTTP.
 }
 ```
 
+//TODO(llatif): still needs editing
 Other implementation details / requirements / suggestions:
 
 * Required: Implement a whitelist check for appPackageName and the regions in which the app is allowed to report on.
