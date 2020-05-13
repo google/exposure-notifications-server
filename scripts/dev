@@ -122,8 +122,7 @@ function start() {
       -c "max_connections=200" \
       -c "ssl=on" \
       -c "ssl_cert_file=/var/lib/postgresql/server.crt" \
-      -c "ssl_key_file=/var/lib/postgresql/server.key" \
-    &>/dev/null
+      -c "ssl_key_file=/var/lib/postgresql/server.key"
 }
 
 # psql creates a psql session.
