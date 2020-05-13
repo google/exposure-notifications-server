@@ -14,27 +14,56 @@
 
 # This image is used to run ./scripts/presubmit.sh on CI
 
-FROM golang:1.14-buster
+FROM golang:1.14
 
-RUN apt-get update;
+# Install sudo
+RUN apt-get update -yqq && apt-get install -yqq sudo
 
-# Install Postgres
-RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ buster-pgdg main" >> /etc/apt/sources.list.d/pgdg.list; \
-	wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc |  apt-key add -; \
-	apt-get update; \
-	apt-get install -y postgresql-12 postgresql-client-12
+#
+# BEGIN: DOCKER IN DOCKER SETUP
+#
 
-# Configure Postgres, password for test db user, set a timezone
-RUN ln -sf /usr/share/zoneinfo/US/Pacific /etc/localtime
-RUN service postgresql start; \
-	runuser -l postgres -c "psql -c \"ALTER USER postgres WITH PASSWORD 'mypassword'\" -d postgres;"
+# Install Docker deps
+RUN apt-get update -yqq && apt-get install -yqq --no-install-recommends \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg2 \
+    software-properties-common \
+    lsb-release && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install protoc components
-RUN apt-get install -y protobuf-compiler
-RUN git clone https://github.com/golang/protobuf; \
-	cd protobuf/protoc-gen-go; \
-	go build; \
-	mv protoc-gen-go $GOPATH/bin; \
-	export PATH=$PATH:$GOPATH/bin/
+# Add the Docker apt-repository
+RUN curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg \
+    | apt-key add - && \
+    add-apt-repository \
+    "deb [arch=amd64] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") \
+    $(lsb_release -cs) stable"
 
-RUN go get golang.org/x/tools/cmd/goimports
+# Install Docker
+RUN apt-get update -yqq && \
+    apt-get install -yqq --no-install-recommends docker-ce=5:19.03.* && \
+    rm -rf /var/lib/apt/lists/* && \
+    sed -i 's/cgroupfs_mount$/#cgroupfs_mount\n/' /etc/init.d/docker \
+    && update-alternatives --set iptables /usr/sbin/iptables-legacy \
+    && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+
+# Move Docker's storage location
+RUN echo 'DOCKER_OPTS="${DOCKER_OPTS} --data-root=/docker-graph"' | \
+    tee --append /etc/default/docker
+
+# NOTE this should be mounted and persisted as a volume
+RUN mkdir /docker-graph
+
+# Install entrypoint to support
+RUN curl -sfLo "/bin/runner.sh" "https://raw.githubusercontent.com/kubernetes/test-infra/master/images/bootstrap/runner.sh" && \
+  chmod +x "/bin/runner.sh"
+
+#
+# END: DOCKER IN DOCKER SETUP
+#
+
+# Install goimports
+RUN go get -u golang.org/x/tools/cmd/goimports
+
+ENTRYPOINT ["/bin/runner.sh"]
