@@ -58,23 +58,23 @@ type pullDependencies struct {
 	startFederationSync startFederationSyncFn
 }
 
-// NewPullHandler returns a handler that will fetch server-to-server
+// NewHandler returns a handler that will fetch server-to-server
 // federation results for a single federation query.
-func NewPullHandler(env *serverenv.ServerEnv, config PullConfig) http.Handler {
-	return &pullHandler{
+func NewHandler(env *serverenv.ServerEnv, config *Config) http.Handler {
+	return &handler{
 		env:    env,
 		db:     env.Database(),
 		config: config,
 	}
 }
 
-type pullHandler struct {
+type handler struct {
 	env    *serverenv.ServerEnv
 	db     *database.DB
-	config PullConfig
+	config *Config
 }
 
-func (h *pullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)

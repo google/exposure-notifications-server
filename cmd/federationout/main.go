@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is the gRPC server for federation requests from federations partners.
+// This package is the gRPC server for federation requests to send data to other federations servers.
 package main
 
 import (
@@ -40,7 +40,7 @@ func main() {
 	}
 	defer closer()
 
-	server := federationout.NewServer(env, config)
+	server := federationout.NewServer(env, &config)
 
 	var sopts []grpc.ServerOption
 	if config.TLSCertFile != "" && config.TLSKeyFile != "" {
@@ -63,6 +63,6 @@ func main() {
 	if err != nil {
 		logger.Fatalf("Failed to start server: %v", err)
 	}
-	logger.Infof("Starting: gRPC Listener [%s]", grpcEndpoint)
+	logger.Infof("Starting federationout gRPC listener [%s]", grpcEndpoint)
 	log.Fatal(grpcServer.Serve(listen))
 }

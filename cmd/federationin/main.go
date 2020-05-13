@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is the service that pulls federation results from federation partners; it is intended to be invoked over HTTP by Cloud Scheduler.
+// This package is the service that pulls federation results from other federation severs.
+// It is intended to be invoked over HTTP on a schedule.
 package main
 
 import (
@@ -29,14 +30,14 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	var config federationin.PullConfig
+	var config federationin.Config
 	env, closer, err := setup.Setup(ctx, &config)
 	if err != nil {
 		logger.Fatal("setup.Setup: %v", err)
 	}
 	defer closer()
 
-	http.Handle("/", federationin.NewPullHandler(env, config))
-	logger.Infof("starting federation puller on :%s", config.Port)
+	http.Handle("/", federationin.NewHandler(env, &config))
+	logger.Infof("Starting federationin server on port %s", config.Port)
 	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
 }

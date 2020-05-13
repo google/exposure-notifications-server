@@ -35,10 +35,10 @@ var (
 )
 
 // Compile-time check to assert this config matches requirements.
-var _ setup.DBConfigProvider = (*PullConfig)(nil)
+var _ setup.DBConfigProvider = (*Config)(nil)
 
-// PullConfig is the configuration for federation-pull components (data pulled from other servers).
-type PullConfig struct {
+// Config is the configuration for federation-pull components (data pulled from other servers).
+type Config struct {
 	Database *database.Config
 	Port     string        `envconfig:"PORT" default:"8080"`
 	Timeout  time.Duration `envconfig:"RPC_TIMEOUT" default:"10m"`
@@ -56,6 +56,6 @@ type PullConfig struct {
 }
 
 // DB returns the database config.
-func (c *PullConfig) DB() *database.Config {
+func (c *Config) DB() *database.Config {
 	return c.Database
 }

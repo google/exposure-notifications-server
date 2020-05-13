@@ -40,13 +40,13 @@ const (
 	bearer     = "Bearer"
 )
 
-// Compile time assert that this server implements the required grpc itnerface.
+// Compile time assert that this server implements the required grpc interface.
 var _ pb.FederationServer = (*Server)(nil)
 
 type iterateExposuresFunc func(context.Context, database.IterateExposuresCriteria, func(*model.Exposure) error) (string, error)
 
 // NewServer builds a new FederationServer.
-func NewServer(env *serverenv.ServerEnv, config Config) pb.FederationServer {
+func NewServer(env *serverenv.ServerEnv, config *Config) pb.FederationServer {
 	return &Server{
 		env:    env,
 		db:     env.Database(),
@@ -57,7 +57,7 @@ func NewServer(env *serverenv.ServerEnv, config Config) pb.FederationServer {
 type Server struct {
 	env    *serverenv.ServerEnv
 	db     *database.DB
-	config Config
+	config *Config
 }
 
 type authKey struct{}

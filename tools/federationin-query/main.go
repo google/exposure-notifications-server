@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is a CLI tool for setting federation queries.
+// This package is a CLI tool for creating federationin FederationQuery records.
 package main
 
 import (
