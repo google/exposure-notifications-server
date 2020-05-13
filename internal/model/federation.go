@@ -18,14 +18,17 @@ import (
 	"time"
 )
 
+// FederationQuery represents a configuration to pull federation results from other servers.
 type FederationQuery struct {
 	QueryID        string    `db:"query_id"`
 	ServerAddr     string    `db:"server_addr"`
+	Audience       string    `db:"oidc_audience"`
 	IncludeRegions []string  `db:"include_regions"`
 	ExcludeRegions []string  `db:"exclude_regions"`
 	LastTimestamp  time.Time `db:"last_timestamp"`
 }
 
+// FederationSync is the result of a federation query pulled from other servers.
 type FederationSync struct {
 	SyncID       int64     `db:"sync_id"`
 	QueryID      string    `db:"query_id"`
@@ -33,4 +36,15 @@ type FederationSync struct {
 	Completed    time.Time `db:"completed"`
 	Insertions   int       `db:"insertions"`
 	MaxTimestamp time.Time `db:"max_timestamp"`
+}
+
+// FederationAuthorization is an authorized client that pulls federation data from this server.
+type FederationAuthorization struct {
+	Issuer  string `db:"oidc_issuer"`
+	Subject string `db:"oidc_subject"`
+	// Audience is optional, but will be validated against the OIDC token if provided.
+	Audience       string   `db:"oidc_audience"`
+	Note           string   `db:"note"`
+	IncludeRegions []string `db:"include_regions"`
+	ExcludeRegions []string `db:"exclude_regions"`
 }

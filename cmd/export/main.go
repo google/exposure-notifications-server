@@ -22,24 +22,18 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/api/export"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
-	"github.com/kelseyhightower/envconfig"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
-
-	envVars := &export.Environment{}
-	err := envconfig.Process("exposure", envVars)
-	if err != nil {
-		logger.Fatalf("error loading environment variables: %v", err)
-	}
 
 	// It is possible to install a different secret management, KMS, and blob
 	// storage systems here.
@@ -47,6 +41,12 @@ func main() {
 	if err != nil {
 		logger.Fatalf("unable to connect to secret manager: %w", err)
 	}
+
+	var config export.Config
+	if err := envconfig.Process(ctx, &config, nil); err != nil {
+		logger.Fatalf("error loading environment variables: %v", err)
+	}
+
 	km, err := signing.NewGCPKMS(ctx)
 	if err != nil {
 		logger.Fatalf("unable to connect to key manager: %w", err)
@@ -62,19 +62,19 @@ func main() {
 		serverenv.WithBlobStorage(storage),
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
-	db, err := database.NewFromEnv(ctx, &envVars.Database)
+	db, err := database.NewFromEnv(ctx, config.Database)
 	if err != nil {
 		logger.Fatalf("unable to connect to database: %w", err)
 	}
 	defer db.Close(ctx)
 
-	batchServer, err := export.NewBatchServer(db, envVars, env)
+	batchServer, err := export.NewBatchServer(db, &config, env)
 	if err != nil {
 		logger.Fatalf("unable to create server: %v", err)
 	}
 	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
 	http.HandleFunc("/do-work", batchServer.WorkerHandler)               // worker that executes work
 
-	logger.Info("starting exposure export server")
-	log.Fatal(http.ListenAndServe(":"+env.Port, nil))
+	logger.Info("starting exposure export server on :%s", config.Port)
+	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
 }

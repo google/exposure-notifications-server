@@ -24,57 +24,28 @@ import (
 	"log"
 	"math/big"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/model"
 )
 
-// the length of a diagnosis key, always 16 bytes
-const dkLen = 16
-
-var (
-	url     = flag.String("url", "http://localhost:8080", "http(s) destination to send test record")
-	numKeys = flag.Int("num", 1, "number of keys to generate -num=1")
-	twice   = flag.Bool("twice", false, "send the same request twice w/ delay")
+const (
+	// the length of a diagnosis key, always 16 bytes
+	dkLen                 = 16
+	MAX_TRANSMISSION_RISK = 8
 )
 
-func randIntervalCount() int32 {
-	n, err := rand.Int(rand.Reader, big.NewInt(144))
-	if err != nil {
-		log.Fatalf("rand.Int: %v", err)
-	}
-	return int32(n.Int64() + 1) // valid values are 1-144
-}
-
-// This is a simple tester to call the exposure API.
-func main() {
-	flag.Parse()
-
-	keys := make([][]byte, *numKeys)
-	for i := 0; i < *numKeys; i++ {
-		keys[i] = make([]byte, dkLen)
-		_, err := rand.Read(keys[i])
-		if err != nil {
-			log.Fatalf("rand.Read: %v", err)
-		}
-	}
-
-	// When publishing multiple keys - they'll be on different days.
-	intervalCount := randIntervalCount()
-	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
-
-	exposureKeys := make([]model.ExposureKey, *numKeys)
-	for i, rawKey := range keys {
-		exposureKeys[i].Key = base64.StdEncoding.EncodeToString(rawKey)
-		exposureKeys[i].IntervalNumber = intervalNumber
-		exposureKeys[i].IntervalCount = intervalCount
-		// Adjust interval math for next key.
-		intervalCount = randIntervalCount()
-		intervalNumber -= intervalCount
-	}
-
+var (
+	url                  = flag.String("url", "http://localhost:8080", "http(s) destination to send test record")
+	numKeys              = flag.Int("num", 1, "number of keys to generate -num=1")
+	twice                = flag.Bool("twice", false, "send the same request twice w/ delay")
+	appPackage           = flag.String("app", "com.example.android.app", "AppPackageName to use in request")
+	regions              = flag.String("regions", "", "Comma separated region names")
+	authorityName        = flag.String("authority", "", "Verification Authority Name")
+	transmissionRiskFlag = flag.Int("transmissionRisk", -1, "Transmission risk")
 	// region settings for a key are assigned randomly
-	regions := [][]string{
+	defaultRegions = [][]string{
 		{"US"},
 		{"US", "CA"},
 		{"US", "CA", "MX"},
@@ -83,33 +54,42 @@ func main() {
 	}
 
 	// verificationAuth for a key are assigned randomly
-	verificationAuthorityNames := []string{
+	verificationAuthorityNames = []string{
 		"",
 		"AAA Health",
 		"BBB Labs",
 	}
+)
 
-	n, err := rand.Int(rand.Reader, big.NewInt(3))
-	if err != nil {
-		log.Fatalf("rand.Int: %v", err)
+func main() {
+	flag.Parse()
+
+	exposureKeys := generateExposureKeys(*numKeys)
+
+	transmissionRisk := *transmissionRiskFlag
+	if transmissionRisk < 0 {
+		transmissionRisk = randomInt(MAX_TRANSMISSION_RISK)
 	}
-	regionIdx, err := rand.Int(rand.Reader, big.NewInt(int64(len(regions))))
-	if err != nil {
-		log.Fatalf("rand.Int: %v", err)
+
+	regionIdx := randomInt(len(defaultRegions))
+	region := defaultRegions[regionIdx]
+	if *regions != "" {
+		region = strings.Split(*regions, ",")
 	}
-	authNameIdx, err := rand.Int(rand.Reader, big.NewInt(int64(len(verificationAuthorityNames))))
-	if err != nil {
-		log.Fatalf("rand.Int: %v", err)
+
+	verificationAuthorityName := *authorityName
+	if verificationAuthorityName == "" {
+		verificationAuthorityName = randomArrValue(verificationAuthorityNames)
 	}
 
 	data := model.Publish{
 		Keys:             exposureKeys,
-		Regions:          regions[regionIdx.Int64()],
-		AppPackageName:   "com.example.app",
-		TransmissionRisk: int(n.Int64()),
+		Regions:          region,
+		AppPackageName:   *appPackage,
+		TransmissionRisk: transmissionRisk,
 		// This tool cannot generate valid safetynet attestations.
 		Verification:              "some invalid data",
-		VerificationAuthorityName: verificationAuthorityNames[authNameIdx.Int64()],
+		VerificationAuthorityName: verificationAuthorityName,
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -119,17 +99,58 @@ func main() {
 
 	sendRequest(jsonData)
 
-	log.Printf("regions: %v", regions[regionIdx.Int64()])
-	log.Printf("wrote %v keys", len(keys))
-	for i, key := range keys {
-		log.Printf(" %v | %v", key, exposureKeys[i].Key)
-	}
+	prettyJson, err := json.MarshalIndent(data, "", "  ")
+	log.Printf("payload: \n%v", string(prettyJson))
 
 	if *twice {
 		time.Sleep(1 * time.Second)
 		log.Printf("sending the request again...")
 		sendRequest(jsonData)
 	}
+}
+
+func randIntervalCount() int32 {
+	n, err := rand.Int(rand.Reader, big.NewInt(144))
+	if err != nil {
+		log.Fatalf("rand.Int: %v", err)
+	}
+	return int32(n.Int64() + 1) // valid values are 1-144
+}
+
+func randomInt(maxValue int) int {
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(maxValue)))
+	if err != nil {
+		log.Fatalf("rand.Int: %v", err)
+	}
+	return int(n.Int64())
+}
+
+func randomArrValue(arr []string) string {
+	return arr[randomInt(len(arr))]
+}
+
+func generateExposureKeys(numKeys int) []model.ExposureKey {
+	keys := make([][]byte, numKeys)
+	for i := 0; i < numKeys; i++ {
+		keys[i] = make([]byte, dkLen)
+		_, err := rand.Read(keys[i])
+		if err != nil {
+			log.Fatalf("rand.Read: %v", err)
+		}
+	}
+	// When publishing multiple keys - they'll be on different days.
+	intervalCount := randIntervalCount()
+	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
+	exposureKeys := make([]model.ExposureKey, numKeys)
+	for i, rawKey := range keys {
+		exposureKeys[i].Key = base64.StdEncoding.EncodeToString(rawKey)
+		exposureKeys[i].IntervalNumber = intervalNumber
+		exposureKeys[i].IntervalCount = intervalCount
+		// Adjust interval math for next key.
+		intervalCount = randIntervalCount()
+		intervalNumber -= intervalCount
+	}
+	return exposureKeys
 }
 
 func sendRequest(jsonData []byte) {

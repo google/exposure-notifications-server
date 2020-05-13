@@ -14,16 +14,7 @@
 
 BEGIN;
 
-DROP TABLE APIConfig;
-DROP TABLE Lock;
-DROP TABLE ExportFile;
-DROP TABLE ExportBatch;
-DROP TYPE ExportBatchStatus;
-DROP TABLE ExportConfig;
-DROP TABLE Exposure;
-DROP TABLE FederationSync;
-DROP TABLE FederationQuery;
-
-DROP TYPE exportbatchstatus;
+ALTER TABLE FederationQuery ADD COLUMN
+	oidc_audience VARCHAR(1000) NOT NULL DEFAULT 'https://exposure-notifications-server/federation';
 
 END;

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package export
+package cleanup
 
 import (
 	"time"
@@ -20,10 +20,10 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 )
 
-// Environment represents the environment variables suported by the export APIs.
-type Environment struct {
-	CreateTimeout time.Duration `envconfig:"CREATE_BATCHES_TIMEOUT" default:"5m"`
-	WorkerTimeout time.Duration `envconfig:"WORKER_TIMEOUT" default:"5m"`
-	MaxRecords    int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
-	Database      database.Environment
+// Config represents the configuration and associated environment variables for
+// the cleanup components.
+type Config struct {
+	Port     string        `envconfig:"PORT" default:"8080"`
+	Timeout  time.Duration `envconfig:"CLEANUP_TIMEOUT" default:"10m"`
+	Database *database.Config
 }

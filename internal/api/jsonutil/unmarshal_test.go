@@ -112,7 +112,7 @@ func TestInvalidStructure(t *testing.T) {
 	unmarshalTestHelper(t, invalidJSON, errors, http.StatusBadRequest)
 }
 
-func TestValidPublisMessage(t *testing.T) {
+func TestValidPublishMessage(t *testing.T) {
 	intervalNumber := int32(time.Date(2020, 04, 17, 20, 04, 01, 1, time.UTC).Unix() / 600)
 	json := `{"exposureKeys": [
 		  {"key": "ABC", "intervalNumber": %v},

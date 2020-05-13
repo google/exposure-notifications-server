@@ -202,6 +202,25 @@ resource "google_storage_bucket" "export" {
   name = "exposure-notification-export-${random_string.bucket-name.result}"
 }
 
+# This step automatically runs a build as well, so everything that uses an image depends on it.
+resource "google_cloudbuild_trigger" "build-and-publish" {
+  provider    = google-beta
+  name        = "build-containers"
+  description = "Build the containers for the exposure notification service and deploy them to cloud run"
+  filename    = "builders/deploy.yaml"
+  github {
+    owner = "google"
+    name  = "exposure-notifications-server"
+    push {
+      branch = "^master$"
+    }
+  }
+  provisioner "local-exec" {
+    # "build" does first time setup - it is different from "deploy" which we set up to trigger for later.
+    command = "gcloud builds submit ../ --config ../builders/build.yaml --project ${data.google_project.project.project_id}"
+  }
+}
+
 resource "google_cloud_run_service" "exposure" {
   name     = "exposure"
   location = var.region
@@ -258,9 +277,11 @@ resource "google_cloud_run_service" "exposure" {
     metadata {
       annotations = {
         "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+        "autoscaling.knative.dev/maxScale"      : "1000"
       }
     }
   }
+	depends_on = [google_cloudbuild_trigger.build-and-publish]
 }
 
 resource "google_cloud_run_service" "export" {
@@ -323,9 +344,11 @@ resource "google_cloud_run_service" "export" {
     metadata {
       annotations = {
         "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+        "autoscaling.knative.dev/maxScale"      : "1000"
       }
     }
   }
+	depends_on = [google_cloudbuild_trigger.build-and-publish]
 }
 
 
@@ -353,20 +376,6 @@ resource "google_cloud_run_service_iam_policy" "exposure-noauth" {
   service  = google_cloud_run_service.exposure.name
 
   policy_data = data.google_iam_policy.noauth.policy_data
-}
-
-resource "google_cloudbuild_trigger" "build-and-publish" {
-  provider    = google-beta
-  name        = "build-containers"
-  description = "Build the containers for the exposure notification service and deploy them to cloud run"
-  filename    = "build/deploy.yaml"
-  github {
-    owner = "google"
-    name  = "exposure-notifications-server"
-    push {
-      branch = "^master$"
-    }
-  }
 }
 
 resource "google_project_iam_member" "export-worker" {

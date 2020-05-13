@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package federation
+package export
 
 import (
 	"time"
@@ -20,7 +20,12 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 )
 
-type Environment struct {
-	Timeout  time.Duration `envconfig:"RPC_TIMEOUT" default:"5m"`
-	Database database.Environment
+// Config represents the configuration and associated environment variables for
+// the export components.
+type Config struct {
+	Port          string        `envconfig:"PORT" default:"8080"`
+	CreateTimeout time.Duration `envconfig:"CREATE_BATCHES_TIMEOUT" default:"5m"`
+	WorkerTimeout time.Duration `envconfig:"WORKER_TIMEOUT" default:"5m"`
+	MaxRecords    int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
+	Database      *database.Config
 }

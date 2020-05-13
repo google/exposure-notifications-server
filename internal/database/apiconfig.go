@@ -16,7 +16,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -52,16 +51,12 @@ func (db *DB) ReadAPIConfigs(ctx context.Context) ([]*apiconfig.APIConfig, error
 
 		var regions []string
 		config := apiconfig.New()
-		var apkDigest sql.NullString
 		var allowedPastSeconds, allowedFutureSeconds *int
-		if err := rows.Scan(&config.AppPackageName, &config.Platform, &apkDigest,
+		if err := rows.Scan(&config.AppPackageName, &config.Platform, &config.ApkDigestSHA256,
 			&config.CTSProfileMatch, &config.BasicIntegrity,
 			&allowedPastSeconds, &allowedFutureSeconds, &regions,
 			&config.AllowAllRegions); err != nil {
 			return nil, err
-		}
-		if apkDigest.Valid {
-			config.ApkDigestSHA256 = apkDigest.String
 		}
 
 		// Convert time in seconds from DB into time.Duration

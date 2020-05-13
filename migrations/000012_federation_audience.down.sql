@@ -14,16 +14,6 @@
 
 BEGIN;
 
-DROP TABLE APIConfig;
-DROP TABLE Lock;
-DROP TABLE ExportFile;
-DROP TABLE ExportBatch;
-DROP TYPE ExportBatchStatus;
-DROP TABLE ExportConfig;
-DROP TABLE Exposure;
-DROP TABLE FederationSync;
-DROP TABLE FederationQuery;
-
-DROP TYPE exportbatchstatus;
+ALTER TABLE FederationQuery DROP COLUMN oidc_audience;
 
 END;

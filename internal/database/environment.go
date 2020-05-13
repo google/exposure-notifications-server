@@ -16,7 +16,7 @@ package database
 
 import "time"
 
-type Environment struct {
+type Config struct {
 	Name               string        `envconfig:"DB_DBNAME"`
 	User               string        `envconfig:"DB_USER"`
 	Host               string        `envconfig:"DB_HOST" default:"localhost"`
@@ -24,9 +24,9 @@ type Environment struct {
 	SSLMode            string        `envconfig:"DB_SSLMODE" default:"required"`
 	ConnectionTimeout  int           `envconfig:"DB_CONNECT_TIMEOUT"`
 	Password           string        `envconfig:"DB_PASSWORD"`
-	SSLCert            string        `envconfig:"DB_SSLCERT" secret:"file"`
-	SSLKey             string        `envconfig:"DB_SSLKEY" secret:"file"`
-	SSLRootCert        string        `envconfig:"DB_SSLROOTCERT" secret:"file"`
+	SSLCertPath        string        `envconfig:"DB_SSLCERT"`
+	SSLKeyPath         string        `envconfig:"DB_SSLKEY"`
+	SSLRootCertPath    string        `envconfig:"DB_SSLROOTCERT"`
 	PoolMinConnections string        `envconfig:"DB_POOL_MIN_CONNS"`
 	PoolMaxConnections string        `envconfig:"DB_POOL_MAX_CONNS"`
 	PoolMaxConnLife    time.Duration `envconfig:"DB_POOL_MAX_CONN_LIFETIME"`

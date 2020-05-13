@@ -14,16 +14,8 @@
 
 BEGIN;
 
-DROP TABLE APIConfig;
-DROP TABLE Lock;
-DROP TABLE ExportFile;
-DROP TABLE ExportBatch;
-DROP TYPE ExportBatchStatus;
-DROP TABLE ExportConfig;
-DROP TABLE Exposure;
-DROP TABLE FederationSync;
-DROP TABLE FederationQuery;
-
-DROP TYPE exportbatchstatus;
+-- When run, will take the first value from the array and make it the only value.
+ALTER TABLE APIConfig
+  ALTER COLUMN apk_digest type VARCHAR(64) USING COALESCE(apk_digest[1],'');
 
 END;

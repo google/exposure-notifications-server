@@ -240,7 +240,7 @@ func TestFederationPull(t *testing.T) {
 				startFederationSync: sdb.startFederationSync,
 			}
 
-			err := federationPull(ctx, deps, query, batchStart)
+			err := pull(ctx, deps, query, batchStart)
 			if err != nil {
 				t.Fatalf("pull returned err=%v, want err=nil", err)
 			}

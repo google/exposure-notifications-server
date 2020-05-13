@@ -36,7 +36,9 @@ Common code is in the `/pkg` folder.
 
 Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
 
-### Project dependencies
+### Installing project dependencies
+
+To run the server, you must install the following dependencies:
 
 1. [Go 1.14.0 or newer](https://golang.org/dl/).
 
@@ -46,7 +48,7 @@ Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
 
     [Windows and Linux binaries, and source code](https://github.com/protocolbuffers/protobuf/releases)
 
-    OS Managed binaries:
+    OS-managed binaries:
 
     | OS       | Command                                            |
     |----------|----------------------------------------------------|
@@ -71,7 +73,7 @@ Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
         go build
         ```
 
-    1. Move the binary to a folder defined in your `PATH` environment variable, for example `$HOME/bin`
+    1. Move the binary to a folder defined in your `PATH` environment variable, such as `$HOME/bin`
 
         ```
         mv protoc-gen-go $HOME/bin
@@ -86,14 +88,14 @@ by running:
 ./scripts/presubmit.sh "."
 ```
 
-You can also use `go test` as usual:
+You can also use `go test`:
 
 ```
 go test ./...
 ```
 
-To run database tests, install postgres or start a server with docker (see
-"Running locally" below), then set some environment variables:
+To run database tests, install Postgres or start a server with Docker (see
+"Running locally" later in this topic), and then set some environment variables:
 
 ```
 DB_SSLMODE=disable DB_USER=postgres go test -v ./internal/database
@@ -119,19 +121,19 @@ chmod a+x .git/hooks/pre-push
 
 1. (One time only) Create a dev service account and add the credentials to `./local/sa.json`
 
-1. Setup env
+1. Setup env:
 
     ```
     source scripts/setup_env.sh
     ```
 
-1. Install postgres, or use docker:
+1. Install Postgres, or use Docker:
 
     ```
     docker run -d -p 5432:5432 -e LANG=C postgres
     ```
 
-1. Create a postgres db locally.
+1. Create a Postgres database locally:
 
     ```
     psql postgres
@@ -141,13 +143,13 @@ chmod a+x .git/hooks/pre-push
     postgres=# \q
     ```
 
-1. Configure Database
+1. Configure the database:
 
     ```
     ./scripts/run_db_migrations.sh up
     ```
 
-1. Run with go
+1. Run with go:
 
     ```
     go run ./cmd/[bin-name]
@@ -156,4 +158,4 @@ chmod a+x .git/hooks/pre-push
 ## Documentation
 
 User documentation for this project is in the [`docs`](/docs/index.md) directory,
-with information on building, deploying and using the reference implementation.
+with information on building, deploying, and using the reference implementation.

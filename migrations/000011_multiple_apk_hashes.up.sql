@@ -14,16 +14,8 @@
 
 BEGIN;
 
-DROP TABLE APIConfig;
-DROP TABLE Lock;
-DROP TABLE ExportFile;
-DROP TABLE ExportBatch;
-DROP TYPE ExportBatchStatus;
-DROP TABLE ExportConfig;
-DROP TABLE Exposure;
-DROP TABLE FederationSync;
-DROP TABLE FederationQuery;
-
-DROP TYPE exportbatchstatus;
+-- Turns the apk_digest column from a single value to an array of values.
+ALTER TABLE APIConfig
+  ALTER COLUMN apk_digest type varchar(64)[] USING array[apk_digest];
 
 END;

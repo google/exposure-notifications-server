@@ -14,16 +14,14 @@
 
 BEGIN;
 
-DROP TABLE APIConfig;
-DROP TABLE Lock;
-DROP TABLE ExportFile;
-DROP TABLE ExportBatch;
-DROP TYPE ExportBatchStatus;
-DROP TABLE ExportConfig;
-DROP TABLE Exposure;
-DROP TABLE FederationSync;
-DROP TABLE FederationQuery;
-
-DROP TYPE exportbatchstatus;
+CREATE TABLE FederationAuthorization (
+	oidc_issuer VARCHAR(1000) NOT NULL,
+	oidc_subject VARCHAR(1000) NOT NULL,
+	oidc_audience VARCHAR(1000),
+	note VARCHAR(100),
+	include_regions VARCHAR(5) [],
+	exclude_regions VARCHAR(5) [],
+	CONSTRAINT federation_authorization_pk PRIMARY KEY(oidc_issuer, oidc_subject)
+);
 
 END;

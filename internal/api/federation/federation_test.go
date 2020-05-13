@@ -16,12 +16,14 @@ package federation
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -250,7 +252,7 @@ func TestFetch(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			server := federationServer{}
+			server := Server{}
 			req := pb.FederationFetchRequest{ExcludeRegionIdentifiers: tc.excludeRegions}
 			got, err := server.fetch(context.Background(), &req, iterFunc(tc.iterations), time.Now())
 			if err != nil {
@@ -258,6 +260,175 @@ func TestFetch(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, got, listsAsSets...); diff != "" {
 				t.Errorf("fetch() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestRawToken tests rawToken().
+func TestRawToken(t *testing.T) {
+	want := "Abc123"
+	md := metadata.New(map[string]string{"authorization": fmt.Sprintf("Bearer %s", want)})
+	ctx := metadata.NewIncomingContext(context.Background(), md)
+
+	got, err := rawToken(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got != want {
+		t.Errorf("rawToken()=%q, want=%q", got, want)
+	}
+}
+
+// TestRawTokenErrors tests error responses from rawToken().
+func TestRawTokenErrors(t *testing.T) {
+	testCases := []struct {
+		name  string
+		mdMap map[string][]string
+	}{
+		{
+			name:  "no metadata",
+			mdMap: map[string][]string{},
+		},
+		{
+			name:  "missing authorization header",
+			mdMap: map[string][]string{"not-auth": {"foo"}},
+		},
+		{
+			name:  "empty authorization header",
+			mdMap: map[string][]string{"authorization": {}},
+		},
+		{
+			name:  "too many authorization headers",
+			mdMap: map[string][]string{"authorization": {"Bearer foo", "Bearer bar"}},
+		},
+		{
+			name:  "incorrect authorization prefix",
+			mdMap: map[string][]string{"authorization": {"not-Bearer foo"}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := metadata.NewIncomingContext(context.Background(), tc.mdMap)
+			_, gotErr := rawToken(ctx)
+			if gotErr == nil {
+				t.Errorf("missing error response")
+			}
+		})
+	}
+}
+
+// TestIntersect tests intersect().
+func TestIntersect(t *testing.T) {
+	testCases := []struct {
+		name string
+		aa   []string
+		bb   []string
+		want []string
+	}{
+		{
+			name: "empty",
+			aa:   []string{},
+			bb:   []string{},
+			want: []string{},
+		},
+		{
+			name: "aa only values",
+			aa:   []string{"1", "2"},
+			bb:   []string{},
+			want: []string{},
+		},
+		{
+			name: "bb only values",
+			aa:   []string{},
+			bb:   []string{"1", "2"},
+			want: []string{},
+		},
+		{
+			name: "mutually exclusive",
+			aa:   []string{"1", "2"},
+			bb:   []string{"7", "8", "9"},
+			want: []string{},
+		},
+		{
+			name: "full overlap",
+			aa:   []string{"1", "2"},
+			bb:   []string{"1", "2"},
+			want: []string{"1", "2"},
+		},
+		{
+			name: "partial overlap",
+			aa:   []string{"1", "2", "3"},
+			bb:   []string{"2", "3", "4", "5"},
+			want: []string{"2", "3"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := intersect(tc.aa, tc.bb)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestUnion tests union().
+func TestUnion(t *testing.T) {
+	testCases := []struct {
+		name string
+		aa   []string
+		bb   []string
+		want []string
+	}{
+		{
+			name: "empty",
+			aa:   []string{},
+			bb:   []string{},
+			want: []string{},
+		},
+		{
+			name: "aa only values",
+			aa:   []string{"1", "2"},
+			bb:   []string{},
+			want: []string{"1", "2"},
+		},
+		{
+			name: "bb only values",
+			aa:   []string{},
+			bb:   []string{"1", "2"},
+			want: []string{"1", "2"},
+		},
+		{
+			name: "mutually exclusive",
+			aa:   []string{"1", "2"},
+			bb:   []string{"7", "8", "9"},
+			want: []string{"1", "2", "7", "8", "9"},
+		},
+		{
+			name: "full overlap",
+			aa:   []string{"1", "2"},
+			bb:   []string{"1", "2"},
+			want: []string{"1", "2"},
+		},
+		{
+			name: "partial overlap",
+			aa:   []string{"1", "2", "3"},
+			bb:   []string{"2", "3", "4", "5"},
+			want: []string{"1", "2", "3", "4", "5"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := union(tc.aa, tc.bb)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})
 	}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package android managed device attestation inegation with Android's
+// Package android managed device attestation inegation with Android's
 // SafetyNet API.
 package android
 
@@ -20,11 +20,11 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base64"
 	"fmt"
 	"runtime/trace"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/logging"
 
 	"github.com/dgrijalva/jwt-go"
@@ -33,7 +33,7 @@ import (
 // The VerifyOpts determine the fields that are required for verification
 type VerifyOpts struct {
 	AppPkgName      string
-	APKDigest       string
+	APKDigest       []string
 	Nonce           Noncer
 	CTSProfileMatch bool
 	BasicIntegrity  bool
@@ -62,7 +62,7 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 	if !ok {
 		return fmt.Errorf("invalid nonce claim, not a string")
 	}
-	nonceClaimBytes, err := base64.StdEncoding.DecodeString(nonceClaimB64)
+	nonceClaimBytes, err := base64util.DecodeString(nonceClaimB64)
 	if err != nil {
 		return fmt.Errorf("unable to decode nonce claim data: %w", err)
 	}
@@ -98,7 +98,15 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 	} else {
 		logger.Warnf("attestation didn't contain apkCertificateDigestSha256")
 	}
-	if opts.APKDigest != claimApkDigest {
+
+	match := false
+	for _, digest := range opts.APKDigest {
+		if digest != claimApkDigest {
+			match = true
+			break
+		}
+	}
+	if !match {
 		return fmt.Errorf("attestation apkCertificateDigestSha256 value does not match configuration, got %v", claimApkDigest)
 	}
 
@@ -142,7 +150,7 @@ func keyFunc(ctx context.Context, tok *jwt.Token) (interface{}, error) {
 		if certStr == "" {
 			return nil, fmt.Errorf("certificate is empty")
 		}
-		certData, err := base64.StdEncoding.DecodeString(certStr.(string))
+		certData, err := base64util.DecodeString(certStr.(string))
 		if err != nil {
 			return nil, fmt.Errorf("invalid certificate encoding: %w", err)
 		}

@@ -19,6 +19,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/internal/signing"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
 type simpleBatchRange struct {
@@ -160,4 +165,43 @@ func toSimpleBatchRange(t *testing.T, batches []batchRange) []simpleBatchRange {
 		simple = append(simple, simpleBatchRange{start: toSimpleTime(t, br.start), end: toSimpleTime(t, br.end)})
 	}
 	return simple
+}
+
+func TestNewBatchServer(t *testing.T) {
+	testCases := []struct {
+		name string
+		env  *serverenv.ServerEnv
+		err  error
+	}{
+		{
+			name: "nil Blobstore",
+			env:  &serverenv.ServerEnv{Blobstore: nil, KeyManager: nil},
+			err:  fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv"),
+		},
+		{
+			name: "nil KeyManager",
+			env:  &serverenv.ServerEnv{Blobstore: &storage.GoogleCloudStorage{}, KeyManager: nil},
+			err:  fmt.Errorf("export.NewBatchServer requires KeyManager present in the ServerEnv"),
+		},
+		{
+			name: "Fully Specified",
+			env:  &serverenv.ServerEnv{Blobstore: &storage.GoogleCloudStorage{}, KeyManager: &signing.GCPKMS{}},
+			err:  nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := NewBatchServer(&database.DB{}, &Config{}, tc.env)
+			if tc.err != nil {
+				if err.Error() != tc.err.Error() {
+					t.Fatalf("got %+v: want %v", err, tc.err)
+				}
+			} else {
+				if got.env != tc.env {
+					t.Fatalf("got %+v: want %v", got.env, tc.env)
+				}
+			}
+		})
+	}
 }
