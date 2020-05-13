@@ -16,7 +16,6 @@ package database
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -25,39 +24,34 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-var (
-	// ErrNotFound indicates that the requested record was not found in the database.
-	ErrNotFound = errors.New("record not found")
-)
-
 // FinalizeSyncFn is used to finalize a historical sync record.
 type FinalizeSyncFn func(maxTimestamp time.Time, totalInserted int) error
 
 type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx.Row
 
-// GetFederationQuery returns a query for given queryID. If not found, ErrNotFound will be returned.
-func (db *DB) GetFederationQuery(ctx context.Context, queryID string) (*model.FederationQuery, error) {
+// GetFederationInQuery returns a query for given queryID. If not found, ErrNotFound will be returned.
+func (db *DB) GetFederationInQuery(ctx context.Context, queryID string) (*model.FederationInQuery, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
 	defer conn.Release()
 
-	return getFederationQuery(ctx, queryID, conn.QueryRow)
+	return getFederationInQuery(ctx, queryID, conn.QueryRow)
 }
 
-func getFederationQuery(ctx context.Context, queryID string, queryRow queryRowFn) (*model.FederationQuery, error) {
+func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRowFn) (*model.FederationInQuery, error) {
 	row := queryRow(ctx, `
 		SELECT
 			query_id, server_addr, oidc_audience, include_regions, exclude_regions, last_timestamp
 		FROM
-			FederationQuery 
+			FederationInQuery 
 		WHERE 
 			query_id=$1
 		`, queryID)
 
 	// See https://www.opsdash.com/blog/postgres-arrays-golang.html for working with Postgres arrays in Go.
-	q := model.FederationQuery{}
+	q := model.FederationInQuery{}
 	if err := row.Scan(&q.QueryID, &q.ServerAddr, &q.Audience, &q.IncludeRegions, &q.ExcludeRegions, &q.LastTimestamp); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
@@ -67,12 +61,12 @@ func getFederationQuery(ctx context.Context, queryID string, queryRow queryRowFn
 	return &q, nil
 }
 
-// AddFederationQuery adds a FederationQuery entity. It will overwrite a query with matching q.queryID if it exists.
-func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) error {
+// AddFederationInQuery adds a FederationInQuery entity. It will overwrite a query with matching q.queryID if it exists.
+func (db *DB) AddFederationInQuery(ctx context.Context, q *model.FederationInQuery) error {
 	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		query := `
 			INSERT INTO
-				FederationQuery
+				FederationInQuery
 				(query_id, server_addr, oidc_audience, include_regions, exclude_regions, last_timestamp)
 			VALUES
 				($1, $2, $3, $4, $5, $6)
@@ -89,28 +83,28 @@ func (db *DB) AddFederationQuery(ctx context.Context, q *model.FederationQuery) 
 	})
 }
 
-// GetFederationSync returns a federation sync record for given syncID. If not found, ErrNotFound will be returned.
-func (db *DB) GetFederationSync(ctx context.Context, syncID int64) (*model.FederationSync, error) {
+// GetFederationInSync returns a federation sync record for given syncID. If not found, ErrNotFound will be returned.
+func (db *DB) GetFederationInSync(ctx context.Context, syncID int64) (*model.FederationInSync, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
 	defer conn.Release()
 
-	return getFederationSync(ctx, syncID, conn.QueryRow)
+	return getFederationInSync(ctx, syncID, conn.QueryRow)
 }
 
-func getFederationSync(ctx context.Context, syncID int64, queryRowContext queryRowFn) (*model.FederationSync, error) {
+func getFederationInSync(ctx context.Context, syncID int64, queryRowContext queryRowFn) (*model.FederationInSync, error) {
 	row := queryRowContext(ctx, `
 		SELECT
 			sync_id, query_id, started, completed, insertions, max_timestamp
 		FROM
-			FederationSync
+			FederationInSync
 		WHERE
 			sync_id=$1
 		`, syncID)
 
-	s := model.FederationSync{}
+	s := model.FederationInSync{}
 	var (
 		completed, max *time.Time
 		insertions     *int
@@ -133,8 +127,8 @@ func getFederationSync(ctx context.Context, syncID int64, queryRowContext queryR
 	return &s, nil
 }
 
-// StartFederationSync stores a historical record of a query sync starting. It returns a FederationSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
-func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery, started time.Time) (int64, FinalizeSyncFn, error) {
+// StartFederationInSync stores a historical record of a query sync starting. It returns a FederationInSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
+func (db *DB) StartFederationInSync(ctx context.Context, q *model.FederationInQuery, started time.Time) (int64, FinalizeSyncFn, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("acquiring connection: %w", err)
@@ -148,7 +142,7 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 	var syncID int64
 	row := conn.QueryRow(ctx, `
 		INSERT INTO
-			FederationSync
+			FederationInSync
 			(query_id, started)
 		VALUES
 			($1, $2)
@@ -167,7 +161,7 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 			if totalInserted > 0 {
 				_, err = tx.Exec(ctx, `
 					UPDATE
-						FederationQuery
+						FederationInQuery
 					SET
 						last_timestamp = $1
 					WHERE
@@ -184,7 +178,7 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 			}
 			_, err = tx.Exec(ctx, `
 				UPDATE
-					FederationSync
+					FederationInSync
 				SET
 					completed = $1,
 					insertions = $2,
@@ -200,55 +194,4 @@ func (db *DB) StartFederationSync(ctx context.Context, q *model.FederationQuery,
 	}
 
 	return syncID, finalize, nil
-}
-
-// AddFederationAuthorization adds or updates a FederationAuthorization record.
-func (db *DB) AddFederationAuthorization(ctx context.Context, auth *model.FederationAuthorization) error {
-	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
-		q := `
-			INSERT INTO
-				FederationAuthorization
-				(oidc_issuer, oidc_subject, oidc_audience, note, include_regions, exclude_regions)
-			VALUES
-				($1, $2, $3, $4, $5, $6)
-			ON CONFLICT ON CONSTRAINT
-				federation_authorization_pk
-			DO UPDATE
-				SET oidc_audience = $3, note = $4, include_regions = $5, exclude_regions = $6
-		`
-		_, err := tx.Exec(ctx, q, auth.Issuer, auth.Subject, auth.Audience, auth.Note, auth.IncludeRegions, auth.ExcludeRegions)
-		if err != nil {
-			return fmt.Errorf("upserting federation authorization: %w", err)
-		}
-		return nil
-	})
-}
-
-// GetFederationAuthorization returns a FederationAuthorization record, or ErrNotFound if not found.
-func (db *DB) GetFederationAuthorization(ctx context.Context, issuer, subject string) (*model.FederationAuthorization, error) {
-	conn, err := db.pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %w", err)
-	}
-	defer conn.Release()
-
-	row := conn.QueryRow(ctx, `
-		SELECT
-			oidc_issuer, oidc_subject, oidc_audience, note, include_regions, exclude_regions
-		FROM
-			FederationAuthorization
-		WHERE
-			oidc_issuer = $1
-		AND
-			oidc_subject = $2
-		LIMIT 1
-		`, issuer, subject)
-	auth := model.FederationAuthorization{}
-	if err := row.Scan(&auth.Issuer, &auth.Subject, &auth.Audience, &auth.Note, &auth.IncludeRegions, &auth.ExcludeRegions); err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("scanning results: %w", err)
-	}
-	return &auth, nil
 }

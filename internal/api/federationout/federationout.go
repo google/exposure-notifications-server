@@ -92,7 +92,7 @@ func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFun
 	logger.Infof("Processing client request %#v", req)
 
 	// If there is a FederationAuthorization on the context, set the query to operate within its limits.
-	if auth, ok := ctx.Value(authKey{}).(*model.FederationAuthorization); ok {
+	if auth, ok := ctx.Value(authKey{}).(*model.FederationOutAuthorization); ok {
 		// For included regions, we INTERSECT the requested included regions with the configured included regions.
 		req.RegionIdentifiers = intersect(req.RegionIdentifiers, auth.IncludeRegions)
 		// For excluded regions, we UNION the the requested excluded regions with the configured excluded regions.
@@ -249,7 +249,7 @@ func (s Server) AuthInterceptor(ctx context.Context, req interface{}, info *grpc
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
 	}
 
-	auth, err := s.db.GetFederationAuthorization(ctx, token.Issuer, token.Subject)
+	auth, err := s.db.GetFederationOutAuthorization(ctx, token.Issuer, token.Subject)
 	if err != nil {
 		if err == database.ErrNotFound {
 			metrics.WriteInt("federation-fetch-unauthorized", true, 1)

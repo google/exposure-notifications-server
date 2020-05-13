@@ -25,7 +25,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestFederation(t *testing.T) {
+// TestFederationIn tests functions operating over FederationInQuery, FederationInSync.
+func TestFederationIn(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
@@ -33,7 +34,7 @@ func TestFederation(t *testing.T) {
 	ctx := context.Background()
 
 	ts := time.Date(2020, 5, 6, 0, 0, 0, 0, time.UTC)
-	want := &model.FederationQuery{
+	want := &model.FederationInQuery{
 		QueryID:        "qid",
 		ServerAddr:     "addr",
 		IncludeRegions: []string{"MX"},
@@ -41,15 +42,15 @@ func TestFederation(t *testing.T) {
 		LastTimestamp:  ts,
 	}
 	// GetFederationQuery should fail if not found.
-	if _, err := testDB.GetFederationQuery(ctx, want.QueryID); !errors.Is(err, ErrNotFound) {
+	if _, err := testDB.GetFederationInQuery(ctx, want.QueryID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("got %v, want ErrNotFound", err)
 	}
 
 	// Add a query, then get it.
-	if err := testDB.AddFederationQuery(ctx, want); err != nil {
+	if err := testDB.AddFederationInQuery(ctx, want); err != nil {
 		t.Fatal(err)
 	}
-	got, err := testDB.GetFederationQuery(ctx, want.QueryID)
+	got, err := testDB.GetFederationInQuery(ctx, want.QueryID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,10 +60,10 @@ func TestFederation(t *testing.T) {
 
 	// AddFederationQuery should overwrite.
 	want.ServerAddr = "addr2"
-	if err := testDB.AddFederationQuery(ctx, want); err != nil {
+	if err := testDB.AddFederationInQuery(ctx, want); err != nil {
 		t.Fatal(err)
 	}
-	got, err = testDB.GetFederationQuery(ctx, want.QueryID)
+	got, err = testDB.GetFederationInQuery(ctx, want.QueryID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,21 +72,21 @@ func TestFederation(t *testing.T) {
 	}
 
 	// GetFederationSync should fail if not found.
-	if _, err := testDB.GetFederationSync(ctx, 1); !errors.Is(err, ErrNotFound) {
+	if _, err := testDB.GetFederationInSync(ctx, 1); !errors.Is(err, ErrNotFound) {
 		t.Errorf("got %v, want ErrNotFound", err)
 	}
 
 	// Start a sync.
 	now := time.Now().Truncate(time.Microsecond)
-	syncID, finalize, err := testDB.StartFederationSync(ctx, want, now)
+	syncID, finalize, err := testDB.StartFederationInSync(ctx, want, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotSync, err := testDB.GetFederationSync(ctx, syncID)
+	gotSync, err := testDB.GetFederationInSync(ctx, syncID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantSync := &model.FederationSync{
+	wantSync := &model.FederationInSync{
 		SyncID:  syncID,
 		QueryID: want.QueryID,
 		Started: now,
@@ -103,57 +104,11 @@ func TestFederation(t *testing.T) {
 	if err := finalize(wantSync.MaxTimestamp, wantSync.Insertions); err != nil {
 		t.Fatal(err)
 	}
-	gotSync, err = testDB.GetFederationSync(ctx, syncID)
+	gotSync, err = testDB.GetFederationInSync(ctx, syncID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if diff := cmp.Diff(wantSync, gotSync, cmpopts.EquateApproxTime(time.Minute)); diff != "" {
-		t.Errorf("mismatch (-want, +got):\n%s", diff)
-	}
-}
-
-func TestFederationAuthorization(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer resetTestDB(t)
-	ctx := context.Background()
-
-	want := &model.FederationAuthorization{
-		Issuer:         "iss",
-		Subject:        "sub",
-		Audience:       "aud",
-		Note:           "some note",
-		IncludeRegions: []string{"MX"},
-		ExcludeRegions: []string{"CA"},
-	}
-
-	// GetFederationAuthorization should fail if not found.
-	if _, err := testDB.GetFederationAuthorization(ctx, want.Issuer, want.Subject); !errors.Is(err, ErrNotFound) {
-		t.Errorf("got %v, want ErrNotFound", err)
-	}
-	// Add a query, then get it.
-	if err := testDB.AddFederationAuthorization(ctx, want); err != nil {
-		t.Fatal(err)
-	}
-	got, err := testDB.GetFederationAuthorization(ctx, want.Issuer, want.Subject)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("mismatch (-want, +got):\n%s", diff)
-	}
-
-	// AddFederationAuthorization should overwrite.
-	want.Note = "a different note"
-	if err := testDB.AddFederationAuthorization(ctx, want); err != nil {
-		t.Fatal(err)
-	}
-	got, err = testDB.GetFederationAuthorization(ctx, want.Issuer, want.Subject)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 }

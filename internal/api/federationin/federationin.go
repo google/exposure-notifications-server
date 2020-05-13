@@ -50,7 +50,7 @@ var (
 
 type fetchFn func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
 type insertExposuresFn func(context.Context, []*model.Exposure) error
-type startFederationSyncFn func(context.Context, *model.FederationQuery, time.Time) (int64, database.FinalizeSyncFn, error)
+type startFederationSyncFn func(context.Context, *model.FederationInQuery, time.Time) (int64, database.FinalizeSyncFn, error)
 
 type pullDependencies struct {
 	fetch               fetchFn
@@ -113,7 +113,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer unlockFn()
 
-	query, err := h.db.GetFederationQuery(ctx, queryID)
+	query, err := h.db.GetFederationInQuery(ctx, queryID)
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			badRequestf(ctx, w, "unknown %s", queryParam)
@@ -170,7 +170,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	deps := pullDependencies{
 		fetch:               client.Fetch,
 		insertExposures:     h.db.InsertExposures,
-		startFederationSync: h.db.StartFederationSync,
+		startFederationSync: h.db.StartFederationInSync,
 	}
 	batchStart := time.Now()
 	if err := pull(timeoutContext, metrics, deps, query, batchStart); err != nil {
@@ -183,7 +183,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *model.FederationQuery, batchStart time.Time) error {
+func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *model.FederationInQuery, batchStart time.Time) error {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Processing query %q", q.QueryID)
 

@@ -81,7 +81,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	auth := &model.FederationAuthorization{
+	auth := &model.FederationOutAuthorization{
 		Issuer:         defaultIssuer, // Authorization interceptor currently only supports defaultIssuer.
 		Subject:        *subject,
 		Audience:       *audience,
@@ -90,7 +90,7 @@ func main() {
 		ExcludeRegions: excludeRegions,
 	}
 
-	if err := db.AddFederationAuthorization(ctx, auth); err != nil {
+	if err := db.AddFederationOutAuthorization(ctx, auth); err != nil {
 		log.Fatalf("adding new federation client authorization %#v: %v", auth, err)
 	}
 
