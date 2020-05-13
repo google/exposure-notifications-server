@@ -117,6 +117,9 @@ if [ "${CI:-}" == "true" ]; then
    service postgresql start
 fi
 
+if [ "${DB_USER:-}" == "false" ]; then
+   echo "🚨 DB_USER is not configured. Test DB tests will not run."
+fi
 go test ./internal/database -coverprofile=coverage.out
 
 echo "🧑‍🔬 Test Coverage"
