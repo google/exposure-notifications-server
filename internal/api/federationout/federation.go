@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package federation provides the server for other installations to pull
-// sharable data from this server.
-package federation
+// Package federationout handles requests from other federation servers for data.
+package federationout
 
 import (
 	"context"

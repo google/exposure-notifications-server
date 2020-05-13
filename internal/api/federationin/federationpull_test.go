@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package federation
+package federationin
 
 import (
 	"context"
@@ -30,6 +30,14 @@ import (
 
 var (
 	syncID int64 = 999
+
+	posver  = pb.TransmissionRisk_positive_verified
+	selfver = pb.TransmissionRisk_self_reported
+
+	aaa = &pb.ExposureKey{ExposureKey: []byte("aaa"), IntervalNumber: 1}
+	bbb = &pb.ExposureKey{ExposureKey: []byte("bbb"), IntervalNumber: 2}
+	ccc = &pb.ExposureKey{ExposureKey: []byte("ccc"), IntervalNumber: 3}
+	ddd = &pb.ExposureKey{ExposureKey: []byte("ddd"), IntervalNumber: 4}
 )
 
 // makeRemoteExposure returns a mock model.Exposure with LocalProvenance=false.
@@ -268,4 +276,21 @@ func TestFederationPull(t *testing.T) {
 			}
 		})
 	}
+}
+
+func makeExposure(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, regions ...string) *model.Exposure {
+	return &model.Exposure{
+		Regions:          regions,
+		TransmissionRisk: int(diagStatus),
+		ExposureKey:      diagKey.ExposureKey,
+		IntervalNumber:   diagKey.IntervalNumber,
+		CreatedAt:        time.Unix(int64(diagKey.IntervalNumber*100), 0), // Make unique from IntervalNumber.
+		LocalProvenance:  true,
+	}
+}
+
+func makeExposureWithVerification(diagKey *pb.ExposureKey, diagStatus pb.TransmissionRisk, verificationAuthorityName string, regions ...string) *model.Exposure {
+	inf := makeExposure(diagKey, diagStatus, regions...)
+	inf.VerificationAuthorityName = verificationAuthorityName
+	return inf
 }

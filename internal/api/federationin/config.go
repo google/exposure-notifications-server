@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package federation
+package federationin
 
 import (
 	"regexp"
@@ -35,30 +35,7 @@ var (
 )
 
 // Compile-time check to assert this config matches requirements.
-var _ setup.DBConfigProvider = (*Config)(nil)
 var _ setup.DBConfigProvider = (*PullConfig)(nil)
-
-// Config is the configuration for the federation components (data sent to other servers).
-type Config struct {
-	Port     string        `envconfig:"PORT" default:"8080"`
-	Timeout  time.Duration `envconfig:"RPC_TIMEOUT" default:"5m"`
-	Database *database.Config
-
-	// AllowAnyClient, if true, removes authentication requirements on the federation endpoint.
-	// In practise, this is only useful in local testing.
-	AllowAnyClient bool `envconfig:"ALLOW_ANY_CLIENT" default:"false"`
-
-	// TLSCertFile is the certificate file to use if TLS encryption is enabled on the server.
-	// If present, TLSKeyFile must also be present. These settings should be left blank on
-	// Managed Cloud Run where the TLS termination is handled by the environment.
-	TLSCertFile string `envconfig:"TLS_CERT_FILE"`
-	TLSKeyFile  string `envconfig:"TLS_KEY_FILE"`
-}
-
-// DB returns the database config.
-func (c *Config) DB() *database.Config {
-	return c.Database
-}
 
 // PullConfig is the configuration for federation-pull components (data pulled from other servers).
 type PullConfig struct {

@@ -22,7 +22,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/api/federation"
+	"github.com/google/exposure-notifications-server/internal/api/federationin"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/pb"
 
@@ -39,7 +39,7 @@ const (
 var (
 	// See https://github.com/grpc/grpc-go/blob/master/examples/route_guide/client/client.go
 	serverAddr    = flag.String("server-addr", "localhost:8080", "The server address in the format of host:port")
-	audience      = flag.String("audience", federation.DefaultAudience, "The OIDC audience to use when creating client tokens.")
+	audience      = flag.String("audience", federationin.DefaultAudience, "The OIDC audience to use when creating client tokens.")
 	lastTimestamp = flag.String("last-timestamp", "", "The last timestamp (RFC3339) to set; queries start from this point and go forward.")
 	cursor        = flag.String("cursor", "", "Cursor from previous partial response.")
 )
@@ -59,8 +59,8 @@ func main() {
 		}
 	}
 
-	if *audience != "" && !federation.ValidAudienceRegexp.MatchString(*audience) {
-		log.Fatalf("--audience %q must match %s", *audience, federation.ValidAudienceStr)
+	if *audience != "" && !federationin.ValidAudienceRegexp.MatchString(*audience) {
+		log.Fatalf("--audience %q must match %s", *audience, federationin.ValidAudienceStr)
 	}
 
 	request := &pb.FederationFetchRequest{
