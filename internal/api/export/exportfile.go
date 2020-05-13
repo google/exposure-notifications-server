@@ -34,7 +34,6 @@ const (
 	exportBinaryName     = "export.bin"
 	exportSignatureName  = "export.sig"
 	defaultIntervalCount = 144
-	androidPackage       = "com.google.android.apps.exposurenotification"
 	// http://oid-info.com/get/1.2.840.10045.4.3.2
 	algorithm = "1.2.840.10045.4.3.2"
 )
@@ -112,7 +111,8 @@ func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNu
 		Keys:           pbeks,
 		SignatureInfos: []*export.SignatureInfo{
 			{
-				AndroidPackage: proto.String(androidPackage),
+				VerificationKeyId:  proto.String("ExampleServer_k1"),
+				SignatureAlgorithm: proto.String(algorithm),
 			},
 		},
 	}
@@ -130,9 +130,8 @@ func marshalSignature(exportContents []byte, batchNum int32, batchSize int32, si
 	}
 	teks := &export.TEKSignature{
 		SignatureInfo: &export.SignatureInfo{
-			AndroidPackage:         proto.String(androidPackage),
-			VerificationKeyVersion: proto.String("v1"),
-			SignatureAlgorithm:     proto.String(algorithm),
+			VerificationKeyId:  proto.String("ExampleServer_k1"),
+			SignatureAlgorithm: proto.String(algorithm),
 		},
 		BatchNum:  proto.Int32(batchNum),
 		BatchSize: proto.Int32(batchSize),
