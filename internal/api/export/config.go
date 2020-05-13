@@ -34,6 +34,7 @@ type Config struct {
 	WorkerTimeout time.Duration `envconfig:"WORKER_TIMEOUT" default:"5m"`
 	MaxRecords    int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
 	Database      *database.Config
+	DefaultKeyID  string `envconfig:"EXPORT_FILE_DEFAULT_KEY_ID" default:"ExampleServer_k1"`
 }
 
 // DB returns the database config.

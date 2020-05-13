@@ -189,8 +189,8 @@ func (s *Server) createFile(ctx context.Context, exposures []*model.Exposure, eb
 	if err != nil {
 		return "", fmt.Errorf("unable to get signer for key %v: %w", eb.SigningKey, err)
 	}
-	// Format keys.
-	data, err := MarshalExportFile(eb, exposures, batchNum, batchSize, signer)
+	// Generate exposure key export file.
+	data, err := MarshalExportFile(eb, exposures, batchNum, batchSize, signer, s.config.DefaultKeyID)
 	if err != nil {
 		return "", fmt.Errorf("marshalling export file: %w", err)
 	}
