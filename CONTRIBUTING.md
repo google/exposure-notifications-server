@@ -119,41 +119,57 @@ chmod a+x .git/hooks/pre-push
 
 ### Running locally
 
-1. (One time only) Create a dev service account and add the credentials to `./local/sa.json`
+These instructions use [Docker](https://docs.docker.com/get-docker/) to run
+components locally. You may be able to run these components without Docker, but
+these instructions assume Docker is installed and available in your `$PATH`.
 
-1. Setup env:
+1.  Set development environment variables:
 
-    ```
-    source scripts/setup_env.sh
-    ```
-
-1. Install Postgres, or use Docker:
-
-    ```
-    docker run -d -p 5432:5432 -e LANG=C postgres
+    ```text
+    $ eval $(./scripts/dev init)
     ```
 
-1. Create a Postgres database locally:
+    **If you close your terminal tab or session, you will need to re-run this
+    command.**
 
-    ```
-    psql postgres
-    postgres-# CREATE ROLE apollo WITH LOGIN PASSWORD 'mypassword';
-    postgres-# CREATE DATABASE apollo;
-    postgres=# GRANT ALL PRIVILEGES ON DATABASE apollo TO apollo;
-    postgres=# \q
-    ```
+1.  Create the local development database:
 
-1. Configure the database:
-
-    ```
-    ./scripts/run_db_migrations.sh up
+    ```text
+    $ ./scripts/dev dbstart
     ```
 
-1. Run with go:
+    This command may take a few minutes to execute on the first invocation. This
+    is because it needs to download the Postgres container. Future invocations
+    will be faster.
 
+1.  Run any migrations. This creates the tables and schema:
+
+    ```text
+    $ ./scripts/dev dbmigrate
     ```
-    go run ./cmd/[bin-name]
+
+    This requires [golang-migrate](https://github.com/golang-migrate/migrate/blob/master/cmd/migrate/README.md#installation).
+
+1.  (Optional) Seed the database with some initial data:
+
+    ```text
+    $ ./scripts/dev dbseed
     ```
+
+1.  Run a component. For example, to run the `exposure` endpoint:
+
+    ```text
+    $ go run ./cmd/exposure/...
+    ```
+
+1.  When you're done developing, you can stop the database.
+
+    ```text
+    $ ./scripts/dev dbstop
+    ```
+
+    **Warning: This will also delete any stored data in the database!**
+
 
 ## Documentation
 

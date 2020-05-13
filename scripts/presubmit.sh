@@ -110,7 +110,6 @@ if ($( cat /proc/1/cgroup | grep 'kubepods\|docker' > /dev/null )); then
    service postgresql start
 fi
 
-DB_USER=postgres DB_SSLMODE=disable \
 go test -v ./internal/database -coverprofile=coverage.out
 
 echo "🧑‍🔬 Test Coverage"
