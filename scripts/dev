@@ -111,6 +111,7 @@ function start() {
 
   gencerts
 
+  docker pull --quiet "${DB_CONTAINER_IMAGE}"
   docker run \
     --name "${DB_CONTAINER_NAME}" \
     --env "LANG=C" \
@@ -152,6 +153,7 @@ function migrate() {
     set -- "up"
   fi
 
+  docker pull --quiet "${MIGRATE_CONTAINER_IMAGE}"
   docker run \
     --rm \
     --interactive \
@@ -190,8 +192,6 @@ function toolchain() {
     --rm \
     --tag "enserver-tools/protoc" \
     --file "${ROOT}/docker/protoc.dockerfile" \
-    --no-cache \
-    --pull \
     "${ROOT}"
 }
 

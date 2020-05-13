@@ -24,11 +24,13 @@ echo "🌳 Set up environment variables"
 eval $(${ROOT}/scripts/dev init)
 
 
+echo "🛠 Building toolchain"
+${ROOT}/scripts/dev toolchain
+
+
 echo "🚒 Verify Protobufs are up to date"
-set +e
-${ROOT}/scripts/gen_protos.sh
-# Don't verify the *.pb.go files here as we tidy these. Verify after format.
-set -e
+${ROOT}/scripts/dev protos
+# Don't verify generated pb files here as they are tidied later.
 
 
 echo "🧽 Verify goimports formattting"
@@ -103,24 +105,20 @@ echo "🚧 Compile"
 go build ./...
 
 
-echo "🧪 Test"
-DB_USER= DB_NAME= DB_PASSWORD= go test ./... -coverprofile=coverage.out
+echo "📚 Starting database"
+export DB_CONTAINER_NAME="en-server-db-test"
+${ROOT}/scripts/dev dbstart && sleep 2
+${ROOT}/scripts/dev dbmigrate
+trap "${ROOT}/scripts/dev dbstop" EXIT
 
-
-echo "🧪 Test DB Tests"
-if [ "${CI:-}" == "true" ]; then
-   echo "🚒 In CI Container, start postgres process"
-   export DB_USER="postgres"
-   export DB_PASSWORD="mypassword"
-   export DB_SSLMODE="disable"
-
-   service postgresql start
-fi
-
-if [ "${DB_USER:-}" == "false" ]; then
+if [ "${DB_USER:-}" == "" ]; then
    echo "🚨 DB_USER is not configured. Test DB tests will not run."
 fi
-go test ./internal/database -coverprofile=coverage.out
+
+
+echo "🧪 Test"
+go test ./... -coverprofile=coverage.out
+
 
 echo "🧑‍🔬 Test Coverage"
 go tool cover -func coverage.out | grep total | awk '{print $NF}'
