@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/google/exposure-notifications-server/internal/api/federation"
+	"github.com/google/exposure-notifications-server/internal/api/federationout"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/setup"
@@ -33,14 +33,14 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	var config federation.Config
+	var config federationout.Config
 	env, closer, err := setup.Setup(ctx, &config)
 	if err != nil {
 		logger.Fatal("setup.Setup: %v", err)
 	}
 	defer closer()
 
-	server := federation.NewServer(env.Database(), config)
+	server := federationout.NewServer(env.Database(), config)
 
 	var sopts []grpc.ServerOption
 	if config.TLSCertFile != "" && config.TLSKeyFile != "" {
@@ -52,7 +52,7 @@ func main() {
 	}
 
 	if !config.AllowAnyClient {
-		sopts = append(sopts, grpc.UnaryInterceptor(server.(*federation.Server).AuthInterceptor))
+		sopts = append(sopts, grpc.UnaryInterceptor(server.(*federationout.Server).AuthInterceptor))
 	}
 
 	grpcServer := grpc.NewServer(sopts...)

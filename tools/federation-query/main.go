@@ -22,7 +22,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/api/federation"
+	"github.com/google/exposure-notifications-server/internal/api/federationin"
 	"github.com/google/exposure-notifications-server/internal/database"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/model"
@@ -38,7 +38,7 @@ var (
 
 	queryID       = flag.String("query-id", "", "(Required) The ID of the federation query to set.")
 	serverAddr    = flag.String("server-addr", "", "(Required) The address of the remote server, in the form some-server:some-port")
-	audience      = flag.String("audience", federation.DefaultAudience, "(Required) The OIDC audience to use when creating client tokens.")
+	audience      = flag.String("audience", federationin.DefaultAudience, "(Required) The OIDC audience to use when creating client tokens.")
 	lastTimestamp = flag.String("last-timestamp", "", "The last timestamp (RFC3339) to set; queries start from this point and go forward.")
 )
 
@@ -63,8 +63,8 @@ func main() {
 	if *audience == "" {
 		log.Fatalf("--audience is required")
 	}
-	if !federation.ValidAudienceRegexp.MatchString(*audience) {
-		log.Fatalf("--audience %q must match %s", *audience, federation.ValidAudienceStr)
+	if !federationin.ValidAudienceRegexp.MatchString(*audience) {
+		log.Fatalf("--audience %q must match %s", *audience, federationin.ValidAudienceStr)
 	}
 	var lastTime time.Time
 	if *lastTimestamp != "" {
