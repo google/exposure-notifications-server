@@ -20,10 +20,10 @@ PROGNAME="$(basename $0)"
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 CERTS_DIR="${ROOT}/local/db-tls"
 
+DOCKER_CMD="$(command -v docker || true)"
 DB_CONTAINER_NAME="en-server-db"
 DB_CONTAINER_IMAGE="registry.hub.docker.com/library/postgres:12-alpine"
-DOCKER_CMD="$(command -v docker || true)"
-MIGRATE_CMD="$(command -v migrate || true)"
+MIGRATE_CONTAINER_IMAGE="registry.hub.docker.com/migrate/migrate:latest"
 
 # Database parameters
 DB_HOST="${DB_HOST:-127.0.0.1}"
@@ -130,10 +130,6 @@ function start() {
 function psql() {
   echo "==> Starting psql session"
 
-  if ! running; then
-    error "database is not running!"
-  fi
-
   docker exec \
     --interactive \
     --tty \
@@ -149,27 +145,24 @@ function psql() {
 function migrate() {
   echo "==> Running migrations"
 
-  if [ -z "${MIGRATE_CMD:-}" ]; then
-    error "migrate is not installed or is not in \$PATH"
-  fi
-
   if [ $# -eq 0 ]; then
     set -- "up"
   fi
 
-  ${MIGRATE_CMD} \
-    -database "${DB_URL}" \
-    -path "${ROOT}/migrations" \
-     "$@"
+  docker run \
+    --rm \
+    --interactive \
+    --network "host" \
+    --volume "${ROOT}/migrations:/migrations:ro" \
+    "${MIGRATE_CONTAINER_IMAGE}" \
+      -database "${DB_URL}" \
+      -path "/migrations" \
+      "$@"
 }
 
 # seed inserts test data.
 function seed() {
   echo "==> Seeding database"
-
-  if ! running; then
-    error "database is not running!"
-  fi
 
   docker exec \
     --interactive \
@@ -182,8 +175,8 @@ function seed() {
       < "${ROOT}/testdata/config.sql"
 }
 
-# url returns the full connection url.
-function url() {
+# dburl returns the full connection url.
+function dburl() {
   echo "${DB_URL}"
 }
 
@@ -239,7 +232,7 @@ case "${SUBCOMMAND}" in
 
   "dburl" )
     shift
-    url "$@"
+    dburl "$@"
     ;;
 
   *)

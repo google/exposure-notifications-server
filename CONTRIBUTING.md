@@ -148,8 +148,6 @@ these instructions assume Docker is installed and available in your `$PATH`.
     $ ./scripts/dev dbmigrate
     ```
 
-    This requires [golang-migrate](https://github.com/golang-migrate/migrate/blob/master/cmd/migrate/README.md#installation).
-
 1.  (Optional) Seed the database with some initial data:
 
     ```text
