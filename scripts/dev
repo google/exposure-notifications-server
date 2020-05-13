@@ -114,7 +114,7 @@ function start() {
     --env "POSTGRES_USER=${DB_USER}" \
     --env "POSTGRES_PASSWORD=${DB_PASSWORD}" \
     --detach \
-    --publish "${DB_PORT}:${DB_PORT}" \
+    --publish "${DB_PORT}:5432" \
     --volume "${CERTS_DIR}/server.crt:/var/lib/postgresql/server.crt:ro" \
     --volume "${CERTS_DIR}/server.key:/var/lib/postgresql/server.key:ro" \
     "${DB_CONTAINER_IMAGE}" \
@@ -171,7 +171,7 @@ function seed() {
     /usr/local/bin/psql \
       --dbname "${DB_NAME}" \
       --username "${DB_USER}" \
-      --port "${DB_PORT}" \
+      --port "5432" \
       < "${ROOT}/testdata/config.sql"
 }
 
