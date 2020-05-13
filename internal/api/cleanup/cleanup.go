@@ -54,14 +54,17 @@ type exposureCleanupHandler struct {
 func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
+	metrics := h.env.MetricsExporter(ctx)
 
 	cutoff, err := cutoffDate(h.config.TTL)
 	if err != nil {
 		logger.Errorf("error processing cutoff time: %v", err)
+		metrics.WriteInt("cleanup-exposures-setup-failed", true, 1)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 	logger.Infof("Starting cleanup for records older than %v", cutoff.UTC())
+	metrics.WriteInt64("cleanup-exposures-before", false, cutoff.Unix())
 
 	// Set timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
@@ -70,10 +73,12 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	count, err := h.database.DeleteExposures(timeoutCtx, cutoff)
 	if err != nil {
 		logger.Errorf("Failed deleting exposures: %v", err)
+		metrics.WriteInt("cleanup-exposures-delete-failed", true, 1)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 
+	metrics.WriteInt64("cleanup-exposures-deleted", true, count)
 	logger.Infof("cleanup run complete, deleted %v records.", count)
 	w.WriteHeader(http.StatusOK)
 }
@@ -106,20 +111,17 @@ type exportCleanupHandler struct {
 func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
+	metrics := h.env.MetricsExporter(ctx)
 
 	cutoff, err := cutoffDate(h.config.TTL)
 	if err != nil {
 		logger.Errorf("error calculating cutoff time: %v", err)
+		metrics.WriteInt("cleanup-exports-setup-failed", true, 1)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 	logger.Infof("Starting cleanup for export files older than %v", cutoff.UTC())
-
-	if h.blobstore == nil {
-		logger.Errorf("no blob storage system configured")
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
-		return
-	}
+	metrics.WriteInt64("cleanup-exports-before", false, cutoff.Unix())
 
 	// Set h.Timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
@@ -128,10 +130,12 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	count, err := h.database.DeleteFilesBefore(timeoutCtx, cutoff, h.blobstore)
 	if err != nil {
 		logger.Errorf("Failed deleting export files: %v", err)
+		metrics.WriteInt("cleanup-exports-delete-failed", true, 1)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 
+	metrics.WriteInt("cleanup-exports-deleted", true, count)
 	logger.Infof("cleanup run complete, deleted %v files.", count)
 	w.WriteHeader(http.StatusOK)
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/google/go-cmp/cmp"
@@ -252,7 +253,9 @@ func TestFetch(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			server := Server{}
+			ctx := context.Background()
+			env := serverenv.New(ctx)
+			server := Server{env: env}
 			req := pb.FederationFetchRequest{ExcludeRegionIdentifiers: tc.excludeRegions}
 			got, err := server.fetch(context.Background(), &req, iterFunc(tc.iterations), time.Now())
 			if err != nil {

@@ -40,7 +40,7 @@ func main() {
 	}
 	defer closer()
 
-	server := federationout.NewServer(env.Database(), config)
+	server := federationout.NewServer(env, config)
 
 	var sopts []grpc.ServerOption
 	if config.TLSCertFile != "" && config.TLSKeyFile != "" {

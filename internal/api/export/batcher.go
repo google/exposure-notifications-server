@@ -33,12 +33,14 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.CreateTimeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
+	metrics := s.env.MetricsExporter(ctx)
 
 	// Obtain lock to make sure there are no other processes working to create batches.
 	lock := "create_batches"
 	unlockFn, err := s.db.Lock(ctx, lock, s.config.CreateTimeout)
 	if err != nil {
 		if errors.Is(err, database.ErrAlreadyLocked) {
+			metrics.WriteInt("export-batcher-lock-contention", true, 1)
 			msg := fmt.Sprintf("Lock %s already in use, no work will be performed", lock)
 			logger.Infof(msg)
 			w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.
@@ -57,6 +59,10 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
+	if err != nil {
+		// some specific error handling below, but just need one metric.
+		metrics.WriteInt("export-batcher-failed", true, 1)
+	}
 	switch {
 	case err == nil:
 		return
@@ -72,6 +78,7 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig, now time.Time) error {
 	logger := logging.FromContext(ctx)
+	metrics := s.env.MetricsExporter(ctx)
 
 	latestEnd, err := s.db.LatestExportBatchEnd(ctx, ec)
 	if err != nil {
@@ -80,6 +87,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 
 	ranges := makeBatchRanges(ec.Period, latestEnd, now)
 	if len(ranges) == 0 {
+		metrics.WriteInt("export-batcher-no-work", true, 1)
 		logger.Infof("Batch creation for config %d is not required, skipping", ec.ConfigID)
 		return nil
 	}
@@ -102,6 +110,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 		return fmt.Errorf("creating export batches for config %d: %w", ec.ConfigID, err)
 	}
 
+	metrics.WriteInt("export-batcher-created", true, len(batches))
 	logger.Infof("Created %d batch(es) for config %d", len(batches), ec.ConfigID)
 	return nil
 }

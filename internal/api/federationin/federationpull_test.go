@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb"
 
@@ -248,7 +249,7 @@ func TestFederationPull(t *testing.T) {
 				startFederationSync: sdb.startFederationSync,
 			}
 
-			err := pull(ctx, deps, query, batchStart)
+			err := pull(ctx, metrics.NewLogsBasedFromContext(ctx), deps, query, batchStart)
 			if err != nil {
 				t.Fatalf("pull returned err=%v, want err=nil", err)
 			}

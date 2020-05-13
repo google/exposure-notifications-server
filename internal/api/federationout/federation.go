@@ -27,6 +27,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -39,14 +40,22 @@ const (
 	bearer     = "Bearer"
 )
 
+// Compile time assert that this server implements the required grpc itnerface.
+var _ pb.FederationServer = (*Server)(nil)
+
 type iterateExposuresFunc func(context.Context, database.IterateExposuresCriteria, func(*model.Exposure) error) (string, error)
 
 // NewServer builds a new FederationServer.
-func NewServer(db *database.DB, config Config) pb.FederationServer {
-	return &Server{db: db, config: config}
+func NewServer(env *serverenv.ServerEnv, config Config) pb.FederationServer {
+	return &Server{
+		env:    env,
+		db:     env.Database(),
+		config: config,
+	}
 }
 
 type Server struct {
+	env    *serverenv.ServerEnv
 	db     *database.DB
 	config Config
 }
@@ -60,6 +69,7 @@ func (s Server) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.
 	logger := logging.FromContext(ctx)
 	response, err := s.fetch(ctx, req, s.db.IterateExposures, model.TruncateWindow(time.Now())) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?
 	if err != nil {
+		s.env.MetricsExporter(ctx).WriteInt("federation-fetch-failed", true, 1)
 		logger.Errorf("Fetch error: %v", err)
 		return nil, errors.New("internal error")
 	}
@@ -68,6 +78,7 @@ func (s Server) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.
 
 func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFunc iterateExposuresFunc, fetchUntil time.Time) (*pb.FederationFetchResponse, error) {
 	logger := logging.FromContext(ctx)
+	metrics := s.env.MetricsExporter(ctx)
 
 	for i := range req.RegionIdentifiers {
 		req.RegionIdentifiers[i] = strings.ToUpper(req.RegionIdentifiers[i])
@@ -75,6 +86,8 @@ func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFun
 	for i := range req.ExcludeRegionIdentifiers {
 		req.ExcludeRegionIdentifiers[i] = strings.ToUpper(req.ExcludeRegionIdentifiers[i])
 	}
+	metrics.WriteInt("federation-fetch-regions-requested", false, len(req.RegionIdentifiers))
+	metrics.WriteInt("federation-fetch-regions-excluded", false, len(req.ExcludeRegionIdentifiers))
 
 	logger.Infof("Processing client request %#v", req)
 
@@ -204,6 +217,7 @@ func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFun
 		return nil
 	})
 	if err != nil {
+		metrics.WriteInt("federation-fetch-error", true, 1)
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 			logger.Infof("Fetch request reached time out, returning partial response.")
 			response.PartialResponse = true
@@ -212,6 +226,7 @@ func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFun
 			return nil, err
 		}
 	}
+	metrics.WriteInt("federation-fetch-count", false, count)
 	logger.Infof("Sent %d keys", count)
 	return response, nil
 }
@@ -219,6 +234,7 @@ func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFun
 // AuthInterceptor validates incoming OIDC bearer token and adds corresponding FederationAuthorization record to the context.
 func (s Server) AuthInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	logger := logging.FromContext(ctx)
+	metrics := s.env.MetricsExporter(ctx)
 
 	raw, err := rawToken(ctx)
 	if err != nil {
@@ -229,20 +245,24 @@ func (s Server) AuthInterceptor(ctx context.Context, req interface{}, info *grpc
 	token, err := idtoken.Validate(ctx, raw, "")
 	if err != nil {
 		logger.Infof("Invalid token: %v", err)
+		metrics.WriteInt("federation-fetch-invalid-auth-token", true, 1)
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
 	}
 
 	auth, err := s.db.GetFederationAuthorization(ctx, token.Issuer, token.Subject)
 	if err != nil {
 		if err == database.ErrNotFound {
+			metrics.WriteInt("federation-fetch-unauthorized", true, 1)
 			logger.Infof("Authorization not found (issuer %q, subject %s)", token.Issuer, token.Subject)
 			return nil, status.Errorf(codes.Unauthenticated, "Invalid issuer/subject")
 		}
 		logger.Errorf("Failed to fetch authorization (issuer %q, subject %s): %v", token.Issuer, token.Subject, err)
+		metrics.WriteInt("federation-fetch-internal-error", true, 1)
 		return nil, status.Errorf(codes.Internal, "Internal error")
 	}
 
 	if auth.Audience != "" && auth.Audience != token.Audience {
+		metrics.WriteInt("federation-fetch-invalid-audience", true, 1)
 		logger.Infof("Invalid audience, got %q, want %q", token.Audience, auth.Audience)
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid audience")
 	}
