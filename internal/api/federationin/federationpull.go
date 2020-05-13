@@ -29,8 +29,10 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/serverenv"
 
 	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc"
@@ -58,11 +60,16 @@ type pullDependencies struct {
 
 // NewPullHandler returns a handler that will fetch server-to-server
 // federation results for a single federation query.
-func NewPullHandler(db *database.DB, config PullConfig) http.Handler {
-	return &pullHandler{db: db, config: config}
+func NewPullHandler(env *serverenv.ServerEnv, config PullConfig) http.Handler {
+	return &pullHandler{
+		env:    env,
+		db:     env.Database(),
+		config: config,
+	}
 }
 
 type pullHandler struct {
+	env    *serverenv.ServerEnv
 	db     *database.DB
 	config PullConfig
 }
@@ -70,18 +77,22 @@ type pullHandler struct {
 func (h *pullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
+	metrics := h.env.MetricsExporter(ctx)
 
 	queryIDs, ok := r.URL.Query()[queryParam]
 	if !ok {
+		metrics.WriteInt("federation-pull-invalid-request", true, 1)
 		badRequestf(ctx, w, "%s is required", queryParam)
 		return
 	}
 	if len(queryIDs) > 1 {
+		metrics.WriteInt("federation-pull-invalid-request", true, 1)
 		badRequestf(ctx, w, "only one %s allowed", queryParam)
 		return
 	}
 	queryID := queryIDs[0]
 	if queryID == "" {
+		metrics.WriteInt("federation-pull-invalid-request", true, 1)
 		badRequestf(ctx, w, "%s is required", queryParam)
 		return
 	}
@@ -91,6 +102,7 @@ func (h *pullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	unlockFn, err := h.db.Lock(ctx, lock, h.config.Timeout)
 	if err != nil {
 		if errors.Is(err, database.ErrAlreadyLocked) {
+			metrics.WriteInt("federation-pull-lock-contention", true, 1)
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
 			logger.Infof(msg)
 			w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.
@@ -161,7 +173,7 @@ func (h *pullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		startFederationSync: h.db.StartFederationSync,
 	}
 	batchStart := time.Now()
-	if err := pull(timeoutContext, deps, query, batchStart); err != nil {
+	if err := pull(timeoutContext, metrics, deps, query, batchStart); err != nil {
 		internalErrorf(ctx, w, "Federation query %q failed: %v", queryID, err)
 		return
 	}
@@ -171,7 +183,7 @@ func (h *pullHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func pull(ctx context.Context, deps pullDependencies, q *model.FederationQuery, batchStart time.Time) error {
+func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *model.FederationQuery, batchStart time.Time) error {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Processing query %q", q.QueryID)
 
@@ -238,6 +250,7 @@ func pull(ctx context.Context, deps pullDependencies, q *model.FederationQuery, 
 
 					if len(exposures) == fetchBatchSize {
 						if err := deps.insertExposures(ctx, exposures); err != nil {
+							metrics.WriteInt("federation-pull-inserts", false, len(exposures))
 							return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 						}
 						total += len(exposures)
@@ -248,6 +261,7 @@ func pull(ctx context.Context, deps pullDependencies, q *model.FederationQuery, 
 		}
 		if len(exposures) > 0 {
 			if err := deps.insertExposures(ctx, exposures); err != nil {
+				metrics.WriteInt("federation-pull-inserts", false, len(exposures))
 				return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 			}
 			total += len(exposures)

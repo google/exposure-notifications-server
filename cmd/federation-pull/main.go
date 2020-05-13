@@ -36,7 +36,7 @@ func main() {
 	}
 	defer closer()
 
-	http.Handle("/", federationin.NewPullHandler(env.Database(), config))
+	http.Handle("/", federationin.NewPullHandler(env, config))
 	logger.Infof("starting federation puller on :%s", config.Port)
 	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
 }
