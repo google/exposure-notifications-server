@@ -32,7 +32,7 @@ DB_USER="${DB_USER:-en-server}"
 DB_PASSWORD="${DB_PASSWORD:-BjrvWmjQPXykPu}"
 DB_SSLMODE="${DB_SSLMODE:-require}"
 DB_NAME="${DB_NAME:-en-server}"
-DB_URL="${DB_URL:-postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}}"
+DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
 
 # Other configuration parameters
 CONFIG_REFRESH_DURATION="${CONFIG_REFRESH_DURATION:-1m}"
@@ -114,7 +114,7 @@ function start() {
     --env "POSTGRES_USER=${DB_USER}" \
     --env "POSTGRES_PASSWORD=${DB_PASSWORD}" \
     --detach \
-    --publish "${DB_PORT}:${DB_PORT}" \
+    --publish "${DB_PORT}:5432" \
     --volume "${CERTS_DIR}/server.crt:/var/lib/postgresql/server.crt:ro" \
     --volume "${CERTS_DIR}/server.key:/var/lib/postgresql/server.key:ro" \
     "${DB_CONTAINER_IMAGE}" \
@@ -122,8 +122,7 @@ function start() {
       -c "max_connections=200" \
       -c "ssl=on" \
       -c "ssl_cert_file=/var/lib/postgresql/server.crt" \
-      -c "ssl_key_file=/var/lib/postgresql/server.key" \
-    &>/dev/null
+      -c "ssl_key_file=/var/lib/postgresql/server.key"
 }
 
 # psql creates a psql session.
@@ -138,7 +137,7 @@ function psql() {
     /usr/local/bin/psql \
       --dbname "${DB_NAME}" \
       --username "${DB_USER}" \
-      --port "${DB_PORT}"
+      --port "5432"
 }
 
 # migrate runs the migrations against the database.
@@ -171,7 +170,7 @@ function seed() {
     /usr/local/bin/psql \
       --dbname "${DB_NAME}" \
       --username "${DB_USER}" \
-      --port "${DB_PORT}" \
+      --port "5432" \
       < "${ROOT}/testdata/config.sql"
 }
 
