@@ -39,8 +39,7 @@ type ServerEnv struct {
 	overrides        map[string]string
 	Exporter         metrics.ExporterFromContext
 	APIConfigProvier config.Provider
-	DB               *database.DB
-	Config           interface{}
+	Database         *database.DB
 }
 
 // Option defines function types to modify the ServerEnv on creation.
@@ -62,16 +61,10 @@ func New(ctx context.Context, opts ...Option) *ServerEnv {
 	return env
 }
 
-func WithConfig(config interface{}) Option {
+// WithDatabase attached a database to the environment.
+func WithDatabase(db *database.DB) Option {
 	return func(s *ServerEnv) *ServerEnv {
-		s.Config = config
-		return s
-	}
-}
-
-func WithPostgresDatabase(db *database.DB) Option {
-	return func(s *ServerEnv) *ServerEnv {
-		s.DB = db
+		s.Database = db
 		return s
 	}
 }

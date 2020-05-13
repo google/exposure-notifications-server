@@ -16,11 +16,11 @@ package setup
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
 	"github.com/google/exposure-notifications-server/internal/envconfig"
-	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -38,42 +38,40 @@ type DBAPIConfigProvider interface {
 	API() *dbapiconfig.ConfigOpts
 }
 
-// Setup runs common intitializion code for all servers.
-func Setup(ctx context.Context, config DBConfigProvider) *serverenv.ServerEnv {
-	logger := logging.FromContext(ctx)
+// Function returned from setup to be deferred until the caller exits.
+type Defer func()
 
+// Setup runs common intitializion code for all servers.
+func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, Defer, error) {
 	// Can be changed with a different secret manager interface.
 	sm, err := secrets.NewGCPSecretManager(ctx)
 	if err != nil {
-		logger.Fatalf("unable to connect to secret manager: %v", err)
+		return nil, nil, fmt.Errorf("unable to connect to secret manager: %v", err)
 	}
 
 	if err := envconfig.Process(ctx, config, sm); err != nil {
-		logger.Fatalf("error loading environment variables: %v", err)
+		return nil, nil, fmt.Errorf("error loading environment variables: %v", err)
 	}
 
 	db, err := database.NewFromEnv(ctx, config.DB())
 	if err != nil {
-		logger.Fatalf("unable to connect to database: %v", err)
+		return nil, nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
-	//defer db.Close(ctx)
 
 	// Start building serverenv opts
 	opts := []serverenv.Option{
 		serverenv.WithSecretManager(sm),
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext),
-		serverenv.WithPostgresDatabase(db),
-		serverenv.WithConfig(config),
+		serverenv.WithDatabase(db),
 	}
 
 	if apicfg, ok := config.(DBAPIConfigProvider); ok {
-		logger.Infof("Installing DB APIConfig Provider")
 		cfgProvider, err := dbapiconfig.NewConfigProvider(db, apicfg.API())
 		if err != nil {
-			logger.Fatalf("unable to create APIConfig provider: %v", err)
+			return nil, nil, fmt.Errorf("unable to create APIConfig provider: %v", err)
 		}
 		opts = append(opts, serverenv.WithAPIConfigProvider(cfgProvider))
 	}
 
-	return serverenv.New(ctx, opts...)
+	return serverenv.New(ctx, opts...), func() { db.Close(ctx) }, nil
 }

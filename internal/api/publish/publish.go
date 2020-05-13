@@ -29,13 +29,8 @@ import (
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
-func NewHandler(ctx context.Context, env *serverenv.ServerEnv) (http.Handler, error) {
+func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
 	logger := logging.FromContext(ctx)
-
-	config, ok := env.Config.(*Config)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type present in environment")
-	}
 
 	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.MaxIntervalFuture)
 	if err != nil {
@@ -136,7 +131,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.serverenv.DB.InsertExposures(ctx, exposures)
+	err = h.serverenv.Database.InsertExposures(ctx, exposures)
 	if err != nil {
 		logger.Errorf("error writing exposure record: %v", err)
 		metrics.WriteInt("publish-db-write-error", true, 1)

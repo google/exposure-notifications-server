@@ -31,9 +31,13 @@ func main() {
 	logger := logging.FromContext(ctx)
 
 	var config publish.Config
-	env := setup.Setup(ctx, &config)
+	env, closer, err := setup.Setup(ctx, &config)
+	defer closer()
+	if err != nil {
+		logger.Fatal("setup.Setup: %v", err)
+	}
 
-	handler, err := publish.NewHandler(ctx, env)
+	handler, err := publish.NewHandler(ctx, &config, env)
 	if err != nil {
 		logger.Fatalf("unable to create publish handler: %v", err)
 	}
