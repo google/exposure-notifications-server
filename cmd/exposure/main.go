@@ -32,10 +32,10 @@ func main() {
 
 	var config publish.Config
 	env, closer, err := setup.Setup(ctx, &config)
-	defer closer()
 	if err != nil {
 		logger.Fatal("setup.Setup: %v", err)
 	}
+	defer closer()
 
 	handler, err := publish.NewHandler(ctx, &config, env)
 	if err != nil {

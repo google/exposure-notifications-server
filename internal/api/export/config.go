@@ -18,7 +18,13 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/setup"
 )
+
+// Compile-time check to assert this config matches requirements.
+var _ setup.KeyManagerProvider = (*Config)(nil)
+var _ setup.BlobStorageConfigProvider = (*Config)(nil)
+var _ setup.DBConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the export components.
@@ -28,4 +34,16 @@ type Config struct {
 	WorkerTimeout time.Duration `envconfig:"WORKER_TIMEOUT" default:"5m"`
 	MaxRecords    int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
 	Database      *database.Config
+}
+
+func (c *Config) DB() *database.Config {
+	return c.Database
+}
+
+func (c *Config) KeyManager() bool {
+	return true
+}
+
+func (c *Config) BlobStorage() bool {
+	return true
 }

@@ -33,13 +33,12 @@ type ExporterFunc func(context.Context) metrics.Exporter
 
 // ServerEnv represents latent environment configuration for servers in this application.
 type ServerEnv struct {
-	SecretManager    secrets.SecretManager
-	KeyManager       signing.KeyManager
-	Blobstore        storage.Blobstore
-	overrides        map[string]string
-	Exporter         metrics.ExporterFromContext
-	APIConfigProvier config.Provider
-	Database         *database.DB
+	secretManager     secrets.SecretManager
+	keyManager        signing.KeyManager
+	blobstore         storage.Blobstore
+	exporter          metrics.ExporterFromContext
+	apiConfigProvider config.Provider
+	database          *database.DB
 }
 
 // Option defines function types to modify the ServerEnv on creation.
@@ -50,7 +49,7 @@ func New(ctx context.Context, opts ...Option) *ServerEnv {
 	env := &ServerEnv{}
 	// A metrics exporter is required, installs the default log based one.
 	// Can be overridden by opts.
-	env.Exporter = func(ctx context.Context) metrics.Exporter {
+	env.exporter = func(ctx context.Context) metrics.Exporter {
 		return metrics.NewLogsBasedFromContext(ctx)
 	}
 
@@ -64,7 +63,7 @@ func New(ctx context.Context, opts ...Option) *ServerEnv {
 // WithDatabase attached a database to the environment.
 func WithDatabase(db *database.DB) Option {
 	return func(s *ServerEnv) *ServerEnv {
-		s.Database = db
+		s.database = db
 		return s
 	}
 }
@@ -72,7 +71,7 @@ func WithDatabase(db *database.DB) Option {
 // WithAPIConfigProvider installs a provider of APIConfig.
 func WithAPIConfigProvider(p config.Provider) Option {
 	return func(s *ServerEnv) *ServerEnv {
-		s.APIConfigProvier = p
+		s.apiConfigProvider = p
 		return s
 	}
 }
@@ -80,7 +79,7 @@ func WithAPIConfigProvider(p config.Provider) Option {
 // WithMetricsExporter creates an Option to install a different metrics exporter.
 func WithMetricsExporter(f metrics.ExporterFromContext) Option {
 	return func(s *ServerEnv) *ServerEnv {
-		s.Exporter = f
+		s.exporter = f
 		return s
 	}
 }
@@ -88,7 +87,7 @@ func WithMetricsExporter(f metrics.ExporterFromContext) Option {
 // WithSecretManager creates an Option to install a specific secret manager to use.
 func WithSecretManager(sm secrets.SecretManager) Option {
 	return func(s *ServerEnv) *ServerEnv {
-		s.SecretManager = sm
+		s.secretManager = sm
 		return s
 	}
 }
@@ -96,7 +95,7 @@ func WithSecretManager(sm secrets.SecretManager) Option {
 // WithKeyManager creates an Option to install a specific KeyManager to use for signing requests.
 func WithKeyManager(km signing.KeyManager) Option {
 	return func(s *ServerEnv) *ServerEnv {
-		s.KeyManager = km
+		s.keyManager = km
 		return s
 	}
 }
@@ -104,18 +103,38 @@ func WithKeyManager(km signing.KeyManager) Option {
 // WithBlobStorage creates an Option to install a specific Blob storage system.
 func WithBlobStorage(sto storage.Blobstore) Option {
 	return func(s *ServerEnv) *ServerEnv {
-		s.Blobstore = sto
+		s.blobstore = sto
 		return s
 	}
+}
+
+func (s *ServerEnv) SecretManager() secrets.SecretManager {
+	return s.secretManager
+}
+
+func (s *ServerEnv) KeyManager() signing.KeyManager {
+	return s.keyManager
+}
+
+func (s *ServerEnv) Blobstore() storage.Blobstore {
+	return s.blobstore
+}
+
+func (s *ServerEnv) APIConfigProvider() config.Provider {
+	return s.apiConfigProvider
+}
+
+func (s *ServerEnv) Database() *database.DB {
+	return s.database
 }
 
 // GetSignerForKey returns the crypto.Singer implementation to use based on the installed KeyManager.
 // If there is no KeyManager installed, this returns an error.
 func (s *ServerEnv) GetSignerForKey(ctx context.Context, keyName string) (crypto.Signer, error) {
-	if s.KeyManager == nil {
+	if s.keyManager == nil {
 		return nil, fmt.Errorf("no key manager installed, use WithKeyManager when creating the ServerEnv")
 	}
-	sign, err := s.KeyManager.NewSigner(ctx, keyName)
+	sign, err := s.keyManager.NewSigner(ctx, keyName)
 	if err != nil {
 		return nil, fmt.Errorf("KeyManager.NewSigner: %w", err)
 	}
@@ -124,8 +143,8 @@ func (s *ServerEnv) GetSignerForKey(ctx context.Context, keyName string) (crypto
 
 // MetricsExporter returns a context appropriate metrics exporter.
 func (s *ServerEnv) MetricsExporter(ctx context.Context) metrics.Exporter {
-	if s.Exporter == nil {
+	if s.exporter == nil {
 		return nil
 	}
-	return s.Exporter(ctx)
+	return s.exporter(ctx)
 }

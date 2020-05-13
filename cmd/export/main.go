@@ -21,54 +21,22 @@ import (
 	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/api/export"
-	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/metrics"
-	"github.com/google/exposure-notifications-server/internal/secrets"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/google/exposure-notifications-server/internal/signing"
-	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	// It is possible to install a different secret management, KMS, and blob
-	// storage systems here.
-	sm, err := secrets.NewGCPSecretManager(ctx)
-	if err != nil {
-		logger.Fatalf("unable to connect to secret manager: %w", err)
-	}
-
 	var config export.Config
-	if err := envconfig.Process(ctx, &config, nil); err != nil {
-		logger.Fatalf("error loading environment variables: %v", err)
-	}
-
-	km, err := signing.NewGCPKMS(ctx)
+	env, closer, err := setup.Setup(ctx, &config)
 	if err != nil {
-		logger.Fatalf("unable to connect to key manager: %w", err)
+		logger.Fatal("setup.Setup: %v", err)
 	}
-	storage, err := storage.NewGoogleCloudStorage(ctx)
-	if err != nil {
-		logger.Fatalf("unable to connect to storage system: %v", err)
-	}
-	// Construct desired serving environment.
-	env := serverenv.New(ctx,
-		serverenv.WithSecretManager(sm),
-		serverenv.WithKeyManager(km),
-		serverenv.WithBlobStorage(storage),
-		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
+	defer closer()
 
-	db, err := database.NewFromEnv(ctx, config.Database)
-	if err != nil {
-		logger.Fatalf("unable to connect to database: %w", err)
-	}
-	defer db.Close(ctx)
-
-	batchServer, err := export.NewServer(db, &config, env)
+	batchServer, err := export.NewServer(&config, env)
 	if err != nil {
 		logger.Fatalf("unable to create server: %v", err)
 	}

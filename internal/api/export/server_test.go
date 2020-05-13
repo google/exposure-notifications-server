@@ -15,6 +15,7 @@
 package export
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -26,6 +27,11 @@ import (
 
 // TestNewServer tests NewServer().
 func TestNewServer(t *testing.T) {
+	emptyStorage := &storage.GoogleCloudStorage{}
+	emptyKMS := &signing.GCPKMS{}
+	emptyDB := &database.DB{}
+	ctx := context.Background()
+
 	testCases := []struct {
 		name string
 		env  *serverenv.ServerEnv
@@ -33,28 +39,30 @@ func TestNewServer(t *testing.T) {
 	}{
 		{
 			name: "nil Blobstore",
-			env:  &serverenv.ServerEnv{Blobstore: nil, KeyManager: nil},
+			env:  serverenv.New(ctx),
 			err:  fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv"),
 		},
 		{
 			name: "nil KeyManager",
-			env:  &serverenv.ServerEnv{Blobstore: &storage.GoogleCloudStorage{}, KeyManager: nil},
+			env:  serverenv.New(ctx, serverenv.WithBlobStorage(emptyStorage)),
 			err:  fmt.Errorf("export.NewBatchServer requires KeyManager present in the ServerEnv"),
 		},
 		{
 			name: "Fully Specified",
-			env:  &serverenv.ServerEnv{Blobstore: &storage.GoogleCloudStorage{}, KeyManager: &signing.GCPKMS{}},
+			env:  serverenv.New(ctx, serverenv.WithBlobStorage(emptyStorage), serverenv.WithKeyManager(emptyKMS), serverenv.WithDatabase(emptyDB)),
 			err:  nil,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := NewServer(&database.DB{}, &Config{}, tc.env)
+			got, err := NewServer(&Config{}, tc.env)
 			if tc.err != nil {
 				if err.Error() != tc.err.Error() {
 					t.Fatalf("got %+v: want %v", err, tc.err)
 				}
+			} else if err != nil {
+				t.Fatalf("got unexpected error: %v", err)
 			} else {
 				if got.env != tc.env {
 					t.Fatalf("got %+v: want %v", got.env, tc.env)

@@ -33,3 +33,7 @@ type Config struct {
 	PoolMaxConnIdle    time.Duration `envconfig:"DB_POOL_MAX_CONN_IDLE_TIME"`
 	PoolHealthCheck    time.Duration `envconfig:"DB_POOL_HEALTH_CHECK_PERIOD"`
 }
+
+func (c *Config) DB() *Config {
+	return c
+}

@@ -21,46 +21,26 @@ import (
 	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/api/cleanup"
-	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/metrics"
-	"github.com/google/exposure-notifications-server/internal/secrets"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	// It is possible to install a different secret management system here that conforms to secrets.SecretManager{}
-	sm, err := secrets.NewGCPSecretManager(ctx)
-	if err != nil {
-		logger.Fatalf("unable to connect to secret manager: %v", err)
-	}
-
 	var config cleanup.Config
-	if err := envconfig.Process(ctx, &config, sm); err != nil {
-		logger.Fatalf("error loading environment variables: %v", err)
-	}
-
-	storage, err := storage.NewGoogleCloudStorage(ctx)
+	env, closer, err := setup.Setup(ctx, &config)
 	if err != nil {
-		logger.Fatalf("unable to connect to storage system: %v", err)
+		logger.Fatalf("setup.Setup: %v", err)
 	}
-	env := serverenv.New(ctx,
-		serverenv.WithSecretManager(sm),
-		serverenv.WithBlobStorage(storage),
-		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
+	defer closer()
 
-	db, err := database.NewFromEnv(ctx, config.Database)
+	handler, err := cleanup.NewExportHandler(config, env)
 	if err != nil {
-		logger.Fatalf("unable to connect to database: %v", err)
+		logger.Fatalf("cleanup.NewExportHandler: %v", err)
 	}
-	defer db.Close(ctx)
-
-	http.Handle("/", cleanup.NewExportHandler(db, &config, env))
+	http.Handle("/", handler)
 	logger.Infof("starting export cleanup server on :%s", config.Port)
 	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
 }

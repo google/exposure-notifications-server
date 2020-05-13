@@ -28,3 +28,7 @@ type Config struct {
 	TTL      time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
 	Database *database.Config
 }
+
+func (c *Config) DB() *database.Config {
+	return c.Database
+}

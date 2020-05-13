@@ -50,6 +50,10 @@ type Config struct {
 	TLSKeyFile  string `envconfig:"TLS_KEY_FILE"`
 }
 
+func (c *Config) DB() *database.Config {
+	return c.Database
+}
+
 // PullConfig is the configuration for federation-pull components (data pulled from other servers).
 type PullConfig struct {
 	Database *database.Config
@@ -66,4 +70,8 @@ type PullConfig struct {
 	// CredentialsFile points to a JSON credentials file. If running on Managed Cloud Run,
 	// or if using $GOOGLE_APPLICATION_CREDENTIALS, leave this value empty.
 	CredentialsFile string `envconfig:"CREDENTIALS_FILE"`
+}
+
+func (c *PullConfig) DB() *database.Config {
+	return c.Database
 }
