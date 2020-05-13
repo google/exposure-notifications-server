@@ -168,7 +168,7 @@ these instructions assume Docker is installed and available in your `$PATH`.
     $ ./scripts/dev dbstop
     ```
 
-    **Warning: This will also delete any stored data in the database!**
+    **Warning: This will also delete any stored data in the database.**
 
 
 ## Documentation

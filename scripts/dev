@@ -20,8 +20,8 @@ PROGNAME="$(basename $0)"
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 CERTS_DIR="${ROOT}/local/db-tls"
 
-CONTAINER_NAME="en-server"
-CONTAINER_IMAGE="registry.hub.docker.com/library/postgres:12-alpine"
+DB_CONTAINER_NAME="en-server-db"
+DB_CONTAINER_IMAGE="registry.hub.docker.com/library/postgres:12-alpine"
 DOCKER_CMD="$(command -v docker || true)"
 MIGRATE_CMD="$(command -v migrate || true)"
 
@@ -83,7 +83,7 @@ function docker() {
 
 # running determines if the database is running.
 function running() {
-  local out="$(docker inspect -f "{{.State.Running}}" "${CONTAINER_NAME}" 2>&1)"
+  local out="$(docker inspect -f "{{.State.Running}}" "${DB_CONTAINER_NAME}" 2>&1)"
   if [[ "${out}" == "true" ]]; then
     return 0
   else
@@ -94,7 +94,7 @@ function running() {
 # stop terminates the database.
 function stop() {
   echo "==> Stopping database"
-  docker rm --force "${CONTAINER_NAME}" &>/dev/null
+  docker rm --force "${DB_CONTAINER_NAME}" &>/dev/null
 }
 
 # start creates and provisions a new database.
@@ -108,7 +108,7 @@ function start() {
   gencerts
 
   docker run \
-    --name "${CONTAINER_NAME}" \
+    --name "${DB_CONTAINER_NAME}" \
     --env "LANG=C" \
     --env "POSTGRES_DB=${DB_NAME}" \
     --env "POSTGRES_USER=${DB_USER}" \
@@ -117,7 +117,7 @@ function start() {
     --publish "${DB_PORT}:${DB_PORT}" \
     --volume "${CERTS_DIR}/server.crt:/var/lib/postgresql/server.crt:ro" \
     --volume "${CERTS_DIR}/server.key:/var/lib/postgresql/server.key:ro" \
-    "${CONTAINER_IMAGE}" \
+    "${DB_CONTAINER_IMAGE}" \
       -c "shared_buffers=256MB" \
       -c "max_connections=200" \
       -c "ssl=on" \
@@ -138,7 +138,7 @@ function psql() {
     --interactive \
     --tty \
     --env "PGPASSWORD=${DB_PASSWORD}" \
-    "${CONTAINER_NAME}" \
+    "${DB_CONTAINER_NAME}" \
     /usr/local/bin/psql \
       --dbname "${DB_NAME}" \
       --username "${DB_USER}" \
@@ -174,7 +174,7 @@ function seed() {
   docker exec \
     --interactive \
     --env "PGPASSWORD=${DB_PASSWORD}" \
-    "${CONTAINER_NAME}" \
+    "${DB_CONTAINER_NAME}" \
     /usr/local/bin/psql \
       --dbname "${DB_NAME}" \
       --username "${DB_USER}" \
