@@ -68,7 +68,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	batchServer, err := export.NewBatchServer(db, &config, env)
+	batchServer, err := export.NewServer(db, &config, env)
 	if err != nil {
 		logger.Fatalf("unable to create server: %v", err)
 	}

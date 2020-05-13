@@ -39,6 +39,7 @@ const (
 	algorithm = "1.2.840.10045.4.3.2"
 )
 
+// MarshalExportFile converts the inputs into an encoded byte array.
 func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int, signer crypto.Signer) ([]byte, error) {
 	// create main exposure key export binary
 	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize))
