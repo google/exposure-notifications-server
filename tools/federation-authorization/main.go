@@ -21,6 +21,7 @@ import (
 	"flag"
 	"log"
 
+	"github.com/google/exposure-notifications-server/internal/api/federation"
 	"github.com/google/exposure-notifications-server/internal/database"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/model"
@@ -34,8 +35,9 @@ const (
 var (
 	testRegions = []string{"TEST", "PROBE"}
 
-	subject = flag.String("subject", "", "(Required) The OIDC subject (for issuer https://accounts.google.com, this is the obfuscated Gaia ID.)")
-	note    = flag.String("note", "", "An open text note to include on the record.")
+	subject  = flag.String("subject", "", "(Required) The OIDC subject (for issuer https://accounts.google.com, this is the obfuscated Gaia ID.)")
+	audience = flag.String("audience", federation.DefaultAudience, "The OIDC audience; leaving this blank will cause server to not enforce the audience claim.")
+	note     = flag.String("note", "", "An open text note to include on the record.")
 )
 
 func main() {
@@ -82,6 +84,7 @@ func main() {
 	auth := &model.FederationAuthorization{
 		Issuer:         defaultIssuer, // Authorization interceptor currently only supports defaultIssuer.
 		Subject:        *subject,
+		Audience:       *audience,
 		Note:           *note,
 		IncludeRegions: includeRegions,
 		ExcludeRegions: excludeRegions,

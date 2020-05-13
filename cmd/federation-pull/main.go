@@ -37,7 +37,7 @@ func main() {
 		logger.Fatalf("unable to connect to secret manager: %v", err)
 	}
 
-	var config federation.Config
+	var config federation.PullConfig
 	if err := envconfig.Process(ctx, &config, sm); err != nil {
 		logger.Fatalf("error loading environment variables: %v", err)
 	}
@@ -48,7 +48,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	http.Handle("/", federation.NewPullHandler(db, config.Timeout))
-	logger.Infof("starting federation puller on :%s", config.Port)
+	http.Handle("/", federation.NewPullHandler(db, config))
+	logger.Info("Starting federation puller on port " + config.Port)
 	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
 }

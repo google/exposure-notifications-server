@@ -52,7 +52,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	server := federation.NewServer(db, config.Timeout)
+	server := federation.NewServer(db, config)
 
 	var sopts []grpc.ServerOption
 	if config.TLSCertFile != "" && config.TLSKeyFile != "" {

@@ -20,9 +20,9 @@ import (
 	"crypto/tls"
 	"flag"
 	"log"
-	"os"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/api/federation"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/pb"
 
@@ -33,13 +33,13 @@ import (
 )
 
 const (
-	timeout         = 30 * time.Second
-	defaultAudience = "https://foo.bar"
+	timeout = 30 * time.Second
 )
 
 var (
 	// See https://github.com/grpc/grpc-go/blob/master/examples/route_guide/client/client.go
 	serverAddr    = flag.String("server-addr", "localhost:8080", "The server address in the format of host:port")
+	audience      = flag.String("audience", federation.DefaultAudience, "The OIDC audience to use when creating client tokens.")
 	lastTimestamp = flag.String("last-timestamp", "", "The last timestamp (RFC3339) to set; queries start from this point and go forward.")
 	cursor        = flag.String("cursor", "", "Cursor from previous partial response.")
 )
@@ -59,6 +59,10 @@ func main() {
 		}
 	}
 
+	if *audience != "" && !federation.ValidAudienceRegexp.MatchString(*audience) {
+		log.Fatalf("--audience %q must match %s", *audience, federation.ValidAudienceStr)
+	}
+
 	request := &pb.FederationFetchRequest{
 		RegionIdentifiers:             includeRegions,
 		ExcludeRegionIdentifiers:      excludeRegions,
@@ -72,15 +76,11 @@ func main() {
 	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(creds)}
 
-	if cred, ok := os.LookupEnv("GOOGLE_APPLICATION_CREDENTIALS"); ok {
-		idTokenSource, err := idtoken.NewTokenSource(ctx, defaultAudience, idtoken.WithCredentialsFile(cred))
-		if err != nil {
-			log.Fatalf("Failed to create token source: %v", err)
-		}
-		dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{idTokenSource}))
-	} else {
-		log.Println("$GOOGLE_APPLICATION_CREDENTIALS not set; will attempt an unauthenticated request.")
+	idTokenSource, err := idtoken.NewTokenSource(ctx, *audience)
+	if err != nil {
+		log.Fatalf("Failed to create token source: %v", err)
 	}
+	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{idTokenSource}))
 
 	conn, err := grpc.Dial(*serverAddr, dialOpts...)
 	if err != nil {

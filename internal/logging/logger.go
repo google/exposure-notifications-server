@@ -29,6 +29,7 @@ func init() {
 	config := zap.NewProductionConfig()
 	config.EncoderConfig.MessageKey = "message"
 	config.EncoderConfig.LevelKey = "severity"
+	config.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
 
 	if logger, err := config.Build(); err != nil {
 		fallbackLogger = zap.NewNop().Sugar()
