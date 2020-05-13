@@ -32,7 +32,7 @@ DB_USER="${DB_USER:-en-server}"
 DB_PASSWORD="${DB_PASSWORD:-BjrvWmjQPXykPu}"
 DB_SSLMODE="${DB_SSLMODE:-require}"
 DB_NAME="${DB_NAME:-en-server}"
-DB_URL="${DB_URL:-postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}}"
+DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
 
 # Other configuration parameters
 CONFIG_REFRESH_DURATION="${CONFIG_REFRESH_DURATION:-1m}"
