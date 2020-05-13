@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 const (
@@ -32,6 +33,10 @@ var (
 	// ValidAudienceRegexp is the compiled regexp of a valid audience string.
 	ValidAudienceRegexp = regexp.MustCompile(ValidAudienceStr)
 )
+
+// Compile-time check to assert this config matches requirements.
+var _ setup.DBConfigProvider = (*Config)(nil)
+var _ setup.DBConfigProvider = (*PullConfig)(nil)
 
 // Config is the configuration for the federation components (data sent to other servers).
 type Config struct {
@@ -50,6 +55,7 @@ type Config struct {
 	TLSKeyFile  string `envconfig:"TLS_KEY_FILE"`
 }
 
+// DB returns the database config.
 func (c *Config) DB() *database.Config {
 	return c.Database
 }
@@ -72,6 +78,7 @@ type PullConfig struct {
 	CredentialsFile string `envconfig:"CREDENTIALS_FILE"`
 }
 
+// DB returns the database config.
 func (c *PullConfig) DB() *database.Config {
 	return c.Database
 }

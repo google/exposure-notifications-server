@@ -36,14 +36,17 @@ type Config struct {
 	Database      *database.Config
 }
 
+// DB returns the database config.
 func (c *Config) DB() *database.Config {
 	return c.Database
 }
 
+// KeyManager returns the KeyManager configuration.
 func (c *Config) KeyManager() bool {
 	return true
 }
 
+// BlobStorage returns the BlobStorage configuration.
 func (c *Config) BlobStorage() bool {
 	return true
 }

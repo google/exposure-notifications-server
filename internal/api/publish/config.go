@@ -20,7 +20,12 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
+	"github.com/google/exposure-notifications-server/internal/setup"
 )
+
+// Compile-time check to assert this config matches requirements.
+var _ setup.DBAPIConfigProvider = (*Config)(nil)
+var _ setup.DBConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.
@@ -37,10 +42,12 @@ type Config struct {
 	Database *database.Config
 }
 
+// API returns the configuration for the DB APIConfig provider.
 func (c *Config) API() *dbapiconfig.ConfigOpts {
 	return c.APIConfigOpts
 }
 
+// DB returns the configuration for the databse.
 func (c *Config) DB() *database.Config {
 	return c.Database
 }
