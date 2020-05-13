@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/jsonutil"
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -30,7 +29,7 @@ import (
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
-func NewHandler(ctx context.Context, db *database.DB, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
+func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
 	logger := logging.FromContext(ctx)
 
 	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.MaxIntervalFuture)
@@ -42,7 +41,6 @@ func NewHandler(ctx context.Context, db *database.DB, config *Config, env *serve
 	logger.Infof("max interval start future: %v", config.MaxIntervalFuture)
 
 	return &publishHandler{
-		db:          db,
 		serverenv:   env,
 		transformer: transformer,
 		config:      config,
@@ -50,7 +48,6 @@ func NewHandler(ctx context.Context, db *database.DB, config *Config, env *serve
 }
 
 type publishHandler struct {
-	db          *database.DB
 	config      *Config
 	serverenv   *serverenv.ServerEnv
 	transformer *model.Transformer
@@ -134,7 +131,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.db.InsertExposures(ctx, exposures)
+	err = h.serverenv.Database.InsertExposures(ctx, exposures)
 	if err != nil {
 		logger.Errorf("error writing exposure record: %v", err)
 		metrics.WriteInt("publish-db-write-error", true, 1)

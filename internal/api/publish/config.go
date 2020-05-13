@@ -36,3 +36,11 @@ type Config struct {
 
 	Database *database.Config
 }
+
+func (c *Config) API() *dbapiconfig.ConfigOpts {
+	return c.APIConfigOpts
+}
+
+func (c *Config) DB() *database.Config {
+	return c.Database
+}

@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/google/exposure-notifications-server/internal/api/config"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/signing"
@@ -38,6 +39,7 @@ type ServerEnv struct {
 	overrides        map[string]string
 	Exporter         metrics.ExporterFromContext
 	APIConfigProvier config.Provider
+	Database         *database.DB
 }
 
 // Option defines function types to modify the ServerEnv on creation.
@@ -57,6 +59,14 @@ func New(ctx context.Context, opts ...Option) *ServerEnv {
 	}
 
 	return env
+}
+
+// WithDatabase attached a database to the environment.
+func WithDatabase(db *database.DB) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.Database = db
+		return s
+	}
 }
 
 // WithAPIConfigProvider installs a provider of APIConfig.
