@@ -15,31 +15,27 @@
 package cleanup
 
 import (
-	"os"
 	"testing"
 	"time"
 )
 
-func TestGetCutoff(t *testing.T) {
+func TestCutoffDate(t *testing.T) {
 	now := time.Now()
 	for _, test := range []struct {
-		val     string
+		d       time.Duration
 		wantDur time.Duration // if zero, then expect an error
 	}{
-		{"", 0},                           // no env var
-		{"foo", 0},                        // invalid duration
-		{"216h", 0},                       // 9 days: duration too short
-		{"-10m", 0},                       // negative
-		{"241h", (10*24 + 1) * time.Hour}, // 10 days, 1 hour: OK
+		{216 * time.Hour, 0},                       // 9 days: duration too short
+		{-10 * time.Minute, 0},                     // negative
+		{241 * time.Hour, (10*24 + 1) * time.Hour}, // 10 days, 1 hour: OK
 	} {
-		os.Setenv(ttlEnvVar, test.val)
-		got, err := getCutoff(ttlEnvVar)
+		got, err := cutoffDate(test.d)
 		if test.wantDur == 0 {
 			if err == nil {
-				t.Errorf("%q: got no error, wanted one", test.val)
+				t.Errorf("%q: got no error, wanted one", test.d)
 			}
 		} else if err != nil {
-			t.Errorf("%q: got error %v", test.val, err)
+			t.Errorf("%q: got error %v", test.d, err)
 		} else {
 			want := now.Add(-test.wantDur)
 			diff := got.Sub(want)
@@ -47,7 +43,7 @@ func TestGetCutoff(t *testing.T) {
 				diff = -diff
 			}
 			if diff > time.Second {
-				t.Errorf("%q: got %s, want %s", test.val, got, want)
+				t.Errorf("%q: got %s, want %s", test.d, got, want)
 			}
 		}
 	}

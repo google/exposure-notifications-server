@@ -25,5 +25,6 @@ import (
 type Config struct {
 	Port     string        `envconfig:"PORT" default:"8080"`
 	Timeout  time.Duration `envconfig:"CLEANUP_TIMEOUT" default:"10m"`
+	TTL      time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
 	Database *database.Config
 }

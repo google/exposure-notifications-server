@@ -48,7 +48,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	http.Handle("/", cleanup.NewExposureHandler(db, config.Timeout))
+	http.Handle("/", cleanup.NewExposureHandler(db, &config))
 	logger.Infof("starting cleanup server on :%s", config.Port)
 	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
 }
