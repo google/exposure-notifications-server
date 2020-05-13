@@ -62,13 +62,17 @@ function init() {
 # gencerts creates the postgres SSL certificates if they do not already exist.
 function gencerts() {
   local PASSWORD="$(openssl rand -hex 8)"
-  mkdir -p "${CERTS_DIR}"
+  rm -rf "${CERTS_DIR}" && mkdir -p "${CERTS_DIR}"
 
   openssl req -new -text -passout "pass:${PASSWORD}" -subj "/CN=localhost" -out "${CERTS_DIR}/server.csr" -keyout "${CERTS_DIR}/ca.pem" &>/dev/null
   openssl rsa -in "${CERTS_DIR}/ca.pem" -passin "pass:${PASSWORD}" -out "${CERTS_DIR}/server.key" &>/dev/null
   openssl req -x509 -in "${CERTS_DIR}/server.csr" -text -key "${CERTS_DIR}/server.key" -out "${CERTS_DIR}/server.crt" &>/dev/null
+
   chmod 0600 "${CERTS_DIR}/server.key"
-  rm "${CERTS_DIR}/server.csr"
+  chmod 0644 "${CERTS_DIR}/server.crt"
+  if [ $(uname -s) == "Linux" ]; then
+    sudo chown 70 "${CERTS_DIR}/server.key" "${CERTS_DIR}/server.crt"
+  fi
 }
 
 # docker executes the given command using the docker executable. If "docker" is
