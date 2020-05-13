@@ -49,7 +49,6 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
-	// TODO
 	cutoff, err := cutoffDate(h.config.TTL)
 	if err != nil {
 		logger.Errorf("error processing cutoff time: %v", err)
