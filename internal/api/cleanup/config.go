@@ -18,7 +18,12 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/setup"
 )
+
+// Compile-time check to assert this config matches requirements.
+var _ setup.BlobStorageConfigProvider = (*Config)(nil)
+var _ setup.DBConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the cleanup components.
@@ -27,4 +32,14 @@ type Config struct {
 	Timeout  time.Duration `envconfig:"CLEANUP_TIMEOUT" default:"10m"`
 	TTL      time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
 	Database *database.Config
+}
+
+// DB return the databsae configuration.
+func (c *Config) DB() *database.Config {
+	return c.Database
+}
+
+// BlobStorage returns the BlobStorage configuration.
+func (c *Config) BlobStorage() bool {
+	return true
 }

@@ -21,7 +21,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/api/config"
 	"github.com/google/exposure-notifications-server/internal/api/jsonutil"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -31,6 +33,13 @@ import (
 // NewHandler creates the HTTP handler for the TTK publishing API.
 func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
 	logger := logging.FromContext(ctx)
+
+	if env.Database() == nil {
+		return nil, fmt.Errorf("missing database in server environment")
+	}
+	if env.APIConfigProvider() == nil {
+		return nil, fmt.Errorf("missing apiconfig provider in server environment")
+	}
 
 	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.MaxIntervalFuture)
 	if err != nil {
@@ -44,6 +53,8 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		serverenv:   env,
 		transformer: transformer,
 		config:      config,
+		database:    env.Database(),
+		apiconfig:   env.APIConfigProvider(),
 	}, nil
 }
 
@@ -51,6 +62,8 @@ type publishHandler struct {
 	config      *Config
 	serverenv   *serverenv.ServerEnv
 	transformer *model.Transformer
+	database    *database.DB
+	apiconfig   config.Provider
 }
 
 // There is a target normalized latency for this function. This is to help prevent
@@ -70,7 +83,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := h.serverenv.APIConfigProvier.AppPkgConfig(ctx, data.AppPackageName)
+	cfg, err := h.apiconfig.AppPkgConfig(ctx, data.AppPackageName)
 	if err != nil {
 		// Log the configuraiton error, return error to client.
 		// This is retryable, although won't succede if the error isn't transient.
@@ -131,7 +144,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.serverenv.Database.InsertExposures(ctx, exposures)
+	err = h.database.InsertExposures(ctx, exposures)
 	if err != nil {
 		logger.Errorf("error writing exposure record: %v", err)
 		metrics.WriteInt("publish-db-write-error", true, 1)

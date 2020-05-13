@@ -24,25 +24,31 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
 const (
-	ttlEnvVar = "TTL_DURATION"
-	minTTL    = 10 * 24 * time.Hour
+	minTTL = 10 * 24 * time.Hour
 )
 
 // NewExposureHandler creates a http.Handler for deleting exposure keys
 // from the database.
-func NewExposureHandler(db *database.DB, config *Config) http.Handler {
-	return &exposureCleanupHandler{
-		db:     db,
-		config: config,
+func NewExposureHandler(config Config, env *serverenv.ServerEnv) (http.Handler, error) {
+	if env.Database() == nil {
+		return nil, fmt.Errorf("missing database in server environment")
 	}
+
+	return &exposureCleanupHandler{
+		config:   config,
+		env:      env,
+		database: env.Database(),
+	}, nil
 }
 
 type exposureCleanupHandler struct {
-	db     *database.DB
-	config *Config
+	config   Config
+	env      *serverenv.ServerEnv
+	database *database.DB
 }
 
 func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +67,7 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
 	defer cancel()
 
-	count, err := h.db.DeleteExposures(timeoutCtx, cutoff)
+	count, err := h.database.DeleteExposures(timeoutCtx, cutoff)
 	if err != nil {
 		logger.Errorf("Failed deleting exposures: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
@@ -74,18 +80,27 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 // NewExportHandler creates a http.Handler that manages deletetion of
 // old export files that are no longer needed by clients for download.
-func NewExportHandler(db *database.DB, config *Config, env *serverenv.ServerEnv) http.Handler {
-	return &exportCleanupHandler{
-		db:     db,
-		config: config,
-		env:    env,
+func NewExportHandler(config Config, env *serverenv.ServerEnv) (http.Handler, error) {
+	if env.Database() == nil {
+		return nil, fmt.Errorf("missing database in server environment")
 	}
+	if env.Blobstore() == nil {
+		return nil, fmt.Errorf("missing blobstore in server environment")
+	}
+
+	return &exportCleanupHandler{
+		config:    config,
+		env:       env,
+		database:  env.Database(),
+		blobstore: env.Blobstore(),
+	}, nil
 }
 
 type exportCleanupHandler struct {
-	db     *database.DB
-	config *Config
-	env    *serverenv.ServerEnv
+	config    Config
+	env       *serverenv.ServerEnv
+	database  *database.DB
+	blobstore storage.Blobstore
 }
 
 func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +115,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 	logger.Infof("Starting cleanup for export files older than %v", cutoff.UTC())
 
-	if h.env.Blobstore == nil {
+	if h.blobstore == nil {
 		logger.Errorf("no blob storage system configured")
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
@@ -110,7 +125,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
 	defer cancel()
 
-	count, err := h.db.DeleteFilesBefore(timeoutCtx, cutoff, h.env.Blobstore)
+	count, err := h.database.DeleteFilesBefore(timeoutCtx, cutoff, h.blobstore)
 	if err != nil {
 		logger.Errorf("Failed deleting export files: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)

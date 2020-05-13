@@ -22,17 +22,17 @@ import (
 )
 
 // NewServer makes a Server.
-func NewServer(db *database.DB, config *Config, env *serverenv.ServerEnv) (*Server, error) {
+func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	// Validate config.
-	if env.Blobstore == nil {
+	if env.Blobstore() == nil {
 		return nil, fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv")
 	}
-	if env.KeyManager == nil {
+	if env.KeyManager() == nil {
 		return nil, fmt.Errorf("export.NewBatchServer requires KeyManager present in the ServerEnv")
 	}
 
 	return &Server{
-		db:     db,
+		db:     env.Database(),
 		config: config,
 		env:    env,
 	}, nil
