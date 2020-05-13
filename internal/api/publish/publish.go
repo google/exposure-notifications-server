@@ -32,6 +32,11 @@ import (
 func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
 	logger := logging.FromContext(ctx)
 
+	config, ok := env.Config.(*Config)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type present in environment")
+	}
+
 	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.MaxIntervalFuture)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
