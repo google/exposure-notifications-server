@@ -180,6 +180,37 @@ function dburl() {
   echo "${DB_URL}"
 }
 
+# toolchain builds local containers
+function toolchain() {
+  echo "==> Building enserver-tools/protoc"
+  docker build \
+    --rm \
+    --tag "enserver-tools/protoc" \
+    --file "${ROOT}/docker/protoc.dockerfile" \
+    --no-cache \
+    --pull \
+    "${ROOT}"
+}
+
+# protos compiles the protos
+function protos() {
+  echo "==> Regenerating protos"
+
+  if [[ "$(docker images -q enserver-tools/protoc)" == "" ]]; then
+    error "missing protoc container - run '${PROGNAME} toolchain'"
+  fi
+
+  docker run \
+    --interactive \
+    --rm \
+    --volume "${ROOT}:${ROOT}" \
+    --workdir "${ROOT}" \
+    "enserver-tools/protoc" \
+      --proto_path=. \
+      --go_out=plugins=grpc:. \
+      ./internal/pb/*.proto ./internal/pb/export/*.proto
+}
+
 # help prints help.
 function help() {
   echo 1>&2 "Usage: ${PROGNAME} <command>"
@@ -192,6 +223,8 @@ function help() {
   echo 1>&2 "  dbseed       seed dev data"
   echo 1>&2 "  dburl        print url"
   echo 1>&2 "  dbshell      attach a psql session"
+  echo 1>&2 "  toochain     build the dev toolchain"
+  echo 1>&2 "  protos       re-compile protos"
 }
 
 SUBCOMMAND="${1:-}"
@@ -233,6 +266,16 @@ case "${SUBCOMMAND}" in
   "dburl" )
     shift
     dburl "$@"
+    ;;
+
+  "toolchain" )
+    shift
+    toolchain "$@"
+    ;;
+
+  "protos" )
+    shift
+    protos "$@"
     ;;
 
   *)
