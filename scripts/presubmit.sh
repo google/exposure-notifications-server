@@ -105,8 +105,10 @@ DB_USER= go test ./... -coverprofile=coverage.out
 echo "🧪 Test DB Tests"
 if ($( cat /proc/1/cgroup | grep 'kubepods\|docker' > /dev/null )); then
    echo "🚒 In CI Container, start postgres process"
-   export DB_USER=postgres
-   export DB_PASSWORD=mypassword
+   export DB_USER="postgres"
+   export DB_PASSWORD="mypassword"
+   export DB_SSLMODE="disable"
+
    service postgresql start
 fi
 
