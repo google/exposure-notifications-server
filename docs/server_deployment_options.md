@@ -211,7 +211,7 @@ You can host all components of the Exposure Notification Server on-premises.
 ![A diagram of the Exposure Notification Server deployed on-premises](images/on_prem.png "Exposure Notification Server on-premises deployment")
 
 Deploying compute and data components on-premises allows you to have complete
-control of all components in and deploy them in any location by using an
+control of all components and deploy them in any location by using an
 on-premises Google Kubernetes Engine cluster. However, an on-premises
 deployment will require you to configure and maintain the underlying
 infrastructure, and ensure it is able to meet usage demands.
