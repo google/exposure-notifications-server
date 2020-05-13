@@ -22,47 +22,18 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/api/handlers"
 	"github.com/google/exposure-notifications-server/internal/api/publish"
-	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
-	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/metrics"
-	"github.com/google/exposure-notifications-server/internal/secrets"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	sm, err := secrets.NewGCPSecretManager(ctx)
-	if err != nil {
-		logger.Fatalf("unable to connect to secret manager: %v", err)
-	}
-
 	var config publish.Config
-	if err := envconfig.Process(ctx, &config, sm); err != nil {
-		logger.Fatalf("error loading environment variables: %v", err)
-	}
+	env := setup.Setup(ctx, &config)
 
-	db, err := database.NewFromEnv(ctx, config.Database)
-	if err != nil {
-		logger.Fatalf("unable to connect to database: %v", err)
-	}
-	defer db.Close(ctx)
-
-	cfgProvider, err := dbapiconfig.NewConfigProvider(db, config.APIConfigOpts)
-	if err != nil {
-		logger.Fatalf("unable to create APIConfig provider: %v", err)
-	}
-	opts := []serverenv.Option{
-		serverenv.WithSecretManager(sm),
-		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext),
-		serverenv.WithAPIConfigProvider(cfgProvider),
-	}
-	env := serverenv.New(ctx, opts...)
-
-	handler, err := publish.NewHandler(ctx, db, &config, env)
+	handler, err := publish.NewHandler(ctx, env)
 	if err != nil {
 		logger.Fatalf("unable to create publish handler: %v", err)
 	}

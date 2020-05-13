@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/api/jsonutil"
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -30,8 +29,13 @@ import (
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
-func NewHandler(ctx context.Context, db *database.DB, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
+func NewHandler(ctx context.Context, env *serverenv.ServerEnv) (http.Handler, error) {
 	logger := logging.FromContext(ctx)
+
+	config, ok := env.Config.(*Config)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type present in environment")
+	}
 
 	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.MaxIntervalFuture)
 	if err != nil {
@@ -42,7 +46,6 @@ func NewHandler(ctx context.Context, db *database.DB, config *Config, env *serve
 	logger.Infof("max interval start future: %v", config.MaxIntervalFuture)
 
 	return &publishHandler{
-		db:          db,
 		serverenv:   env,
 		transformer: transformer,
 		config:      config,
@@ -50,7 +53,6 @@ func NewHandler(ctx context.Context, db *database.DB, config *Config, env *serve
 }
 
 type publishHandler struct {
-	db          *database.DB
 	config      *Config
 	serverenv   *serverenv.ServerEnv
 	transformer *model.Transformer
@@ -134,7 +136,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.db.InsertExposures(ctx, exposures)
+	err = h.serverenv.DB.InsertExposures(ctx, exposures)
 	if err != nil {
 		logger.Errorf("error writing exposure record: %v", err)
 		metrics.WriteInt("publish-db-write-error", true, 1)
