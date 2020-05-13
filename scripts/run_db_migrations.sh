@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright 2020 Google LLC
 #
@@ -25,6 +25,16 @@ command -v migrate >/dev/null 2>&1 || {
 if [[ -z "$1" ]]; then
     echo "Expected the type of migration to run as an argument (up, down, goto, force, version)."
     exit 1
+fi
+
+if [[ -f "${DB_PASSWORD}" ]]; then
+  DB_PASSWORD=$(cat $DB_PASSWORD)
+fi
+
+if [[ ! -z "$DB_CLOUDSQL_PATH" ]] ; then
+  /bin/cloud_sql_proxy -instances=$DB_CLOUDSQL_PATH=tcp:$DB_PORT &
+  DB_HOST=localhost
+  sleep 5
 fi
 
 # DB URL Parameters are set in setup_env.sh

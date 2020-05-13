@@ -72,7 +72,6 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   network                 = "default"
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
-
 }
 
 resource "google_sql_database_instance" "db-inst" {
@@ -156,7 +155,7 @@ resource "google_secret_manager_secret_version" "db-cert" {
 
 resource "random_password" "userpassword" {
   length  = 16
-  special = true
+  special = false
 }
 
 resource "google_sql_user" "user" {
@@ -170,19 +169,54 @@ resource "google_sql_database" "db" {
 
   name    = "main"
   project = data.google_project.project.project_id
-  # TODO(ndmckinley) is this the best way to get the schema into the database?
-  # provisioner "local-exec" {
-  #  command = "gcloud sql connect ${google_sql_database_instance.db-inst.name} -d ${google_sql_database.db.name} -u root --project ${data.google_project.project.project_id} < ../migrations/*.sql"
-  # }
 }
 
 resource "google_secret_manager_secret" "db-pwd" {
   provider  = google-beta
-  secret_id = "db-password"
+  secret_id = "dbPassword"
   replication {
     automatic = true
   }
   depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
+}
+
+resource "google_project_iam_member" "cloudbuild-secrets" {
+  project = data.google_project.project.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "cloudbuild-sql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+resource "google_cloudbuild_trigger" "update-schema" {
+  provider    = google-beta
+  name        = "update-schema"
+  description = "Build the containers for the schema migrator and run it to ensure the DB is up to date."
+  filename    = "builders/schema.yaml"
+  github {
+    owner = "google"
+    name  = "exposure-notifications-server"
+    push {
+      branch = "^master$"
+    }
+  }
+  substitutions = {
+    "_HOST": "localhost"
+    "_CLOUDSQLPATH": "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+    "_PORT": "5432"
+    "_PASSWORD_SECRET": google_secret_manager_secret.db-pwd.secret_id
+    "_USER": google_sql_user.user.name
+    "_NAME": google_sql_database.db.name
+    "_SSLMODE": "disable"
+  }
+  provisioner "local-exec" {
+    command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=_HOST=${google_sql_database_instance.db-inst.public_ip_address},_PORT=5432,_PASSWORD_SECRET=${google_secret_manager_secret.db-pwd.secret_id},_USER=${google_sql_user.user.name},_NAME=${google_sql_database.db.name},_SSLMODE=disable,_CLOUDSQLPATH=${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+  }
+  depends_on = [google_project_iam_member.cloudbuild-secrets, google_project_iam_member.cloudbuild-sql]
 }
 
 resource "google_secret_manager_secret_version" "db-pwd-initial" {
@@ -190,6 +224,7 @@ resource "google_secret_manager_secret_version" "db-pwd-initial" {
   secret      = google_secret_manager_secret.db-pwd.id
   secret_data = google_sql_user.user.password
 }
+
 resource "random_string" "bucket-name" {
   length  = 5
   special = false

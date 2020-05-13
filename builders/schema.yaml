@@ -1,0 +1,19 @@
+steps:
+# Build migrations container as prereq.
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '--tag=gcr.io/$PROJECT_ID/migrations', '-f', 'scripts/dbmigration.Dockerfile', 'scripts/']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/$PROJECT_ID/migrations']
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: bash
+  args: ['-c', 'gcloud secrets versions access latest --secret $_PASSWORD_SECRET > decrypted_password.txt']
+- name: 'gcr.io/$PROJECT_ID/migrations'
+  args: ['up']
+  env:
+    - 'DB_PASSWORD=decrypted_password.txt'
+    - 'DB_HOST=$_HOST'
+    - 'DB_PORT=$_PORT'
+    - 'DB_USER=$_USER'
+    - 'DB_NAME=$_NAME'
+    - 'DB_SSLMODE=$_SSLMODE'
+    - 'DB_CLOUDSQL_PATH=$_CLOUDSQLPATH'
