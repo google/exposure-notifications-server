@@ -137,7 +137,7 @@ function psql() {
     /usr/local/bin/psql \
       --dbname "${DB_NAME}" \
       --username "${DB_USER}" \
-      --port "${DB_PORT}"
+      --port "5432"
 }
 
 # migrate runs the migrations against the database.
