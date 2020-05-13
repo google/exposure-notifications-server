@@ -16,12 +16,17 @@
 
 set -eEuo pipefail
 
-source_dirs="cmd internal tools"
+ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
+SOURCE_DIRS="cmd internal tools"
+
+
+echo "🌳 Set up environment variables"
+eval $(${ROOT}/scripts/dev init)
 
 
 echo "🚒 Verify Protobufs are up to date"
 set +e
-$(dirname $0)/gen_protos.sh
+${ROOT}/scripts/gen_protos.sh
 # Don't verify the *.pb.go files here as we tidy these. Verify after format.
 set -e
 
@@ -35,7 +40,7 @@ if [ $? -ne 0 ]; then
    echo "✋ to enable import cleanup. Import cleanup skipped."
 else
    echo "🧽 Format with goimports"
-   goimports -w $(echo $source_dirs)
+   goimports -w $(echo $SOURCE_DIRS)
    # Check if there were uncommited changes.
    # Ignore comment line changes as sometimes proto gen just updates versions
    # of the generator
@@ -99,19 +104,20 @@ go build ./...
 
 
 echo "🧪 Test"
-DB_USER= go test ./... -coverprofile=coverage.out
+DB_USER= DB_NAME= DB_PASSWORD= go test ./... -coverprofile=coverage.out
 
 
 echo "🧪 Test DB Tests"
-if ($( cat /proc/1/cgroup | grep 'kubepods\|docker' > /dev/null )); then
+if [ "${CI:-}" == "true" ]; then
    echo "🚒 In CI Container, start postgres process"
-   export DB_USER=postgres
-   export DB_PASSWORD=mypassword
+   export DB_USER="postgres"
+   export DB_PASSWORD="mypassword"
+   export DB_SSLMODE="disable"
+
    service postgresql start
 fi
 
-DB_USER=postgres DB_SSLMODE=disable \
-go test -v ./internal/database -coverprofile=coverage.out
+go test ./internal/database -coverprofile=coverage.out
 
 echo "🧑‍🔬 Test Coverage"
 go tool cover -func coverage.out | grep total | awk '{print $NF}'

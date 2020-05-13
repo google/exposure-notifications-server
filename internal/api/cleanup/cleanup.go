@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -34,32 +33,32 @@ const (
 
 // NewExposureHandler creates a http.Handler for deleting exposure keys
 // from the database.
-func NewExposureHandler(db *database.DB, timeout time.Duration) http.Handler {
+func NewExposureHandler(db *database.DB, config *Config) http.Handler {
 	return &exposureCleanupHandler{
-		db:      db,
-		timeout: timeout,
+		db:     db,
+		config: config,
 	}
 }
 
 type exposureCleanupHandler struct {
-	db      *database.DB
-	timeout time.Duration
+	db     *database.DB
+	config *Config
 }
 
 func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
-	cutoff, err := getCutoff(ttlEnvVar)
+	cutoff, err := cutoffDate(h.config.TTL)
 	if err != nil {
-		logger.Errorf("error getting cutoff time: %v", err)
+		logger.Errorf("error processing cutoff time: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 	logger.Infof("Starting cleanup for records older than %v", cutoff.UTC())
 
-	// Set h.Timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, h.timeout)
+	// Set timeout
+	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
 	defer cancel()
 
 	count, err := h.db.DeleteExposures(timeoutCtx, cutoff)
@@ -75,27 +74,27 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 // NewExportHandler creates a http.Handler that manages deletetion of
 // old export files that are no longer needed by clients for download.
-func NewExportHandler(db *database.DB, timeout time.Duration, env *serverenv.ServerEnv) http.Handler {
+func NewExportHandler(db *database.DB, config *Config, env *serverenv.ServerEnv) http.Handler {
 	return &exportCleanupHandler{
-		db:      db,
-		timeout: timeout,
-		env:     env,
+		db:     db,
+		config: config,
+		env:    env,
 	}
 }
 
 type exportCleanupHandler struct {
-	db      *database.DB
-	timeout time.Duration
-	env     *serverenv.ServerEnv
+	db     *database.DB
+	config *Config
+	env    *serverenv.ServerEnv
 }
 
 func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
-	cutoff, err := getCutoff(ttlEnvVar)
+	cutoff, err := cutoffDate(h.config.TTL)
 	if err != nil {
-		logger.Errorf("error getting cutoff time: %v", err)
+		logger.Errorf("error calculating cutoff time: %v", err)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
@@ -108,7 +107,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Set h.Timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, h.timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
 	defer cancel()
 
 	count, err := h.db.DeleteFilesBefore(timeoutCtx, cutoff, h.env.Blobstore)
@@ -122,22 +121,9 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 }
 
-func getCutoff(ttlVar string) (cutoff time.Time, err error) {
-	// Parse and Validate TTL duration string.
-	ttlString := os.Getenv(ttlVar)
-	if ttlString == "" {
-		return time.Time{}, fmt.Errorf("empty env variable %q", ttlVar)
-	}
-	ttlDuration, err := time.ParseDuration(ttlString)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("TTL env variable %q: %w", ttlVar, err)
-	}
-
-	// Validate that TTL is sufficiently in the past.
-	if ttlDuration < minTTL {
+func cutoffDate(d time.Duration) (time.Time, error) {
+	if d < minTTL {
 		return time.Time{}, fmt.Errorf("cleanup ttl is less than configured minumum ttl")
 	}
-
-	// Get cutoff timestamp
-	return time.Now().Add(-ttlDuration), nil
+	return time.Now().Add(-d), nil
 }

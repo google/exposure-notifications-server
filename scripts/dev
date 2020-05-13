@@ -1,0 +1,284 @@
+#!/usr/bin/env bash
+
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -eEuo pipefail
+
+PROGNAME="$(basename $0)"
+ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
+CERTS_DIR="${ROOT}/local/db-tls"
+
+DOCKER_CMD="$(command -v docker || true)"
+DB_CONTAINER_NAME="en-server-db"
+DB_CONTAINER_IMAGE="registry.hub.docker.com/library/postgres:12-alpine"
+MIGRATE_CONTAINER_IMAGE="registry.hub.docker.com/migrate/migrate:latest"
+
+# Database parameters
+DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_PORT="${DB_PORT:-5432}"
+DB_USER="${DB_USER:-en-server}"
+DB_PASSWORD="${DB_PASSWORD:-BjrvWmjQPXykPu}"
+DB_SSLMODE="${DB_SSLMODE:-require}"
+DB_NAME="${DB_NAME:-en-server}"
+DB_URL="${DB_URL:-postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}}"
+
+# Other configuration parameters
+CONFIG_REFRESH_DURATION="${CONFIG_REFRESH_DURATION:-1m}"
+TARGET_REFRESH_DURATION="${TARGET_REFRESH_DURATION:-50ms}"
+EXPORT_FILE_MAX_RECORDS="${EXPORT_FILE_MAX_RECORDS:-30000}"
+
+# error prints a message on stderr and exits immediately.
+function error() {
+  echo "$1" >&2
+  exit 1
+}
+
+function init() {
+  echo "export DB_HOST=\"${DB_HOST}\""
+  echo "export DB_PORT=\"${DB_PORT}\""
+  echo "export DB_USER=\"${DB_USER}\""
+  echo "export DB_SSLMODE=\"${DB_SSLMODE}\""
+  echo "export DB_PASSWORD=\"${DB_PASSWORD}\""
+  echo "export DB_NAME=\"${DB_NAME}\""
+  echo "export DB_URL=\"${DB_URL}\""
+
+  echo "export CONFIG_REFRESH_DURATION=\"${CONFIG_REFRESH_DURATION}\""
+  echo "export TARGET_REFRESH_DURATION=\"${TARGET_REFRESH_DURATION}\""
+  echo "export EXPORT_FILE_MAX_RECORDS=\"${EXPORT_FILE_MAX_RECORDS}\""
+}
+
+# gencerts creates the postgres SSL certificates if they do not already exist.
+function gencerts() {
+  local PASSWORD="$(openssl rand -hex 8)"
+  mkdir -p "${CERTS_DIR}"
+
+  openssl req -new -text -passout "pass:${PASSWORD}" -subj "/CN=localhost" -out "${CERTS_DIR}/server.csr" -keyout "${CERTS_DIR}/ca.pem" &>/dev/null
+  openssl rsa -in "${CERTS_DIR}/ca.pem" -passin "pass:${PASSWORD}" -out "${CERTS_DIR}/server.key" &>/dev/null
+  openssl req -x509 -in "${CERTS_DIR}/server.csr" -text -key "${CERTS_DIR}/server.key" -out "${CERTS_DIR}/server.crt" &>/dev/null
+  chmod 0600 "${CERTS_DIR}/server.key"
+  rm "${CERTS_DIR}/server.csr"
+}
+
+# docker executes the given command using the docker executable. If "docker" is
+# not installed and in $PATH, it prints an error and exits.
+function docker() {
+  if [ -z "${DOCKER_CMD:-}" ]; then
+    error "docker is not installed or is not in \$PATH"
+  fi
+
+  ${DOCKER_CMD} "$@"
+}
+
+# running determines if the database is running.
+function running() {
+  local out="$(docker inspect -f "{{.State.Running}}" "${DB_CONTAINER_NAME}" 2>&1)"
+  if [[ "${out}" == "true" ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# stop terminates the database.
+function stop() {
+  echo "==> Stopping database"
+  docker rm --force "${DB_CONTAINER_NAME}" &>/dev/null
+}
+
+# start creates and provisions a new database.
+function start() {
+  echo "==> Starting database"
+
+  if running; then
+    error "database is already running!"
+  fi
+
+  gencerts
+
+  docker run \
+    --name "${DB_CONTAINER_NAME}" \
+    --env "LANG=C" \
+    --env "POSTGRES_DB=${DB_NAME}" \
+    --env "POSTGRES_USER=${DB_USER}" \
+    --env "POSTGRES_PASSWORD=${DB_PASSWORD}" \
+    --detach \
+    --publish "${DB_PORT}:${DB_PORT}" \
+    --volume "${CERTS_DIR}/server.crt:/var/lib/postgresql/server.crt:ro" \
+    --volume "${CERTS_DIR}/server.key:/var/lib/postgresql/server.key:ro" \
+    "${DB_CONTAINER_IMAGE}" \
+      -c "shared_buffers=256MB" \
+      -c "max_connections=200" \
+      -c "ssl=on" \
+      -c "ssl_cert_file=/var/lib/postgresql/server.crt" \
+      -c "ssl_key_file=/var/lib/postgresql/server.key" \
+    &>/dev/null
+}
+
+# psql creates a psql session.
+function psql() {
+  echo "==> Starting psql session"
+
+  docker exec \
+    --interactive \
+    --tty \
+    --env "PGPASSWORD=${DB_PASSWORD}" \
+    "${DB_CONTAINER_NAME}" \
+    /usr/local/bin/psql \
+      --dbname "${DB_NAME}" \
+      --username "${DB_USER}" \
+      --port "${DB_PORT}"
+}
+
+# migrate runs the migrations against the database.
+function migrate() {
+  echo "==> Running migrations"
+
+  if [ $# -eq 0 ]; then
+    set -- "up"
+  fi
+
+  docker run \
+    --rm \
+    --interactive \
+    --network "host" \
+    --volume "${ROOT}/migrations:/migrations:ro" \
+    "${MIGRATE_CONTAINER_IMAGE}" \
+      -database "${DB_URL}" \
+      -path "/migrations" \
+      "$@"
+}
+
+# seed inserts test data.
+function seed() {
+  echo "==> Seeding database"
+
+  docker exec \
+    --interactive \
+    --env "PGPASSWORD=${DB_PASSWORD}" \
+    "${DB_CONTAINER_NAME}" \
+    /usr/local/bin/psql \
+      --dbname "${DB_NAME}" \
+      --username "${DB_USER}" \
+      --port "${DB_PORT}" \
+      < "${ROOT}/testdata/config.sql"
+}
+
+# dburl returns the full connection url.
+function dburl() {
+  echo "${DB_URL}"
+}
+
+# toolchain builds local containers
+function toolchain() {
+  echo "==> Building enserver-tools/protoc"
+  docker build \
+    --rm \
+    --tag "enserver-tools/protoc" \
+    --file "${ROOT}/docker/protoc.dockerfile" \
+    --no-cache \
+    --pull \
+    "${ROOT}"
+}
+
+# protos compiles the protos
+function protos() {
+  echo "==> Regenerating protos"
+
+  if [[ "$(docker images -q enserver-tools/protoc)" == "" ]]; then
+    error "missing protoc container - run '${PROGNAME} toolchain'"
+  fi
+
+  docker run \
+    --interactive \
+    --rm \
+    --volume "${ROOT}:${ROOT}" \
+    --workdir "${ROOT}" \
+    "enserver-tools/protoc" \
+      --proto_path=. \
+      --go_out=plugins=grpc:. \
+      ./internal/pb/*.proto ./internal/pb/export/*.proto
+}
+
+# help prints help.
+function help() {
+  echo 1>&2 "Usage: ${PROGNAME} <command>"
+  echo 1>&2 ""
+  echo 1>&2 "Commands:"
+  echo 1>&2 "  init         initialization for sourcing"
+  echo 1>&2 "  dbstart      start a dev server"
+  echo 1>&2 "  dbstop       stop the dev server"
+  echo 1>&2 "  dbmigrate    run migrations"
+  echo 1>&2 "  dbseed       seed dev data"
+  echo 1>&2 "  dburl        print url"
+  echo 1>&2 "  dbshell      attach a psql session"
+  echo 1>&2 "  toochain     build the dev toolchain"
+  echo 1>&2 "  protos       re-compile protos"
+}
+
+SUBCOMMAND="${1:-}"
+case "${SUBCOMMAND}" in
+  "" | "help" | "-h" | "--help" )
+    help
+    ;;
+
+  "dbstart" )
+    shift
+    start "$@"
+    ;;
+
+  "dbstop" )
+    shift
+    stop "$@"
+    ;;
+
+  "init" )
+    shift
+    init "$@"
+    ;;
+
+  "dbshell" )
+    shift
+    psql "$@"
+    ;;
+
+  "dbmigrate" )
+    shift
+    migrate "$@"
+    ;;
+
+  "dbseed" )
+    shift
+    seed "$@"
+    ;;
+
+  "dburl" )
+    shift
+    dburl "$@"
+    ;;
+
+  "toolchain" )
+    shift
+    toolchain "$@"
+    ;;
+
+  "protos" )
+    shift
+    protos "$@"
+    ;;
+
+  *)
+    help
+    ;;
+esac

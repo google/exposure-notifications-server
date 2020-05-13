@@ -60,7 +60,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	http.Handle("/", cleanup.NewExportHandler(db, config.Timeout, env))
+	http.Handle("/", cleanup.NewExportHandler(db, &config, env))
 	logger.Infof("starting export cleanup server on :%s", config.Port)
 	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
 }
