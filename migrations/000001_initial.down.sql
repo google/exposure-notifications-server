@@ -14,16 +14,17 @@
 
 BEGIN;
 
-DROP TABLE APIConfig;
-DROP TABLE Lock;
-DROP TABLE ExportFile;
-DROP TABLE ExportBatch;
-DROP TYPE ExportBatchStatus;
-DROP TABLE ExportConfig;
-DROP TABLE Exposure;
-DROP TABLE FederationSync;
-DROP TABLE FederationQuery;
+DROP TABLE
+  APIConfig,
+  ExportBatch,
+  ExportConfig,
+  ExportFile,
+  FederationQuery,
+  FederationSync,
+  Infection,
+  Lock
+;
 
-DROP TYPE exportbatchstatus;
+DROP TYPE ExportBatchStatus;
 
 END;
