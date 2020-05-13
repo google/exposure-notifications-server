@@ -42,7 +42,7 @@ EXPORT_FILE_MAX_RECORDS="${EXPORT_FILE_MAX_RECORDS:-30000}"
 # error prints a message on stderr and exits immediately.
 function error() {
   echo "$1" >&2
-  exit 1z
+  exit 1
 }
 
 function init() {
