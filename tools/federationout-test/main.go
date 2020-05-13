@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is a CLI tool for calling the gRPC federation server, for manual testing.
+// This package is a CLI tool for calling the gRPC federationout server, for manual testing.
 package main
 
 import (

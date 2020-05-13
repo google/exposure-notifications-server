@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is a CLI tool for creating FederationAuthorization entries, controlling who can access federation endpoint.
-// If the sub/iss match an existing record, that record will be updated.
+// This package is a CLI tool for creating FederationAuthorization entries, controlling who can access the federationout endpoint.
+// If the subject/issuer match an existing record, that record will be updated.
 package main
 
 import (
