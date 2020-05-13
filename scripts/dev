@@ -18,7 +18,8 @@ set -eEuo pipefail
 
 PROGNAME="$(basename $0)"
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
-CERTS_DIR="${ROOT}/local/db-tls"
+
+CERTS_DIR="/var/tmp/local/db-tls"
 
 DOCKER_CMD="$(command -v docker || true)"
 DB_CONTAINER_NAME="en-server-db"
