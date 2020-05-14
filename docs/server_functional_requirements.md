@@ -176,6 +176,9 @@ frequent operation (at least once a day per device), we recommend that you
 generate the files in a single operation rather than on-demand, and distribute
 the files using a CDN.
 
+The batch file format is [documented here](https://www.google.com/covid19/exposurenotifications/),
+under "Exposure Key Export File Format and Verification".
+
 The batch file generation should be per-region, incremental feeds of new data.
 While additional data can be included in the downloads, there is a minimum set
 that is required by the exposure notification API, which is relayed from
@@ -196,146 +199,12 @@ SHA-256 digest.
 **Important: The matching algorithm only runs on data that has been verified
 with the public key distributed by the device configuration mechanism.**
 
-Export files is a zip archive containing two files:
-
-* `export.bin` - the binary containing the exposure keys
-
-* `export.sig` - a signature
-
-#### Exposure File Binary Format
-
-The `export.bin` file of the archive contains the temporary exposure Keys
-broadcast by confirmed devices. It is an incremental file containing the
-latest keys the server was made aware of in a given time window. This time
-window is typically daily, allowing devices to perform nightly matching.
-
-The binary format file consists of a 16 byte header, containing “EK Export v1”
-right padded with whitespaces in UTF-8, representing this current version of
-the exposure key binary format. This is followed by the serialization of a
-Protocol Buffer message named `TemporaryExposureKeyExport` defined as follows:
-
-```protobuf
-syntax = "proto2";
-
-message TemporaryExposureKeyExport {
-  // Time window of keys in this batch based on arrival to server, in UTC seconds
-  optional fixed64 start_timestamp = 1;
-  optional fixed64 end_timestamp = 2;
-
-  // Region for which these keys came from (e.g., country)
-  optional string region = 3;
-
-  // E.g., File 2 in batch size of 10. Ordinal, 1-based numbering.
-  optional int32 batch_num = 4;
-  optional int32 batch_size = 5;
-
-  // Information about associated signatures
-  repeated SignatureInfo signature_infos = 6;
-
-  // The TemporaryExposureKeys themselves
-  repeated TemporaryExposureKey keys = 7;
-}
-
-message SignatureInfo {
-  // Apple App Store Application Bundle ID
-  optional string app_bundle_id = 1;
-  // Android App package name
-  optional string android_package = 2;
-  // Key version for rollovers
-  optional string verification_key_version = 3;
-  // Additional identifying information
-  // E.g., backend might serve app in different countries with different keys
-  optional string verification_key_id = 4;
-  // E.g. ECDSA using a p-256 curve and SHA-256 as a hash function
-  optional string signature_algorithm = 5;
-}
-
-message TemporaryExposureKey {
-  // Key of infected user
-  optional bytes key_data = 1;
-
-  // Varying risk associated with a key depending on diagnosis method
-  optional int32 transmission_risk_level = 2;
-
-  // The interval number since epoch for which a key starts
-  optional int32 rolling_start_interval_number = 3;
-
-  // Increments of 10 minutes describing how long a key is valid
-  optional int32 rolling_period = 4
-      [default = 144];  // defaults to 24 hours
-}
-```
-
-If the server stores exposure keys in the order that they were uploaded from
-devices, they should be shuffled on export to ensure no linkage between keys
-from a device. This can be achieved by sorting by key, as they are random.
-
-#### Exposure file signature
-
-The `export.sig` file contains the signature and information needed for
-verification. The `export.bin` file will be signed with the key exchanged when
-the app was whitelisted to use the API and the server was on boarded. The
-signature file is the serialization of the `TEKSignatureList` Protocol Buffer
-message defined as follows:
-
-```protobuf
-message TEKSignatureList {
-  repeated TEKSignature signatures = 1;
-}
-
-message TEKSignature {
-  // Info about the signing key, version, algorithm, etc
-  optional SignatureInfo signature_info = 1;
-  // E.g., File 2 in batch size of 10. Ordinal, 1-based numbering.
-  // E.g., Batch 2 of 10
-  optional int32 batch_num = 2;
-  optional int32 batch_size = 3;
-  // Signature in X9.62 format (ASN.1 SEQUENCE of two INTEGER fields)
-  optional bytes signature = 4;
-}
-```
-
-**Important: The public keys used to verify these signatures must be shared with Apple and Google for distribution to devices in order for the exports to be processed by mobile devices.**
-
-#### Considerations and recommendations
-
-* These files could grow to a size that makes them unfeasible to download in
-their entirety, especially for devices that may never have WiFi access. You
-can break files up into batches to keep the file size below 16MB which is
-approximately 750,000 keys.
-
-  When the files are split into chunks, each chunk of data in the overall batch
-will be its own zip archive. Each zip archive will have a signature file that
-represents the chunk. The serialized Protocol Buffers should populate the
-`batch_num` and `batch_size` fields accordingly.
-
-* The app on the device must know which files to download. We recommend that
+The app on the device must know which files to download. We recommend that
 a consistent index file is used so that a client would download that index file
 to discover any new, unprocessed batches.
 
-* If you are using a CDN to distribute these files, ensure that the cache
+If you are using a CDN to distribute these files, ensure that the cache
 control expiration is set so that the file is refreshed frequently for distribution.
-
-  Note that while a CDN is the recommended distribution mechanism, you can use
- other mechanisms to distribute these  files.
-
-#### Signature verification
-
-The API will verify the signature against the content of the exposure binary
-file. It will use the metadata included in the signature file to identify
-which verification key to use for the specific application. The on-device
-API will verify the following fields in the `SignatureInfo` message:
-
-* `app_bundle_id`
-* `Android_package`
-* The `start_timestamp` of the current batch matches the `end_timestamp` of the
-last batch if `batch_num` is set.
-* The signatures of all files in the batch match their corresponding export file
-* The number of files in the batch matches `batch_size`
-* All files in the batch have the same `start_timestamp` and `end_timestamp`
-
-The API will only invoke and release the matching results once all verification
-checks are completed.
 
 ### Managing secrets
 
