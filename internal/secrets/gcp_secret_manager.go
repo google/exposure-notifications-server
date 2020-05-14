@@ -19,6 +19,8 @@ package secrets
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
 
@@ -26,8 +28,21 @@ import (
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 )
 
+var (
+	// cacheDuration is how long to cache a secret.
+	cacheDuration = 5 * time.Minute
+)
+
 type GCPSecretManager struct {
 	client *secretmanager.Client
+
+	cache      map[string]*item
+	cacheMutex sync.RWMutex
+}
+
+type item struct {
+	value     string
+	expiresAt int64
 }
 
 func NewGCPSecretManager(ctx context.Context) (SecretManager, error) {
@@ -36,11 +51,23 @@ func NewGCPSecretManager(ctx context.Context) (SecretManager, error) {
 		return nil, fmt.Errorf("secretmanager.NewClient: %w", err)
 	}
 
-	return &GCPSecretManager{client}, nil
+	return &GCPSecretManager{
+		client: client,
+		cache:  make(map[string]*item),
+	}, nil
 }
 
 func (sm *GCPSecretManager) GetSecretValue(ctx context.Context, name string) (string, error) {
 	logger := logging.FromContext(ctx)
+
+	// Check cache.
+	sm.cacheMutex.RLock()
+	if i, ok := sm.cache[name]; ok && i.expiresAt <= time.Now().UnixNano() {
+		sm.cacheMutex.RUnlock()
+		logger.Debugf("found secret in cache: %v", name)
+		return i.value, nil
+	}
+	sm.cacheMutex.RUnlock()
 
 	// Build the request.
 	accessRequest := &secretmanagerpb.AccessSecretVersionRequest{
@@ -53,7 +80,15 @@ func (sm *GCPSecretManager) GetSecretValue(ctx context.Context, name string) (st
 		return "", fmt.Errorf("failed to access secret version for %v: %w", name, err)
 	}
 	logger.Infof("loaded secret value for %v", name)
-
 	plaintext := string(result.Payload.Data)
+
+	// Cache the value.
+	sm.cacheMutex.Lock()
+	sm.cache[name] = &item{
+		value:     plaintext,
+		expiresAt: time.Now().Add(cacheDuration).UnixNano(),
+	}
+	sm.cacheMutex.Unlock()
+
 	return plaintext, nil
 }

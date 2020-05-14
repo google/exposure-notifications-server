@@ -59,6 +59,11 @@ func ValidateDeviceToken(ctx context.Context, deviceToken string, opts *VerifyOp
 		return fmt.Errorf("devicecheck: missing private key")
 	}
 
+	// Verify we got a token.
+	if deviceToken == "" {
+		return fmt.Errorf("devicecheck: missing device token")
+	}
+
 	// Generate a JWT.
 	signedJwt, err := newSignedJWT(opts.TeamID, opts.KeyID, opts.PrivateKey)
 	if err != nil {
