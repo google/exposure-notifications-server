@@ -33,7 +33,8 @@ DB_SSLMODE="${DB_SSLMODE:-require}"
 DB_NAME="${DB_NAME:-en-server-db}"
 DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
 
-DB_SHA="$(echo -n "${DB_NAME}|${DB_PORT}" | md5sum | cut -d' ' -f1)"
+MD5CMD="$(command -v md5 || command -v md5sum)"
+DB_SHA="$(echo -n "${DB_NAME}|${DB_PORT}" | ${MD5CMD} | cut -d' ' -f1)"
 CERTS_DIR="${ROOT}/local/db-tls/${DB_SHA}"
 
 # Other configuration parameters
