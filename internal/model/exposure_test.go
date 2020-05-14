@@ -41,7 +41,7 @@ func TestInvalidNew(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		_, err := NewTransformer(c.maxKeys, time.Hour, 0)
+		_, err := NewTransformer(c.maxKeys, time.Hour)
 		if err != nil && errMsg == "" {
 			t.Errorf("%v unexpected error: %v", i, err)
 		} else if err != nil && !strings.Contains(err.Error(), c.message) {
@@ -51,7 +51,7 @@ func TestInvalidNew(t *testing.T) {
 }
 
 func TestInvalidBase64(t *testing.T) {
-	transformer, err := NewTransformer(1, time.Hour*24, 0)
+	transformer, err := NewTransformer(1, time.Hour*24)
 	if err != nil {
 		t.Fatalf("error creating transformer: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestPublishValidation(t *testing.T) {
 	currentInteval := IntervalNumber(captureStartTime)
 	minInterval := IntervalNumber(captureStartTime.Add(-1 * maxAge))
 
-	tf, err := NewTransformer(2, maxAge, 0)
+	tf, err := NewTransformer(2, maxAge)
 	if err != nil {
 		t.Fatalf("unepected error: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestPublishValidation(t *testing.T) {
 				},
 				TransmissionRisk: maxTransmissionRisk - 1,
 			},
-			m: fmt.Sprintf("interval number %v is in the future, must be <= %v", currentInteval+1, currentInteval),
+			m: fmt.Sprintf("interval number %v is in the future, must be < %v", currentInteval+1, currentInteval),
 		},
 	}
 
@@ -322,7 +322,7 @@ func TestTransform(t *testing.T) {
 	}
 
 	allowedAge := 14 * 24 * time.Hour
-	transformer, err := NewTransformer(10, allowedAge, 0)
+	transformer, err := NewTransformer(10, allowedAge)
 	if err != nil {
 		t.Fatalf("NewTransformer returned unexpected error: %v", err)
 	}
