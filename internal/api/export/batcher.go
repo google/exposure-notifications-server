@@ -52,20 +52,22 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer unlockFn()
 
-	total := 0
-	totalWithBatches := 0
+	totalConfigs := 0
+	totalBatches := 0
+	totalConfigsWithBatches := 0
 	defer func() {
-		logger.Infof("Processed %d export configs, creating batches for %d", total, totalWithBatches)
+		logger.Infof("Processed %d configs creating %d batches across %d configs", totalConfigs, totalBatches, totalConfigsWithBatches)
 	}()
 
 	now := time.Now()
 	err = s.db.IterateExportConfigs(ctx, now, func(ec *model.ExportConfig) error {
-		if createdBatches, err := s.maybeCreateBatches(ctx, ec, now); err != nil {
+		totalConfigs++
+		if batchesCreated, err := s.maybeCreateBatches(ctx, ec, now); err != nil {
 			logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
 		} else {
-			total++
-			if createdBatches {
-				totalWithBatches++
+			totalBatches += batchesCreated
+			if batchesCreated > 0 {
+				totalConfigsWithBatches++
 			}
 		}
 		return nil
@@ -87,20 +89,20 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig, now time.Time) (bool, error) {
+func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig, now time.Time) (int, error) {
 	logger := logging.FromContext(ctx)
 	metrics := s.env.MetricsExporter(ctx)
 
 	latestEnd, err := s.db.LatestExportBatchEnd(ctx, ec)
 	if err != nil {
-		return false, fmt.Errorf("fetching most recent batch for config %d: %w", ec.ConfigID, err)
+		return 0, fmt.Errorf("fetching most recent batch for config %d: %w", ec.ConfigID, err)
 	}
 
 	ranges := makeBatchRanges(ec.Period, latestEnd, now)
 	if len(ranges) == 0 {
 		metrics.WriteInt("export-batcher-no-work", true, 1)
 		logger.Debugf("Batch creation for config %d is not required, skipping", ec.ConfigID)
-		return false, nil
+		return 0, nil
 	}
 
 	var batches []*model.ExportBatch
@@ -118,12 +120,12 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 	}
 
 	if err := s.db.AddExportBatches(ctx, batches); err != nil {
-		return false, fmt.Errorf("creating export batches for config %d: %w", ec.ConfigID, err)
+		return 0, fmt.Errorf("creating export batches for config %d: %w", ec.ConfigID, err)
 	}
 
 	metrics.WriteInt("export-batcher-created", true, len(batches))
 	logger.Infof("Created %d batch(es) for config %d", len(batches), ec.ConfigID)
-	return true, nil
+	return len(batches), nil
 }
 
 type batchRange struct {
