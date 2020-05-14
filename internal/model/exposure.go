@@ -120,22 +120,20 @@ func TruncateWindow(t time.Time) time.Time {
 
 // Transformer represents a configured Publish -> Exposure[] transformer.
 type Transformer struct {
-	maxExposureKeys       int
-	maxIntervalStartAge   time.Duration // How many intervals old does this server accept?
-	intervalFutureAllowed time.Duration // How far in the future may an interval number start.
+	maxExposureKeys     int
+	maxIntervalStartAge time.Duration // How many intervals old does this server accept?
 }
 
 // NewTransformer creates a transformer for turning publish API requests into
 // records for insertion into the database. On the call to TransofmrPublish
 // all data is validated according to the transformer that is used.
-func NewTransformer(maxExposureKeys int, maxIntervalStartAge, intervalFutureAllowed time.Duration) (*Transformer, error) {
+func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration) (*Transformer, error) {
 	if maxExposureKeys < 0 || maxExposureKeys > maxKeysPerPublish {
 		return nil, fmt.Errorf("maxExposureKeys must be > 0 and <= %v, got %v", maxKeysPerPublish, maxExposureKeys)
 	}
 	return &Transformer{
-		maxExposureKeys:       maxExposureKeys,
-		maxIntervalStartAge:   maxIntervalStartAge,
-		intervalFutureAllowed: intervalFutureAllowed,
+		maxExposureKeys:     maxExposureKeys,
+		maxIntervalStartAge: maxIntervalStartAge,
 	}, nil
 }
 
@@ -161,7 +159,7 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 	// An exposure key must have an interval >= minInteravl (max configured age)
 	minIntervalNumber := IntervalNumber(batchTime.Add(-1 * t.maxIntervalStartAge))
 	// And have an interval <= maxInterval (configured allowed clock skew)
-	maxIntervalNumber := IntervalNumber(batchTime.Add(t.intervalFutureAllowed))
+	maxIntervalNumber := IntervalNumber(batchTime)
 
 	// Regions are a multi-value property, uppercase them for storage.
 	// There is no set of "valid" regions overall, but it is defined
@@ -195,8 +193,8 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 		if exposureKey.IntervalNumber < minIntervalNumber {
 			return nil, fmt.Errorf("interval number %v is too old, must be >= %v", exposureKey.IntervalNumber, minIntervalNumber)
 		}
-		if exposureKey.IntervalNumber > maxIntervalNumber {
-			return nil, fmt.Errorf("interval number %v is in the future, must be <= %v", exposureKey.IntervalNumber, maxIntervalNumber)
+		if exposureKey.IntervalNumber >= maxIntervalNumber {
+			return nil, fmt.Errorf("interval number %v is in the future, must be < %v", exposureKey.IntervalNumber, maxIntervalNumber)
 		}
 
 		exposure := &Exposure{

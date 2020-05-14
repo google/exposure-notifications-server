@@ -34,7 +34,6 @@ type Config struct {
 	MinRequestDuration       time.Duration `envconfig:"TARGET_REQUEST_DURATION" default:"5s"`
 	MaxKeysOnPublish         int           `envconfig:"MAX_KEYS_ON_PUBLISH" default:"14"`
 	MaxIntervalAge           time.Duration `envconfig:"MAX_INTERVAL_AGE_ON_PUBLISH" default:"360h"`
-	MaxIntervalFuture        time.Duration `envconfig:"MAX_INTERVAL_FUTURE_ON_PUBLISH" default:"0h"`
 	APIConfigRefreshDuration time.Duration `envconfig:"CONFIG_REFRESH_DURATION" default:"5m"`
 
 	APIConfigOpts *dbapiconfig.ConfigOpts
