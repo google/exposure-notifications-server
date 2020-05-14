@@ -1,6 +1,6 @@
 # Exposure Notification Reference Server
 
-https://www.google.com/covid19/exposurenotifications/
+[https://www.google.com/covid19/exposurenotifications/](https://www.google.com/covid19/exposurenotifications/)
 
 In our continued effort to help governments and health authorities during the COVID-19 pandemic, we have authored an open source reference implementation of an Exposure Notifications server. The server reference design implements the Exposure Notifications API and provides reference code for working with both Android and iOS apps that are built by public health authorities. The reference server source code is available on GitHub and can be deployed on any modern infrastructure or cloud provider selected by a public health authority. 
 
