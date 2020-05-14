@@ -63,12 +63,14 @@ const (
 //  Note: This project doesn't directly include a diagnosis code verification System
 //        but does provide the ability to configure one in `serverevn.ServerEnv`
 type Publish struct {
-	Keys                      []ExposureKey `json:"exposureKeys"`
+	Keys                      []ExposureKey `json:"temporaryExposureKeys"`
 	Regions                   []string      `json:"regions"`
 	AppPackageName            string        `json:"appPackageName"`
+	Platform                  string        `json:"platform"`
 	TransmissionRisk          int           `json:"transmissionRisk"`
-	Verification              string        `json:"verificationPayload"`
-	VerificationAuthorityName string        `json:"verificationAuthorityName"`
+	DeviceVerificationPayload string        `json:"deviceVerificationPayload"`
+	VerificationPayload       string        `json:"verificationPayload"`
+	Padding                   string        `json:"padding"`
 }
 
 // ExposureKey is the 16 byte key, the start time of the key and the
@@ -85,8 +87,8 @@ type Publish struct {
 //   1 - 144 inclusive.
 type ExposureKey struct {
 	Key            string `json:"key"`
-	IntervalNumber int32  `json:"intervalNumber"`
-	IntervalCount  int32  `json:"intervalCount"`
+	IntervalNumber int32  `json:"rollingStartNumber"`
+	IntervalCount  int32  `json:"rollingPeriod"`
 }
 
 // Exposure represents the record as storedin the database
@@ -199,15 +201,14 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 		}
 
 		exposure := &Exposure{
-			ExposureKey:               binKey,
-			TransmissionRisk:          inData.TransmissionRisk,
-			AppPackageName:            inData.AppPackageName,
-			Regions:                   upcaseRegions,
-			IntervalNumber:            exposureKey.IntervalNumber,
-			IntervalCount:             exposureKey.IntervalCount,
-			CreatedAt:                 createdAt,
-			LocalProvenance:           true, // This is the origin system for this data.
-			VerificationAuthorityName: strings.ToUpper(strings.TrimSpace(inData.VerificationAuthorityName)),
+			ExposureKey:      binKey,
+			TransmissionRisk: inData.TransmissionRisk,
+			AppPackageName:   inData.AppPackageName,
+			Regions:          upcaseRegions,
+			IntervalNumber:   exposureKey.IntervalNumber,
+			IntervalCount:    exposureKey.IntervalCount,
+			CreatedAt:        createdAt,
+			LocalProvenance:  true,
 		}
 		entities = append(entities, exposure)
 	}

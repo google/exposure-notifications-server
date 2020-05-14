@@ -51,34 +51,37 @@ necessary client batches for ingestion into the device for key matching.
 
 Minimum required fields, followed by a JSON example:
 
-`temporaryExposureKeys`  
-**Type**: Array of `TemporaryExposureKey` JSON objects  
-**REQUIRED**: contain at least 1 `TracingKey` object  
-**OPTIONAL**: contain up to 14 (or more if an application is keeping longer history) `TracingKey` objects.  
-**Description**: The verified temporary exposure keys
-
-* `temporaryExposureKeys` object properties
-  * `keyData` (**REQUIRED**)
-    * Type: String
-    * Description: Base64 encoded temporary exposure key from the device
-  * `rollingStartNumber` (**REQUIRED**)
-    * Type: integer (uint32)
-    * Description: Intervals are 10 minute increments since the UTC epoch
-  * `rollingPeriod` (**OPTIONAL** - this may not be present for some keys)
-    * Type: integer (uint32)
-    * Constraints
-      * Valid values are [1..144]
-      * If not present, 144 is the default value (1 day of intervals)
-    * Description: Number of intervals that the key is valid for
-* `regions` (**REQUIRED for federation between regions**)
+* `temporaryExposureKeys`
+  * **Type**: Array of `ExposureKey` JSON objects (below)
+  * **REQUIRED**: contain 1-14 `ExposureKey` object (an individual app/server
+    could keep longer history)
+  * **Description**: The verified temporary exposure keys
+  * `ExposureKey` object properties
+    * `key` (**REQUIRED**)
+      * Type: String
+      * Description: Base64 encoded temporary exposure key from the device
+    * `rollingStartNumber` (**REQUIRED**)
+      * Type: integer (uint32)
+      * Description: Intervals are 10 minute increments since the UTC epoch
+    * `rollingPeriod` (**OPTIONAL** - this may not be present for some keys)
+      * Type: integer (uint32)
+      * Constraints
+        * Valid values are [1..144]
+        * If not present, 144 is the default value (1 day of intervals)
+      * Description: Number of intervals that the key is valid for
+* `regions` (**REQUIRED**)
   [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) format.
   * Type: Array of string
-  * Note: A server operator can use a finer grain definition of region or
-  * Description: 2 letter country code in
-  use different identifiers altogether.
+  * Description: 2 letter country to identify the region(s) a key is valid for.
+* `appPackageName` (**REQUIRED**)
+  * Type: string
+  * Constraints:
+    * For Android device, this must match the device `appPackageName` in the
+      SafetyNet verification payload
+  * Description: name of the application bundle that sent the request.
 * `platform` (**REQUIRED**)
   * Type: string
-  * Description: Mobile device platform, i.e. “ios” or “android” used to indicate which device attestation verification APIs should be used.
+  * Description: Mobile device platform this request originated from.
 * `transmissionRisk` (**REQUIRED**)
   * Type: Integer
   * **The values and meanings of this enum are not finalized at this time.** //TODO(llatif): check status
@@ -91,40 +94,31 @@ Minimum required fields, followed by a JSON example:
     * For Android devices this is a SafetyNet device attestation in JSON Web
     Signature (JWS) format.
     * For iOS devices, this is a DeviceCheck attestation.
-
-Example additional fields that an application might want to collect:
-
-* `appPackageName`
-  * Type: string
-  * Constraints:
-    * For Android device, this must match the device `appPackageName` in the
-    SafetyNet verification payload
-  * Description: name of the application bundle that sent the request.
-* `verificationAuthorityName`
-  * Type: String
-  * Description: opaque string, name of the authority that has verified the diagnosis.
 * `verificationPayload`
   * Type: String
   * Description: some signature / code confirming authorization by the verification authority.
 * `padding`
   * Type: String
-  * Description: Random data to obscure the size of the request network packet sniffers.
+  * Constraints:
+    * Recommend size is random between 1 and 2 kilobytes.
+  * Description: Random data to obscure the size of the request network packet
+    sniffers.
 
 The following snippet is an example POST request payload in JSON format.
 
 ```json
 {
   "temporaryTracingKeys": [
-    {"key": "base64 KEY1", "intervalNumber": 12345, "intervalCount": 144},
-    {"key": "base64 KEY2", "intervalNumber": 12345, "intervalCount": 10},
-    ...
-    {"key": "base64 KEYN", "intervalNumber": 12345, "intervalCount": 100}],
+    {"key": "base64 KEY1", "rollingStartNumber": 12345, "rollingPeriod": 144},
+    {"key": "base64 KEY2", "rollingStartNumber": 12489, "rollingPeriod": 10},
+    {"key": "base64 KEYN", "rollingStartNumber": 12499, "rollingPeriod": 100}],
   "regions": ["US", "CA", "MX"],
   "appPackageName": "com.foo.app",
+  "platform": "android",
   "diagnosisStatus": 2,
-  "deviceVerificationPayload": "base64 encoded payload string",
-  "verificationAuthorityName": "lab name / govt authority",
-  "verificationPayload": "signature /code from  of verifying authority"
+  "deviceVerificationPayload": "base64 encoded attestation payload string",
+  "verificationPayload": "signature /code from  of verifying authority",
+  "padding": "random string data..."
 }
 ```
 
