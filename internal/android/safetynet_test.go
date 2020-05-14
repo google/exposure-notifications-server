@@ -125,10 +125,10 @@ var (
 			{Key: "ko6TsgPP8Wvu+ijpSLbY3A==", IntervalNumber: 2648304, IntervalCount: 144},
 			{Key: "9kMgBy7qdG3o6eh3vAD3mQ==", IntervalNumber: 2648448, IntervalCount: 144},
 		},
-		TransmissionRisk:          1,
-		AppPackageName:            appPackage,
-		VerificationAuthorityName: "PUBLIC_HEALTH_AUTHORITY",
-		Regions:                   []string{"GB"},
+		TransmissionRisk:    1,
+		AppPackageName:      appPackage,
+		VerificationPayload: "PUBLIC_HEALTH_AUTHORITY",
+		Regions:             []string{"GB"},
 	}
 )
 

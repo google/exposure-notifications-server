@@ -64,7 +64,7 @@ func NewNonce(publish *model.Publish) Noncer {
 		transmissionRisk: publish.TransmissionRisk,
 		ttKeysBase64:     sortedKeys,
 		regions:          sortedRegions,
-		verification:     publish.VerificationAuthorityName,
+		verification:     publish.VerificationPayload,
 	}
 }
 

@@ -59,20 +59,20 @@ func TestEmptyBody(t *testing.T) {
 }
 func TestMultipleJson(t *testing.T) {
 	invalidJSON := []string{
-		`{"exposureKeys":
+		`{"temporaryExposureKeys":
 			[{"key": "ABC"},
 			 {"key": "DEF"},
 			 {"key": "123"}],
 		"appPackageName": "com.google.android.awesome",
 		"regions": ["us"],
-		"verificationPayload": "foo"}
-		{"exposureKeys":
+		"deviceVerificationPayload": "foo"}
+		{"temporaryExposureKeys":
 			[{"key": "ABC"},
 			 {"key": "DEF"},
 			 {"key": "123"}],
 		"appPackageName": "com.google.android.awesome",
 		"regions": ["us"],
-		"verificationPayload": "foo"}`,
+		"deviceVerificationPayload": "foo"}`,
 	}
 	errors := []string{
 		"body must contain only one JSON object",
@@ -96,15 +96,15 @@ func TestInvalidJSON(t *testing.T) {
 
 func TestInvalidStructure(t *testing.T) {
 	invalidJSON := []string{
-		`{"exposureKeys": 42}`,
-		`{"exposureKeys": ["41", 42]}`,
+		`{"temporaryExposureKeys": 42}`,
+		`{"temporaryExposureKeys": ["41", 42]}`,
 		`{"appPackageName": 4.5}`,
 		`{"regions": "us"}`,
 		`{"badField": "doesn't exist"}`,
 	}
 	errors := []string{
-		`invalid value exposureKeys at position 19`,
-		`invalid value exposureKeys at position 22`,
+		`invalid value temporaryExposureKeys at position 28`,
+		`invalid value temporaryExposureKeys at position 31`,
 		`invalid value appPackageName at position 22`,
 		`invalid value regions at position 16`,
 		`unknown field "badField"`,
@@ -114,14 +114,16 @@ func TestInvalidStructure(t *testing.T) {
 
 func TestValidPublishMessage(t *testing.T) {
 	intervalNumber := int32(time.Date(2020, 04, 17, 20, 04, 01, 1, time.UTC).Unix() / 600)
-	json := `{"exposureKeys": [
-		  {"key": "ABC", "intervalNumber": %v},
-		  {"key": "DEF", "intervalNumber": %v},
-			{"key": "123", "intervalNumber": %v}],
+	json := `{"temporaryExposureKeys": [
+		  {"key": "ABC", "rollingStartNumber": %v, "rollingPeriod": 144},
+		  {"key": "DEF", "rollingStartNumber": %v, "rollingPeriod": 122},
+			{"key": "123", "rollingStartNumber": %v, "rollingPeriod": 1}],
     "appPackageName": "com.google.android.awesome",
+    "platform": "android",
     "regions": ["CA", "US"],
 		"transmissionRisk": 2,
-    "verificationPayload": "foo"}`
+    "DeviceVerificationPayload": "foo",
+    "VerificationPayload": "1234-ABCD-EFGH-5678"}`
 	json = fmt.Sprintf(json, intervalNumber, intervalNumber, intervalNumber)
 
 	body := ioutil.NopCloser(bytes.NewReader([]byte(json)))
@@ -141,14 +143,16 @@ func TestValidPublishMessage(t *testing.T) {
 
 	want := &model.Publish{
 		Keys: []model.ExposureKey{
-			{Key: "ABC", IntervalNumber: intervalNumber},
-			{Key: "DEF", IntervalNumber: intervalNumber},
-			{Key: "123", IntervalNumber: intervalNumber},
+			{Key: "ABC", IntervalNumber: intervalNumber, IntervalCount: 144},
+			{Key: "DEF", IntervalNumber: intervalNumber, IntervalCount: 122},
+			{Key: "123", IntervalNumber: intervalNumber, IntervalCount: 1},
 		},
-		Regions:          []string{"CA", "US"},
-		AppPackageName:   "com.google.android.awesome",
-		TransmissionRisk: 2,
-		Verification:     "foo",
+		Regions:                   []string{"CA", "US"},
+		Platform:                  "android",
+		AppPackageName:            "com.google.android.awesome",
+		TransmissionRisk:          2,
+		DeviceVerificationPayload: "foo",
+		VerificationPayload:       "1234-ABCD-EFGH-5678",
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unmarshal mismatch (-want +got):\n%v", diff)

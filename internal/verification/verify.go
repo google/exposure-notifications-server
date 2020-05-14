@@ -64,7 +64,7 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *apiconfig.
 	}
 
 	opts := cfg.VerifyOpts(requestTime, android.NewNonce(data))
-	if err := androidValidateAttestation(ctx, data.Verification, opts); err != nil {
+	if err := androidValidateAttestation(ctx, data.DeviceVerificationPayload, opts); err != nil {
 		if cfg.BypassSafetyNet {
 			logger.Errorf("bypassing safetynet verification for: '%v'", data.AppPackageName)
 			return nil
@@ -90,7 +90,7 @@ func VerifyDeviceCheck(ctx context.Context, cfg *apiconfig.APIConfig, data *mode
 		PrivateKey: cfg.DeviceCheckPrivateKey,
 	}
 
-	if err := iosValidateDeviceToken(ctx, data.Verification, opts); err != nil {
+	if err := iosValidateDeviceToken(ctx, data.DeviceVerificationPayload, opts); err != nil {
 		if cfg.BypassDeviceCheck {
 			logger.Errorf("devicecheck failed, but bypass enabled for app: '%v', failure: '%v'", data.AppPackageName, err)
 			return nil

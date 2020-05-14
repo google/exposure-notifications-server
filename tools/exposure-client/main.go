@@ -32,8 +32,8 @@ import (
 
 const (
 	// the length of a diagnosis key, always 16 bytes
-	dkLen                 = 16
-	MAX_TRANSMISSION_RISK = 8
+	dkLen               = 16
+	maxTransmissionRisk = 8
 )
 
 var (
@@ -68,7 +68,7 @@ func main() {
 
 	transmissionRisk := *transmissionRiskFlag
 	if transmissionRisk < 0 {
-		transmissionRisk = randomInt(MAX_TRANSMISSION_RISK)
+		transmissionRisk = randomInt(maxTransmissionRisk) + 1
 	}
 
 	regionIdx := randomInt(len(defaultRegions))
@@ -82,14 +82,21 @@ func main() {
 		verificationAuthorityName = randomArrValue(verificationAuthorityNames)
 	}
 
+	padding := make([]byte, randomInt(1000)+1000)
+	_, err := rand.Read(padding)
+	if err != nil {
+		log.Printf("error generating padding: %v", err)
+	}
+
 	data := model.Publish{
 		Keys:             exposureKeys,
 		Regions:          region,
 		AppPackageName:   *appPackage,
 		TransmissionRisk: transmissionRisk,
 		// This tool cannot generate valid safetynet attestations.
-		Verification:              "some invalid data",
-		VerificationAuthorityName: verificationAuthorityName,
+		DeviceVerificationPayload: "some invalid data",
+		VerificationPayload:       verificationAuthorityName,
+		Padding:                   base64.RawStdEncoding.EncodeToString(padding),
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -99,8 +106,12 @@ func main() {
 
 	sendRequest(jsonData)
 
-	prettyJson, err := json.MarshalIndent(data, "", "  ")
-	log.Printf("payload: \n%v", string(prettyJson))
+	prettyJSON, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		log.Printf("Can't display JSON that was sent, error: %v", err)
+	} else {
+		log.Printf("payload: \n%v", string(prettyJSON))
+	}
 
 	if *twice {
 		time.Sleep(1 * time.Second)
