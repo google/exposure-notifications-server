@@ -36,7 +36,7 @@ func main() {
 	}
 	defer closer()
 
-	handler, err := cleanup.NewExposureHandler(config, env)
+	handler, err := cleanup.NewExposureHandler(&config, env)
 	if err != nil {
 		logger.Fatalf("cleanup.NewExposureHandler: %v", err)
 	}

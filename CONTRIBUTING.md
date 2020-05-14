@@ -131,6 +131,13 @@ Docker is installed and available in your `$PATH`.
     $ go run ./cmd/exposure/...
     ```
 
+    Alternatively, you can run all the server components as a single binary with
+    each component at a different path:
+
+    ```text
+    $ go run ./cmd/monolith/...
+    ```
+
 1.  When you're done developing, you can stop the database.
 
     ```text

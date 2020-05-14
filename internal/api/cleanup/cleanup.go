@@ -33,7 +33,7 @@ const (
 
 // NewExposureHandler creates a http.Handler for deleting exposure keys
 // from the database.
-func NewExposureHandler(config Config, env *serverenv.ServerEnv) (http.Handler, error) {
+func NewExposureHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
 	if env.Database() == nil {
 		return nil, fmt.Errorf("missing database in server environment")
 	}
@@ -46,7 +46,7 @@ func NewExposureHandler(config Config, env *serverenv.ServerEnv) (http.Handler, 
 }
 
 type exposureCleanupHandler struct {
-	config   Config
+	config   *Config
 	env      *serverenv.ServerEnv
 	database *database.DB
 }
@@ -85,7 +85,7 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 // NewExportHandler creates a http.Handler that manages deletetion of
 // old export files that are no longer needed by clients for download.
-func NewExportHandler(config Config, env *serverenv.ServerEnv) (http.Handler, error) {
+func NewExportHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
 	if env.Database() == nil {
 		return nil, fmt.Errorf("missing database in server environment")
 	}
@@ -102,7 +102,7 @@ func NewExportHandler(config Config, env *serverenv.ServerEnv) (http.Handler, er
 }
 
 type exportCleanupHandler struct {
-	config    Config
+	config    *Config
 	env       *serverenv.ServerEnv
 	database  *database.DB
 	blobstore storage.Blobstore
