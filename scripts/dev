@@ -44,7 +44,7 @@ EXPORT_FILE_MAX_RECORDS="${EXPORT_FILE_MAX_RECORDS:-30000}"
 
 # error prints a message on stderr and exits immediately.
 function error() {
-  echo "$1" >&2
+  echo "✋ ERROR: $1" >&2
   exit 1
 }
 
@@ -105,7 +105,7 @@ function running() {
 # stop terminates the database.
 function stop() {
   docker rm --force "${DB_NAME}" > /dev/null
-  echo "Stopped database"
+  echo "Database stopped (OK)"
 }
 
 # start creates and provisions a new database.
@@ -135,7 +135,7 @@ function start() {
       -c "ssl_key_file=/var/lib/postgresql/server.key" \
       > /dev/null
 
-  echo "Database is running"
+  echo "Database started (OK)"
 }
 
 # psql creates a psql session.
@@ -181,7 +181,7 @@ function seed() {
       --port "5432" \
       < "${ROOT}/testdata/config.sql"
 
-  echo "Successfully seeded"
+  echo "Database seeded (OK)"
 }
 
 # dburl returns the full connection url.
@@ -202,6 +202,8 @@ function protoc() {
       --proto_path=${ROOT} \
       --go_out=plugins=grpc:. \
       ${ROOT}/internal/pb/*.proto ${ROOT}/internal/pb/export/*.proto
+
+  echo "Protos regenerated (OK)"
 }
 
 # help prints help.
