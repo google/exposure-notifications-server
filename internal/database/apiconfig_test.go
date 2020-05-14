@@ -162,29 +162,31 @@ func TestReadAPIConfigs(t *testing.T) {
 	for _, c := range cases {
 		c := c
 
-		// Acquire a connection
-		conn, err := testDB.pool.Acquire(ctx)
-		if err != nil {
-			t.Fatalf("%s: %v", c.name, err)
-		}
-		defer conn.Release()
+		t.Run(c.name, func(t *testing.T) {
+			// Acquire a connection
+			conn, err := testDB.pool.Acquire(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Release()
 
-		// Insert the data
-		if _, err := conn.Exec(ctx, c.sql, c.args...); err != nil {
-			t.Fatalf("%s: %v", c.name, err)
-		}
+			// Insert the data
+			if _, err := conn.Exec(ctx, c.sql, c.args...); err != nil {
+				t.Fatal(err)
+			}
 
-		configs, err := testDB.ReadAPIConfigs(ctx, sm)
-		if (err != nil) != c.err {
-			t.Fatalf("%s: %v", c.name, err)
-		}
+			configs, err := testDB.ReadAPIConfigs(ctx, sm)
+			if (err != nil) != c.err {
+				t.Fatal(err)
+			}
 
-		// Compare, ignoring the private key part
-		opts := cmpopts.IgnoreTypes(new(ecdsa.PrivateKey))
-		if diff := cmp.Diff(configs, c.exp, opts); diff != "" {
-			t.Errorf("mismatch (-want, +got):\n%s", diff)
-		}
+			// Compare, ignoring the private key part
+			opts := cmpopts.IgnoreTypes(new(ecdsa.PrivateKey))
+			if diff := cmp.Diff(configs, c.exp, opts); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
+			}
 
-		resetTestDB(t)
+			resetTestDB(t)
+		})
 	}
 }
