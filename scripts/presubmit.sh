@@ -103,6 +103,7 @@ go build ./...
 
 echo "📚 Starting database"
 export DB_CONTAINER_NAME="en-server-db-test"
+export DB_PORT=5435
 ${ROOT}/scripts/dev dbstart && sleep 2
 ${ROOT}/scripts/dev dbmigrate
 trap "${ROOT}/scripts/dev dbstop" EXIT
