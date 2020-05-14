@@ -48,6 +48,17 @@ type VerifyOpts struct {
 
 // ValidateDeviceToken validates the given device token with Apple's servers.
 func ValidateDeviceToken(ctx context.Context, deviceToken string, opts *VerifyOpts) error {
+	// Verify configuration exists.
+	if opts.KeyID == "" {
+		return fmt.Errorf("devicecheck: missing key id")
+	}
+	if opts.TeamID == "" {
+		return fmt.Errorf("devicecheck: missing team id")
+	}
+	if opts.PrivateKey == nil {
+		return fmt.Errorf("devicecheck: missing private key")
+	}
+
 	// Generate a JWT.
 	signedJwt, err := newSignedJWT(opts.TeamID, opts.KeyID, opts.PrivateKey)
 	if err != nil {
