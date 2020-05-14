@@ -10,7 +10,7 @@ notification system. For deployment stratgies, see [Server Deployment Options](d
 The Exposure Notification Server's archicture has been split into components.
 The following diagram shows the relationship between the different components:
 
-![A diagram showing the Exposure Notification Server components and their relationship](images/Server-Requirements-Diagram.png "Server Requirements Diagram")
+![A diagram showing the Exposure Notification Server components and their relationship](images/functional_diagram.svg "Server Requirements Diagram")
 
 The server components are responsible for the following functions:
 
@@ -28,7 +28,9 @@ The corresponding public key is pushed to mobile device separately.
 
 * Required: A database for storage of published diagnosis keys.
 
-* Required: A key/secret management system for storage of API keys, other authorization credentials (CDN for example), and private keys for signing device download content.
+* Required: A key/secret management system for storage of API keys, other
+authorization credentials (CDN for example), and private keys for signing
+device download content.
 
 * Recommended: Periodically deleting old temporary exposure keys. After 14
 days (or configured time period) the keys can no longer be matched to devices.
@@ -42,10 +44,10 @@ When a user reports a diagnosis, it is reported using the publish API server.
 In the reference server implementation, the data is encoded in JSON and sent
 over HTTPS, however you can use any encoding and protocol.
 
-A given mobile application and server pair could agree upon additional information
-to be shared. The information described in this section is the minimum required
-set in order to validate the uploads and to generate the necessary client
-batches for ingestion into the device for key matching.
+A given mobile application and server pair could agree upon additional
+information to be shared. The information described in this section is the
+minimum required set in order to validate the uploads and to generate the
+necessary client batches for ingestion into the device for key matching.
 
 Minimum required fields, followed by a JSON example:
 
@@ -115,7 +117,7 @@ The following snippet is an example POST request payload in JSON format.
   "temporaryTracingKeys": [
     {"key": "base64 KEY1", "intervalNumber": 12345, "intervalCount": 144},
     {"key": "base64 KEY2", "intervalNumber": 12345, "intervalCount": 10},
-    …
+    ...
     {"key": "base64 KEYN", "intervalNumber": 12345, "intervalCount": 100}],
   "regions": ["US", "CA", "MX"],
   "appPackageName": "com.foo.app",
@@ -126,27 +128,45 @@ The following snippet is an example POST request payload in JSON format.
 }
 ```
 
-//TODO(llatif): still needs editing
-Other implementation details / requirements / suggestions:
+### Requirements and recommendations
 
-* Required: Implement a whitelist check for appPackageName and the regions in which the app is allowed to report on.
-* Required: Android device verification. The SafetyNet device attestation API can be used to confirm a genuine Android device is used to prevent abuse, see https://developer.android.com/training/safetynet/attestation
-  * Having the temporaryTracingKeys and regions be part of the device attestation prevents this attestation from being used to upload different data than what was used to verify the device.
-    * For verification instructions, see [Verify the SafetyNet attestation response.](https://developer.android.com/training/safetynet/attestation#verify-attestation-response)
-* Required: iOS device verification. The DeviceCheck API can be used to confirm a genuine iOS device is used to prevent abuse, see https://developer.apple.com/documentation/devicecheck 
-  *_iOS device uploads must also be verified with the iOS device attestation API._
-    * We recommend the `transaction_id` in the payload be calculated as the SHA256 hash of the concatenation of:
-        * appPackageName
-        * Concatenation of the TrackingKey.Key values in their base64 encoding, sorted lexicographically
-        * Concatenation of regions, uppercased, sorted lexicographically
-    * Having the temporaryTracingKeys and regions be part of the device attestation prevents this attestation from being used to upload different data than what was used to verify the device.
-    *   DeviceCheck verification requests are validated with a server request to: https://api.development.devicecheck.apple.com/v1/validate\_device\_token
-        *   Verification requires a JWT for API access:
-            *   https://help.apple.com/developer-account/#/deva05921840
-*   Recommendation: To discourage abuse, only failures in processing should return retry-able error codes to clients.
-    *   Certain client errors, for example, invalid device attestations should return success (and the data not saved, or saved separately for abuse analysis).
-*   This service is a good candidate for serverless architectures. The request load is uneven throughout the day, likely scaling down to zero if the deployment only covers a single or small number of countries. Likewise, the server should scale up to meet the peak demand during the day.
-*   Appropriate denial of service protection should be put in place.
+* Required: A whitelist check for `appPackageName` and the regions in
+which the app is allowed to report on.
+
+* Required: Android device verification. The SafetyNet device attestation API
+can be used to confirm a genuine Android device. For more information on
+SafetyNet, see the
+[SafetyNet Attestation API](https://developer.android.com/training/safetynet/attestation).
+
+  * Having `temporaryTracingKeys` and `regions` be part of the device
+  attestation will allow only data used to verify the device to be uploaded.
+
+  * For verification instructions, see [Verify the SafetyNet attestation response.](https://developer.android.com/training/safetynet/attestation#verify-attestation-response)
+
+* Required: iOS device verification. You can use the `DeviceCheck` API can be
+used to confirm a genuine iOS device. For more
+information, see the
+[DeviceCheck overview](https://developer.apple.com/documentation/devicecheck).
+
+  * For verification instructions, see
+  [Communicate with APNs using authentication tokens](https://help.apple.com/developer-account/#/deva05921840)
+
+* Recommended: The `transaction_id` in the payload should be the SHA256 hash of
+the concatenation of:
+
+  * `appPackageName`
+
+  * Concatenation of the `TrackingKey.Key` values in their base64 encoding,
+  sorted lexicographically
+
+  * Concatenation of regions, uppercased, sorted lexicographically
+
+* Recommended: To discourage abuse, only failures in processing should
+return retry-able error codes to clients. For example, invalid device
+attestations should return success, with the data only saved for abuse
+analysis.
+
+* Appropriate denial of service protection should be put in place.
 
 ### Batch creation and publishing
 
@@ -194,7 +214,7 @@ right padded with whitespaces in UTF-8, representing this current version of
 the exposure key binary format. This is followed by the serialization of a
 Protocol Buffer message named `TemporaryExposureKeyExport` defined as follows:
 
-```
+```protobuf
 syntax = "proto2";
 
 message TemporaryExposureKeyExport {
@@ -258,7 +278,7 @@ the app was whitelisted to use the API and the server was on boarded. The
 signature file is the serialization of the `TEKSignatureList` Protocol Buffer
 message defined as follows:
 
-```
+```protobuf
 message TEKSignatureList {
   repeated TEKSignature signatures = 1;
 }
@@ -303,22 +323,19 @@ control expiration is set so that the file is refreshed frequently for distribut
 
 The API will verify the signature against the content of the exposure binary
 file. It will use the metadata included in the signature file to identify
-which verification key to use for the specific application. The on device
-API will verify that:
+which verification key to use for the specific application. The on-device
+API will verify the following fields in the `SignatureInfo` message:
 
-* The metadata in the signature file matches that in the export file.
-Specifically, the API will verify that the following fields match (all other
-fields can be left blank in the SignatureInfo message inside of
-`TemporaryExposureKeyExport` but are needed in `TEKSignature`)
+* `app_bundle_id`
+* `Android_package`
+* The `start_timestamp` of the current batch matches the `end_timestamp` of the
+last batch if `batch_num` is set.
+* The signatures of all files in the batch match their corresponding export file
+* The number of files in the batch matches `batch_size`
+* All files in the batch have the same `start_timestamp` and `end_timestamp`
 
-  * app_bundle_id
-    * Android\_package
-  * the start\_timestamp of the current batch matches the end\_timestamp of the last batch if batch\_num is set:
-    * The signatures of all files in the batch match their corresponding export file
-    * There are batch\_size number of files in the batch
-    * All files in the batch have the same start\_timestamp and end\_timestamp
-
-The API will ensure that it has completed all verifications prior to invoking and releasing the matching results.
+The API will only invoke and release the matching results once all verification
+checks are completed.
 
 ### Managing secrets
 
