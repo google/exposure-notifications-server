@@ -222,8 +222,8 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 	// We know the slice isn't empty, seed w/ the first interval.
 	nextInterval := entities[0].IntervalNumber
 	for _, ex := range entities {
-		if ex.IntervalNumber != nextInterval {
-			return nil, fmt.Errorf("exposure key intervals are not consecutive")
+		if ex.IntervalNumber < nextInterval {
+			return nil, fmt.Errorf("exposure keys have overlapping intervals")
 		}
 		nextInterval = ex.IntervalNumber + ex.IntervalCount
 	}

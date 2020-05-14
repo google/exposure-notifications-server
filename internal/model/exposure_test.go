@@ -339,7 +339,7 @@ func TestTransform(t *testing.T) {
 	}
 }
 
-func TestTransformNonConsecutive(t *testing.T) {
+func TestTransformOverlapping(t *testing.T) {
 	captureStartTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
 	intervalNumber := IntervalNumber(captureStartTime)
 
@@ -368,7 +368,7 @@ func TestTransformNonConsecutive(t *testing.T) {
 			},
 		},
 		{
-			name: "gap",
+			name: "overlap 2",
 			source: Publish{
 				Keys: []ExposureKey{
 					{
@@ -378,7 +378,7 @@ func TestTransformNonConsecutive(t *testing.T) {
 					},
 					{
 						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: intervalNumber + maxIntervalCount + 1,
+						IntervalNumber: intervalNumber - maxIntervalCount + 1,
 						IntervalCount:  maxIntervalCount,
 					},
 				},
@@ -401,7 +401,7 @@ func TestTransformNonConsecutive(t *testing.T) {
 			if err == nil {
 				t.Fatalf("Expected error, got nil")
 			}
-			if err.Error() != "exposure key intervals are not consecutive" {
+			if err.Error() != "exposure keys have overlapping intervals" {
 				t.Errorf("Wrong error, want '%v', got '%v'", "exposure key intervals are not consecutive", err)
 			}
 		})
