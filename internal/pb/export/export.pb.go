@@ -42,6 +42,9 @@ const _ = proto.ProtoPackageIsVersion4
 
 // Protobuf definition for exports of confirmed temporary exposure keys.
 //
+// The full file format is documented under "Exposure Key Export File Format
+// and Verification" at https://www.google.com/covid19/exposurenotifications/
+//
 // These files have a 16-byte, space-padded header before the protobuf data
 // starts. They will be contained in a zip archive, alongside a signature
 // file verifying the contents.
