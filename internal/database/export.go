@@ -301,6 +301,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 			ExportBatch
 		WHERE
 			batch_id = $1
+		LIMIT 1
 		`, batchID)
 
 	var expires *time.Time
@@ -392,6 +393,33 @@ type joinedExportBatchFile struct {
 	count       int
 	fileStatus  string
 	batchStatus string
+}
+
+func (db *DB) LookupExportFile(ctx context.Context, filename string) (*model.ExportFile, error) {
+	conn, err := db.pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	row := conn.QueryRow(ctx, `
+		SELECT
+			bucket_name, filename, batch_id, region, batch_num, batch_size, status
+		FROM
+			ExportFile
+		WHERE
+			filename = $1
+		LIMIT 1
+		`, filename)
+
+	ef := model.ExportFile{}
+	if err := row.Scan(&ef.BucketName, &ef.Filename, &ef.BatchID, &ef.Region, &ef.BatchNum, &ef.BatchSize, &ef.Status); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &ef, nil
 }
 
 // DeleteFilesBefore deletes the export batch files for batches ending before the time passed in.
@@ -490,7 +518,7 @@ func addExportFile(ctx context.Context, tx pgx.Tx, ef *model.ExportFile) error {
 			ExportFile
 			(bucket_name, filename, batch_id, region, batch_num, batch_size, status)
 		VALUES
-			($1, $2, $3, $4, $5, $6)
+			($1, $2, $3, $4, $5, $6, $7)
 		`, ef.BucketName, ef.Filename, ef.BatchID, ef.Region, ef.BatchNum, ef.BatchSize, ef.Status)
 	if err != nil {
 		return fmt.Errorf("inserting to ExportFile: %w", err)
