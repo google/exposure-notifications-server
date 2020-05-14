@@ -105,6 +105,14 @@ func TestValidateDeviceToken(t *testing.T) {
 			privateKey:  nil,
 			err:         true,
 		},
+		{
+			name:        "no token",
+			deviceToken: "",
+			teamID:      teamID,
+			keyID:       keyID,
+			privateKey:  privateKey,
+			err:         true,
+		},
 	}
 
 	for _, c := range cases {

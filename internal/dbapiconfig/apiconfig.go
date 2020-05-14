@@ -16,7 +16,6 @@ package dbapiconfig
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 	"sync"
 	"time"
@@ -25,6 +24,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 )
 
 // Compile-time check to assert Config implements the Provider interface.
@@ -32,14 +32,11 @@ var _ provider.Provider = (*dbConfigProvider)(nil)
 
 type dbConfigProvider struct {
 	db            *database.DB
+	sm            secrets.SecretManager
 	refreshPeriod time.Duration
 
 	bypassSafetyNet   bool
 	bypassDeviceCheck bool
-
-	deviceCheckKeyID      string
-	deviceCheckTeamID     string
-	deviceCheckPrivateKey *ecdsa.PrivateKey
 
 	mu           sync.RWMutex
 	lastLoadTime time.Time
@@ -47,25 +44,21 @@ type dbConfigProvider struct {
 }
 
 type ConfigOpts struct {
-	RefreshDuration       time.Duration `envconfig:"API_CONFIG_REFRESH" default:"5m"`
-	BypassSafetyNet       bool          `envconfig:"BYPASS_SAFETYNET"`
-	BypassDeviceCheck     bool          `envconfig:"BYPASS_DEVICECHECK"`
-	DeviceCheckKeyID      string        `envconfig:"DEVICECHECK_KEY_ID"`
-	DeviceCheckTeamID     string        `envconfig:"DEVICECHECK_TEAM_ID"`
-	DeviceCheckPrivateKey string        `envconfig:"DEVICECHECK_PRIVATE_KEY"`
+	RefreshDuration   time.Duration `envconfig:"API_CONFIG_REFRESH" default:"5m"`
+	BypassSafetyNet   bool          `envconfig:"BYPASS_SAFETYNET"`
+	BypassDeviceCheck bool          `envconfig:"BYPASS_DEVICECHECK"`
 }
 
-func NewConfigProvider(db *database.DB, opts *ConfigOpts) (provider.Provider, error) {
+func NewConfigProvider(db *database.DB, sm secrets.SecretManager, opts *ConfigOpts) (provider.Provider, error) {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
 	cfg := &dbConfigProvider{
 		db:                db,
+		sm:                sm,
 		refreshPeriod:     opts.RefreshDuration,
 		bypassSafetyNet:   opts.BypassSafetyNet,
 		bypassDeviceCheck: opts.BypassDeviceCheck,
-		deviceCheckKeyID:  opts.DeviceCheckKeyID,
-		deviceCheckTeamID: opts.DeviceCheckTeamID,
 		cache:             make(map[string]*apiconfig.APIConfig),
 	}
 
@@ -100,7 +93,7 @@ func (c *dbConfigProvider) loadConfig(ctx context.Context) error {
 
 	logger := logging.FromContext(ctx)
 
-	configs, err := c.db.ReadAPIConfigs(ctx)
+	configs, err := c.db.ReadAPIConfigs(ctx, c.sm)
 	if err != nil {
 		return err
 	}

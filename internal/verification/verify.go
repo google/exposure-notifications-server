@@ -83,7 +83,6 @@ func VerifyDeviceCheck(ctx context.Context, cfg *apiconfig.APIConfig, data *mode
 		return fmt.Errorf("cannot enforce devicecheck, missing config")
 	}
 
-	// TODO(sethvargo): Pull these values from cfg and plumb through.
 	opts := &ios.VerifyOpts{
 		KeyID:      cfg.DeviceCheckKeyID,
 		TeamID:     cfg.DeviceCheckTeamID,
