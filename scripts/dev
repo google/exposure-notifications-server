@@ -18,7 +18,6 @@ set -eEuo pipefail
 
 PROGNAME="$(basename $0)"
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
-CERTS_DIR="${ROOT}/local/db-tls"
 
 DOCKER_CMD="$(command -v docker || true)"
 DB_CONTAINER_NAME="en-server-db"
@@ -34,6 +33,9 @@ DB_PASSWORD="${DB_PASSWORD:-BjrvWmjQPXykPu}"
 DB_SSLMODE="${DB_SSLMODE:-require}"
 DB_NAME="${DB_NAME:-en-server}"
 DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
+
+DB_SHA="$(echo -n "${DB_CONTAINER_NAME}|${DB_PORT}" | md5sum | cut -d' ' -f1)"
+CERTS_DIR="${ROOT}/local/db-tls/${DB_SHA}"
 
 # Other configuration parameters
 CONFIG_REFRESH_DURATION="${CONFIG_REFRESH_DURATION:-1m}"
@@ -62,6 +64,10 @@ function init() {
 
 # gencerts creates the postgres SSL certificates if they do not already exist.
 function gencerts() {
+  if [ -d "${CERTS_DIR}" ]; then
+    return
+  fi
+
   local PASSWORD="$(openssl rand -hex 8)"
   rm -rf "${CERTS_DIR}" && mkdir -p "${CERTS_DIR}"
 
