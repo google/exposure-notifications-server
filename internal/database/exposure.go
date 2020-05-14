@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
+	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model"
 
 	pgx "github.com/jackc/pgx/v4"
@@ -76,6 +77,8 @@ func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCri
 	if err != nil {
 		return "", fmt.Errorf("generating where: %v", err)
 	}
+	logging.FromContext(ctx).Debugf("Query: %s", query)
+	logging.FromContext(ctx).Debugf("Args: %v", args)
 
 	// TODO: this is a pretty weak cursor solution, but not too bad since we'll
 	// typcially have queries ahead of the cleanup and before the current

@@ -331,3 +331,92 @@ func TestFinalizeBatch(t *testing.T) {
 		}
 	}
 }
+
+// TestKeysInBatch ensures that keys are fetched in the correct batch when they fall on boundary conditions.
+func TestKeysInBatch(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	defer resetTestDB(t)
+	ctx := context.Background()
+	now := time.Now()
+
+	// Add a config.
+	ec := &model.ExportConfig{
+		BucketName:   "bucket-name",
+		FilenameRoot: "filename-root",
+		Period:       3600 * time.Second,
+		Region:       "US",
+		From:         now.Add(-24 * time.Hour),
+	}
+	if err := testDB.AddExportConfig(ctx, ec); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a batch for two hours ago to one hour ago.
+	startTimestamp := now.Truncate(time.Hour).Add(-2 * time.Hour)
+	endTimestamp := startTimestamp.Add(time.Hour)
+	eb := &model.ExportBatch{
+		ConfigID:       ec.ConfigID,
+		BucketName:     ec.BucketName,
+		FilenameRoot:   ec.FilenameRoot,
+		StartTimestamp: startTimestamp,
+		EndTimestamp:   endTimestamp,
+		Region:         ec.Region,
+		Status:         model.ExportBatchOpen,
+	}
+	if err := testDB.AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create key aligned with the StartTimestamp
+	sek := &model.Exposure{
+		ExposureKey: []byte("aaa"),
+		Regions:     []string{ec.Region},
+		CreatedAt:   startTimestamp,
+	}
+
+	// Create key aligned with the EndTimestamp
+	eek := &model.Exposure{
+		ExposureKey: []byte("bbb"),
+		Regions:     []string{ec.Region},
+		CreatedAt:   endTimestamp,
+	}
+
+	// Add the keys to the database.
+	if err := testDB.InsertExposures(ctx, []*model.Exposure{sek, eek}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Re-fetch the ExposureBatch by leasing it; this is important to this test which is trying
+	// to ensure our dates are going in-and-out of the database correctly.
+	eb, err := testDB.LeaseBatch(ctx, time.Hour, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Lookup the keys; they must be only the key created_at the endTimestamp
+	// (because start is exclusive, end is inclusive).
+	criteria := IterateExposuresCriteria{
+		IncludeRegions: []string{eb.Region},
+		SinceTimestamp: eb.StartTimestamp,
+		UntilTimestamp: eb.EndTimestamp,
+	}
+
+	var got []*model.Exposure
+	_, err = testDB.IterateExposures(ctx, criteria, func(exp *model.Exposure) error {
+		got = append(got, exp)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("Incorrect exposure key result length, got %d, want 1", len(got))
+	}
+	want := []byte("bbb")
+	if string(got[0].ExposureKey) != string(want) {
+		t.Fatalf("Incorrect exposure key in batch, got %q, want %q", got[0].ExposureKey, want)
+	}
+}
