@@ -3,7 +3,7 @@
 ## Functional requirements
 
 This documents the functional requirements for building a decentralized exposure
-notification system. For deployment stratgies, see [Server Deployment Options](docs/server_deployment_options.md).
+notification system. For deployment stratgies, see [Server Deployment Options](server_deployment_options.md).
 
 ### System Components
 
