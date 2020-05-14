@@ -88,7 +88,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	query := &model.FederationQuery{
+	query := &model.FederationInQuery{
 		QueryID:        *queryID,
 		ServerAddr:     *serverAddr,
 		Audience:       *audience,
@@ -97,7 +97,7 @@ func main() {
 		LastTimestamp:  lastTime,
 	}
 
-	if err := db.AddFederationQuery(ctx, query); err != nil {
+	if err := db.AddFederationInQuery(ctx, query); err != nil {
 		log.Fatalf("adding new query %s %#v: %v", *queryID, query, err)
 	}
 

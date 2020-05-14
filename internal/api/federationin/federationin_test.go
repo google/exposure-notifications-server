@@ -85,7 +85,7 @@ type syncDB struct {
 	totalInserted int
 }
 
-func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.FederationQuery, start time.Time) (int64, database.FinalizeSyncFn, error) {
+func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.FederationInQuery, start time.Time) (int64, database.FinalizeSyncFn, error) {
 	sdb.syncStarted = true
 	timerStart := time.Now()
 	return syncID, func(maxTimestamp time.Time, totalInserted int) error {
@@ -233,7 +233,7 @@ func TestFederationPull(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			query := &model.FederationQuery{}
+			query := &model.FederationInQuery{}
 			remote := remoteFetchServer{responses: tc.fetchResponses}
 			idb := exposureDB{}
 			sdb := syncDB{}

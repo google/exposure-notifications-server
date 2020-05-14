@@ -17,9 +17,15 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	pgx "github.com/jackc/pgx/v4"
+)
+
+var (
+	// ErrNotFound indicates that the requested record was not found in the database.
+	ErrNotFound = errors.New("record not found")
 )
 
 func toNullString(s string) sql.NullString {
