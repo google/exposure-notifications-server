@@ -255,6 +255,7 @@ func decodeKey(b64key string, t *testing.T) []byte {
 func TestTransform(t *testing.T) {
 	captureStartTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
 	intervalNumber := IntervalNumber(captureStartTime)
+
 	source := &Publish{
 		Keys: []ExposureKey{
 			{
@@ -335,5 +336,74 @@ func TestTransform(t *testing.T) {
 		if diff := cmp.Diff(want[i], got[i]); diff != "" {
 			t.Errorf("TransformPublish mismatch (-want +got):\n%v", diff)
 		}
+	}
+}
+
+func TestTransformNonConsecutive(t *testing.T) {
+	captureStartTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
+	intervalNumber := IntervalNumber(captureStartTime)
+
+	cases := []struct {
+		name   string
+		source Publish
+	}{
+		{
+			name: "overlap",
+			source: Publish{
+				Keys: []ExposureKey{
+					{
+						Key:            encodeKey(generateKey(t)),
+						IntervalNumber: intervalNumber,
+						IntervalCount:  maxIntervalCount,
+					},
+					{
+						Key:            encodeKey(generateKey(t)),
+						IntervalNumber: intervalNumber + maxIntervalCount - 2,
+						IntervalCount:  maxIntervalCount,
+					},
+				},
+				Regions:          []string{"us", "cA", "Mx"}, // will be upcased
+				AppPackageName:   "com.google",
+				TransmissionRisk: 2,
+			},
+		},
+		{
+			name: "gap",
+			source: Publish{
+				Keys: []ExposureKey{
+					{
+						Key:            encodeKey(generateKey(t)),
+						IntervalNumber: intervalNumber,
+						IntervalCount:  maxIntervalCount,
+					},
+					{
+						Key:            encodeKey(generateKey(t)),
+						IntervalNumber: intervalNumber + maxIntervalCount + 1,
+						IntervalCount:  maxIntervalCount,
+					},
+				},
+				Regions:          []string{"us", "cA", "Mx"}, // will be upcased
+				AppPackageName:   "com.google",
+				TransmissionRisk: 2,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			batchTime := captureStartTime.Add(time.Hour * 24 * 7)
+			allowedAge := 14 * 24 * time.Hour
+			transformer, err := NewTransformer(10, allowedAge)
+			if err != nil {
+				t.Fatalf("NewTransformer returned unexpected error: %v", err)
+			}
+			_, err = transformer.TransformPublish(&c.source, batchTime)
+			if err == nil {
+				t.Fatalf("Expected error, got nil")
+			}
+			if err.Error() != "exposure key intervals are not consecutive" {
+				t.Errorf("Wrong error, want '%v', got '%v'", "exposure key intervals are not consecutive", err)
+			}
+		})
 	}
 }
