@@ -176,8 +176,8 @@ frequent operation (at least once a day per device), we recommend that you
 generate the files in a single operation rather than on-demand, and distribute
 the files using a CDN.
 
-The batch file format is [documented here](https://www.google.com/covid19/exposurenotifications/),
-under "Exposure Key Export File Format and Verification".
+For information on the format of the batch file, see
+[Exposure Key Export File Format and Verification](https://www.google.com/covid19/exposurenotifications/pdfs/Exposure-Key-File-Format-and-Verification.pdf).
 
 The batch file generation should be per-region, incremental feeds of new data.
 While additional data can be included in the downloads, there is a minimum set
