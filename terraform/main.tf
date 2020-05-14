@@ -423,7 +423,7 @@ resource "google_cloud_scheduler_job" "export-worker" {
   name             = "export-worker"
   schedule         = "* * * * *"
   time_zone        = "America/Los_Angeles"
-  attempt_deadline = "60s"
+  attempt_deadline = "10m"
 
   retry_config {
     retry_count = 1
@@ -441,9 +441,9 @@ resource "google_cloud_scheduler_job" "export-worker" {
 
 resource "google_cloud_scheduler_job" "export-create-batches" {
   name             = "export-create-batches"
-  schedule         = "* * * * *"
+  schedule         = "*/5 * * * *"
   time_zone        = "America/Los_Angeles"
-  attempt_deadline = "60s"
+  attempt_deadline = "10m"
 
   retry_config {
     retry_count = 1
