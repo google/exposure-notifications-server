@@ -23,7 +23,8 @@ CERTS_DIR="${ROOT}/local/db-tls"
 DOCKER_CMD="$(command -v docker || true)"
 DB_CONTAINER_NAME="en-server-db"
 DB_CONTAINER_IMAGE="registry.hub.docker.com/library/postgres:12-alpine"
-MIGRATE_CONTAINER_IMAGE="registry.hub.docker.com/migrate/migrate:latest"
+MIGRATE_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notifications/migrate:latest"
+PROTOC_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notifications/protoc:latest"
 
 # Database parameters
 DB_HOST="${DB_HOST:-127.0.0.1}"
@@ -97,21 +98,19 @@ function running() {
 
 # stop terminates the database.
 function stop() {
-  echo "==> Stopping database"
   docker rm --force "${DB_CONTAINER_NAME}" &>/dev/null
+  echo "Stopped database"
 }
 
 # start creates and provisions a new database.
 function start() {
-  echo "==> Starting database"
-
   if running; then
     error "database is already running!"
   fi
 
   gencerts
 
-  docker pull --quiet "${DB_CONTAINER_IMAGE}"
+  docker pull --quiet "${DB_CONTAINER_IMAGE}" > /dev/null
   docker run \
     --name "${DB_CONTAINER_NAME}" \
     --env "LANG=C" \
@@ -127,13 +126,14 @@ function start() {
       -c "max_connections=200" \
       -c "ssl=on" \
       -c "ssl_cert_file=/var/lib/postgresql/server.crt" \
-      -c "ssl_key_file=/var/lib/postgresql/server.key"
+      -c "ssl_key_file=/var/lib/postgresql/server.key" \
+      > /dev/null
+
+  echo "Database is running"
 }
 
 # psql creates a psql session.
 function psql() {
-  echo "==> Starting psql session"
-
   docker exec \
     --interactive \
     --tty \
@@ -147,13 +147,11 @@ function psql() {
 
 # migrate runs the migrations against the database.
 function migrate() {
-  echo "==> Running migrations"
-
   if [ $# -eq 0 ]; then
     set -- "up"
   fi
 
-  docker pull --quiet "${MIGRATE_CONTAINER_IMAGE}"
+  docker pull --quiet "${MIGRATE_CONTAINER_IMAGE}" > /dev/null
   docker run \
     --rm \
     --interactive \
@@ -167,8 +165,6 @@ function migrate() {
 
 # seed inserts test data.
 function seed() {
-  echo "==> Seeding database"
-
   docker exec \
     --interactive \
     --env "PGPASSWORD=${DB_PASSWORD}" \
@@ -178,6 +174,8 @@ function seed() {
       --username "${DB_USER}" \
       --port "5432" \
       < "${ROOT}/testdata/config.sql"
+
+  echo "Successfully seeded"
 }
 
 # dburl returns the full connection url.
@@ -185,33 +183,19 @@ function dburl() {
   echo "${DB_URL}"
 }
 
-# toolchain builds local containers
-function toolchain() {
-  echo "==> Building enserver-tools/protoc"
-  docker build \
-    --rm \
-    --tag "enserver-tools/protoc" \
-    --file "${ROOT}/docker/protoc.dockerfile" \
-    "${ROOT}"
-}
-
-# protos compiles the protos
-function protos() {
-  echo "==> Regenerating protos"
-
-  if [[ "$(docker images -q enserver-tools/protoc)" == "" ]]; then
-    error "missing protoc container - run '${PROGNAME} toolchain'"
-  fi
+# protoc compiles the protos
+function protoc() {
+  docker pull --quiet "${PROTOC_CONTAINER_IMAGE}" > /dev/null
 
   docker run \
     --interactive \
     --rm \
     --volume "${ROOT}:${ROOT}" \
     --workdir "${ROOT}" \
-    "enserver-tools/protoc" \
-      --proto_path=. \
+    "${PROTOC_CONTAINER_IMAGE}" \
+      --proto_path=${ROOT} \
       --go_out=plugins=grpc:. \
-      ./internal/pb/*.proto ./internal/pb/export/*.proto
+      ${ROOT}/internal/pb/*.proto ${ROOT}/internal/pb/export/*.proto
 }
 
 # help prints help.
@@ -226,8 +210,7 @@ function help() {
   echo 1>&2 "  dbseed       seed dev data"
   echo 1>&2 "  dburl        print url"
   echo 1>&2 "  dbshell      attach a psql session"
-  echo 1>&2 "  toochain     build the dev toolchain"
-  echo 1>&2 "  protos       re-compile protos"
+  echo 1>&2 "  protoc       re-compile protos"
 }
 
 SUBCOMMAND="${1:-}"
@@ -276,9 +259,9 @@ case "${SUBCOMMAND}" in
     toolchain "$@"
     ;;
 
-  "protos" )
+  "protoc" )
     shift
-    protos "$@"
+    protoc "$@"
     ;;
 
   *)

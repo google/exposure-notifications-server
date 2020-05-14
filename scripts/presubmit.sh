@@ -24,10 +24,6 @@ echo "🌳 Set up environment variables"
 eval $(${ROOT}/scripts/dev init)
 
 
-echo "🛠 Building toolchain"
-${ROOT}/scripts/dev toolchain
-
-
 echo "🚒 Verify Protobufs are up to date"
 ${ROOT}/scripts/dev protos
 # Don't verify generated pb files here as they are tidied later.
@@ -122,3 +118,7 @@ go test ./... -coverprofile=coverage.out
 
 echo "🧑‍🔬 Test Coverage"
 go tool cover -func coverage.out | grep total | awk '{print $NF}'
+
+
+echo "📚 Stopping database"
+${ROOT}/scripts/dev dbstop
