@@ -238,3 +238,96 @@ func TestBatches(t *testing.T) {
 		t.Errorf("after completion: got status %q, want complete", got.Status)
 	}
 }
+
+func TestFinalizeBatch(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	defer resetTestDB(t)
+	ctx := context.Background()
+	now := time.Now().Truncate(time.Microsecond)
+
+	// Add a config.
+	ec := &model.ExportConfig{
+		BucketName:   "some-bucket",
+		FilenameRoot: "filename-root",
+		Period:       time.Minute,
+		Region:       "US",
+	}
+	if err := testDB.AddExportConfig(ctx, ec); err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a batch.
+	eb := &model.ExportBatch{
+		ConfigID:       ec.ConfigID,
+		BucketName:     ec.BucketName,
+		FilenameRoot:   ec.FilenameRoot,
+		StartTimestamp: now.Add(-2 * time.Hour),
+		EndTimestamp:   now.Add(-time.Hour),
+		Region:         ec.Region,
+		Status:         model.ExportBatchOpen,
+	}
+	if err := testDB.AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Lease the batch.
+	eb, err := testDB.LeaseBatch(ctx, time.Hour, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that the batch is PENDING.
+	gotBatch, err := testDB.LookupExportBatch(ctx, eb.BatchID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotBatch.Status != model.ExportBatchPending {
+		t.Errorf("pre gotBatch.Status=%q, want=%q", gotBatch.Status, model.ExportBatchPending)
+	}
+
+	// Finalize the batch.
+	files := []string{"file1.txt", "file2.txt"}
+	batchSize := 10
+	if err := testDB.FinalizeBatch(ctx, eb, files, batchSize); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that the batch is COMPLETED.
+	gotBatch, err = testDB.LookupExportBatch(ctx, eb.BatchID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotBatch.Status != model.ExportBatchComplete {
+		t.Errorf("post gotBatch.Status=%q, want=%q", gotBatch.Status, model.ExportBatchComplete)
+	}
+
+	// Check that files were written.
+	gotFiles, err := testDB.LookupExportFiles(ctx, eb.ConfigID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(files, gotFiles); diff != "" {
+		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	for i, filename := range gotFiles {
+		got, err := testDB.LookupExportFile(ctx, filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := &model.ExportFile{
+			BucketName: eb.BucketName,
+			Filename:   filename,
+			BatchID:    eb.BatchID,
+			Region:     eb.Region,
+			BatchNum:   i + 1,
+			BatchSize:  batchSize,
+			Status:     model.ExportBatchComplete,
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("mismatch for %q (-want, +got):\n%s", filename, diff)
+		}
+	}
+}
