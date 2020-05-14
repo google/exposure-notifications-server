@@ -51,7 +51,8 @@ message SignatureInfo {
   optional string android_package = 2;
   // Key version for rollovers
   optional string verification_key_version = 3;
-  // Additional identifying information
+  // Alias with which to identify public key to be used for verification
+  // Must be in character class [a-zA-Z0-9_]
   optional string verification_key_id = 4;
   // ASN.1 OID for Algorithm Identifier. Supported algorithms are
   // either 1.2.840.10045.4.3.2 or 1.2.840.10045.4.3.4
