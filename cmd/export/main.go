@@ -43,6 +43,6 @@ func main() {
 	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
 	http.HandleFunc("/do-work", batchServer.WorkerHandler)               // worker that executes work
 
-	logger.Info("starting exposure export server on :%s", config.Port)
+	logger.Infof("starting exposure export server on :%s", config.Port)
 	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
 }

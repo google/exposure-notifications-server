@@ -36,7 +36,7 @@ func main() {
 	}
 	defer closer()
 
-	handler, err := cleanup.NewExportHandler(config, env)
+	handler, err := cleanup.NewExportHandler(&config, env)
 	if err != nil {
 		logger.Fatalf("cleanup.NewExportHandler: %v", err)
 	}
