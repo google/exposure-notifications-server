@@ -47,7 +47,7 @@ message TemporaryExposureKeyExport {
 message SignatureInfo {
   // Apple App Store Application Bundle ID
   optional string app_bundle_id = 1;
-  // Android App package name + sha256 of APK signing cert
+  // Android App package name
   optional string android_package = 2;
   // Key version for rollovers
   optional string verification_key_version = 3;
