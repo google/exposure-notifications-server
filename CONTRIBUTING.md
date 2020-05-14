@@ -40,66 +40,37 @@ Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
 
 To run the server, you must install the following dependencies:
 
-1. [Go 1.14.0 or newer](https://golang.org/dl/).
+1.  [Go 1.14.0 or newer](https://golang.org/dl/).
 
-1. The Protocol Buffer compiler.
-
-    To install the Protocol Buffer compiler:
-
-    [Windows and Linux binaries, and source code](https://github.com/protocolbuffers/protobuf/releases)
-
-    OS-managed binaries:
-
-    | OS       | Command                                            |
-    |----------|----------------------------------------------------|
-    | Mac OS X ([Brew](https://brew.sh/)) | `brew install protobuf` |
-    | Linux (APT) | `apt-get install protobuf-compiler`             |
-    | Linux (YUM) | `yum install protobuf-compiler`                 |
-
-1. The protoc-gen-go module.
-
-    To install protoc-gen-go:
-
-    1. Clone the Go Protocol Buffer module repository
-
-        ```
-        git clone https://github.com/golang/protobuf
-        ```
-
-    1. Build the module:
-
-        ```
-        cd protobuf/protoc-gen-go
-        go build
-        ```
-
-    1. Move the binary to a folder defined in your `PATH` environment variable, such as `$HOME/bin`
-
-        ```
-        mv protoc-gen-go $HOME/bin
-        ```
+1.  [Docker][docker].
 
 ### Running tests
 
-You can run the same tests that are used in the continuous integration pipeline
-by running:
+Run the tests with:
 
-```
-./scripts/presubmit.sh "."
-```
-
-You can also use `go test`:
-
-```
-go test ./...
+```text
+$ go test ./...
 ```
 
-To run database tests, install Postgres or start a server with Docker (see
-"Running locally" later in this topic), and then set some environment variables:
+To run tests that interact with the database:
 
-```
-DB_SSLMODE=disable DB_USER=postgres go test -v ./internal/database
-```
+1.  Set up the environment:
+
+    ```text
+    $ eval $(./scripts/dev init)
+    ```
+
+1.  Start a local database instance:
+
+    ```text
+    $ ./scripts/dev dbstart
+    ```
+
+1.  Run the tests:
+
+    ```text
+    $ go test -v ./...
+    ```
 
 
 ### Presubmit checks
@@ -119,9 +90,9 @@ chmod a+x .git/hooks/pre-push
 
 ### Running locally
 
-These instructions use [Docker](https://docs.docker.com/get-docker/) to run
-components locally. You may be able to run these components without Docker, but
-these instructions assume Docker is installed and available in your `$PATH`.
+These instructions use [Docker][docker] to run components locally. You may be
+able to run these components without Docker, but these instructions assume
+Docker is installed and available in your `$PATH`.
 
 1.  Set development environment variables:
 
@@ -173,3 +144,6 @@ these instructions assume Docker is installed and available in your `$PATH`.
 
 User documentation for this project is in the [`docs`](/docs/index.md) directory,
 with information on building, deploying, and using the reference implementation.
+
+
+[docker]: https://docs.docker.com/get-docker/

@@ -24,12 +24,8 @@ echo "🌳 Set up environment variables"
 eval $(${ROOT}/scripts/dev init)
 
 
-echo "🛠 Building toolchain"
-${ROOT}/scripts/dev toolchain
-
-
 echo "🚒 Verify Protobufs are up to date"
-${ROOT}/scripts/dev protos
+${ROOT}/scripts/dev protoc
 # Don't verify generated pb files here as they are tidied later.
 
 
