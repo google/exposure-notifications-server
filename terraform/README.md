@@ -33,8 +33,4 @@ automatically download the plugins required to execute this code.
 Terraform will begin by creating the service accounts and enabling the services
 on GCP which are required to run this server.
 
-It will then create the database and user and apply the DB schema.
-
-TODO(ndmckinley): Next it will trigger a build of this project using Google Cloud Build, and
-run the binaries.  In this way, code changes made to this repository can be
-rolled out using terraform apply.
+It will then create the database and user and apply the DB schema, and run the assorted binaries with everything hooked up.
