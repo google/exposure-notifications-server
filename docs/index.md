@@ -18,7 +18,7 @@ Server here:
 [Contributor guide](/CONTRIBUTING.md)  
 [Server Functional Requirements](server_functional_requirements.md)  
 [Server Deployment Options](server_deployment_options.md)  
-[Reference documentation](https://godoc.org/github.com/google/exposure-notifications-server)  
+[Reference documentation](https://pkg.go.dev/mod/github.com/google/exposure-notifications-server)  
 
 ## Overview
 
