@@ -261,5 +261,6 @@ case "${SUBCOMMAND}" in
 
   *)
     help
+    exit 1
     ;;
 esac

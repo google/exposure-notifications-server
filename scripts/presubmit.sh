@@ -25,7 +25,7 @@ eval $(${ROOT}/scripts/dev init)
 
 
 echo "🚒 Verify Protobufs are up to date"
-${ROOT}/scripts/dev protos
+${ROOT}/scripts/dev protoc
 # Don't verify generated pb files here as they are tidied later.
 
 
