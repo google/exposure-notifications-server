@@ -160,7 +160,8 @@ type SignatureInfo struct {
 	AndroidPackage *string `protobuf:"bytes,2,opt,name=android_package,json=androidPackage" json:"android_package,omitempty"`
 	// Key version for rollovers
 	VerificationKeyVersion *string `protobuf:"bytes,3,opt,name=verification_key_version,json=verificationKeyVersion" json:"verification_key_version,omitempty"`
-	// Additional identifying information
+	// Alias with which to identify public key to be used for verification
+	// Must be in character class [a-zA-Z0-9_]
 	VerificationKeyId *string `protobuf:"bytes,4,opt,name=verification_key_id,json=verificationKeyId" json:"verification_key_id,omitempty"`
 	// ASN.1 OID for Algorithm Identifier. Supported algorithms are
 	// either 1.2.840.10045.4.3.2 or 1.2.840.10045.4.3.4
