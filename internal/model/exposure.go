@@ -16,6 +16,7 @@ package model
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -210,5 +211,22 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 		}
 		entities = append(entities, exposure)
 	}
+
+	// Ensure that the uploaded keys are for a consecutive time period. No
+	// overlaps and no gaps.
+	// 1) Sort by interval number.
+	sort.Slice(entities, func(i int, j int) bool {
+		return entities[i].IntervalNumber < entities[j].IntervalNumber
+	})
+	// 2) Walk the slice and verify no gaps/overlaps.
+	// We know the slice isn't empty, seed w/ the first interval.
+	nextInterval := entities[0].IntervalNumber
+	for _, ex := range entities {
+		if ex.IntervalNumber != nextInterval {
+			return nil, fmt.Errorf("exposure key intervals are not consecutive")
+		}
+		nextInterval = ex.IntervalNumber + ex.IntervalCount
+	}
+
 	return entities, nil
 }
