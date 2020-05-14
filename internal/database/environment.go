@@ -17,7 +17,7 @@ package database
 import "time"
 
 type Config struct {
-	Name               string        `envconfig:"DB_DBNAME"`
+	Name               string        `envconfig:"DB_NAME"`
 	User               string        `envconfig:"DB_USER"`
 	Host               string        `envconfig:"DB_HOST" default:"localhost"`
 	Port               string        `envconfig:"DB_PORT" default:"5432"`
