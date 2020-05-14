@@ -254,11 +254,6 @@ case "${SUBCOMMAND}" in
     dburl "$@"
     ;;
 
-  "toolchain" )
-    shift
-    toolchain "$@"
-    ;;
-
   "protoc" )
     shift
     protoc "$@"
