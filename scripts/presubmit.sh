@@ -102,7 +102,7 @@ go build ./...
 
 
 echo "📚 Starting database"
-export DB_CONTAINER_NAME="en-server-db-test"
+export DB_NAME="en-server-db-test"
 export DB_PORT=5435
 ${ROOT}/scripts/dev dbstart && sleep 2
 ${ROOT}/scripts/dev dbmigrate
@@ -114,7 +114,9 @@ fi
 
 
 echo "🧪 Test"
-go test ./... -coverprofile=coverage.out
+go test ./... \
+  -coverprofile=coverage.out \
+  -timeout=5m
 
 
 echo "🧑‍🔬 Test Coverage"

@@ -20,7 +20,6 @@ PROGNAME="$(basename $0)"
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 
 DOCKER_CMD="$(command -v docker || true)"
-DB_CONTAINER_NAME="en-server-db"
 DB_CONTAINER_IMAGE="registry.hub.docker.com/library/postgres:12-alpine"
 MIGRATE_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notifications/migrate:latest"
 PROTOC_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notifications/protoc:latest"
@@ -31,10 +30,10 @@ DB_PORT="${DB_PORT:-5432}"
 DB_USER="${DB_USER:-en-server}"
 DB_PASSWORD="${DB_PASSWORD:-BjrvWmjQPXykPu}"
 DB_SSLMODE="${DB_SSLMODE:-require}"
-DB_NAME="${DB_NAME:-en-server}"
+DB_NAME="${DB_NAME:-en-server-db}"
 DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
 
-DB_SHA="$(echo -n "${DB_CONTAINER_NAME}|${DB_PORT}" | md5sum | cut -d' ' -f1)"
+DB_SHA="$(echo -n "${DB_NAME}|${DB_PORT}" | md5sum | cut -d' ' -f1)"
 CERTS_DIR="${ROOT}/local/db-tls/${DB_SHA}"
 
 # Other configuration parameters
@@ -94,7 +93,7 @@ function docker() {
 
 # running determines if the database is running.
 function running() {
-  local out="$(docker inspect -f "{{.State.Running}}" "${DB_CONTAINER_NAME}" 2>&1)"
+  local out="$(docker inspect -f "{{.State.Running}}" "${DB_NAME}" 2>&1)"
   if [[ "${out}" == "true" ]]; then
     return 0
   else
@@ -104,7 +103,7 @@ function running() {
 
 # stop terminates the database.
 function stop() {
-  docker rm --force "${DB_CONTAINER_NAME}" &>/dev/null
+  docker rm --force "${DB_NAME}" > /dev/null
   echo "Stopped database"
 }
 
@@ -118,7 +117,7 @@ function start() {
 
   docker pull --quiet "${DB_CONTAINER_IMAGE}" > /dev/null
   docker run \
-    --name "${DB_CONTAINER_NAME}" \
+    --name "${DB_NAME}" \
     --env "LANG=C" \
     --env "POSTGRES_DB=${DB_NAME}" \
     --env "POSTGRES_USER=${DB_USER}" \
@@ -144,7 +143,7 @@ function psql() {
     --interactive \
     --tty \
     --env "PGPASSWORD=${DB_PASSWORD}" \
-    "${DB_CONTAINER_NAME}" \
+    "${DB_NAME}" \
     /usr/local/bin/psql \
       --dbname "${DB_NAME}" \
       --username "${DB_USER}" \
@@ -174,7 +173,7 @@ function seed() {
   docker exec \
     --interactive \
     --env "PGPASSWORD=${DB_PASSWORD}" \
-    "${DB_CONTAINER_NAME}" \
+    "${DB_NAME}" \
     /usr/local/bin/psql \
       --dbname "${DB_NAME}" \
       --username "${DB_USER}" \
