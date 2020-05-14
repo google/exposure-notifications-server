@@ -118,7 +118,3 @@ go test ./... -coverprofile=coverage.out
 
 echo "🧑‍🔬 Test Coverage"
 go tool cover -func coverage.out | grep total | awk '{print $NF}'
-
-
-echo "📚 Stopping database"
-${ROOT}/scripts/dev dbstop
