@@ -276,11 +276,11 @@ locals {
     },
     {
       name  = "DB_SSLCERT"
-      value = "secret://{$google_secret_manager_secret_version.db-cert.name}"
+      value = "secret://${google_secret_manager_secret_version.db-cert.name}"
     },
     {
       name  = "DB_SSLROOTCERT"
-      value = "secret://{$google_secret_manager_secret_version.db-ca-cert.name}"
+      value = "secret://${google_secret_manager_secret_version.db-ca-cert.name}"
     },
     {
       name  = "DB_SSLMODE"
