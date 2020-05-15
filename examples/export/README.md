@@ -1,11 +1,11 @@
 # Sample Export File
 
-This is a sample export file to help understand the format documented at
-https://www.google.com/covid19/exposurenotifications/pdfs/Exposure-Key-File-Format-and-Verification.pdf
+This is a sample export file to help understand the format documented in
+the [Exposure Key File Format documentation](https://www.google.com/covid19/exposurenotifications/pdfs/Exposure-Key-File-Format-and-Verification.pdf)
 
 The contents of the archive:
 
-```
+```shell
 $ unzip -l sample-export.zip
 Archive:  sample-export.zip
   Length      Date    Time    Name
@@ -16,9 +16,10 @@ Archive:  sample-export.zip
       257                     2 files
 ```
 
-The signature can be extracted from `export.sig` and verified as follows:
+The signature can be extracted from `export.sig` and verified
+with [OpenSSL](https://www.openssl.org/) as follows:
 
-```
+```shell
 $ go run ./tools/unwrap-signature/ --in=export.sig --out=sigRaw
 ...
 $ openssl dgst -sha256 -verify public.pem -signature sigRaw export.bin
