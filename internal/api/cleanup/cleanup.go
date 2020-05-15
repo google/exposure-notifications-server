@@ -142,7 +142,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 
 func cutoffDate(d time.Duration) (time.Time, error) {
 	if d < minTTL {
-		return time.Time{}, fmt.Errorf("cleanup ttl is less than configured minumum ttl")
+		return time.Time{}, fmt.Errorf("cleanup ttl is less than configured minimum ttl")
 	}
 	return time.Now().Add(-d), nil
 }

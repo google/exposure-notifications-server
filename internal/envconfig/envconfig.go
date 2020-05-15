@@ -139,7 +139,7 @@ func resolveSecrets(ctx context.Context, sm secrets.SecretManager, dir string) e
 				secretVal = secretFilePath
 			}
 
-			// Replace the value of the envrionment variable with the either the resolved secret value
+			// Replace the value of the environment variable with the either the resolved secret value
 			// or the file path to the secret value saved on the filesystem.
 			//
 			// This takes effect for this process and any child processes only.
