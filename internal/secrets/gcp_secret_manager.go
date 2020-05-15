@@ -28,16 +28,17 @@ import (
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 )
 
-var (
-	// cacheDuration is how long to cache a secret.
-	cacheDuration = 5 * time.Minute
+const (
+	// defaultCacheDuration is how long to cache a secret.
+	defaultCacheDuration = 5 * time.Minute
 )
 
 type GCPSecretManager struct {
 	client *secretmanager.Client
 
-	cache      map[string]*item
-	cacheMutex sync.RWMutex
+	cache         map[string]*item
+	cacheDuration time.Duration
+	cacheMutex    sync.RWMutex
 }
 
 type item struct {
@@ -45,16 +46,34 @@ type item struct {
 	expiresAt int64
 }
 
-func NewGCPSecretManager(ctx context.Context) (SecretManager, error) {
+// Option is an option to the setup.
+type Option func(*GCPSecretManager) *GCPSecretManager
+
+// WithCacheDuration creates an Option to install a specific secret manager to use.
+func WithCacheDuration(d time.Duration) Option {
+	return func(s *GCPSecretManager) *GCPSecretManager {
+		s.cacheDuration = d
+		return s
+	}
+}
+
+func NewGCPSecretManager(ctx context.Context, opts ...Option) (SecretManager, error) {
 	client, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("secretmanager.NewClient: %w", err)
 	}
 
-	return &GCPSecretManager{
-		client: client,
-		cache:  make(map[string]*item),
-	}, nil
+	sm := &GCPSecretManager{
+		client:        client,
+		cache:         make(map[string]*item),
+		cacheDuration: defaultCacheDuration,
+	}
+
+	for _, f := range opts {
+		sm = f(sm)
+	}
+
+	return sm, nil
 }
 
 func (sm *GCPSecretManager) GetSecretValue(ctx context.Context, name string) (string, error) {
@@ -86,7 +105,7 @@ func (sm *GCPSecretManager) GetSecretValue(ctx context.Context, name string) (st
 	sm.cacheMutex.Lock()
 	sm.cache[name] = &item{
 		value:     plaintext,
-		expiresAt: time.Now().Add(cacheDuration).UnixNano(),
+		expiresAt: time.Now().Add(sm.cacheDuration).UnixNano(),
 	}
 	sm.cacheMutex.Unlock()
 
