@@ -93,18 +93,18 @@ func TestExposures(t *testing.T) {
 			[]int{1},
 		},
 		{
-			IterateExposuresCriteria{SinceTimestamp: exposures[1].CreatedAt},
-			[]int{2, 3}, // SinceTimestamp is exclusive
+			IterateExposuresCriteria{SinceTimestamp: exposures[2].CreatedAt},
+			[]int{2, 3}, // SinceTimestamp is inclusive
 		},
 		{
-			IterateExposuresCriteria{UntilTimestamp: exposures[1].CreatedAt},
-			[]int{0, 1}, // UntilTimestamp is inclusive
+			IterateExposuresCriteria{UntilTimestamp: exposures[2].CreatedAt},
+			[]int{0, 1}, // UntilTimestamp is exclusive
 		},
 		{
 			IterateExposuresCriteria{
 				IncludeRegions: []string{"CA"},
 				ExcludeRegions: []string{"MX"},
-				SinceTimestamp: exposures[1].CreatedAt,
+				SinceTimestamp: exposures[2].CreatedAt,
 			},
 			nil,
 		},

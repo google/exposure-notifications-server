@@ -390,17 +390,25 @@ func TestKeysInBatch(t *testing.T) {
 
 	// Re-fetch the ExposureBatch by leasing it; this is important to this test which is trying
 	// to ensure our dates are going in-and-out of the database correctly.
-	eb, err := testDB.LeaseBatch(ctx, time.Hour, now)
+	leased, err := testDB.LeaseBatch(ctx, time.Hour, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Lookup the keys; they must be only the key created_at the endTimestamp
-	// (because start is exclusive, end is inclusive).
+	// Check that the batch times from the database are *exactly* what we started with.
+	if eb.StartTimestamp.UnixNano() != leased.StartTimestamp.UnixNano() {
+		t.Errorf("Start timestamps did not align original: %d, leased: %d", eb.StartTimestamp.UnixNano(), leased.StartTimestamp.UnixNano())
+	}
+	if eb.EndTimestamp.UnixNano() != leased.EndTimestamp.UnixNano() {
+		t.Errorf("End timestamps did not align original: %d, leased: %d", eb.EndTimestamp.UnixNano(), leased.EndTimestamp.UnixNano())
+	}
+
+	// Lookup the keys; they must be only the key created_at the startTimestamp
+	// (because start is inclusive, end is inclusive).
 	criteria := IterateExposuresCriteria{
-		IncludeRegions: []string{eb.Region},
-		SinceTimestamp: eb.StartTimestamp,
-		UntilTimestamp: eb.EndTimestamp,
+		IncludeRegions: []string{leased.Region},
+		SinceTimestamp: leased.StartTimestamp,
+		UntilTimestamp: leased.EndTimestamp,
 	}
 
 	var got []*model.Exposure
@@ -415,7 +423,7 @@ func TestKeysInBatch(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("Incorrect exposure key result length, got %d, want 1", len(got))
 	}
-	want := []byte("bbb")
+	want := []byte("aaa")
 	if string(got[0].ExposureKey) != string(want) {
 		t.Fatalf("Incorrect exposure key in batch, got %q, want %q", got[0].ExposureKey, want)
 	}
