@@ -267,20 +267,20 @@ locals {
       value = "10"
     },
     {
-      name  = "DB_PASSWORD_SECRET"
-      value = google_secret_manager_secret_version.db-pwd-initial.name
+      name  = "DB_PASSWORD"
+      value = "secret://${google_secret_manager_secret_version.db-pwd-initial.name}"
     },
     {
-      name  = "DB_SSLKEY_SECRET"
-      value = google_secret_manager_secret_version.db-key.name
+      name  = "DB_SSLKEY"
+      value = "secret://${google_secret_manager_secret_version.db-key.name}"
     },
     {
-      name  = "DB_SSLCERT_SECRET"
-      value = google_secret_manager_secret_version.db-cert.name
+      name  = "DB_SSLCERT"
+      value = "secret://{$google_secret_manager_secret_version.db-cert.name}"
     },
     {
-      name  = "DB_SSLROOTCERT_SECRET"
-      value = google_secret_manager_secret_version.db-ca-cert.name
+      name  = "DB_SSLROOTCERT"
+      value = "secret://{$google_secret_manager_secret_version.db-ca-cert.name}"
     },
     {
       name  = "DB_SSLMODE"
