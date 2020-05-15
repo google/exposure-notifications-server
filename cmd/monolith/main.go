@@ -28,6 +28,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
