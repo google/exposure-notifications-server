@@ -41,7 +41,7 @@ func TestInvalidNew(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		_, err := NewTransformer(c.maxKeys, time.Hour)
+		_, err := NewTransformer(c.maxKeys, time.Hour, time.Hour)
 		if err != nil && errMsg == "" {
 			t.Errorf("%v unexpected error: %v", i, err)
 		} else if err != nil && !strings.Contains(err.Error(), c.message) {
@@ -51,7 +51,7 @@ func TestInvalidNew(t *testing.T) {
 }
 
 func TestInvalidBase64(t *testing.T) {
-	transformer, err := NewTransformer(1, time.Hour*24)
+	transformer, err := NewTransformer(1, time.Hour*24, time.Hour)
 	if err != nil {
 		t.Fatalf("error creating transformer: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestPublishValidation(t *testing.T) {
 	currentInterval := IntervalNumber(captureStartTime)
 	minInterval := IntervalNumber(captureStartTime.Add(-1 * maxAge))
 
-	tf, err := NewTransformer(2, maxAge)
+	tf, err := NewTransformer(2, maxAge, time.Hour)
 	if err != nil {
 		t.Fatalf("unepected error: %v", err)
 	}
@@ -319,7 +319,7 @@ func TestTransform(t *testing.T) {
 		},
 	}
 	batchTime := captureStartTime.Add(time.Hour * 24 * 7)
-	batchTimeRounded := TruncateWindow(batchTime)
+	batchTimeRounded := TruncateWindow(batchTime, time.Hour)
 	for i, v := range want {
 		want[i] = &Exposure{
 			ExposureKey:      v.ExposureKey,
@@ -334,7 +334,7 @@ func TestTransform(t *testing.T) {
 	}
 
 	allowedAge := 14 * 24 * time.Hour
-	transformer, err := NewTransformer(10, allowedAge)
+	transformer, err := NewTransformer(10, allowedAge, time.Hour)
 	if err != nil {
 		t.Fatalf("NewTransformer returned unexpected error: %v", err)
 	}
@@ -404,7 +404,7 @@ func TestTransformOverlapping(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			batchTime := captureStartTime.Add(time.Hour * 24 * 7)
 			allowedAge := 14 * 24 * time.Hour
-			transformer, err := NewTransformer(10, allowedAge)
+			transformer, err := NewTransformer(10, allowedAge, time.Hour)
 			if err != nil {
 				t.Fatalf("NewTransformer returned unexpected error: %v", err)
 			}

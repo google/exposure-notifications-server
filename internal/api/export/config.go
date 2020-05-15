@@ -38,6 +38,7 @@ type Config struct {
 	MaxRecords        int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
 	DefaultKeyID      string        `envconfig:"EXPORT_FILE_DEFAULT_KEY_ID" default:"ExampleServer"`
 	DefaultKeyVersion string        `envconfig:"EXPORT_FILE_DEFAULT_KEY_VERSION" default:"1"`
+	TruncateWindow    time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 }
 
 // DB returns the database config.

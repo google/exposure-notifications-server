@@ -26,9 +26,10 @@ var _ setup.DBConfigProvider = (*Config)(nil)
 
 // Config is the configuration for the federation components (data sent to other servers).
 type Config struct {
-	Port     string        `envconfig:"PORT" default:"8080"`
-	Timeout  time.Duration `envconfig:"RPC_TIMEOUT" default:"5m"`
-	Database *database.Config
+	Database       *database.Config
+	Port           string        `envconfig:"PORT" default:"8080"`
+	Timeout        time.Duration `envconfig:"RPC_TIMEOUT" default:"5m"`
+	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 
 	// AllowAnyClient, if true, removes authentication requirements on the federation endpoint.
 	// In practise, this is only useful in local testing.

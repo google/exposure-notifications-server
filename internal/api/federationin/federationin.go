@@ -173,7 +173,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		startFederationSync: h.db.StartFederationInSync,
 	}
 	batchStart := time.Now()
-	if err := pull(timeoutContext, metrics, deps, query, batchStart); err != nil {
+	if err := pull(timeoutContext, metrics, deps, query, batchStart, h.config.TruncateWindow); err != nil {
 		internalErrorf(ctx, w, "Federation query %q failed: %v", queryID, err)
 		return
 	}
@@ -183,7 +183,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *model.FederationInQuery, batchStart time.Time) error {
+func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *model.FederationInQuery, batchStart time.Time, truncateWindow time.Duration) error {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Processing query %q", q.QueryID)
 
@@ -204,7 +204,7 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 		logger.Infof("Inserted %d keys", total)
 	}()
 
-	createdAt := model.TruncateWindow(batchStart)
+	createdAt := model.TruncateWindow(batchStart, truncateWindow)
 	partial := true
 	for partial {
 
