@@ -108,14 +108,13 @@ The following snippet is an example POST request payload in JSON format.
 
 ```json
 {
-  "temporaryTracingKeys": [
+  "temporaryExposureKeys": [
     {"key": "base64 KEY1", "rollingStartNumber": 12345, "rollingPeriod": 144},
     {"key": "base64 KEY2", "rollingStartNumber": 12489, "rollingPeriod": 10},
     {"key": "base64 KEYN", "rollingStartNumber": 12499, "rollingPeriod": 100}],
   "regions": ["US", "CA", "MX"],
   "appPackageName": "com.foo.app",
   "platform": "android",
-  "diagnosisStatus": 2,
   "deviceVerificationPayload": "base64 encoded attestation payload string",
   "verificationPayload": "signature /code from  of verifying authority",
   "padding": "random string data..."
