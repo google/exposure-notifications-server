@@ -20,7 +20,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/google/exposure-notifications-server/internal/api/handlers"
+	"github.com/google/exposure-notifications-server/internal/handlers"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/setup"
