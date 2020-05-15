@@ -143,14 +143,19 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 		q += fmt.Sprintf(" AND NOT (regions && $%d)", len(args)) // Operation "&&" means "array overlaps / intersects"
 	}
 
+	// It is important for StartTimestamp to be inclusive (as opposed to exclusive). When the exposure keys are
+	// published, they are truncated to a time boundary (e.g., time.Hour). Even though the exposure keys might arrive
+	// during a current open export batch window, the exposure keys are truncated to the start of that window,
+	// which would make them fall into the _previous_ (already processed) batch if StartTimestamp is exclusive
+	// (in the case where the publish window and the export period align).
 	if !criteria.SinceTimestamp.IsZero() {
 		args = append(args, criteria.SinceTimestamp)
-		q += fmt.Sprintf(" AND created_at > $%d", len(args))
+		q += fmt.Sprintf(" AND created_at >= $%d", len(args))
 	}
 
 	if !criteria.UntilTimestamp.IsZero() {
 		args = append(args, criteria.UntilTimestamp)
-		q += fmt.Sprintf(" AND created_at <= $%d", len(args))
+		q += fmt.Sprintf(" AND created_at < $%d", len(args))
 	}
 
 	if criteria.OnlyLocalProvenance {
