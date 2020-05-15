@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -75,7 +75,7 @@ func TestReadAPIConfigs(t *testing.T) {
 		name string
 		sql  string
 		args []interface{}
-		exp  []*apiconfig.APIConfig
+		exp  []*model.APIConfig
 		err  bool
 	}{
 		{
@@ -85,7 +85,7 @@ func TestReadAPIConfigs(t *testing.T) {
 				VALUES ($1, $2, $3)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}},
-			exp: []*apiconfig.APIConfig{
+			exp: []*model.APIConfig{
 				{
 					AppPackageName:  "myapp",
 					Platform:        "ios",
@@ -104,7 +104,7 @@ func TestReadAPIConfigs(t *testing.T) {
 				) VALUES ($1, $2, $3, $4)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, 1800},
-			exp: []*apiconfig.APIConfig{
+			exp: []*model.APIConfig{
 				{
 					AppPackageName:  "myapp",
 					Platform:        "ios",
@@ -124,7 +124,7 @@ func TestReadAPIConfigs(t *testing.T) {
 				) VALUES ($1, $2, $3, $4)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, 1800},
-			exp: []*apiconfig.APIConfig{
+			exp: []*model.APIConfig{
 				{
 					AppPackageName:    "myapp",
 					Platform:          "ios",
@@ -144,7 +144,7 @@ func TestReadAPIConfigs(t *testing.T) {
 				) VALUES ($1, $2, $3, $4, $5, $6)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, "team_id", "key_id", "private_key"},
-			exp: []*apiconfig.APIConfig{
+			exp: []*model.APIConfig{
 				{
 					AppPackageName:        "myapp",
 					Platform:              "ios",

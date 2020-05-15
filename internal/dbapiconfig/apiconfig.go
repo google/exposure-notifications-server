@@ -23,7 +23,7 @@ import (
 	provider "github.com/google/exposure-notifications-server/internal/config"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 )
 
@@ -40,7 +40,7 @@ type dbConfigProvider struct {
 
 	mu           sync.RWMutex
 	lastLoadTime time.Time
-	cache        map[string]*apiconfig.APIConfig
+	cache        map[string]*model.APIConfig
 }
 
 type ConfigOpts struct {
@@ -59,7 +59,7 @@ func NewConfigProvider(db *database.DB, sm secrets.SecretManager, opts *ConfigOp
 		refreshPeriod:     opts.RefreshDuration,
 		bypassSafetyNet:   opts.BypassSafetyNet,
 		bypassDeviceCheck: opts.BypassDeviceCheck,
-		cache:             make(map[string]*apiconfig.APIConfig),
+		cache:             make(map[string]*model.APIConfig),
 	}
 
 	// TODO (mikehelmick): Load device check private key from secret store.
@@ -98,7 +98,7 @@ func (c *dbConfigProvider) loadConfig(ctx context.Context) error {
 		return err
 	}
 
-	c.cache = make(map[string]*apiconfig.APIConfig)
+	c.cache = make(map[string]*model.APIConfig)
 	for _, apiConfig := range configs {
 		apiConfig.BypassSafetyNet = c.bypassSafetyNet
 		c.cache[apiConfig.AppPackageName] = apiConfig
@@ -108,7 +108,7 @@ func (c *dbConfigProvider) loadConfig(ctx context.Context) error {
 	return nil
 }
 
-func (c *dbConfigProvider) AppPkgConfig(ctx context.Context, appPkg string) (*apiconfig.APIConfig, error) {
+func (c *dbConfigProvider) AppPkgConfig(ctx context.Context, appPkg string) (*model.APIConfig, error) {
 	if err := c.loadConfig(ctx); err != nil {
 		return nil, err
 	}

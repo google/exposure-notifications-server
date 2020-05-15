@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiconfig
+package model
 
 import (
 	"crypto/ecdsa"
@@ -56,11 +56,10 @@ type APIConfig struct {
 	DeviceCheckPrivateKey *ecdsa.PrivateKey
 }
 
-// New creates a new, empty API config
-func New() *APIConfig {
+func NewAPIConfig() (*APIConfig, error) {
 	return &APIConfig{
 		AllowedRegions: make(map[string]struct{}),
-	}
+	}, nil
 }
 
 // IsIOS returns true if the platform is equal to `iosDevice`
@@ -82,7 +81,7 @@ func (c *APIConfig) IsAllowedRegion(s string) bool {
 
 // VerifyOpts returns the Android SafetyNet verification options to be used
 // based on the API config.
-func (c *APIConfig) VerifyOpts(from time.Time, noncer android.Noncer) android.VerifyOpts {
+func (c *APIConfig) VerifyOpts(from time.Time, nonce string) android.VerifyOpts {
 	digests := make([]string, len(c.ApkDigestSHA256))
 	copy(digests, c.ApkDigestSHA256)
 	rtn := android.VerifyOpts{
@@ -90,7 +89,7 @@ func (c *APIConfig) VerifyOpts(from time.Time, noncer android.Noncer) android.Ve
 		CTSProfileMatch: c.CTSProfileMatch,
 		BasicIntegrity:  c.BasicIntegrity,
 		APKDigest:       digests,
-		Nonce:           noncer,
+		Nonce:           nonce,
 	}
 
 	// Calculate the valid time window based on now + config options.

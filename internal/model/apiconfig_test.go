@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiconfig
+package model
 
 import (
 	"testing"
@@ -25,7 +25,10 @@ import (
 
 func TestBaseAPIConfig(t *testing.T) {
 
-	cfg := New()
+	cfg, err := NewAPIConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cfg.IsIOS() {
 		t.Errorf("cfg.IoIOS, got true, want false")
 	}
@@ -96,7 +99,7 @@ func TestVerifyOpts(t *testing.T) {
 	}
 
 	for i, tst := range cases {
-		got := tst.cfg.VerifyOpts(testTime, nil /* noncer */)
+		got := tst.cfg.VerifyOpts(testTime, "" /* nonce */)
 		if diff := cmp.Diff(tst.opts, got); diff != "" {
 			t.Errorf("%v verify opts (-want +got):\n%v", i, diff)
 		}

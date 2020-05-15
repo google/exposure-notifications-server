@@ -21,12 +21,12 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/ios"
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 )
 
 // ReadAPIConfigs loads all APIConfig values from the database.
-func (db *DB) ReadAPIConfigs(ctx context.Context, sm secrets.SecretManager) ([]*apiconfig.APIConfig, error) {
+func (db *DB) ReadAPIConfigs(ctx context.Context, sm secrets.SecretManager) ([]*model.APIConfig, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
@@ -47,14 +47,18 @@ func (db *DB) ReadAPIConfigs(ctx context.Context, sm secrets.SecretManager) ([]*
 	defer rows.Close()
 
 	// In most instances, we expect a single config entry.
-	var result []*apiconfig.APIConfig
+	var result []*model.APIConfig
 	for rows.Next() {
 		if err := rows.Err(); err != nil {
 			return nil, fmt.Errorf("iterating rows: %w", err)
 		}
 
+		config, err := model.NewAPIConfig()
+		if err != nil {
+			return nil, fmt.Errorf("error instantiating APIConfig model: %w", err)
+		}
+
 		var regions []string
-		config := apiconfig.New()
 		var allowedPastSeconds, allowedFutureSeconds *int
 		var deviceCheckTeamIDSecret, deviceCheckKeyIDSecret, deviceCheckPrivateKeySecret sql.NullString
 		if err := rows.Scan(&config.AppPackageName, &config.Platform, &config.ApkDigestSHA256,

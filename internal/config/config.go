@@ -17,10 +17,10 @@ package config
 import (
 	"context"
 
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/model"
 )
 
 // Provider defines possible APIConfig providers.
 type Provider interface {
-	AppPkgConfig(ctx context.Context, appPkg string) (*apiconfig.APIConfig, error)
+	AppPkgConfig(ctx context.Context, appPkg string) (*model.APIConfig, error)
 }

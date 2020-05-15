@@ -22,7 +22,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/android"
 	"github.com/google/exposure-notifications-server/internal/model"
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
 
 const (
@@ -30,11 +29,11 @@ const (
 )
 
 func TestVerifyRegions(t *testing.T) {
-	allRegions := &apiconfig.APIConfig{
+	allRegions := &model.APIConfig{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
 	}
-	usCaRegions := &apiconfig.APIConfig{
+	usCaRegions := &model.APIConfig{
 		AppPackageName: appPkgName,
 		AllowedRegions: make(map[string]struct{}),
 	}
@@ -44,7 +43,7 @@ func TestVerifyRegions(t *testing.T) {
 	cases := []struct {
 		Data *model.Publish
 		Msg  string
-		Cfg  *apiconfig.APIConfig
+		Cfg  *model.APIConfig
 	}{
 		{
 			&model.Publish{Regions: []string{"US"}},
@@ -89,11 +88,11 @@ func TestVerifyRegions(t *testing.T) {
 }
 
 func TestVerifySafetyNet(t *testing.T) {
-	allRegions := &apiconfig.APIConfig{
+	allRegions := &model.APIConfig{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
 	}
-	allRegionsSafetyCheckDisabled := &apiconfig.APIConfig{
+	allRegionsSafetyCheckDisabled := &model.APIConfig{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
 		BypassSafetyNet: true,
@@ -102,7 +101,7 @@ func TestVerifySafetyNet(t *testing.T) {
 	cases := []struct {
 		Data              *model.Publish
 		Msg               string
-		Cfg               *apiconfig.APIConfig
+		Cfg               *model.APIConfig
 		AttestationResult error
 	}{
 		{
