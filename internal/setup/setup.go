@@ -18,8 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/exposure-notifications-server/internal/apiconfig"
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
 	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
@@ -34,10 +34,10 @@ type DBConfigProvider interface {
 	DB() *database.Config
 }
 
-// DBAPIConfigProvider signals that the config provided knows how to configure
-// and requires a DB backed APIConfigProvider installed.
-type DBAPIConfigProvider interface {
-	API() *dbapiconfig.ConfigOpts
+// APIConfigProvider signals that the config provided knows how to configure
+// and requires a APIConfigs.
+type APIConfigProvider interface {
+	APIConfigConfig() *apiconfig.Config
 }
 
 // KeyManagerProvider is a marker interface indicating the KeyManagerProvider should be installed.
@@ -89,20 +89,22 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 		opts = append(opts, serverenv.WithBlobStorage(storage))
 	}
 
+	// Setup the database connection.
 	db, err := database.NewFromEnv(ctx, config.DB())
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
 	opts = append(opts, serverenv.WithDatabase(db))
 
-	if apicfg, ok := config.(DBAPIConfigProvider); ok {
-		cfgProvider, err := dbapiconfig.NewConfigProvider(db, sm, apicfg.API())
+	// APIConfig must come after database setup due to the dependency.
+	if typ, ok := config.(APIConfigProvider); ok {
+		provider, err := apiconfig.NewDatabaseProvider(ctx, db, typ.APIConfigConfig(), apiconfig.WithSecretManager(sm))
 		if err != nil {
-			// APIConfig must come after DB due to dependency, ensure connection is closed
+			// Ensure the database is closed on an error.
 			defer db.Close(ctx)
 			return nil, nil, fmt.Errorf("unable to create APIConfig provider: %v", err)
 		}
-		opts = append(opts, serverenv.WithAPIConfigProvider(cfgProvider))
+		opts = append(opts, serverenv.WithAPIConfigProvider(provider))
 	}
 
 	return serverenv.New(ctx, opts...), func() { db.Close(ctx) }, nil

@@ -20,9 +20,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/exposure-notifications-server/internal/api/cleanup"
+	"github.com/google/exposure-notifications-server/internal/api/export"
+	"github.com/google/exposure-notifications-server/internal/api/federationin"
+	"github.com/google/exposure-notifications-server/internal/api/handlers"
+	"github.com/google/exposure-notifications-server/internal/api/publish"
+	"github.com/google/exposure-notifications-server/internal/apiconfig"
 	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	"github.com/google/exposure-notifications-server/internal/handlers"
@@ -31,21 +36,26 @@ import (
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
+var _ setup.DBConfigProvider = (*MonoConfig)(nil)
+var _ setup.APIConfigProvider = (*MonoConfig)(nil)
+var _ setup.BlobStorageConfigProvider = (*MonoConfig)(nil)
+var _ setup.KeyManagerProvider = (*MonoConfig)(nil)
+
 type MonoConfig struct {
 	Port string `envconfig:"PORT" default:"8080"`
 
-	APIConfigOpts *dbapiconfig.ConfigOpts
-	Cleanup       *cleanup.Config
-	Export        *export.Config
-	Publish       *publish.Config
-	Database      *database.Config
-	FederationIn  *federationin.Config
+	APIConfig    *apiconfig.Config
+	Cleanup      *cleanup.Config
+	Export       *export.Config
+	Publish      *publish.Config
+	Database     *database.Config
+	FederationIn *federationin.Config
 }
 
-func (c *MonoConfig) DB() *database.Config         { return c.Database }
-func (c *MonoConfig) KeyManager() bool             { return true }
-func (c *MonoConfig) BlobStorage() bool            { return true }
-func (c *MonoConfig) API() *dbapiconfig.ConfigOpts { return c.APIConfigOpts }
+func (c *MonoConfig) DB() *database.Config               { return c.Database }
+func (c *MonoConfig) KeyManager() bool                   { return true }
+func (c *MonoConfig) BlobStorage() bool                  { return true }
+func (c *MonoConfig) APIConfigConfig() *apiconfig.Config { return c.APIConfig }
 
 func main() {
 	ctx := context.Background()

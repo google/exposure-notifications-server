@@ -18,33 +18,35 @@ package publish
 import (
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/apiconfig"
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 // Compile-time check to assert this config matches requirements.
-var _ setup.DBAPIConfigProvider = (*Config)(nil)
+var _ setup.APIConfigProvider = (*Config)(nil)
 var _ setup.DBConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.
 type Config struct {
-	Port                     string        `envconfig:"PORT" default:"8080"`
-	MinRequestDuration       time.Duration `envconfig:"TARGET_REQUEST_DURATION" default:"5s"`
-	MaxKeysOnPublish         int           `envconfig:"MAX_KEYS_ON_PUBLISH" default:"14"`
-	MaxIntervalAge           time.Duration `envconfig:"MAX_INTERVAL_AGE_ON_PUBLISH" default:"360h"`
-	APIConfigRefreshDuration time.Duration `envconfig:"CONFIG_REFRESH_DURATION" default:"5m"`
-	TruncateWindow           time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
+	Port               string        `envconfig:"PORT" default:"8080"`
+	MinRequestDuration time.Duration `envconfig:"TARGET_REQUEST_DURATION" default:"5s"`
+	MaxKeysOnPublish   int           `envconfig:"MAX_KEYS_ON_PUBLISH" default:"14"`
+	MaxIntervalAge     time.Duration `envconfig:"MAX_INTERVAL_AGE_ON_PUBLISH" default:"360h"`
+	TruncateWindow     time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 
-	APIConfigOpts *dbapiconfig.ConfigOpts
+	// Bypass flags for local development and testing.
+	BypassSafetyNet   bool `envconfig:"BYPASS_SAFETYNET"`
+	BypassDeviceCheck bool `envconfig:"BYPASS_DEVICECHECK"`
 
-	Database *database.Config
+	APIConfig *apiconfig.Config
+	Database  *database.Config
 }
 
-// API returns the configuration for the DB APIConfig provider.
-func (c *Config) API() *dbapiconfig.ConfigOpts {
-	return c.APIConfigOpts
+// APIConfigConfig returns the configuration for apiconfig.
+func (c *Config) APIConfigConfig() *apiconfig.Config {
+	return c.APIConfig
 }
 
 // DB returns the configuration for the databse.

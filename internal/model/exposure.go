@@ -71,9 +71,9 @@ type Publish struct {
 	Padding                   string        `json:"padding"`
 }
 
-// Nonce returns the nonce for the publish model. This ensures that the data in
-// the request is the same data that was used to create the device attestation.
-func (p *Publish) Nonce() string {
+// AndroidNonce returns the Android. This ensures that the data in the request
+// is the same data that was used to create the device attestation.
+func (p *Publish) AndroidNonce() string {
 	// base64 keys are to be lexographically sorted
 	sortedKeys := make([]ExposureKey, len(p.Keys))
 	copy(sortedKeys, p.Keys)

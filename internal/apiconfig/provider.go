@@ -15,16 +15,20 @@
 package apiconfig
 
 import (
-	"time"
+	"context"
+	"errors"
+
+	"github.com/google/exposure-notifications-server/internal/model"
 )
 
-type Config struct {
-	// CacheDuration is the amount of time APIConfigs should be cached before
-	// being re-read from their provider.
-	CacheDuration time.Duration `envconfig:"APICONFIG_CACHE_DURATION"`
-}
+// AppNotFound is the sentinel error returned when AppConfig fails to find an
+// app with the given name.
+var AppNotFound = errors.New("app not found")
 
-// APIConfig implements an interface for setup.
-func (c *Config) APIConfigConfig() *Config {
-	return c
+// Provider defines possible APIConfig providers.
+type Provider interface {
+	// AppConfig returns the application-specific configuration for the given
+	// name. An error is returned if the configuration fails to load. An error is
+	// returned if no app with the given name is registered in the system.
+	AppConfig(ctx context.Context, name string) (*model.APIConfig, error)
 }

@@ -62,7 +62,7 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *model.APIC
 		return fmt.Errorf("cannot enforce safetynet, no application config")
 	}
 
-	opts := cfg.VerifyOpts(requestTime, publish.Nonce())
+	opts := cfg.VerifyOpts(requestTime, publish.AndroidNonce())
 	if err := androidValidateAttestation(ctx, publish.DeviceVerificationPayload, opts); err != nil {
 		if cfg.BypassSafetyNet {
 			logger.Errorf("bypassing safetynet verification for: '%v'", publish.AppPackageName)
