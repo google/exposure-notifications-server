@@ -34,7 +34,7 @@ import (
 type VerifyOpts struct {
 	AppPkgName      string
 	APKDigest       []string
-	Nonce           Noncer
+	Nonce           string
 	CTSProfileMatch bool
 	BasicIntegrity  bool
 	MinValidTime    time.Time
@@ -55,7 +55,7 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 	}
 
 	// Validate the nonce.
-	if opts.Nonce == nil || opts.Nonce.Nonce() == "" {
+	if opts.Nonce == "" {
 		return fmt.Errorf("missing nonce")
 	}
 	nonceClaimB64, ok := claims["nonce"].(string)
@@ -67,7 +67,7 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 		return fmt.Errorf("unable to decode nonce claim data: %w", err)
 	}
 	nonceClaim := string(nonceClaimBytes)
-	nonceCalculated := opts.Nonce.Nonce()
+	nonceCalculated := opts.Nonce
 	if nonceCalculated != nonceClaim {
 		return fmt.Errorf("nonce mismatch: expected %v got %v", nonceCalculated, nonceClaim)
 	}
