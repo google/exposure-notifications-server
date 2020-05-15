@@ -404,7 +404,7 @@ func TestKeysInBatch(t *testing.T) {
 	}
 
 	// Lookup the keys; they must be only the key created_at the startTimestamp
-	// (because start is inclusive, end is inclusive).
+	// (because start is inclusive, end is exclusive).
 	criteria := IterateExposuresCriteria{
 		IncludeRegions: []string{leased.Region},
 		SinceTimestamp: leased.StartTimestamp,
