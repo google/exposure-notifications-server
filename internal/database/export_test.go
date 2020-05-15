@@ -16,6 +16,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"testing"
 	"time"
@@ -404,7 +405,7 @@ func TestKeysInBatch(t *testing.T) {
 	}
 
 	// Lookup the keys; they must be only the key created_at the startTimestamp
-	// (because start is inclusive, end is inclusive).
+	// (because start is inclusive, end is exclusive).
 	criteria := IterateExposuresCriteria{
 		IncludeRegions: []string{leased.Region},
 		SinceTimestamp: leased.StartTimestamp,
@@ -426,5 +427,80 @@ func TestKeysInBatch(t *testing.T) {
 	want := []byte("aaa")
 	if string(got[0].ExposureKey) != string(want) {
 		t.Fatalf("Incorrect exposure key in batch, got %q, want %q", got[0].ExposureKey, want)
+	}
+}
+
+// TestAddExportFileSkipsDuplicates ensures that ExportFile records are not overwritten.
+func TestAddExportFileSkipsDuplicates(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	defer resetTestDB(t)
+	ctx := context.Background()
+
+	// Add foreign key records.
+	ec := &model.ExportConfig{Period: time.Hour}
+	if err := testDB.AddExportConfig(ctx, ec); err != nil {
+		t.Fatal(err)
+	}
+	eb := &model.ExportBatch{ConfigID: ec.ConfigID, Status: model.ExportBatchOpen}
+	if err := testDB.AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
+		t.Fatal(err)
+	}
+	// Lease the batch to get the ID.
+	eb, err := testDB.LeaseBatch(ctx, time.Hour, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantBucketName := "bucket-1"
+	ef := &model.ExportFile{
+		Filename:   "file",
+		BucketName: wantBucketName,
+		BatchID:    eb.BatchID,
+	}
+
+	// Add a record.
+	err = testDB.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		if err := addExportFile(ctx, tx, ef); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that the row is present.
+	got, err := testDB.LookupExportFile(ctx, ef.Filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BucketName != wantBucketName {
+		t.Fatalf("bucket name mismatch got %q, want %q", got.BucketName, wantBucketName)
+	}
+
+	// Add a second record with same filename, must return ErrKeyConflict, and not overwrite.
+	ef.BucketName = "bucket-2"
+	err = testDB.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		if err := addExportFile(ctx, tx, ef); err != nil {
+			if err == ErrKeyConflict {
+				return nil // Expected result.
+			}
+			return err
+		}
+		return errors.New("missing expected ErrKeyConflict")
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Row must not be updated.
+	got, err = testDB.LookupExportFile(ctx, ef.Filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BucketName != wantBucketName {
+		t.Fatalf("bucket name mismatch got %q, want %q", got.BucketName, wantBucketName)
 	}
 }

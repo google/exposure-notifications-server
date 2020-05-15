@@ -81,7 +81,7 @@ func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCri
 	logging.FromContext(ctx).Debugf("Args: %v", args)
 
 	// TODO: this is a pretty weak cursor solution, but not too bad since we'll
-	// typcially have queries ahead of the cleanup and before the current
+	// typically have queries ahead of the cleanup and before the current
 	// ingestion window, and those should be stable.
 	cursor := func() string { return encodeCursor(strconv.Itoa(offset)) }
 
@@ -192,7 +192,7 @@ func (db *DB) InsertExposures(ctx context.Context, exposures []*model.Exposure) 
 			ON CONFLICT (exposure_key) DO NOTHING
 		`)
 		if err != nil {
-			return fmt.Errorf("preparing insert statment: %v", err)
+			return fmt.Errorf("preparing insert statement: %v", err)
 		}
 
 		for _, inf := range exposures {

@@ -39,6 +39,9 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 	if ec.Period > oneDay {
 		return errors.New("maximum period is 24h")
 	}
+	if ec.Period == 0 {
+		return errors.New("period must be non-zero")
+	}
 	if int64(oneDay.Seconds())%int64(ec.Period.Seconds()) != 0 {
 		return errors.New("period must divide equally into 24 hours (e.g., 2h, 4h, 12h, 15m, 30m)")
 	}
@@ -333,7 +336,11 @@ func (db *DB) FinalizeBatch(ctx context.Context, eb *model.ExportBatch, files []
 				Status:     model.ExportBatchComplete,
 			}
 			if err := addExportFile(ctx, tx, &ef); err != nil {
-				return fmt.Errorf("adding export file entry: %w", err)
+				if err == ErrKeyConflict {
+					logging.FromContext(ctx).Infof("ExportFile %q already exists in database, skipping without overwriting. This can occur when reprocessing a failed batch.", file)
+				} else {
+					return fmt.Errorf("adding export file entry: %w", err)
+				}
 			}
 		}
 
@@ -512,16 +519,22 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 	return count, nil
 }
 
+// addExportFile adds a row to ExportFile. If the row already exists (based on the primary key),
+// ErrKeyConflict is returned.
 func addExportFile(ctx context.Context, tx pgx.Tx, ef *model.ExportFile) error {
-	_, err := tx.Exec(ctx, `
+	tag, err := tx.Exec(ctx, `
 		INSERT INTO
 			ExportFile
 			(bucket_name, filename, batch_id, region, batch_num, batch_size, status)
 		VALUES
 			($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (filename) DO NOTHING
 		`, ef.BucketName, ef.Filename, ef.BatchID, ef.Region, ef.BatchNum, ef.BatchSize, ef.Status)
 	if err != nil {
 		return fmt.Errorf("inserting to ExportFile: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrKeyConflict
 	}
 	return nil
 }

@@ -84,8 +84,8 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	cfg, err := h.apiconfig.AppPkgConfig(ctx, data.AppPackageName)
 	if err != nil {
-		// Log the configuraiton error, return error to client.
-		// This is retryable, although won't succede if the error isn't transient.
+		// Log the configuration error, return error to client.
+		// This is retryable, although won't succeed if the error isn't transient.
 		logger.Errorf("no API config, dropping data: %v", err)
 		metrics.WriteInt("publish-error-loading-apiconfig", true, 1)
 		http.Error(w, "internal error", http.StatusInternalServerError)

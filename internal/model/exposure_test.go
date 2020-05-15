@@ -61,9 +61,8 @@ func TestInvalidBase64(t *testing.T) {
 				Key: base64.StdEncoding.EncodeToString([]byte("ABC")) + `2`,
 			},
 		},
-		Regions:          []string{"US"},
-		AppPackageName:   "com.google",
-		TransmissionRisk: 1,
+		Regions:        []string{"US"},
+		AppPackageName: "com.google",
 		// Verification doesn't matter for transforming.
 	}
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
@@ -106,7 +105,7 @@ func TestPublishValidation(t *testing.T) {
 	maxAge := 24 * 5 * time.Hour
 
 	captureStartTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
-	currentInteval := IntervalNumber(captureStartTime)
+	currentInterval := IntervalNumber(captureStartTime)
 	minInterval := IntervalNumber(captureStartTime.Add(-1 * maxAge))
 
 	tf, err := NewTransformer(2, maxAge)
@@ -140,16 +139,28 @@ func TestPublishValidation(t *testing.T) {
 		{
 			name: "transmission risk too low",
 			p: &Publish{
-				Keys:             []ExposureKey{{Key: "invalid"}},
-				TransmissionRisk: minTransmissionRisk - 1,
+				Keys: []ExposureKey{
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   currentInterval - 2,
+						IntervalCount:    1,
+						TransmissionRisk: minTransmissionRisk - 1,
+					},
+				},
 			},
 			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", minTransmissionRisk-1, minTransmissionRisk, maxTransmissionRisk),
 		},
 		{
 			name: "tranismission risk too high",
 			p: &Publish{
-				Keys:             []ExposureKey{{Key: "invalid"}},
-				TransmissionRisk: maxTransmissionRisk + 1,
+				Keys: []ExposureKey{
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   currentInterval - 2,
+						IntervalCount:    1,
+						TransmissionRisk: maxTransmissionRisk + 1,
+					},
+				},
 			},
 			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", maxTransmissionRisk+1, minTransmissionRisk, maxTransmissionRisk),
 		},
@@ -209,13 +220,13 @@ func TestPublishValidation(t *testing.T) {
 				Keys: []ExposureKey{
 					{
 						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: currentInteval + 1,
+						IntervalNumber: currentInterval + 1,
 						IntervalCount:  1,
 					},
 				},
 				TransmissionRisk: maxTransmissionRisk - 1,
 			},
-			m: fmt.Sprintf("interval number %v is in the future, must be < %v", currentInteval+1, currentInteval),
+			m: fmt.Sprintf("interval number %v is in the future, must be < %v", currentInterval+1, currentInterval),
 		},
 	}
 

@@ -278,6 +278,51 @@ resource "null_resource" "submit-build-and-publish" {
   depends_on = [google_project_iam_member.cloudbuild-secrets, google_project_iam_member.cloudbuild-sql]
 }
 
+locals {
+  common_cloudrun_env_vars = [
+    {
+      name  = "DB_POOL_MIN_CONNS"
+      value = "2"
+    },
+    {
+      name  = "DB_POOL_MAX_CONNS"
+      value = "10"
+    },
+    {
+      name  = "DB_PASSWORD"
+      value = "secret://${google_secret_manager_secret_version.db-pwd-initial.name}"
+    },
+    {
+      name  = "DB_SSLKEY"
+      value = "secret://${google_secret_manager_secret_version.db-key.name}"
+    },
+    {
+      name  = "DB_SSLCERT"
+      value = "secret://{$google_secret_manager_secret_version.db-cert.name}"
+    },
+    {
+      name  = "DB_SSLROOTCERT"
+      value = "secret://{$google_secret_manager_secret_version.db-ca-cert.name}"
+    },
+    {
+      name  = "DB_SSLMODE"
+      value = "require"
+    },
+    {
+      name  = "DB_HOST"
+      value = "/cloudsql/${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+    },
+    {
+      name  = "DB_USER"
+      value = google_sql_user.user.name
+    },
+    {
+      name  = "DB_NAME"
+      value = google_sql_database.db.name
+    },
+  ]
+}
+
 resource "google_cloud_run_service" "exposure" {
   name     = "exposure"
   location = var.region
@@ -289,45 +334,12 @@ resource "google_cloud_run_service" "exposure" {
           name  = "CONFIG_REFRESH_DURATION"
           value = "5m"
         }
-        env {
-          name  = "DB_POOL_MIN_CONNS"
-          value = "2"
-        }
-        env {
-          name  = "DB_POOL_MAX_CONNS"
-          value = "10"
-        }
-        env {
-          name  = "DB_PASSWORD_SECRET"
-          value = google_secret_manager_secret_version.db-pwd-initial.name
-        }
-        env {
-          name  = "DB_SSLKEY_SECRET"
-          value = google_secret_manager_secret_version.db-key.name
-        }
-        env {
-          name  = "DB_SSLCERT_SECRET"
-          value = google_secret_manager_secret_version.db-cert.name
-        }
-        env {
-          name  = "DB_SSLROOTCERT_SECRET"
-          value = google_secret_manager_secret_version.db-ca-cert.name
-        }
-        env {
-          name  = "DB_SSLMODE"
-          value = "require"
-        }
-        env {
-          name  = "DB_HOST"
-          value = "/cloudsql/${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-        }
-        env {
-          name  = "DB_USER"
-          value = google_sql_user.user.name
-        }
-        env {
-          name  = "DB_NAME"
-          value = google_sql_database.db.name
+        dynamic "env" {
+          for_each = local.common_cloudrun_env_vars
+          content {
+            name = env.value["name"]
+            value = env.value["value"]
+          }
         }
       }
     }
@@ -356,45 +368,64 @@ resource "google_cloud_run_service" "export" {
           name  = "EXPORT_BUCKET"
           value = google_storage_bucket.export.name
         }
-        env {
-          name  = "DB_POOL_MIN_CONNS"
-          value = "2"
+        dynamic "env" {
+          for_each = local.common_cloudrun_env_vars
+          content {
+            name = env.value["name"]
+            value = env.value["value"]
+          }
         }
-        env {
-          name  = "DB_POOL_MAX_CONNS"
-          value = "10"
+      }
+    }
+    metadata {
+      annotations = {
+        "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+        "autoscaling.knative.dev/maxScale"      : "1000"
+      }
+    }
+  }
+	depends_on = [google_cloudbuild_trigger.build-and-publish]
+}
+
+resource "google_cloud_run_service" "federationin" {
+  name     = "federationin"
+  location = var.region
+  template {
+    spec {
+      containers {
+        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationin:latest"
+        dynamic "env" {
+          for_each = local.common_cloudrun_env_vars
+          content {
+            name = env.value["name"]
+            value = env.value["value"]
+          }
         }
-        env {
-          name  = "DB_PASSWORD_SECRET"
-          value = google_secret_manager_secret_version.db-pwd-initial.name
-        }
-        env {
-          name  = "DB_SSLKEY_SECRET"
-          value = google_secret_manager_secret_version.db-key.name
-        }
-        env {
-          name  = "DB_SSLCERT_SECRET"
-          value = google_secret_manager_secret_version.db-cert.name
-        }
-        env {
-          name  = "DB_SSLROOTCERT_SECRET"
-          value = google_secret_manager_secret_version.db-ca-cert.name
-        }
-        env {
-          name  = "DB_SSLMODE"
-          value = "require"
-        }
-        env {
-          name  = "DB_HOST"
-          value = "/cloudsql/${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-        }
-        env {
-          name  = "DB_USER"
-          value = google_sql_user.user.name
-        }
-        env {
-          name  = "DB_NAME"
-          value = google_sql_database.db.name
+      }
+    }
+    metadata {
+      annotations = {
+        "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+        "autoscaling.knative.dev/maxScale"      : "1000"
+      }
+    }
+  }
+  depends_on = [google_cloudbuild_trigger.build-and-publish]
+}
+
+resource "google_cloud_run_service" "federationout" {
+  name     = "federationout"
+  location = var.region
+  template {
+    spec {
+      containers {
+        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationout:latest"
+        dynamic "env" {
+          for_each = local.common_cloudrun_env_vars
+          content {
+            name = env.value["name"]
+            value = env.value["value"]
+          }
         }
       }
     }
@@ -420,9 +451,9 @@ data "google_iam_policy" "noauth" {
 }
 
 resource "google_cloud_run_service_iam_policy" "export-noauth" {
-  location = google_cloud_run_service.exposure.location
-  project  = google_cloud_run_service.exposure.project
-  service  = google_cloud_run_service.exposure.name
+  location = google_cloud_run_service.export.location
+  project  = google_cloud_run_service.export.project
+  service  = google_cloud_run_service.export.name
 
   policy_data = data.google_iam_policy.noauth.policy_data
 }
@@ -431,6 +462,14 @@ resource "google_cloud_run_service_iam_policy" "exposure-noauth" {
   location = google_cloud_run_service.exposure.location
   project  = google_cloud_run_service.exposure.project
   service  = google_cloud_run_service.exposure.name
+
+  policy_data = data.google_iam_policy.noauth.policy_data
+}
+
+resource "google_cloud_run_service_iam_policy" "federationout-noauth" {
+  location = google_cloud_run_service.federationout.location
+  project  = google_cloud_run_service.federationout.project
+  service  = google_cloud_run_service.federationout.name
 
   policy_data = data.google_iam_policy.noauth.policy_data
 }
