@@ -55,7 +55,7 @@ const (
 // AppPackageName: The identifier for the mobile application.
 //  - Android: The App Package AppPackageName
 //  - iOS: The BundleID
-// TransmissionRisk: An integer from 1-8 (inclusive) that represnets
+// TransmissionRisk: An integer from 0-8 (inclusive) that represnets
 //  the transmission risk for this publish.
 // Verification: The attestation payload for this request. (iOS or Android specific)
 //   Base64 encoded.
