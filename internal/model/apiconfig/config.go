@@ -30,15 +30,15 @@ const (
 // application and their access to and requirements for using the API.
 // DB times of 0 are interpreted to be "unbounded" in that direction.
 type APIConfig struct {
-	AppPackageName    string          `db:"app_package_name"`
-	Platform          string          `db:"platform"`
-	ApkDigestSHA256   []string        `db:"apk_digest"`
-	CTSProfileMatch   bool            `db:"cts_profile_match"`
-	BasicIntegrity    bool            `db:"basic_integrity"`
-	AllowedPastTime   time.Duration   `db:"allowed_past_seconds"`
-	AllowedFutureTime time.Duration   `db:"allowed_future_seconds"`
-	AllowedRegions    map[string]bool `db:"allowed_regions"`
-	AllowAllRegions   bool            `db:"all_regions"`
+	AppPackageName    string
+	Platform          string
+	ApkDigestSHA256   []string
+	CTSProfileMatch   bool
+	BasicIntegrity    bool
+	AllowedPastTime   time.Duration
+	AllowedFutureTime time.Duration
+	AllowedRegions    map[string]bool
+	AllowAllRegions   bool
 
 	// BypassSafetyNet is an internal field for testing that bypasses Android
 	// SafetyNet verification. It is not read from a database and is used for
