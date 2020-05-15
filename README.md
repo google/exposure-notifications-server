@@ -22,8 +22,8 @@ The server is responsible for the following functions:
 * Periodically generating incremental files that will be downloaded by mobile
   devices to perform the key matching algorithm on the mobile device.
 
-* Sending a public key to devices to digitally sign the incremental files with
-  a private key on the device.
+* Sending a public key to devices, and digitally signing the incremental files with
+  a private key.
 
 * Periodically deleting old temporary exposure keys. After 14 days, or
   configured time period, the exposure keys can no longer be matched to a device.
