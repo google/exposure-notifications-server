@@ -38,7 +38,7 @@ type GCPSecretManager struct {
 
 	cache         map[string]*item
 	cacheDuration time.Duration
-	cacheMutex    sync.RWMutex
+	cacheMutex    sync.Mutex
 }
 
 type item struct {
@@ -76,38 +76,43 @@ func NewGCPSecretManager(ctx context.Context, opts ...Option) (SecretManager, er
 	return sm, nil
 }
 
+// GetSecretValue implements the SecretManager interface.
 func (sm *GCPSecretManager) GetSecretValue(ctx context.Context, name string) (string, error) {
 	logger := logging.FromContext(ctx)
 
-	// Check cache.
-	sm.cacheMutex.RLock()
+	// Lock
+	sm.cacheMutex.Lock()
+	defer sm.cacheMutex.Unlock()
+
+	// Lookup in cache
 	if i, ok := sm.cache[name]; ok && i.expiresAt <= time.Now().UnixNano() {
-		sm.cacheMutex.RUnlock()
-		logger.Debugf("found secret in cache: %v", name)
+		logger.Debugf("loaded secret %v from cache", name)
 		return i.value, nil
 	}
-	sm.cacheMutex.RUnlock()
 
-	// Build the request.
-	accessRequest := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: name,
-	}
-
-	// Call the API.
-	result, err := sm.client.AccessSecretVersion(ctx, accessRequest)
+	// Lookup in secret manager
+	plaintext, err := sm.accessSecret(ctx, name)
 	if err != nil {
-		return "", fmt.Errorf("failed to access secret version for %v: %w", name, err)
+		return "", err
 	}
-	logger.Infof("loaded secret value for %v", name)
-	plaintext := string(result.Payload.Data)
 
-	// Cache the value.
-	sm.cacheMutex.Lock()
+	// Cache value
 	sm.cache[name] = &item{
 		value:     plaintext,
 		expiresAt: time.Now().Add(sm.cacheDuration).UnixNano(),
 	}
-	sm.cacheMutex.Unlock()
 
 	return plaintext, nil
+}
+
+// accessSecret accesses the secret from secret manager.
+func (sm *GCPSecretManager) accessSecret(ctx context.Context, name string) (string, error) {
+	// Call the API.
+	result, err := sm.client.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
+		Name: name,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to access secret %v: %w", name, err)
+	}
+	return string(result.Payload.Data), nil
 }
