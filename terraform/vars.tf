@@ -1,5 +1,5 @@
 variable "region" {
-  type = string
+  type    = string
   default = "us-central1"
 }
 
@@ -8,17 +8,17 @@ variable "project" {
 }
 
 variable "use_build_triggers" {
-  type = bool
+  type    = bool
   default = false
 }
 
 variable "repo_owner" {
-  type = string
+  type    = string
   default = "google"
 }
 
 variable "repo_name" {
-  type = string
+  type    = string
   default = "exposure-notifications-server"
 }
 

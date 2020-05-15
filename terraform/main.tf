@@ -199,8 +199,8 @@ resource "google_project_iam_member" "cloudbuild-sql" {
 }
 
 resource "google_cloudbuild_trigger" "update-schema" {
-  provider    = google-beta
-  count = var.use_build_triggers ? 1 : 0
+  provider = google-beta
+  count    = var.use_build_triggers ? 1 : 0
 
   name        = "update-schema"
   description = "Build the containers for the schema migrator and run it to ensure the DB is up to date."
@@ -246,14 +246,14 @@ resource "random_string" "bucket-name" {
 }
 
 resource "google_storage_bucket" "export" {
-  name = "exposure-notification-export-${random_string.bucket-name.result}"
+  name               = "exposure-notification-export-${random_string.bucket-name.result}"
   bucket_policy_only = true
 }
 
 # This step automatically runs a build as well, so everything that uses an image depends on it.
 resource "google_cloudbuild_trigger" "build-and-publish" {
-  provider    = google-beta
-  count = var.use_build_triggers ? 1 : 0
+  provider = google-beta
+  count    = var.use_build_triggers ? 1 : 0
 
   name        = "build-containers"
   description = "Build the containers for the exposure notification service and deploy them to cloud run"
