@@ -519,6 +519,7 @@ func addExportFile(ctx context.Context, tx pgx.Tx, ef *model.ExportFile) error {
 			(bucket_name, filename, batch_id, region, batch_num, batch_size, status)
 		VALUES
 			($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (filename) DO NOTHING
 		`, ef.BucketName, ef.Filename, ef.BatchID, ef.Region, ef.BatchNum, ef.BatchSize, ef.Status)
 	if err != nil {
 		return fmt.Errorf("inserting to ExportFile: %w", err)
