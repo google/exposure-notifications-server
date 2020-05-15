@@ -31,7 +31,7 @@ const (
 	keyLength = 16
 
 	// Transmission risk constraints (inclusive..inclusive)
-	minTransmissionRisk = 1
+	minTransmissionRisk = 0 // 0 indicates, no/unknown risk.
 	maxTransmissionRisk = 8
 
 	// Intervals are defined as 10 minute periods, there are 144 of them in a day.
@@ -67,7 +67,7 @@ type Publish struct {
 	Regions                   []string      `json:"regions"`
 	AppPackageName            string        `json:"appPackageName"`
 	Platform                  string        `json:"platform"`
-	TransmissionRisk          int           `json:"transmissionRisk"`
+	TransmissionRisk          int           `json:"transmissionRisk"` // DEPRECATED
 	DeviceVerificationPayload string        `json:"deviceVerificationPayload"`
 	VerificationPayload       string        `json:"verificationPayload"`
 	Padding                   string        `json:"padding"`
@@ -85,10 +85,12 @@ type Publish struct {
 //   is configurable per installation.
 // IntervalCount must >= `minIntervalCount` and <= `maxIntervalCount`
 //   1 - 144 inclusive.
+// transmissionRisk must be >= 0 and <= 8
 type ExposureKey struct {
-	Key            string `json:"key"`
-	IntervalNumber int32  `json:"rollingStartNumber"`
-	IntervalCount  int32  `json:"rollingPeriod"`
+	Key              string `json:"key"`
+	IntervalNumber   int32  `json:"rollingStartNumber"`
+	IntervalCount    int32  `json:"rollingPeriod"`
+	TransmissionRisk int    `json:"transmissionRisk"`
 }
 
 // Exposure represents the record as storedin the database
@@ -173,9 +175,11 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 		upcaseRegions[i] = strings.ToUpper(r)
 	}
 
-	// Transmission risk is for the batch.
-	if tr := inData.TransmissionRisk; tr < minTransmissionRisk || tr > maxTransmissionRisk {
-		return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, minTransmissionRisk, maxTransmissionRisk)
+	// Transmission risk for the whole batch is deprecated - it is now part
+	// of the ExposureKey.
+	defaultTR := inData.TransmissionRisk
+	if defaultTR < minTransmissionRisk || defaultTR > maxTransmissionRisk {
+		return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", defaultTR, minTransmissionRisk, maxTransmissionRisk)
 	}
 
 	for _, exposureKey := range inData.Keys {
@@ -200,9 +204,18 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 			return nil, fmt.Errorf("interval number %v is in the future, must be < %v", exposureKey.IntervalNumber, maxIntervalNumber)
 		}
 
+		tr := exposureKey.TransmissionRisk
+		// This is temporary - while we reprecate per-request tranismission risk
+		if tr == 0 && defaultTR != 0 {
+			tr = defaultTR
+		}
+		if tr < minTransmissionRisk || tr > maxTransmissionRisk {
+			return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, minTransmissionRisk, maxTransmissionRisk)
+		}
+
 		exposure := &Exposure{
 			ExposureKey:      binKey,
-			TransmissionRisk: inData.TransmissionRisk,
+			TransmissionRisk: tr,
 			AppPackageName:   inData.AppPackageName,
 			Regions:          upcaseRegions,
 			IntervalNumber:   exposureKey.IntervalNumber,

@@ -64,12 +64,7 @@ var (
 func main() {
 	flag.Parse()
 
-	exposureKeys := generateExposureKeys(*numKeys)
-
-	transmissionRisk := *transmissionRiskFlag
-	if transmissionRisk < 0 {
-		transmissionRisk = randomInt(maxTransmissionRisk) + 1
-	}
+	exposureKeys := generateExposureKeys(*numKeys, *transmissionRiskFlag)
 
 	regionIdx := randomInt(len(defaultRegions))
 	region := defaultRegions[regionIdx]
@@ -89,10 +84,9 @@ func main() {
 	}
 
 	data := model.Publish{
-		Keys:             exposureKeys,
-		Regions:          region,
-		AppPackageName:   *appPackage,
-		TransmissionRisk: transmissionRisk,
+		Keys:           exposureKeys,
+		Regions:        region,
+		AppPackageName: *appPackage,
 		// This tool cannot generate valid safetynet attestations.
 		DeviceVerificationPayload: "some invalid data",
 		VerificationPayload:       verificationAuthorityName,
@@ -140,7 +134,7 @@ func randomArrValue(arr []string) string {
 	return arr[randomInt(len(arr))]
 }
 
-func generateExposureKeys(numKeys int) []model.ExposureKey {
+func generateExposureKeys(numKeys, tr int) []model.ExposureKey {
 	keys := make([][]byte, numKeys)
 	for i := 0; i < numKeys; i++ {
 		keys[i] = make([]byte, dkLen)
@@ -149,14 +143,21 @@ func generateExposureKeys(numKeys int) []model.ExposureKey {
 			log.Fatalf("rand.Read: %v", err)
 		}
 	}
+
 	// When publishing multiple keys - they'll be on different days.
 	intervalCount := randIntervalCount()
 	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
 	exposureKeys := make([]model.ExposureKey, numKeys)
 	for i, rawKey := range keys {
+		transmissionRisk := tr
+		if transmissionRisk < 0 {
+			transmissionRisk = randomInt(maxTransmissionRisk) + 1
+		}
+
 		exposureKeys[i].Key = base64.StdEncoding.EncodeToString(rawKey)
 		exposureKeys[i].IntervalNumber = intervalNumber
 		exposureKeys[i].IntervalCount = intervalCount
+		exposureKeys[i].TransmissionRisk = transmissionRisk
 		// Adjust interval math for next key.
 		intervalCount = randIntervalCount()
 		intervalNumber -= intervalCount
