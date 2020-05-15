@@ -21,7 +21,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/google/exposure-notifications-server/internal/api/federationin"
+	"github.com/google/exposure-notifications-server/internal/federationin"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
