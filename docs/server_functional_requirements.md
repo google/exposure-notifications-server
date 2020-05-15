@@ -83,7 +83,7 @@ Minimum required fields, followed by a JSON example:
   * Type: Integer
   * **The values and meanings of this enum are not finalized at this time.** //TODO(llatif): check status
   * Constraints:
-    * Valid values range from 1-9
+    * Valid values range from 1-8
   * Description: //TODO(llatif): Add description
 * `deviceVerificationPayload` (**REQUIRED**)
   * Type: String
