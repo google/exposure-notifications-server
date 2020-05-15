@@ -26,6 +26,9 @@ import (
 var (
 	// ErrNotFound indicates that the requested record was not found in the database.
 	ErrNotFound = errors.New("record not found")
+
+	// ErrKeyConflict indicates that there was a key conflict inserting a row.
+	ErrKeyConflict = errors.New("key conflict")
 )
 
 func toNullString(s string) sql.NullString {
