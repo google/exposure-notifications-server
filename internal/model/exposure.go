@@ -205,7 +205,7 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 		}
 
 		tr := exposureKey.TransmissionRisk
-		// This is temporary - while we reprecate per-request tranismission risk
+		// This is temporary - while we dreprecate per-request tranismission risk
 		if tr == 0 && defaultTR != 0 {
 			tr = defaultTR
 		}
