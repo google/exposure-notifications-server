@@ -28,13 +28,17 @@ import (
 )
 
 var (
-	bucketName    = flag.String("bucket-name", "", "The bucket name to store the export file.")
-	filenameRoot  = flag.String("filename-root", "", "The root filename for the export file.")
-	period        = flag.Duration("period", 24*time.Hour, "The frequency with which to create export files.")
-	region        = flag.String("region", "", "The region for the export batches/files.")
-	fromTimestamp = flag.String("from-timestamp", "", "The timestamp (RFC3339) when this config becomes active.")
-	thruTimestamp = flag.String("thru-timestamp", "", "The timestamp (RFC3339) when this config ends.")
-	signingKey    = flag.String("signing-key", "", "The KMS resource ID to use for signing batches.")
+	bucketName        = flag.String("bucket-name", "", "The bucket name to store the export file.")
+	filenameRoot      = flag.String("filename-root", "", "The root filename for the export file.")
+	period            = flag.Duration("period", 24*time.Hour, "The frequency with which to create export files.")
+	region            = flag.String("region", "", "The region for the export batches/files.")
+	fromTimestamp     = flag.String("from-timestamp", "", "The timestamp (RFC3339) when this config becomes active.")
+	thruTimestamp     = flag.String("thru-timestamp", "", "The timestamp (RFC3339) when this config ends.")
+	signingKey        = flag.String("signing-key", "", "The KMS resource ID to use for signing batches.")
+	signingKeyID      = flag.String("signing-key-id", "", "The ID of the signing key (for clients).")
+	signingKeyVersion = flag.String("signing-key-version", "", "The version of the signing key (for clients).")
+	appPkgID          = flag.String("app-pkg-id", "", "The App Packge ID to put in export headers")
+	bundleID          = flag.String("bundle-id", "", "The BundleID to put in export headers")
 )
 
 func main() {
@@ -87,13 +91,17 @@ func main() {
 	defer db.Close(ctx)
 
 	ec := model.ExportConfig{
-		BucketName:   *bucketName,
-		FilenameRoot: *filenameRoot,
-		Period:       *period,
-		Region:       *region,
-		From:         fromTime,
-		Thru:         thruTime,
-		SigningKey:   *signingKey,
+		BucketName:        *bucketName,
+		FilenameRoot:      *filenameRoot,
+		Period:            *period,
+		Region:            *region,
+		From:              fromTime,
+		Thru:              thruTime,
+		SigningKey:        *signingKey,
+		SigningKeyID:      *signingKeyID,
+		SigningKeyVersion: *signingKeyVersion,
+		AppPkgName:        *appPkgID,
+		BundleID:          *bundleID,
 	}
 
 	if err := db.AddExportConfig(ctx, &ec); err != nil {

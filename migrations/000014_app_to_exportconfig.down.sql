@@ -14,7 +14,14 @@
 
 BEGIN;
 
-ALTER TABLE APIConfig
-  ADD COLUMN bypass_safetynet bool DEFAULT false;
+ALTER TABLE ExportBatch DROP COLUMN app_package_name;
+ALTER TABLE ExportBatch DROP COLUMN bundle_id;
+ALTER TABLE ExportBatch DROP COLUMN signing_key_version;
+ALTER TABLE ExportBatch DROP COLUMN signing_key_id;
+
+ALTER TABLE ExportConfig DROP COLUMN app_package_name;
+ALTER TABLE ExportConfig DROP COLUMN bundle_id;
+ALTER TABLE ExportConfig DROP COLUMN signing_key_version;
+ALTER TABLE ExportConfig DROP COLUMN signing_key_id;
 
 END;

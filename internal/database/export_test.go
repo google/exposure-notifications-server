@@ -36,13 +36,17 @@ func TestAddExportConfig(t *testing.T) {
 	fromTime := time.Now()
 	thruTime := fromTime.Add(6 * time.Hour)
 	want := &model.ExportConfig{
-		BucketName:   "mocked",
-		FilenameRoot: "root",
-		Period:       3 * time.Hour,
-		Region:       "i1",
-		From:         fromTime,
-		Thru:         thruTime,
-		SigningKey:   "key",
+		BucketName:        "mocked",
+		FilenameRoot:      "root",
+		Period:            3 * time.Hour,
+		Region:            "i1",
+		From:              fromTime,
+		Thru:              thruTime,
+		SigningKey:        "key",
+		SigningKeyID:      "1",
+		SigningKeyVersion: "2",
+		AppPkgName:        "android.pkg",
+		BundleID:          "ios.bundle",
 	}
 	if err := testDB.AddExportConfig(ctx, want); err != nil {
 		t.Fatal(err)
@@ -58,12 +62,12 @@ func TestAddExportConfig(t *testing.T) {
 	)
 	err = conn.QueryRow(ctx, `
 		SELECT
-			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key
+			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key, signing_key_id, signing_key_version, app_package_name, bundle_id
 		FROM
 			ExportConfig
 		WHERE
 			config_id = $1
-	`, want.ConfigID).Scan(&got.ConfigID, &got.BucketName, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru, &got.SigningKey)
+	`, want.ConfigID).Scan(&got.ConfigID, &got.BucketName, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru, &got.SigningKey, &got.SigningKeyID, &got.SigningKeyVersion, &got.AppPkgName, &got.BundleID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,12 +145,17 @@ func TestBatches(t *testing.T) {
 
 	now := time.Now().Truncate(time.Microsecond)
 	config := &model.ExportConfig{
-		BucketName:   "mocked",
-		FilenameRoot: "root",
-		Period:       time.Hour,
-		Region:       "R",
-		From:         now,
-		Thru:         now.Add(time.Hour),
+		BucketName:        "mocked",
+		FilenameRoot:      "root",
+		Period:            time.Hour,
+		Region:            "R",
+		From:              now,
+		Thru:              now.Add(time.Hour),
+		SigningKey:        "/path/to/key",
+		SigningKeyID:      "1",
+		SigningKeyVersion: "2",
+		AppPkgName:        "android.pkg",
+		BundleID:          "ios.bundle",
 	}
 	if err := testDB.AddExportConfig(ctx, config); err != nil {
 		t.Fatal(err)
@@ -158,13 +167,18 @@ func TestBatches(t *testing.T) {
 		end := start.Add(time.Minute)
 		wantLatest = end
 		batches = append(batches, &model.ExportBatch{
-			ConfigID:       config.ConfigID,
-			BucketName:     config.BucketName,
-			FilenameRoot:   config.FilenameRoot,
-			Region:         config.Region,
-			Status:         model.ExportBatchOpen,
-			StartTimestamp: start,
-			EndTimestamp:   end,
+			ConfigID:          config.ConfigID,
+			BucketName:        config.BucketName,
+			FilenameRoot:      config.FilenameRoot,
+			Region:            config.Region,
+			Status:            model.ExportBatchOpen,
+			StartTimestamp:    start,
+			EndTimestamp:      end,
+			SigningKey:        "/path/to/key",
+			SigningKeyID:      "1",
+			SigningKeyVersion: "2",
+			AppPkgName:        "android.pkg",
+			BundleID:          "ios.bundle",
 		})
 	}
 	if err := testDB.AddExportBatches(ctx, batches); err != nil {

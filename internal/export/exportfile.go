@@ -39,15 +39,15 @@ const (
 )
 
 // MarshalExportFile converts the inputs into an encoded byte array.
-func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int, signer crypto.Signer, keyId, keyVersion string) ([]byte, error) {
+func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int, signer crypto.Signer) ([]byte, error) {
 	// create main exposure key export binary
-	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize), keyId, keyVersion)
+	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize))
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal exposure keys: %w", err)
 	}
 
 	// create signature file
-	sigContents, err := marshalSignature(expContents, int32(batchNum), int32(batchSize), signer, keyId, keyVersion)
+	sigContents, err := marshalSignature(eb, expContents, int32(batchNum), int32(batchSize), signer)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal signature file: %w", err)
 	}
@@ -77,7 +77,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batch
 	return buf.Bytes(), nil
 }
 
-func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNum int32, batchSize int32, keyId, keyVersion string) ([]byte, error) {
+func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNum int32, batchSize int32) ([]byte, error) {
 	exportBytes := []byte("EK Export v1    ")
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))
@@ -102,6 +102,7 @@ func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNu
 		}
 		pbeks = append(pbeks, &pbek)
 	}
+
 	pbeke := export.TemporaryExposureKeyExport{
 		StartTimestamp: proto.Uint64(uint64(eb.StartTimestamp.Unix())),
 		EndTimestamp:   proto.Uint64(uint64(eb.EndTimestamp.Unix())),
@@ -109,13 +110,7 @@ func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNu
 		BatchNum:       proto.Int32(int32(batchNum)),
 		BatchSize:      proto.Int32(int32(batchSize)),
 		Keys:           pbeks,
-		SignatureInfos: []*export.SignatureInfo{
-			{
-				VerificationKeyId:      proto.String(keyId),
-				VerificationKeyVersion: proto.String(keyVersion),
-				SignatureAlgorithm:     proto.String(algorithm),
-			},
-		},
+		SignatureInfos: []*export.SignatureInfo{createSignatureInfo(eb)},
 	}
 	protoBytes, err := proto.Marshal(&pbeke)
 	if err != nil {
@@ -124,20 +119,33 @@ func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNu
 	return append(exportBytes, protoBytes...), nil
 }
 
-func marshalSignature(exportContents []byte, batchNum int32, batchSize int32, signer crypto.Signer, keyId, keyVersion string) ([]byte, error) {
+func createSignatureInfo(eb *model.ExportBatch) *export.SignatureInfo {
+	sigInfo := &export.SignatureInfo{SignatureAlgorithm: proto.String(algorithm)}
+	if eb.AppPkgName != "" {
+		sigInfo.AndroidPackage = proto.String(eb.AppPkgName)
+	}
+	if eb.BundleID != "" {
+		sigInfo.AppBundleId = proto.String(eb.BundleID)
+	}
+	if eb.SigningKeyVersion != "" {
+		sigInfo.VerificationKeyVersion = proto.String(eb.SigningKeyVersion)
+	}
+	if eb.SigningKeyID != "" {
+		sigInfo.VerificationKeyId = proto.String(eb.SigningKeyID)
+	}
+	return sigInfo
+}
+
+func marshalSignature(eb *model.ExportBatch, exportContents []byte, batchNum int32, batchSize int32, signer crypto.Signer) ([]byte, error) {
 	sig, err := generateSignature(exportContents, signer)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate signature: %v", err)
 	}
 	teks := &export.TEKSignature{
-		SignatureInfo: &export.SignatureInfo{
-			VerificationKeyId:      proto.String(keyId),
-			VerificationKeyVersion: proto.String(keyVersion),
-			SignatureAlgorithm:     proto.String(algorithm),
-		},
-		BatchNum:  proto.Int32(batchNum),
-		BatchSize: proto.Int32(batchSize),
-		Signature: sig,
+		SignatureInfo: createSignatureInfo(eb),
+		BatchNum:      proto.Int32(batchNum),
+		BatchSize:     proto.Int32(batchSize),
+		Signature:     sig,
 	}
 	teksl := export.TEKSignatureList{
 		Signatures: []*export.TEKSignature{teks},
