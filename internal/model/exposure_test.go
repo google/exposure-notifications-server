@@ -144,11 +144,11 @@ func TestPublishValidation(t *testing.T) {
 						Key:              encodeKey(generateKey(t)),
 						IntervalNumber:   currentInterval - 2,
 						IntervalCount:    1,
-						TransmissionRisk: minTransmissionRisk - 1,
+						TransmissionRisk: MinTransmissionRisk - 1,
 					},
 				},
 			},
-			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", minTransmissionRisk-1, minTransmissionRisk, maxTransmissionRisk),
+			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", MinTransmissionRisk-1, MinTransmissionRisk, MaxTransmissionRisk),
 		},
 		{
 			name: "tranismission risk too high",
@@ -158,21 +158,21 @@ func TestPublishValidation(t *testing.T) {
 						Key:              encodeKey(generateKey(t)),
 						IntervalNumber:   currentInterval - 2,
 						IntervalCount:    1,
-						TransmissionRisk: maxTransmissionRisk + 1,
+						TransmissionRisk: MaxTransmissionRisk + 1,
 					},
 				},
 			},
-			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", maxTransmissionRisk+1, minTransmissionRisk, maxTransmissionRisk),
+			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", MaxTransmissionRisk+1, MinTransmissionRisk, MaxTransmissionRisk),
 		},
 		{
 			name: "key length too short",
 			p: &Publish{
 				Keys: []ExposureKey{
-					{Key: encodeKey(generateKey(t)[0 : keyLength-2])},
+					{Key: encodeKey(generateKey(t)[0 : KeyLength-2])},
 				},
-				TransmissionRisk: maxTransmissionRisk - 1,
+				TransmissionRisk: MaxTransmissionRisk - 1,
 			},
-			m: fmt.Sprintf("invalid key length, %v, must be %v", keyLength-2, keyLength),
+			m: fmt.Sprintf("invalid key length, %v, must be %v", KeyLength-2, KeyLength),
 		},
 		{
 			name: "interval count too small",
@@ -180,12 +180,12 @@ func TestPublishValidation(t *testing.T) {
 				Keys: []ExposureKey{
 					{
 						Key:           encodeKey(generateKey(t)),
-						IntervalCount: minIntervalCount - 1,
+						IntervalCount: MinIntervalCount - 1,
 					},
 				},
-				TransmissionRisk: maxTransmissionRisk - 1,
+				TransmissionRisk: MaxTransmissionRisk - 1,
 			},
-			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", minIntervalCount-1, minIntervalCount, maxIntervalCount),
+			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", MinIntervalCount-1, MinIntervalCount, MaxIntervalCount),
 		},
 		{
 			name: "interval count too high",
@@ -193,12 +193,12 @@ func TestPublishValidation(t *testing.T) {
 				Keys: []ExposureKey{
 					{
 						Key:           encodeKey(generateKey(t)),
-						IntervalCount: maxIntervalCount + 1,
+						IntervalCount: MaxIntervalCount + 1,
 					},
 				},
-				TransmissionRisk: maxTransmissionRisk - 1,
+				TransmissionRisk: MaxTransmissionRisk - 1,
 			},
-			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", maxIntervalCount+1, minIntervalCount, maxIntervalCount),
+			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", MaxIntervalCount+1, MinIntervalCount, MaxIntervalCount),
 		},
 		{
 			name: "interval number too low",
@@ -207,10 +207,10 @@ func TestPublishValidation(t *testing.T) {
 					{
 						Key:            encodeKey(generateKey(t)),
 						IntervalNumber: minInterval - 1,
-						IntervalCount:  maxIntervalCount,
+						IntervalCount:  MaxIntervalCount,
 					},
 				},
-				TransmissionRisk: maxTransmissionRisk - 1,
+				TransmissionRisk: MaxTransmissionRisk - 1,
 			},
 			m: fmt.Sprintf("interval number %v is too old, must be >= %v", minInterval-1, minInterval),
 		},
@@ -224,7 +224,7 @@ func TestPublishValidation(t *testing.T) {
 						IntervalCount:  1,
 					},
 				},
-				TransmissionRisk: maxTransmissionRisk - 1,
+				TransmissionRisk: MaxTransmissionRisk - 1,
 			},
 			m: fmt.Sprintf("interval number %v is in the future, must be < %v", currentInterval+1, currentInterval),
 		},
@@ -272,21 +272,21 @@ func TestTransform(t *testing.T) {
 			{
 				Key:            encodeKey(generateKey(t)),
 				IntervalNumber: intervalNumber,
-				IntervalCount:  maxIntervalCount,
+				IntervalCount:  MaxIntervalCount,
 			},
 			{
 				Key:            encodeKey(generateKey(t)),
-				IntervalNumber: intervalNumber + maxIntervalCount,
-				IntervalCount:  maxIntervalCount,
+				IntervalNumber: intervalNumber + MaxIntervalCount,
+				IntervalCount:  MaxIntervalCount,
 			},
 			{
 				Key:            encodeKey(generateKey(t)),
-				IntervalNumber: intervalNumber + 2*maxIntervalCount,
-				IntervalCount:  maxIntervalCount, // Invalid, should get rounded down
+				IntervalNumber: intervalNumber + 2*MaxIntervalCount,
+				IntervalCount:  MaxIntervalCount, // Invalid, should get rounded down
 			},
 			{
 				Key:            encodeKey(generateKey(t)),
-				IntervalNumber: intervalNumber + 3*maxIntervalCount,
+				IntervalNumber: intervalNumber + 3*MaxIntervalCount,
 				IntervalCount:  42,
 			},
 		},
@@ -300,21 +300,21 @@ func TestTransform(t *testing.T) {
 		{
 			ExposureKey:    decodeKey(source.Keys[0].Key, t),
 			IntervalNumber: intervalNumber,
-			IntervalCount:  maxIntervalCount,
+			IntervalCount:  MaxIntervalCount,
 		},
 		{
 			ExposureKey:    decodeKey(source.Keys[1].Key, t),
-			IntervalNumber: intervalNumber + maxIntervalCount,
-			IntervalCount:  maxIntervalCount,
+			IntervalNumber: intervalNumber + MaxIntervalCount,
+			IntervalCount:  MaxIntervalCount,
 		},
 		{
 			ExposureKey:    decodeKey(source.Keys[2].Key, t),
-			IntervalNumber: intervalNumber + 2*maxIntervalCount,
-			IntervalCount:  maxIntervalCount,
+			IntervalNumber: intervalNumber + 2*MaxIntervalCount,
+			IntervalCount:  MaxIntervalCount,
 		},
 		{
 			ExposureKey:    decodeKey(source.Keys[3].Key, t),
-			IntervalNumber: intervalNumber + 3*maxIntervalCount,
+			IntervalNumber: intervalNumber + 3*MaxIntervalCount,
 			IntervalCount:  42,
 		},
 	}
@@ -365,12 +365,12 @@ func TestTransformOverlapping(t *testing.T) {
 					{
 						Key:            encodeKey(generateKey(t)),
 						IntervalNumber: intervalNumber,
-						IntervalCount:  maxIntervalCount,
+						IntervalCount:  MaxIntervalCount,
 					},
 					{
 						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: intervalNumber + maxIntervalCount - 2,
-						IntervalCount:  maxIntervalCount,
+						IntervalNumber: intervalNumber + MaxIntervalCount - 2,
+						IntervalCount:  MaxIntervalCount,
 					},
 				},
 				Regions:          []string{"us", "cA", "Mx"}, // will be upcased
@@ -385,12 +385,12 @@ func TestTransformOverlapping(t *testing.T) {
 					{
 						Key:            encodeKey(generateKey(t)),
 						IntervalNumber: intervalNumber,
-						IntervalCount:  maxIntervalCount,
+						IntervalCount:  MaxIntervalCount,
 					},
 					{
 						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: intervalNumber - maxIntervalCount + 1,
-						IntervalCount:  maxIntervalCount,
+						IntervalNumber: intervalNumber - MaxIntervalCount + 1,
+						IntervalCount:  MaxIntervalCount,
 					},
 				},
 				Regions:          []string{"us", "cA", "Mx"}, // will be upcased

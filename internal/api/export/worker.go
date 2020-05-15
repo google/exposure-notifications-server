@@ -16,7 +16,9 @@ package export
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"net/http"
 	"sort"
 	"strings"
@@ -112,6 +114,11 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch) error {
 
 	if len(groups) == 0 {
 		logger.Infof("No records for export batch %d", eb.BatchID)
+	}
+
+	exposures, err = ensureMinNumExposures(exposures, eb.Region, s.config.MinRecords, s.config.PaddingRange)
+	if err != nil {
+		return fmt.Errorf("ensureMinNumExposures: %w", err)
 	}
 
 	// Create the export files.
@@ -246,4 +253,65 @@ func exportFilename(eb *model.ExportBatch, batchNum int) string {
 
 func exportIndexFilename(eb *model.ExportBatch) string {
 	return fmt.Sprintf("%s/index.txt", eb.FilenameRoot)
+}
+
+// randomInt is inclusive, [min:max]
+func randomInt(min, max int) (int, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(max-min+1)))
+	if err != nil {
+		return 0, err
+	}
+	return int(n.Int64()) + min, nil
+}
+
+func ensureMinNumExposures(exposures []*model.Exposure, region string, minLength, jitter int) ([]*model.Exposure, error) {
+	if len(exposures) == 0 {
+		return nil, fmt.Errorf("cannot pad zero length exposures")
+	}
+
+	extra, _ := randomInt(0, jitter)
+	target := minLength + extra
+
+	for len(exposures) < target {
+		// Pieces needed are
+		// (1) exposure key, (2) interval number, (3) transmission risk
+		// Exposure key is 16 random bytes.
+		eKey := make([]byte, model.KeyLength)
+		_, err := rand.Read(eKey)
+		if err != nil {
+			return nil, fmt.Errorf("rand.Read: %w", err)
+		}
+
+		// Transmission risk is within the bounds.
+		transmissionRisk, err := randomInt(model.MinTransmissionRisk, model.MaxTransmissionRisk)
+		if err != nil {
+			return nil, fmt.Errorf("randomInt: %w", err)
+		}
+
+		// The interval number is pulled from an existing one in the batch
+		// at random.
+		fromIdx, err := randomInt(0, len(exposures)-1)
+		if err != nil {
+			return nil, fmt.Errorf("randomInt: %w", err)
+		}
+		intervalNumber := exposures[fromIdx].IntervalNumber
+		// Same with the interval count.
+		fromIdx, err = randomInt(0, len(exposures)-1)
+		if err != nil {
+			return nil, fmt.Errorf("randomInt: %w", err)
+		}
+		intervalCount := exposures[fromIdx].IntervalCount
+
+		ek := &model.Exposure{
+			ExposureKey:      eKey,
+			TransmissionRisk: transmissionRisk,
+			Regions:          []string{region},
+			IntervalNumber:   intervalNumber,
+			IntervalCount:    intervalCount,
+			// The rest of the model.Exposure fields are not used in the export file.
+		}
+		exposures = append(exposures, ek)
+	}
+
+	return exposures, nil
 }

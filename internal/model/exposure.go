@@ -28,16 +28,16 @@ const (
 	maxKeysPerPublish = 21
 
 	// only valid exposure key keyLength
-	keyLength = 16
+	KeyLength = 16
 
 	// Transmission risk constraints (inclusive..inclusive)
-	minTransmissionRisk = 0 // 0 indicates, no/unknown risk.
-	maxTransmissionRisk = 8
+	MinTransmissionRisk = 0 // 0 indicates, no/unknown risk.
+	MaxTransmissionRisk = 8
 
 	// Intervals are defined as 10 minute periods, there are 144 of them in a day.
 	// IntervalCount constraints (inclusive..inclusive)
-	minIntervalCount = 1
-	maxIntervalCount = 144
+	MinIntervalCount = 1
+	MaxIntervalCount = 144
 
 	// Self explanitory.
 	oneDay = time.Hour * 24
@@ -178,8 +178,8 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 	// Transmission risk for the whole batch is deprecated - it is now part
 	// of the ExposureKey.
 	defaultTR := inData.TransmissionRisk
-	if defaultTR < minTransmissionRisk || defaultTR > maxTransmissionRisk {
-		return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", defaultTR, minTransmissionRisk, maxTransmissionRisk)
+	if defaultTR < MinTransmissionRisk || defaultTR > MaxTransmissionRisk {
+		return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", defaultTR, MinTransmissionRisk, MaxTransmissionRisk)
 	}
 
 	for _, exposureKey := range inData.Keys {
@@ -189,11 +189,11 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 		}
 
 		// Validate individual pieces of this publish request.
-		if len(binKey) != keyLength {
-			return nil, fmt.Errorf("invalid key length, %v, must be %v", len(binKey), keyLength)
+		if len(binKey) != KeyLength {
+			return nil, fmt.Errorf("invalid key length, %v, must be %v", len(binKey), KeyLength)
 		}
-		if ic := exposureKey.IntervalCount; ic < minIntervalCount || ic > maxIntervalCount {
-			return nil, fmt.Errorf("invalid interval count, %v, must be >= %v && <= %v", ic, minIntervalCount, maxIntervalCount)
+		if ic := exposureKey.IntervalCount; ic < MinIntervalCount || ic > MaxIntervalCount {
+			return nil, fmt.Errorf("invalid interval count, %v, must be >= %v && <= %v", ic, MinIntervalCount, MaxIntervalCount)
 		}
 
 		// Validate the IntervalNumber.
@@ -209,8 +209,8 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 		if tr == 0 && defaultTR != 0 {
 			tr = defaultTR
 		}
-		if tr < minTransmissionRisk || tr > maxTransmissionRisk {
-			return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, minTransmissionRisk, maxTransmissionRisk)
+		if tr < MinTransmissionRisk || tr > MaxTransmissionRisk {
+			return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, MinTransmissionRisk, MaxTransmissionRisk)
 		}
 
 		exposure := &Exposure{
