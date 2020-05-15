@@ -39,15 +39,15 @@ const (
 )
 
 // MarshalExportFile converts the inputs into an encoded byte array.
-func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int, signer crypto.Signer, keyId string) ([]byte, error) {
+func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batchNum, batchSize int, signer crypto.Signer, keyId, keyVersion string) ([]byte, error) {
 	// create main exposure key export binary
-	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize), keyId)
+	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize), keyId, keyVersion)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal exposure keys: %w", err)
 	}
 
 	// create signature file
-	sigContents, err := marshalSignature(expContents, int32(batchNum), int32(batchSize), signer, keyId)
+	sigContents, err := marshalSignature(expContents, int32(batchNum), int32(batchSize), signer, keyId, keyVersion)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal signature file: %w", err)
 	}
@@ -77,7 +77,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batch
 	return buf.Bytes(), nil
 }
 
-func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNum int32, batchSize int32, keyId string) ([]byte, error) {
+func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNum int32, batchSize int32, keyId, keyVersion string) ([]byte, error) {
 	exportBytes := []byte("EK Export v1    ")
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))
@@ -111,8 +111,9 @@ func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNu
 		Keys:           pbeks,
 		SignatureInfos: []*export.SignatureInfo{
 			{
-				VerificationKeyId:  proto.String(keyId),
-				SignatureAlgorithm: proto.String(algorithm),
+				VerificationKeyId:      proto.String(keyId),
+				VerificationKeyVersion: proto.String(keyVersion),
+				SignatureAlgorithm:     proto.String(algorithm),
 			},
 		},
 	}
@@ -123,15 +124,16 @@ func marshalContents(eb *model.ExportBatch, exposures []*model.Exposure, batchNu
 	return append(exportBytes, protoBytes...), nil
 }
 
-func marshalSignature(exportContents []byte, batchNum int32, batchSize int32, signer crypto.Signer, keyId string) ([]byte, error) {
+func marshalSignature(exportContents []byte, batchNum int32, batchSize int32, signer crypto.Signer, keyId, keyVersion string) ([]byte, error) {
 	sig, err := generateSignature(exportContents, signer)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate signature: %v", err)
 	}
 	teks := &export.TEKSignature{
 		SignatureInfo: &export.SignatureInfo{
-			VerificationKeyId:  proto.String(keyId),
-			SignatureAlgorithm: proto.String(algorithm),
+			VerificationKeyId:      proto.String(keyId),
+			VerificationKeyVersion: proto.String(keyVersion),
+			SignatureAlgorithm:     proto.String(algorithm),
 		},
 		BatchNum:  proto.Int32(batchNum),
 		BatchSize: proto.Int32(batchSize),

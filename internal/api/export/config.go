@@ -29,12 +29,13 @@ var _ setup.DBConfigProvider = (*Config)(nil)
 // Config represents the configuration and associated environment variables for
 // the export components.
 type Config struct {
-	Port          string        `envconfig:"PORT" default:"8080"`
-	CreateTimeout time.Duration `envconfig:"CREATE_BATCHES_TIMEOUT" default:"5m"`
-	WorkerTimeout time.Duration `envconfig:"WORKER_TIMEOUT" default:"5m"`
-	MaxRecords    int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
-	Database      *database.Config
-	DefaultKeyID  string `envconfig:"EXPORT_FILE_DEFAULT_KEY_ID" default:"ExampleServer_k1"`
+	Database          *database.Config
+	Port              string        `envconfig:"PORT" default:"8080"`
+	CreateTimeout     time.Duration `envconfig:"CREATE_BATCHES_TIMEOUT" default:"5m"`
+	WorkerTimeout     time.Duration `envconfig:"WORKER_TIMEOUT" default:"5m"`
+	MaxRecords        int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
+	DefaultKeyID      string        `envconfig:"EXPORT_FILE_DEFAULT_KEY_ID" default:"ExampleServer"`
+	DefaultKeyVersion string        `envconfig:"EXPORT_FILE_DEFAULT_KEY_VERSION" default:"1"`
 }
 
 // DB returns the database config.
