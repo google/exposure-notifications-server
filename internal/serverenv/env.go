@@ -20,7 +20,7 @@ import (
 	"crypto"
 	"fmt"
 
-	"github.com/google/exposure-notifications-server/internal/api/config"
+	"github.com/google/exposure-notifications-server/internal/config"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"

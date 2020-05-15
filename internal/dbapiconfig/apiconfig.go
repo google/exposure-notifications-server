@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	provider "github.com/google/exposure-notifications-server/internal/api/config"
+	provider "github.com/google/exposure-notifications-server/internal/config"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/model/apiconfig"

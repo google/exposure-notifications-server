@@ -20,7 +20,7 @@ import (
 	"log"
 	"net/http"
 
-	cleanup "github.com/google/exposure-notifications-server/internal/cleanup/api"
+	cleanup "github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
