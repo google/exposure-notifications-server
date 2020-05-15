@@ -23,12 +23,19 @@ gcloud.  [Installation guide](https://cloud.google.com/sdk/install), though
 Enable a billing account for this project, and remember its project ID (the
 unique, unchangeable string that you will be asked for during creation).
 
-1. Log in to gcloud using `gcloud auth login`.
+1. Decide whether or not to use cloud build triggers. If you do, every push to master on the GitHub repo containing
+the exposure server code will trigger a new deployment. To enable this:
+
+    1. Visit https://console.cloud.google.com/cloud-build/triggers/connect and follow the instructions to connect as a Cloud Build GitHub App. You must choose a repository that you have admin permissions on.
+
+    1. Remember which repo you used. You will need to set the repo owner (e.g. 'google') and name (e.g. 'exposure-notifications-server') as variables in the `terraform apply`
+
+1. Log in to gcloud using `gcloud auth application-default login`.
 
 1. Change to this directory and run `terraform init`.  Terraform will
 automatically download the plugins required to execute this code.
 
-1. Run `terraform apply -var project=$YOUR_PROJECT_ID_FROM_STEP_1`.
+1. Run `terraform apply -var project=$YOUR_PROJECT_ID_FROM_STEP_1 [-var use_build_triggers=true -var repo_owner=$YOUR_REPO_OWNER -var repo_name=$YOUR_REPO_NAME]`.
 
 Terraform will begin by creating the service accounts and enabling the services
 on GCP which are required to run this server.
