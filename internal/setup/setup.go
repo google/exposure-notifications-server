@@ -96,7 +96,7 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 	opts = append(opts, serverenv.WithDatabase(db))
 
 	if apicfg, ok := config.(DBAPIConfigProvider); ok {
-		cfgProvider, err := dbapiconfig.NewConfigProvider(db, apicfg.API())
+		cfgProvider, err := dbapiconfig.NewConfigProvider(db, sm, apicfg.API())
 		if err != nil {
 			// APIConfig must come after DB due to dependency, ensure connection is closed
 			defer db.Close(ctx)

@@ -36,7 +36,7 @@ func main() {
 	var config federationout.Config
 	env, closer, err := setup.Setup(ctx, &config)
 	if err != nil {
-		logger.Fatal("setup.Setup: %v", err)
+		logger.Fatalf("setup.Setup: %v", err)
 	}
 	defer closer()
 

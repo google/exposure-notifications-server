@@ -205,13 +205,13 @@ resource "google_cloudbuild_trigger" "update-schema" {
     }
   }
   substitutions = {
-    "_HOST": "localhost"
-    "_CLOUDSQLPATH": "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-    "_PORT": "5432"
-    "_PASSWORD_SECRET": google_secret_manager_secret.db-pwd.secret_id
-    "_USER": google_sql_user.user.name
-    "_NAME": google_sql_database.db.name
-    "_SSLMODE": "disable"
+    "_HOST" : "localhost"
+    "_CLOUDSQLPATH" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+    "_PORT" : "5432"
+    "_PASSWORD_SECRET" : google_secret_manager_secret.db-pwd.secret_id
+    "_USER" : google_sql_user.user.name
+    "_NAME" : google_sql_database.db.name
+    "_SSLMODE" : "disable"
   }
   provisioner "local-exec" {
     command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=_HOST=${google_sql_database_instance.db-inst.public_ip_address},_PORT=5432,_PASSWORD_SECRET=${google_secret_manager_secret.db-pwd.secret_id},_USER=${google_sql_user.user.name},_NAME=${google_sql_database.db.name},_SSLMODE=disable,_CLOUDSQLPATH=${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
@@ -304,7 +304,7 @@ resource "google_cloud_run_service" "exposure" {
           value = google_sql_user.user.name
         }
         env {
-          name  = "DB_DBNAME"
+          name  = "DB_NAME"
           value = google_sql_database.db.name
         }
       }
@@ -312,11 +312,11 @@ resource "google_cloud_run_service" "exposure" {
     metadata {
       annotations = {
         "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-        "autoscaling.knative.dev/maxScale"      : "1000"
+        "autoscaling.knative.dev/maxScale" : "1000"
       }
     }
   }
-	depends_on = [google_cloudbuild_trigger.build-and-publish]
+  depends_on = [google_cloudbuild_trigger.build-and-publish]
 }
 
 resource "google_cloud_run_service" "export" {
@@ -371,7 +371,7 @@ resource "google_cloud_run_service" "export" {
           value = google_sql_user.user.name
         }
         env {
-          name  = "DB_DBNAME"
+          name  = "DB_NAME"
           value = google_sql_database.db.name
         }
       }
@@ -379,11 +379,11 @@ resource "google_cloud_run_service" "export" {
     metadata {
       annotations = {
         "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-        "autoscaling.knative.dev/maxScale"      : "1000"
+        "autoscaling.knative.dev/maxScale" : "1000"
       }
     }
   }
-	depends_on = [google_cloudbuild_trigger.build-and-publish]
+  depends_on = [google_cloudbuild_trigger.build-and-publish]
 }
 
 

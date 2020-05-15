@@ -24,7 +24,7 @@ spec:
           secretKeyRef:
             key: password
             name: dbpassword
-      - name: DB_DBNAME
+      - name: DB_NAME
         valueFrom:
           configMapKeyRef:
             key: dbname
