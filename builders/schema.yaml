@@ -9,6 +9,7 @@ steps:
   args: ['-c', 'gcloud secrets versions access latest --secret $_PASSWORD_SECRET > decrypted_password.txt']
 - name: 'gcr.io/$PROJECT_ID/migrations'
   args: ['up']
+  entrypoint: migrate.sh
   env:
     - 'DB_PASSWORD=decrypted_password.txt'
     - 'DB_HOST=$_HOST'

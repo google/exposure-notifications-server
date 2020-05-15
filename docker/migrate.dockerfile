@@ -26,10 +26,16 @@ RUN chmod +x /bin/cloud_sql_proxy
 # Install migrate
 RUN go get -tags 'postgres' -u github.com/golang-migrate/migrate/cmd/migrate
 
+# Add migrate.sh script - for use in cloud build.
+ADD migrate.sh /bin/migrate.sh
+RUN chmod +x /bin/migrate.sh
 
 FROM alpine
+RUN apk add --no-cache bash
 
 COPY --from=builder /bin/cloud_sql_proxy /bin/cloud_sql_proxy
+COPY --from=builder /bin/migrate.sh /bin/migrate.sh
 COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
+
 
 ENTRYPOINT ["/usr/local/bin/migrate"]
