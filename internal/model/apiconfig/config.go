@@ -37,7 +37,7 @@ type APIConfig struct {
 	BasicIntegrity    bool
 	AllowedPastTime   time.Duration
 	AllowedFutureTime time.Duration
-	AllowedRegions    map[string]bool
+	AllowedRegions    map[string]struct{}
 	AllowAllRegions   bool
 
 	// BypassSafetyNet is an internal field for testing that bypasses Android
@@ -58,7 +58,9 @@ type APIConfig struct {
 
 // New creates a new, empty API config
 func New() *APIConfig {
-	return &APIConfig{AllowedRegions: make(map[string]bool)}
+	return &APIConfig{
+		AllowedRegions: make(map[string]struct{}),
+	}
 }
 
 // IsIOS returns true if the platform is equal to `iosDevice`
@@ -69,6 +71,13 @@ func (c *APIConfig) IsIOS() bool {
 // IsAndroid returns true if the platform is equal to `android`
 func (c *APIConfig) IsAndroid() bool {
 	return c.Platform == androidDevice
+}
+
+// IsAllowedRegion returns true if the region is in the list of allowed regions,
+// false otherwise.
+func (c *APIConfig) IsAllowedRegion(s string) bool {
+	_, ok := c.AllowedRegions[s]
+	return ok
 }
 
 // VerifyOpts returns the Android SafetyNet verification options to be used

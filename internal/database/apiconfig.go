@@ -76,7 +76,7 @@ func (db *DB) ReadAPIConfigs(ctx context.Context, sm secrets.SecretManager) ([]*
 
 		// build the regions map
 		for _, r := range regions {
-			config.AllowedRegions[r] = true
+			config.AllowedRegions[r] = struct{}{}
 		}
 
 		// Resolve secrets to their plaintext values

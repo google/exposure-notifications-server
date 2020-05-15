@@ -89,7 +89,7 @@ func TestReadAPIConfigs(t *testing.T) {
 				{
 					AppPackageName:  "myapp",
 					Platform:        "ios",
-					AllowedRegions:  map[string]bool{"US": true},
+					AllowedRegions:  map[string]struct{}{"US": {}},
 					CTSProfileMatch: true,
 					BasicIntegrity:  true,
 				},
@@ -108,7 +108,7 @@ func TestReadAPIConfigs(t *testing.T) {
 				{
 					AppPackageName:  "myapp",
 					Platform:        "ios",
-					AllowedRegions:  map[string]bool{"US": true},
+					AllowedRegions:  map[string]struct{}{"US": {}},
 					CTSProfileMatch: true,
 					BasicIntegrity:  true,
 					AllowedPastTime: 30 * time.Minute,
@@ -128,7 +128,7 @@ func TestReadAPIConfigs(t *testing.T) {
 				{
 					AppPackageName:    "myapp",
 					Platform:          "ios",
-					AllowedRegions:    map[string]bool{"US": true},
+					AllowedRegions:    map[string]struct{}{"US": {}},
 					CTSProfileMatch:   true,
 					BasicIntegrity:    true,
 					AllowedFutureTime: 30 * time.Minute,
@@ -148,7 +148,7 @@ func TestReadAPIConfigs(t *testing.T) {
 				{
 					AppPackageName:        "myapp",
 					Platform:              "ios",
-					AllowedRegions:        map[string]bool{"US": true},
+					AllowedRegions:        map[string]struct{}{"US": {}},
 					CTSProfileMatch:       true,
 					BasicIntegrity:        true,
 					DeviceCheckTeamID:     "ABCD1234",

@@ -43,7 +43,7 @@ func VerifyRegions(cfg *apiconfig.APIConfig, data *model.Publish) error {
 	}
 
 	for _, r := range data.Regions {
-		if v, ok := cfg.AllowedRegions[r]; !ok || !v {
+		if !cfg.IsAllowedRegion(r) {
 			return fmt.Errorf("application '%v' tried to write unauthorized region: '%v'", cfg.AppPackageName, r)
 		}
 	}

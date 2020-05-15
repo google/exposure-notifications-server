@@ -36,10 +36,10 @@ func TestVerifyRegions(t *testing.T) {
 	}
 	usCaRegions := &apiconfig.APIConfig{
 		AppPackageName: appPkgName,
-		AllowedRegions: make(map[string]bool),
+		AllowedRegions: make(map[string]struct{}),
 	}
-	usCaRegions.AllowedRegions["US"] = true
-	usCaRegions.AllowedRegions["CA"] = true
+	usCaRegions.AllowedRegions["US"] = struct{}{}
+	usCaRegions.AllowedRegions["CA"] = struct{}{}
 
 	cases := []struct {
 		Data *model.Publish
