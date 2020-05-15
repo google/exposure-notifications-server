@@ -23,7 +23,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/api/cleanup"
 	"github.com/google/exposure-notifications-server/internal/api/handlers"
 	"github.com/google/exposure-notifications-server/internal/api/publish"
-	cleanup "github.com/google/exposure-notifications-server/internal/cleanup/api"
+	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
 	"github.com/google/exposure-notifications-server/internal/export"
