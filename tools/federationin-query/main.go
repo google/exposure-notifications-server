@@ -25,7 +25,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/api/federationin"
 	"github.com/google/exposure-notifications-server/internal/database"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/model"
 	"github.com/kelseyhightower/envconfig"
 )
 

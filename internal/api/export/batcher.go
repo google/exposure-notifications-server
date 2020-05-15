@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/model"
 )
 
 // CreateBatchesHandler is a handler to iterate the rows of ExportConfig and

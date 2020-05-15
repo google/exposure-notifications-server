@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/model"
 	"github.com/google/go-cmp/cmp"
 )
 

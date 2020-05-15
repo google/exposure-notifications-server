@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/android"
-	"github.com/google/exposure-notifications-server/internal/model"
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/model"
+	"github.com/google/exposure-notifications-server/model/apiconfig"
 )
 
 const (

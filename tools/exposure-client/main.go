@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/model"
 )
 
 const (

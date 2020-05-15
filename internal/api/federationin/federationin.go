@@ -30,9 +30,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/model"
 
 	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc"

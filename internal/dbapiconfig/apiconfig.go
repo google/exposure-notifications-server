@@ -23,8 +23,8 @@ import (
 	provider "github.com/google/exposure-notifications-server/internal/api/config"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 	"github.com/google/exposure-notifications-server/internal/secrets"
+	"github.com/google/exposure-notifications-server/model/apiconfig"
 )
 
 // Compile-time check to assert Config implements the Provider interface.

@@ -22,8 +22,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/android"
 	"github.com/google/exposure-notifications-server/internal/ios"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/model"
+	"github.com/google/exposure-notifications-server/model/apiconfig"
 )
 
 var (

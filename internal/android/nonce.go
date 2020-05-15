@@ -21,7 +21,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/model"
 )
 
 // Noncer definces an interface for providing Nonce strings.

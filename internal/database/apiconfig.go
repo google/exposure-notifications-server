@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/ios"
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 	"github.com/google/exposure-notifications-server/internal/secrets"
+	"github.com/google/exposure-notifications-server/model/apiconfig"
 )
 
 // ReadAPIConfigs loads all APIConfig values from the database.

@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/model"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/google/go-cmp/cmp"

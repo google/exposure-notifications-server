@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/model/apiconfig"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )

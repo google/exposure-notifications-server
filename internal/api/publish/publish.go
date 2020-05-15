@@ -25,9 +25,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/api/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
+	"github.com/google/exposure-notifications-server/model"
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.

@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/model"
 
 	pgx "github.com/jackc/pgx/v4"
 )

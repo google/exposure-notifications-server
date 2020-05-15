@@ -17,7 +17,7 @@ package config
 import (
 	"context"
 
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/model/apiconfig"
 )
 
 // Provider defines possible APIConfig providers.

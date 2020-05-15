@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/model"
 
 	pgx "github.com/jackc/pgx/v4"
 )

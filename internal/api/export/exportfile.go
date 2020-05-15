@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb/export"
+	"github.com/google/exposure-notifications-server/model"
 
 	"github.com/golang/protobuf/proto"
 )
