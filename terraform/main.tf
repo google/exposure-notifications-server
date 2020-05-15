@@ -27,7 +27,7 @@ data "google_project" "project" {
 resource "google_project_service" "services" {
   project = data.google_project.project.project_id
   for_each = toset(["run.googleapis.com", "cloudkms.googleapis.com", "secretmanager.googleapis.com", "storage-api.googleapis.com", "cloudscheduler.googleapis.com",
-  "sql-component.googleapis.com", "cloudbuild.googleapis.com", "servicenetworking.googleapis.com"])
+  "sql-component.googleapis.com", "cloudbuild.googleapis.com", "servicenetworking.googleapis.com", "compute.googleapis.com", "sqladmin.googleapis.com"])
   service            = each.value
   disable_on_destroy = false
 }
@@ -64,6 +64,8 @@ resource "google_compute_global_address" "private_ip_address" {
   address_type  = "INTERNAL"
   prefix_length = 16
   network       = "default"
+
+  depends_on = [google_project_service.services["compute.googleapis.com"]]
 }
 
 resource "google_service_networking_connection" "private_vpc_connection" {
@@ -184,22 +186,28 @@ resource "google_project_iam_member" "cloudbuild-secrets" {
   project = data.google_project.project.project_id
   role    = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+
+  depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
 }
 
 resource "google_project_iam_member" "cloudbuild-sql" {
   project = data.google_project.project.project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+
+  depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
 }
 
 resource "google_cloudbuild_trigger" "update-schema" {
   provider    = google-beta
+  count = var.use_build_triggers ? 1 : 0
+
   name        = "update-schema"
   description = "Build the containers for the schema migrator and run it to ensure the DB is up to date."
   filename    = "builders/schema.yaml"
   github {
-    owner = "google"
-    name  = "exposure-notifications-server"
+    owner = var.repo_owner
+    name  = var.repo_name
     push {
       branch = "^master$"
     }
@@ -213,6 +221,11 @@ resource "google_cloudbuild_trigger" "update-schema" {
     "_NAME" : google_sql_database.db.name
     "_SSLMODE" : "disable"
   }
+  depends_on = [google_project_iam_member.cloudbuild-secrets, google_project_iam_member.cloudbuild-sql]
+}
+
+# "build" does first time setup - it is different from "deploy" which we set up to trigger for later.
+resource "null_resource" "submit-update-schema" {
   provisioner "local-exec" {
     command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=_HOST=${google_sql_database_instance.db-inst.public_ip_address},_PORT=5432,_PASSWORD_SECRET=${google_secret_manager_secret.db-pwd.secret_id},_USER=${google_sql_user.user.name},_NAME=${google_sql_database.db.name},_SSLMODE=disable,_CLOUDSQLPATH=${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
   }
@@ -232,28 +245,37 @@ resource "random_string" "bucket-name" {
   upper   = false
 }
 
-
 resource "google_storage_bucket" "export" {
   name = "exposure-notification-export-${random_string.bucket-name.result}"
+  bucket_policy_only = true
 }
 
 # This step automatically runs a build as well, so everything that uses an image depends on it.
 resource "google_cloudbuild_trigger" "build-and-publish" {
   provider    = google-beta
+  count = var.use_build_triggers ? 1 : 0
+
   name        = "build-containers"
   description = "Build the containers for the exposure notification service and deploy them to cloud run"
   filename    = "builders/deploy.yaml"
   github {
-    owner = "google"
-    name  = "exposure-notifications-server"
+    owner = var.repo_owner
+    name  = var.repo_name
     push {
       branch = "^master$"
     }
   }
+
+  depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
+}
+
+# "build" does first time setup - it is different from "deploy" which we set up to trigger for later.
+resource "null_resource" "submit-build-and-publish" {
   provisioner "local-exec" {
-    # "build" does first time setup - it is different from "deploy" which we set up to trigger for later.
     command = "gcloud builds submit ../ --config ../builders/build.yaml --project ${data.google_project.project.project_id}"
   }
+
+  depends_on = [google_project_iam_member.cloudbuild-secrets, google_project_iam_member.cloudbuild-sql]
 }
 
 resource "google_cloud_run_service" "exposure" {
@@ -316,7 +338,7 @@ resource "google_cloud_run_service" "exposure" {
       }
     }
   }
-  depends_on = [google_cloudbuild_trigger.build-and-publish]
+  depends_on = [null_resource.submit-build-and-publish, google_project_service.services["run.googleapis.com"], google_project_service.services["sqladmin.googleapis.com"]]
 }
 
 resource "google_cloud_run_service" "export" {
@@ -383,7 +405,7 @@ resource "google_cloud_run_service" "export" {
       }
     }
   }
-  depends_on = [google_cloudbuild_trigger.build-and-publish]
+  depends_on = [null_resource.submit-build-and-publish, google_project_service.services["run.googleapis.com"], google_project_service.services["sqladmin.googleapis.com"]]
 }
 
 

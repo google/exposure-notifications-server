@@ -1,7 +1,7 @@
 steps:
 # Build migrations container as prereq.
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--tag=gcr.io/$PROJECT_ID/migrations', '-f', 'scripts/dbmigration.Dockerfile', 'scripts/']
+  args: ['build', '--tag=gcr.io/$PROJECT_ID/migrations', '-f', 'docker/migrate.dockerfile', 'docker/']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/migrations']
 - name: 'gcr.io/cloud-builders/gcloud'
