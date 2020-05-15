@@ -23,12 +23,12 @@ steps:
   args:
   - publish
   - -P
-  - ./cmd/federationout
+  - ./cmd/federationin
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
   - -P
-  - ./cmd/federationin
+  - ./cmd/federationout
 - name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
