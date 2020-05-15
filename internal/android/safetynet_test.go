@@ -119,13 +119,12 @@ var (
 
 	publish = &model.Publish{
 		Keys: []model.ExposureKey{
-			{Key: "HKXVlIO+vDmQNJ2M1MVtHQ==", IntervalNumber: 2647872, IntervalCount: 144},
-			{Key: "JjEtCT9Lcyw5oPiaNcWC/Q==", IntervalNumber: 2648016, IntervalCount: 144},
-			{Key: "cLTwDu9onEv/N6FMV3Uy4Q==", IntervalNumber: 2648160, IntervalCount: 144},
-			{Key: "ko6TsgPP8Wvu+ijpSLbY3A==", IntervalNumber: 2648304, IntervalCount: 144},
-			{Key: "9kMgBy7qdG3o6eh3vAD3mQ==", IntervalNumber: 2648448, IntervalCount: 144},
+			{Key: "HKXVlIO+vDmQNJ2M1MVtHQ==", IntervalNumber: 2647872, IntervalCount: 144, TransmissionRisk: 1},
+			{Key: "JjEtCT9Lcyw5oPiaNcWC/Q==", IntervalNumber: 2648016, IntervalCount: 144, TransmissionRisk: 1},
+			{Key: "cLTwDu9onEv/N6FMV3Uy4Q==", IntervalNumber: 2648160, IntervalCount: 144, TransmissionRisk: 1},
+			{Key: "ko6TsgPP8Wvu+ijpSLbY3A==", IntervalNumber: 2648304, IntervalCount: 144, TransmissionRisk: 1},
+			{Key: "9kMgBy7qdG3o6eh3vAD3mQ==", IntervalNumber: 2648448, IntervalCount: 144, TransmissionRisk: 1},
 		},
-		TransmissionRisk:    1,
 		AppPackageName:      appPackage,
 		VerificationPayload: "PUBLIC_HEALTH_AUTHORITY",
 		Regions:             []string{"GB"},

@@ -170,7 +170,6 @@ func TestPublishValidation(t *testing.T) {
 				Keys: []ExposureKey{
 					{Key: encodeKey(generateKey(t)[0 : KeyLength-2])},
 				},
-				TransmissionRisk: MaxTransmissionRisk - 1,
 			},
 			m: fmt.Sprintf("invalid key length, %v, must be %v", KeyLength-2, KeyLength),
 		},
@@ -183,7 +182,6 @@ func TestPublishValidation(t *testing.T) {
 						IntervalCount: MinIntervalCount - 1,
 					},
 				},
-				TransmissionRisk: MaxTransmissionRisk - 1,
 			},
 			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", MinIntervalCount-1, MinIntervalCount, MaxIntervalCount),
 		},
@@ -196,7 +194,6 @@ func TestPublishValidation(t *testing.T) {
 						IntervalCount: MaxIntervalCount + 1,
 					},
 				},
-				TransmissionRisk: MaxTransmissionRisk - 1,
 			},
 			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", MaxIntervalCount+1, MinIntervalCount, MaxIntervalCount),
 		},
@@ -210,7 +207,6 @@ func TestPublishValidation(t *testing.T) {
 						IntervalCount:  MaxIntervalCount,
 					},
 				},
-				TransmissionRisk: MaxTransmissionRisk - 1,
 			},
 			m: fmt.Sprintf("interval number %v is too old, must be >= %v", minInterval-1, minInterval),
 		},
@@ -224,7 +220,6 @@ func TestPublishValidation(t *testing.T) {
 						IntervalCount:  1,
 					},
 				},
-				TransmissionRisk: MaxTransmissionRisk - 1,
 			},
 			m: fmt.Sprintf("interval number %v is in the future, must be < %v", currentInterval+1, currentInterval),
 		},
@@ -270,52 +265,59 @@ func TestTransform(t *testing.T) {
 	source := &Publish{
 		Keys: []ExposureKey{
 			{
-				Key:            encodeKey(generateKey(t)),
-				IntervalNumber: intervalNumber,
-				IntervalCount:  MaxIntervalCount,
+				Key:              encodeKey(generateKey(t)),
+				IntervalNumber:   intervalNumber,
+				IntervalCount:    maxIntervalCount,
+				TransmissionRisk: 1,
 			},
 			{
-				Key:            encodeKey(generateKey(t)),
-				IntervalNumber: intervalNumber + MaxIntervalCount,
-				IntervalCount:  MaxIntervalCount,
+				Key:              encodeKey(generateKey(t)),
+				IntervalNumber:   intervalNumber + maxIntervalCount,
+				IntervalCount:    maxIntervalCount,
+				TransmissionRisk: 2,
 			},
 			{
-				Key:            encodeKey(generateKey(t)),
-				IntervalNumber: intervalNumber + 2*MaxIntervalCount,
-				IntervalCount:  MaxIntervalCount, // Invalid, should get rounded down
+				Key:              encodeKey(generateKey(t)),
+				IntervalNumber:   intervalNumber + 2*maxIntervalCount,
+				IntervalCount:    maxIntervalCount, // Invalid, should get rounded down
+				TransmissionRisk: 3,
 			},
 			{
-				Key:            encodeKey(generateKey(t)),
-				IntervalNumber: intervalNumber + 3*MaxIntervalCount,
-				IntervalCount:  42,
+				Key:              encodeKey(generateKey(t)),
+				IntervalNumber:   intervalNumber + 3*maxIntervalCount,
+				IntervalCount:    42,
+				TransmissionRisk: 4,
 			},
 		},
-		Regions:          []string{"us", "cA", "Mx"}, // will be upcased
-		AppPackageName:   "com.google",
-		TransmissionRisk: 2,
+		Regions:        []string{"us", "cA", "Mx"}, // will be upcased
+		AppPackageName: "com.google",
 		// Verification doesn't matter for transforming.
 	}
 
 	want := []*Exposure{
 		{
-			ExposureKey:    decodeKey(source.Keys[0].Key, t),
-			IntervalNumber: intervalNumber,
-			IntervalCount:  MaxIntervalCount,
+			ExposureKey:      decodeKey(source.Keys[0].Key, t),
+			IntervalNumber:   intervalNumber,
+			IntervalCount:    maxIntervalCount,
+			TransmissionRisk: 1,
 		},
 		{
-			ExposureKey:    decodeKey(source.Keys[1].Key, t),
-			IntervalNumber: intervalNumber + MaxIntervalCount,
-			IntervalCount:  MaxIntervalCount,
+			ExposureKey:      decodeKey(source.Keys[1].Key, t),
+			IntervalNumber:   intervalNumber + maxIntervalCount,
+			IntervalCount:    maxIntervalCount,
+			TransmissionRisk: 2,
 		},
 		{
-			ExposureKey:    decodeKey(source.Keys[2].Key, t),
-			IntervalNumber: intervalNumber + 2*MaxIntervalCount,
-			IntervalCount:  MaxIntervalCount,
+			ExposureKey:      decodeKey(source.Keys[2].Key, t),
+			IntervalNumber:   intervalNumber + 2*maxIntervalCount,
+			IntervalCount:    maxIntervalCount,
+			TransmissionRisk: 3,
 		},
 		{
-			ExposureKey:    decodeKey(source.Keys[3].Key, t),
-			IntervalNumber: intervalNumber + 3*MaxIntervalCount,
-			IntervalCount:  42,
+			ExposureKey:      decodeKey(source.Keys[3].Key, t),
+			IntervalNumber:   intervalNumber + 3*maxIntervalCount,
+			IntervalCount:    42,
+			TransmissionRisk: 4,
 		},
 	}
 	batchTime := captureStartTime.Add(time.Hour * 24 * 7)
@@ -323,7 +325,7 @@ func TestTransform(t *testing.T) {
 	for i, v := range want {
 		want[i] = &Exposure{
 			ExposureKey:      v.ExposureKey,
-			TransmissionRisk: 2,
+			TransmissionRisk: i + 1,
 			AppPackageName:   "com.google",
 			Regions:          []string{"US", "CA", "MX"},
 			IntervalNumber:   v.IntervalNumber,
@@ -373,9 +375,8 @@ func TestTransformOverlapping(t *testing.T) {
 						IntervalCount:  MaxIntervalCount,
 					},
 				},
-				Regions:          []string{"us", "cA", "Mx"}, // will be upcased
-				AppPackageName:   "com.google",
-				TransmissionRisk: 2,
+				Regions:        []string{"us", "cA", "Mx"}, // will be upcased
+				AppPackageName: "com.google",
 			},
 		},
 		{
@@ -393,9 +394,8 @@ func TestTransformOverlapping(t *testing.T) {
 						IntervalCount:  MaxIntervalCount,
 					},
 				},
-				Regions:          []string{"us", "cA", "Mx"}, // will be upcased
-				AppPackageName:   "com.google",
-				TransmissionRisk: 2,
+				Regions:        []string{"us", "cA", "Mx"}, // will be upcased
+				AppPackageName: "com.google",
 			},
 		},
 	}
