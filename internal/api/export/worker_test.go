@@ -47,7 +47,7 @@ func TestRandomInt(t *testing.T) {
 
 func TestDoNotPadZeroLength(t *testing.T) {
 	exposures := make([]*model.Exposure, 0)
-	_, err := ensureMinNumExposures(exposures, "US", 1000)
+	_, err := ensureMinNumExposures(exposures, "US", 1000, 100)
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
@@ -77,26 +77,20 @@ func TestEnsureMinExposures(t *testing.T) {
 	exposures := make([]*model.Exposure, 0)
 	exposures = addExposure(t, exposures, 123456, 144, 0)
 	exposures = addExposure(t, exposures, 789101, 88, 0)
-	exposures = addExposure(t, exposures, 334455, 72, 0)
 	// all of these combinations are expected
 	eIntervals := make(map[string]bool)
 	eIntervals["123456.144"] = true // covered by input
 	eIntervals["123456.88"] = false
-	eIntervals["123456.72"] = false
 	eIntervals["789101.144"] = false
 	eIntervals["789101.88"] = true
-	eIntervals["789101.72"] = false
-	eIntervals["334455.144"] = false
-	eIntervals["334455.88"] = false
-	eIntervals["334455.72"] = true
 
 	// pad the download.
-	exposures, err := ensureMinNumExposures(exposures, "US", 1000)
+	exposures, err := ensureMinNumExposures(exposures, "US", 2000, 10)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(exposures) != 1000 {
-		t.Errorf("wrong number of exposures, want: 1000, got: %v", len(exposures))
+	if len(exposures) < 2000 || len(exposures) > 2010 {
+		t.Errorf("wrong number of exposures, want: >=2000 and <=2010, got: %v", len(exposures))
 	}
 
 	for _, e := range exposures {
@@ -106,8 +100,8 @@ func TestEnsureMinExposures(t *testing.T) {
 	if len(expectedTR) != 0 {
 		t.Errorf("Didn't cover all expected transmission risks in batch of 1000: %v", expectedTR)
 	}
-	if len(eIntervals) != 9 {
-		t.Errorf("Unexpected number of intervalNum/count combinations, want: 6, got: %v", len(eIntervals))
+	if len(eIntervals) != 4 {
+		t.Errorf("Unexpected number of intervalNum/count combinations, want: 4, got: %v", len(eIntervals))
 	}
 	for k, v := range eIntervals {
 		if !v {

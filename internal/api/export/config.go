@@ -34,6 +34,7 @@ type Config struct {
 	CreateTimeout     time.Duration `envconfig:"CREATE_BATCHES_TIMEOUT" default:"5m"`
 	WorkerTimeout     time.Duration `envconfig:"WORKER_TIMEOUT" default:"5m"`
 	MinRecords        int           `envconfig:"EXPORT_FILE_MIN_RECORDS" default:"1000"`
+	PaddingRange      int           `envconfig:"EXPORT_FILE_PADDING_RANGE" default:"100"`
 	MaxRecords        int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
 	DefaultKeyID      string        `envconfig:"EXPORT_FILE_DEFAULT_KEY_ID" default:"ExampleServer"`
 	DefaultKeyVersion string        `envconfig:"EXPORT_FILE_DEFAULT_KEY_VERSION" default:"1"`

@@ -116,7 +116,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch) error {
 		logger.Infof("No records for export batch %d", eb.BatchID)
 	}
 
-	exposures, err = ensureMinNumExposures(exposures, eb.Region, s.config.MinRecords)
+	exposures, err = ensureMinNumExposures(exposures, eb.Region, s.config.MinRecords, s.config.PaddingRange)
 	if err != nil {
 		return fmt.Errorf("ensureMinNumExposures: %w", err)
 	}
@@ -264,13 +264,17 @@ func randomInt(min, max int) (int, error) {
 	return int(n.Int64()) + min, nil
 }
 
-func ensureMinNumExposures(exposures []*model.Exposure, region string, minLength int) ([]*model.Exposure, error) {
+func ensureMinNumExposures(exposures []*model.Exposure, region string, minLength, jitter int) ([]*model.Exposure, error) {
 	if len(exposures) == 0 {
 		return nil, fmt.Errorf("cannot pad zero length exposures")
 	}
-	for len(exposures) < minLength {
+
+	extra, _ := randomInt(0, jitter)
+	target := minLength + extra
+
+	for len(exposures) < target {
 		// Pieces needed are
-		// (1) exposure key, (2) inerval number, (3) tranismission risk
+		// (1) exposure key, (2) interval number, (3) transmission risk
 		// Exposure key is 16 random bytes.
 		eKey := make([]byte, model.KeyLength)
 		_, err := rand.Read(eKey)
