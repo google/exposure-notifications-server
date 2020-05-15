@@ -75,7 +75,7 @@ type Publish struct {
 
 // ExposureKey is the 16 byte key, the start time of the key and the
 // duration of the key. A duration of 0 means 24 hours.
-// - ALL fields are REQURED and must meet the constraints below.
+// - ALL fields are REQUIRED and must meet the constraints below.
 // Key must be the base64 (RFC 4648) encoded 16 byte exposure key from the device.
 // - Base64 encoding should include padding, as per RFC 4648
 // - if the key is not exactly 16 bytes in length, the request will be failed
