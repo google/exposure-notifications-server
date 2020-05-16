@@ -238,6 +238,7 @@ func TestPublishValidation(t *testing.T) {
 }
 
 func generateKey(t *testing.T) []byte {
+	t.Helper()
 	key := make([]byte, 16)
 	_, err := rand.Read(key)
 	if err != nil {

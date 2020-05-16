@@ -57,6 +57,7 @@ func TestDoNotPadZeroLength(t *testing.T) {
 }
 
 func addExposure(t *testing.T, exposures []*model.Exposure, interval, count int32, risk int) []*model.Exposure {
+	t.Helper()
 	key := make([]byte, model.KeyLength)
 	_, err := rand.Read(key)
 	if err != nil {
