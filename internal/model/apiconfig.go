@@ -30,15 +30,18 @@ const (
 // application and their access to and requirements for using the API.
 // DB times of 0 are interpreted to be "unbounded" in that direction.
 type APIConfig struct {
-	AppPackageName    string
-	Platform          string
-	ApkDigestSHA256   []string
-	CTSProfileMatch   bool
-	BasicIntegrity    bool
+	AppPackageName  string
+	Platform        string
+	AllowedRegions  map[string]struct{}
+	AllowAllRegions bool
+
+	// SafetyNet configuration.
+	// TODO(sethvargo): Rename these to clarify they are for SafetyNet.
 	AllowedPastTime   time.Duration
 	AllowedFutureTime time.Duration
-	AllowedRegions    map[string]struct{}
-	AllowAllRegions   bool
+	ApkDigestSHA256   []string
+	BasicIntegrity    bool
+	CTSProfileMatch   bool
 
 	// DeviceCheck configuration.
 	DeviceCheckKeyID      string
