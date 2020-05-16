@@ -73,7 +73,7 @@ func TestLookupSignatureInfos(t *testing.T) {
 	defer resetTestDB(t)
 	ctx := context.Background()
 
-  testTime := time.Now().UTC()
+	testTime := time.Now().UTC()
 	want := []*model.SignatureInfo{
 		&model.SignatureInfo{
 			SigningKey:        "/kms/project/key/version/1",
