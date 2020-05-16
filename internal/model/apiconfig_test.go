@@ -16,15 +16,9 @@ package model
 
 import (
 	"testing"
-	"time"
-
-	"github.com/google/exposure-notifications-server/internal/android"
-
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestBaseAPIConfig(t *testing.T) {
-
 	cfg, err := NewAPIConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -34,74 +28,5 @@ func TestBaseAPIConfig(t *testing.T) {
 	}
 	if cfg.IsAndroid() {
 		t.Errorf("cfg.IoAndroid, got true, want false")
-	}
-}
-
-func TestVerifyOpts(t *testing.T) {
-	testTime := time.Date(2020, 1, 13, 5, 6, 4, 6, time.Local)
-
-	cases := []struct {
-		cfg  *APIConfig
-		opts android.VerifyOpts
-	}{
-		{
-			cfg: &APIConfig{
-				AppPackageName:    "foo",
-				CTSProfileMatch:   true,
-				BasicIntegrity:    true,
-				AllowedPastTime:   time.Duration(15 * time.Minute),
-				AllowedFutureTime: time.Duration(1 * time.Second),
-			},
-			opts: android.VerifyOpts{
-				AppPkgName:      "foo",
-				APKDigest:       []string{},
-				CTSProfileMatch: true,
-				BasicIntegrity:  true,
-				MinValidTime:    testTime.Add(-15 * time.Minute),
-				MaxValidTime:    testTime.Add(1 * time.Second),
-			},
-		},
-		{
-			cfg: &APIConfig{
-				AppPackageName:    "foo",
-				CTSProfileMatch:   false,
-				BasicIntegrity:    true,
-				AllowedPastTime:   0,
-				AllowedFutureTime: 0,
-			},
-			opts: android.VerifyOpts{
-				AppPkgName:      "foo",
-				APKDigest:       []string{},
-				CTSProfileMatch: false,
-				BasicIntegrity:  true,
-				MinValidTime:    time.Time{},
-				MaxValidTime:    time.Time{},
-			},
-		},
-		{
-			cfg: &APIConfig{
-				AppPackageName:    "foo",
-				ApkDigestSHA256:   []string{"bar"},
-				CTSProfileMatch:   false,
-				BasicIntegrity:    true,
-				AllowedPastTime:   0,
-				AllowedFutureTime: 0,
-			},
-			opts: android.VerifyOpts{
-				AppPkgName:      "foo",
-				APKDigest:       []string{"bar"},
-				CTSProfileMatch: false,
-				BasicIntegrity:  true,
-				MinValidTime:    time.Time{},
-				MaxValidTime:    time.Time{},
-			},
-		},
-	}
-
-	for i, tst := range cases {
-		got := tst.cfg.VerifyOpts(testTime, "" /* nonce */)
-		if diff := cmp.Diff(tst.opts, got); diff != "" {
-			t.Errorf("%v verify opts (-want +got):\n%v", i, diff)
-		}
 	}
 }

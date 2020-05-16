@@ -57,7 +57,7 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *model.APIC
 		return fmt.Errorf("cannot enforce SafetyNet, missing config")
 	}
 
-	opts := cfg.VerifyOpts(requestTime, publish.AndroidNonce())
+	opts := android.VerifyOptsFor(cfg, requestTime, publish.AndroidNonce())
 	if err := androidValidateAttestation(ctx, publish.DeviceVerificationPayload, opts); err != nil {
 		return fmt.Errorf("android.ValidateAttestation: %w", err)
 	}

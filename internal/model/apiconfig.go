@@ -17,8 +17,6 @@ package model
 import (
 	"crypto/ecdsa"
 	"time"
-
-	"github.com/google/exposure-notifications-server/internal/android"
 )
 
 const (
@@ -70,30 +68,4 @@ func (c *APIConfig) IsAndroid() bool {
 func (c *APIConfig) IsAllowedRegion(s string) bool {
 	_, ok := c.AllowedRegions[s]
 	return ok
-}
-
-// VerifyOpts returns the Android SafetyNet verification options to be used
-// based on the API config.
-func (c *APIConfig) VerifyOpts(from time.Time, nonce string) android.VerifyOpts {
-	digests := make([]string, len(c.ApkDigestSHA256))
-	copy(digests, c.ApkDigestSHA256)
-	rtn := android.VerifyOpts{
-		AppPkgName:      c.AppPackageName,
-		CTSProfileMatch: c.CTSProfileMatch,
-		BasicIntegrity:  c.BasicIntegrity,
-		APKDigest:       digests,
-		Nonce:           nonce,
-	}
-
-	// Calculate the valid time window based on now + config options.
-	if c.AllowedPastTime > 0 {
-		minTime := from.Add(-c.AllowedPastTime)
-		rtn.MinValidTime = minTime
-	}
-	if c.AllowedFutureTime > 0 {
-		maxTime := from.Add(c.AllowedFutureTime)
-		rtn.MaxValidTime = maxTime
-	}
-
-	return rtn
 }

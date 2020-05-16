@@ -124,7 +124,7 @@ func TestVerifySafetyNet(t *testing.T) {
 
 	for i, c := range cases {
 		var ctx = context.Background()
-		androidValidateAttestation = func(context.Context, string, android.VerifyOpts) error {
+		androidValidateAttestation = func(context.Context, string, *android.VerifyOpts) error {
 			return c.AttestationResult
 		}
 

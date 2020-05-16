@@ -41,7 +41,7 @@ const (
 	MinIntervalCount = 1
 	MaxIntervalCount = 144
 
-	// Self explanitory.
+	// Self explanatory.
 	oneDay = time.Hour * 24
 
 	// interval length
