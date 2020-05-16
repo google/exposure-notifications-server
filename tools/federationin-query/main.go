@@ -22,8 +22,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/api/federationin"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/federationin"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/kelseyhightower/envconfig"

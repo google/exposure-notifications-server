@@ -22,7 +22,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/api/federationin"
+	"github.com/google/exposure-notifications-server/internal/federationin"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/pb"
 
