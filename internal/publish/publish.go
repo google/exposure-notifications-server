@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/api/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/apiconfig"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/jsonutil"

@@ -17,6 +17,7 @@ package verification
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,11 +93,6 @@ func TestVerifySafetyNet(t *testing.T) {
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
 	}
-	allRegionsSafetyCheckDisabled := &model.APIConfig{
-		AppPackageName:  appPkgName,
-		AllowAllRegions: true,
-		BypassSafetyNet: true,
-	}
 
 	cases := []struct {
 		Data              *model.Publish
@@ -107,7 +103,7 @@ func TestVerifySafetyNet(t *testing.T) {
 		{
 			// With no configuration, return err.
 			&model.Publish{Regions: []string{"US"}},
-			"cannot enforce safetynet, no application config",
+			"cannot enforce SafetyNet",
 			nil,
 			nil,
 		}, {
@@ -122,13 +118,6 @@ func TestVerifySafetyNet(t *testing.T) {
 			&model.Publish{Regions: []string{"US"}},
 			"android.ValidateAttestation: mocked",
 			allRegions,
-			fmt.Errorf("mocked"),
-		}, {
-			// Verify when ValidateAttestation raises err, with safety check
-			// disabled, return nil.
-			&model.Publish{Regions: []string{"US"}},
-			"",
-			allRegionsSafetyCheckDisabled,
 			fmt.Errorf("mocked"),
 		},
 	}
@@ -147,7 +136,7 @@ func TestVerifySafetyNet(t *testing.T) {
 			t.Errorf("%v got %v, wanted no error", i, err)
 			continue
 		}
-		if err.Error() != c.Msg {
+		if !strings.Contains(err.Error(), c.Msg) {
 			t.Errorf("%v wrong error, got %v, want %v", i, err, c.Msg)
 		}
 	}

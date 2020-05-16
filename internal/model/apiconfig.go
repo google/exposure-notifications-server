@@ -40,16 +40,6 @@ type APIConfig struct {
 	AllowedRegions    map[string]struct{}
 	AllowAllRegions   bool
 
-	// BypassSafetyNet is an internal field for testing that bypasses Android
-	// SafetyNet verification. It is not read from a database and is used for
-	// testing only.
-	BypassSafetyNet bool
-
-	// BypassDeviceCheck is an internal field for testing that bypasses iOS
-	// DeviceCheck verification. It is not read from a database and is used for
-	// testing only.
-	BypassDeviceCheck bool
-
 	// DeviceCheck configuration.
 	DeviceCheckKeyID      string
 	DeviceCheckTeamID     string
