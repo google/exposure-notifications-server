@@ -284,7 +284,7 @@ func randomInt(min, max int) (int, error) {
 
 func ensureMinNumExposures(exposures []*model.Exposure, region string, minLength, jitter int) ([]*model.Exposure, error) {
 	if len(exposures) == 0 {
-		return nil, fmt.Errorf("cannot pad zero length exposures")
+		return exposures, nil
 	}
 
 	extra, _ := randomInt(0, jitter)
