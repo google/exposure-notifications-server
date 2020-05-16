@@ -33,7 +33,7 @@ func TestAddSignatureInfo(t *testing.T) {
 	defer resetTestDB(t)
 	ctx := context.Background()
 
-	thruTime := time.Now().Add(6 * time.Hour)
+	thruTime := time.Now().UTC().Add(6 * time.Hour)
 	want := &model.SignatureInfo{
 		SigningKey:        "/kms/project/key/1",
 		SigningKeyVersion: "1",
@@ -73,18 +73,19 @@ func TestLookupSignatureInfos(t *testing.T) {
 	defer resetTestDB(t)
 	ctx := context.Background()
 
+  testTime := time.Now().UTC()
 	want := []*model.SignatureInfo{
 		&model.SignatureInfo{
 			SigningKey:        "/kms/project/key/version/1",
 			SigningKeyVersion: "1",
 			SigningKeyID:      "310",
-			EndTimestamp:      time.Now().Add(-1 * time.Hour),
+			EndTimestamp:      testTime.Add(-1 * time.Hour),
 		},
 		&model.SignatureInfo{
 			SigningKey:        "/kms/project/key/version/2",
 			SigningKeyVersion: "2",
 			SigningKeyID:      "310",
-			EndTimestamp:      time.Now().Add(24 * time.Hour),
+			EndTimestamp:      testTime.Add(24 * time.Hour),
 		},
 		&model.SignatureInfo{
 			SigningKey:        "/kms/project/key/version/3",
@@ -97,7 +98,7 @@ func TestLookupSignatureInfos(t *testing.T) {
 	}
 
 	ids := []int64{want[0].ID, want[1].ID, want[2].ID}
-	got, err := testDB.LookupSignatureInfos(ctx, ids, time.Now())
+	got, err := testDB.LookupSignatureInfos(ctx, ids, testTime)
 	if err != nil {
 		t.Fatal(err)
 	}

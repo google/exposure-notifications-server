@@ -53,8 +53,7 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				ExportConfig
-				(bucket_name, filename_root, period_seconds, region, from_timestamp,
-         thru_timestamp, signature_info_ids)
+				(bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signature_info_ids)
 			VALUES
 				($1, $2, $3, $4, $5, $6, $7)
 			RETURNING config_id
