@@ -16,7 +16,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -55,13 +54,12 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error
 			INSERT INTO
 				ExportConfig
 				(bucket_name, filename_root, period_seconds, region, from_timestamp,
-         thru_timestamp, signing_key, signing_key_id, signing_key_version, app_package_name, bundle_id)
+         thru_timestamp, signature_info_ids)
 			VALUES
-				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+				($1, $2, $3, $4, $5, $6, $7)
 			RETURNING config_id
 		`, ec.BucketName, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region,
-			ec.From, thru, toNullString(ec.SigningKey), ec.SigningKeyID, ec.SigningKeyVersion,
-			ec.AppPkgName, ec.BundleID)
+			ec.From, thru, ec.SignatureInfoIDs)
 
 		if err := row.Scan(&ec.ConfigID); err != nil {
 			return fmt.Errorf("fetching config_id: %w", err)
@@ -88,7 +86,7 @@ func (db *DB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*mod
 
 	rows, err := conn.Query(ctx, `
 		SELECT
-			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key, signing_key_id, signing_key_version, app_package_name, bundle_id
+			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signature_info_ids
 		FROM
 			ExportConfig
 		WHERE
@@ -105,21 +103,83 @@ func (db *DB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*mod
 			m             model.ExportConfig
 			periodSeconds int
 			thru          *time.Time
-			skey          sql.NullString
 		)
-		if err := rows.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru, &skey, &m.SigningKeyID, &m.SigningKeyVersion, &m.AppPkgName, &m.BundleID); err != nil {
+		if err := rows.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru, &m.SignatureInfoIDs); err != nil {
 			return err
 		}
 		m.Period = time.Duration(periodSeconds) * time.Second
 		if thru != nil {
 			m.Thru = *thru
 		}
-		m.SigningKey = skey.String
 		if err := f(&m); err != nil {
 			return err
 		}
 	}
 	return rows.Err()
+}
+
+func (db *DB) AddSignatureInfo(ctx context.Context, si *model.SignatureInfo) error {
+	if si.SigningKey == "" {
+		return fmt.Errorf("signing key cannot be empty for a signature info")
+	}
+
+	var thru *time.Time
+	if !si.EndTimestamp.IsZero() {
+		thru = &si.EndTimestamp
+	}
+	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		row := tx.QueryRow(ctx, `
+      INSERT INTO
+        SignatureInfo
+        (signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp)
+      VALUES
+        ($1, $2, $3, $4, $5, $6)
+      RETURNING id
+    `, si.SigningKey, si.AppPackageName, si.BundleID, si.SigningKeyVersion, si.SigningKeyID, thru)
+
+		if err := row.Scan(&si.ID); err != nil {
+			return fmt.Errorf("fetching id: %w", err)
+		}
+		return nil
+	})
+}
+
+func (db *DB) LookupSignatureInfos(ctx context.Context, ids []int64, validUntil time.Time) ([]*model.SignatureInfo, error) {
+	conn, err := db.pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	rows, err := conn.Query(ctx, `
+    SELECT
+      id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
+    FROM
+      SignatureInfo
+    WHERE
+      id = any($1) AND (thru_timestamp is NULL OR thru_timestamp >= $2)
+  `, ids, validUntil)
+	if err != nil {
+		return nil, err
+	}
+
+	var sigInfos []*model.SignatureInfo
+	for rows.Next() {
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+		var info model.SignatureInfo
+		var thru *time.Time
+		if err := rows.Scan(&info.ID, &info.SigningKey, &info.AppPackageName, &info.BundleID, &info.SigningKeyVersion, &info.SigningKeyID, &thru); err != nil {
+			return nil, err
+		}
+		if thru != nil {
+			info.EndTimestamp = *thru
+		}
+		sigInfos = append(sigInfos, &info)
+	}
+
+	return sigInfos, nil
 }
 
 // LatestExportBatchEnd returns the end time of the most recent ExportBatch for
@@ -162,9 +222,9 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
 				ExportBatch
-				(config_id, bucket_name, filename_root, start_timestamp, end_timestamp, region, status, signing_key, signing_key_id, signing_key_version, app_package_name, bundle_id)
+				(config_id, bucket_name, filename_root, start_timestamp, end_timestamp, region, status, signature_info_ids)
 			VALUES
-				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+				($1, $2, $3, $4, $5, $6, $7, $8)
 		`)
 		if err != nil {
 			return err
@@ -172,7 +232,7 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch
 
 		for _, eb := range batches {
 			if _, err := tx.Exec(ctx, stmtName,
-				eb.ConfigID, eb.BucketName, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.Region, eb.Status, eb.SigningKey, eb.SigningKeyID, eb.SigningKeyVersion, eb.AppPkgName, eb.BundleID); err != nil {
+				eb.ConfigID, eb.BucketName, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.Region, eb.Status, eb.SignatureInfoIDs); err != nil {
 				return err
 			}
 		}
@@ -302,7 +362,7 @@ func (db *DB) LookupExportBatch(ctx context.Context, batchID int64) (*model.Expo
 func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) (*model.ExportBatch, error) {
 	row := queryRow(ctx, `
 		SELECT
-			batch_id, config_id, bucket_name, filename_root, start_timestamp, end_timestamp, region, status, lease_expires, signing_key, app_package_name, bundle_id
+			batch_id, config_id, bucket_name, filename_root, start_timestamp, end_timestamp, region, status, lease_expires, signature_info_ids
 		FROM
 			ExportBatch
 		WHERE
@@ -312,7 +372,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 
 	var expires *time.Time
 	eb := model.ExportBatch{}
-	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.BucketName, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.Region, &eb.Status, &expires, &eb.SigningKey, &eb.AppPkgName, &eb.BundleID); err != nil {
+	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.BucketName, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.Region, &eb.Status, &expires, &eb.SignatureInfoIDs); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
 		}

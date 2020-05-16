@@ -26,35 +26,27 @@ var (
 )
 
 type ExportConfig struct {
-	ConfigID          int64         `db:"config_id"`
-	BucketName        string        `db:"bucket_name"`
-	FilenameRoot      string        `db:"filename_root"`
-	Period            time.Duration `db:"period_seconds"`
-	Region            string        `db:"region"`
-	From              time.Time     `db:"from_timestamp"`
-	Thru              time.Time     `db:"thru_timestamp"`
-	SigningKey        string        `db:"signing_key"`
-	SigningKeyVersion string        `db:"signing_key_version"`
-	SigningKeyID      string        `db:"signing_key_id"`
-	BundleID          string        `db:"bundle_id"`
-	AppPkgName        string        `db:"app_package_name"`
+	ConfigID         int64         `db:"config_id"`
+	BucketName       string        `db:"bucket_name"`
+	FilenameRoot     string        `db:"filename_root"`
+	Period           time.Duration `db:"period_seconds"`
+	Region           string        `db:"region"`
+	From             time.Time     `db:"from_timestamp"`
+	Thru             time.Time     `db:"thru_timestamp"`
+	SignatureInfoIDs []int64       `db:"signature_info_ids"`
 }
 
 type ExportBatch struct {
-	BatchID           int64     `db:"batch_id" json:"batchID"`
-	ConfigID          int64     `db:"config_id" json:"configID"`
-	BucketName        string    `db:"bucket_name" json:"bucketName"`
-	FilenameRoot      string    `db:"filename_root" json:"filenameRoot"`
-	StartTimestamp    time.Time `db:"start_timestamp" json:"startTimestamp"`
-	EndTimestamp      time.Time `db:"end_timestamp" json:"endTimestamp"`
-	Region            string    `db:"region" json:"region"`
-	Status            string    `db:"status" json:"status"`
-	LeaseExpires      time.Time `db:"lease_expires" json:"leaseExpires"`
-	SigningKey        string    `db:"signing_key" json:"signingKey"`
-	SigningKeyVersion string    `db:"signing_key_version"`
-	SigningKeyID      string    `db:"signing_key_id"`
-	BundleID          string    `db:"bundle_id"`
-	AppPkgName        string    `db:"app_package_name"`
+	BatchID          int64     `db:"batch_id" json:"batchID"`
+	ConfigID         int64     `db:"config_id" json:"configID"`
+	BucketName       string    `db:"bucket_name" json:"bucketName"`
+	FilenameRoot     string    `db:"filename_root" json:"filenameRoot"`
+	StartTimestamp   time.Time `db:"start_timestamp" json:"startTimestamp"`
+	EndTimestamp     time.Time `db:"end_timestamp" json:"endTimestamp"`
+	Region           string    `db:"region" json:"region"`
+	Status           string    `db:"status" json:"status"`
+	LeaseExpires     time.Time `db:"lease_expires" json:"leaseExpires"`
+	SignatureInfoIDs []int64   `db:"signature_info_ids"`
 }
 
 type ExportFile struct {
@@ -65,4 +57,14 @@ type ExportFile struct {
 	BatchNum   int    `db:"batch_num"`
 	BatchSize  int    `db:"batch_size"`
 	Status     string `db:"status"`
+}
+
+type SignatureInfo struct {
+	ID                int64     `db:"id"`
+	SigningKey        string    `db:"signing_key"`
+	AppPackageName    string    `db:"app_package_name"`
+	BundleID          string    `db:"bundle_id"`
+	SigningKeyVersion string    `db:"signing_key_version"`
+	SigningKeyID      string    `db:"signing_key_id"`
+	EndTimestamp      time.Time `db:"thru_timestamp"`
 }

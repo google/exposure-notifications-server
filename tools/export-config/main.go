@@ -90,20 +90,26 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	ec := model.ExportConfig{
-		BucketName:        *bucketName,
-		FilenameRoot:      *filenameRoot,
-		Period:            *period,
-		Region:            *region,
-		From:              fromTime,
-		Thru:              thruTime,
+	si := model.SignatureInfo{
 		SigningKey:        *signingKey,
-		SigningKeyID:      *signingKeyID,
-		SigningKeyVersion: *signingKeyVersion,
-		AppPkgName:        *appPkgID,
+		AppPackageName:    *appPkgID,
 		BundleID:          *bundleID,
+		SigningKeyVersion: *signingKeyVersion,
+		SigningKeyID:      *signingKeyID,
+	}
+	if err := db.AddSignatureInfo(ctx, &si); err != nil {
+		log.Fatalf("AddSignatureInfo: %v", err)
 	}
 
+	ec := model.ExportConfig{
+		BucketName:       *bucketName,
+		FilenameRoot:     *filenameRoot,
+		Period:           *period,
+		Region:           *region,
+		From:             fromTime,
+		Thru:             thruTime,
+		SignatureInfoIDs: []int64{si.ID},
+	}
 	if err := db.AddExportConfig(ctx, &ec); err != nil {
 		log.Fatalf("Failure: %v", err)
 	}

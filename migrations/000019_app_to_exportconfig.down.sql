@@ -14,14 +14,14 @@
 
 BEGIN;
 
-ALTER TABLE ExportBatch DROP COLUMN app_package_name;
-ALTER TABLE ExportBatch DROP COLUMN bundle_id;
-ALTER TABLE ExportBatch DROP COLUMN signing_key_version;
-ALTER TABLE ExportBatch DROP COLUMN signing_key_id;
+ALTER TABLE ExportBatch
+  DROP COLUMN signature_info_ids,
+  ADD COLUMN signing_key VARCHAR(500);
 
-ALTER TABLE ExportConfig DROP COLUMN app_package_name;
-ALTER TABLE ExportConfig DROP COLUMN bundle_id;
-ALTER TABLE ExportConfig DROP COLUMN signing_key_version;
-ALTER TABLE ExportConfig DROP COLUMN signing_key_id;
+ALTER TABLE ExportConfig
+  DROP COLUMN signature_info_ids,
+  ADD COLUMN signing_key VARCHAR(500);
+
+DROP TABLE SignatureInfo;
 
 END;

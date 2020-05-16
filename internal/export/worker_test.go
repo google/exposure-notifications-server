@@ -47,9 +47,12 @@ func TestRandomInt(t *testing.T) {
 
 func TestDoNotPadZeroLength(t *testing.T) {
 	exposures := make([]*model.Exposure, 0)
-	_, err := ensureMinNumExposures(exposures, "US", 1000, 100)
-	if err == nil {
-		t.Errorf("expected error, got nil")
+	exposures, err := ensureMinNumExposures(exposures, "US", 1000, 100)
+	if err != nil {
+		t.Fatalf("unepected error: %v", err)
+	}
+	if len(exposures) != 0 {
+		t.Errorf("empty exposure list got padded, shouldn't have.")
 	}
 }
 

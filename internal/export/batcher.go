@@ -107,19 +107,17 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 
 	var batches []*model.ExportBatch
 	for _, br := range ranges {
+		infoIds := make([]int64, len(ec.SignatureInfoIDs))
+		copy(infoIds, ec.SignatureInfoIDs)
 		batches = append(batches, &model.ExportBatch{
-			ConfigID:          ec.ConfigID,
-			BucketName:        ec.BucketName,
-			FilenameRoot:      ec.FilenameRoot,
-			StartTimestamp:    br.start,
-			EndTimestamp:      br.end,
-			Region:            ec.Region,
-			Status:            model.ExportBatchOpen,
-			SigningKey:        ec.SigningKey,
-			SigningKeyID:      ec.SigningKeyID,
-			SigningKeyVersion: ec.SigningKeyVersion,
-			AppPkgName:        ec.AppPkgName,
-			BundleID:          ec.BundleID,
+			ConfigID:         ec.ConfigID,
+			BucketName:       ec.BucketName,
+			FilenameRoot:     ec.FilenameRoot,
+			StartTimestamp:   br.start,
+			EndTimestamp:     br.end,
+			Region:           ec.Region,
+			Status:           model.ExportBatchOpen,
+			SignatureInfoIDs: infoIds,
 		})
 	}
 
