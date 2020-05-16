@@ -64,7 +64,6 @@ type Publish struct {
 	Regions                   []string      `json:"regions"`
 	AppPackageName            string        `json:"appPackageName"`
 	Platform                  string        `json:"platform"`
-	TransmissionRisk          int           `json:"transmissionRisk"` // DEPRECATED
 	DeviceVerificationPayload string        `json:"deviceVerificationPayload"`
 	VerificationPayload       string        `json:"verificationPayload"`
 	Padding                   string        `json:"padding"`
@@ -174,13 +173,6 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 		upcaseRegions[i] = strings.ToUpper(r)
 	}
 
-	// Transmission risk for the whole batch is deprecated - it is now part
-	// of the ExposureKey.
-	defaultTR := inData.TransmissionRisk
-	if defaultTR < MinTransmissionRisk || defaultTR > MaxTransmissionRisk {
-		return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", defaultTR, MinTransmissionRisk, MaxTransmissionRisk)
-	}
-
 	for _, exposureKey := range inData.Keys {
 		binKey, err := base64util.DecodeString(exposureKey.Key)
 		if err != nil {
@@ -203,18 +195,13 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 			return nil, fmt.Errorf("interval number %v is in the future, must be < %v", exposureKey.IntervalNumber, maxIntervalNumber)
 		}
 
-		tr := exposureKey.TransmissionRisk
-		// This is temporary - while we reprecate per-request tranismission risk
-		if tr == 0 && defaultTR != 0 {
-			tr = defaultTR
-		}
-		if tr < MinTransmissionRisk || tr > MaxTransmissionRisk {
+		if tr := exposureKey.TransmissionRisk; tr < MinTransmissionRisk || tr > MaxTransmissionRisk {
 			return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, MinTransmissionRisk, MaxTransmissionRisk)
 		}
 
 		exposure := &Exposure{
 			ExposureKey:      binKey,
-			TransmissionRisk: tr,
+			TransmissionRisk: exposureKey.TransmissionRisk,
 			AppPackageName:   inData.AppPackageName,
 			Regions:          upcaseRegions,
 			IntervalNumber:   exposureKey.IntervalNumber,

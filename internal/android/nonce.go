@@ -34,11 +34,10 @@ type Noncer interface {
 var _ Noncer = (*nonceData)(nil)
 
 type nonceData struct {
-	appPackageName   string
-	transmissionRisk int
-	ttKeysBase64     []model.ExposureKey
-	regions          []string
-	verification     string
+	appPackageName string
+	ttKeysBase64   []model.ExposureKey
+	regions        []string
+	verification   string
 }
 
 // NewNonce Creates a new `Noncer{}` based on the inbound publish request.
@@ -60,11 +59,10 @@ func NewNonce(publish *model.Publish) Noncer {
 	sort.Strings(sortedRegions)
 
 	return &nonceData{
-		appPackageName:   publish.AppPackageName,
-		transmissionRisk: publish.TransmissionRisk,
-		ttKeysBase64:     sortedKeys,
-		regions:          sortedRegions,
-		verification:     publish.VerificationPayload,
+		appPackageName: publish.AppPackageName,
+		ttKeysBase64:   sortedKeys,
+		regions:        sortedRegions,
+		verification:   publish.VerificationPayload,
 	}
 }
 
@@ -72,21 +70,20 @@ func NewNonce(publish *model.Publish) Noncer {
 func (n *nonceData) Nonce() string {
 	keys := make([]string, 0, len(n.ttKeysBase64))
 	for _, k := range n.ttKeysBase64 {
-		keys = append(keys, fmt.Sprintf("%v.%v.%v", k.Key, k.IntervalNumber, k.IntervalCount))
+		keys = append(keys, fmt.Sprintf("%v.%v.%v.%v", k.Key, k.IntervalNumber, k.IntervalCount, k.TransmissionRisk))
 	}
 
 	// The cleartext is a combination of all of the data on the request
 	// in a specific order.
 	//
-	// appPackageName|transmissionRisk|key[,key]|region[,region]|verificationAuthorityName
+	// appPackageName|key[,key]|region[,region]|verificationAuthorityName
 	// Keys are ancoded as
-	//     base64(exposureKey).itnervalNumber.IntervalCount
+	//     base64(exposureKey).itnervalNumber.IntervalCount.transmissionRisk
 	// When there is > 1 key, keys are comma separated.
 	// Keys must in sorted order based on the sorting of the base64 exposure key.
 	// Regions are uppercased, sorted, and comma sepreated
 	cleartext :=
 		n.appPackageName + "|" +
-			fmt.Sprintf("%v", n.transmissionRisk) + "|" +
 			strings.Join(keys, ",") + "|" + // where key is b64key.intervalNum.intervalCount
 			strings.Join(n.regions, ",") + "|" +
 			n.verification

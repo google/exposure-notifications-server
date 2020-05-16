@@ -29,30 +29,58 @@ func TestGetNonce(t *testing.T) {
 		{
 			Data: model.Publish{
 				Keys: []model.ExposureKey{
-					{Key: "x21Goi8X9m/glOZ0+wz8fA", IntervalNumber: 263123, IntervalCount: 144},
-					{Key: "2mvFSmRsFmJR5r07dxGSjg", IntervalNumber: 263267, IntervalCount: 144},
-					{Key: "6bAd3dv7p+VEuaJVkVItaQ", IntervalNumber: 263411, IntervalCount: 27},
+					{
+						Key:              "x21Goi8X9m/glOZ0+wz8fA",
+						IntervalNumber:   263123,
+						IntervalCount:    144,
+						TransmissionRisk: 6,
+					},
+					{
+						Key:              "2mvFSmRsFmJR5r07dxGSjg",
+						IntervalNumber:   263267,
+						IntervalCount:    144,
+						TransmissionRisk: 7,
+					},
+					{
+						Key:              "6bAd3dv7p+VEuaJVkVItaQ",
+						IntervalNumber:   263411,
+						IntervalCount:    27,
+						TransmissionRisk: 7,
+					},
 				},
 				Regions:             []string{"GB", "US"},
 				AppPackageName:      appPackage,
-				TransmissionRisk:    4,
 				VerificationPayload: "QRTH-ROWO-LOLO-FOOB",
 			},
-			Expected: "xH8QNR09EKuCCuNitam1RgjPaGHO/9p54VikqFdirVY=",
+			Expected: "0kbOC1LIwDc+DQnLOFcIbnxqfKNg58b7WA3vREdd7ZQ=",
 		},
 		{
 			Data: model.Publish{
 				Keys: []model.ExposureKey{
-					{Key: "zdCW5HrOKbirxmQVc0L/eA", IntervalNumber: 263123, IntervalCount: 144},
-					{Key: "t+k51ifogJo9jq3GH9LWGQ", IntervalNumber: 263267, IntervalCount: 144},
-					{Key: "3uXRrSlcv1+OMI3oFtdaUw", IntervalNumber: 263411, IntervalCount: 27},
+					{
+						Key:              "zdCW5HrOKbirxmQVc0L/eA",
+						IntervalNumber:   263123,
+						IntervalCount:    144,
+						TransmissionRisk: 8,
+					},
+					{
+						Key:              "t+k51ifogJo9jq3GH9LWGQ",
+						IntervalNumber:   263267,
+						IntervalCount:    144,
+						TransmissionRisk: 8,
+					},
+					{
+						Key:              "3uXRrSlcv1+OMI3oFtdaUw",
+						IntervalNumber:   263411,
+						IntervalCount:    27,
+						TransmissionRisk: 8,
+					},
 				},
 				Regions:             []string{"gB", "us"},
 				AppPackageName:      appPackage,
-				TransmissionRisk:    7,
 				VerificationPayload: "BREA-KMEO-FFAP-IECE",
 			},
-			Expected: "LHSwWAjTf3nMVTk7LBwMx9Wg7jEPRjEJf1zRtoxQI64=",
+			Expected: "KYCIywFRTwXCnYCF4TTFaH//iMb/fBQENqIhtzrJPxA=",
 		},
 	}
 

@@ -115,13 +115,12 @@ func TestInvalidStructure(t *testing.T) {
 func TestValidPublishMessage(t *testing.T) {
 	intervalNumber := int32(time.Date(2020, 04, 17, 20, 04, 01, 1, time.UTC).Unix() / 600)
 	json := `{"temporaryExposureKeys": [
-		  {"key": "ABC", "rollingStartNumber": %v, "rollingPeriod": 144},
-		  {"key": "DEF", "rollingStartNumber": %v, "rollingPeriod": 122},
-			{"key": "123", "rollingStartNumber": %v, "rollingPeriod": 1}],
+		  {"key": "ABC", "rollingStartNumber": %v, "rollingPeriod": 144, "TransmissionRisk": 2},
+		  {"key": "DEF", "rollingStartNumber": %v, "rollingPeriod": 122, "TransmissionRisk": 2},
+			{"key": "123", "rollingStartNumber": %v, "rollingPeriod": 1, "TransmissionRisk": 2}],
     "appPackageName": "com.google.android.awesome",
     "platform": "android",
     "regions": ["CA", "US"],
-		"transmissionRisk": 2,
     "DeviceVerificationPayload": "foo",
     "VerificationPayload": "1234-ABCD-EFGH-5678"}`
 	json = fmt.Sprintf(json, intervalNumber, intervalNumber, intervalNumber)
@@ -143,14 +142,13 @@ func TestValidPublishMessage(t *testing.T) {
 
 	want := &model.Publish{
 		Keys: []model.ExposureKey{
-			{Key: "ABC", IntervalNumber: intervalNumber, IntervalCount: 144},
-			{Key: "DEF", IntervalNumber: intervalNumber, IntervalCount: 122},
-			{Key: "123", IntervalNumber: intervalNumber, IntervalCount: 1},
+			{Key: "ABC", IntervalNumber: intervalNumber, IntervalCount: 144, TransmissionRisk: 2},
+			{Key: "DEF", IntervalNumber: intervalNumber, IntervalCount: 122, TransmissionRisk: 2},
+			{Key: "123", IntervalNumber: intervalNumber, IntervalCount: 1, TransmissionRisk: 2},
 		},
 		Regions:                   []string{"CA", "US"},
 		Platform:                  "android",
 		AppPackageName:            "com.google.android.awesome",
-		TransmissionRisk:          2,
 		DeviceVerificationPayload: "foo",
 		VerificationPayload:       "1234-ABCD-EFGH-5678",
 	}

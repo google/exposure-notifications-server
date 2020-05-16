@@ -69,6 +69,12 @@ Minimum required fields, followed by a JSON example:
         * Valid values are [1..144]
         * If not present, 144 is the default value (1 day of intervals)
       * Description: Number of intervals that the key is valid for
+    * `transmissionRisk` (**REQUIRED**)
+      * Type: Integer
+      * **The values and meanings of this enum are not finalized at this time.** //TODO(llatif): check status
+      * Constraints:
+        * Valid values range from 0-8
+      * Description: //TODO(llatif): Add description
 * `regions` (**REQUIRED**)
   [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) format.
   * Type: Array of string
@@ -82,12 +88,6 @@ Minimum required fields, followed by a JSON example:
 * `platform` (**REQUIRED**)
   * Type: string
   * Description: Mobile device platform this request originated from.
-* `transmissionRisk` (**REQUIRED**)
-  * Type: Integer
-  * **The values and meanings of this enum are not finalized at this time.** //TODO(llatif): check status
-  * Constraints:
-    * Valid values range from 0-8
-  * Description: //TODO(llatif): Add description
 * `deviceVerificationPayload` (**REQUIRED**)
   * Type: String
   * Description:  Verification payload.
@@ -109,13 +109,12 @@ The following snippet is an example POST request payload in JSON format.
 ```json
 {
   "temporaryTracingKeys": [
-    {"key": "base64 KEY1", "rollingStartNumber": 12345, "rollingPeriod": 144},
-    {"key": "base64 KEY2", "rollingStartNumber": 12489, "rollingPeriod": 10},
-    {"key": "base64 KEYN", "rollingStartNumber": 12499, "rollingPeriod": 100}],
+    {"key": "base64 KEY1", "rollingStartNumber": 12345, "rollingPeriod": 144, "transmissionRisk": 5},
+    {"key": "base64 KEY2", "rollingStartNumber": 12489, "rollingPeriod": 10, "transmissionRisk": 6},
+    {"key": "base64 KEYN", "rollingStartNumber": 12499, "rollingPeriod": 100, "transmissionRisk": 7}],
   "regions": ["US", "CA", "MX"],
   "appPackageName": "com.foo.app",
   "platform": "android",
-  "diagnosisStatus": 2,
   "deviceVerificationPayload": "base64 encoded attestation payload string",
   "verificationPayload": "signature /code from  of verifying authority",
   "padding": "random string data..."
