@@ -158,6 +158,7 @@ func TestValidPublishMessage(t *testing.T) {
 }
 
 func unmarshalTestHelper(t *testing.T, payloads []string, errors []string, expCode int) {
+	t.Helper()
 	for i, testStr := range payloads {
 		body := ioutil.NopCloser(bytes.NewReader([]byte(testStr)))
 		r := httptest.NewRequest("POST", "/", body)

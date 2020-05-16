@@ -111,6 +111,7 @@ func (db *DB) createDatabase(ctx context.Context, name string) error {
 }
 
 func mustExec(t *testing.T, conn *pgxpool.Conn, stmt string, args ...interface{}) {
+	t.Helper()
 	_, err := conn.Exec(context.Background(), stmt, args...)
 	if err != nil {
 		t.Fatalf("executing %s: %v", stmt, err)
@@ -118,6 +119,7 @@ func mustExec(t *testing.T, conn *pgxpool.Conn, stmt string, args ...interface{}
 }
 
 func resetTestDB(t *testing.T) {
+	t.Helper()
 	ctx := context.Background()
 	conn, err := testDB.pool.Acquire(ctx)
 	if err != nil {
