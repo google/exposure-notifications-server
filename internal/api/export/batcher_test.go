@@ -108,7 +108,7 @@ func TestMakeBatchRanges(t *testing.T) {
 			nowT := fromSimpleTime(t, now)
 			latestEndT := fromSimpleTime(t, tc.latestEnd)
 
-			got := makeBatchRanges(tc.period, latestEndT, nowT)
+			got := makeBatchRanges(tc.period, latestEndT, nowT, time.Hour)
 
 			if len(got) != len(tc.want) {
 				t.Errorf("incorrect number of batches got %v, want %v", toSimpleBatchRange(t, got), tc.want)

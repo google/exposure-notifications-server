@@ -41,12 +41,13 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("missing apiconfig provider in server environment")
 	}
 
-	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge)
+	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
 	logger.Infof("max keys per upload: %v", config.MaxKeysOnPublish)
 	logger.Infof("max interval start age: %v", config.MaxIntervalAge)
+	logger.Infof("truncate window: %v", config.TruncateWindow)
 
 	return &publishHandler{
 		serverenv:   env,

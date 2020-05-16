@@ -98,7 +98,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 		return 0, fmt.Errorf("fetching most recent batch for config %d: %w", ec.ConfigID, err)
 	}
 
-	ranges := makeBatchRanges(ec.Period, latestEnd, now)
+	ranges := makeBatchRanges(ec.Period, latestEnd, now, s.config.TruncateWindow)
 	if len(ranges) == 0 {
 		metrics.WriteInt("export-batcher-no-work", true, 1)
 		logger.Debugf("Batch creation for config %d is not required, skipping", ec.ConfigID)
@@ -134,10 +134,10 @@ type batchRange struct {
 
 var sanityDate = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 
-func makeBatchRanges(period time.Duration, latestEnd, now time.Time) []batchRange {
+func makeBatchRanges(period time.Duration, latestEnd, now time.Time, truncateWindow time.Duration) []batchRange {
 
 	// Compute the end of the exposure publish window; we don't want any batches with an end date greater than this time.
-	publishEnd := model.TruncateWindow(now)
+	publishEnd := model.TruncateWindow(now, truncateWindow)
 
 	// Special case: if there have not been batches before, return only a single one.
 	// We use sanityDate here because the loop below will happily create batch ranges

@@ -41,9 +41,6 @@ const (
 
 	// Self explanitory.
 	oneDay = time.Hour * 24
-	// Alignment window for requests. The created_at time for an exposure
-	// record is rounded down to the beginning of the createWindow.
-	createWindow = time.Hour
 
 	// interval length
 	intervalLength = 10 * time.Minute
@@ -119,26 +116,28 @@ func IntervalNumber(t time.Time) int32 {
 }
 
 // TruncateWindow truncates a time based on the size of the creation window.
-func TruncateWindow(t time.Time) time.Time {
-	return t.Truncate(createWindow)
+func TruncateWindow(t time.Time, d time.Duration) time.Time {
+	return t.Truncate(d)
 }
 
 // Transformer represents a configured Publish -> Exposure[] transformer.
 type Transformer struct {
 	maxExposureKeys     int
 	maxIntervalStartAge time.Duration // How many intervals old does this server accept?
+	truncateWindow      time.Duration
 }
 
 // NewTransformer creates a transformer for turning publish API requests into
 // records for insertion into the database. On the call to TransofmrPublish
 // all data is validated according to the transformer that is used.
-func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration) (*Transformer, error) {
+func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration) (*Transformer, error) {
 	if maxExposureKeys < 0 || maxExposureKeys > maxKeysPerPublish {
 		return nil, fmt.Errorf("maxExposureKeys must be > 0 and <= %v, got %v", maxKeysPerPublish, maxExposureKeys)
 	}
 	return &Transformer{
 		maxExposureKeys:     maxExposureKeys,
 		maxIntervalStartAge: maxIntervalStartAge,
+		truncateWindow:      truncateWindow,
 	}, nil
 }
 
@@ -158,7 +157,7 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 		return nil, fmt.Errorf("too many exposure keys in publish: %v, max of %v is allowed", len(inData.Keys), t.maxExposureKeys)
 	}
 
-	createdAt := TruncateWindow(batchTime)
+	createdAt := TruncateWindow(batchTime, t.truncateWindow)
 	entities := make([]*Exposure, 0, len(inData.Keys))
 
 	// An exposure key must have an interval >= minInteravl (max configured age)

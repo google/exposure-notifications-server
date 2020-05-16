@@ -39,9 +39,10 @@ var _ setup.DBConfigProvider = (*Config)(nil)
 
 // Config is the configuration for federation-pull components (data pulled from other servers).
 type Config struct {
-	Database *database.Config
-	Port     string        `envconfig:"PORT" default:"8080"`
-	Timeout  time.Duration `envconfig:"RPC_TIMEOUT" default:"10m"`
+	Database       *database.Config
+	Port           string        `envconfig:"PORT" default:"8080"`
+	Timeout        time.Duration `envconfig:"RPC_TIMEOUT" default:"10m"`
+	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 
 	// TLSSkipVerify, if set to true, causes the server certificate to not be verified.
 	// This is typically used when testing locally with self-signed certificates.

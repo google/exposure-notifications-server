@@ -67,7 +67,7 @@ func (s Server) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
-	response, err := s.fetch(ctx, req, s.db.IterateExposures, model.TruncateWindow(time.Now())) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?
+	response, err := s.fetch(ctx, req, s.db.IterateExposures, model.TruncateWindow(time.Now(), s.config.TruncateWindow)) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?
 	if err != nil {
 		s.env.MetricsExporter(ctx).WriteInt("federation-fetch-failed", true, 1)
 		logger.Errorf("Fetch error: %v", err)
