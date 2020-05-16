@@ -34,7 +34,7 @@ const (
 // Compile-time check to assert implementation.
 var _ Provider = (*DatabaseProvider)(nil)
 
-// DatabaseProvider is an Provider that pulls from the database and caches and
+// DatabaseProvider is a Provider that pulls from the database and caches and
 // refreshes values on failure.
 type DatabaseProvider struct {
 	database      *database.DB
