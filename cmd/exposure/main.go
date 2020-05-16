@@ -37,12 +37,12 @@ func main() {
 	}
 	defer closer()
 
-	if config.BypassSafetyNet {
-		logger.Errorf("Bypassing SafetyNet verification for Android devices. " +
-			"This should only be done in test environments!")
-	}
 	if config.BypassDeviceCheck {
 		logger.Errorf("Bypassing DeviceCheck verification for iOS devices. " +
+			"This should only be done in test environments!")
+	}
+	if config.BypassSafetyNet {
+		logger.Errorf("Bypassing SafetyNet verification for Android devices. " +
 			"This should only be done in test environments!")
 	}
 

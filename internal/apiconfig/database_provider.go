@@ -26,10 +26,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/secrets"
 )
 
-// type ConfigOpts struct {
-// 	RefreshDuration time.Duration `envconfig:"API_CONFIG_REFRESH" default:"5m"`
-// }
-
 const (
 	// defaultCacheDuration is the default amount of time to cache.
 	defaultCacheDuration = 5 * time.Minute
