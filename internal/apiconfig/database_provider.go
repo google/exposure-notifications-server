@@ -119,7 +119,7 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 	}
 
 	// Cache configs.
-	logger.Infof("apiconfig: loaded new configurations, caching for %q", p.cacheDuration)
+	logger.Infof("apiconfig: loaded new configurations, caching for %s", p.cacheDuration)
 	p.cache = configs
 	p.cachedAt = time.Now()
 
