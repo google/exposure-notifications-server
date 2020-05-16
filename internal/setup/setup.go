@@ -57,6 +57,7 @@ type Defer func()
 // Setup runs common intitializion code for all servers.
 func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, Defer, error) {
 	logger := logging.FromContext(ctx)
+	metric := metrics.NewLogsBasedFromContext(ctx)
 
 	// Can be changed with a different secret manager interface.
 	// TODO(mikehelmick): Make this extensible to other providers.
@@ -112,6 +113,7 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 		// misconfigurations.
 		if _, err := provider.AppConfig(ctx, ""); err != apiconfig.AppNotFound {
 			logger.Errorf("failed to load APIConfigs: %v", err)
+			metric.WriteInt("setup-load-apiconfig-failed", true, 1)
 		}
 
 		opts = append(opts, serverenv.WithAPIConfigProvider(provider))
