@@ -116,7 +116,10 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if appConfig.IsIOS() {
-		if err := verification.VerifyDeviceCheck(ctx, appConfig, data); err != nil {
+		if h.config.BypassDeviceCheck {
+			logger.Errorf("bypassing DeviceCheck for %v", data.AppPackageName)
+			metrics.WriteInt("publish-devicecheck-bypass", true, 1)
+		} else if err := verification.VerifyDeviceCheck(ctx, appConfig, data); err != nil {
 			logger.Errorf("unable to verify devicecheck payload: %v", err)
 			metrics.WriteInt("publish-devicecheck-invalid", true, 1)
 			// Return success to the client.
@@ -124,7 +127,10 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else if appConfig.IsAndroid() {
-		if err := verification.VerifySafetyNet(ctx, time.Now(), appConfig, data); err != nil {
+		if h.config.BypassSafetyNet {
+			logger.Errorf("bypassing SafetyNet for %v", data.AppPackageName)
+			metrics.WriteInt("publish-safetynet-bypass", true, 1)
+		} else if err := verification.VerifySafetyNet(ctx, time.Now(), appConfig, data); err != nil {
 			logger.Errorf("unable to verify safetynet payload: %v", err)
 			metrics.WriteInt("publish-safetnet-invalid", true, 1)
 			// Return success to the client.
