@@ -17,6 +17,7 @@ package setup
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/dbapiconfig"
@@ -57,7 +58,8 @@ type Defer func()
 func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, Defer, error) {
 	// Can be changed with a different secret manager interface.
 	// TODO(mikehelmick): Make this extensible to other providers.
-	sm, err := secrets.NewGCPSecretManager(ctx)
+	// TODO(sethvargo): Make TTL configurable.
+	sm, err := secrets.NewCacher(ctx, secrets.NewGCPSecretManager, 5*time.Minute)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to connect to secret manager: %v", err)
 	}
