@@ -25,16 +25,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/secrets"
 )
 
-const (
-	query = `
-		SELECT
-			app_package_name, platform, apk_digest, cts_profile_match, basic_integrity,
-			allowed_past_seconds, allowed_future_seconds, allowed_regions, all_regions,
-			ios_devicecheck_team_id_secret, ios_devicecheck_key_id_secret, ios_devicecheck_private_key_secret
-		FROM
-			APIConfig`
-)
-
 // ReadAPIConfigs loads all APIConfig values from the database.
 func (db *DB) ReadAPIConfigs(ctx context.Context, sm secrets.SecretManager) ([]*model.APIConfig, error) {
 	conn, err := db.pool.Acquire(ctx)
@@ -42,6 +32,14 @@ func (db *DB) ReadAPIConfigs(ctx context.Context, sm secrets.SecretManager) ([]*
 		return nil, fmt.Errorf("acquiring connection: %v", err)
 	}
 	defer conn.Release()
+
+	query := `
+		SELECT
+			app_package_name, platform, apk_digest, cts_profile_match, basic_integrity,
+			allowed_past_seconds, allowed_future_seconds, allowed_regions, all_regions,
+			ios_devicecheck_team_id_secret, ios_devicecheck_key_id_secret, ios_devicecheck_private_key_secret
+		FROM
+			APIConfig`
 
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
