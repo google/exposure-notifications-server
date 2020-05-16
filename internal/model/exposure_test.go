@@ -267,24 +267,24 @@ func TestTransform(t *testing.T) {
 			{
 				Key:              encodeKey(generateKey(t)),
 				IntervalNumber:   intervalNumber,
-				IntervalCount:    maxIntervalCount,
+				IntervalCount:    MaxIntervalCount,
 				TransmissionRisk: 1,
 			},
 			{
 				Key:              encodeKey(generateKey(t)),
-				IntervalNumber:   intervalNumber + maxIntervalCount,
-				IntervalCount:    maxIntervalCount,
+				IntervalNumber:   intervalNumber + MaxIntervalCount,
+				IntervalCount:    MaxIntervalCount,
 				TransmissionRisk: 2,
 			},
 			{
 				Key:              encodeKey(generateKey(t)),
-				IntervalNumber:   intervalNumber + 2*maxIntervalCount,
-				IntervalCount:    maxIntervalCount, // Invalid, should get rounded down
+				IntervalNumber:   intervalNumber + 2*MaxIntervalCount,
+				IntervalCount:    MaxIntervalCount, // Invalid, should get rounded down
 				TransmissionRisk: 3,
 			},
 			{
 				Key:              encodeKey(generateKey(t)),
-				IntervalNumber:   intervalNumber + 3*maxIntervalCount,
+				IntervalNumber:   intervalNumber + 3*MaxIntervalCount,
 				IntervalCount:    42,
 				TransmissionRisk: 4,
 			},
@@ -298,24 +298,24 @@ func TestTransform(t *testing.T) {
 		{
 			ExposureKey:      decodeKey(source.Keys[0].Key, t),
 			IntervalNumber:   intervalNumber,
-			IntervalCount:    maxIntervalCount,
+			IntervalCount:    MaxIntervalCount,
 			TransmissionRisk: 1,
 		},
 		{
 			ExposureKey:      decodeKey(source.Keys[1].Key, t),
-			IntervalNumber:   intervalNumber + maxIntervalCount,
-			IntervalCount:    maxIntervalCount,
+			IntervalNumber:   intervalNumber + MaxIntervalCount,
+			IntervalCount:    MaxIntervalCount,
 			TransmissionRisk: 2,
 		},
 		{
 			ExposureKey:      decodeKey(source.Keys[2].Key, t),
-			IntervalNumber:   intervalNumber + 2*maxIntervalCount,
-			IntervalCount:    maxIntervalCount,
+			IntervalNumber:   intervalNumber + 2*MaxIntervalCount,
+			IntervalCount:    MaxIntervalCount,
 			TransmissionRisk: 3,
 		},
 		{
 			ExposureKey:      decodeKey(source.Keys[3].Key, t),
-			IntervalNumber:   intervalNumber + 3*maxIntervalCount,
+			IntervalNumber:   intervalNumber + 3*MaxIntervalCount,
 			IntervalCount:    42,
 			TransmissionRisk: 4,
 		},
