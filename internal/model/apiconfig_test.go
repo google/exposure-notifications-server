@@ -19,10 +19,7 @@ import (
 )
 
 func TestBaseAPIConfig(t *testing.T) {
-	cfg, err := NewAPIConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := NewAPIConfig()
 	if cfg.IsIOS() {
 		t.Errorf("cfg.IoIOS, got true, want false")
 	}

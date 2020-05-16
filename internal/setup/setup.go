@@ -108,14 +108,6 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 			defer db.Close(ctx)
 			return nil, nil, fmt.Errorf("unable to create APIConfig provider: %v", err)
 		}
-
-		// Load initial configurations. This will help identify any
-		// misconfigurations.
-		if _, err := provider.AppConfig(ctx, ""); err != apiconfig.AppNotFound {
-			logger.Errorf("failed to load APIConfigs: %v", err)
-			metric.WriteInt("setup-load-apiconfig-failed", true, 1)
-		}
-
 		opts = append(opts, serverenv.WithAPIConfigProvider(provider))
 	}
 

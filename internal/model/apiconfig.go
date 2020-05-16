@@ -47,10 +47,10 @@ type APIConfig struct {
 	DeviceCheckPrivateKey *ecdsa.PrivateKey
 }
 
-func NewAPIConfig() (*APIConfig, error) {
+func NewAPIConfig() *APIConfig {
 	return &APIConfig{
 		AllowedRegions: make(map[string]struct{}),
-	}, nil
+	}
 }
 
 // IsIOS returns true if the platform is equal to `iosDevice`

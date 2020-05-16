@@ -21,7 +21,7 @@ import (
 type Config struct {
 	// CacheDuration is the amount of time APIConfigs should be cached before
 	// being re-read from their provider.
-	CacheDuration time.Duration `envconfig:"APICONFIG_CACHE_DURATION"`
+	CacheDuration time.Duration `envconfig:"APICONFIG_CACHE_DURATION" default:"5m"`
 }
 
 // APIConfig implements an interface for setup.

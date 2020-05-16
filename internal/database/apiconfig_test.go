@@ -42,7 +42,7 @@ func (s *testSecretManager) GetSecretValue(ctx context.Context, name string) (st
 	return v, nil
 }
 
-func TestReadAPIConfigs(t *testing.T) {
+func TestGetAPIConfig(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
@@ -75,7 +75,7 @@ func TestReadAPIConfigs(t *testing.T) {
 		name string
 		sql  string
 		args []interface{}
-		exp  []*model.APIConfig
+		exp  *model.APIConfig
 		err  bool
 	}{
 		{
@@ -85,14 +85,12 @@ func TestReadAPIConfigs(t *testing.T) {
 				VALUES ($1, $2, $3)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}},
-			exp: []*model.APIConfig{
-				{
-					AppPackageName:  "myapp",
-					Platform:        "ios",
-					AllowedRegions:  map[string]struct{}{"US": {}},
-					CTSProfileMatch: true,
-					BasicIntegrity:  true,
-				},
+			exp: &model.APIConfig{
+				AppPackageName:  "myapp",
+				Platform:        "ios",
+				AllowedRegions:  map[string]struct{}{"US": {}},
+				CTSProfileMatch: true,
+				BasicIntegrity:  true,
 			},
 		},
 		{
@@ -104,15 +102,13 @@ func TestReadAPIConfigs(t *testing.T) {
 				) VALUES ($1, $2, $3, $4)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, 1800},
-			exp: []*model.APIConfig{
-				{
-					AppPackageName:  "myapp",
-					Platform:        "ios",
-					AllowedRegions:  map[string]struct{}{"US": {}},
-					CTSProfileMatch: true,
-					BasicIntegrity:  true,
-					AllowedPastTime: 30 * time.Minute,
-				},
+			exp: &model.APIConfig{
+				AppPackageName:  "myapp",
+				Platform:        "ios",
+				AllowedRegions:  map[string]struct{}{"US": {}},
+				CTSProfileMatch: true,
+				BasicIntegrity:  true,
+				AllowedPastTime: 30 * time.Minute,
 			},
 		},
 		{
@@ -124,15 +120,13 @@ func TestReadAPIConfigs(t *testing.T) {
 				) VALUES ($1, $2, $3, $4)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, 1800},
-			exp: []*model.APIConfig{
-				{
-					AppPackageName:    "myapp",
-					Platform:          "ios",
-					AllowedRegions:    map[string]struct{}{"US": {}},
-					CTSProfileMatch:   true,
-					BasicIntegrity:    true,
-					AllowedFutureTime: 30 * time.Minute,
-				},
+			exp: &model.APIConfig{
+				AppPackageName:    "myapp",
+				Platform:          "ios",
+				AllowedRegions:    map[string]struct{}{"US": {}},
+				CTSProfileMatch:   true,
+				BasicIntegrity:    true,
+				AllowedFutureTime: 30 * time.Minute,
 			},
 		},
 		{
@@ -144,18 +138,22 @@ func TestReadAPIConfigs(t *testing.T) {
 				) VALUES ($1, $2, $3, $4, $5, $6)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, "team_id", "key_id", "private_key"},
-			exp: []*model.APIConfig{
-				{
-					AppPackageName:        "myapp",
-					Platform:              "ios",
-					AllowedRegions:        map[string]struct{}{"US": {}},
-					CTSProfileMatch:       true,
-					BasicIntegrity:        true,
-					DeviceCheckTeamID:     "ABCD1234",
-					DeviceCheckKeyID:      "DEFG5678",
-					DeviceCheckPrivateKey: p8PrivateKey,
-				},
+			exp: &model.APIConfig{
+				AppPackageName:        "myapp",
+				Platform:              "ios",
+				AllowedRegions:        map[string]struct{}{"US": {}},
+				CTSProfileMatch:       true,
+				BasicIntegrity:        true,
+				DeviceCheckTeamID:     "ABCD1234",
+				DeviceCheckKeyID:      "DEFG5678",
+				DeviceCheckPrivateKey: p8PrivateKey,
 			},
+		},
+		{
+			name: "not_found",
+			sql:  "",
+			args: nil,
+			exp:  nil,
 		},
 	}
 
@@ -175,14 +173,14 @@ func TestReadAPIConfigs(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			configs, err := testDB.ReadAPIConfigs(ctx, sm)
+			config, err := testDB.GetAPIConfig(ctx, sm, "myapp")
 			if (err != nil) != c.err {
 				t.Fatal(err)
 			}
 
 			// Compare, ignoring the private key part
 			opts := cmpopts.IgnoreTypes(new(ecdsa.PrivateKey))
-			if diff := cmp.Diff(configs, c.exp, opts); diff != "" {
+			if diff := cmp.Diff(config, c.exp, opts); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 
