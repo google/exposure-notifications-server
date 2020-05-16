@@ -21,12 +21,14 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/ios"
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/secrets"
+	pgx "github.com/jackc/pgx/v4"
 )
 
-// ReadAPIConfigs loads all APIConfig values from the database.
-func (db *DB) ReadAPIConfigs(ctx context.Context, sm secrets.SecretManager) ([]*apiconfig.APIConfig, error) {
+// GetAPIConfig loads a single API config for the given name. If no row exists,
+// this returns nil.
+func (db *DB) GetAPIConfig(ctx context.Context, sm secrets.SecretManager, name string) (*model.APIConfig, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
@@ -39,84 +41,74 @@ func (db *DB) ReadAPIConfigs(ctx context.Context, sm secrets.SecretManager) ([]*
 			allowed_past_seconds, allowed_future_seconds, allowed_regions, all_regions,
 			ios_devicecheck_team_id_secret, ios_devicecheck_key_id_secret, ios_devicecheck_private_key_secret
 		FROM
-			APIConfig`
-	rows, err := conn.Query(ctx, query)
-	if err != nil {
+			APIConfig
+		WHERE app_package_name = $1`
+
+	row := conn.QueryRow(ctx, query, name)
+
+	config := model.NewAPIConfig()
+	var allowedRegions []string
+	var allowedPastSeconds, allowedFutureSeconds *int
+	var deviceCheckTeamIDSecret, deviceCheckKeyIDSecret, deviceCheckPrivateKeySecret sql.NullString
+	if err := row.Scan(
+		&config.AppPackageName, &config.Platform, &config.ApkDigestSHA256, &config.CTSProfileMatch, &config.BasicIntegrity,
+		&allowedPastSeconds, &allowedFutureSeconds, &allowedRegions, &config.AllowAllRegions,
+		&deviceCheckTeamIDSecret, &deviceCheckKeyIDSecret, &deviceCheckPrivateKeySecret,
+	); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
-	defer rows.Close()
 
-	// In most instances, we expect a single config entry.
-	var result []*apiconfig.APIConfig
-	for rows.Next() {
-		if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("iterating rows: %w", err)
-		}
-
-		var regions []string
-		config := apiconfig.New()
-		var allowedPastSeconds, allowedFutureSeconds *int
-		var deviceCheckTeamIDSecret, deviceCheckKeyIDSecret, deviceCheckPrivateKeySecret sql.NullString
-		if err := rows.Scan(&config.AppPackageName, &config.Platform, &config.ApkDigestSHA256,
-			&config.CTSProfileMatch, &config.BasicIntegrity,
-			&allowedPastSeconds, &allowedFutureSeconds, &regions, &config.AllowAllRegions,
-			&deviceCheckTeamIDSecret, &deviceCheckKeyIDSecret, &deviceCheckPrivateKeySecret); err != nil {
-			return nil, err
-		}
-
-		// Convert time in seconds from DB into time.Duration
-		if allowedPastSeconds != nil {
-			d := time.Duration(*allowedPastSeconds) * time.Second
-			config.AllowedPastTime = d
-		}
-		if allowedFutureSeconds != nil {
-			d := time.Duration(*allowedFutureSeconds) * time.Second
-			config.AllowedFutureTime = d
-		}
-
-		// build the regions map
-		for _, r := range regions {
-			config.AllowedRegions[r] = true
-		}
-
-		// Resolve secrets to their plaintext values
-		if v := deviceCheckTeamIDSecret; v.Valid && v.String != "" {
-			plaintext, err := sm.GetSecretValue(ctx, v.String)
-			if err != nil {
-				return nil, fmt.Errorf("ios_devicecheck_team_id_secret at %s (%s): %w",
-					config.AppPackageName, config.Platform, err)
-			}
-			config.DeviceCheckTeamID = plaintext
-		}
-
-		if v := deviceCheckKeyIDSecret; v.Valid && v.String != "" {
-			plaintext, err := sm.GetSecretValue(ctx, v.String)
-			if err != nil {
-				return nil, fmt.Errorf("ios_devicecheck_key_id_secret at %s (%s): %w",
-					config.AppPackageName, config.Platform, err)
-			}
-			config.DeviceCheckKeyID = plaintext
-		}
-
-		if v := deviceCheckPrivateKeySecret; v.Valid && v.String != "" {
-			plaintext, err := sm.GetSecretValue(ctx, v.String)
-			if err != nil {
-				return nil, fmt.Errorf("ios_devicecheck_private_key_secret at %s (%s): %w",
-					config.AppPackageName, config.Platform, err)
-			}
-
-			key, err := ios.ParsePrivateKey(plaintext)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse private key at %s (%s): %w",
-					config.AppPackageName, config.Platform, err)
-			}
-			config.DeviceCheckPrivateKey = key
-		}
-
-		result = append(result, config)
+	// Convert time in seconds from DB into time.Duration
+	if allowedPastSeconds != nil {
+		d := time.Duration(*allowedPastSeconds) * time.Second
+		config.AllowedPastTime = d
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+	if allowedFutureSeconds != nil {
+		d := time.Duration(*allowedFutureSeconds) * time.Second
+		config.AllowedFutureTime = d
 	}
-	return result, nil
+
+	// build the regions map
+	for _, r := range allowedRegions {
+		config.AllowedRegions[r] = struct{}{}
+	}
+
+	// Resolve secrets to their plaintext values
+	if v := deviceCheckTeamIDSecret; v.Valid && v.String != "" {
+		plaintext, err := sm.GetSecretValue(ctx, v.String)
+		if err != nil {
+			return nil, fmt.Errorf("ios_devicecheck_team_id_secret at %s (%s): %w",
+				config.AppPackageName, config.Platform, err)
+		}
+		config.DeviceCheckTeamID = plaintext
+	}
+
+	if v := deviceCheckKeyIDSecret; v.Valid && v.String != "" {
+		plaintext, err := sm.GetSecretValue(ctx, v.String)
+		if err != nil {
+			return nil, fmt.Errorf("ios_devicecheck_key_id_secret at %s (%s): %w",
+				config.AppPackageName, config.Platform, err)
+		}
+		config.DeviceCheckKeyID = plaintext
+	}
+
+	if v := deviceCheckPrivateKeySecret; v.Valid && v.String != "" {
+		plaintext, err := sm.GetSecretValue(ctx, v.String)
+		if err != nil {
+			return nil, fmt.Errorf("ios_devicecheck_private_key_secret at %s (%s): %w",
+				config.AppPackageName, config.Platform, err)
+		}
+
+		key, err := ios.ParsePrivateKey(plaintext)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key at %s (%s): %w",
+				config.AppPackageName, config.Platform, err)
+		}
+		config.DeviceCheckPrivateKey = key
+	}
+
+	return config, nil
 }

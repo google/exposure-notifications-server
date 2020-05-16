@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/config"
+	"github.com/google/exposure-notifications-server/internal/apiconfig"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/logging"
@@ -63,7 +63,7 @@ type publishHandler struct {
 	serverenv   *serverenv.ServerEnv
 	transformer *model.Transformer
 	database    *database.DB
-	apiconfig   config.Provider
+	apiconfig   apiconfig.Provider
 }
 
 // There is a target normalized latency for this function. This is to help prevent
@@ -83,26 +83,30 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := h.apiconfig.AppPkgConfig(ctx, data.AppPackageName)
+	appConfig, err := h.apiconfig.AppConfig(ctx, data.AppPackageName)
 	if err != nil {
-		// Log the configuration error, return error to client.
-		// This is retryable, although won't succeed if the error isn't transient.
+		// Config loaded, but app with that name isn't registered. This can also
+		// happen if the app was recently registered but the cache hasn't been
+		// refreshed.
+		if err == apiconfig.AppNotFound {
+			logger.Errorf("unauthorized app: %v", data.AppPackageName)
+			metrics.WriteInt("publish-app-not-authorized", true, 1)
+			// This returns success to the client.
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// A higher-level configuration error occurred, likely while trying to read
+		// from the database. This is retryable, although won't succeed if the error
+		// isn't transient.
 		logger.Errorf("no API config, dropping data: %v", err)
 		metrics.WriteInt("publish-error-loading-apiconfig", true, 1)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	if cfg == nil {
-		// configs were loaded, but the request app isn't configured.
-		logger.Errorf("unauthorized application: %v", data.AppPackageName)
-		metrics.WriteInt("publish-app-not-authorized", true, 1)
-		// This returns success to the client.
-		w.WriteHeader(http.StatusOK)
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
 		return
 	}
 
-	err = verification.VerifyRegions(cfg, data)
-	if err != nil {
+	if err := verification.VerifyRegions(appConfig, data); err != nil {
 		logger.Errorf("verification.VerifyRegions: %v", err)
 		metrics.WriteInt("publish-region-not-authorized", true, 1)
 		// This returns success to the client.
@@ -110,16 +114,22 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if cfg.IsIOS() {
-		if err := verification.VerifyDeviceCheck(ctx, cfg, data); err != nil {
+	if appConfig.IsIOS() {
+		if h.config.BypassDeviceCheck {
+			logger.Errorf("bypassing DeviceCheck for %v", data.AppPackageName)
+			metrics.WriteInt("publish-devicecheck-bypass", true, 1)
+		} else if err := verification.VerifyDeviceCheck(ctx, appConfig, data); err != nil {
 			logger.Errorf("unable to verify devicecheck payload: %v", err)
 			metrics.WriteInt("publish-devicecheck-invalid", true, 1)
 			// Return success to the client.
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-	} else if cfg.IsAndroid() {
-		if err := verification.VerifySafetyNet(ctx, time.Now(), cfg, data); err != nil {
+	} else if appConfig.IsAndroid() {
+		if h.config.BypassSafetyNet {
+			logger.Errorf("bypassing SafetyNet for %v", data.AppPackageName)
+			metrics.WriteInt("publish-safetynet-bypass", true, 1)
+		} else if err := verification.VerifySafetyNet(ctx, time.Now(), appConfig, data); err != nil {
 			logger.Errorf("unable to verify safetynet payload: %v", err)
 			metrics.WriteInt("publish-safetnet-invalid", true, 1)
 			// Return success to the client.
@@ -149,7 +159,8 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("error writing exposure record: %v", err)
 		metrics.WriteInt("publish-db-write-error", true, 1)
 		// This is retryable at the client - database error at the server.
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
 		return
 	}
 	metrics.WriteInt("publish-exposures-written", true, len(exposures))

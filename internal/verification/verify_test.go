@@ -17,12 +17,12 @@ package verification
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/android"
 	"github.com/google/exposure-notifications-server/internal/model"
-	"github.com/google/exposure-notifications-server/internal/model/apiconfig"
 )
 
 const (
@@ -30,21 +30,21 @@ const (
 )
 
 func TestVerifyRegions(t *testing.T) {
-	allRegions := &apiconfig.APIConfig{
+	allRegions := &model.APIConfig{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
 	}
-	usCaRegions := &apiconfig.APIConfig{
+	usCaRegions := &model.APIConfig{
 		AppPackageName: appPkgName,
-		AllowedRegions: make(map[string]bool),
+		AllowedRegions: make(map[string]struct{}),
 	}
-	usCaRegions.AllowedRegions["US"] = true
-	usCaRegions.AllowedRegions["CA"] = true
+	usCaRegions.AllowedRegions["US"] = struct{}{}
+	usCaRegions.AllowedRegions["CA"] = struct{}{}
 
 	cases := []struct {
 		Data *model.Publish
 		Msg  string
-		Cfg  *apiconfig.APIConfig
+		Cfg  *model.APIConfig
 	}{
 		{
 			&model.Publish{Regions: []string{"US"}},
@@ -89,26 +89,21 @@ func TestVerifyRegions(t *testing.T) {
 }
 
 func TestVerifySafetyNet(t *testing.T) {
-	allRegions := &apiconfig.APIConfig{
+	allRegions := &model.APIConfig{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
-	}
-	allRegionsSafetyCheckDisabled := &apiconfig.APIConfig{
-		AppPackageName:  appPkgName,
-		AllowAllRegions: true,
-		BypassSafetyNet: true,
 	}
 
 	cases := []struct {
 		Data              *model.Publish
 		Msg               string
-		Cfg               *apiconfig.APIConfig
+		Cfg               *model.APIConfig
 		AttestationResult error
 	}{
 		{
 			// With no configuration, return err.
 			&model.Publish{Regions: []string{"US"}},
-			"cannot enforce safetynet, no application config",
+			"cannot enforce SafetyNet",
 			nil,
 			nil,
 		}, {
@@ -124,19 +119,12 @@ func TestVerifySafetyNet(t *testing.T) {
 			"android.ValidateAttestation: mocked",
 			allRegions,
 			fmt.Errorf("mocked"),
-		}, {
-			// Verify when ValidateAttestation raises err, with safety check
-			// disabled, return nil.
-			&model.Publish{Regions: []string{"US"}},
-			"",
-			allRegionsSafetyCheckDisabled,
-			fmt.Errorf("mocked"),
 		},
 	}
 
 	for i, c := range cases {
 		var ctx = context.Background()
-		androidValidateAttestation = func(context.Context, string, android.VerifyOpts) error {
+		androidValidateAttestation = func(context.Context, string, *android.VerifyOpts) error {
 			return c.AttestationResult
 		}
 
@@ -148,7 +136,7 @@ func TestVerifySafetyNet(t *testing.T) {
 			t.Errorf("%v got %v, wanted no error", i, err)
 			continue
 		}
-		if err.Error() != c.Msg {
+		if !strings.Contains(err.Error(), c.Msg) {
 			t.Errorf("%v wrong error, got %v, want %v", i, err, c.Msg)
 		}
 	}

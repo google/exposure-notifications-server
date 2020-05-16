@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/model"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -34,7 +35,7 @@ import (
 type VerifyOpts struct {
 	AppPkgName      string
 	APKDigest       []string
-	Nonce           Noncer
+	Nonce           string
 	CTSProfileMatch bool
 	BasicIntegrity  bool
 	MinValidTime    time.Time
@@ -45,7 +46,7 @@ type VerifyOpts struct {
 // matches the properties that we expect based on the applications APIConfig entry.
 // See https://developer.android.com/training/safetynet/attestation#use-response-server
 // for details on the format of these attestations.
-func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpts) error {
+func ValidateAttestation(ctx context.Context, attestation string, opts *VerifyOpts) error {
 	defer trace.StartRegion(ctx, "ValidateAttestation").End()
 	logger := logging.FromContext(ctx)
 
@@ -55,7 +56,7 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 	}
 
 	// Validate the nonce.
-	if opts.Nonce == nil || opts.Nonce.Nonce() == "" {
+	if opts.Nonce == "" {
 		return fmt.Errorf("missing nonce")
 	}
 	nonceClaimB64, ok := claims["nonce"].(string)
@@ -67,7 +68,7 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 		return fmt.Errorf("unable to decode nonce claim data: %w", err)
 	}
 	nonceClaim := string(nonceClaimBytes)
-	nonceCalculated := opts.Nonce.Nonce()
+	nonceCalculated := opts.Nonce
 	if nonceCalculated != nonceClaim {
 		return fmt.Errorf("nonce mismatch: expected %v got %v", nonceCalculated, nonceClaim)
 	}
@@ -134,6 +135,32 @@ func ValidateAttestation(ctx context.Context, attestation string, opts VerifyOpt
 	}
 
 	return nil
+}
+
+// VerifyOptsFor returns the Android SafetyNet verification options to be used
+// based on the API config, request time, and nonce.
+func VerifyOptsFor(c *model.APIConfig, from time.Time, nonce string) *VerifyOpts {
+	digests := make([]string, len(c.ApkDigestSHA256))
+	copy(digests, c.ApkDigestSHA256)
+	rtn := &VerifyOpts{
+		AppPkgName:      c.AppPackageName,
+		CTSProfileMatch: c.CTSProfileMatch,
+		BasicIntegrity:  c.BasicIntegrity,
+		APKDigest:       digests,
+		Nonce:           nonce,
+	}
+
+	// Calculate the valid time window based on now + config options.
+	if c.AllowedPastTime > 0 {
+		minTime := from.Add(-c.AllowedPastTime)
+		rtn.MinValidTime = minTime
+	}
+	if c.AllowedFutureTime > 0 {
+		maxTime := from.Add(c.AllowedFutureTime)
+		rtn.MaxValidTime = maxTime
+	}
+
+	return rtn
 }
 
 // The keyFunc is based on the Android sample code

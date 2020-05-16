@@ -21,17 +21,12 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/go-cmp/cmp"
 )
 
 const (
 	appPackage = "com.google.android.apps.exposurenotification"
 )
-
-type emptyNonce struct{}
-
-func (e *emptyNonce) Nonce() string {
-	return ""
-}
 
 var (
 	// **This is not a secret value.**
@@ -61,7 +56,7 @@ func TestVerifyAttestation(t *testing.T) {
 		t.Fatalf("error verifying attestation %v", err)
 	}
 
-	expectedNonce := NewNonce(publish).Nonce()
+	expectedNonce := publish.AndroidNonce()
 	actualBytes, err := base64util.DecodeString(claims["nonce"].(string))
 	actualNonce := string(actualBytes)
 	if err != nil {
@@ -73,8 +68,7 @@ func TestVerifyAttestation(t *testing.T) {
 }
 
 func TestValidateAttestation(t *testing.T) {
-	nonce := NewNonce(publish)
-
+	nonce := publish.AndroidNonce()
 	apkDigest := "jqmYEqi9qUvpUe11qMf3v2o6VEQM+5NDee2bz0xdzWc="
 	generateTimeS := int64(1589588408185) / 1000
 	generateTime := time.Unix(generateTimeS, 0)
@@ -82,12 +76,12 @@ func TestValidateAttestation(t *testing.T) {
 	minValidTime := generateTime.Add(-1 * time.Minute)
 
 	tests := []struct {
-		Opts  VerifyOpts
+		Opts  *VerifyOpts
 		Valid bool
 		Error string
 	}{
 		{
-			VerifyOpts{
+			&VerifyOpts{
 				AppPkgName:      appPackage,
 				APKDigest:       []string{"other digest", apkDigest},
 				Nonce:           nonce,
@@ -100,10 +94,10 @@ func TestValidateAttestation(t *testing.T) {
 			"",
 		},
 		{
-			VerifyOpts{
+			&VerifyOpts{
 				AppPkgName:      appPackage,
 				APKDigest:       []string{""},
-				Nonce:           nil,
+				Nonce:           "",
 				CTSProfileMatch: false,
 				BasicIntegrity:  true,
 				MinValidTime:    minValidTime,
@@ -113,20 +107,7 @@ func TestValidateAttestation(t *testing.T) {
 			"missing nonce",
 		},
 		{
-			VerifyOpts{
-				AppPkgName:      appPackage,
-				APKDigest:       []string{""},
-				Nonce:           &emptyNonce{},
-				CTSProfileMatch: false,
-				BasicIntegrity:  true,
-				MinValidTime:    minValidTime,
-				MaxValidTime:    maxValidTime,
-			},
-			false,
-			"missing nonce",
-		},
-		{
-			VerifyOpts{
+			&VerifyOpts{
 				AppPkgName:      appPackage,
 				APKDigest:       []string{""},
 				Nonce:           nonce,
@@ -139,7 +120,7 @@ func TestValidateAttestation(t *testing.T) {
 			"missing timestamp bounds for attestation",
 		},
 		{
-			VerifyOpts{
+			&VerifyOpts{
 				AppPkgName:      appPackage,
 				APKDigest:       []string{""},
 				Nonce:           nonce,
@@ -152,7 +133,7 @@ func TestValidateAttestation(t *testing.T) {
 			"missing timestamp bounds for attestation",
 		},
 		{
-			VerifyOpts{
+			&VerifyOpts{
 				AppPkgName:      appPackage,
 				APKDigest:       []string{apkDigest},
 				Nonce:           nonce,
@@ -165,7 +146,7 @@ func TestValidateAttestation(t *testing.T) {
 			"missing timestamp bounds for attestation",
 		},
 		{
-			VerifyOpts{
+			&VerifyOpts{
 				AppPkgName:      appPackage,
 				APKDigest:       []string{apkDigest},
 				Nonce:           nonce,
@@ -178,7 +159,7 @@ func TestValidateAttestation(t *testing.T) {
 			"attestation is too old, must be newer than 1589588468, was 1589588408",
 		},
 		{
-			VerifyOpts{
+			&VerifyOpts{
 				AppPkgName:      appPackage,
 				APKDigest:       []string{""},
 				Nonce:           nonce,
@@ -203,6 +184,75 @@ func TestValidateAttestation(t *testing.T) {
 			} else if err.Error() != test.Error {
 				t.Errorf("test %v, wrong error, want %v, got %v", i, test.Error, err)
 			}
+		}
+	}
+}
+
+func TestVerifyOptsFor(t *testing.T) {
+	testTime := time.Date(2020, 1, 13, 5, 6, 4, 6, time.Local)
+
+	cases := []struct {
+		cfg  *model.APIConfig
+		opts *VerifyOpts
+	}{
+		{
+			cfg: &model.APIConfig{
+				AppPackageName:    "foo",
+				CTSProfileMatch:   true,
+				BasicIntegrity:    true,
+				AllowedPastTime:   time.Duration(15 * time.Minute),
+				AllowedFutureTime: time.Duration(1 * time.Second),
+			},
+			opts: &VerifyOpts{
+				AppPkgName:      "foo",
+				APKDigest:       []string{},
+				CTSProfileMatch: true,
+				BasicIntegrity:  true,
+				MinValidTime:    testTime.Add(-15 * time.Minute),
+				MaxValidTime:    testTime.Add(1 * time.Second),
+			},
+		},
+		{
+			cfg: &model.APIConfig{
+				AppPackageName:    "foo",
+				CTSProfileMatch:   false,
+				BasicIntegrity:    true,
+				AllowedPastTime:   0,
+				AllowedFutureTime: 0,
+			},
+			opts: &VerifyOpts{
+				AppPkgName:      "foo",
+				APKDigest:       []string{},
+				CTSProfileMatch: false,
+				BasicIntegrity:  true,
+				MinValidTime:    time.Time{},
+				MaxValidTime:    time.Time{},
+			},
+		},
+		{
+			cfg: &model.APIConfig{
+				AppPackageName:    "foo",
+				ApkDigestSHA256:   []string{"bar"},
+				CTSProfileMatch:   false,
+				BasicIntegrity:    true,
+				AllowedPastTime:   0,
+				AllowedFutureTime: 0,
+			},
+			opts: &VerifyOpts{
+				AppPkgName:      "foo",
+				APKDigest:       []string{"bar"},
+				CTSProfileMatch: false,
+				BasicIntegrity:  true,
+				MinValidTime:    time.Time{},
+				MaxValidTime:    time.Time{},
+			},
+		},
+	}
+
+	for i, c := range cases {
+		got := VerifyOptsFor(c.cfg, testTime, "" /* nonce */)
+		if diff := cmp.Diff(c.opts, got); diff != "" {
+			t.Errorf("%v verify opts (-want +got):\n%v", i, diff)
 		}
 	}
 }

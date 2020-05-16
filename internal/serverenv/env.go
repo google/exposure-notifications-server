@@ -20,7 +20,7 @@ import (
 	"crypto"
 	"fmt"
 
-	"github.com/google/exposure-notifications-server/internal/config"
+	"github.com/google/exposure-notifications-server/internal/apiconfig"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
@@ -37,7 +37,7 @@ type ServerEnv struct {
 	keyManager        signing.KeyManager
 	blobstore         storage.Blobstore
 	exporter          metrics.ExporterFromContext
-	apiConfigProvider config.Provider
+	apiConfigProvider apiconfig.Provider
 	database          *database.DB
 }
 
@@ -69,7 +69,7 @@ func WithDatabase(db *database.DB) Option {
 }
 
 // WithAPIConfigProvider installs a provider of APIConfig.
-func WithAPIConfigProvider(p config.Provider) Option {
+func WithAPIConfigProvider(p apiconfig.Provider) Option {
 	return func(s *ServerEnv) *ServerEnv {
 		s.apiConfigProvider = p
 		return s
@@ -120,7 +120,7 @@ func (s *ServerEnv) Blobstore() storage.Blobstore {
 	return s.blobstore
 }
 
-func (s *ServerEnv) APIConfigProvider() config.Provider {
+func (s *ServerEnv) APIConfigProvider() apiconfig.Provider {
 	return s.apiConfigProvider
 }
 
