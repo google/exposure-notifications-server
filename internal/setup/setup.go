@@ -21,7 +21,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/apiconfig"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/envconfig"
-	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -56,9 +55,6 @@ type Defer func()
 
 // Setup runs common intitializion code for all servers.
 func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, Defer, error) {
-	logger := logging.FromContext(ctx)
-	metric := metrics.NewLogsBasedFromContext(ctx)
-
 	// Can be changed with a different secret manager interface.
 	// TODO(mikehelmick): Make this extensible to other providers.
 	sm, err := secrets.NewGCPSecretManager(ctx)
