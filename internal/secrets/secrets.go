@@ -23,3 +23,6 @@ import "context"
 type SecretManager interface {
 	GetSecretValue(ctx context.Context, name string) (string, error)
 }
+
+// SecretManagerFunc is a func that returns a secret manager or error.
+type SecretManagerFunc func(ctx context.Context) (SecretManager, error)
