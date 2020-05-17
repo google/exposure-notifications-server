@@ -33,7 +33,7 @@ func TestAddSignatureInfo(t *testing.T) {
 	defer resetTestDB(t)
 	ctx := context.Background()
 
-	thruTime := time.Now().UTC().Add(6 * time.Hour)
+	thruTime := time.Now().UTC().Add(6 * time.Hour).Truncate(time.Microsecond)
 	want := &model.SignatureInfo{
 		SigningKey:        "/kms/project/key/1",
 		SigningKeyVersion: "1",
