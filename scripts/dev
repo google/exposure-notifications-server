@@ -29,7 +29,8 @@ DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_PORT="${DB_PORT:-5432}"
 DB_USER="${DB_USER:-en-server}"
 DB_PASSWORD="${DB_PASSWORD:-BjrvWmjQPXykPu}"
-DB_SSLMODE="${DB_SSLMODE:-require}"
+#TODO: How to enable SSL communication 
+DB_SSLMODE="${DB_SSLMODE:-disable}"
 DB_NAME="${DB_NAME:-en-server-db}"
 DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
 
@@ -116,7 +117,7 @@ function start() {
 
   gencerts
 
-  docker pull --quiet "${DB_CONTAINER_IMAGE}" > /dev/null
+  docker pull  "${DB_CONTAINER_IMAGE}" > /dev/null
   docker run \
     --name "${DB_NAME}" \
     --env "LANG=C" \
@@ -125,14 +126,10 @@ function start() {
     --env "POSTGRES_PASSWORD=${DB_PASSWORD}" \
     --detach \
     --publish "${DB_PORT}:5432" \
-    --volume "${CERTS_DIR}/server.crt:/var/lib/postgresql/server.crt:ro" \
-    --volume "${CERTS_DIR}/server.key:/var/lib/postgresql/server.key:ro" \
     "${DB_CONTAINER_IMAGE}" \
       -c "shared_buffers=256MB" \
       -c "max_connections=200" \
-      -c "ssl=on" \
-      -c "ssl_cert_file=/var/lib/postgresql/server.crt" \
-      -c "ssl_key_file=/var/lib/postgresql/server.key" \
+      -c "ssl=off" \
       > /dev/null
 
   echo "Database started (OK)"
@@ -157,7 +154,7 @@ function migrate() {
     set -- "up"
   fi
 
-  docker pull --quiet "${MIGRATE_CONTAINER_IMAGE}" > /dev/null
+  docker pull  "${MIGRATE_CONTAINER_IMAGE}" > /dev/null
   docker run \
     --rm \
     --interactive \
