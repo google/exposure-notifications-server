@@ -79,13 +79,13 @@ func TestLookupSignatureInfos(t *testing.T) {
 			SigningKey:        "/kms/project/key/version/1",
 			SigningKeyVersion: "1",
 			SigningKeyID:      "310",
-			EndTimestamp:      testTime.Add(-1 * time.Hour),
+			EndTimestamp:      testTime.Add(-1 * time.Hour).Truncate(time.Microsecond),
 		},
 		&model.SignatureInfo{
 			SigningKey:        "/kms/project/key/version/2",
 			SigningKeyVersion: "2",
 			SigningKeyID:      "310",
-			EndTimestamp:      testTime.Add(24 * time.Hour),
+			EndTimestamp:      testTime.Add(24 * time.Hour).Truncate(time.Microsecond),
 		},
 		&model.SignatureInfo{
 			SigningKey:        "/kms/project/key/version/3",
