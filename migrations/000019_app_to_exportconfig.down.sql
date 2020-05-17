@@ -14,7 +14,14 @@
 
 BEGIN;
 
-ALTER TABLE APIConfig
-  ADD COLUMN bypass_safetynet bool DEFAULT false;
+ALTER TABLE ExportBatch
+  DROP COLUMN signature_info_ids,
+  ADD COLUMN signing_key VARCHAR(500);
+
+ALTER TABLE ExportConfig
+  DROP COLUMN signature_info_ids,
+  ADD COLUMN signing_key VARCHAR(500);
+
+DROP TABLE SignatureInfo;
 
 END;

@@ -26,6 +26,91 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
+func TestAddSignatureInfo(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	defer resetTestDB(t)
+	ctx := context.Background()
+
+	thruTime := time.Now().UTC().Add(6 * time.Hour).Truncate(time.Microsecond)
+	want := &model.SignatureInfo{
+		SigningKey:        "/kms/project/key/1",
+		SigningKeyVersion: "1",
+		SigningKeyID:      "310",
+		EndTimestamp:      thruTime,
+	}
+	if err := testDB.AddSignatureInfo(ctx, want); err != nil {
+		t.Fatal(err)
+	}
+	conn, err := testDB.pool.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Release()
+	var got model.SignatureInfo
+	err = conn.QueryRow(ctx, `
+		SELECT
+		  id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
+		FROM
+			SignatureInfo
+		WHERE
+			id = $1
+	`, want.ID).Scan(&got.ID, &got.SigningKey, &got.AppPackageName, &got.BundleID, &got.SigningKeyVersion, &got.SigningKeyID, &got.EndTimestamp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if diff := cmp.Diff(want, &got); diff != "" {
+		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+}
+
+func TestLookupSignatureInfos(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	defer resetTestDB(t)
+	ctx := context.Background()
+
+	testTime := time.Now().UTC()
+	want := []*model.SignatureInfo{
+		&model.SignatureInfo{
+			SigningKey:        "/kms/project/key/version/1",
+			SigningKeyVersion: "1",
+			SigningKeyID:      "310",
+			EndTimestamp:      testTime.Add(-1 * time.Hour).Truncate(time.Microsecond),
+		},
+		&model.SignatureInfo{
+			SigningKey:        "/kms/project/key/version/2",
+			SigningKeyVersion: "2",
+			SigningKeyID:      "310",
+			EndTimestamp:      testTime.Add(24 * time.Hour).Truncate(time.Microsecond),
+		},
+		&model.SignatureInfo{
+			SigningKey:        "/kms/project/key/version/3",
+			SigningKeyVersion: "3",
+			SigningKeyID:      "310",
+		},
+	}
+	for _, si := range want {
+		testDB.AddSignatureInfo(ctx, si)
+	}
+
+	ids := []int64{want[0].ID, want[1].ID, want[2].ID}
+	got, err := testDB.LookupSignatureInfos(ctx, ids, testTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The first entry (want[0]) is expired and won't be returned.
+	want = want[1:]
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("mismatch (-want, +got):\n%v", diff)
+	}
+}
+
 func TestAddExportConfig(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
@@ -36,13 +121,13 @@ func TestAddExportConfig(t *testing.T) {
 	fromTime := time.Now()
 	thruTime := fromTime.Add(6 * time.Hour)
 	want := &model.ExportConfig{
-		BucketName:   "mocked",
-		FilenameRoot: "root",
-		Period:       3 * time.Hour,
-		Region:       "i1",
-		From:         fromTime,
-		Thru:         thruTime,
-		SigningKey:   "key",
+		BucketName:       "mocked",
+		FilenameRoot:     "root",
+		Period:           3 * time.Hour,
+		Region:           "i1",
+		From:             fromTime,
+		Thru:             thruTime,
+		SignatureInfoIDs: []int64{42, 84},
 	}
 	if err := testDB.AddExportConfig(ctx, want); err != nil {
 		t.Fatal(err)
@@ -58,12 +143,12 @@ func TestAddExportConfig(t *testing.T) {
 	)
 	err = conn.QueryRow(ctx, `
 		SELECT
-			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signing_key
+			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signature_info_ids
 		FROM
 			ExportConfig
 		WHERE
 			config_id = $1
-	`, want.ConfigID).Scan(&got.ConfigID, &got.BucketName, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru, &got.SigningKey)
+	`, want.ConfigID).Scan(&got.ConfigID, &got.BucketName, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru, &got.SignatureInfoIDs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,12 +226,13 @@ func TestBatches(t *testing.T) {
 
 	now := time.Now().Truncate(time.Microsecond)
 	config := &model.ExportConfig{
-		BucketName:   "mocked",
-		FilenameRoot: "root",
-		Period:       time.Hour,
-		Region:       "R",
-		From:         now,
-		Thru:         now.Add(time.Hour),
+		BucketName:       "mocked",
+		FilenameRoot:     "root",
+		Period:           time.Hour,
+		Region:           "R",
+		From:             now,
+		Thru:             now.Add(time.Hour),
+		SignatureInfoIDs: []int64{1, 2, 3, 4},
 	}
 	if err := testDB.AddExportConfig(ctx, config); err != nil {
 		t.Fatal(err)
@@ -158,13 +244,14 @@ func TestBatches(t *testing.T) {
 		end := start.Add(time.Minute)
 		wantLatest = end
 		batches = append(batches, &model.ExportBatch{
-			ConfigID:       config.ConfigID,
-			BucketName:     config.BucketName,
-			FilenameRoot:   config.FilenameRoot,
-			Region:         config.Region,
-			Status:         model.ExportBatchOpen,
-			StartTimestamp: start,
-			EndTimestamp:   end,
+			ConfigID:         config.ConfigID,
+			BucketName:       config.BucketName,
+			FilenameRoot:     config.FilenameRoot,
+			Region:           config.Region,
+			Status:           model.ExportBatchOpen,
+			StartTimestamp:   start,
+			EndTimestamp:     end,
+			SignatureInfoIDs: []int64{1, 2, 3, 4},
 		})
 	}
 	if err := testDB.AddExportBatches(ctx, batches); err != nil {

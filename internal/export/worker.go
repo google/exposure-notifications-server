@@ -127,6 +127,12 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		return fmt.Errorf("ensureMinNumExposures: %w", err)
 	}
 
+	// Load the non-expired signature infos associated with this export batch.
+	sigInfos, err := s.db.LookupSignatureInfos(ctx, eb.SignatureInfoIDs, time.Now())
+	if err != nil {
+		return fmt.Errorf("error loading signature info for batch %d, %w", eb.BatchID, err)
+	}
+
 	// Create the export files.
 	batchSize := len(groups)
 	var objectNames []string
@@ -143,7 +149,14 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		}
 
 		// TODO(squee1945): Uploading in parallel (to a point) probably makes better use of network.
-		objectName, err := s.createFile(ctx, exposures, eb, i+1, batchSize)
+		objectName, err := s.createFile(ctx,
+			createFileInfo{
+				exposures:      exposures,
+				exportBatch:    eb,
+				signatureInfos: sigInfos,
+				batchNum:       i + 1,
+				batchSize:      batchSize,
+			})
 		if err != nil {
 			return fmt.Errorf("creating export file %d for batch %d: %w", i+1, eb.BatchID, err)
 		}
@@ -166,25 +179,39 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	return nil
 }
 
-func (s *Server) createFile(ctx context.Context, exposures []*model.Exposure, eb *model.ExportBatch, batchNum, batchSize int) (string, error) {
+type createFileInfo struct {
+	exposures      []*model.Exposure
+	exportBatch    *model.ExportBatch
+	signatureInfos []*model.SignatureInfo
+	batchNum       int
+	batchSize      int
+}
+
+func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, error) {
 	logger := logging.FromContext(ctx)
-	signer, err := s.env.GetSignerForKey(ctx, eb.SigningKey)
-	if err != nil {
-		return "", fmt.Errorf("unable to get signer for key %v: %w", eb.SigningKey, err)
+
+	var signers []exportSigners
+	for _, si := range cfi.signatureInfos {
+		signer, err := s.env.GetSignerForKey(ctx, si.SigningKey)
+		if err != nil {
+			return "", fmt.Errorf("unable to get signer for key %v: %w", si.SigningKey, err)
+		}
+		signers = append(signers, exportSigners{signatureInfo: si, signer: signer})
 	}
+
 	// Generate exposure key export file.
-	data, err := MarshalExportFile(eb, exposures, batchNum, batchSize, signer, s.config.DefaultKeyID, s.config.DefaultKeyVersion)
+	data, err := MarshalExportFile(cfi.exportBatch, cfi.exposures, cfi.batchNum, cfi.batchSize, signers)
 	if err != nil {
 		return "", fmt.Errorf("marshalling export file: %w", err)
 	}
 
 	// Write to GCS.
-	objectName := exportFilename(eb, batchNum)
-	logger.Infof("Created file %v, signed with key %v", objectName, eb.SigningKey)
+	objectName := exportFilename(cfi.exportBatch, cfi.batchNum)
+	logger.Infof("Created file %v, signed with %v keys", objectName, len(signers))
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
-	if err := s.env.Blobstore().CreateObject(ctx, eb.BucketName, objectName, data); err != nil {
-		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, eb.BucketName, err)
+	if err := s.env.Blobstore().CreateObject(ctx, cfi.exportBatch.BucketName, objectName, data); err != nil {
+		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, cfi.exportBatch.BucketName, err)
 	}
 	return objectName, nil
 }

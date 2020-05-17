@@ -49,15 +49,14 @@ func TestDoNotPadZeroLength(t *testing.T) {
 	exposures := make([]*model.Exposure, 0)
 	exposures, err := ensureMinNumExposures(exposures, "US", 1000, 100)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unepected error: %v", err)
 	}
 	if len(exposures) != 0 {
-		t.Errorf("zero length slice shouldn't have been padded, but was")
+		t.Errorf("empty exposure list got padded, shouldn't have.")
 	}
 }
 
 func addExposure(t *testing.T, exposures []*model.Exposure, interval, count int32, risk int) []*model.Exposure {
-	t.Helper()
 	key := make([]byte, model.KeyLength)
 	_, err := rand.Read(key)
 	if err != nil {
