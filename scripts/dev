@@ -58,6 +58,9 @@ function init() {
   echo "export DB_NAME=\"${DB_NAME}\""
   echo "export DB_URL=\"${DB_URL}\""
 
+  echo "export BYPASS_SAFETYNET=true"
+  echo "export BYPASS_DEVICECHECK=true"
+ 
   echo "export CONFIG_REFRESH_DURATION=\"${CONFIG_REFRESH_DURATION}\""
   echo "export TARGET_REFRESH_DURATION=\"${TARGET_REFRESH_DURATION}\""
   echo "export EXPORT_FILE_MAX_RECORDS=\"${EXPORT_FILE_MAX_RECORDS}\""
