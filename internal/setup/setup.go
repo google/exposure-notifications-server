@@ -82,9 +82,10 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 		}
 		opts = append(opts, serverenv.WithKeyManager(km))
 	}
+
 	// TODO(mikehelmick): Make this extensible to other providers.
 	if _, ok := config.(BlobStorageConfigProvider); ok {
-		storage, err := storage.NewFileSystemCloudStorage(ctx)
+		storage, err := storage.NewFilesystemStorage(ctx)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to connect to storage system: %v", err)
 		}
