@@ -192,11 +192,11 @@ func TestVerifyOptsFor(t *testing.T) {
 	testTime := time.Date(2020, 1, 13, 5, 6, 4, 6, time.Local)
 
 	cases := []struct {
-		cfg  *model.APIConfig
+		cfg  *model.AuthorizedApp
 		opts *VerifyOpts
 	}{
 		{
-			cfg: &model.APIConfig{
+			cfg: &model.AuthorizedApp{
 				AppPackageName:    "foo",
 				CTSProfileMatch:   true,
 				BasicIntegrity:    true,
@@ -213,7 +213,7 @@ func TestVerifyOptsFor(t *testing.T) {
 			},
 		},
 		{
-			cfg: &model.APIConfig{
+			cfg: &model.AuthorizedApp{
 				AppPackageName:    "foo",
 				CTSProfileMatch:   false,
 				BasicIntegrity:    true,
@@ -230,7 +230,7 @@ func TestVerifyOptsFor(t *testing.T) {
 			},
 		},
 		{
-			cfg: &model.APIConfig{
+			cfg: &model.AuthorizedApp{
 				AppPackageName:    "foo",
 				ApkDigestSHA256:   []string{"bar"},
 				CTSProfileMatch:   false,

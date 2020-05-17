@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiconfig
+package model
 
 import (
-	"time"
+	"testing"
 )
 
-type Config struct {
-	// CacheDuration is the amount of time APIConfigs should be cached before
-	// being re-read from their provider.
-	CacheDuration time.Duration `envconfig:"APICONFIG_CACHE_DURATION" default:"5m"`
-}
-
-// APIConfig implements an interface for setup.
-func (c *Config) APIConfigConfig() *Config {
-	return c
+func TestBaseAuthorizedApp(t *testing.T) {
+	cfg := NewAuthorizedApp()
+	if cfg.IsIOS() {
+		t.Errorf("cfg.IoIOS, got true, want false")
+	}
+	if cfg.IsAndroid() {
+		t.Errorf("cfg.IoAndroid, got true, want false")
+	}
 }

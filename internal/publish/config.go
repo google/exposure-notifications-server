@@ -18,13 +18,13 @@ package publish
 import (
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 // Compile-time check to assert this config matches requirements.
-var _ setup.APIConfigProvider = (*Config)(nil)
+var _ setup.AuthorizedAppConfigProvider = (*Config)(nil)
 var _ setup.DBConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
@@ -40,13 +40,13 @@ type Config struct {
 	BypassSafetyNet   bool `envconfig:"BYPASS_SAFETYNET"`
 	BypassDeviceCheck bool `envconfig:"BYPASS_DEVICECHECK"`
 
-	APIConfig *apiconfig.Config
-	Database  *database.Config
+	AuthorizedApp *authorizedapp.Config
+	Database      *database.Config
 }
 
-// APIConfigConfig returns the configuration for apiconfig.
-func (c *Config) APIConfigConfig() *apiconfig.Config {
-	return c.APIConfig
+// AuthorizedApp returns the configuration for authorizedapp.
+func (c *Config) AuthorizedAppConfig() *authorizedapp.Config {
+	return c.AuthorizedApp
 }
 
 // DB returns the configuration for the databse.

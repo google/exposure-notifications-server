@@ -24,10 +24,10 @@ const (
 	androidDevice = "android"
 )
 
-// APIConfig represents the configuration for a single exposure notification
-// application and their access to and requirements for using the API.
-// DB times of 0 are interpreted to be "unbounded" in that direction.
-type APIConfig struct {
+// AuthorizedApp represents the configuration for a single exposure notification
+// application and their access to and requirements for using the API. DB times
+// of 0 are interpreted to be "unbounded" in that direction.
+type AuthorizedApp struct {
 	AppPackageName  string
 	Platform        string
 	AllowedRegions  map[string]struct{}
@@ -47,25 +47,25 @@ type APIConfig struct {
 	DeviceCheckPrivateKey *ecdsa.PrivateKey
 }
 
-func NewAPIConfig() *APIConfig {
-	return &APIConfig{
+func NewAuthorizedApp() *AuthorizedApp {
+	return &AuthorizedApp{
 		AllowedRegions: make(map[string]struct{}),
 	}
 }
 
 // IsIOS returns true if the platform is equal to `iosDevice`
-func (c *APIConfig) IsIOS() bool {
+func (c *AuthorizedApp) IsIOS() bool {
 	return c.Platform == iosDevice
 }
 
 // IsAndroid returns true if the platform is equal to `android`
-func (c *APIConfig) IsAndroid() bool {
+func (c *AuthorizedApp) IsAndroid() bool {
 	return c.Platform == androidDevice
 }
 
 // IsAllowedRegion returns true if the region is in the list of allowed regions,
 // false otherwise.
-func (c *APIConfig) IsAllowedRegion(s string) bool {
+func (c *AuthorizedApp) IsAllowedRegion(s string) bool {
 	_, ok := c.AllowedRegions[s]
 	return ok
 }

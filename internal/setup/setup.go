@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/exposure-notifications-server/internal/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/metrics"
@@ -34,10 +34,10 @@ type DBConfigProvider interface {
 	DB() *database.Config
 }
 
-// APIConfigProvider signals that the config provided knows how to configure
-// and requires a APIConfigs.
-type APIConfigProvider interface {
-	APIConfigConfig() *apiconfig.Config
+// AuthorizedAppConfigProvider signals that the config provided knows how to
+// configure authorized apps.
+type AuthorizedAppConfigProvider interface {
+	AuthorizedAppConfig() *authorizedapp.Config
 }
 
 // KeyManagerProvider is a marker interface indicating the KeyManagerProvider should be installed.
@@ -96,15 +96,15 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 	}
 	opts = append(opts, serverenv.WithDatabase(db))
 
-	// APIConfig must come after database setup due to the dependency.
-	if typ, ok := config.(APIConfigProvider); ok {
-		provider, err := apiconfig.NewDatabaseProvider(ctx, db, typ.APIConfigConfig(), apiconfig.WithSecretManager(sm))
+	// AuthorizedApp must come after database setup due to the dependency.
+	if typ, ok := config.(AuthorizedAppConfigProvider); ok {
+		provider, err := authorizedapp.NewDatabaseProvider(ctx, db, typ.AuthorizedAppConfig(), authorizedapp.WithSecretManager(sm))
 		if err != nil {
 			// Ensure the database is closed on an error.
 			defer db.Close(ctx)
-			return nil, nil, fmt.Errorf("unable to create APIConfig provider: %v", err)
+			return nil, nil, fmt.Errorf("unable to create AuthorizedApp provider: %v", err)
 		}
-		opts = append(opts, serverenv.WithAPIConfigProvider(provider))
+		opts = append(opts, serverenv.WithAuthorizedAppProvider(provider))
 	}
 
 	return serverenv.New(ctx, opts...), func() { db.Close(ctx) }, nil

@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/logging"
@@ -37,8 +37,8 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 	if env.Database() == nil {
 		return nil, fmt.Errorf("missing database in server environment")
 	}
-	if env.APIConfigProvider() == nil {
-		return nil, fmt.Errorf("missing apiconfig provider in server environment")
+	if env.AuthorizedAppProvider() == nil {
+		return nil, fmt.Errorf("missing AuthorizedApp provider in server environment")
 	}
 
 	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow)
@@ -50,20 +50,20 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 	logger.Infof("truncate window: %v", config.TruncateWindow)
 
 	return &publishHandler{
-		serverenv:   env,
-		transformer: transformer,
-		config:      config,
-		database:    env.Database(),
-		apiconfig:   env.APIConfigProvider(),
+		serverenv:             env,
+		transformer:           transformer,
+		config:                config,
+		database:              env.Database(),
+		authorizedAppProvider: env.AuthorizedAppProvider(),
 	}, nil
 }
 
 type publishHandler struct {
-	config      *Config
-	serverenv   *serverenv.ServerEnv
-	transformer *model.Transformer
-	database    *database.DB
-	apiconfig   apiconfig.Provider
+	config                *Config
+	serverenv             *serverenv.ServerEnv
+	transformer           *model.Transformer
+	database              *database.DB
+	authorizedAppProvider authorizedapp.Provider
 }
 
 // There is a target normalized latency for this function. This is to help prevent
@@ -83,12 +83,12 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	appConfig, err := h.apiconfig.AppConfig(ctx, data.AppPackageName)
+	appConfig, err := h.authorizedAppProvider.AppConfig(ctx, data.AppPackageName)
 	if err != nil {
 		// Config loaded, but app with that name isn't registered. This can also
 		// happen if the app was recently registered but the cache hasn't been
 		// refreshed.
-		if err == apiconfig.AppNotFound {
+		if err == authorizedapp.AppNotFound {
 			logger.Errorf("unauthorized app: %v", data.AppPackageName)
 			metrics.WriteInt("publish-app-not-authorized", true, 1)
 			// This returns success to the client.
@@ -99,8 +99,8 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// A higher-level configuration error occurred, likely while trying to read
 		// from the database. This is retryable, although won't succeed if the error
 		// isn't transient.
-		logger.Errorf("no API config, dropping data: %v", err)
-		metrics.WriteInt("publish-error-loading-apiconfig", true, 1)
+		logger.Errorf("no AuthorizedApp, dropping data: %v", err)
+		metrics.WriteInt("publish-error-loading-authorizedapp", true, 1)
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError)
 		return
@@ -137,8 +137,9 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		logger.Errorf("invalid API configuration for AppPkg: %v, invalid platform", data.AppPackageName)
-		metrics.WriteInt("publish-apiconfig-missing-platform", true, 1)
+		logger.Errorf("invalid AuthorizedApp config %v: invalid platform %v",
+			data.AppPackageName, data.Platform)
+		metrics.WriteInt("publish-authorizedapp-missing-platform", true, 1)
 		// This returns success to the client.
 		w.WriteHeader(http.StatusOK)
 		return
