@@ -27,7 +27,7 @@ import (
 
 // TestNewServer tests NewServer().
 func TestNewServer(t *testing.T) {
-	emptyStorage := &storage.GoogleCloudStorage{}
+	emptyStorage := &storage.FileSystemCloudStorage{}
 	emptyKMS := &signing.GCPKMS{}
 	emptyDB := &database.DB{}
 	ctx := context.Background()

@@ -46,18 +46,13 @@ var (
 	transmissionRiskFlag = flag.Int("transmissionRisk", -1, "Transmission risk")
 	// region settings for a key are assigned randomly
 	defaultRegions = [][]string{
-		{"US"},
-		{"US", "CA"},
-		{"US", "CA", "MX"},
-		{"CA"},
-		{"CA", "MX"},
+		{"UY"},
 	}
 
 	// verificationAuth for a key are assigned randomly
 	verificationAuthorityNames = []string{
 		"",
-		"AAA Health",
-		"BBB Labs",
+		"MSP UY",
 	}
 )
 

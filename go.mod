@@ -4,7 +4,6 @@ go 1.14
 
 require (
 	cloud.google.com/go v0.56.0
-	cloud.google.com/go/storage v1.6.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/golang-migrate/migrate/v4 v4.10.0
 	github.com/golang/protobuf v1.4.0
