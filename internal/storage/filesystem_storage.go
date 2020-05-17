@@ -20,35 +20,38 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
-// File System Storage implements the Blob interface and provdes the ability
-// write files to File Syste Storage.
-type FileSystemCloudStorage struct {
+// Compile-time check to verify implements interface.
+var _ Blobstore = (*FilesystemStorage)(nil)
+
+// FilesystemStorage implements Blobstore and provdes the ability
+// write files to the filesystem.
+type FilesystemStorage struct{}
+
+// NewFilesystemStorage creates a Blobsstore compatible storage for the
+// filesystem.
+func NewFilesystemStorage(ctx context.Context) (Blobstore, error) {
+	return &FilesystemStorage{}, nil
 }
 
-func NewFileSystemCloudStorage(ctx context.Context) (Blobstore, error) {
-	return &FileSystemCloudStorage{}, nil
-}
-
-// CreateObject creates a new cloud storage object or overwrites an existing one.
-func (gcs *FileSystemCloudStorage) CreateObject(ctx context.Context, bucket, objectName string, contents []byte) error {
-
-	err := ioutil.WriteFile(bucket+"/"+objectName, contents, 0644)
-
-	if err != nil {
-		return fmt.Errorf("storage.Writer.Write: %w", err)
+// CreateObject creates a new object on the filesystem or overwrites an existing
+// one.
+func (s *FilesystemStorage) CreateObject(ctx context.Context, folder, filename string, contents []byte) error {
+	pth := filepath.Join(folder, filename)
+	if err := ioutil.WriteFile(pth, contents, 0644); err != nil {
+		return fmt.Errorf("failed to create object: %w", err)
 	}
-
 	return nil
 }
 
-// DeleteObject deletes a cloud storage object, returns nil if the object was
-// successfully deleted, or of the object doesn't exist.
-func (gcs *FileSystemCloudStorage) DeleteObject(ctx context.Context, bucket, objectName string) error {
-	err := os.Remove(bucket + "/" + objectName)
-	if err != nil {
-		return fmt.Errorf("storage.DeleteObject: %w", err)
+// DeleteObject deletes an object from the filesystem. It returns nil if the
+// object was deleted or if the object no longer exists.
+func (s *FilesystemStorage) DeleteObject(ctx context.Context, folder, filename string) error {
+	pth := filepath.Join(folder, filename)
+	if err := os.Remove(pth); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to delete object: %w", err)
 	}
 	return nil
 }
