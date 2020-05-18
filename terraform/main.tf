@@ -313,11 +313,34 @@ locals {
   ]
 }
 
+resource "google_service_account" "exposure" {
+  project      = data.google_project.project.project_id
+  account_id   = "en-exposure-sa"
+  display_name = "Exposure Notification Exposure"
+}
+
+resource "google_project_iam_member" "exposure-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.exposure.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "exposure-db-pwd" {
+  provider = google-beta
+
+  secret_id = google_secret_manager_secret.db-pwd.id
+  role      = "roles/cloudsql.client"
+  member    = "serviceAccount:${google_service_account.exposure.email}"
+}
+
 resource "google_cloud_run_service" "exposure" {
   name     = "exposure"
   location = var.region
+
   template {
     spec {
+      service_account_name = google_service_account.exposure.email
+
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/exposure:latest"
         env {
@@ -343,11 +366,43 @@ resource "google_cloud_run_service" "exposure" {
   depends_on = [null_resource.submit-build-and-publish, google_project_service.services["run.googleapis.com"], google_project_service.services["sqladmin.googleapis.com"]]
 }
 
+// export needs gcs
+// cleanup needs gcs
+
+resource "google_service_account" "export" {
+  project      = data.google_project.project.project_id
+  account_id   = "en-export-sa"
+  display_name = "Exposure Notification Export"
+}
+
+resource "google_project_iam_member" "export-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.export.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "export-db-pwd" {
+  provider = google-beta
+
+  secret_id = google_secret_manager_secret.db-pwd.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.export.email}"
+}
+
+resource "google_storage_bucket_iam_member" "export-objectadmin" {
+  bucket = google_storage_bucket.export.name
+  role   = "roles/storage.objectAdmin" // overwrite is not included in objectCreator
+  member = "serviceAccount:${google_service_account.exposure.email}"
+}
+
 resource "google_cloud_run_service" "export" {
   name     = "export"
   location = var.region
+
   template {
     spec {
+      service_account_name = google_service_account.export.email
+
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/export:latest"
         env {
@@ -377,11 +432,34 @@ resource "google_cloud_run_service" "export" {
   depends_on = [google_cloudbuild_trigger.build-and-publish]
 }
 
+resource "google_service_account" "federationin" {
+  project      = data.google_project.project.project_id
+  account_id   = "en-federationin-sa"
+  display_name = "Exposure Notification Federation (In)"
+}
+
+resource "google_project_iam_member" "federationin-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.federationin.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "federationin-db-pwd" {
+  provider = google-beta
+
+  secret_id = google_secret_manager_secret.db-pwd.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.federationin.email}"
+}
+
 resource "google_cloud_run_service" "federationin" {
   name     = "federationin"
   location = var.region
+
   template {
     spec {
+      service_account_name = google_service_account.federationin.email
+
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationin:latest"
         dynamic "env" {
@@ -403,11 +481,34 @@ resource "google_cloud_run_service" "federationin" {
   depends_on = [google_cloudbuild_trigger.build-and-publish]
 }
 
+resource "google_service_account" "federationout" {
+  project      = data.google_project.project.project_id
+  account_id   = "en-federationout-sa"
+  display_name = "Exposure Notification Federation (Out)"
+}
+
+resource "google_project_iam_member" "federationout-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.federationout.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "federationout-db-pwd" {
+  provider = google-beta
+
+  secret_id = google_secret_manager_secret.db-pwd.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.federationin.email}"
+}
+
 resource "google_cloud_run_service" "federationout" {
   name     = "federationout"
   location = var.region
+
   template {
     spec {
+      service_account_name = google_service_account.federationout.email
+
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationout:latest"
         dynamic "env" {
