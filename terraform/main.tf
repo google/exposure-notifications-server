@@ -33,20 +33,10 @@ resource "google_project_service" "services" {
 }
 
 # TODO(ndmckinley): configure these service accounts to do the jobs they are designed for.
-resource "google_service_account" "svc_acct" {
+resource "google_service_account" "scheduler-export" {
   project      = data.google_project.project.project_id
-  account_id   = each.key
-  display_name = each.value
-  for_each = {
-    "publisher" : "Publish Service Account",
-    "exporter" : "Export Service Account",
-    "fed-recv" : "Federation Receiver Service Account",
-    "fed-pull" : "Federation Puller Service Account",
-    "cleanup" : "Cleanup Service Account",
-    "export-cleanup" : "Export Cleanup Service Account",
-    "scheduler-cleanup" : "Cleanup Scheduler Service Account",
-    "scheduler-export" : "Export Scheduler Service Account",
-  }
+  account_id   = "scheduler-export-sa"
+  display_name = "Export Scheduler Service Account"
 }
 
 resource "random_string" "db-name" {
@@ -82,9 +72,9 @@ resource "google_sql_database_instance" "db-inst" {
   database_version = "POSTGRES_11"
   name             = "contact-tracing-${random_string.db-name.result}"
   settings {
-    tier              = "db-custom-1-3840" # "db-custom-32-122880"
+    tier              = var.cloudsql_tier
+    disk_size         = var.cloudsql_disk_size_gb
     availability_type = "REGIONAL"
-    disk_size         = 500
     backup_configuration {
       enabled    = true
       start_time = "02:00"
@@ -292,20 +282,11 @@ locals {
       value = "secret://${google_secret_manager_secret_version.db-pwd-initial.name}"
     },
     {
-      name  = "DB_SSLKEY"
-      value = "secret://${google_secret_manager_secret_version.db-key.name}"
-    },
-    {
-      name  = "DB_SSLCERT"
-      value = "secret://${google_secret_manager_secret_version.db-cert.name}"
-    },
-    {
-      name  = "DB_SSLROOTCERT"
-      value = "secret://${google_secret_manager_secret_version.db-ca-cert.name}"
-    },
-    {
+      # NOTE: We disable SSL here because the Cloud Run services use the Cloud
+      # SQL proxy which runs on localhost. The proxy still uses a secure
+      # connection to Cloud SQL.
       name  = "DB_SSLMODE"
-      value = "require"
+      value = "disable"
     },
     {
       name  = "DB_HOST"
@@ -322,11 +303,34 @@ locals {
   ]
 }
 
+resource "google_service_account" "exposure" {
+  project      = data.google_project.project.project_id
+  account_id   = "en-exposure-sa"
+  display_name = "Exposure Notification Exposure"
+}
+
+resource "google_project_iam_member" "exposure-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.exposure.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "exposure-db-pwd" {
+  provider = google-beta
+
+  secret_id = google_secret_manager_secret.db-pwd.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.exposure.email}"
+}
+
 resource "google_cloud_run_service" "exposure" {
   name     = "exposure"
   location = var.region
+
   template {
     spec {
+      service_account_name = google_service_account.exposure.email
+
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/exposure:latest"
         env {
@@ -336,7 +340,7 @@ resource "google_cloud_run_service" "exposure" {
         dynamic "env" {
           for_each = local.common_cloudrun_env_vars
           content {
-            name = env.value["name"]
+            name  = env.value["name"]
             value = env.value["value"]
           }
         }
@@ -352,11 +356,40 @@ resource "google_cloud_run_service" "exposure" {
   depends_on = [null_resource.submit-build-and-publish, google_project_service.services["run.googleapis.com"], google_project_service.services["sqladmin.googleapis.com"]]
 }
 
+resource "google_service_account" "export" {
+  project      = data.google_project.project.project_id
+  account_id   = "en-export-sa"
+  display_name = "Exposure Notification Export"
+}
+
+resource "google_project_iam_member" "export-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.export.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "export-db-pwd" {
+  provider = google-beta
+
+  secret_id = google_secret_manager_secret.db-pwd.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.export.email}"
+}
+
+resource "google_storage_bucket_iam_member" "export-objectadmin" {
+  bucket = google_storage_bucket.export.name
+  role   = "roles/storage.objectAdmin" // overwrite is not included in objectCreator
+  member = "serviceAccount:${google_service_account.export.email}"
+}
+
 resource "google_cloud_run_service" "export" {
   name     = "export"
   location = var.region
+
   template {
     spec {
+      service_account_name = google_service_account.export.email
+
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/export:latest"
         env {
@@ -370,7 +403,7 @@ resource "google_cloud_run_service" "export" {
         dynamic "env" {
           for_each = local.common_cloudrun_env_vars
           content {
-            name = env.value["name"]
+            name  = env.value["name"]
             value = env.value["value"]
           }
         }
@@ -379,50 +412,96 @@ resource "google_cloud_run_service" "export" {
     metadata {
       annotations = {
         "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-        "autoscaling.knative.dev/maxScale"      : "1000"
-      }
-    }
-  }
-	depends_on = [google_cloudbuild_trigger.build-and-publish]
-}
-
-resource "google_cloud_run_service" "federationin" {
-  name     = "federationin"
-  location = var.region
-  template {
-    spec {
-      containers {
-        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationin:latest"
-        dynamic "env" {
-          for_each = local.common_cloudrun_env_vars
-          content {
-            name = env.value["name"]
-            value = env.value["value"]
-          }
-        }
-      }
-    }
-    metadata {
-      annotations = {
-        "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-        "autoscaling.knative.dev/maxScale"      : "1000"
+        "autoscaling.knative.dev/maxScale" : "1000"
       }
     }
   }
   depends_on = [google_cloudbuild_trigger.build-and-publish]
 }
 
+resource "google_service_account" "federationin" {
+  project      = data.google_project.project.project_id
+  account_id   = "en-federationin-sa"
+  display_name = "Exposure Notification Federation (In)"
+}
+
+resource "google_project_iam_member" "federationin-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.federationin.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "federationin-db-pwd" {
+  provider = google-beta
+
+  secret_id = google_secret_manager_secret.db-pwd.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.federationin.email}"
+}
+
+resource "google_cloud_run_service" "federationin" {
+  name     = "federationin"
+  location = var.region
+
+  template {
+    spec {
+      service_account_name = google_service_account.federationin.email
+
+      containers {
+        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationin:latest"
+        dynamic "env" {
+          for_each = local.common_cloudrun_env_vars
+          content {
+            name  = env.value["name"]
+            value = env.value["value"]
+          }
+        }
+      }
+    }
+    metadata {
+      annotations = {
+        "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+        "autoscaling.knative.dev/maxScale" : "1000"
+      }
+    }
+  }
+  depends_on = [google_cloudbuild_trigger.build-and-publish]
+}
+
+resource "google_service_account" "federationout" {
+  project      = data.google_project.project.project_id
+  account_id   = "en-federationout-sa"
+  display_name = "Exposure Notification Federation (Out)"
+}
+
+resource "google_project_iam_member" "federationout-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.federationout.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "federationout-db-pwd" {
+  provider = google-beta
+
+  secret_id = google_secret_manager_secret.db-pwd.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.federationout.email}"
+}
+
 resource "google_cloud_run_service" "federationout" {
   name     = "federationout"
   location = var.region
+
   template {
     spec {
+      service_account_name = google_service_account.federationout.email
+
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationout:latest"
         dynamic "env" {
           for_each = local.common_cloudrun_env_vars
           content {
-            name = env.value["name"]
+            name  = env.value["name"]
             value = env.value["value"]
           }
         }
@@ -449,14 +528,6 @@ data "google_iam_policy" "noauth" {
   }
 }
 
-resource "google_cloud_run_service_iam_policy" "export-noauth" {
-  location = google_cloud_run_service.export.location
-  project  = google_cloud_run_service.export.project
-  service  = google_cloud_run_service.export.name
-
-  policy_data = data.google_iam_policy.noauth.policy_data
-}
-
 resource "google_cloud_run_service_iam_policy" "exposure-noauth" {
   location = google_cloud_run_service.exposure.location
   project  = google_cloud_run_service.exposure.project
@@ -465,25 +536,31 @@ resource "google_cloud_run_service_iam_policy" "exposure-noauth" {
   policy_data = data.google_iam_policy.noauth.policy_data
 }
 
-resource "google_cloud_run_service_iam_policy" "federationout-noauth" {
-  location = google_cloud_run_service.federationout.location
-  project  = google_cloud_run_service.federationout.project
-  service  = google_cloud_run_service.federationout.name
+resource "google_cloud_run_service_iam_policy" "federationin-noauth" {
+  location = google_cloud_run_service.federationin.location
+  project  = google_cloud_run_service.federationin.project
+  service  = google_cloud_run_service.federationin.name
 
   policy_data = data.google_iam_policy.noauth.policy_data
+}
+
+# Cloud Scheduler requires AppEngine projects!
+resource "google_app_engine_application" "app" {
+  project     = data.google_project.project.project_id
+  location_id = var.appengine_location
 }
 
 resource "google_project_iam_member" "export-worker" {
   project = data.google_project.project.project_id
   role    = "roles/run.invoker"
-  member  = "serviceAccount:${google_service_account.svc_acct["scheduler-export"].email}"
+  member  = "serviceAccount:${google_service_account.scheduler-export.email}"
 }
 
 resource "google_cloud_scheduler_job" "export-worker" {
   name             = "export-worker"
   schedule         = "* * * * *"
-  time_zone        = "America/Los_Angeles"
-  attempt_deadline = "10m"
+  time_zone        = "Etc/UTC"
+  attempt_deadline = "600s"
 
   retry_config {
     retry_count = 1
@@ -493,17 +570,20 @@ resource "google_cloud_scheduler_job" "export-worker" {
     http_method = "POST"
     uri         = "${google_cloud_run_service.export.status.0.url}/do-work"
     oidc_token {
-      service_account_email = google_service_account.svc_acct["scheduler-export"].email
+      service_account_email = google_service_account.scheduler-export.email
     }
   }
-  depends_on = [google_project_iam_member.export-worker]
+  depends_on = [
+    google_project_iam_member.export-worker,
+    google_app_engine_application.app,
+  ]
 }
 
 resource "google_cloud_scheduler_job" "export-create-batches" {
   name             = "export-create-batches"
   schedule         = "*/5 * * * *"
-  time_zone        = "America/Los_Angeles"
-  attempt_deadline = "10m"
+  time_zone        = "Etc/UTC"
+  attempt_deadline = "600s"
 
   retry_config {
     retry_count = 1
@@ -513,8 +593,11 @@ resource "google_cloud_scheduler_job" "export-create-batches" {
     http_method = "GET"
     uri         = "${google_cloud_run_service.export.status.0.url}/create-batches"
     oidc_token {
-      service_account_email = google_service_account.svc_acct["scheduler-export"].email
+      service_account_email = google_service_account.scheduler-export.email
     }
   }
-  depends_on = [google_project_iam_member.export-worker]
+  depends_on = [
+    google_project_iam_member.export-worker,
+    google_app_engine_application.app,
+  ]
 }
