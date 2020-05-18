@@ -33,20 +33,10 @@ resource "google_project_service" "services" {
 }
 
 # TODO(ndmckinley): configure these service accounts to do the jobs they are designed for.
-resource "google_service_account" "svc_acct" {
+resource "google_service_account" "scheduler-export" {
   project      = data.google_project.project.project_id
-  account_id   = each.key
-  display_name = each.value
-  for_each = {
-    "publisher" : "Publish Service Account",
-    "exporter" : "Export Service Account",
-    "fed-recv" : "Federation Receiver Service Account",
-    "fed-pull" : "Federation Puller Service Account",
-    "cleanup" : "Cleanup Service Account",
-    "export-cleanup" : "Export Cleanup Service Account",
-    "scheduler-cleanup" : "Cleanup Scheduler Service Account",
-    "scheduler-export" : "Export Scheduler Service Account",
-  }
+  account_id   = "scheduler-export-sa"
+  display_name = "Export Scheduler Service Account"
 }
 
 resource "random_string" "db-name" {
@@ -329,7 +319,7 @@ resource "google_secret_manager_secret_iam_member" "exposure-db-pwd" {
   provider = google-beta
 
   secret_id = google_secret_manager_secret.db-pwd.id
-  role      = "roles/cloudsql.client"
+  role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.exposure.email}"
 }
 
@@ -365,9 +355,6 @@ resource "google_cloud_run_service" "exposure" {
   }
   depends_on = [null_resource.submit-build-and-publish, google_project_service.services["run.googleapis.com"], google_project_service.services["sqladmin.googleapis.com"]]
 }
-
-// export needs gcs
-// cleanup needs gcs
 
 resource "google_service_account" "export" {
   project      = data.google_project.project.project_id
@@ -568,7 +555,7 @@ resource "google_cloud_run_service_iam_policy" "federationout-noauth" {
 resource "google_project_iam_member" "export-worker" {
   project = data.google_project.project.project_id
   role    = "roles/run.invoker"
-  member  = "serviceAccount:${google_service_account.svc_acct["scheduler-export"].email}"
+  member  = "serviceAccount:${google_service_account.scheduler-export.email}"
 }
 
 resource "google_cloud_scheduler_job" "export-worker" {
@@ -585,7 +572,7 @@ resource "google_cloud_scheduler_job" "export-worker" {
     http_method = "POST"
     uri         = "${google_cloud_run_service.export.status.0.url}/do-work"
     oidc_token {
-      service_account_email = google_service_account.svc_acct["scheduler-export"].email
+      service_account_email = google_service_account.scheduler-export.email
     }
   }
   depends_on = [google_project_iam_member.export-worker]
@@ -605,7 +592,7 @@ resource "google_cloud_scheduler_job" "export-create-batches" {
     http_method = "GET"
     uri         = "${google_cloud_run_service.export.status.0.url}/create-batches"
     oidc_token {
-      service_account_email = google_service_account.svc_acct["scheduler-export"].email
+      service_account_email = google_service_account.scheduler-export.email
     }
   }
   depends_on = [google_project_iam_member.export-worker]
