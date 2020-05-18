@@ -91,7 +91,7 @@ the exposure server code will trigger a new deployment. To enable this:
 
     1. Remember which repo you used. You will need to set the repo owner (e.g. 'google') and name (e.g. 'exposure-notifications-server') as variables in the `terraform apply`
 
-1. Log in to gcloud using `gcloud auth login && gcloud auth application-default login` (this will open two authentication windows in your web browser).
+1. Log in to gcloud using `gcloud auth login && gcloud auth application-default login` (this will open two authentication windows in your web browser). NOTE: you may need to `unset GOOGLE_APPLICATION_CREDENTIALS` as that takes precedence over the gcloud login.
 
 1. Change to this directory and run `terraform init`.  Terraform will
 automatically download the plugins required to execute this code.
