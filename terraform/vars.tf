@@ -22,6 +22,13 @@ variable "repo_name" {
   default = "exposure-notifications-server"
 }
 
+variable "cloudsql_tier" {
+  type    = string
+  default = "db-custom-32-122880"
+
+  description = "Size of the CloudSQL tier. Set to db-custom-1-3840 or a smaller instance for local dev."
+}
+
 terraform {
   required_providers {
     google      = "~> 3.20"

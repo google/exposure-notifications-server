@@ -82,7 +82,7 @@ resource "google_sql_database_instance" "db-inst" {
   database_version = "POSTGRES_11"
   name             = "contact-tracing-${random_string.db-name.result}"
   settings {
-    tier              = "db-custom-1-3840" # "db-custom-32-122880"
+    tier              = var.cloudsql_tier
     availability_type = "REGIONAL"
     disk_size         = 500
     backup_configuration {
@@ -336,7 +336,7 @@ resource "google_cloud_run_service" "exposure" {
         dynamic "env" {
           for_each = local.common_cloudrun_env_vars
           content {
-            name = env.value["name"]
+            name  = env.value["name"]
             value = env.value["value"]
           }
         }
@@ -370,7 +370,7 @@ resource "google_cloud_run_service" "export" {
         dynamic "env" {
           for_each = local.common_cloudrun_env_vars
           content {
-            name = env.value["name"]
+            name  = env.value["name"]
             value = env.value["value"]
           }
         }
@@ -379,11 +379,11 @@ resource "google_cloud_run_service" "export" {
     metadata {
       annotations = {
         "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-        "autoscaling.knative.dev/maxScale"      : "1000"
+        "autoscaling.knative.dev/maxScale" : "1000"
       }
     }
   }
-	depends_on = [google_cloudbuild_trigger.build-and-publish]
+  depends_on = [google_cloudbuild_trigger.build-and-publish]
 }
 
 resource "google_cloud_run_service" "federationin" {
@@ -396,7 +396,7 @@ resource "google_cloud_run_service" "federationin" {
         dynamic "env" {
           for_each = local.common_cloudrun_env_vars
           content {
-            name = env.value["name"]
+            name  = env.value["name"]
             value = env.value["value"]
           }
         }
@@ -405,7 +405,7 @@ resource "google_cloud_run_service" "federationin" {
     metadata {
       annotations = {
         "run.googleapis.com/cloudsql-instances" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-        "autoscaling.knative.dev/maxScale"      : "1000"
+        "autoscaling.knative.dev/maxScale" : "1000"
       }
     }
   }
@@ -422,7 +422,7 @@ resource "google_cloud_run_service" "federationout" {
         dynamic "env" {
           for_each = local.common_cloudrun_env_vars
           content {
-            name = env.value["name"]
+            name  = env.value["name"]
             value = env.value["value"]
           }
         }
@@ -482,7 +482,7 @@ resource "google_project_iam_member" "export-worker" {
 resource "google_cloud_scheduler_job" "export-worker" {
   name             = "export-worker"
   schedule         = "* * * * *"
-  time_zone        = "America/Los_Angeles"
+  time_zone        = "Etc/UTC"
   attempt_deadline = "10m"
 
   retry_config {
@@ -502,7 +502,7 @@ resource "google_cloud_scheduler_job" "export-worker" {
 resource "google_cloud_scheduler_job" "export-create-batches" {
   name             = "export-create-batches"
   schedule         = "*/5 * * * *"
-  time_zone        = "America/Los_Angeles"
+  time_zone        = "Etc/UTC"
   attempt_deadline = "10m"
 
   retry_config {
