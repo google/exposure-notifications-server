@@ -10,7 +10,7 @@ steps:
 - name: 'gcr.io/$PROJECT_ID/migrations'
   entrypoint: /bin/sh
   args:
-    - -ecx
+    - -ec
     - |-
             /bin/cloud_sql_proxy -instances=$_CLOUDSQLPATH=tcp:$_PORT &
             DB_PASSWORD=$$(cat decrypted_password.txt)
