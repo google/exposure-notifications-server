@@ -31,7 +31,14 @@ variable "cloudsql_tier" {
   type    = string
   default = "db-custom-32-122880"
 
-  description = "Size of the CloudSQL tier. Set to db-custom-1-3840 or a smaller instance for local dev."
+  description = "Size of the Cloud SQL tier. Set to db-custom-1-3840 or a smaller instance for local dev."
+}
+
+variable "cloudsql_disk_size_gb" {
+  type    = number
+  default = 500
+
+  description = "Size of the Cloud SQL disk, in GB."
 }
 
 terraform {

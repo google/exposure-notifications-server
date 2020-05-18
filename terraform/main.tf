@@ -73,8 +73,8 @@ resource "google_sql_database_instance" "db-inst" {
   name             = "contact-tracing-${random_string.db-name.result}"
   settings {
     tier              = var.cloudsql_tier
+    disk_size         = var.cloudsql_disk_size_gb
     availability_type = "REGIONAL"
-    disk_size         = 500
     backup_configuration {
       enabled    = true
       start_time = "02:00"
