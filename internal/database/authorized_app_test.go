@@ -167,6 +167,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer conn.Release()
+			defer resetTestDB(t)
 
 			// Insert the data
 			if _, err := conn.Exec(ctx, c.sql, c.args...); err != nil {
@@ -183,8 +184,6 @@ func TestGetAuthorizedApp(t *testing.T) {
 			if diff := cmp.Diff(config, c.exp, opts); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
-
-			resetTestDB(t)
 		})
 	}
 }
