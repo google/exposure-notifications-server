@@ -31,7 +31,7 @@ var (
 
 // VerifyRegions checks the request regions against the regions allowed by
 // the configuration for the application.
-func VerifyRegions(cfg *model.APIConfig, data *model.Publish) error {
+func VerifyRegions(cfg *model.AuthorizedApp, data *model.Publish) error {
 	if cfg == nil {
 		return fmt.Errorf("no allowed regions configured")
 	}
@@ -52,7 +52,7 @@ func VerifyRegions(cfg *model.APIConfig, data *model.Publish) error {
 
 // VerifySafetyNet verifies the Android SafetyNet device attestation against the
 // allowed configuration for the application.
-func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *model.APIConfig, publish *model.Publish) error {
+func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *model.AuthorizedApp, publish *model.Publish) error {
 	if cfg == nil {
 		return fmt.Errorf("cannot enforce SafetyNet, missing config")
 	}
@@ -66,7 +66,7 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *model.APIC
 }
 
 // VerifyDeviceCheck verifies an iOS DeviceCheck token against the Apple API.
-func VerifyDeviceCheck(ctx context.Context, cfg *model.APIConfig, data *model.Publish) error {
+func VerifyDeviceCheck(ctx context.Context, cfg *model.AuthorizedApp, data *model.Publish) error {
 	if cfg == nil {
 		return fmt.Errorf("cannot enforce DeviceCheck, missing config")
 	}

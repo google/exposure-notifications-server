@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiconfig
+package authorizedapp
 
 import (
 	"context"
@@ -26,20 +26,20 @@ var _ Provider = (*MemoryProvider)(nil)
 // MemoryProvider is an Provider that stores values in-memory. It is primarily
 // used for testing.
 type MemoryProvider struct {
-	Data map[string]*model.APIConfig
+	Data map[string]*model.AuthorizedApp
 }
 
 // NewMemoryProvider creates a new Provider that reads from a database.
 func NewMemoryProvider(ctx context.Context, _ *Config) (Provider, error) {
 	provider := &MemoryProvider{
-		Data: make(map[string]*model.APIConfig),
+		Data: make(map[string]*model.AuthorizedApp),
 	}
 
 	return provider, nil
 }
 
 // AppConfig returns the config for the given app package name.
-func (p *MemoryProvider) AppConfig(ctx context.Context, name string) (*model.APIConfig, error) {
+func (p *MemoryProvider) AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error) {
 	val, ok := p.Data[name]
 	if !ok {
 		return nil, AppNotFound

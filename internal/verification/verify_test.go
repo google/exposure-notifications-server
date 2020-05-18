@@ -30,11 +30,11 @@ const (
 )
 
 func TestVerifyRegions(t *testing.T) {
-	allRegions := &model.APIConfig{
+	allRegions := &model.AuthorizedApp{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
 	}
-	usCaRegions := &model.APIConfig{
+	usCaRegions := &model.AuthorizedApp{
 		AppPackageName: appPkgName,
 		AllowedRegions: make(map[string]struct{}),
 	}
@@ -44,7 +44,7 @@ func TestVerifyRegions(t *testing.T) {
 	cases := []struct {
 		Data *model.Publish
 		Msg  string
-		Cfg  *model.APIConfig
+		Cfg  *model.AuthorizedApp
 	}{
 		{
 			&model.Publish{Regions: []string{"US"}},
@@ -89,7 +89,7 @@ func TestVerifyRegions(t *testing.T) {
 }
 
 func TestVerifySafetyNet(t *testing.T) {
-	allRegions := &model.APIConfig{
+	allRegions := &model.AuthorizedApp{
 		AppPackageName:  appPkgName,
 		AllowAllRegions: true,
 	}
@@ -97,7 +97,7 @@ func TestVerifySafetyNet(t *testing.T) {
 	cases := []struct {
 		Data              *model.Publish
 		Msg               string
-		Cfg               *model.APIConfig
+		Cfg               *model.AuthorizedApp
 		AttestationResult error
 	}{
 		{

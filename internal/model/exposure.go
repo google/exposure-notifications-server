@@ -213,7 +213,7 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 	// Regions are a multi-value property, uppercase them for storage.
 	// There is no set of "valid" regions overall, but it is defined
 	// elsewhere by what regions an authorized application may write to.
-	// See `apiconfig.APIConfig`
+	// See `authorizedapp.Config`
 	upcaseRegions := make([]string, len(inData.Regions))
 	for i, r := range inData.Regions {
 		upcaseRegions[i] = strings.ToUpper(r)

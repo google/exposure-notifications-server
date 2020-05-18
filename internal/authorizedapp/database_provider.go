@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiconfig
+package authorizedapp
 
 import (
 	"context"
@@ -41,7 +41,7 @@ type DatabaseProvider struct {
 }
 
 type cacheItem struct {
-	value    *model.APIConfig
+	value    *model.AuthorizedApp
 	cachedAt time.Time
 }
 
@@ -73,7 +73,7 @@ func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, o
 }
 
 // AppConfig returns the config for the given app package name.
-func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.APIConfig, error) {
+func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
 
 	// Acquire a read lock first, which allows concurrent readers, to check if
@@ -105,13 +105,13 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 	}
 
 	// Load config.
-	config, err := p.loadAPIConfigFromDatabase(ctx, name)
+	config, err := p.loadAuthorizedAppFromDatabase(ctx, name)
 	if err != nil {
-		return nil, fmt.Errorf("apiconfig: %w", err)
+		return nil, fmt.Errorf("authorizedapp: %w", err)
 	}
 
 	// Cache configs.
-	logger.Infof("apiconfig: loaded %v, caching for %s", name, p.cacheDuration)
+	logger.Infof("authorizedapp: loaded %v, caching for %s", name, p.cacheDuration)
 	p.cache[name] = &cacheItem{
 		value:    config,
 		cachedAt: time.Now(),
@@ -127,13 +127,13 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 	return config, nil
 }
 
-// loadAPIConfigFromDatabase is a lower-level private API that actually loads and parses
-// a single APIConfigs from the database.
-func (p *DatabaseProvider) loadAPIConfigFromDatabase(ctx context.Context, name string) (*model.APIConfig, error) {
+// loadAuthorizedAppFromDatabase is a lower-level private API that actually loads and parses
+// a single AuthorizedApp from the database.
+func (p *DatabaseProvider) loadAuthorizedAppFromDatabase(ctx context.Context, name string) (*model.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
 
-	logger.Infof("apiconfig: loading %v from database", name)
-	config, err := p.database.GetAPIConfig(ctx, p.secretManager, name)
+	logger.Infof("authorizedapp: loading %v from database", name)
+	config, err := p.database.GetAuthorizedApp(ctx, p.secretManager, name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %v from database: %w", name, err)
 	}

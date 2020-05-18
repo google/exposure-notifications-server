@@ -42,7 +42,7 @@ func (s *testSecretManager) GetSecretValue(ctx context.Context, name string) (st
 	return v, nil
 }
 
-func TestGetAPIConfig(t *testing.T) {
+func TestGetAuthorizedApp(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
@@ -75,17 +75,17 @@ func TestGetAPIConfig(t *testing.T) {
 		name string
 		sql  string
 		args []interface{}
-		exp  *model.APIConfig
+		exp  *model.AuthorizedApp
 		err  bool
 	}{
 		{
 			name: "bare",
 			sql: `
-				INSERT INTO APIConfig (app_package_name, platform, allowed_regions)
+				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions)
 				VALUES ($1, $2, $3)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}},
-			exp: &model.APIConfig{
+			exp: &model.AuthorizedApp{
 				AppPackageName:  "myapp",
 				Platform:        "ios",
 				AllowedRegions:  map[string]struct{}{"US": {}},
@@ -96,13 +96,13 @@ func TestGetAPIConfig(t *testing.T) {
 		{
 			name: "allowed_past_time",
 			sql: `
-				INSERT INTO APIConfig (
+				INSERT INTO AuthorizedApp (
 					app_package_name, platform, allowed_regions,
 					allowed_past_seconds
 				) VALUES ($1, $2, $3, $4)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, 1800},
-			exp: &model.APIConfig{
+			exp: &model.AuthorizedApp{
 				AppPackageName:  "myapp",
 				Platform:        "ios",
 				AllowedRegions:  map[string]struct{}{"US": {}},
@@ -114,13 +114,13 @@ func TestGetAPIConfig(t *testing.T) {
 		{
 			name: "allowed_future_time",
 			sql: `
-				INSERT INTO APIConfig (
+				INSERT INTO AuthorizedApp (
 					app_package_name, platform, allowed_regions,
 					allowed_future_seconds
 				) VALUES ($1, $2, $3, $4)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, 1800},
-			exp: &model.APIConfig{
+			exp: &model.AuthorizedApp{
 				AppPackageName:    "myapp",
 				Platform:          "ios",
 				AllowedRegions:    map[string]struct{}{"US": {}},
@@ -132,13 +132,13 @@ func TestGetAPIConfig(t *testing.T) {
 		{
 			name: "ios_devicecheck",
 			sql: `
-				INSERT INTO APIConfig (
+				INSERT INTO AuthorizedApp (
 					app_package_name, platform, allowed_regions,
 					ios_devicecheck_team_id_secret, ios_devicecheck_key_id_secret, ios_devicecheck_private_key_secret
 				) VALUES ($1, $2, $3, $4, $5, $6)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, "team_id", "key_id", "private_key"},
-			exp: &model.APIConfig{
+			exp: &model.AuthorizedApp{
 				AppPackageName:        "myapp",
 				Platform:              "ios",
 				AllowedRegions:        map[string]struct{}{"US": {}},
@@ -173,7 +173,7 @@ func TestGetAPIConfig(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			config, err := testDB.GetAPIConfig(ctx, sm, "myapp")
+			config, err := testDB.GetAuthorizedApp(ctx, sm, "myapp")
 			if (err != nil) != c.err {
 				t.Fatal(err)
 			}

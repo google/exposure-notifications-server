@@ -43,8 +43,8 @@ type VerifyOpts struct {
 }
 
 // ValidateAttestation validates the the SafetyNet Attestation from this device
-// matches the properties that we expect based on the applications APIConfig entry.
-// See https://developer.android.com/training/safetynet/attestation#use-response-server
+// matches the properties that we expect based on the AuthorizedApp entry. See
+// https://developer.android.com/training/safetynet/attestation#use-response-server
 // for details on the format of these attestations.
 func ValidateAttestation(ctx context.Context, attestation string, opts *VerifyOpts) error {
 	defer trace.StartRegion(ctx, "ValidateAttestation").End()
@@ -138,8 +138,8 @@ func ValidateAttestation(ctx context.Context, attestation string, opts *VerifyOp
 }
 
 // VerifyOptsFor returns the Android SafetyNet verification options to be used
-// based on the API config, request time, and nonce.
-func VerifyOptsFor(c *model.APIConfig, from time.Time, nonce string) *VerifyOpts {
+// based on the AuthorizedApp configuration, request time, and nonce.
+func VerifyOptsFor(c *model.AuthorizedApp, from time.Time, nonce string) *VerifyOpts {
 	digests := make([]string, len(c.ApkDigestSHA256))
 	copy(digests, c.ApkDigestSHA256)
 	rtn := &VerifyOpts{

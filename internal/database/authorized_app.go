@@ -26,9 +26,9 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-// GetAPIConfig loads a single API config for the given name. If no row exists,
-// this returns nil.
-func (db *DB) GetAPIConfig(ctx context.Context, sm secrets.SecretManager, name string) (*model.APIConfig, error) {
+// GetAuthorizedApp loads a single AuthorizedApp for the given name. If no row
+// exists, this returns nil.
+func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*model.AuthorizedApp, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
@@ -41,12 +41,12 @@ func (db *DB) GetAPIConfig(ctx context.Context, sm secrets.SecretManager, name s
 			allowed_past_seconds, allowed_future_seconds, allowed_regions, all_regions,
 			ios_devicecheck_team_id_secret, ios_devicecheck_key_id_secret, ios_devicecheck_private_key_secret
 		FROM
-			APIConfig
+			AuthorizedApp
 		WHERE app_package_name = $1`
 
 	row := conn.QueryRow(ctx, query, name)
 
-	config := model.NewAPIConfig()
+	config := model.NewAuthorizedApp()
 	var allowedRegions []string
 	var allowedPastSeconds, allowedFutureSeconds *int
 	var deviceCheckTeamIDSecret, deviceCheckKeyIDSecret, deviceCheckPrivateKeySecret sql.NullString
