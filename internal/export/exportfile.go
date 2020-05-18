@@ -146,7 +146,7 @@ func createSignatureInfo(si *model.SignatureInfo) *export.SignatureInfo {
 	return sigInfo
 }
 
-func marshalSignature(eb *model.ExportBatch, exportContents []byte, batchNum int32, batchSize int32, signers []exportSigners) ([]byte, error) {
+func marshalSignature(eb *model.ExportBatch, exportContents []byte, batchNum, batchSize int32, signers []exportSigners) ([]byte, error) {
 
 	var signatures []*export.TEKSignature
 	for _, s := range signers {
