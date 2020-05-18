@@ -100,7 +100,12 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
-	logger.Infof("Effective DB config: %+v", config.DB())
+	{
+		// Log the database config, but omit the password field.
+		redactedDB := config.DB()
+		redactedDB.Password = "<hidden>"
+		logger.Infof("Effective DB config: %+v", redactedDB)
+	}
 	opts = append(opts, serverenv.WithDatabase(db))
 
 	// AuthorizedApp must come after database setup due to the dependency.

@@ -15,7 +15,6 @@
 package database
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -39,19 +38,4 @@ type Config struct {
 
 func (c *Config) DB() *Config {
 	return c
-}
-
-// String returns the string representation of the database connection config.
-// This omits the Password field to prevent accidental logging.
-func (c *Config) String() string {
-	pwSet := "<set>"
-	if c.Password == "" {
-		pwSet = "<not set>"
-	}
-
-	return fmt.Sprintf("{Name:%v User:%v Host:%v Port:%v SSLMode:%v ConnectionTimeout:%v Password:%v SSLCertPath:%v SSLKeyPath:%v SSLRootCertPath:%v PoolMinConnections:%v PoolMaxConnections:%v PoolMaxConnLife: %v PoolMaxConnIdle:%v PoolHealthCheck:%v}",
-		c.Name, c.User, c.Host, c.Port, c.SSLMode, c.ConnectionTimeout, pwSet,
-		c.SSLCertPath, c.SSLKeyPath, c.SSLRootCertPath,
-		c.PoolMinConnections, c.PoolMaxConnections,
-		c.PoolMaxConnLife, c.PoolMaxConnIdle, c.PoolHealthCheck)
 }
