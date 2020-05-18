@@ -80,7 +80,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	auth := &model.FederationOutAuthorization{
+	auth := &database.FederationOutAuthorization{
 		Issuer:         defaultIssuer, // Authorization interceptor currently only supports defaultIssuer.
 		Subject:        *subject,
 		Audience:       *audience,

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/android"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/ios"
 )
 
@@ -30,7 +31,7 @@ var (
 
 // VerifyRegions checks the request regions against the regions allowed by
 // the configuration for the application.
-func VerifyRegions(cfg *model.AuthorizedApp, data *model.Publish) error {
+func VerifyRegions(cfg *database.AuthorizedApp, data *database.Publish) error {
 	if cfg == nil {
 		return fmt.Errorf("no allowed regions configured")
 	}
@@ -51,7 +52,7 @@ func VerifyRegions(cfg *model.AuthorizedApp, data *model.Publish) error {
 
 // VerifySafetyNet verifies the Android SafetyNet device attestation against the
 // allowed configuration for the application.
-func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *model.AuthorizedApp, publish *model.Publish) error {
+func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *database.AuthorizedApp, publish *database.Publish) error {
 	if cfg == nil {
 		return fmt.Errorf("cannot enforce SafetyNet, missing config")
 	}
@@ -65,7 +66,7 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *model.Auth
 }
 
 // VerifyDeviceCheck verifies an iOS DeviceCheck token against the Apple API.
-func VerifyDeviceCheck(ctx context.Context, cfg *model.AuthorizedApp, data *model.Publish) error {
+func VerifyDeviceCheck(ctx context.Context, cfg *database.AuthorizedApp, data *database.Publish) error {
 	if cfg == nil {
 		return fmt.Errorf("cannot enforce DeviceCheck, missing config")
 	}

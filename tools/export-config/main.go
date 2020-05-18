@@ -89,7 +89,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	si := model.SignatureInfo{
+	si := database.SignatureInfo{
 		SigningKey:        *signingKey,
 		AppPackageName:    *appPkgID,
 		BundleID:          *bundleID,
@@ -100,7 +100,7 @@ func main() {
 		log.Fatalf("AddSignatureInfo: %v", err)
 	}
 
-	ec := model.ExportConfig{
+	ec := database.ExportConfig{
 		BucketName:       *bucketName,
 		FilenameRoot:     *filenameRoot,
 		Period:           *period,

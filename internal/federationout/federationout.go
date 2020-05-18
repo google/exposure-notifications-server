@@ -42,7 +42,7 @@ const (
 // Compile time assert that this server implements the required grpc interface.
 var _ pb.FederationServer = (*Server)(nil)
 
-type iterateExposuresFunc func(context.Context, database.IterateExposuresCriteria, func(*model.Exposure) error) (string, error)
+type iterateExposuresFunc func(context.Context, database.IterateExposuresCriteria, func(*database.Exposure) error) (string, error)
 
 // NewServer builds a new FederationServer.
 func NewServer(env *serverenv.ServerEnv, config *Config) pb.FederationServer {
@@ -66,7 +66,7 @@ func (s Server) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
-	response, err := s.fetch(ctx, req, s.db.IterateExposures, model.TruncateWindow(time.Now(), s.config.TruncateWindow)) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?
+	response, err := s.fetch(ctx, req, s.db.IterateExposures, database.TruncateWindow(time.Now(), s.config.TruncateWindow)) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?
 	if err != nil {
 		s.env.MetricsExporter(ctx).WriteInt("federation-fetch-failed", true, 1)
 		logger.Errorf("Fetch error: %v", err)
@@ -91,7 +91,7 @@ func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFun
 	logger.Infof("Processing client request %#v", req)
 
 	// If there is a FederationAuthorization on the context, set the query to operate within its limits.
-	if auth, ok := ctx.Value(authKey{}).(*model.FederationOutAuthorization); ok {
+	if auth, ok := ctx.Value(authKey{}).(*database.FederationOutAuthorization); ok {
 		// For included regions, we INTERSECT the requested included regions with the configured included regions.
 		req.RegionIdentifiers = intersect(req.RegionIdentifiers, auth.IncludeRegions)
 		// For excluded regions, we UNION the the requested excluded regions with the configured excluded regions.
@@ -125,7 +125,7 @@ func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFun
 	ctiMap := map[string]*pb.ContactTracingInfo{}     // local index into the response being assembled; keys on unique set of (ctrMap key, transmissionRisk, verificationAuthorityName)
 	response := &pb.FederationFetchResponse{}
 	count := 0
-	cursor, err := itFunc(ctx, criteria, func(inf *model.Exposure) error {
+	cursor, err := itFunc(ctx, criteria, func(inf *database.Exposure) error {
 		// If the diagnosis key is empty, it's malformed, so skip it.
 		if len(inf.ExposureKey) == 0 {
 			logger.Debugf("Exposure %s missing ExposureKey, skipping.", inf.ExposureKey)

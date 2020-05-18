@@ -59,7 +59,7 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	now := time.Now()
-	err = s.db.IterateExportConfigs(ctx, now, func(ec *model.ExportConfig) error {
+	err = s.db.IterateExportConfigs(ctx, now, func(ec *database.ExportConfig) error {
 		totalConfigs++
 		if batchesCreated, err := s.maybeCreateBatches(ctx, ec, now); err != nil {
 			logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
@@ -88,7 +88,7 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig, now time.Time) (int, error) {
+func (s *Server) maybeCreateBatches(ctx context.Context, ec *database.ExportConfig, now time.Time) (int, error) {
 	logger := logging.FromContext(ctx)
 	metrics := s.env.MetricsExporter(ctx)
 
@@ -104,18 +104,18 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 		return 0, nil
 	}
 
-	var batches []*model.ExportBatch
+	var batches []*database.ExportBatch
 	for _, br := range ranges {
 		infoIds := make([]int64, len(ec.SignatureInfoIDs))
 		copy(infoIds, ec.SignatureInfoIDs)
-		batches = append(batches, &model.ExportBatch{
+		batches = append(batches, &database.ExportBatch{
 			ConfigID:         ec.ConfigID,
 			BucketName:       ec.BucketName,
 			FilenameRoot:     ec.FilenameRoot,
 			StartTimestamp:   br.start,
 			EndTimestamp:     br.end,
 			Region:           ec.Region,
-			Status:           model.ExportBatchOpen,
+			Status:           database.ExportBatchOpen,
 			SignatureInfoIDs: infoIds,
 		})
 	}
@@ -138,7 +138,7 @@ var sanityDate = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 func makeBatchRanges(period time.Duration, latestEnd, now time.Time, truncateWindow time.Duration) []batchRange {
 
 	// Compute the end of the exposure publish window; we don't want any batches with an end date greater than this time.
-	publishEnd := model.TruncateWindow(now, truncateWindow)
+	publishEnd := database.TruncateWindow(now, truncateWindow)
 
 	// Special case: if there have not been batches before, return only a single one.
 	// We use sanityDate here because the loop below will happily create batch ranges

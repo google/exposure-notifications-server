@@ -18,8 +18,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"testing"
-
-	"github.com/google/exposure-notifications-server/internal/model"
 )
 
 func TestRandomInt(t *testing.T) {

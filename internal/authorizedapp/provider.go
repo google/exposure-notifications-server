@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/database"
 )
 
 // AppNotFound is the sentinel error returned when AppConfig fails to find an
@@ -30,5 +30,5 @@ type Provider interface {
 	// AppConfig returns the application-specific configuration for the given
 	// name. An error is returned if the configuration fails to load. An error is
 	// returned if no app with the given name is registered in the system.
-	AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error)
+	AppConfig(ctx context.Context, name string) (*database.AuthorizedApp, error)
 }

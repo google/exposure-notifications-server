@@ -22,7 +22,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 )
 
@@ -41,7 +40,7 @@ type DatabaseProvider struct {
 }
 
 type cacheItem struct {
-	value    *model.AuthorizedApp
+	value    *database.AuthorizedApp
 	cachedAt time.Time
 }
 
@@ -73,7 +72,7 @@ func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, o
 }
 
 // AppConfig returns the config for the given app package name.
-func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error) {
+func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*database.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
 
 	// Acquire a read lock first, which allows concurrent readers, to check if
@@ -129,7 +128,7 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 
 // loadAuthorizedAppFromDatabase is a lower-level private API that actually loads and parses
 // a single AuthorizedApp from the database.
-func (p *DatabaseProvider) loadAuthorizedAppFromDatabase(ctx context.Context, name string) (*model.AuthorizedApp, error) {
+func (p *DatabaseProvider) loadAuthorizedAppFromDatabase(ctx context.Context, name string) (*database.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
 
 	logger.Infof("authorizedapp: loading %v from database", name)

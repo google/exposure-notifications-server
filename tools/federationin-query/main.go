@@ -87,7 +87,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	query := &model.FederationInQuery{
+	query := &database.FederationInQuery{
 		QueryID:        *queryID,
 		ServerAddr:     *serverAddr,
 		Audience:       *audience,
