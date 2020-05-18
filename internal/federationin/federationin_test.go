@@ -146,6 +146,40 @@ func TestFederationPull(t *testing.T) {
 			wantMaxTimestamp: time.Unix(400, 0),
 		},
 		{
+			name: "invalid transmission risk",
+			fetchResponses: []*pb.FederationFetchResponse{
+				{
+					Response: []*pb.ContactTracingResponse{
+						{
+							ContactTracingInfo: []*pb.ContactTracingInfo{
+								{TransmissionRisk: 1, ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
+							},
+							RegionIdentifiers: []string{"US"},
+						},
+						{
+							ContactTracingInfo: []*pb.ContactTracingInfo{
+								{TransmissionRisk: -1, ExposureKeys: []*pb.ExposureKey{ccc}},
+							},
+							RegionIdentifiers: []string{"US", "CA"},
+						},
+						{
+							ContactTracingInfo: []*pb.ContactTracingInfo{
+								{TransmissionRisk: 9, ExposureKeys: []*pb.ExposureKey{ddd}},
+							},
+							RegionIdentifiers: []string{"US"},
+						},
+					},
+					FetchResponseKeyTimestamp: 400,
+				},
+			},
+			wantExposures: []*model.Exposure{
+				makeRemoteExposure(aaa, 1, "US"),
+				makeRemoteExposure(bbb, 1, "US"),
+			},
+			wantTokens:       []string{""},
+			wantMaxTimestamp: time.Unix(400, 0),
+		},
+		{
 			name: "partial results",
 			fetchResponses: []*pb.FederationFetchResponse{
 				{

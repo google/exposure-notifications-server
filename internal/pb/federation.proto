@@ -39,6 +39,7 @@ message ContactTracingResponse {
 }
 
 message ContactTracingInfo {
+  // Transmission risk is an integer with valid values from 1-8.
 	int32 transmissionRisk = 1;  // required
 	repeated ExposureKey exposureKeys = 2;
 }

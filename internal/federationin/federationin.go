@@ -235,6 +235,11 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 			for _, cti := range ctr.ContactTracingInfo {
 				for _, key := range cti.ExposureKeys {
 
+					if cti.TransmissionRisk < model.MinTransmissionRisk || cti.TransmissionRisk > model.MaxTransmissionRisk {
+						logger.Errorf("invalid transmission risk %v - dropping record.", cti.TransmissionRisk)
+						continue
+					}
+
 					exposures = append(exposures, &model.Exposure{
 						TransmissionRisk: int(cti.TransmissionRisk),
 						ExposureKey:      key.ExposureKey,
