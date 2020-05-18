@@ -36,7 +36,7 @@ For full instructions on deploying, view the [deployment docs](../docs/deploying
     $ export PROJECT_ID="<value-from-above>"
     ```
 
-1.  Decide whether or not to use Cloud Build Triggers. If you do, every push to
+1.  (Optional) Decide to use Cloud Build Triggers. If you do, every push to
     master on the GitHub repo containing the exposure server code will trigger a
     new deployment. To enable this:
 
