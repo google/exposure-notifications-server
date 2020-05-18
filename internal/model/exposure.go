@@ -142,16 +142,15 @@ type ExposureKey struct {
 // from direct access.
 // Mark records as writable/nowritable - is exposure key encrypted
 type Exposure struct {
-	ExposureKey               []byte    `db:"exposure_key"`
-	TransmissionRisk          int       `db:"transmission_risk"`
-	AppPackageName            string    `db:"app_package_name"`
-	Regions                   []string  `db:"regions"`
-	IntervalNumber            int32     `db:"interval_number"`
-	IntervalCount             int32     `db:"interval_count"`
-	CreatedAt                 time.Time `db:"created_at"`
-	LocalProvenance           bool      `db:"local_provenance"`
-	VerificationAuthorityName string    `db:"verification_authority_name"`
-	FederationSyncID          int64     `db:"sync_id"`
+	ExposureKey      []byte    `db:"exposure_key"`
+	TransmissionRisk int       `db:"transmission_risk"`
+	AppPackageName   string    `db:"app_package_name"`
+	Regions          []string  `db:"regions"`
+	IntervalNumber   int32     `db:"interval_number"`
+	IntervalCount    int32     `db:"interval_count"`
+	CreatedAt        time.Time `db:"created_at"`
+	LocalProvenance  bool      `db:"local_provenance"`
+	FederationSyncID int64     `db:"sync_id"`
 }
 
 // IntervalNumber calculates the exposure notification system interval

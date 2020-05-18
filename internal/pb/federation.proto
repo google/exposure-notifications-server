@@ -39,16 +39,8 @@ message ContactTracingResponse {
 }
 
 message ContactTracingInfo {
-	// TODO(squee1945 | mikehelmick): this should be an int now.
-	TransmissionRisk transmissionRisk = 1;  // required
+	int32 transmissionRisk = 1;  // required
 	repeated ExposureKey exposureKeys = 2;
-	string verificationAuthorityName = 3;  // TODO(squee1945): need to group on this.
-}
-
-enum TransmissionRisk {
-	unknown = 0;
-	positive_verified = 1;
-	self_reported = 2;
 }
 
 message ExposureKey {
