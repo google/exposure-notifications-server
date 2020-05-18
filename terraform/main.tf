@@ -544,6 +544,12 @@ resource "google_cloud_run_service_iam_policy" "federationin-noauth" {
   policy_data = data.google_iam_policy.noauth.policy_data
 }
 
+# Cloud Scheduler requires AppEngine projects!
+resource "google_app_engine_application" "app" {
+  project     = data.google_project.project.project_id
+  location_id = var.appengine_location
+}
+
 resource "google_project_iam_member" "export-worker" {
   project = data.google_project.project.project_id
   role    = "roles/run.invoker"
@@ -567,7 +573,10 @@ resource "google_cloud_scheduler_job" "export-worker" {
       service_account_email = google_service_account.scheduler-export.email
     }
   }
-  depends_on = [google_project_iam_member.export-worker]
+  depends_on = [
+    google_project_iam_member.export-worker,
+    google_app_engine_application.app,
+  ]
 }
 
 resource "google_cloud_scheduler_job" "export-create-batches" {
@@ -587,5 +596,8 @@ resource "google_cloud_scheduler_job" "export-create-batches" {
       service_account_email = google_service_account.scheduler-export.email
     }
   }
-  depends_on = [google_project_iam_member.export-worker]
+  depends_on = [
+    google_project_iam_member.export-worker,
+    google_app_engine_application.app,
+  ]
 }

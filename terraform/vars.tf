@@ -3,6 +3,11 @@ variable "region" {
   default = "us-central1"
 }
 
+variable "appengine_location" {
+  type    = string
+  default = "us-central"
+}
+
 variable "project" {
   type = string
 }
