@@ -71,35 +71,41 @@ func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, o
 	return provider, nil
 }
 
+func (p *DatabaseProvider) checkCache(name string) (bool, *database.AuthorizedApp, error) {
+	// Acquire a read lock first, which allows concurrent readers, to check if
+	// there's an item in the cache.
+	p.cacheLock.RLock()
+	defer p.cacheLock.RUnlock()
+
+	item, ok := p.cache[name]
+	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
+		if item.value == nil {
+			return true, nil, AppNotFound
+		}
+		return true, item.value, nil
+	}
+	return false, nil, nil
+}
+
 // AppConfig returns the config for the given app package name.
 func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*database.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
 
-	// Acquire a read lock first, which allows concurrent readers, to check if
-	// there's an item in the cache.
-	p.cacheLock.RLock()
-	item, ok := p.cache[name]
-	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
-		if item.value == nil {
-			p.cacheLock.RUnlock()
-			return nil, AppNotFound
-		}
-		p.cacheLock.RUnlock()
-		return item.value, nil
+	cacheHit, data, error := p.checkCache(name)
+	if cacheHit {
+		return data, error
 	}
-	p.cacheLock.RUnlock()
 
 	// Acquire a more aggressive lock now because we're about to mutate. However,
 	// it's possible that a concurrent routine has already mutated between our
 	// read and write locks, so we have to check again.
 	p.cacheLock.Lock()
-	item, ok = p.cache[name]
+	defer p.cacheLock.Unlock()
+	item, ok := p.cache[name]
 	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
 		if item.value == nil {
-			p.cacheLock.Unlock()
 			return nil, AppNotFound
 		}
-		p.cacheLock.Unlock()
 		return item.value, nil
 	}
 
@@ -118,7 +124,6 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*databas
 
 	// Handle not found.
 	if config == nil {
-		p.cacheLock.Unlock()
 		return nil, AppNotFound
 	}
 
