@@ -103,8 +103,8 @@ func TestEnsureMinExposures(t *testing.T) {
 	if len(expectedTR) != 0 {
 		t.Errorf("Didn't cover all expected transmission risks in batch of 1000: %v", expectedTR)
 	}
-	if len(eIntervals) != 4 {
-		t.Errorf("Unexpected number of intervalNum/count combinations, want: 4, got: %v", len(eIntervals))
+	if got, want := len(eIntervals), 4; got != want {
+		t.Errorf("Unexpected number of intervalNum/count combinations, got %d, want %d", got, want)
 	}
 	for k, v := range eIntervals {
 		if !v {

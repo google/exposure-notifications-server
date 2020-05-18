@@ -251,7 +251,7 @@ func (s Server) AuthInterceptor(ctx context.Context, req interface{}, info *grpc
 
 	auth, err := s.db.GetFederationOutAuthorization(ctx, token.Issuer, token.Subject)
 	if err != nil {
-		if err == database.ErrNotFound {
+		if errors.Is(err, database.ErrNotFound) {
 			metrics.WriteInt("federation-fetch-unauthorized", true, 1)
 			logger.Infof("Authorization not found (issuer %q, subject %s)", token.Issuer, token.Subject)
 			return nil, status.Errorf(codes.Unauthenticated, "Invalid issuer/subject")
@@ -298,19 +298,15 @@ func rawToken(ctx context.Context) (string, error) {
 
 func intersect(aa, bb []string) []string {
 	if len(aa) == 0 || len(bb) == 0 {
-		return []string{}
+		return nil
 	}
-	result := []string{}
+	var result []string
 	for _, a := range aa {
-		found := false
 		for _, b := range bb {
 			if a == b {
-				found = true
+				result = append(result, a)
 				break
 			}
-		}
-		if found {
-			result = append(result, a)
 		}
 	}
 	return result

@@ -48,9 +48,11 @@ var (
 	fetchBatchSize = database.InsertExposuresBatchSize
 )
 
-type fetchFn func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
-type insertExposuresFn func(context.Context, []*model.Exposure) error
-type startFederationSyncFn func(context.Context, *model.FederationInQuery, time.Time) (int64, database.FinalizeSyncFn, error)
+type (
+	fetchFn               func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
+	insertExposuresFn     func(context.Context, []*model.Exposure) error
+	startFederationSyncFn func(context.Context, *model.FederationInQuery, time.Time) (int64, database.FinalizeSyncFn, error)
+)
 
 type pullDependencies struct {
 	fetch               fetchFn
