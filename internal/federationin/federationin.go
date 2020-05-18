@@ -233,21 +233,22 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 			sort.Strings(upperRegions)
 
 			for _, cti := range ctr.ContactTracingInfo {
-
-				verificationAuthName := strings.ToUpper(strings.TrimSpace(cti.VerificationAuthorityName))
-
 				for _, key := range cti.ExposureKeys {
 
+					if cti.TransmissionRisk < model.MinTransmissionRisk || cti.TransmissionRisk > model.MaxTransmissionRisk {
+						logger.Errorf("invalid transmission risk %v - dropping record.", cti.TransmissionRisk)
+						continue
+					}
+
 					exposures = append(exposures, &model.Exposure{
-						TransmissionRisk:          int(cti.TransmissionRisk),
-						ExposureKey:               key.ExposureKey,
-						Regions:                   upperRegions,
-						FederationSyncID:          syncID,
-						IntervalNumber:            key.IntervalNumber,
-						IntervalCount:             key.IntervalCount,
-						CreatedAt:                 createdAt,
-						LocalProvenance:           false,
-						VerificationAuthorityName: verificationAuthName,
+						TransmissionRisk: int(cti.TransmissionRisk),
+						ExposureKey:      key.ExposureKey,
+						Regions:          upperRegions,
+						FederationSyncID: syncID,
+						IntervalNumber:   key.IntervalNumber,
+						IntervalCount:    key.IntervalCount,
+						CreatedAt:        createdAt,
+						LocalProvenance:  false,
 					})
 
 					if len(exposures) == fetchBatchSize {

@@ -100,7 +100,7 @@ func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCri
 			syncID     *int64
 		)
 		if err := rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
-			&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &syncID); err != nil {
+			&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &syncID); err != nil {
 			return cursor(), err
 		}
 		var err error
@@ -127,7 +127,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	q := `
 		SELECT
 			exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
-			created_at, local_provenance, verification_authority_name, sync_id
+			created_at, local_provenance, sync_id
 		FROM
 			Exposure
 		WHERE 1=1
@@ -186,9 +186,9 @@ func (db *DB) InsertExposures(ctx context.Context, exposures []*model.Exposure) 
 			INSERT INTO
 				Exposure
 			    (exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
-			     created_at, local_provenance, verification_authority_name, sync_id)
+			     created_at, local_provenance, sync_id)
 			VALUES
-			  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			  ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			ON CONFLICT (exposure_key) DO NOTHING
 		`)
 		if err != nil {
@@ -201,7 +201,7 @@ func (db *DB) InsertExposures(ctx context.Context, exposures []*model.Exposure) 
 				syncID = &inf.FederationSyncID
 			}
 			_, err := tx.Exec(ctx, stmtName, encodeExposureKey(inf.ExposureKey), inf.TransmissionRisk, inf.AppPackageName, inf.Regions, inf.IntervalNumber, inf.IntervalCount,
-				inf.CreatedAt, inf.LocalProvenance, inf.VerificationAuthorityName, syncID)
+				inf.CreatedAt, inf.LocalProvenance, syncID)
 			if err != nil {
 				return fmt.Errorf("inserting exposure: %v", err)
 			}

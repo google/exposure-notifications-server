@@ -146,12 +146,6 @@ func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFun
 			return nil
 		}
 
-		// If the exposure has an unknown status, it's malformed, so skip it.
-		if _, ok := pb.TransmissionRisk_name[int32(inf.TransmissionRisk)]; !ok {
-			logger.Debugf("Exposure %s has invalid TransmissionRisk, skipping.", inf.ExposureKey)
-			return nil
-		}
-
 		// If all the regions on the record are excluded, skip it.
 		skip := true
 		for _, region := range inf.Regions {
@@ -191,12 +185,11 @@ func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFun
 			response.Response = append(response.Response, ctr)
 		}
 
-		// Find, or create, the ContactTracingInfo for (ctrKey, transmissionRisk, verificationAuthorityName).
-		status := pb.TransmissionRisk(inf.TransmissionRisk)
-		ctiKey := fmt.Sprintf("%s::%d::%s", ctrKey, status, inf.VerificationAuthorityName)
+		// Find, or create, the ContactTracingInfo for (ctrKey, transmissionRisk).
+		ctiKey := fmt.Sprintf("%s::%d", ctrKey, inf.TransmissionRisk)
 		cti := ctiMap[ctiKey]
 		if cti == nil {
-			cti = &pb.ContactTracingInfo{TransmissionRisk: status, VerificationAuthorityName: inf.VerificationAuthorityName}
+			cti = &pb.ContactTracingInfo{TransmissionRisk: int32(inf.TransmissionRisk)}
 			ctiMap[ctiKey] = cti
 			ctr.ContactTracingInfo = append(ctr.ContactTracingInfo, cti)
 		}
