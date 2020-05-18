@@ -32,7 +32,7 @@ var _ setup.DBConfigProvider = (*Config)(nil)
 type Config struct {
 	Port               string        `envconfig:"PORT" default:"8080"`
 	MinRequestDuration time.Duration `envconfig:"TARGET_REQUEST_DURATION" default:"5s"`
-	MaxKeysOnPublish   int           `envconfig:"MAX_KEYS_ON_PUBLISH" default:"14"`
+	MaxKeysOnPublish   int           `envconfig:"MAX_KEYS_ON_PUBLISH" default:"15"`
 	MaxIntervalAge     time.Duration `envconfig:"MAX_INTERVAL_AGE_ON_PUBLISH" default:"360h"`
 	TruncateWindow     time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 
