@@ -213,7 +213,6 @@ resource "google_cloudbuild_trigger" "update-schema" {
     }
   }
   substitutions = {
-    "_HOST" : "localhost"
     "_CLOUDSQLPATH" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
     "_PORT" : "5432"
     "_PASSWORD_SECRET" : google_secret_manager_secret.db-pwd.secret_id
@@ -226,7 +225,7 @@ resource "google_cloudbuild_trigger" "update-schema" {
 
 resource "null_resource" "submit-update-schema" {
   provisioner "local-exec" {
-    command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=_HOST=${google_sql_database_instance.db-inst.public_ip_address},_PORT=5432,_PASSWORD_SECRET=${google_secret_manager_secret.db-pwd.secret_id},_USER=${google_sql_user.user.name},_NAME=${google_sql_database.db.name},_SSLMODE=disable,_CLOUDSQLPATH=${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+    command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=_PORT=5432,_PASSWORD_SECRET=${google_secret_manager_secret.db-pwd.secret_id},_USER=${google_sql_user.user.name},_NAME=${google_sql_database.db.name},_SSLMODE=disable,_CLOUDSQLPATH=${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
   }
   depends_on = [google_project_iam_member.cloudbuild-secrets, google_project_iam_member.cloudbuild-sql]
 }
