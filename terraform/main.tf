@@ -535,10 +535,10 @@ resource "google_cloud_run_service_iam_policy" "exposure-noauth" {
   policy_data = data.google_iam_policy.noauth.policy_data
 }
 
-resource "google_cloud_run_service_iam_policy" "federationin-noauth" {
-  location = google_cloud_run_service.federationin.location
-  project  = google_cloud_run_service.federationin.project
-  service  = google_cloud_run_service.federationin.name
+resource "google_cloud_run_service_iam_policy" "federationout-noauth" {
+  location = google_cloud_run_service.federationout.location
+  project  = google_cloud_run_service.federationout.project
+  service  = google_cloud_run_service.federationout.name
 
   policy_data = data.google_iam_policy.noauth.policy_data
 }
