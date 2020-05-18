@@ -379,7 +379,7 @@ resource "google_secret_manager_secret_iam_member" "export-db-pwd" {
 resource "google_storage_bucket_iam_member" "export-objectadmin" {
   bucket = google_storage_bucket.export.name
   role   = "roles/storage.objectAdmin" // overwrite is not included in objectCreator
-  member = "serviceAccount:${google_service_account.exposure.email}"
+  member = "serviceAccount:${google_service_account.export.email}"
 }
 
 resource "google_cloud_run_service" "export" {
