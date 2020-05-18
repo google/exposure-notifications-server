@@ -15,13 +15,12 @@ provider "random" {}
 # This is to ensure that the project / gcloud auth are correctly configured.
 resource "null_resource" "gcloud_check" {
   provisioner "local-exec" {
-    command = "gcloud projects describe ${var.project} || (echo 'please sign in to gcloud using `gcloud auth login`.' && exit 1)"
+    command = "command -v gcloud &>/dev/null || (echo 'Please install and authenticate with gcloud!' && exit 127)"
   }
 }
 
 data "google_project" "project" {
   project_id = var.project
-  depends_on = [null_resource.gcloud_check]
 }
 
 resource "google_project_service" "services" {
@@ -217,7 +216,11 @@ resource "null_resource" "submit-update-schema" {
   provisioner "local-exec" {
     command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=_PORT=5432,_PASSWORD_SECRET=${google_secret_manager_secret.db-pwd.secret_id},_USER=${google_sql_user.user.name},_NAME=${google_sql_database.db.name},_SSLMODE=disable,_CLOUDSQLPATH=${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
   }
-  depends_on = [google_project_iam_member.cloudbuild-secrets, google_project_iam_member.cloudbuild-sql]
+  depends_on = [
+    null_resource.gcloud_check,
+    google_project_iam_member.cloudbuild-secrets,
+    google_project_iam_member.cloudbuild-sql,
+  ]
 }
 
 resource "google_secret_manager_secret_version" "db-pwd-initial" {
@@ -263,7 +266,11 @@ resource "null_resource" "submit-build-and-publish" {
     command = "gcloud builds submit ../ --config ../builders/build.yaml --project ${data.google_project.project.project_id}"
   }
 
-  depends_on = [google_project_iam_member.cloudbuild-secrets, google_project_iam_member.cloudbuild-sql]
+  depends_on = [
+    null_resource.gcloud_check,
+    google_project_iam_member.cloudbuild-secrets,
+    google_project_iam_member.cloudbuild-sql,
+  ]
 }
 
 locals {
@@ -535,10 +542,10 @@ resource "google_cloud_run_service_iam_policy" "exposure-noauth" {
   policy_data = data.google_iam_policy.noauth.policy_data
 }
 
-resource "google_cloud_run_service_iam_policy" "federationin-noauth" {
-  location = google_cloud_run_service.federationin.location
-  project  = google_cloud_run_service.federationin.project
-  service  = google_cloud_run_service.federationin.name
+resource "google_cloud_run_service_iam_policy" "federationout-noauth" {
+  location = google_cloud_run_service.federationout.location
+  project  = google_cloud_run_service.federationout.project
+  service  = google_cloud_run_service.federationout.name
 
   policy_data = data.google_iam_policy.noauth.policy_data
 }
