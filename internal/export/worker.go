@@ -176,13 +176,13 @@ type createFileInfo struct {
 func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, error) {
 	logger := logging.FromContext(ctx)
 
-	var signers []exportSigners
+	var signers []ExportSigners
 	for _, si := range cfi.signatureInfos {
 		signer, err := s.env.GetSignerForKey(ctx, si.SigningKey)
 		if err != nil {
 			return "", fmt.Errorf("unable to get signer for key %v: %w", si.SigningKey, err)
 		}
-		signers = append(signers, exportSigners{signatureInfo: si, signer: signer})
+		signers = append(signers, ExportSigners{SignatureInfo: si, Signer: signer})
 	}
 
 	// Generate exposure key export file.
