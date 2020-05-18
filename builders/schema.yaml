@@ -8,12 +8,11 @@ steps:
   entrypoint: bash
   args: ['-c', 'gcloud secrets versions access latest --secret $_PASSWORD_SECRET > decrypted_password.txt']
 - name: 'gcr.io/$PROJECT_ID/migrations'
-  args: ['up']
-  env:
-    - 'DB_PASSWORD=decrypted_password.txt'
-    - 'DB_HOST=$_HOST'
-    - 'DB_PORT=$_PORT'
-    - 'DB_USER=$_USER'
-    - 'DB_NAME=$_NAME'
-    - 'DB_SSLMODE=$_SSLMODE'
-    - 'DB_CLOUDSQL_PATH=$_CLOUDSQLPATH'
+  entrypoint: /bin/sh
+  args:
+    - -ec
+    - |-
+            /bin/cloud_sql_proxy -instances=$_CLOUDSQLPATH=tcp:$_PORT &
+            DB_PASSWORD=$$(cat decrypted_password.txt)
+            sleep 5
+            /usr/local/bin/migrate -database postgres://$_USER:$${DB_PASSWORD}@localhost:$_PORT/$_NAME?sslmode=$_SSLMODE -path migrations up
