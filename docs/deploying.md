@@ -79,16 +79,18 @@ https://github.com/terraform-providers/terraform-provider-google.
 1. Download and install Terraform 0.12.  [Installation guide](https://www.terraform.io/downloads.html),
 although `go get github.com/hashicorp/terraform` may be all you need.
 
-1. Create a GCP project.
-[Instructions](https://cloud.google.com/resource-manager/docs/creating-managing-projects).
-Enable a billing account for this project, and remember its project ID (the
-unique, unchangeable string that you will be asked for during creation).
+1.  Create a GCP project.
+    [Instructions](https://cloud.google.com/resource-manager/docs/creating-managing-projects).
+    Enable a billing account for this project, and remember its project ID (the
+    unique, unchangeable string that you will be asked for during creation).
+    
     ```text
     $ export PROJECT_ID="<value-from-above>"
      ```
 
-1. (OPTIONAL) Decide whether or not to use cloud build triggers. If you do, every push to master on the GitHub repo containing
-the exposure server code will trigger a new deployment. To enable this:
+1.  (OPTIONAL) Decide whether or not to use cloud build triggers. If you do, 
+    every push to master on the GitHub repo containing the exposure server code
+    will trigger a new deployment. To enable this:
 
     1. Visit https://console.cloud.google.com/cloud-build/triggers/connect and follow the instructions to connect as a Cloud Build GitHub App. You must choose a repository that you have admin permissions on.
 
@@ -102,8 +104,11 @@ the exposure server code will trigger a new deployment. To enable this:
 
     This will open two authentication windows in your web browser.
 
-1. Change to this directory and run `terraform init`.  Terraform will
-automatically download the plugins required to execute this code.
+    >  **NOTE** You may need to `unset GOOGLE_APPLICATION_CREDENTIALS` as it
+    >  takes precedence over the gcloud login settings.
+
+1.  Change to this directory and run `terraform init`.  Terraform will
+    automatically download the plugins required to execute this code.
 
 1.  Execute Terraform:
 
@@ -119,6 +124,7 @@ automatically download the plugins required to execute this code.
     ```text
     $ terraform apply \
         -var project=${PROJECT_ID} \
+        -var region="us-central-1" \
         -var use_build_triggers=true \
         -var repo_owner=${YOUR_REPO_OWNER} \
         -var repo_name=${YOUR_REPO_NAME}
@@ -127,4 +133,55 @@ automatically download the plugins required to execute this code.
 Terraform will begin by creating the service accounts and enabling the services
 on GCP which are required to run this server.
 
-It will then create the database and user and apply the DB schema, and run the assorted binaries with everything hooked up.
+> NOTE: This configuration assumes production scale. The scale of this means
+> a substational billed amount. You can downsize this to save on costs
+> For example you can set other vars in terraform apply to smaller values.
+> ```
+>  $ terraform apply \
+>       -var project=${PROJECT_ID} \
+>       -var region="us-central-1" \
+>       -var use_build_triggers=true \
+>       -var repo_owner=${YOUR_REPO_OWNER} \
+>       -var repo_name=${YOUR_REPO_NAME} \
+>       -var cloudsql_tier="db-custom-1-3840" \
+>       -var cloudsql_disk_size="16"
+> ```
+
+
+electin vCPU and Postgres size (concurrent connections):
+
+PostgresSql sizing
+And pricing
+https://cloud.google.com/sql/docs/postgres/create-instance
+Combined with connection limits: https://cloud.google.com/sql/docs/quotas#cloud-sql-for-postgresql-connection-limits
+Choice for now:
+
+db-custom-8-30720
+
+
+30 gb which gives 500 concurrent connections
+
+
+
+
+1.  Initialize and/or Migrate the DB.
+
+    > **NOTE** In the future this may be handled by terraform
+    
+    To migrate the database, you will want to start the
+    [Cloud SQL Proxy](https://cloud.google.com/sql/docs/postgres/quickstart-proxy-test#install-proxy)
+    and then run the [migrate](https://github.com/golang-migrate/migrate)
+    command.
+    
+    ```text
+    $ DB_HOST="localhost"
+    $ DB_PORT="1433"
+    $ DB_USER="notification"
+    $ DB_PASSWORD="YOUR-DB-PASSWORD"
+    $ DB_SSLMODE="disable"
+    $ DB_NAME="main"
+    $ DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
+
+    $ migrate -database ${DB_URL} -path ./migrations up
+    ```
+
