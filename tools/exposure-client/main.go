@@ -26,8 +26,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/google/exposure-notifications-server/internal/model"
 )
 
 const (

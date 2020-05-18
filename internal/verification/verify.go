@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/android"
 	"github.com/google/exposure-notifications-server/internal/ios"
-	"github.com/google/exposure-notifications-server/internal/model"
 )
 
 var (

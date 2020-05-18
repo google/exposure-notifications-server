@@ -42,7 +42,7 @@ const (
 	MaxIntervalCount = 144
 
 	// Self explanatory.
-	oneDay = time.Hour * 24
+	// oneDay = time.Hour * 24
 
 	// interval length
 	intervalLength = 10 * time.Minute

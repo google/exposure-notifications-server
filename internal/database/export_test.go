@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/go-cmp/cmp"
 	pgx "github.com/jackc/pgx/v4"
 )

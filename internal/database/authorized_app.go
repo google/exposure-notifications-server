@@ -21,14 +21,13 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/ios"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	pgx "github.com/jackc/pgx/v4"
 )
 
 // GetAuthorizedApp loads a single AuthorizedApp for the given name. If no row
 // exists, this returns nil.
-func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*model.AuthorizedApp, error) {
+func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*AuthorizedApp, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
@@ -46,7 +45,7 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 
 	row := conn.QueryRow(ctx, query, name)
 
-	config := model.NewAuthorizedApp()
+	config := NewAuthorizedApp()
 	var allowedRegions []string
 	var allowedPastSeconds, allowedFutureSeconds *int
 	var deviceCheckTeamIDSecret, deviceCheckKeyIDSecret, deviceCheckPrivateKeySecret sql.NullString

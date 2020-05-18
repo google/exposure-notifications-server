@@ -18,12 +18,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/exposure-notifications-server/internal/model"
 	pgx "github.com/jackc/pgx/v4"
 )
 
 // AddFederationOutAuthorization adds or updates a FederationOutAuthorization record.
-func (db *DB) AddFederationOutAuthorization(ctx context.Context, auth *model.FederationOutAuthorization) error {
+func (db *DB) AddFederationOutAuthorization(ctx context.Context, auth *FederationOutAuthorization) error {
 	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		q := `
 			INSERT INTO
@@ -45,7 +44,7 @@ func (db *DB) AddFederationOutAuthorization(ctx context.Context, auth *model.Fed
 }
 
 // GetFederationOutAuthorization returns a FederationOutAuthorization record, or ErrNotFound if not found.
-func (db *DB) GetFederationOutAuthorization(ctx context.Context, issuer, subject string) (*model.FederationOutAuthorization, error) {
+func (db *DB) GetFederationOutAuthorization(ctx context.Context, issuer, subject string) (*FederationOutAuthorization, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
@@ -63,7 +62,7 @@ func (db *DB) GetFederationOutAuthorization(ctx context.Context, issuer, subject
 			oidc_subject = $2
 		LIMIT 1
 		`, issuer, subject)
-	auth := model.FederationOutAuthorization{}
+	auth := FederationOutAuthorization{}
 	if err := row.Scan(&auth.Issuer, &auth.Subject, &auth.Audience, &auth.Note, &auth.IncludeRegions, &auth.ExcludeRegions); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound

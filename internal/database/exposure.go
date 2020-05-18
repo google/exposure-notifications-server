@@ -24,7 +24,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
 
 	pgx "github.com/jackc/pgx/v4"
 )
@@ -55,7 +54,7 @@ type IterateExposuresCriteria struct {
 // criteria.LastCursor in a subsequent call to IterateExposures, will continue
 // the iteration at the failed row. If IterateExposures returns a nil error,
 // the first return value will be the empty string.
-func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*model.Exposure) error) (cur string, err error) {
+func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*Exposure) error) (cur string, err error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return "", fmt.Errorf("acquiring connection: %v", err)
@@ -95,7 +94,7 @@ func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCri
 			return cursor(), err
 		}
 		var (
-			m          model.Exposure
+			m          Exposure
 			encodedKey string
 			syncID     *int64
 		)
@@ -179,7 +178,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 }
 
 // InsertExposures inserts a set of exposures.
-func (db *DB) InsertExposures(ctx context.Context, exposures []*model.Exposure) error {
+func (db *DB) InsertExposures(ctx context.Context, exposures []*Exposure) error {
 	return db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		const stmtName = "insert exposures"
 		_, err := tx.Prepare(ctx, stmtName, `
