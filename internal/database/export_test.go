@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/go-cmp/cmp"
 	pgx "github.com/jackc/pgx/v4"
 )
@@ -34,7 +33,7 @@ func TestAddSignatureInfo(t *testing.T) {
 	ctx := context.Background()
 
 	thruTime := time.Now().UTC().Add(6 * time.Hour).Truncate(time.Microsecond)
-	want := &model.SignatureInfo{
+	want := &SignatureInfo{
 		SigningKey:        "/kms/project/key/1",
 		SigningKeyVersion: "1",
 		SigningKeyID:      "310",
@@ -48,7 +47,7 @@ func TestAddSignatureInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Release()
-	var got model.SignatureInfo
+	var got SignatureInfo
 	err = conn.QueryRow(ctx, `
 		SELECT
 		  id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
@@ -74,20 +73,20 @@ func TestLookupSignatureInfos(t *testing.T) {
 	ctx := context.Background()
 
 	testTime := time.Now().UTC()
-	want := []*model.SignatureInfo{
-		&model.SignatureInfo{
+	want := []*SignatureInfo{
+		{
 			SigningKey:        "/kms/project/key/version/1",
 			SigningKeyVersion: "1",
 			SigningKeyID:      "310",
 			EndTimestamp:      testTime.Add(-1 * time.Hour).Truncate(time.Microsecond),
 		},
-		&model.SignatureInfo{
+		{
 			SigningKey:        "/kms/project/key/version/2",
 			SigningKeyVersion: "2",
 			SigningKeyID:      "310",
 			EndTimestamp:      testTime.Add(24 * time.Hour).Truncate(time.Microsecond),
 		},
-		&model.SignatureInfo{
+		{
 			SigningKey:        "/kms/project/key/version/3",
 			SigningKeyVersion: "3",
 			SigningKeyID:      "310",
@@ -120,7 +119,7 @@ func TestAddExportConfig(t *testing.T) {
 
 	fromTime := time.Now()
 	thruTime := fromTime.Add(6 * time.Hour)
-	want := &model.ExportConfig{
+	want := &ExportConfig{
 		BucketName:       "mocked",
 		FilenameRoot:     "root",
 		Period:           3 * time.Hour,
@@ -138,7 +137,7 @@ func TestAddExportConfig(t *testing.T) {
 	}
 	defer conn.Release()
 	var (
-		got   model.ExportConfig
+		got   ExportConfig
 		psecs int
 	)
 	err = conn.QueryRow(ctx, `
@@ -169,7 +168,7 @@ func TestIterateExportConfigs(t *testing.T) {
 	ctx := context.Background()
 
 	now := time.Now().Truncate(time.Microsecond)
-	ecs := []*model.ExportConfig{
+	ecs := []*ExportConfig{
 		{
 			BucketName:   "b 1",
 			FilenameRoot: "active 1",
@@ -202,8 +201,8 @@ func TestIterateExportConfigs(t *testing.T) {
 		}
 	}
 
-	var got []*model.ExportConfig
-	err := testDB.IterateExportConfigs(ctx, now, func(m *model.ExportConfig) error {
+	var got []*ExportConfig
+	err := testDB.IterateExportConfigs(ctx, now, func(m *ExportConfig) error {
 		got = append(got, m)
 		return nil
 	})
@@ -225,7 +224,7 @@ func TestBatches(t *testing.T) {
 	ctx := context.Background()
 
 	now := time.Now().Truncate(time.Microsecond)
-	config := &model.ExportConfig{
+	config := &ExportConfig{
 		BucketName:       "mocked",
 		FilenameRoot:     "root",
 		Period:           time.Hour,
@@ -237,18 +236,18 @@ func TestBatches(t *testing.T) {
 	if err := testDB.AddExportConfig(ctx, config); err != nil {
 		t.Fatal(err)
 	}
-	var batches []*model.ExportBatch
+	var batches []*ExportBatch
 	var wantLatest time.Time
 	for i := 0; i < 4; i++ {
 		start := now.Add(time.Duration(i) * time.Minute)
 		end := start.Add(time.Minute)
 		wantLatest = end
-		batches = append(batches, &model.ExportBatch{
+		batches = append(batches, &ExportBatch{
 			ConfigID:         config.ConfigID,
 			BucketName:       config.BucketName,
 			FilenameRoot:     config.FilenameRoot,
 			Region:           config.Region,
-			Status:           model.ExportBatchOpen,
+			Status:           ExportBatchOpen,
 			StartTimestamp:   start,
 			EndTimestamp:     end,
 			SignatureInfoIDs: []int64{1, 2, 3, 4},
@@ -284,7 +283,7 @@ func TestBatches(t *testing.T) {
 					got.ConfigID, got.BucketName, got.FilenameRoot, got.Region,
 					config.ConfigID, config.BucketName, config.FilenameRoot, config.Region)
 			}
-			if got.Status != model.ExportBatchPending {
+			if got.Status != ExportBatchPending {
 				t.Errorf("LeaseBatch: got status %q, want pending", got.Status)
 			}
 			wantExpires := now.Add(time.Hour)
@@ -322,7 +321,7 @@ func TestBatches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Status != model.ExportBatchComplete {
+	if got.Status != ExportBatchComplete {
 		t.Errorf("after completion: got status %q, want complete", got.Status)
 	}
 }
@@ -336,7 +335,7 @@ func TestFinalizeBatch(t *testing.T) {
 	now := time.Now().Truncate(time.Microsecond)
 
 	// Add a config.
-	ec := &model.ExportConfig{
+	ec := &ExportConfig{
 		BucketName:   "some-bucket",
 		FilenameRoot: "filename-root",
 		Period:       time.Minute,
@@ -347,16 +346,16 @@ func TestFinalizeBatch(t *testing.T) {
 	}
 
 	// Add a batch.
-	eb := &model.ExportBatch{
+	eb := &ExportBatch{
 		ConfigID:       ec.ConfigID,
 		BucketName:     ec.BucketName,
 		FilenameRoot:   ec.FilenameRoot,
 		StartTimestamp: now.Add(-2 * time.Hour),
 		EndTimestamp:   now.Add(-time.Hour),
 		Region:         ec.Region,
-		Status:         model.ExportBatchOpen,
+		Status:         ExportBatchOpen,
 	}
-	if err := testDB.AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
+	if err := testDB.AddExportBatches(ctx, []*ExportBatch{eb}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -371,8 +370,8 @@ func TestFinalizeBatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotBatch.Status != model.ExportBatchPending {
-		t.Errorf("pre gotBatch.Status=%q, want=%q", gotBatch.Status, model.ExportBatchPending)
+	if gotBatch.Status != ExportBatchPending {
+		t.Errorf("pre gotBatch.Status=%q, want=%q", gotBatch.Status, ExportBatchPending)
 	}
 
 	// Finalize the batch.
@@ -387,8 +386,8 @@ func TestFinalizeBatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotBatch.Status != model.ExportBatchComplete {
-		t.Errorf("post gotBatch.Status=%q, want=%q", gotBatch.Status, model.ExportBatchComplete)
+	if gotBatch.Status != ExportBatchComplete {
+		t.Errorf("post gotBatch.Status=%q, want=%q", gotBatch.Status, ExportBatchComplete)
 	}
 
 	// Check that files were written.
@@ -405,14 +404,14 @@ func TestFinalizeBatch(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := &model.ExportFile{
+		want := &ExportFile{
 			BucketName: eb.BucketName,
 			Filename:   filename,
 			BatchID:    eb.BatchID,
 			Region:     eb.Region,
 			BatchNum:   i + 1,
 			BatchSize:  batchSize,
-			Status:     model.ExportBatchComplete,
+			Status:     ExportBatchComplete,
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("mismatch for %q (-want, +got):\n%s", filename, diff)
@@ -430,7 +429,7 @@ func TestKeysInBatch(t *testing.T) {
 	now := time.Now()
 
 	// Add a config.
-	ec := &model.ExportConfig{
+	ec := &ExportConfig{
 		BucketName:   "bucket-name",
 		FilenameRoot: "filename-root",
 		Period:       3600 * time.Second,
@@ -444,35 +443,35 @@ func TestKeysInBatch(t *testing.T) {
 	// Create a batch for two hours ago to one hour ago.
 	startTimestamp := now.Truncate(time.Hour).Add(-2 * time.Hour)
 	endTimestamp := startTimestamp.Add(time.Hour)
-	eb := &model.ExportBatch{
+	eb := &ExportBatch{
 		ConfigID:       ec.ConfigID,
 		BucketName:     ec.BucketName,
 		FilenameRoot:   ec.FilenameRoot,
 		StartTimestamp: startTimestamp,
 		EndTimestamp:   endTimestamp,
 		Region:         ec.Region,
-		Status:         model.ExportBatchOpen,
+		Status:         ExportBatchOpen,
 	}
-	if err := testDB.AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
+	if err := testDB.AddExportBatches(ctx, []*ExportBatch{eb}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create key aligned with the StartTimestamp
-	sek := &model.Exposure{
+	sek := &Exposure{
 		ExposureKey: []byte("aaa"),
 		Regions:     []string{ec.Region},
 		CreatedAt:   startTimestamp,
 	}
 
 	// Create key aligned with the EndTimestamp
-	eek := &model.Exposure{
+	eek := &Exposure{
 		ExposureKey: []byte("bbb"),
 		Regions:     []string{ec.Region},
 		CreatedAt:   endTimestamp,
 	}
 
 	// Add the keys to the database.
-	if err := testDB.InsertExposures(ctx, []*model.Exposure{sek, eek}); err != nil {
+	if err := testDB.InsertExposures(ctx, []*Exposure{sek, eek}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -499,8 +498,8 @@ func TestKeysInBatch(t *testing.T) {
 		UntilTimestamp: leased.EndTimestamp,
 	}
 
-	var got []*model.Exposure
-	_, err = testDB.IterateExposures(ctx, criteria, func(exp *model.Exposure) error {
+	var got []*Exposure
+	_, err = testDB.IterateExposures(ctx, criteria, func(exp *Exposure) error {
 		got = append(got, exp)
 		return nil
 	})
@@ -526,12 +525,12 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 	ctx := context.Background()
 
 	// Add foreign key records.
-	ec := &model.ExportConfig{Period: time.Hour}
+	ec := &ExportConfig{Period: time.Hour}
 	if err := testDB.AddExportConfig(ctx, ec); err != nil {
 		t.Fatal(err)
 	}
-	eb := &model.ExportBatch{ConfigID: ec.ConfigID, Status: model.ExportBatchOpen}
-	if err := testDB.AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
+	eb := &ExportBatch{ConfigID: ec.ConfigID, Status: ExportBatchOpen}
+	if err := testDB.AddExportBatches(ctx, []*ExportBatch{eb}); err != nil {
 		t.Fatal(err)
 	}
 	// Lease the batch to get the ID.
@@ -541,7 +540,7 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 	}
 
 	wantBucketName := "bucket-1"
-	ef := &model.ExportFile{
+	ef := &ExportFile{
 		Filename:   "file",
 		BucketName: wantBucketName,
 		BatchID:    eb.BatchID,

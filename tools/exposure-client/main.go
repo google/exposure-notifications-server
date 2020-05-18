@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/database"
 )
 
 const (
@@ -83,7 +83,7 @@ func main() {
 		log.Printf("error generating padding: %v", err)
 	}
 
-	data := model.Publish{
+	data := database.Publish{
 		Keys:           exposureKeys,
 		Regions:        region,
 		AppPackageName: *appPackage,
@@ -134,7 +134,7 @@ func randomArrValue(arr []string) string {
 	return arr[randomInt(len(arr))]
 }
 
-func generateExposureKeys(numKeys, tr int) []model.ExposureKey {
+func generateExposureKeys(numKeys, tr int) []database.ExposureKey {
 	keys := make([][]byte, numKeys)
 	for i := 0; i < numKeys; i++ {
 		keys[i] = make([]byte, dkLen)
@@ -147,7 +147,7 @@ func generateExposureKeys(numKeys, tr int) []model.ExposureKey {
 	// When publishing multiple keys - they'll be on different days.
 	intervalCount := randIntervalCount()
 	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
-	exposureKeys := make([]model.ExposureKey, numKeys)
+	exposureKeys := make([]database.ExposureKey, numKeys)
 	for i, rawKey := range keys {
 		transmissionRisk := tr
 		if transmissionRisk < 0 {

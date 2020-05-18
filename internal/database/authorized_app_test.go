@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -75,7 +74,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 		name string
 		sql  string
 		args []interface{}
-		exp  *model.AuthorizedApp
+		exp  *AuthorizedApp
 		err  bool
 	}{
 		{
@@ -85,7 +84,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 				VALUES ($1, $2, $3)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}},
-			exp: &model.AuthorizedApp{
+			exp: &AuthorizedApp{
 				AppPackageName:  "myapp",
 				Platform:        "ios",
 				AllowedRegions:  map[string]struct{}{"US": {}},
@@ -102,7 +101,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 				) VALUES ($1, $2, $3, $4)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, 1800},
-			exp: &model.AuthorizedApp{
+			exp: &AuthorizedApp{
 				AppPackageName:  "myapp",
 				Platform:        "ios",
 				AllowedRegions:  map[string]struct{}{"US": {}},
@@ -120,7 +119,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 				) VALUES ($1, $2, $3, $4)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, 1800},
-			exp: &model.AuthorizedApp{
+			exp: &AuthorizedApp{
 				AppPackageName:    "myapp",
 				Platform:          "ios",
 				AllowedRegions:    map[string]struct{}{"US": {}},
@@ -138,7 +137,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 				) VALUES ($1, $2, $3, $4, $5, $6)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, "team_id", "key_id", "private_key"},
-			exp: &model.AuthorizedApp{
+			exp: &AuthorizedApp{
 				AppPackageName:        "myapp",
 				Platform:              "ios",
 				AllowedRegions:        map[string]struct{}{"US": {}},

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+package database
 
 import (
 	"crypto/sha256"
@@ -42,7 +42,7 @@ const (
 	MaxIntervalCount = 144
 
 	// Self explanatory.
-	oneDay = time.Hour * 24
+	// oneDay = time.Hour * 24
 
 	// interval length
 	intervalLength = 10 * time.Minute

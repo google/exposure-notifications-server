@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/metrics"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb"
 
 	"github.com/google/go-cmp/cmp"
@@ -39,7 +38,7 @@ var (
 )
 
 // makeRemoteExposure returns a mock model.Exposure with LocalProvenance=false.
-func makeRemoteExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *model.Exposure {
+func makeRemoteExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *database.Exposure {
 	inf := makeExposure(diagKey, diagStatus, regions...)
 	inf.LocalProvenance = false
 	inf.FederationSyncID = syncID
@@ -65,10 +64,10 @@ func (r *remoteFetchServer) fetch(ctx context.Context, req *pb.FederationFetchRe
 
 // exposureDB mocks the database, recording exposure insertions.
 type exposureDB struct {
-	exposures []*model.Exposure
+	exposures []*database.Exposure
 }
 
-func (idb *exposureDB) insertExposures(ctx context.Context, exposures []*model.Exposure) error {
+func (idb *exposureDB) insertExposures(ctx context.Context, exposures []*database.Exposure) error {
 	idb.exposures = append(idb.exposures, exposures...)
 	return nil
 }
@@ -82,7 +81,7 @@ type syncDB struct {
 	totalInserted int
 }
 
-func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.FederationInQuery, start time.Time) (int64, database.FinalizeSyncFn, error) {
+func (sdb *syncDB) startFederationSync(ctx context.Context, query *database.FederationInQuery, start time.Time) (int64, database.FinalizeSyncFn, error) {
 	sdb.syncStarted = true
 	timerStart := time.Now()
 	return syncID, func(maxTimestamp time.Time, totalInserted int) error {
@@ -100,7 +99,7 @@ func TestFederationPull(t *testing.T) {
 		name             string
 		batchSize        int
 		fetchResponses   []*pb.FederationFetchResponse
-		wantExposures    []*model.Exposure
+		wantExposures    []*database.Exposure
 		wantTokens       []string
 		wantMaxTimestamp time.Time
 	}{
@@ -136,7 +135,7 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantExposures: []*model.Exposure{
+			wantExposures: []*database.Exposure{
 				makeRemoteExposure(aaa, 1, "US"),
 				makeRemoteExposure(bbb, 1, "US"),
 				makeRemoteExposure(ccc, 2, "CA", "US"),
@@ -172,7 +171,7 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantExposures: []*model.Exposure{
+			wantExposures: []*database.Exposure{
 				makeRemoteExposure(aaa, 1, "US"),
 				makeRemoteExposure(bbb, 1, "US"),
 			},
@@ -213,7 +212,7 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantExposures: []*model.Exposure{
+			wantExposures: []*database.Exposure{
 				makeRemoteExposure(aaa, 8, "US"),
 				makeRemoteExposure(bbb, 8, "US"),
 				makeRemoteExposure(ccc, 7, "US"),
@@ -250,7 +249,7 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantExposures: []*model.Exposure{
+			wantExposures: []*database.Exposure{
 				makeRemoteExposure(aaa, 3, "US"),
 				makeRemoteExposure(bbb, 3, "US"),
 				makeRemoteExposure(ccc, 2, "CA", "US"),
@@ -264,7 +263,7 @@ func TestFederationPull(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			query := &model.FederationInQuery{}
+			query := &database.FederationInQuery{}
 			remote := remoteFetchServer{responses: tc.fetchResponses}
 			idb := exposureDB{}
 			sdb := syncDB{}
@@ -285,7 +284,7 @@ func TestFederationPull(t *testing.T) {
 				t.Fatalf("pull returned err=%v, want err=nil", err)
 			}
 
-			if diff := cmp.Diff(tc.wantExposures, idb.exposures, cmpopts.IgnoreFields(model.Exposure{}, "CreatedAt")); diff != "" {
+			if diff := cmp.Diff(tc.wantExposures, idb.exposures, cmpopts.IgnoreFields(database.Exposure{}, "CreatedAt")); diff != "" {
 				t.Errorf("exposures mismatch (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.wantTokens, remote.gotTokens); diff != "" {
@@ -310,8 +309,8 @@ func TestFederationPull(t *testing.T) {
 	}
 }
 
-func makeExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *model.Exposure {
-	return &model.Exposure{
+func makeExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *database.Exposure {
+	return &database.Exposure{
 		Regions:          regions,
 		TransmissionRisk: diagStatus,
 		ExposureKey:      diagKey.ExposureKey,

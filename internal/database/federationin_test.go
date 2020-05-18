@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -34,7 +33,7 @@ func TestFederationIn(t *testing.T) {
 	ctx := context.Background()
 
 	ts := time.Date(2020, 5, 6, 0, 0, 0, 0, time.UTC)
-	want := &model.FederationInQuery{
+	want := &FederationInQuery{
 		QueryID:        "qid",
 		ServerAddr:     "addr",
 		IncludeRegions: []string{"MX"},
@@ -86,7 +85,7 @@ func TestFederationIn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantSync := &model.FederationInSync{
+	wantSync := &FederationInSync{
 		SyncID:  syncID,
 		QueryID: want.QueryID,
 		Started: now,

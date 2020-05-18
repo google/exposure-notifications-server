@@ -25,7 +25,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -88,7 +87,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	query := &model.FederationInQuery{
+	query := &database.FederationInQuery{
 		QueryID:        *queryID,
 		ServerAddr:     *serverAddr,
 		Audience:       *audience,

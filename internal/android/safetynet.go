@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -139,7 +139,7 @@ func ValidateAttestation(ctx context.Context, attestation string, opts *VerifyOp
 
 // VerifyOptsFor returns the Android SafetyNet verification options to be used
 // based on the AuthorizedApp configuration, request time, and nonce.
-func VerifyOptsFor(c *model.AuthorizedApp, from time.Time, nonce string) *VerifyOpts {
+func VerifyOptsFor(c *database.AuthorizedApp, from time.Time, nonce string) *VerifyOpts {
 	digests := make([]string, len(c.ApkDigestSHA256))
 	copy(digests, c.ApkDigestSHA256)
 	rtn := &VerifyOpts{

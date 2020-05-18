@@ -24,7 +24,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -81,7 +80,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	auth := &model.FederationOutAuthorization{
+	auth := &database.FederationOutAuthorization{
 		Issuer:         defaultIssuer, // Authorization interceptor currently only supports defaultIssuer.
 		Subject:        *subject,
 		Audience:       *audience,
