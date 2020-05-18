@@ -22,6 +22,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/envconfig"
+	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -56,6 +57,8 @@ type Defer func()
 
 // Setup runs common intitializion code for all servers.
 func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, Defer, error) {
+	logger := logging.FromContext(ctx)
+
 	// Can be changed with a different secret manager interface.
 	// TODO(mikehelmick): Make this extensible to other providers.
 	// TODO(sethvargo): Make TTL configurable.
@@ -63,6 +66,7 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to connect to secret manager: %v", err)
 	}
+	logger.Infof("Effective environment variables: %+v", config)
 
 	if err := envconfig.Process(ctx, config, sm); err != nil {
 		return nil, nil, fmt.Errorf("error loading environment variables: %v", err)
@@ -96,10 +100,12 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
+	logger.Infof("Effective DB config: %+v", config.DB())
 	opts = append(opts, serverenv.WithDatabase(db))
 
 	// AuthorizedApp must come after database setup due to the dependency.
 	if typ, ok := config.(AuthorizedAppConfigProvider); ok {
+		logger.Infof("Effective AuthorizedApp config: %+v", typ.AuthorizedAppConfig())
 		provider, err := authorizedapp.NewDatabaseProvider(ctx, db, typ.AuthorizedAppConfig(), authorizedapp.WithSecretManager(sm))
 		if err != nil {
 			// Ensure the database is closed on an error.
