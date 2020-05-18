@@ -32,7 +32,7 @@ func TestExposures(t *testing.T) {
 
 	// Insert some Exposures.
 	batchTime := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC).Truncate(time.Microsecond)
-	exposures := []*model.Exposure{
+	exposures := []*Exposure{
 		{
 			ExposureKey:     []byte("ABC"),
 			Regions:         []string{"US", "CA", "MX"},
@@ -112,7 +112,7 @@ func TestExposures(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%+v: %v", test.criteria, err)
 		}
-		var want []*model.Exposure
+		var want []*Exposure
 		for _, i := range test.want {
 			want = append(want, exposures[i])
 		}
@@ -140,9 +140,9 @@ func TestExposures(t *testing.T) {
 
 }
 
-func listExposures(ctx context.Context, c IterateExposuresCriteria) (_ []*model.Exposure, err error) {
-	var exps []*model.Exposure
-	_, err = testDB.IterateExposures(ctx, c, func(e *model.Exposure) error {
+func listExposures(ctx context.Context, c IterateExposuresCriteria) (_ []*Exposure, err error) {
+	var exps []*Exposure
+	_, err = testDB.IterateExposures(ctx, c, func(e *Exposure) error {
 		exps = append(exps, e)
 		return nil
 	})
@@ -159,7 +159,7 @@ func TestIterateExposuresCursor(t *testing.T) {
 	defer resetTestDB(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	// Insert some Exposures.
-	exposures := []*model.Exposure{
+	exposures := []*Exposure{
 		{
 			ExposureKey:    []byte("ABC"),
 			Regions:        []string{"US", "CA", "MX"},
@@ -180,8 +180,8 @@ func TestIterateExposuresCursor(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Iterate over them, canceling the context in the middle.
-	var seen []*model.Exposure
-	cursor, err := testDB.IterateExposures(ctx, IterateExposuresCriteria{}, func(e *model.Exposure) error {
+	var seen []*Exposure
+	cursor, err := testDB.IterateExposures(ctx, IterateExposuresCriteria{}, func(e *Exposure) error {
 		seen = append(seen, e)
 		if len(seen) == 2 {
 			cancel()
@@ -201,7 +201,7 @@ func TestIterateExposuresCursor(t *testing.T) {
 	ctx = context.Background()
 	seen = nil
 	cursor, err = testDB.IterateExposures(ctx, IterateExposuresCriteria{LastCursor: cursor},
-		func(e *model.Exposure) error { seen = append(seen, e); return nil })
+		func(e *Exposure) error { seen = append(seen, e); return nil })
 	if err != nil {
 		t.Fatal(err)
 	}

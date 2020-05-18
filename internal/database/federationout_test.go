@@ -30,7 +30,7 @@ func TestFederationOutAuthorization(t *testing.T) {
 	defer resetTestDB(t)
 	ctx := context.Background()
 
-	want := &model.FederationOutAuthorization{
+	want := &FederationOutAuthorization{
 		Issuer:         "iss",
 		Subject:        "sub",
 		Audience:       "aud",

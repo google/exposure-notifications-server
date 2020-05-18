@@ -44,9 +44,9 @@ var (
 	ddd = &pb.ExposureKey{ExposureKey: []byte("ddd"), IntervalNumber: 4}
 )
 
-// makeExposure returns a mock model.Exposure.
-func makeExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *model.Exposure {
-	return &model.Exposure{
+// makeExposure returns a mock database.Exposure.
+func makeExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *database.Exposure {
+	return &database.Exposure{
 		Regions:          regions,
 		TransmissionRisk: diagStatus,
 		ExposureKey:      diagKey.ExposureKey,
@@ -60,11 +60,11 @@ func makeExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *m
 type timeout struct{}
 
 func iterFunc(elements []interface{}) iterateExposuresFunc {
-	return func(_ context.Context, _ database.IterateExposuresCriteria, f func(*model.Exposure) error) (string, error) {
+	return func(_ context.Context, _ database.IterateExposuresCriteria, f func(*database.Exposure) error) (string, error) {
 		var cursor string
 		for _, el := range elements {
 			switch v := el.(type) {
-			case *model.Exposure:
+			case *database.Exposure:
 				// Set the cursor to the most recent diagnosis key, suffixed with "_cursor".
 				cursor = string(v.ExposureKey) + "_cursor"
 				if err := f(v); err != nil {

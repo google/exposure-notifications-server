@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -32,7 +33,7 @@ func TestInvalidHeader(t *testing.T) {
 	r.Header.Set("content-type", "application/text")
 
 	w := httptest.NewRecorder()
-	data := &model.Publish{}
+	data := &database.Publish{}
 	code, err := Unmarshal(w, r, data)
 
 	expCode := http.StatusUnsupportedMediaType
@@ -129,7 +130,7 @@ func TestValidPublishMessage(t *testing.T) {
 
 	w := httptest.NewRecorder()
 
-	got := &model.Publish{}
+	got := &database.Publish{}
 	code, err := Unmarshal(w, r, got)
 	if err != nil {
 		t.Fatalf("unexpected err, %v", err)
@@ -138,8 +139,8 @@ func TestValidPublishMessage(t *testing.T) {
 		t.Errorf("unmarshal wanted %v response code, got %v", http.StatusOK, code)
 	}
 
-	want := &model.Publish{
-		Keys: []model.ExposureKey{
+	want := &database.Publish{
+		Keys: []database.ExposureKey{
 			{Key: "ABC", IntervalNumber: intervalNumber, IntervalCount: 144, TransmissionRisk: 2},
 			{Key: "DEF", IntervalNumber: intervalNumber, IntervalCount: 122, TransmissionRisk: 2},
 			{Key: "123", IntervalNumber: intervalNumber, IntervalCount: 1, TransmissionRisk: 2},
@@ -163,7 +164,7 @@ func unmarshalTestHelper(t *testing.T, payloads []string, errors []string, expCo
 		r.Header.Set("content-type", "application/json")
 
 		w := httptest.NewRecorder()
-		data := &model.Publish{}
+		data := &database.Publish{}
 		code, err := Unmarshal(w, r, data)
 		if code != expCode {
 			t.Errorf("unmarshal wanted %v response code, got %v", expCode, code)
