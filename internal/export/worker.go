@@ -42,18 +42,11 @@ func (s *Server) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 
 	emitIndexForEmptyBatch := true
 	for {
-		select {
-		case <-ctx.Done():
-			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
-				logger.Errorf("Context error while processing batches: %v", err)
-				return
-			}
+		if ctx.Err() != nil {
 			msg := "Timed out processing batches. Will continue on next invocation."
 			logger.Info(msg)
 			fmt.Fprintln(w, msg)
 			return
-		default:
-			// Fallthrough
 		}
 
 		// Only consider batches that closed a few minutes ago to allow the publish windows to close properly.
@@ -137,15 +130,9 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	batchSize := len(groups)
 	var objectNames []string
 	for i, exposures := range groups {
-		select {
-		case <-ctx.Done():
-			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
-				return err
-			}
+		if ctx.Err() != nil {
 			logger.Infof("Timed out writing export files for batch %s, the entire batch will be retried once the batch lease expires on %v", eb.BatchID, eb.LeaseExpires)
 			return nil
-		default:
-			// Fallthrough
 		}
 
 		// TODO(squee1945): Uploading in parallel (to a point) probably makes better use of network.
@@ -224,15 +211,9 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 	lockID := fmt.Sprintf("export-batch-%d", eb.BatchID)
 	sleep := 10 * time.Second
 	for {
-		select {
-		case <-ctx.Done():
-			if err := ctx.Err(); err != context.DeadlineExceeded && err != context.Canceled {
-				return err
-			}
+		if ctx.Err() != nil {
 			logger.Infof("Timed out acquiring index file lock for batch %s, the entire batch will be retried once the batch lease expires on %v", eb.BatchID, eb.LeaseExpires)
 			return nil
-		default:
-			// Fallthrough
 		}
 
 		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
