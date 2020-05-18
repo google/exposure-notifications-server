@@ -485,7 +485,7 @@ resource "google_secret_manager_secret_iam_member" "federationout-db-pwd" {
 
   secret_id = google_secret_manager_secret.db-pwd.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.federationin.email}"
+  member    = "serviceAccount:${google_service_account.federationout.email}"
 }
 
 resource "google_cloud_run_service" "federationout" {
@@ -528,14 +528,6 @@ data "google_iam_policy" "noauth" {
   }
 }
 
-resource "google_cloud_run_service_iam_policy" "export-noauth" {
-  location = google_cloud_run_service.export.location
-  project  = google_cloud_run_service.export.project
-  service  = google_cloud_run_service.export.name
-
-  policy_data = data.google_iam_policy.noauth.policy_data
-}
-
 resource "google_cloud_run_service_iam_policy" "exposure-noauth" {
   location = google_cloud_run_service.exposure.location
   project  = google_cloud_run_service.exposure.project
@@ -544,10 +536,10 @@ resource "google_cloud_run_service_iam_policy" "exposure-noauth" {
   policy_data = data.google_iam_policy.noauth.policy_data
 }
 
-resource "google_cloud_run_service_iam_policy" "federationout-noauth" {
-  location = google_cloud_run_service.federationout.location
-  project  = google_cloud_run_service.federationout.project
-  service  = google_cloud_run_service.federationout.name
+resource "google_cloud_run_service_iam_policy" "federationin-noauth" {
+  location = google_cloud_run_service.federationin.location
+  project  = google_cloud_run_service.federationin.project
+  service  = google_cloud_run_service.federationin.name
 
   policy_data = data.google_iam_policy.noauth.policy_data
 }
@@ -562,7 +554,7 @@ resource "google_cloud_scheduler_job" "export-worker" {
   name             = "export-worker"
   schedule         = "* * * * *"
   time_zone        = "Etc/UTC"
-  attempt_deadline = "10m"
+  attempt_deadline = "600s"
 
   retry_config {
     retry_count = 1
@@ -582,7 +574,7 @@ resource "google_cloud_scheduler_job" "export-create-batches" {
   name             = "export-create-batches"
   schedule         = "*/5 * * * *"
   time_zone        = "Etc/UTC"
-  attempt_deadline = "10m"
+  attempt_deadline = "600s"
 
   retry_config {
     retry_count = 1
