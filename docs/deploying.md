@@ -84,7 +84,7 @@ although `go get github.com/hashicorp/terraform` may be all you need.
 Enable a billing account for this project, and remember its project ID (the
 unique, unchangeable string that you will be asked for during creation).
 
-1. Decide whether or not to use cloud build triggers. If you do, every push to master on the GitHub repo containing
+1. (OPTIONAL) Decide whether or not to use cloud build triggers. If you do, every push to master on the GitHub repo containing
 the exposure server code will trigger a new deployment. To enable this:
 
     1. Visit https://console.cloud.google.com/cloud-build/triggers/connect and follow the instructions to connect as a Cloud Build GitHub App. You must choose a repository that you have admin permissions on.
