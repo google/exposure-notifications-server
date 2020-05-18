@@ -14,7 +14,9 @@
 
 package database
 
-import "time"
+import (
+	"time"
+)
 
 type Config struct {
 	Name               string        `envconfig:"DB_NAME"`
