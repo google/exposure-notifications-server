@@ -292,20 +292,11 @@ locals {
       value = "secret://${google_secret_manager_secret_version.db-pwd-initial.name}"
     },
     {
-      name  = "DB_SSLKEY"
-      value = "secret://${google_secret_manager_secret_version.db-key.name}"
-    },
-    {
-      name  = "DB_SSLCERT"
-      value = "secret://${google_secret_manager_secret_version.db-cert.name}"
-    },
-    {
-      name  = "DB_SSLROOTCERT"
-      value = "secret://${google_secret_manager_secret_version.db-ca-cert.name}"
-    },
-    {
+      # NOTE: We disable SSL here because the Cloud Run services use the Cloud
+      # SQL proxy which runs on localhost. The proxy still uses a secure
+      # connection to Cloud SQL.
       name  = "DB_SSLMODE"
-      value = "require"
+      value = "disable"
     },
     {
       name  = "DB_HOST"
