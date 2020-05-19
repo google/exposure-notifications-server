@@ -59,6 +59,7 @@ resource "google_cloud_run_service" "cleanup-exposure" {
 
     metadata {
       annotations = {
+        "autoscaling.knative.dev/maxScale" : "1000",
         "run.googleapis.com/cloudsql-instances" : google_sql_database_instance.db-inst.connection_name
       }
     }
@@ -66,6 +67,7 @@ resource "google_cloud_run_service" "cleanup-exposure" {
 
   depends_on = [
     google_project_service.services["run.googleapis.com"],
+    google_project_service.services["sqladmin.googleapis.com"],
     null_resource.submit-build-and-publish,
   ]
 }
@@ -86,7 +88,7 @@ resource "google_cloud_run_service_iam_member" "cleanup-exposure-invoker" {
   location = google_cloud_run_service.cleanup-exposure.location
   service  = google_cloud_run_service.cleanup-exposure.name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.scheduler-export.email}"
+  member   = "serviceAccount:${google_service_account.cleanup-exposure-invoker.email}"
 }
 
 resource "google_cloud_scheduler_job" "cleanup-exposure-worker" {
@@ -104,7 +106,7 @@ resource "google_cloud_scheduler_job" "cleanup-exposure-worker" {
     uri         = "${google_cloud_run_service.cleanup-exposure.status.0.url}/"
     oidc_token {
       audience              = google_cloud_run_service.cleanup-exposure.status.0.url
-      service_account_email = google_service_account.scheduler-export.email
+      service_account_email = google_service_account.cleanup-exposure-invoker.email
     }
   }
 
