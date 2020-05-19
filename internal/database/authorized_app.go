@@ -25,19 +25,19 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-type AuthorizedAppDB struct {
+type AuthorizedAppModel struct {
 	db *DB
 }
 
-func NewAuthorizedAppDB(db *DB) *AuthorizedAppDB {
-	return &AuthorizedAppDB{
+func NewAuthorizedAppModel(db *DB) *AuthorizedAppModel {
+	return &AuthorizedAppModel{
 		db: db,
 	}
 }
 
 // GetAuthorizedApp loads a single AuthorizedApp for the given name. If no row
 // exists, this returns nil.
-func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*AuthorizedApp, error) {
+func (db *AuthorizedAppModel) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*AuthorizedApp, error) {
 	conn, err := db.db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
