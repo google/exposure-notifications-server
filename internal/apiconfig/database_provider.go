@@ -117,7 +117,9 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 		cachedAt: time.Now(),
 	}
 
+	
 	p.cacheLock.Unlock()
+	
 	// Handle not found.
 	if config == nil {
 		return nil, AppNotFound

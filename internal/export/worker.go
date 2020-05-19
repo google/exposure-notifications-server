@@ -194,7 +194,7 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 	for _, si := range cfi.signatureInfos {
 		signer, err := s.env.GetSignerForKey(ctx, si.SigningKey)
 		if err != nil {
-			return "", fmt.Errorf("unable to get signer for key %v: %w", si.SigningKey, err)
+			//return "", fmt.Errorf("unable to get signer for key %v: %w", si.SigningKey, err)
 		}
 		signers = append(signers, exportSigners{signatureInfo: si, signer: signer})
 	}
