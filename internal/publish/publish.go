@@ -66,11 +66,11 @@ type publishHandler struct {
 }
 
 type response struct {
-	status          int
-	message         string
-	metric          string
-	count           int // metricCount
-	errorInNonDebug bool
+	status      int
+	message     string
+	metric      string
+	count       int // metricCount
+	errorInProd bool
 }
 
 func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) response {
@@ -102,11 +102,11 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		// isn't transient.
 		logger.Errorf("no AuthorizedApp, dropping data: %v", err)
 		return response{
-			status:          http.StatusInternalServerError,
-			message:         http.StatusText(http.StatusInternalServerError),
-			metric:          "publish-error-loading-authorizedapp",
-			count:           1,
-			errorInNonDebug: true,
+			status:      http.StatusInternalServerError,
+			message:     http.StatusText(http.StatusInternalServerError),
+			metric:      "publish-error-loading-authorizedapp",
+			count:       1,
+			errorInProd: true,
 		}
 	}
 
@@ -186,7 +186,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// If this error is written in non-debug times or if debug is enabled, write
 	// out the error and status.
-	if h.config.DebugAPIResponses || response.errorInNonDebug {
+	if h.config.DebugAPIResponses || response.errorInProd {
 		w.WriteHeader(response.status)
 		w.Write([]byte(response.message))
 		return
