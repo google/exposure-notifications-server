@@ -28,7 +28,7 @@ import (
 // Useful for converting test data.
 func main() {
 	if len(os.Args) != 2 {
-		log.Fatal("requires 1 argument which will be interepreted as a hex byte array")
+		log.Fatal("requires 1 argument which will be interpreted as a hex byte array")
 	}
 
 	hexKey := os.Args[1]
