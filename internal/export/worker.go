@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/util"
 )
 
 const (
@@ -308,7 +309,7 @@ func ensureMinNumExposures(exposures []*database.Exposure, region string, minLen
 		}
 
 		// Transmission risk is within the bounds.
-		transmissionRisk, err := randomInt(database.MinTransmissionRisk, database.MaxTransmissionRisk)
+		transmissionRisk, err := util.RandomTransmissionRisk()
 		if err != nil {
 			return nil, fmt.Errorf("randomInt: %w", err)
 		}

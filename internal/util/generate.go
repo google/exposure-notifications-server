@@ -27,48 +27,71 @@ import (
 
 const (
 	// the length of a diagnosis key, always 16 bytes
-	dkLen               = 16
-	maxTransmissionRisk = 8
+	dkLen            = 16
+	maxIntervalCount = 144
 )
 
 func RandomIntervalCount() int32 {
-	n, err := rand.Int(rand.Reader, big.NewInt(144))
+	n, err := rand.Int(rand.Reader, big.NewInt(maxIntervalCount))
 	if err != nil {
-		log.Fatalf("rand.Int: %v", err)
+		return 0, err
 	}
-	return int32(n.Int64() + 1) // valid values are 1-144
+	return int32(n.Int64() + 1), nil // valid values start at 1
 }
 
-func RandomInt(maxValue int) int {
+func RandomInt(maxValue int) (int, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(maxValue)))
 	if err != nil {
-		log.Fatalf("rand.Int: %v", err)
+		return 0, err
 	}
-	return int(n.Int64())
+	return int(n.Int64()), nil
 }
 
-func RandomTransmissionRisk() int {
-	return RandomInt(maxTransmissionRisk) + 1
+// RandomIntWithMin is inclusive, [min:max]
+func RandomIntWithMin(min, max int) (int, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(max-min+1)))
+	if err != nil {
+		return 0, err
+	}
+	return int(n.Int64()) + min, nil
 }
 
-func RandomArrValue(arr []string) string {
-	return arr[RandomInt(len(arr))]
+func RandomTransmissionRisk() (int, error) {
+	n, err := RandomInt(database.MaxTransmissionRisk)
+	return n + 1, err
+}
+
+func RandomArrValue(arr []string) (string, error) {
+	n, err := RandomInt(len(arr))
+	if err != nil {
+		return "", err
+	}
+	return arr[n], nil
 }
 
 func GenerateExposureKeys(numKeys, tr int) []database.ExposureKey {
 	// When publishing multiple keys - they'll be on different days.
-	intervalCount := RandomIntervalCount()
+	intervalCount, err := RandIntervalCount()
+	if err != nil {
+		log.Fatalf("problem with random interval: %v", err)
+	}
 	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
 	exposureKeys := make([]database.ExposureKey, numKeys)
 	for i, rawKey := range keys {
 		transmissionRisk := tr
 		if transmissionRisk < 0 {
-			transmissionRisk = RandomTransmissionRisk()
+			transmissionRisk, err = RandomTransmissionRisk()
+			if err != nil {
+				log.Fatalf("problem with transmission risk: %v", err)
+			}
 		}
 		exposureKeys[i] = RandomExposureKey(intervalNumber, intervalCount, transmissionRisk)
 
 		// Adjust interval math for next key.
-		intervalCount = RandomIntervalCount()
+		intervalCount, err = RandomIntervalCount()
+		if err != nil {
+			log.Fatalf("problem with random interval: %v", err)
+		}
 		intervalNumber -= intervalCount
 	}
 	return exposureKeys

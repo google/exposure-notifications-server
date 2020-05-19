@@ -83,7 +83,11 @@ func main() {
 	}
 
 	// generate fake keys
-	keys := util.GenerateExposureKeys(*numKeys, util.RandomTransmissionRisk())
+	tr, err := util.RandomTransmissionRisk()
+	if err != nil {
+		log.Fatalf("problem with random transmission risk: %v", err)
+	}
+	keys := util.GenerateExposureKeys(*numKeys, tr)
 	exposureKeys := make([]database.Exposure, *numKeys)
 	for i, k := range keys {
 		decoded, err := base64.StdEncoding.DecodeString(k.Key)
@@ -91,8 +95,12 @@ func main() {
 			log.Fatalf("unable to decode key: %v", k.Key)
 		}
 		exposureKeys[i].ExposureKey = decoded
-		exposureKeys[i].IntervalNumber = util.RandIntervalCount()
-		exposureKeys[i].IntervalCount = util.RandIntervalCount()
+		n, err := util.RandIntervalCount()
+		if err != nil {
+			log.Fatalf("problem with interval count: %v", err)
+		}
+		exposureKeys[i].IntervalNumber = n
+		exposureKeys[i].IntervalCount = n
 	}
 
 	// split up into batches

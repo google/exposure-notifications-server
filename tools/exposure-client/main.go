@@ -60,7 +60,7 @@ func main() {
 	exposureKeys := util.GenerateExposureKeys(*numKeys, *transmissionRiskFlag)
 	regionIdx, err := util.RandomInt(len(defaultRegions))
 	if err != nil {
-		log.Printf("could not get random region: %v", err)
+		log.Printf("error getting random region: %v", err)
 	}
 	region := defaultRegions[regionIdx]
 	if *regions != "" {
@@ -75,7 +75,11 @@ func main() {
 		}
 	}
 
-	padding, err := util.RandomBytes(randomInt(1000) + 1000)
+	i, err := util.RandomInt(1000)
+	if err != nil {
+		log.Printf("error getting random int: %v", err)
+	}
+	padding, err := util.RandomBytes(i + 1000)
 	if err != nil {
 		log.Printf("could not get random padding: %v", err)
 	}
