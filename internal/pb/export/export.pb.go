@@ -156,7 +156,9 @@ type SignatureInfo struct {
 
 	// Apple App Store Application Bundle ID
 	AppBundleId *string `protobuf:"bytes,1,opt,name=app_bundle_id,json=appBundleId" json:"app_bundle_id,omitempty"`
-	// Android App package name
+	// Android App package name, concatenated with the sha256 hash of the app’s
+	// signing key, in hex.
+	// The package name and the sha256 hash are separated by “:”
 	AndroidPackage *string `protobuf:"bytes,2,opt,name=android_package,json=androidPackage" json:"android_package,omitempty"`
 	// Key version for rollovers
 	VerificationKeyVersion *string `protobuf:"bytes,3,opt,name=verification_key_version,json=verificationKeyVersion" json:"verification_key_version,omitempty"`
