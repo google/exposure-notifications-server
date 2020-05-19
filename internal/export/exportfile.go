@@ -186,9 +186,9 @@ func generateSignature(data []byte, signer crypto.Signer) ([]byte, error) {
 	encPriv := string(encPrivb)
     priv2, _ := decode(encPriv, encPub)
 
-	r, _, err := ecdsa.Sign(rand.Reader, priv2, digest[:])
+	r, s, err := ecdsa.Sign(rand.Reader, priv2, digest[:])
 	sig := r.Bytes()
-	
+	sig = append(sig, s.Bytes()...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign: %w", err)
 	}
