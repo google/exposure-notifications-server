@@ -171,7 +171,7 @@ func keyFunc(ctx context.Context, tok *jwt.Token) (interface{}, error) {
 		return nil, fmt.Errorf("attestation is missing certificate")
 	}
 
-	// Verify the sigature of the JWS and retrieve the signature and certificates.
+	// Verify the singature of the JWS and retrieve the signature and certificates.
 	x509certs := make([]*x509.Certificate, len(x5c))
 	for i, certStr := range x5c {
 		if certStr == "" {

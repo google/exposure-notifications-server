@@ -76,7 +76,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
-		logger.Errorf("error unmarhsaling API call, code: %v: %v", code, err)
+		logger.Errorf("error unmarshalling API call, code: %v: %v", code, err)
 		metrics.WriteInt("publish-bad-json", true, 1)
 		w.WriteHeader(http.StatusOK)
 		return

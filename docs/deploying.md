@@ -134,7 +134,7 @@ Terraform will begin by creating the service accounts and enabling the services
 on GCP which are required to run this server.
 
 > NOTE: This configuration assumes production scale. The scale of this means
-> a substational billed amount. You can downsize this to save on costs
+> a substantial billed amount. You can downsize this to save on costs
 > For example you can set other vars in terraform apply to smaller values.
 > ```
 >  $ terraform apply \

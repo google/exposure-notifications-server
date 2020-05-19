@@ -23,5 +23,5 @@ type Blobstore interface {
 	CreateObject(ctx context.Context, bucket, objectName string, contents []byte) error
 
 	// DeleteObject deltes an object or does nothing if the object doesn't exist.
-	DeleteObject(cctx context.Context, bucket, objectName string) error
+	DeleteObject(ctx context.Context, bucket, objectName string) error
 }

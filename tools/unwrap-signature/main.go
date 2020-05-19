@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This utility unwrapps the export.TEKSignatureList proto and
-// extracts the sianature so that an export file can be verified with openssl.
+// This utility unwraps the export.TEKSignatureList proto and
+// extracts the signature so that an export file can be verified with openssl.
 package main
 
 import (

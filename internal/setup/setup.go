@@ -30,8 +30,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
-// DBConfigProvider ensures that the envionment config can provide a DB config.
-// All binaries in this application connect to the databse via the same method.
+// DBConfigProvider ensures that the environment config can provide a DB config.
+// All binaries in this application connect to the database via the same method.
 type DBConfigProvider interface {
 	DB() *database.Config
 }
@@ -55,7 +55,7 @@ type BlobStorageConfigProvider interface {
 // Function returned from setup to be deferred until the caller exits.
 type Defer func()
 
-// Setup runs common intitializion code for all servers.
+// Setup runs common initialization code for all servers.
 func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, Defer, error) {
 	logger := logging.FromContext(ctx)
 
