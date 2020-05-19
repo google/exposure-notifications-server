@@ -66,11 +66,11 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to connect to secret manager: %v", err)
 	}
-	logger.Infof("Effective environment variables: %+v", config)
 
 	if err := envconfig.Process(ctx, config, sm); err != nil {
 		return nil, nil, fmt.Errorf("error loading environment variables: %v", err)
 	}
+	logger.Infof("Effective environment variables: %+v", config)
 
 	// Start building serverenv opts
 	opts := []serverenv.Option{

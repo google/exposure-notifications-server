@@ -39,6 +39,7 @@ type Config struct {
 	// Bypass flags for local development and testing.
 	BypassSafetyNet   bool `envconfig:"BYPASS_SAFETYNET"`
 	BypassDeviceCheck bool `envconfig:"BYPASS_DEVICECHECK"`
+	DebugAPIResponses bool `envconfig:"DEBUG_API_RESPONSES"`
 
 	AuthorizedApp *authorizedapp.Config
 	Database      *database.Config

@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"flag"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"net/http"
@@ -98,14 +99,14 @@ func main() {
 		log.Fatalf("unable to marshal json payload")
 	}
 
-	sendRequest(jsonData)
-
 	prettyJSON, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		log.Printf("Can't display JSON that was sent, error: %v", err)
 	} else {
-		log.Printf("payload: \n%v", string(prettyJSON))
+		log.Printf("SENDING: \n%v", string(prettyJSON))
 	}
+
+	sendRequest(jsonData)
 
 	if *twice {
 		time.Sleep(1 * time.Second)
@@ -178,7 +179,15 @@ func sendRequest(jsonData []byte) {
 	}
 	defer resp.Body.Close()
 
-	log.Printf("response: %v", resp.Status)
+	log.Printf("status: %v", resp.Status)
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("unable to read http response: %v", err)
+	} else {
+		log.Printf("response: %v", string(body))
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		log.Fatalf("Failure response from server.")
 	}
