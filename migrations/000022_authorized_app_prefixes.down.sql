@@ -22,7 +22,12 @@ ALTER TABLE AuthorizedApp RENAME COLUMN safetynet_future_seconds TO allowed_futu
 ALTER TABLE AuthorizedApp RENAME COLUMN devicecheck_team_id_secret TO ios_devicecheck_team_id_secret;
 ALTER TABLE AuthorizedApp RENAME COLUMN devicecheck_key_id_secret TO ios_devicecheck_key_id_secret;
 ALTER TABLE AuthorizedApp RENAME COLUMN devicecheck_private_key_secret TO ios_devicecheck_private_key_secret;
+
+-- Update the semantic meaning of all_regions
 ALTER TABLE AuthorizedApp ADD COLUMN all_regions bool DEFAULT false;
+UPDATE AuthorizedApp SET all_regions = true
+WHERE allowed_regions = '{}';
+
 CREATE INDEX authorized_app_app_package_name_idx ON AuthorizedApp(app_package_name);
 
 END;

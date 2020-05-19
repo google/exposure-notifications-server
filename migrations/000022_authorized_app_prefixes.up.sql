@@ -14,6 +14,10 @@
 
 BEGIN;
 
+-- Update the semantic meaning of all_regions
+UPDATE AuthorizedApp SET allowed_regions = ARRAY[]::VARCHAR[]
+WHERE all_regions = true;
+
 ALTER TABLE AuthorizedApp RENAME COLUMN apk_digest TO safetynet_apk_digest;
 ALTER TABLE AuthorizedApp RENAME COLUMN cts_profile_match TO safetynet_cts_profile_match;
 ALTER TABLE AuthorizedApp RENAME COLUMN basic_integrity TO safetynet_basic_integrity;
