@@ -71,7 +71,10 @@ func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, o
 	return provider, nil
 }
 
-func (p *DatabaseProvider) checkCache(name string) (bool, *database.AuthorizedApp, error) {
+// checkCache checkes the local cache whthin a read lock.
+// The bool on return is true if there was a hit (And an error is a valid hit)
+// or false if there was a miss (or expiry) and the data source should be queried again.
+func (p *DatabaseProvider) checkCache(name string) (*database.AuthorizedApp, bool, error) {
 	// Acquire a read lock first, which allows concurrent readers, to check if
 	// there's an item in the cache.
 	p.cacheLock.RLock()
@@ -80,18 +83,18 @@ func (p *DatabaseProvider) checkCache(name string) (bool, *database.AuthorizedAp
 	item, ok := p.cache[name]
 	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
 		if item.value == nil {
-			return true, nil, AppNotFound
+			return nil, true, AppNotFound
 		}
-		return true, item.value, nil
+		return item.value, true, nil
 	}
-	return false, nil, nil
+	return nil, false, nil
 }
 
 // AppConfig returns the config for the given app package name.
 func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*database.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
 
-	cacheHit, data, error := p.checkCache(name)
+	data, cacheHit, error := p.checkCache(name)
 	if cacheHit {
 		return data, error
 	}
