@@ -71,35 +71,44 @@ func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, o
 	return provider, nil
 }
 
+// checkCache checks the local cache whthin a read lock.
+// The bool on return is true if there was a hit (And an error is a valid hit)
+// or false if there was a miss (or expiry) and the data source should be queried again.
+func (p *DatabaseProvider) checkCache(name string) (*database.AuthorizedApp, bool, error) {
+	// Acquire a read lock first, which allows concurrent readers, to check if
+	// there's an item in the cache.
+	p.cacheLock.RLock()
+	defer p.cacheLock.RUnlock()
+
+	item, ok := p.cache[name]
+	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
+		if item.value == nil {
+			return nil, true, AppNotFound
+		}
+		return item.value, true, nil
+	}
+	return nil, false, nil
+}
+
 // AppConfig returns the config for the given app package name.
 func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*database.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
 
-	// Acquire a read lock first, which allows concurrent readers, to check if
-	// there's an item in the cache.
-	p.cacheLock.RLock()
-	item, ok := p.cache[name]
-	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
-		if item.value == nil {
-			p.cacheLock.RUnlock()
-			return nil, AppNotFound
-		}
-		p.cacheLock.RUnlock()
-		return item.value, nil
+	data, cacheHit, error := p.checkCache(name)
+	if cacheHit {
+		return data, error
 	}
-	p.cacheLock.RUnlock()
 
 	// Acquire a more aggressive lock now because we're about to mutate. However,
 	// it's possible that a concurrent routine has already mutated between our
 	// read and write locks, so we have to check again.
 	p.cacheLock.Lock()
-	item, ok = p.cache[name]
+	defer p.cacheLock.Unlock()
+	item, ok := p.cache[name]
 	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
 		if item.value == nil {
-			p.cacheLock.Unlock()
 			return nil, AppNotFound
 		}
-		p.cacheLock.Unlock()
 		return item.value, nil
 	}
 
@@ -118,7 +127,6 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*databas
 
 	// Handle not found.
 	if config == nil {
-		p.cacheLock.Unlock()
 		return nil, AppNotFound
 	}
 
