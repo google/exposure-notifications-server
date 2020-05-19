@@ -16,24 +16,15 @@
 package main
 
 import (
-	"bytes"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"log"
-	"math/big"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-)
-
-const (
-	// the length of a diagnosis key, always 16 bytes
-	dkLen               = 16
-	maxTransmissionRisk = 8
+	"github.com/google/exposure-notifications-server/testing/enclient"
 )
 
 var (
@@ -64,8 +55,7 @@ var (
 func main() {
 	flag.Parse()
 
-	exposureKeys := generateExposureKeys(*numKeys, *transmissionRiskFlag)
-
+	exposureKeys := enclient.GenerateExposureKeys(*numKeys, *transmissionRiskFlag)
 	regionIdx := randomInt(len(defaultRegions))
 	region := defaultRegions[regionIdx]
 	if *regions != "" {
@@ -77,11 +67,7 @@ func main() {
 		verificationAuthorityName = randomArrValue(verificationAuthorityNames)
 	}
 
-	padding := make([]byte, randomInt(1000)+1000)
-	_, err := rand.Read(padding)
-	if err != nil {
-		log.Printf("error generating padding: %v", err)
-	}
+	padding := enclient.RandomBytes(randomInt(1000) + 1000)
 
 	data := database.Publish{
 		Keys:           exposureKeys,
@@ -93,12 +79,7 @@ func main() {
 		Padding:                   base64.RawStdEncoding.EncodeToString(padding),
 	}
 
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		log.Fatalf("unable to marshal json payload")
-	}
-
-	sendRequest(jsonData)
+	sendRequest(data)
 
 	prettyJSON, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
@@ -110,76 +91,24 @@ func main() {
 	if *twice {
 		time.Sleep(1 * time.Second)
 		log.Printf("sending the request again...")
-		sendRequest(jsonData)
+		sendRequest(data)
 	}
-}
-
-func randIntervalCount() int32 {
-	n, err := rand.Int(rand.Reader, big.NewInt(144))
-	if err != nil {
-		log.Fatalf("rand.Int: %v", err)
-	}
-	return int32(n.Int64() + 1) // valid values are 1-144
 }
 
 func randomInt(maxValue int) int {
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(maxValue)))
-	if err != nil {
-		log.Fatalf("rand.Int: %v", err)
-	}
-	return int(n.Int64())
+	return enclient.RandomInt(maxValue)
 }
 
 func randomArrValue(arr []string) string {
 	return arr[randomInt(len(arr))]
 }
 
-func generateExposureKeys(numKeys, tr int) []database.ExposureKey {
-	keys := make([][]byte, numKeys)
-	for i := 0; i < numKeys; i++ {
-		keys[i] = make([]byte, dkLen)
-		_, err := rand.Read(keys[i])
-		if err != nil {
-			log.Fatalf("rand.Read: %v", err)
-		}
-	}
-
-	// When publishing multiple keys - they'll be on different days.
-	intervalCount := randIntervalCount()
-	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
-	exposureKeys := make([]database.ExposureKey, numKeys)
-	for i, rawKey := range keys {
-		transmissionRisk := tr
-		if transmissionRisk < 0 {
-			transmissionRisk = randomInt(maxTransmissionRisk) + 1
-		}
-
-		exposureKeys[i].Key = base64.StdEncoding.EncodeToString(rawKey)
-		exposureKeys[i].IntervalNumber = intervalNumber
-		exposureKeys[i].IntervalCount = intervalCount
-		exposureKeys[i].TransmissionRisk = transmissionRisk
-		// Adjust interval math for next key.
-		intervalCount = randIntervalCount()
-		intervalNumber -= intervalCount
-	}
-	return exposureKeys
-}
-
-func sendRequest(jsonData []byte) {
-	r, err := http.NewRequest("POST", *url, bytes.NewBuffer(jsonData))
+func sendRequest(data interface{}) {
+	resp, err := enclient.PostRequest(*url, data)
 	if err != nil {
-		log.Fatalf("error creating http request, %v", err)
+		log.Fatalf("request failed: %v, %v", err, resp)
+		return
 	}
-	r.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	resp, err := client.Do(r)
-	if err != nil {
-		log.Fatalf("error on http request: %v", err)
-	}
-	defer resp.Body.Close()
 
 	log.Printf("response: %v", resp.Status)
-	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("Failure response from server.")
-	}
 }
