@@ -166,7 +166,8 @@ provided as an example, and can be downsized to minimize costs.
 
 1. Initialize and/or Migrate the DB.
 
-    > **NOTE** In the future this may be handled by terraform
+    > **NOTE** In the future this may be handled by terraform. For now though, the database needs
+    > to be brought up to the current schema manually.
 
     To migrate the database, you will want to start the
     [Cloud SQL Proxy](https://cloud.google.com/sql/docs/postgres/quickstart-proxy-test#install-proxy)
