@@ -117,6 +117,4 @@ func sendRequest(data interface{}) {
 	} else {
 		log.Printf("response: %v", string(body))
 	}
-
-	log.Printf("response: %v", string(body))
 }
