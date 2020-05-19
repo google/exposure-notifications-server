@@ -22,7 +22,10 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"sort"
-
+	"crypto/x509"
+	"encoding/pem"
+	"io/ioutil"
+	"crypto/ecdsa"
 	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 
@@ -56,7 +59,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*model.Exposure, batch
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal signature file: %w", err)
 	}
-
+	
 	// create compressed archive of binary and signature
 	buf := new(bytes.Buffer)
 	zw := zip.NewWriter(buf)
@@ -174,9 +177,33 @@ func marshalSignature(eb *model.ExportBatch, exportContents []byte, batchNum int
 
 func generateSignature(data []byte, signer crypto.Signer) ([]byte, error) {
 	digest := sha256.Sum256(data)
-	sig, err := signer.Sign(rand.Reader, digest[:], nil)
+
+	encPubb, _ := ioutil.ReadFile("gx-exposure-uy.pub")
+
+	encPrivb, _ := ioutil.ReadFile("gx-exposure-uy.priv")
+
+	encPub := string(encPubb)
+	encPriv := string(encPrivb)
+    priv2, _ := decode(encPriv, encPub)
+
+	r, _, err := ecdsa.Sign(rand.Reader, priv2, digest[:])
+	sig := r.Bytes()
+	
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign: %w", err)
 	}
 	return sig, nil
+}
+
+func decode(pemEncoded string, pemEncodedPub string) (*ecdsa.PrivateKey, *ecdsa.PublicKey) {
+    block, _ := pem.Decode([]byte(pemEncoded))
+    x509Encoded := block.Bytes
+    privateKey, _ := x509.ParseECPrivateKey(x509Encoded)
+
+    blockPub, _ := pem.Decode([]byte(pemEncodedPub))
+    x509EncodedPub := blockPub.Bytes
+    genericPublicKey, _ := x509.ParsePKIXPublicKey(x509EncodedPub)
+    publicKey := genericPublicKey.(*ecdsa.PublicKey)
+
+    return privateKey, publicKey
 }

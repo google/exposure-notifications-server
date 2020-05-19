@@ -78,7 +78,7 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 	if _, ok := config.(KeyManagerProvider); ok {
 		km, err := signing.NewGCPKMS(ctx)
 		if err != nil {
-			return nil, nil, fmt.Errorf("unable to connect to key manager: %w", err)
+	//		return nil, nil, fmt.Errorf("unable to connect to key manager: %w", err)
 		}
 		opts = append(opts, serverenv.WithKeyManager(km))
 	}
