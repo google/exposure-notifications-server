@@ -36,7 +36,7 @@ var (
 	signingKey        = flag.String("signing-key", "", "The KMS resource ID to use for signing batches.")
 	signingKeyID      = flag.String("signing-key-id", "", "The ID of the signing key (for clients).")
 	signingKeyVersion = flag.String("signing-key-version", "", "The version of the signing key (for clients).")
-	appPkgID          = flag.String("app-pkg-id", "", "The App Packge ID to put in export headers")
+	appPkgID          = flag.String("app-pkg-id", "", "The App Package ID to put in export headers")
 	bundleID          = flag.String("bundle-id", "", "The BundleID to put in export headers")
 )
 

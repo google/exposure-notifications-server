@@ -54,7 +54,7 @@ const (
 // AppPackageName: The identifier for the mobile application.
 //  - Android: The App Package AppPackageName
 //  - iOS: The BundleID
-// TransmissionRisk: An integer from 0-8 (inclusive) that represnets
+// TransmissionRisk: An integer from 0-8 (inclusive) that represents
 //  the transmission risk for this publish.
 // Verification: The attestation payload for this request. (iOS or Android specific)
 //   Base64 encoded.
@@ -74,7 +74,7 @@ type Publish struct {
 // AndroidNonce returns the Android. This ensures that the data in the request
 // is the same data that was used to create the device attestation.
 func (p *Publish) AndroidNonce() string {
-	// base64 keys are to be lexographically sorted
+	// base64 keys are to be lexicographically sorted
 	sortedKeys := make([]ExposureKey, len(p.Keys))
 	copy(sortedKeys, p.Keys)
 	sort.Slice(sortedKeys, func(i int, j int) bool {
@@ -97,11 +97,11 @@ func (p *Publish) AndroidNonce() string {
 	// in a specific order.
 	//
 	// appPackageName|key[,key]|region[,region]|verificationAuthorityName
-	// Keys are ancoded as
-	//     base64(exposureKey).itnervalNumber.IntervalCount.transmissionRisk
+	// Keys are encoded as
+	//     base64(exposureKey).intervalNumber.IntervalCount.transmissionRisk
 	// When there is > 1 key, keys are comma separated.
 	// Keys must in sorted order based on the sorting of the base64 exposure key.
-	// Regions are uppercased, sorted, and comma sepreated
+	// Regions are uppercased, sorted, and comma separated
 	cleartext :=
 		p.AppPackageName + "|" +
 			strings.Join(keys, ",") + "|" + // where key is b64key.intervalNum.intervalCount
@@ -135,7 +135,7 @@ type ExposureKey struct {
 	TransmissionRisk int    `json:"transmissionRisk"`
 }
 
-// Exposure represents the record as storedin the database
+// Exposure represents the record as stored in the database
 // TODO(mikehelmick) - refactor this so that there is a public
 // Exposure struct that doesn't have public fields and an
 // internal struct that does. Separate out the database model
@@ -172,7 +172,7 @@ type Transformer struct {
 }
 
 // NewTransformer creates a transformer for turning publish API requests into
-// records for insertion into the database. On the call to TransofmrPublish
+// records for insertion into the database. On the call to TransformPublish
 // all data is validated according to the transformer that is used.
 func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration) (*Transformer, error) {
 	if maxExposureKeys < 0 || maxExposureKeys > maxKeysPerPublish {
@@ -189,7 +189,7 @@ func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, trun
 // The data in the request is validated during the transform, including:
 //
 // * 0 exposure Keys in the requests
-// * > Transormer.maxExposureKeys in the request
+// * > Transformer.maxExposureKeys in the request
 // * exposure keys that aren't exactly 16 bytes in length after base64 decoding
 //
 func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]*Exposure, error) {
@@ -204,7 +204,7 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 	createdAt := TruncateWindow(batchTime, t.truncateWindow)
 	entities := make([]*Exposure, 0, len(inData.Keys))
 
-	// An exposure key must have an interval >= minInteravl (max configured age)
+	// An exposure key must have an interval >= minInterval (max configured age)
 	minIntervalNumber := IntervalNumber(batchTime.Add(-1 * t.maxIntervalStartAge))
 	// And have an interval <= maxInterval (configured allowed clock skew)
 	maxIntervalNumber := IntervalNumber(batchTime)

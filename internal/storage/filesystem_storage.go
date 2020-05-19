@@ -26,7 +26,7 @@ import (
 // Compile-time check to verify implements interface.
 var _ Blobstore = (*FilesystemStorage)(nil)
 
-// FilesystemStorage implements Blobstore and provdes the ability
+// FilesystemStorage implements Blobstore and provides the ability
 // write files to the filesystem.
 type FilesystemStorage struct{}
 

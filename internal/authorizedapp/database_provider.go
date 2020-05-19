@@ -71,7 +71,7 @@ func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, o
 	return provider, nil
 }
 
-// checkCache checks the local cache whthin a read lock.
+// checkCache checks the local cache within a read lock.
 // The bool on return is true if there was a hit (And an error is a valid hit)
 // or false if there was a miss (or expiry) and the data source should be queried again.
 func (p *DatabaseProvider) checkCache(name string) (*database.AuthorizedApp, bool, error) {

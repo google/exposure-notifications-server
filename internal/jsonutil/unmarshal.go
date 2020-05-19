@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package jsonutil provides common utilities for properly handling JSON payloads in HTPT body.
+// Package jsonutil provides common utilities for properly handling JSON payloads in HTTP body.
 package jsonutil
 
 import (
