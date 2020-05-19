@@ -139,25 +139,6 @@ Cloud. These instructions make use of the
 Terraform will begin by creating the service accounts and enabling the services
 on Google Cloud that are required to run this server.
 
-#### Local development and testing example deployment
-
-The default Terraform deployment is a production-ready, high traffic
-deployment. For local development and testing, we recommend you use the
-following sample deployment:
-
-1. Run `terraform apply` with the following command:
-
-   ```console
-   terraform apply \
-     -var project=${PROJECT_ID} \
-     -var region="us-central-1" \
-     -var use_build_triggers=true \
-     -var repo_owner=${YOUR_REPO_OWNER} \
-     -var repo_name=${YOUR_REPO_NAME} \
-     -var cloudsql_tier="db-custom-1-3840" \
-     -var cloudsql_disk_size_gb="16"
-   ```
-
 1. Initialize or migrate the database.
 
    To migrate the database, you will want to start the
@@ -175,4 +156,23 @@ following sample deployment:
    DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
 
    migrate -database ${DB_URL} -path ./migrations up
+   ```
+
+### Local development and testing example deployment
+
+The default Terraform deployment is a production-ready, high traffic
+deployment. For local development and testing, we recommend you use the
+following sample deployment:
+
+1. Run `terraform apply` with the following command:
+
+   ```console
+   terraform apply \
+     -var project=${PROJECT_ID} \
+     -var region="us-central-1" \
+     -var use_build_triggers=true \
+     -var repo_owner=${YOUR_REPO_OWNER} \
+     -var repo_name=${YOUR_REPO_NAME} \
+     -var cloudsql_tier="db-custom-1-3840" \
+     -var cloudsql_disk_size_gb="16"
    ```
