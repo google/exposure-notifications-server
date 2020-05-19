@@ -240,6 +240,12 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 			return nil, fmt.Errorf("interval number %v is in the future, must be < %v", exposureKey.IntervalNumber, maxIntervalNumber)
 		}
 
+		// Validate that the key is no longer effective.
+		if exposureKey.IntervalNumber+exposureKey.IntervalCount > maxIntervalNumber {
+			return nil, fmt.Errorf("interval number %v + interval count %v represents a key that is still valid, must end <= %v",
+				exposureKey.IntervalNumber, exposureKey.IntervalCount, maxIntervalNumber)
+		}
+
 		if tr := exposureKey.TransmissionRisk; tr < MinTransmissionRisk || tr > MaxTransmissionRisk {
 			return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, MinTransmissionRisk, MaxTransmissionRisk)
 		}

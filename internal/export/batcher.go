@@ -58,10 +58,10 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 		logger.Infof("Processed %d configs creating %d batches across %d configs", totalConfigs, totalBatches, totalConfigsWithBatches)
 	}()
 
-	now := time.Now()
-	err = s.db.IterateExportConfigs(ctx, now, func(ec *database.ExportConfig) error {
+	effectiveTime := time.Now().Add(-1 * s.config.MinWindowAge)
+	err = s.db.IterateExportConfigs(ctx, effectiveTime, func(ec *database.ExportConfig) error {
 		totalConfigs++
-		if batchesCreated, err := s.maybeCreateBatches(ctx, ec, now); err != nil {
+		if batchesCreated, err := s.maybeCreateBatches(ctx, ec, effectiveTime); err != nil {
 			logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
 		} else {
 			totalBatches += batchesCreated
