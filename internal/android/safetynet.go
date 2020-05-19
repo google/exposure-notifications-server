@@ -140,23 +140,23 @@ func ValidateAttestation(ctx context.Context, attestation string, opts *VerifyOp
 // VerifyOptsFor returns the Android SafetyNet verification options to be used
 // based on the AuthorizedApp configuration, request time, and nonce.
 func VerifyOptsFor(c *database.AuthorizedApp, from time.Time, nonce string) *VerifyOpts {
-	digests := make([]string, len(c.ApkDigestSHA256))
-	copy(digests, c.ApkDigestSHA256)
+	digests := make([]string, len(c.SafetyNetApkDigestSHA256))
+	copy(digests, c.SafetyNetApkDigestSHA256)
 	rtn := &VerifyOpts{
 		AppPkgName:      c.AppPackageName,
-		CTSProfileMatch: c.CTSProfileMatch,
-		BasicIntegrity:  c.BasicIntegrity,
+		BasicIntegrity:  c.SafetyNetBasicIntegrity,
+		CTSProfileMatch: c.SafetyNetCTSProfileMatch,
 		APKDigest:       digests,
 		Nonce:           nonce,
 	}
 
 	// Calculate the valid time window based on now + config options.
-	if c.AllowedPastTime > 0 {
-		minTime := from.Add(-c.AllowedPastTime)
+	if c.SafetyNetPastTime > 0 {
+		minTime := from.Add(-c.SafetyNetPastTime)
 		rtn.MinValidTime = minTime
 	}
-	if c.AllowedFutureTime > 0 {
-		maxTime := from.Add(c.AllowedFutureTime)
+	if c.SafetyNetFutureTime > 0 {
+		maxTime := from.Add(c.SafetyNetFutureTime)
 		rtn.MaxValidTime = maxTime
 	}
 

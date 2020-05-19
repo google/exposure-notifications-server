@@ -36,9 +36,9 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 
 	query := `
 		SELECT
-			app_package_name, platform, apk_digest, cts_profile_match, basic_integrity,
-			allowed_past_seconds, allowed_future_seconds, allowed_regions, all_regions,
-			ios_devicecheck_team_id_secret, ios_devicecheck_key_id_secret, ios_devicecheck_private_key_secret
+			app_package_name, platform, allowed_regions,
+			safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
+			devicecheck_team_id_secret, devicecheck_key_id_secret, devicecheck_private_key_secret
 		FROM
 			AuthorizedApp
 		WHERE app_package_name = $1`
@@ -47,11 +47,11 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 
 	config := NewAuthorizedApp()
 	var allowedRegions []string
-	var allowedPastSeconds, allowedFutureSeconds *int
+	var safetyNetPastSeconds, safetyNetFutureSeconds *int
 	var deviceCheckTeamIDSecret, deviceCheckKeyIDSecret, deviceCheckPrivateKeySecret sql.NullString
 	if err := row.Scan(
-		&config.AppPackageName, &config.Platform, &config.ApkDigestSHA256, &config.CTSProfileMatch, &config.BasicIntegrity,
-		&allowedPastSeconds, &allowedFutureSeconds, &allowedRegions, &config.AllowAllRegions,
+		&config.AppPackageName, &config.Platform, &allowedRegions,
+		&config.SafetyNetApkDigestSHA256, &config.SafetyNetCTSProfileMatch, &config.SafetyNetBasicIntegrity, &safetyNetPastSeconds, &safetyNetFutureSeconds,
 		&deviceCheckTeamIDSecret, &deviceCheckKeyIDSecret, &deviceCheckPrivateKeySecret,
 	); err != nil {
 		if err == pgx.ErrNoRows {
@@ -61,13 +61,13 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 	}
 
 	// Convert time in seconds from DB into time.Duration
-	if allowedPastSeconds != nil {
-		d := time.Duration(*allowedPastSeconds) * time.Second
-		config.AllowedPastTime = d
+	if safetyNetPastSeconds != nil {
+		d := time.Duration(*safetyNetPastSeconds) * time.Second
+		config.SafetyNetPastTime = d
 	}
-	if allowedFutureSeconds != nil {
-		d := time.Duration(*allowedFutureSeconds) * time.Second
-		config.AllowedFutureTime = d
+	if safetyNetFutureSeconds != nil {
+		d := time.Duration(*safetyNetFutureSeconds) * time.Second
+		config.SafetyNetFutureTime = d
 	}
 
 	// build the regions map
@@ -79,7 +79,7 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 	if v := deviceCheckTeamIDSecret; v.Valid && v.String != "" {
 		plaintext, err := sm.GetSecretValue(ctx, v.String)
 		if err != nil {
-			return nil, fmt.Errorf("ios_devicecheck_team_id_secret at %s (%s): %w",
+			return nil, fmt.Errorf("devicecheck_team_id_secret at %s (%s): %w",
 				config.AppPackageName, config.Platform, err)
 		}
 		config.DeviceCheckTeamID = plaintext
@@ -88,7 +88,7 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 	if v := deviceCheckKeyIDSecret; v.Valid && v.String != "" {
 		plaintext, err := sm.GetSecretValue(ctx, v.String)
 		if err != nil {
-			return nil, fmt.Errorf("ios_devicecheck_key_id_secret at %s (%s): %w",
+			return nil, fmt.Errorf("devicecheck_key_id_secret at %s (%s): %w",
 				config.AppPackageName, config.Platform, err)
 		}
 		config.DeviceCheckKeyID = plaintext
@@ -97,7 +97,7 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 	if v := deviceCheckPrivateKeySecret; v.Valid && v.String != "" {
 		plaintext, err := sm.GetSecretValue(ctx, v.String)
 		if err != nil {
-			return nil, fmt.Errorf("ios_devicecheck_private_key_secret at %s (%s): %w",
+			return nil, fmt.Errorf("devicecheck_private_key_secret at %s (%s): %w",
 				config.AppPackageName, config.Platform, err)
 		}
 

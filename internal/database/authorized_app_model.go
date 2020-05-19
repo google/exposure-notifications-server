@@ -28,18 +28,22 @@ const (
 // application and their access to and requirements for using the API. DB times
 // of 0 are interpreted to be "unbounded" in that direction.
 type AuthorizedApp struct {
-	AppPackageName  string
-	Platform        string
-	AllowedRegions  map[string]struct{}
-	AllowAllRegions bool
+	// AppPackageName is the name of the package like com.company.app.
+	AppPackageName string
+
+	// Platform is the app platform like "android" or "ios".
+	Platform string
+
+	// AllowedRegions is the list of allowed regions for this app. If the list is
+	// empty, all regions are permitted.
+	AllowedRegions map[string]struct{}
 
 	// SafetyNet configuration.
-	// TODO(sethvargo): Rename these to clarify they are for SafetyNet.
-	AllowedPastTime   time.Duration
-	AllowedFutureTime time.Duration
-	ApkDigestSHA256   []string
-	BasicIntegrity    bool
-	CTSProfileMatch   bool
+	SafetyNetApkDigestSHA256 []string
+	SafetyNetBasicIntegrity  bool
+	SafetyNetCTSProfileMatch bool
+	SafetyNetPastTime        time.Duration
+	SafetyNetFutureTime      time.Duration
 
 	// DeviceCheck configuration.
 	DeviceCheckKeyID      string
@@ -63,9 +67,13 @@ func (c *AuthorizedApp) IsAndroid() bool {
 	return c.Platform == androidDevice
 }
 
-// IsAllowedRegion returns true if the region is in the list of allowed regions,
-// false otherwise.
+// IsAllowedRegion returns true if the regions list is empty or if the given
+// region is in the list of allowed regions.
 func (c *AuthorizedApp) IsAllowedRegion(s string) bool {
+	if len(c.AllowedRegions) == 0 {
+		return true
+	}
+
 	_, ok := c.AllowedRegions[s]
 	return ok
 }
