@@ -20,7 +20,7 @@ const (
 	maxTransmissionRisk = 8
 	maxIntervals        = 144
 	// httpTimeout is the maximum amount of time to wait for a response.
-	httpTimeout = 10 * time.Second
+	httpTimeout = 30 * time.Second
 )
 
 type Interval int32
