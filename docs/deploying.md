@@ -161,7 +161,7 @@ provided as an example, and can be downsized to minimize costs.
      -var repo_owner=${YOUR_REPO_OWNER} \
      -var repo_name=${YOUR_REPO_NAME} \
      -var cloudsql_tier="db-custom-1-3840" \
-     -var cloudsql_disk_size="16"
+     -var cloudsql_disk_size_gb="16"
  ```
 
 1. Initialize and/or Migrate the DB.
