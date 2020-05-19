@@ -507,7 +507,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 			SELECT
 				eb.batch_id,
 				eb.status,
-				eb.bucket_name
+				eb.bucket_name,
 				ef.filename,
 				ef.batch_size,
 				ef.status

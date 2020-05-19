@@ -27,7 +27,7 @@ const logString = "!METRIC! Type = %v cumulative = %v value = %v"
 // ExporterFromContext defines a function to create a new exporter based on the current context.
 type ExporterFromContext func(context.Context) Exporter
 
-// Exporter defines a generic metric exporter inferface used in this application.
+// Exporter defines a generic metric exporter interface used in this application.
 type Exporter interface {
 	WriteBool(name string, value bool)
 	WriteInt(name string, cumulative bool, value int)
@@ -46,7 +46,7 @@ func NewLogsBasedFromContext(ctx context.Context) Exporter {
 	return NewLogsBasedExporter(logging.FromContext(ctx))
 }
 
-// NewLogsBasedExporter cretes a new logs based importer from a logger.
+// NewLogsBasedExporter creates a new logs based importer from a logger.
 func NewLogsBasedExporter(log *zap.SugaredLogger) Exporter {
 	return &exporterImpl{
 		logger: log,

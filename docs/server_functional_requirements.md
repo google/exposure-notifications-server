@@ -3,11 +3,11 @@
 ## Functional requirements
 
 This documents the functional requirements for building a decentralized exposure
-notification system. For deployment stratgies, see [Server Deployment Options](server_deployment_options.md).
+notification system. For deployment strategies, see [Server Deployment Options](server_deployment_options.md).
 
 ### System Components
 
-The Exposure Notification Server's archicture has been split into components.
+The Exposure Notification Server's architecture has been split into components.
 The following diagram shows the relationship between the different components:
 
 ![A diagram showing the Exposure Notification Server components and their relationship](images/functional_diagram.svg "Server Requirements Diagram")

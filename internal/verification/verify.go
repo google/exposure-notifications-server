@@ -33,16 +33,12 @@ var (
 // the configuration for the application.
 func VerifyRegions(cfg *database.AuthorizedApp, data *database.Publish) error {
 	if cfg == nil {
-		return fmt.Errorf("no allowed regions configured")
-	}
-
-	if cfg.AllowAllRegions {
-		return nil
+		return fmt.Errorf("app configuration is empty")
 	}
 
 	for _, r := range data.Regions {
 		if !cfg.IsAllowedRegion(r) {
-			return fmt.Errorf("application '%v' tried to write unauthorized region: '%v'", cfg.AppPackageName, r)
+			return fmt.Errorf("app '%v' tried to write unauthorized region: '%v'", cfg.AppPackageName, r)
 		}
 	}
 
