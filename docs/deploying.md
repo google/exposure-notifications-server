@@ -75,25 +75,17 @@ You can use Terraform to deploy the reference Exposure Notification on Google
 Cloud. These instructions make use of the
 [Google Cloud Terraform provider](https://github.com/terraform-providers/terraform-provider-google).
 
-1. Download and install Terraform 0.12.
-
-   To install Terraform using Go, type:
-
-   ```console
-   go get github.com/hashicorp/terraform
-   ```
-
-   You can find more information on installing Terrarform in the
-   [Terraform installation guide](https://www.terraform.io/downloads.html).
+1. [Download and install Terraform version 0.12](https://www.terraform.io/downloads.html)
+   or newer.
 
 1. [Create a Google Cloud project](https://cloud.google.com/resource-manager/docs/creating-managing-projects#creating_a_project)
 
-    Make a note of the project ID, you will be needed later. We recommend
-    setting it as an environment variable:
+   Make a note of the project ID, you will be needed later. We recommend
+   setting it as an environment variable:
 
-    ```console
-    export PROJECT_ID="PROJECT-ID"
-    ```
+   ```console
+   export PROJECT_ID="PROJECT-ID"
+   ```
 
 1. **(OPTIONAL)** You can use [Cloud Build triggers](https://cloud.google.com/cloud-build/docs/automating-builds/create-github-app-triggers)
    to automatically re-deploy when the Exposure Notification Server GitHub
@@ -147,14 +139,16 @@ Cloud. These instructions make use of the
 Terraform will begin by creating the service accounts and enabling the services
 on Google Cloud that are required to run this server.
 
-#### High traffic example deployment
+#### Local development and testing example deployment
 
-**Important**: This is a production-ready, high traffic sample deployment.
-Creating this sample deployment **will generate a substantial bill**. It is
-provided as an example, and can be downsized to minimize costs.
+The default Terraform deployment is a production-ready, high traffic
+deployment. For local development and testing, we recommend you use the
+following sample deployment:
 
-```console
-  terraform apply \
+1. Run `terraform apply` with the following command:
+
+   ```console
+   terraform apply \
      -var project=${PROJECT_ID} \
      -var region="us-central-1" \
      -var use_build_triggers=true \
@@ -162,26 +156,23 @@ provided as an example, and can be downsized to minimize costs.
      -var repo_name=${YOUR_REPO_NAME} \
      -var cloudsql_tier="db-custom-1-3840" \
      -var cloudsql_disk_size_gb="16"
- ```
+   ```
 
-1. Initialize and/or Migrate the DB.
+1. Initialize or migrate the database.
 
-    > **NOTE** In the future this may be handled by terraform. For now though, the database needs
-    > to be brought up to the current schema manually.
+   To migrate the database, you will want to start the
+   [Cloud SQL Proxy](https://cloud.google.com/sql/docs/postgres/quickstart-proxy-test#install-proxy)
+   and then run the [`migrate`](https://github.com/golang-migrate/migrate)
+   command.
 
-    To migrate the database, you will want to start the
-    [Cloud SQL Proxy](https://cloud.google.com/sql/docs/postgres/quickstart-proxy-test#install-proxy)
-    and then run the [migrate](https://github.com/golang-migrate/migrate)
-    command.
+   ```console
+   DB_HOST="localhost"
+   DB_PORT="1433"
+   DB_USER="notification"
+   DB_PASSWORD="YOUR-DB-PASSWORD"
+   DB_SSLMODE="disable"
+   DB_NAME="main"
+   DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
 
-    ```console
-    DB_HOST="localhost"
-    DB_PORT="1433"
-    DB_USER="notification"
-    DB_PASSWORD="YOUR-DB-PASSWORD"
-    DB_SSLMODE="disable"
-    DB_NAME="main"
-    DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
-
-    migrate -database ${DB_URL} -path ./migrations up
-    ```
+   migrate -database ${DB_URL} -path ./migrations up
+   ```
