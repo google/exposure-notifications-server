@@ -47,7 +47,7 @@ func PostRequest(url string, data interface{}) (*http.Response, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to copy error body (%d): %w", resp.StatusCode, err)
 		}
-		return resp, fmt.Errorf("post request failed with status: %v\n%w", resp.StatusCode, body)
+		return resp, fmt.Errorf("post request failed with status: %v\n%v", resp.StatusCode, body)
 	}
 
 	return resp, nil
