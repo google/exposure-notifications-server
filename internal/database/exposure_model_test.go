@@ -223,6 +223,19 @@ func TestPublishValidation(t *testing.T) {
 			},
 			m: fmt.Sprintf("interval number %v is in the future, must be < %v", currentInterval+1, currentInterval),
 		},
+		{
+			name: "interval end too high",
+			p: &Publish{
+				Keys: []ExposureKey{
+					{
+						Key:            encodeKey(generateKey(t)),
+						IntervalNumber: currentInterval - 143,
+						IntervalCount:  144,
+					},
+				},
+			},
+			m: fmt.Sprintf("interval number %v + interval count %v represents a key that is still valid, must end <= %v", currentInterval-143, 144, currentInterval),
+		},
 	}
 
 	for _, c := range cases {
