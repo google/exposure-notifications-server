@@ -6,12 +6,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/database"
 )
 
@@ -19,6 +19,8 @@ const (
 	dkLen               = 16
 	maxTransmissionRisk = 8
 	maxIntervals        = 144
+	// httpTimeout is the maximum amount of time to wait for a response.
+	httpTimeout = 10 * time.Second
 )
 
 type Interval int32
@@ -32,7 +34,7 @@ func PostRequest(url string, data interface{}) (*http.Response, error) {
 		return nil, err
 	}
 	r.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
+	client := &http.Client{Timeout: httpTimeout}
 	resp, err := client.Do(r)
 	if err != nil {
 		return nil, err
@@ -40,7 +42,12 @@ func PostRequest(url string, data interface{}) (*http.Response, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return resp, fmt.Errorf("post request failed with status: %v", resp.StatusCode)
+		// Return error upstream.
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to copy error body (%d): %w", resp.StatusCode, err)
+		}
+		return resp, fmt.Errorf("post request failed with status: %v\n%w", resp.StatusCode, body)
 	}
 
 	return resp, nil
@@ -141,7 +148,7 @@ func ToBase64(key []byte) string {
 
 // Decodes base64 string to []byte.
 func DecodeKey(b64key string) []byte {
-	k, err := base64util.DecodeString(b64key)
+	k, err := base64.StdEncoding.DecodeString(b64key)
 	if err != nil {
 		log.Fatalf("unable to decode key: %v", err)
 	}
