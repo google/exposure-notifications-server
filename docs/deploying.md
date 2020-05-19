@@ -164,19 +164,6 @@ provided as an example, and can be downsized to minimize costs.
      -var cloudsql_disk_size="16"
  ```
 
-<!--
-electin vCPU and Postgres size (concurrent connections):
-
-PostgresSql sizing
-And pricing
-https://cloud.google.com/sql/docs/postgres/create-instance
-Combined with connection limits: https://cloud.google.com/sql/docs/quotas#cloud-sql-for-postgresql-connection-limits
-Choice for now:
-
-db-custom-8-30720
-
-30 gb which gives 500 concurrent connections
-
 1. Initialize and/or Migrate the DB.
 
     > **NOTE** In the future this may be handled by terraform
@@ -197,5 +184,3 @@ db-custom-8-30720
 
     migrate -database ${DB_URL} -path ./migrations up
     ```
-
---->
