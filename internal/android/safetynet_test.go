@@ -197,11 +197,11 @@ func TestVerifyOptsFor(t *testing.T) {
 	}{
 		{
 			cfg: &database.AuthorizedApp{
-				AppPackageName:    "foo",
-				CTSProfileMatch:   true,
-				BasicIntegrity:    true,
-				AllowedPastTime:   time.Duration(15 * time.Minute),
-				AllowedFutureTime: time.Duration(1 * time.Second),
+				AppPackageName:           "foo",
+				SafetyNetBasicIntegrity:  true,
+				SafetyNetCTSProfileMatch: true,
+				SafetyNetPastTime:        time.Duration(15 * time.Minute),
+				SafetyNetFutureTime:      time.Duration(1 * time.Second),
 			},
 			opts: &VerifyOpts{
 				AppPkgName:      "foo",
@@ -214,29 +214,29 @@ func TestVerifyOptsFor(t *testing.T) {
 		},
 		{
 			cfg: &database.AuthorizedApp{
-				AppPackageName:    "foo",
-				CTSProfileMatch:   false,
-				BasicIntegrity:    true,
-				AllowedPastTime:   0,
-				AllowedFutureTime: 0,
+				AppPackageName:           "foo",
+				SafetyNetBasicIntegrity:  true,
+				SafetyNetCTSProfileMatch: false,
+				SafetyNetPastTime:        0,
+				SafetyNetFutureTime:      0,
 			},
 			opts: &VerifyOpts{
 				AppPkgName:      "foo",
 				APKDigest:       []string{},
-				CTSProfileMatch: false,
 				BasicIntegrity:  true,
+				CTSProfileMatch: false,
 				MinValidTime:    time.Time{},
 				MaxValidTime:    time.Time{},
 			},
 		},
 		{
 			cfg: &database.AuthorizedApp{
-				AppPackageName:    "foo",
-				ApkDigestSHA256:   []string{"bar"},
-				CTSProfileMatch:   false,
-				BasicIntegrity:    true,
-				AllowedPastTime:   0,
-				AllowedFutureTime: 0,
+				AppPackageName:           "foo",
+				SafetyNetApkDigestSHA256: []string{"bar"},
+				SafetyNetBasicIntegrity:  true,
+				SafetyNetCTSProfileMatch: false,
+				SafetyNetPastTime:        0,
+				SafetyNetFutureTime:      0,
 			},
 			opts: &VerifyOpts{
 				AppPkgName:      "foo",

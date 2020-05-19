@@ -83,7 +83,7 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 }
 
-// NewExportHandler creates a http.Handler that manages deletetion of
+// NewExportHandler creates a http.Handler that manages deletion of
 // old export files that are no longer needed by clients for download.
 func NewExportHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
 	if env.Database() == nil {

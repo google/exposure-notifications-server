@@ -83,69 +83,111 @@ func TestGetAuthorizedApp(t *testing.T) {
 				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions)
 				VALUES ($1, $2, $3)
 			`,
-			args: []interface{}{"myapp", "ios", []string{"US"}},
+
+			args: []interface{}{"myapp", "android", []string{"US"}},
 			exp: &AuthorizedApp{
-				AppPackageName:  "myapp",
-				Platform:        "ios",
-				AllowedRegions:  map[string]struct{}{"US": {}},
-				CTSProfileMatch: true,
-				BasicIntegrity:  true,
+				AppPackageName:           "myapp",
+				Platform:                 "android",
+				AllowedRegions:           map[string]struct{}{"US": {}},
+				SafetyNetBasicIntegrity:  true,
+				SafetyNetCTSProfileMatch: true,
 			},
 		},
 		{
-			name: "allowed_past_time",
+			name: "all_regions",
+			sql: `
+				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions)
+				VALUES ($1, $2, $3)
+			`,
+			args: []interface{}{"myapp", "android", []string{}},
+			exp: &AuthorizedApp{
+				AppPackageName:           "myapp",
+				Platform:                 "android",
+				AllowedRegions:           map[string]struct{}{},
+				SafetyNetBasicIntegrity:  true,
+				SafetyNetCTSProfileMatch: true,
+			},
+		},
+		{
+			name: "safetynet_fileds",
 			sql: `
 				INSERT INTO AuthorizedApp (
 					app_package_name, platform, allowed_regions,
-					allowed_past_seconds
+					safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity
+				)
+				VALUES (
+					$1, $2, $3,
+					$4, $5, $6
+				)
+			`,
+			args: []interface{}{
+				"myapp", "android", []string{},
+				[]string{"092fcfb", "252f10c"}, false, false,
+			},
+			exp: &AuthorizedApp{
+				AppPackageName:           "myapp",
+				Platform:                 "android",
+				AllowedRegions:           map[string]struct{}{},
+				SafetyNetApkDigestSHA256: []string{"092fcfb", "252f10c"},
+				SafetyNetBasicIntegrity:  false,
+				SafetyNetCTSProfileMatch: false,
+			},
+		},
+
+		{
+			name: "safetynet_past_seconds",
+			sql: `
+				INSERT INTO AuthorizedApp (
+					app_package_name, platform, allowed_regions,
+					safetynet_past_seconds
 				) VALUES ($1, $2, $3, $4)
 			`,
-			args: []interface{}{"myapp", "ios", []string{"US"}, 1800},
+			args: []interface{}{"myapp", "android", []string{"US"}, 1800},
 			exp: &AuthorizedApp{
-				AppPackageName:  "myapp",
-				Platform:        "ios",
-				AllowedRegions:  map[string]struct{}{"US": {}},
-				CTSProfileMatch: true,
-				BasicIntegrity:  true,
-				AllowedPastTime: 30 * time.Minute,
+				AppPackageName:           "myapp",
+				Platform:                 "android",
+				AllowedRegions:           map[string]struct{}{"US": {}},
+				SafetyNetBasicIntegrity:  true,
+				SafetyNetCTSProfileMatch: true,
+				SafetyNetPastTime:        30 * time.Minute,
 			},
 		},
 		{
-			name: "allowed_future_time",
+			name: "safetynet_future_seconds",
 			sql: `
 				INSERT INTO AuthorizedApp (
 					app_package_name, platform, allowed_regions,
-					allowed_future_seconds
+					safetynet_future_seconds
 				) VALUES ($1, $2, $3, $4)
 			`,
-			args: []interface{}{"myapp", "ios", []string{"US"}, 1800},
+			args: []interface{}{"myapp", "android", []string{"US"}, 1800},
 			exp: &AuthorizedApp{
-				AppPackageName:    "myapp",
-				Platform:          "ios",
-				AllowedRegions:    map[string]struct{}{"US": {}},
-				CTSProfileMatch:   true,
-				BasicIntegrity:    true,
-				AllowedFutureTime: 30 * time.Minute,
+				AppPackageName:           "myapp",
+				Platform:                 "android",
+				AllowedRegions:           map[string]struct{}{"US": {}},
+				SafetyNetBasicIntegrity:  true,
+				SafetyNetCTSProfileMatch: true,
+				SafetyNetFutureTime:      30 * time.Minute,
 			},
 		},
 		{
-			name: "ios_devicecheck",
+			name: "devicecheck",
 			sql: `
 				INSERT INTO AuthorizedApp (
 					app_package_name, platform, allowed_regions,
-					ios_devicecheck_team_id_secret, ios_devicecheck_key_id_secret, ios_devicecheck_private_key_secret
+					devicecheck_team_id_secret, devicecheck_key_id_secret, devicecheck_private_key_secret
 				) VALUES ($1, $2, $3, $4, $5, $6)
 			`,
 			args: []interface{}{"myapp", "ios", []string{"US"}, "team_id", "key_id", "private_key"},
 			exp: &AuthorizedApp{
-				AppPackageName:        "myapp",
-				Platform:              "ios",
-				AllowedRegions:        map[string]struct{}{"US": {}},
-				CTSProfileMatch:       true,
-				BasicIntegrity:        true,
-				DeviceCheckTeamID:     "ABCD1234",
-				DeviceCheckKeyID:      "DEFG5678",
-				DeviceCheckPrivateKey: p8PrivateKey,
+				AppPackageName:           "myapp",
+				Platform:                 "ios",
+				AllowedRegions:           map[string]struct{}{"US": {}},
+				SafetyNetCTSProfileMatch: true,
+				SafetyNetBasicIntegrity:  true,
+				DeviceCheckTeamID:        "ABCD1234",
+				DeviceCheckKeyID:         "DEFG5678",
+				DeviceCheckPrivateKey:    p8PrivateKey,
 			},
 		},
 		{

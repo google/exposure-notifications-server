@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"flag"
+	"io/ioutil"
 	"log"
 	"strings"
 	"time"
@@ -79,14 +80,14 @@ func main() {
 		Padding:                   base64.RawStdEncoding.EncodeToString(padding),
 	}
 
-	sendRequest(data)
-
 	prettyJSON, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		log.Printf("Can't display JSON that was sent, error: %v", err)
 	} else {
-		log.Printf("payload: \n%v", string(prettyJSON))
+		log.Printf("SENDING: \n%v", string(prettyJSON))
 	}
+
+	sendRequest(data)
 
 	if *twice {
 		time.Sleep(1 * time.Second)
@@ -110,5 +111,12 @@ func sendRequest(data interface{}) {
 		return
 	}
 
-	log.Printf("response: %v", resp.Status)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("unable to read http response: %v", err)
+	} else {
+		log.Printf("response: %v", string(body))
+	}
+
+	log.Printf("response: %v", string(body))
 }

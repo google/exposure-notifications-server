@@ -26,7 +26,7 @@ import (
 // Compile-time check to verify implements interface.
 var _ Blobstore = (*GoogleCloudStorage)(nil)
 
-// GoogleCloudStorage implements the Blob interface and provdes the ability
+// GoogleCloudStorage implements the Blob interface and provides the ability
 // write files to Google Cloud Storage.
 type GoogleCloudStorage struct {
 	client *storage.Client
