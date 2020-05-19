@@ -66,7 +66,6 @@ resource "google_cloud_run_service" "cleanup-export" {
     metadata {
       annotations = {
         "run.googleapis.com/cloudsql-instances" : google_sql_database_instance.db-inst.connection_name
-        "autoscaling.knative.dev/maxScale" : "5"
       }
     }
   }
