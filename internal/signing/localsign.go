@@ -43,7 +43,7 @@ func ReadPublicKeyFromFile() (string, error) {
 }
 
 func (ls *LocalSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-	file, ok := os.LookupEnv("SIGN_PUBLIC_KEY_FILE")
+	file, ok := os.LookupEnv("SIGN_PRIVATE_KEY_FILE")
 	if !ok {
 		file = "exposure-uy.priv"
 	}
