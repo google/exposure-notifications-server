@@ -206,3 +206,19 @@ resource "null_resource" "submit-update-schema" {
     google_project_iam_member.cloudbuild-sql,
   ]
 }
+
+output "db_conn" {
+  value = google_sql_database_instance.db-inst.connection_name
+}
+
+output "db_name" {
+  value = google_sql_database.db.name
+}
+
+output "db_user" {
+  value = google_sql_user.user.name
+}
+
+output "db_pass_secret" {
+  value = google_secret_manager_secret_version.db-pwd-initial.name
+}
