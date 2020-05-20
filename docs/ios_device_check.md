@@ -78,4 +78,90 @@ following information for _each_ iOS application your server supports:
 - **Private Key** - private key (`.p8`), used to sign the JWT.
 
 
+## Sharing with server operators
+
+You need to share these values with your server operator. If your server is
+operated by a third party, the preferred way to share these secrets is using
+[Secret Manager][sm]. The secret resides in a Google Cloud project that you
+control, and you can revoke access to the secret at any time.
+
+**You will need:**
+
+-   A [Google Cloud account][gcp-signup] and a [project][create-project]. You
+    will need the project's ID (`$PROJECT_ID`) in future steps, so note it.
+
+-   The [gcloud][gcloud] command line tool.
+
+-   Your Team ID, Key ID, and Private Key in .p8 format. These values come from
+    the Apple Developer Portal using the instructions above.
+
+-   The server operator's service account email. Your server operator will share
+    this value. This will be of the form `name@project.iam.gserviceaccount.com`.
+
+You should already have a communicate channel with your server operator like a
+shared chat room, email, or conference bridge.
+
+To share the DeviceCheck Private Key with a server operator:
+
+1.  If you have not already done so, authenticate the gcloud CLI:
+
+    ```text
+    $ gcloud auth login && gcloud auth application-default login
+    ```
+
+    This will open two browers and ask you to authenticate with your Google
+    account. Use the same account which owns the Google Cloud project.
+
+1.  Enable the Secret Manager service on your Google Cloud project:
+
+    ```text
+    $ gcloud services enable secretmanager.googleapis.com \
+        --project "${PROJECT_ID}"
+    ```
+
+1.  Create a secret and upload the private key into the secret:
+
+    ```text
+    $ gcloud secrets create "devicecheck-key" \
+        --project "${PROJECT_ID}" \
+        --replication-policy "automatic" \
+        --data-file ./key.p8 # <-- replace with the path to your key
+    ```
+
+1.  Grant the server's service account the ability to access the secret:
+
+    ```text
+    $ gcloud secrets add-iam-policy-binding "devicecheck-key" \
+        --project "${PROJECT_ID}" \
+        --role "roles/secretmanager.secretAccessor" \
+        --member "[EMAIL]" # <-- replace with the value from the server operator
+    ```
+
+1.  Get the secret resource ID, for sharing with the server operator:
+
+    ```
+    $ gcloud secrets describe "1" \
+        --project "${PROJECT_ID}" \
+        --secret "devicecheck-key" \
+        --format "value(name)"
+    ```
+
+    The result should look like:
+
+    ```text
+    projects/123456789/secrets/devicecheck-key/versions/1
+    ```
+
+1.  Using the existing communication channel with your server operator, share
+    your:
+
+    -   Team ID
+    -   Key ID
+    -   Private Key **Resource ID**
+
+
 [dc]: https://developer.apple.com/documentation/devicecheck
+[sm]: https://cloud.google.com/secret-manager.
+[gcloud]: https://cloud.google.com/sdk/install
+[gcp-signup]: https://console.cloud.google.com/freetrial
+[create-project]: https://cloud.google.com/resource-manager/docs/creating-managing-projects
