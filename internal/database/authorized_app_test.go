@@ -64,8 +64,6 @@ func TestGetAuthorizedApp(t *testing.T) {
 
 	sm := &testSecretManager{
 		values: map[string]string{
-			"team_id":     "ABCD1234",
-			"key_id":      "DEFG5678",
 			"private_key": string(pemBytes),
 		},
 	}
@@ -175,10 +173,10 @@ func TestGetAuthorizedApp(t *testing.T) {
 			sql: `
 				INSERT INTO AuthorizedApp (
 					app_package_name, platform, allowed_regions,
-					devicecheck_team_id_secret, devicecheck_key_id_secret, devicecheck_private_key_secret
+					devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
 				) VALUES ($1, $2, $3, $4, $5, $6)
 			`,
-			args: []interface{}{"myapp", "ios", []string{"US"}, "team_id", "key_id", "private_key"},
+			args: []interface{}{"myapp", "ios", []string{"US"}, "ABCD1234", "DEFG5678", "private_key"},
 			exp: &AuthorizedApp{
 				AppPackageName:           "myapp",
 				Platform:                 "ios",

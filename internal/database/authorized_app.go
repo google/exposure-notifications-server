@@ -38,7 +38,7 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 		SELECT
 			app_package_name, platform, allowed_regions,
 			safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
-			devicecheck_team_id_secret, devicecheck_key_id_secret, devicecheck_private_key_secret
+			devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
 		FROM
 			AuthorizedApp
 		WHERE app_package_name = $1`
@@ -48,11 +48,11 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 	config := NewAuthorizedApp()
 	var allowedRegions []string
 	var safetyNetPastSeconds, safetyNetFutureSeconds *int
-	var deviceCheckTeamIDSecret, deviceCheckKeyIDSecret, deviceCheckPrivateKeySecret sql.NullString
+	var deviceCheckTeamID, deviceCheckKeyID, deviceCheckPrivateKeySecret sql.NullString
 	if err := row.Scan(
 		&config.AppPackageName, &config.Platform, &allowedRegions,
 		&config.SafetyNetApkDigestSHA256, &config.SafetyNetCTSProfileMatch, &config.SafetyNetBasicIntegrity, &safetyNetPastSeconds, &safetyNetFutureSeconds,
-		&deviceCheckTeamIDSecret, &deviceCheckKeyIDSecret, &deviceCheckPrivateKeySecret,
+		&deviceCheckTeamID, &deviceCheckKeyID, &deviceCheckPrivateKeySecret,
 	); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
@@ -75,25 +75,16 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 		config.AllowedRegions[r] = struct{}{}
 	}
 
+	// Handle nulls
+	if v := deviceCheckTeamID; v.Valid && v.String != "" {
+		config.DeviceCheckTeamID = v.String
+	}
+
+	if v := deviceCheckKeyID; v.Valid && v.String != "" {
+		config.DeviceCheckKeyID = v.String
+	}
+
 	// Resolve secrets to their plaintext values
-	if v := deviceCheckTeamIDSecret; v.Valid && v.String != "" {
-		plaintext, err := sm.GetSecretValue(ctx, v.String)
-		if err != nil {
-			return nil, fmt.Errorf("devicecheck_team_id_secret at %s (%s): %w",
-				config.AppPackageName, config.Platform, err)
-		}
-		config.DeviceCheckTeamID = plaintext
-	}
-
-	if v := deviceCheckKeyIDSecret; v.Valid && v.String != "" {
-		plaintext, err := sm.GetSecretValue(ctx, v.String)
-		if err != nil {
-			return nil, fmt.Errorf("devicecheck_key_id_secret at %s (%s): %w",
-				config.AppPackageName, config.Platform, err)
-		}
-		config.DeviceCheckKeyID = plaintext
-	}
-
 	if v := deviceCheckPrivateKeySecret; v.Valid && v.String != "" {
 		plaintext, err := sm.GetSecretValue(ctx, v.String)
 		if err != nil {
