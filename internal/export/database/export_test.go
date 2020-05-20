@@ -17,29 +17,48 @@ package database
 import (
 	"context"
 	"errors"
+	"log"
+	"os"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/go-cmp/cmp"
 	pgx "github.com/jackc/pgx/v4"
 )
+
+var testDB *database.DB
+
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	if os.Getenv("DB_USER") != "" {
+		var err error
+		testDB, err = database.CreateTestDB(ctx)
+		if err != nil {
+			log.Fatalf("creating test DB: %v", err)
+		}
+	}
+	os.Exit(m.Run())
+}
 
 func TestAddSignatureInfo(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t, testDB)
+	defer database.ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	thruTime := time.Now().UTC().Add(6 * time.Hour).Truncate(time.Microsecond)
-	want := &SignatureInfo{
+	want := &model.SignatureInfo{
 		SigningKey:        "/kms/project/key/1",
 		SigningKeyVersion: "1",
 		SigningKeyID:      "310",
 		EndTimestamp:      thruTime,
 	}
-	if err := testDB.AddSignatureInfo(ctx, want); err != nil {
+	if err := NewExportDB(testDB).AddSignatureInfo(ctx, want); err != nil {
 		t.Fatal(err)
 	}
 	conn, err := testDB.Pool.Acquire(ctx)
@@ -47,7 +66,7 @@ func TestAddSignatureInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Release()
-	var got SignatureInfo
+	var got model.SignatureInfo
 	err = conn.QueryRow(ctx, `
 		SELECT
 		  id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
@@ -69,11 +88,11 @@ func TestLookupSignatureInfos(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t, testDB)
+	defer database.ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	testTime := time.Now().UTC()
-	want := []*SignatureInfo{
+	want := []*model.SignatureInfo{
 		{
 			SigningKey:        "/kms/project/key/version/1",
 			SigningKeyVersion: "1",
@@ -93,11 +112,11 @@ func TestLookupSignatureInfos(t *testing.T) {
 		},
 	}
 	for _, si := range want {
-		testDB.AddSignatureInfo(ctx, si)
+		NewExportDB(testDB).AddSignatureInfo(ctx, si)
 	}
 
 	ids := []int64{want[0].ID, want[1].ID, want[2].ID}
-	got, err := testDB.LookupSignatureInfos(ctx, ids, testTime)
+	got, err := NewExportDB(testDB).LookupSignatureInfos(ctx, ids, testTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,12 +133,12 @@ func TestAddExportConfig(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t, testDB)
+	defer database.ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	fromTime := time.Now()
 	thruTime := fromTime.Add(6 * time.Hour)
-	want := &ExportConfig{
+	want := &model.ExportConfig{
 		BucketName:       "mocked",
 		FilenameRoot:     "root",
 		Period:           3 * time.Hour,
@@ -128,7 +147,7 @@ func TestAddExportConfig(t *testing.T) {
 		Thru:             thruTime,
 		SignatureInfoIDs: []int64{42, 84},
 	}
-	if err := testDB.AddExportConfig(ctx, want); err != nil {
+	if err := NewExportDB(testDB).AddExportConfig(ctx, want); err != nil {
 		t.Fatal(err)
 	}
 	conn, err := testDB.Pool.Acquire(ctx)
@@ -137,7 +156,7 @@ func TestAddExportConfig(t *testing.T) {
 	}
 	defer conn.Release()
 	var (
-		got   ExportConfig
+		got   model.ExportConfig
 		psecs int
 	)
 	err = conn.QueryRow(ctx, `
@@ -164,11 +183,11 @@ func TestIterateExportConfigs(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t, testDB)
+	defer database.ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	now := time.Now().Truncate(time.Microsecond)
-	ecs := []*ExportConfig{
+	ecs := []*model.ExportConfig{
 		{
 			BucketName:   "b 1",
 			FilenameRoot: "active 1",
@@ -196,13 +215,13 @@ func TestIterateExportConfigs(t *testing.T) {
 	for _, ec := range ecs {
 		ec.Period = time.Hour
 		ec.Region = "R"
-		if err := testDB.AddExportConfig(ctx, ec); err != nil {
+		if err := NewExportDB(testDB).AddExportConfig(ctx, ec); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	var got []*ExportConfig
-	err := testDB.IterateExportConfigs(ctx, now, func(m *ExportConfig) error {
+	var got []*model.ExportConfig
+	err := NewExportDB(testDB).IterateExportConfigs(ctx, now, func(m *model.ExportConfig) error {
 		got = append(got, m)
 		return nil
 	})
@@ -220,11 +239,11 @@ func TestBatches(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t, testDB)
+	defer database.ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	now := time.Now().Truncate(time.Microsecond)
-	config := &ExportConfig{
+	config := &model.ExportConfig{
 		BucketName:       "mocked",
 		FilenameRoot:     "root",
 		Period:           time.Hour,
@@ -233,31 +252,31 @@ func TestBatches(t *testing.T) {
 		Thru:             now.Add(time.Hour),
 		SignatureInfoIDs: []int64{1, 2, 3, 4},
 	}
-	if err := testDB.AddExportConfig(ctx, config); err != nil {
+	if err := NewExportDB(testDB).AddExportConfig(ctx, config); err != nil {
 		t.Fatal(err)
 	}
-	var batches []*ExportBatch
+	var batches []*model.ExportBatch
 	var wantLatest time.Time
 	for i := 0; i < 4; i++ {
 		start := now.Add(time.Duration(i) * time.Minute)
 		end := start.Add(time.Minute)
 		wantLatest = end
-		batches = append(batches, &ExportBatch{
+		batches = append(batches, &model.ExportBatch{
 			ConfigID:         config.ConfigID,
 			BucketName:       config.BucketName,
 			FilenameRoot:     config.FilenameRoot,
 			Region:           config.Region,
-			Status:           ExportBatchOpen,
+			Status:           model.ExportBatchOpen,
 			StartTimestamp:   start,
 			EndTimestamp:     end,
 			SignatureInfoIDs: []int64{1, 2, 3, 4},
 		})
 	}
-	if err := testDB.AddExportBatches(ctx, batches); err != nil {
+	if err := NewExportDB(testDB).AddExportBatches(ctx, batches); err != nil {
 		t.Fatal(err)
 	}
 
-	gotLatest, err := testDB.LatestExportBatchEnd(ctx, config)
+	gotLatest, err := NewExportDB(testDB).LatestExportBatchEnd(ctx, config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +289,7 @@ func TestBatches(t *testing.T) {
 		var batchID int64
 		// Lease all the batches.
 		for range batches {
-			got, err := testDB.LeaseBatch(ctx, time.Hour, now)
+			got, err := NewExportDB(testDB).LeaseBatch(ctx, time.Hour, now)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -283,7 +302,7 @@ func TestBatches(t *testing.T) {
 					got.ConfigID, got.BucketName, got.FilenameRoot, got.Region,
 					config.ConfigID, config.BucketName, config.FilenameRoot, config.Region)
 			}
-			if got.Status != ExportBatchPending {
+			if got.Status != model.ExportBatchPending {
 				t.Errorf("LeaseBatch: got status %q, want pending", got.Status)
 			}
 			wantExpires := now.Add(time.Hour)
@@ -293,14 +312,14 @@ func TestBatches(t *testing.T) {
 			batchID = got.BatchID
 		}
 		// Every batch is leased.
-		got, err := testDB.LeaseBatch(ctx, time.Hour, now)
+		got, err := NewExportDB(testDB).LeaseBatch(ctx, time.Hour, now)
 		if got != nil || err != nil {
 			t.Errorf("all leased: got (%v, %v), want (nil, nil)", got, err)
 		}
 		return batchID
 	}
 	// Now, all end times are in the future, so no batches can be leased.
-	got, err := testDB.LeaseBatch(ctx, time.Hour, now)
+	got, err := NewExportDB(testDB).LeaseBatch(ctx, time.Hour, now)
 	if got != nil || err != nil {
 		t.Errorf("got (%v, %v), want (nil, nil)", got, err)
 	}
@@ -313,15 +332,15 @@ func TestBatches(t *testing.T) {
 	batchID := leaseBatches()
 
 	// Complete a batch.
-	err = testDB.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error { return completeBatch(ctx, tx, batchID) })
+	err = testDB.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error { return completeBatch(ctx, tx, batchID) })
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err = testDB.LookupExportBatch(ctx, batchID)
+	got, err = NewExportDB(testDB).LookupExportBatch(ctx, batchID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Status != ExportBatchComplete {
+	if got.Status != model.ExportBatchComplete {
 		t.Errorf("after completion: got status %q, want complete", got.Status)
 	}
 }
@@ -330,68 +349,69 @@ func TestFinalizeBatch(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t, testDB)
+	exportDB := NewExportDB(testDB)
+	defer database.ResetTestDB(t, testDB)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Microsecond)
 
 	// Add a config.
-	ec := &ExportConfig{
+	ec := &model.ExportConfig{
 		BucketName:   "some-bucket",
 		FilenameRoot: "filename-root",
 		Period:       time.Minute,
 		Region:       "US",
 	}
-	if err := testDB.AddExportConfig(ctx, ec); err != nil {
+	if err := exportDB.AddExportConfig(ctx, ec); err != nil {
 		t.Fatal(err)
 	}
 
 	// Add a batch.
-	eb := &ExportBatch{
+	eb := &model.ExportBatch{
 		ConfigID:       ec.ConfigID,
 		BucketName:     ec.BucketName,
 		FilenameRoot:   ec.FilenameRoot,
 		StartTimestamp: now.Add(-2 * time.Hour),
 		EndTimestamp:   now.Add(-time.Hour),
 		Region:         ec.Region,
-		Status:         ExportBatchOpen,
+		Status:         model.ExportBatchOpen,
 	}
-	if err := testDB.AddExportBatches(ctx, []*ExportBatch{eb}); err != nil {
+	if err := exportDB.AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Lease the batch.
-	eb, err := testDB.LeaseBatch(ctx, time.Hour, now)
+	eb, err := exportDB.LeaseBatch(ctx, time.Hour, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Check that the batch is PENDING.
-	gotBatch, err := testDB.LookupExportBatch(ctx, eb.BatchID)
+	gotBatch, err := exportDB.LookupExportBatch(ctx, eb.BatchID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotBatch.Status != ExportBatchPending {
-		t.Errorf("pre gotBatch.Status=%q, want=%q", gotBatch.Status, ExportBatchPending)
+	if gotBatch.Status != model.ExportBatchPending {
+		t.Errorf("pre gotBatch.Status=%q, want=%q", gotBatch.Status, model.ExportBatchPending)
 	}
 
 	// Finalize the batch.
 	files := []string{"file1.txt", "file2.txt"}
 	batchSize := 10
-	if err := testDB.FinalizeBatch(ctx, eb, files, batchSize); err != nil {
+	if err := exportDB.FinalizeBatch(ctx, eb, files, batchSize); err != nil {
 		t.Fatal(err)
 	}
 
 	// Check that the batch is COMPLETED.
-	gotBatch, err = testDB.LookupExportBatch(ctx, eb.BatchID)
+	gotBatch, err = exportDB.LookupExportBatch(ctx, eb.BatchID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotBatch.Status != ExportBatchComplete {
-		t.Errorf("post gotBatch.Status=%q, want=%q", gotBatch.Status, ExportBatchComplete)
+	if gotBatch.Status != model.ExportBatchComplete {
+		t.Errorf("post gotBatch.Status=%q, want=%q", gotBatch.Status, model.ExportBatchComplete)
 	}
 
 	// Check that files were written.
-	gotFiles, err := testDB.LookupExportFiles(ctx, eb.ConfigID)
+	gotFiles, err := exportDB.LookupExportFiles(ctx, eb.ConfigID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -400,18 +420,18 @@ func TestFinalizeBatch(t *testing.T) {
 	}
 
 	for i, filename := range gotFiles {
-		got, err := testDB.LookupExportFile(ctx, filename)
+		got, err := exportDB.LookupExportFile(ctx, filename)
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := &ExportFile{
+		want := &model.ExportFile{
 			BucketName: eb.BucketName,
 			Filename:   filename,
 			BatchID:    eb.BatchID,
 			Region:     eb.Region,
 			BatchNum:   i + 1,
 			BatchSize:  batchSize,
-			Status:     ExportBatchComplete,
+			Status:     model.ExportBatchComplete,
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("mismatch for %q (-want, +got):\n%s", filename, diff)
@@ -424,60 +444,60 @@ func TestKeysInBatch(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t, testDB)
+	defer database.ResetTestDB(t, testDB)
 	ctx := context.Background()
 	now := time.Now()
 
 	// Add a config.
-	ec := &ExportConfig{
+	ec := &model.ExportConfig{
 		BucketName:   "bucket-name",
 		FilenameRoot: "filename-root",
 		Period:       3600 * time.Second,
 		Region:       "US",
 		From:         now.Add(-24 * time.Hour),
 	}
-	if err := testDB.AddExportConfig(ctx, ec); err != nil {
+	if err := NewExportDB(testDB).AddExportConfig(ctx, ec); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a batch for two hours ago to one hour ago.
 	startTimestamp := now.Truncate(time.Hour).Add(-2 * time.Hour)
 	endTimestamp := startTimestamp.Add(time.Hour)
-	eb := &ExportBatch{
+	eb := &model.ExportBatch{
 		ConfigID:       ec.ConfigID,
 		BucketName:     ec.BucketName,
 		FilenameRoot:   ec.FilenameRoot,
 		StartTimestamp: startTimestamp,
 		EndTimestamp:   endTimestamp,
 		Region:         ec.Region,
-		Status:         ExportBatchOpen,
+		Status:         model.ExportBatchOpen,
 	}
-	if err := testDB.AddExportBatches(ctx, []*ExportBatch{eb}); err != nil {
+	if err := NewExportDB(testDB).AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create key aligned with the StartTimestamp
-	sek := &Exposure{
+	sek := &database.Exposure{
 		ExposureKey: []byte("aaa"),
 		Regions:     []string{ec.Region},
 		CreatedAt:   startTimestamp,
 	}
 
 	// Create key aligned with the EndTimestamp
-	eek := &Exposure{
+	eek := &database.Exposure{
 		ExposureKey: []byte("bbb"),
 		Regions:     []string{ec.Region},
 		CreatedAt:   endTimestamp,
 	}
 
 	// Add the keys to the database.
-	if err := testDB.InsertExposures(ctx, []*Exposure{sek, eek}); err != nil {
+	if err := testDB.InsertExposures(ctx, []*database.Exposure{sek, eek}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Re-fetch the ExposureBatch by leasing it; this is important to this test which is trying
 	// to ensure our dates are going in-and-out of the database correctly.
-	leased, err := testDB.LeaseBatch(ctx, time.Hour, now)
+	leased, err := NewExportDB(testDB).LeaseBatch(ctx, time.Hour, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -492,14 +512,14 @@ func TestKeysInBatch(t *testing.T) {
 
 	// Lookup the keys; they must be only the key created_at the startTimestamp
 	// (because start is inclusive, end is exclusive).
-	criteria := IterateExposuresCriteria{
+	criteria := database.IterateExposuresCriteria{
 		IncludeRegions: []string{leased.Region},
 		SinceTimestamp: leased.StartTimestamp,
 		UntilTimestamp: leased.EndTimestamp,
 	}
 
-	var got []*Exposure
-	_, err = testDB.IterateExposures(ctx, criteria, func(exp *Exposure) error {
+	var got []*database.Exposure
+	_, err = testDB.IterateExposures(ctx, criteria, func(exp *database.Exposure) error {
 		got = append(got, exp)
 		return nil
 	})
@@ -521,33 +541,34 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t, testDB)
+	defer database.ResetTestDB(t, testDB)
+	exportDB := NewExportDB(testDB)
 	ctx := context.Background()
 
 	// Add foreign key records.
-	ec := &ExportConfig{Period: time.Hour}
-	if err := testDB.AddExportConfig(ctx, ec); err != nil {
+	ec := &model.ExportConfig{Period: time.Hour}
+	if err := exportDB.AddExportConfig(ctx, ec); err != nil {
 		t.Fatal(err)
 	}
-	eb := &ExportBatch{ConfigID: ec.ConfigID, Status: ExportBatchOpen}
-	if err := testDB.AddExportBatches(ctx, []*ExportBatch{eb}); err != nil {
+	eb := &model.ExportBatch{ConfigID: ec.ConfigID, Status: model.ExportBatchOpen}
+	if err := exportDB.AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
 		t.Fatal(err)
 	}
 	// Lease the batch to get the ID.
-	eb, err := testDB.LeaseBatch(ctx, time.Hour, time.Now())
+	eb, err := exportDB.LeaseBatch(ctx, time.Hour, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	wantBucketName := "bucket-1"
-	ef := &ExportFile{
+	ef := &model.ExportFile{
 		Filename:   "file",
 		BucketName: wantBucketName,
 		BatchID:    eb.BatchID,
 	}
 
 	// Add a record.
-	err = testDB.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	err = testDB.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		if err := addExportFile(ctx, tx, ef); err != nil {
 			return err
 		}
@@ -558,7 +579,7 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 	}
 
 	// Check that the row is present.
-	got, err := testDB.LookupExportFile(ctx, ef.Filename)
+	got, err := exportDB.LookupExportFile(ctx, ef.Filename)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -568,9 +589,9 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 
 	// Add a second record with same filename, must return ErrKeyConflict, and not overwrite.
 	ef.BucketName = "bucket-2"
-	err = testDB.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	err = testDB.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		if err := addExportFile(ctx, tx, ef); err != nil {
-			if err == ErrKeyConflict {
+			if err == database.ErrKeyConflict {
 				return nil // Expected result.
 			}
 			return err
@@ -582,7 +603,7 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 	}
 
 	// Row must not be updated.
-	got, err = testDB.LookupExportFile(ctx, ef.Filename)
+	got, err = exportDB.LookupExportFile(ctx, ef.Filename)
 	if err != nil {
 		t.Fatal(err)
 	}

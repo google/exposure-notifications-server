@@ -41,8 +41,8 @@ func toNullString(s string) sql.NullString {
 	}
 }
 
-// inTx runs the given function f within a transaction with isolation level isoLevel.
-func (db *DB) inTx(ctx context.Context, isoLevel pgx.TxIsoLevel, f func(tx pgx.Tx) error) error {
+// InTx runs the given function f within a transaction with isolation level isoLevel.
+func (db *DB) InTx(ctx context.Context, isoLevel pgx.TxIsoLevel, f func(tx pgx.Tx) error) error {
 	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("acquiring connection: %v", err)

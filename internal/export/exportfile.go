@@ -24,6 +24,8 @@ import (
 	"sort"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export/model"
+
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 
 	"github.com/golang/protobuf/proto"
@@ -39,12 +41,12 @@ const (
 )
 
 type ExportSigners struct {
-	SignatureInfo *database.SignatureInfo
+	SignatureInfo *model.SignatureInfo
 	Signer        crypto.Signer
 }
 
 // MarshalExportFile converts the inputs into an encoded byte array.
-func MarshalExportFile(eb *database.ExportBatch, exposures []*database.Exposure, batchNum, batchSize int, signers []ExportSigners) ([]byte, error) {
+func MarshalExportFile(eb *model.ExportBatch, exposures []*database.Exposure, batchNum, batchSize int, signers []ExportSigners) ([]byte, error) {
 	// create main exposure key export binary
 	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize), signers)
 	if err != nil {
@@ -82,7 +84,7 @@ func MarshalExportFile(eb *database.ExportBatch, exposures []*database.Exposure,
 	return buf.Bytes(), nil
 }
 
-func marshalContents(eb *database.ExportBatch, exposures []*database.Exposure, batchNum int32, batchSize int32, signers []ExportSigners) ([]byte, error) {
+func marshalContents(eb *model.ExportBatch, exposures []*database.Exposure, batchNum int32, batchSize int32, signers []ExportSigners) ([]byte, error) {
 	exportBytes := []byte("EK Export v1    ")
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))
@@ -129,7 +131,7 @@ func marshalContents(eb *database.ExportBatch, exposures []*database.Exposure, b
 	return append(exportBytes, protoBytes...), nil
 }
 
-func createSignatureInfo(si *database.SignatureInfo) *export.SignatureInfo {
+func createSignatureInfo(si *model.SignatureInfo) *export.SignatureInfo {
 	sigInfo := &export.SignatureInfo{SignatureAlgorithm: proto.String(algorithm)}
 	if si.AppPackageName != "" {
 		sigInfo.AndroidPackage = proto.String(si.AppPackageName)
@@ -146,7 +148,7 @@ func createSignatureInfo(si *database.SignatureInfo) *export.SignatureInfo {
 	return sigInfo
 }
 
-func marshalSignature(eb *database.ExportBatch, exportContents []byte, batchNum, batchSize int32, signers []ExportSigners) ([]byte, error) {
+func marshalSignature(eb *model.ExportBatch, exportContents []byte, batchNum, batchSize int32, signers []ExportSigners) ([]byte, error) {
 
 	var signatures []*export.TEKSignature
 	for _, s := range signers {

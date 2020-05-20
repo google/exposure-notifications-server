@@ -22,7 +22,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export/database"
+	"github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/exposure-notifications-server/internal/logging"
 )
 
@@ -38,7 +40,7 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 	lock := "create_batches"
 	unlockFn, err := s.db.Lock(ctx, lock, s.config.CreateTimeout)
 	if err != nil {
-		if errors.Is(err, database.ErrAlreadyLocked) {
+		if errors.Is(err, coredb.ErrAlreadyLocked) {
 			metrics.WriteInt("export-batcher-lock-contention", true, 1)
 			msg := fmt.Sprintf("Lock %s already in use, no work will be performed", lock)
 			logger.Infof(msg)
@@ -59,7 +61,7 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	effectiveTime := time.Now().Add(-1 * s.config.MinWindowAge)
-	err = s.db.IterateExportConfigs(ctx, effectiveTime, func(ec *database.ExportConfig) error {
+	err = database.NewExportDB(s.db).IterateExportConfigs(ctx, effectiveTime, func(ec *model.ExportConfig) error {
 		totalConfigs++
 		if batchesCreated, err := s.maybeCreateBatches(ctx, ec, effectiveTime); err != nil {
 			logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
@@ -88,11 +90,11 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) maybeCreateBatches(ctx context.Context, ec *database.ExportConfig, now time.Time) (int, error) {
+func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig, now time.Time) (int, error) {
 	logger := logging.FromContext(ctx)
 	metrics := s.env.MetricsExporter(ctx)
 
-	latestEnd, err := s.db.LatestExportBatchEnd(ctx, ec)
+	latestEnd, err := database.NewExportDB(s.db).LatestExportBatchEnd(ctx, ec)
 	if err != nil {
 		return 0, fmt.Errorf("fetching most recent batch for config %d: %w", ec.ConfigID, err)
 	}
@@ -104,23 +106,23 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *database.ExportConf
 		return 0, nil
 	}
 
-	var batches []*database.ExportBatch
+	var batches []*model.ExportBatch
 	for _, br := range ranges {
 		infoIds := make([]int64, len(ec.SignatureInfoIDs))
 		copy(infoIds, ec.SignatureInfoIDs)
-		batches = append(batches, &database.ExportBatch{
+		batches = append(batches, &model.ExportBatch{
 			ConfigID:         ec.ConfigID,
 			BucketName:       ec.BucketName,
 			FilenameRoot:     ec.FilenameRoot,
 			StartTimestamp:   br.start,
 			EndTimestamp:     br.end,
 			Region:           ec.Region,
-			Status:           database.ExportBatchOpen,
+			Status:           model.ExportBatchOpen,
 			SignatureInfoIDs: infoIds,
 		})
 	}
 
-	if err := s.db.AddExportBatches(ctx, batches); err != nil {
+	if err := database.NewExportDB(s.db).AddExportBatches(ctx, batches); err != nil {
 		return 0, fmt.Errorf("creating export batches for config %d: %w", ec.ConfigID, err)
 	}
 
@@ -138,7 +140,7 @@ var sanityDate = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 func makeBatchRanges(period time.Duration, latestEnd, now time.Time, truncateWindow time.Duration) []batchRange {
 
 	// Compute the end of the exposure publish window; we don't want any batches with an end date greater than this time.
-	publishEnd := database.TruncateWindow(now, truncateWindow)
+	publishEnd := coredb.TruncateWindow(now, truncateWindow)
 
 	// Special case: if there have not been batches before, return only a single one.
 	// We use sanityDate here because the loop below will happily create batch ranges
