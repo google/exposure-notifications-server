@@ -17,6 +17,7 @@
 #
 
 substitutions:
+  _COMMAND: 'up'
   _DB_CONN:
   _DB_NAME:
   _DB_PASS_SECRET:
@@ -47,3 +48,4 @@ steps:
     /usr/local/bin/migrate \
       -database postgres://${_DB_USER}:$$(cat ./dbpass)@localhost:${_DB_PORT}/${_DB_NAME}?sslmode=${_DB_SSLMODE} \
       -path migrations \
+      ${_COMMAND}
