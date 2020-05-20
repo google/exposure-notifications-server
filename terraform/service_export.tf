@@ -59,6 +59,13 @@ resource "google_cloud_run_service" "export" {
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/export:latest"
 
+        resources {
+          limits = {
+            cpu    = "2"
+            memory = "1G"
+          }
+        }
+
         env {
           name  = "EXPORT_FILE_MAX_RECORDS"
           value = "100"
