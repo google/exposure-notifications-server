@@ -29,7 +29,7 @@ func TestAddSignatureInfo(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t)
+	defer ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	thruTime := time.Now().UTC().Add(6 * time.Hour).Truncate(time.Microsecond)
@@ -69,7 +69,7 @@ func TestLookupSignatureInfos(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t)
+	defer ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	testTime := time.Now().UTC()
@@ -114,7 +114,7 @@ func TestAddExportConfig(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t)
+	defer ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	fromTime := time.Now()
@@ -164,7 +164,7 @@ func TestIterateExportConfigs(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t)
+	defer ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	now := time.Now().Truncate(time.Microsecond)
@@ -220,7 +220,7 @@ func TestBatches(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t)
+	defer ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	now := time.Now().Truncate(time.Microsecond)
@@ -330,7 +330,7 @@ func TestFinalizeBatch(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t)
+	defer ResetTestDB(t, testDB)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Microsecond)
 
@@ -424,7 +424,7 @@ func TestKeysInBatch(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t)
+	defer ResetTestDB(t, testDB)
 	ctx := context.Background()
 	now := time.Now()
 
@@ -521,7 +521,7 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t)
+	defer ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	// Add foreign key records.

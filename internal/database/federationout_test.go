@@ -27,7 +27,7 @@ func TestFederationOutAuthorization(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t)
+	defer ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	want := &FederationOutAuthorization{
