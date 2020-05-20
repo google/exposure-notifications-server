@@ -17,12 +17,12 @@
 #
 
 substitutions:
-  _DBCONN:
-  _DBNAME:
-  _DBPASS_SECRET:
-  _DBPORT:
-  _DBSSLMODE:
-  _DBUSER:
+  _DB_CONN:
+  _DB_NAME:
+  _DB_PASS_SECRET:
+  _DB_PORT: '5432'
+  _DB_SSLMODE: 'disable'
+  _DB_USER:
 
 steps:
 - id: 'secrets'
@@ -31,7 +31,7 @@ steps:
   - 'bash'
   - '-c'
   - |-
-    gcloud secrets versions access "${_DBPASS_SECRET}" > dbpass
+    gcloud secrets versions access "${_DB_PASS_SECRET}" > ./dbpass
 
 - id: 'migrate'
   name: 'gcr.io/cloud-devrel-public-resources/exposure-notifications/migrate:latest'
@@ -40,12 +40,10 @@ steps:
   - '-c'
   - |-
     echo "==> Configuring proxy"
-    /bin/cloud_sql_proxy -instances=${_DBCONN}=tcp:${_DBPORT} &
+    /bin/cloud_sql_proxy -quiet -instances=${_DB_CONN}=tcp:${_DB_PORT} &
     sleep 5
 
     echo "==> Running migrations"
-    DBPASS=$$(cat dbpass)
     /usr/local/bin/migrate \
-      -database postgres://${_DBUSER}:$${DBPASS}@localhost:${_DBPORT}/${_DBNAME}?sslmode=${_DBSSLMODE} \
+      -database postgres://${_DB_USER}:$$(cat ./dbpass)@localhost:${_DB_PORT}/${_DB_NAME}?sslmode=${_DB_SSLMODE} \
       -path migrations \
-      up
