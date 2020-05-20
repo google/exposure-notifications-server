@@ -109,7 +109,7 @@ resource "google_cloud_run_service" "export" {
 resource "google_service_account" "export-invoker" {
   project      = data.google_project.project.project_id
   account_id   = "en-export-invoker-sa"
-  display_name = "Exposure Notification Cleanup Exposure Invoker"
+  display_name = "Exposure Notification Export Invoker"
 }
 
 resource "google_cloud_run_service_iam_member" "export-invoker" {
