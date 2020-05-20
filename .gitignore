@@ -12,9 +12,8 @@
 *.out
 
 # Output of terraform
-*.tfstate
-*.tfstate.*.backup
+*.tfstate*
 *.terraform/
-*.tfstate.backup
+terraform.tfvars
 
 /local/

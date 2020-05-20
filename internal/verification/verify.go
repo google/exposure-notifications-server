@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/android"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/ios"
-	"github.com/google/exposure-notifications-server/internal/model"
 )
 
 var (
@@ -31,18 +31,14 @@ var (
 
 // VerifyRegions checks the request regions against the regions allowed by
 // the configuration for the application.
-func VerifyRegions(cfg *model.APIConfig, data *model.Publish) error {
+func VerifyRegions(cfg *database.AuthorizedApp, data *database.Publish) error {
 	if cfg == nil {
-		return fmt.Errorf("no allowed regions configured")
-	}
-
-	if cfg.AllowAllRegions {
-		return nil
+		return fmt.Errorf("app configuration is empty")
 	}
 
 	for _, r := range data.Regions {
 		if !cfg.IsAllowedRegion(r) {
-			return fmt.Errorf("application '%v' tried to write unauthorized region: '%v'", cfg.AppPackageName, r)
+			return fmt.Errorf("app '%v' tried to write unauthorized region: '%v'", cfg.AppPackageName, r)
 		}
 	}
 
@@ -52,7 +48,7 @@ func VerifyRegions(cfg *model.APIConfig, data *model.Publish) error {
 
 // VerifySafetyNet verifies the Android SafetyNet device attestation against the
 // allowed configuration for the application.
-func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *model.APIConfig, publish *model.Publish) error {
+func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *database.AuthorizedApp, publish *database.Publish) error {
 	if cfg == nil {
 		return fmt.Errorf("cannot enforce SafetyNet, missing config")
 	}
@@ -66,7 +62,7 @@ func VerifySafetyNet(ctx context.Context, requestTime time.Time, cfg *model.APIC
 }
 
 // VerifyDeviceCheck verifies an iOS DeviceCheck token against the Apple API.
-func VerifyDeviceCheck(ctx context.Context, cfg *model.APIConfig, data *model.Publish) error {
+func VerifyDeviceCheck(ctx context.Context, cfg *database.AuthorizedApp, data *database.Publish) error {
 	if cfg == nil {
 		return fmt.Errorf("cannot enforce DeviceCheck, missing config")
 	}

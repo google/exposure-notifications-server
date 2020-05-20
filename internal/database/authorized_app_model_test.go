@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+package database
 
 import (
 	"testing"
 )
 
-func TestBaseAPIConfig(t *testing.T) {
-	cfg := NewAPIConfig()
+func TestBaseAuthorizedApp(t *testing.T) {
+	cfg := NewAuthorizedApp()
 	if cfg.IsIOS() {
 		t.Errorf("cfg.IoIOS, got true, want false")
 	}

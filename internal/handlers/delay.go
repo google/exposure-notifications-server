@@ -22,7 +22,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/logging"
 )
 
-// WithMinimumLatency wrapps the passed in http handler func and ensures a minimum target duration is reached.
+// WithMinimumLatency wraps the passed in http handler func and ensures a minimum target duration is reached.
 func WithMinimumLatency(target time.Duration, h http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		targetTime := time.Now().Add(target)

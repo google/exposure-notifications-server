@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiconfig
+package authorizedapp
 
 import (
 	"context"
 
-	"github.com/google/exposure-notifications-server/internal/model"
+	"github.com/google/exposure-notifications-server/internal/database"
 )
 
 // Compile-time check to assert implementation.
@@ -26,20 +26,20 @@ var _ Provider = (*MemoryProvider)(nil)
 // MemoryProvider is an Provider that stores values in-memory. It is primarily
 // used for testing.
 type MemoryProvider struct {
-	Data map[string]*model.APIConfig
+	Data map[string]*database.AuthorizedApp
 }
 
 // NewMemoryProvider creates a new Provider that reads from a database.
 func NewMemoryProvider(ctx context.Context, _ *Config) (Provider, error) {
 	provider := &MemoryProvider{
-		Data: make(map[string]*model.APIConfig),
+		Data: make(map[string]*database.AuthorizedApp),
 	}
 
 	return provider, nil
 }
 
 // AppConfig returns the config for the given app package name.
-func (p *MemoryProvider) AppConfig(ctx context.Context, name string) (*model.APIConfig, error) {
+func (p *MemoryProvider) AppConfig(ctx context.Context, name string) (*database.AuthorizedApp, error) {
 	val, ok := p.Data[name]
 	if !ok {
 		return nil, AppNotFound

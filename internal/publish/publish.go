@@ -21,11 +21,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
 )
@@ -37,134 +36,162 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 	if env.Database() == nil {
 		return nil, fmt.Errorf("missing database in server environment")
 	}
-	if env.APIConfigProvider() == nil {
-		return nil, fmt.Errorf("missing apiconfig provider in server environment")
+	if env.AuthorizedAppProvider() == nil {
+		return nil, fmt.Errorf("missing AuthorizedApp provider in server environment")
 	}
 
-	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow)
+	transformer, err := database.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow)
 	if err != nil {
-		return nil, fmt.Errorf("model.NewTransformer: %w", err)
+		return nil, fmt.Errorf("database.NewTransformer: %w", err)
 	}
 	logger.Infof("max keys per upload: %v", config.MaxKeysOnPublish)
 	logger.Infof("max interval start age: %v", config.MaxIntervalAge)
 	logger.Infof("truncate window: %v", config.TruncateWindow)
 
 	return &publishHandler{
-		serverenv:   env,
-		transformer: transformer,
-		config:      config,
-		database:    env.Database(),
-		apiconfig:   env.APIConfigProvider(),
+		serverenv:             env,
+		transformer:           transformer,
+		config:                config,
+		database:              env.Database(),
+		authorizedAppProvider: env.AuthorizedAppProvider(),
 	}, nil
 }
 
 type publishHandler struct {
-	config      *Config
-	serverenv   *serverenv.ServerEnv
-	transformer *model.Transformer
-	database    *database.DB
-	apiconfig   apiconfig.Provider
+	config                *Config
+	serverenv             *serverenv.ServerEnv
+	transformer           *database.Transformer
+	database              *database.DB
+	authorizedAppProvider authorizedapp.Provider
 }
 
-// There is a target normalized latency for this function. This is to help prevent
-// clients from being able to distinguish from successful or errored requests.
-func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+type response struct {
+	status      int
+	message     string
+	metric      string
+	count       int // metricCount
+	errorInProd bool
+}
+
+func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) response {
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
-	metrics := h.serverenv.MetricsExporter(ctx)
 
-	var data *model.Publish
+	var data *database.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
-		logger.Errorf("error unmarhsaling API call, code: %v: %v", code, err)
-		metrics.WriteInt("publish-bad-json", true, 1)
-		w.WriteHeader(http.StatusOK)
-		return
+		message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
+		logger.Error(message)
+		return response{status: http.StatusBadRequest, message: message, metric: "publish-bad-json", count: 1}
 	}
 
-	appConfig, err := h.apiconfig.AppConfig(ctx, data.AppPackageName)
+	appConfig, err := h.authorizedAppProvider.AppConfig(ctx, data.AppPackageName)
 	if err != nil {
 		// Config loaded, but app with that name isn't registered. This can also
 		// happen if the app was recently registered but the cache hasn't been
 		// refreshed.
-		if err == apiconfig.AppNotFound {
-			logger.Errorf("unauthorized app: %v", data.AppPackageName)
-			metrics.WriteInt("publish-app-not-authorized", true, 1)
-			// This returns success to the client.
-			w.WriteHeader(http.StatusOK)
-			return
+		if err == authorizedapp.AppNotFound {
+			message := fmt.Sprintf("unauthorized app: %v", data.AppPackageName)
+			logger.Error(message)
+			return response{status: http.StatusUnauthorized, message: message, metric: "publish-app-not-authorized", count: 1}
 		}
 
 		// A higher-level configuration error occurred, likely while trying to read
 		// from the database. This is retryable, although won't succeed if the error
 		// isn't transient.
-		logger.Errorf("no API config, dropping data: %v", err)
-		metrics.WriteInt("publish-error-loading-apiconfig", true, 1)
-		http.Error(w, http.StatusText(http.StatusInternalServerError),
-			http.StatusInternalServerError)
-		return
+		logger.Errorf("no AuthorizedApp, dropping data: %v", err)
+		return response{
+			status:      http.StatusInternalServerError,
+			message:     http.StatusText(http.StatusInternalServerError),
+			metric:      "publish-error-loading-authorizedapp",
+			count:       1,
+			errorInProd: true,
+		}
 	}
 
 	if err := verification.VerifyRegions(appConfig, data); err != nil {
-		logger.Errorf("verification.VerifyRegions: %v", err)
-		metrics.WriteInt("publish-region-not-authorized", true, 1)
-		// This returns success to the client.
-		w.WriteHeader(http.StatusOK)
-		return
+		message := fmt.Sprintf("verifying allowed regions: %v", err)
+		return response{status: http.StatusUnauthorized, message: message, metric: "publish-region-not-authorized", count: 1}
 	}
 
 	if appConfig.IsIOS() {
 		if h.config.BypassDeviceCheck {
 			logger.Errorf("bypassing DeviceCheck for %v", data.AppPackageName)
-			metrics.WriteInt("publish-devicecheck-bypass", true, 1)
+			h.serverenv.MetricsExporter(ctx).WriteInt("publish-devicecheck-bypass", true, 1)
 		} else if err := verification.VerifyDeviceCheck(ctx, appConfig, data); err != nil {
-			logger.Errorf("unable to verify devicecheck payload: %v", err)
-			metrics.WriteInt("publish-devicecheck-invalid", true, 1)
-			// Return success to the client.
-			w.WriteHeader(http.StatusOK)
-			return
+			message := fmt.Sprintf("unable to verify devicecheck payload: %v", err)
+			logger.Error(message)
+			return response{status: http.StatusUnauthorized, message: message, metric: "publish-devicecheck-invalid", count: 1}
 		}
 	} else if appConfig.IsAndroid() {
 		if h.config.BypassSafetyNet {
 			logger.Errorf("bypassing SafetyNet for %v", data.AppPackageName)
-			metrics.WriteInt("publish-safetynet-bypass", true, 1)
+			h.serverenv.MetricsExporter(ctx).WriteInt("publish-safetynet-bypass", true, 1)
 		} else if err := verification.VerifySafetyNet(ctx, time.Now(), appConfig, data); err != nil {
-			logger.Errorf("unable to verify safetynet payload: %v", err)
-			metrics.WriteInt("publish-safetnet-invalid", true, 1)
-			// Return success to the client.
-			w.WriteHeader(http.StatusOK)
-			return
+			message := fmt.Sprintf("unable to verify safetynet payload: %v", err)
+			logger.Error(message)
+			return response{status: http.StatusUnauthorized, message: message, metric: "publish-safetnet-invalid", count: 1}
 		}
 	} else {
-		logger.Errorf("invalid API configuration for AppPkg: %v, invalid platform", data.AppPackageName)
-		metrics.WriteInt("publish-apiconfig-missing-platform", true, 1)
-		// This returns success to the client.
-		w.WriteHeader(http.StatusOK)
-		return
+		message := fmt.Sprintf("invalid AuthorizedApp config %v: invalid platform %v", data.AppPackageName, data.Platform)
+		logger.Error(message)
+		return response{status: http.StatusInternalServerError, message: message, metric: "publish-authorizedapp-missing-platform", count: 1}
 	}
 
 	batchTime := time.Now()
 	exposures, err := h.transformer.TransformPublish(data, batchTime)
 	if err != nil {
-		logger.Errorf("error transforming publish data: %v", err)
-		metrics.WriteInt("publish-transform-fail", true, 1)
-		// This returns success to the client.
-		w.WriteHeader(http.StatusOK)
-		return
+		message := fmt.Sprintf("unable to read request data: %v", err)
+		logger.Error(message)
+		return response{status: http.StatusBadRequest, message: message, metric: "publish-transform-fail", count: 1}
 	}
 
 	err = h.database.InsertExposures(ctx, exposures)
 	if err != nil {
 		logger.Errorf("error writing exposure record: %v", err)
-		metrics.WriteInt("publish-db-write-error", true, 1)
-		// This is retryable at the client - database error at the server.
-		http.Error(w, http.StatusText(http.StatusInternalServerError),
-			http.StatusInternalServerError)
+		return response{status: http.StatusInternalServerError, message: http.StatusText(http.StatusInternalServerError), metric: "publish-db-write-error", count: 1}
+	}
+
+	message := fmt.Sprintf("Inserted %d exposures.", len(exposures))
+	logger.Info(message)
+	return response{
+		status:  http.StatusOK,
+		message: message,
+		metric:  "publish-exposures-written",
+		count:   len(exposures),
+	}
+}
+
+// There is a target normalized latency for this function. This is to help prevent
+// clients from being able to distinguish from successful or errored requests.
+func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	response := h.handleRequest(w, r)
+
+	if response.metric != "" {
+		ctx := r.Context()
+		metrics := h.serverenv.MetricsExporter(ctx)
+		metrics.WriteInt(response.metric, true, response.count)
+	}
+
+	// Handle success. If debug enabled, write the message in the response.
+	if response.status == http.StatusOK {
+		if h.config.DebugAPIResponses {
+			w.Write([]byte(response.message))
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
 		return
 	}
-	metrics.WriteInt("publish-exposures-written", true, len(exposures))
-	logger.Infof("Inserted %d exposures.", len(exposures))
 
+	// If this error is written in non-debug times or if debug is enabled, write
+	// out the error and status.
+	if h.config.DebugAPIResponses || response.errorInProd {
+		w.WriteHeader(response.status)
+		w.Write([]byte(response.message))
+		return
+	}
+
+	// Normal production behaviour. Success it up.
 	w.WriteHeader(http.StatusOK)
 }

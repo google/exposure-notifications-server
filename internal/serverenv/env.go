@@ -20,7 +20,7 @@ import (
 	"crypto"
 	"fmt"
 
-	"github.com/google/exposure-notifications-server/internal/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
@@ -33,12 +33,12 @@ type ExporterFunc func(context.Context) metrics.Exporter
 
 // ServerEnv represents latent environment configuration for servers in this application.
 type ServerEnv struct {
-	secretManager     secrets.SecretManager
-	keyManager        signing.KeyManager
-	blobstore         storage.Blobstore
-	exporter          metrics.ExporterFromContext
-	apiConfigProvider apiconfig.Provider
-	database          *database.DB
+	authorizedAppProvider authorizedapp.Provider
+	blobstore             storage.Blobstore
+	database              *database.DB
+	exporter              metrics.ExporterFromContext
+	keyManager            signing.KeyManager
+	secretManager         secrets.SecretManager
 }
 
 // Option defines function types to modify the ServerEnv on creation.
@@ -68,10 +68,10 @@ func WithDatabase(db *database.DB) Option {
 	}
 }
 
-// WithAPIConfigProvider installs a provider of APIConfig.
-func WithAPIConfigProvider(p apiconfig.Provider) Option {
+// WithAuthorizedAppProvider installs a provider for an authorized app.
+func WithAuthorizedAppProvider(p authorizedapp.Provider) Option {
 	return func(s *ServerEnv) *ServerEnv {
-		s.apiConfigProvider = p
+		s.authorizedAppProvider = p
 		return s
 	}
 }
@@ -120,8 +120,8 @@ func (s *ServerEnv) Blobstore() storage.Blobstore {
 	return s.blobstore
 }
 
-func (s *ServerEnv) APIConfigProvider() apiconfig.Provider {
-	return s.apiConfigProvider
+func (s *ServerEnv) AuthorizedAppProvider() authorizedapp.Provider {
+	return s.authorizedAppProvider
 }
 
 func (s *ServerEnv) Database() *database.DB {

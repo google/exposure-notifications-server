@@ -2,45 +2,72 @@ options:
   env:
   - 'KO_DOCKER_REPO=us.gcr.io/${PROJECT_ID}'
   - 'DOCKER_REPO_OVERRIDE=us.gcr.io/${PROJECT_ID}'
+  machineType: N1_HIGHCPU_8
+
 steps:
 # Build ko, prerequisite.
-- name: 'gcr.io/cloud-builders/docker'
+- id: ko-build
+  name: 'gcr.io/cloud-builders/docker'
   args: ['build', '--tag=gcr.io/$PROJECT_ID/ko', '-f', 'terraform/ko.Dockerfile', 'terraform/']
-- name: 'gcr.io/cloud-builders/docker'
+  waitFor: ['-']
+- id: ko-push
+  name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/ko']
+  waitFor: ['ko-build']
+
 # Tests
-- name: 'mirror.gcr.io/library/golang'
+- id: test
+  name: 'mirror.gcr.io/library/golang'
   env:
   - GO111MODULE=on
   args: ['go', 'test', './...']
+  waitFor: ['-']
+
 # Build and publish containers`
-- name: 'gcr.io/$PROJECT_ID/ko'
+- id: export
+  name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
   - -P
   - ./cmd/export
-- name: 'gcr.io/$PROJECT_ID/ko'
+  waitFor: ['ko-push', 'test']
+
+- id: federationin
+  name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
   - -P
   - ./cmd/federationin
-- name: 'gcr.io/$PROJECT_ID/ko'
+  waitFor: ['ko-push', 'test']
+
+- id: federationout
+  name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
   - -P
   - ./cmd/federationout
-- name: 'gcr.io/$PROJECT_ID/ko'
+  waitFor: ['ko-push', 'test']
+
+- id: exposure
+  name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
   - -P
   - ./cmd/exposure
-- name: 'gcr.io/$PROJECT_ID/ko'
+  waitFor: ['ko-push', 'test']
+
+- id: cleanup-export
+  name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
   - -P
   - ./cmd/cleanup-export
-- name: 'gcr.io/$PROJECT_ID/ko'
+  waitFor: ['ko-push', 'test']
+
+- id: cleanup-exposure
+  name: 'gcr.io/$PROJECT_ID/ko'
   args:
   - publish
   - -P
   - ./cmd/cleanup-exposure
+  waitFor: ['ko-push', 'test']

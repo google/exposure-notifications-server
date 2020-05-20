@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -43,8 +43,8 @@ type VerifyOpts struct {
 }
 
 // ValidateAttestation validates the the SafetyNet Attestation from this device
-// matches the properties that we expect based on the applications APIConfig entry.
-// See https://developer.android.com/training/safetynet/attestation#use-response-server
+// matches the properties that we expect based on the AuthorizedApp entry. See
+// https://developer.android.com/training/safetynet/attestation#use-response-server
 // for details on the format of these attestations.
 func ValidateAttestation(ctx context.Context, attestation string, opts *VerifyOpts) error {
 	defer trace.StartRegion(ctx, "ValidateAttestation").End()
@@ -138,25 +138,25 @@ func ValidateAttestation(ctx context.Context, attestation string, opts *VerifyOp
 }
 
 // VerifyOptsFor returns the Android SafetyNet verification options to be used
-// based on the API config, request time, and nonce.
-func VerifyOptsFor(c *model.APIConfig, from time.Time, nonce string) *VerifyOpts {
-	digests := make([]string, len(c.ApkDigestSHA256))
-	copy(digests, c.ApkDigestSHA256)
+// based on the AuthorizedApp configuration, request time, and nonce.
+func VerifyOptsFor(c *database.AuthorizedApp, from time.Time, nonce string) *VerifyOpts {
+	digests := make([]string, len(c.SafetyNetApkDigestSHA256))
+	copy(digests, c.SafetyNetApkDigestSHA256)
 	rtn := &VerifyOpts{
 		AppPkgName:      c.AppPackageName,
-		CTSProfileMatch: c.CTSProfileMatch,
-		BasicIntegrity:  c.BasicIntegrity,
+		BasicIntegrity:  c.SafetyNetBasicIntegrity,
+		CTSProfileMatch: c.SafetyNetCTSProfileMatch,
 		APKDigest:       digests,
 		Nonce:           nonce,
 	}
 
 	// Calculate the valid time window based on now + config options.
-	if c.AllowedPastTime > 0 {
-		minTime := from.Add(-c.AllowedPastTime)
+	if c.SafetyNetPastTime > 0 {
+		minTime := from.Add(-c.SafetyNetPastTime)
 		rtn.MinValidTime = minTime
 	}
-	if c.AllowedFutureTime > 0 {
-		maxTime := from.Add(c.AllowedFutureTime)
+	if c.SafetyNetFutureTime > 0 {
+		maxTime := from.Add(c.SafetyNetFutureTime)
 		rtn.MaxValidTime = maxTime
 	}
 
@@ -171,7 +171,7 @@ func keyFunc(ctx context.Context, tok *jwt.Token) (interface{}, error) {
 		return nil, fmt.Errorf("attestation is missing certificate")
 	}
 
-	// Verify the sigature of the JWS and retrieve the signature and certificates.
+	// Verify the singature of the JWS and retrieve the signature and certificates.
 	x509certs := make([]*x509.Certificate, len(x5c))
 	for i, certStr := range x5c {
 		if certStr == "" {

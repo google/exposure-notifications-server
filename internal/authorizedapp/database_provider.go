@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiconfig
+package authorizedapp
 
 import (
 	"context"
@@ -22,7 +22,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 )
 
@@ -41,7 +40,7 @@ type DatabaseProvider struct {
 }
 
 type cacheItem struct {
-	value    *model.APIConfig
+	value    *database.AuthorizedApp
 	cachedAt time.Time
 }
 
@@ -72,54 +71,60 @@ func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, o
 	return provider, nil
 }
 
-// AppConfig returns the config for the given app package name.
-func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.APIConfig, error) {
-	logger := logging.FromContext(ctx)
-
+// checkCache checks the local cache within a read lock.
+// The bool on return is true if there was a hit (And an error is a valid hit)
+// or false if there was a miss (or expiry) and the data source should be queried again.
+func (p *DatabaseProvider) checkCache(name string) (*database.AuthorizedApp, bool, error) {
 	// Acquire a read lock first, which allows concurrent readers, to check if
 	// there's an item in the cache.
 	p.cacheLock.RLock()
+	defer p.cacheLock.RUnlock()
+
 	item, ok := p.cache[name]
 	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
 		if item.value == nil {
-			p.cacheLock.RUnlock()
-			return nil, AppNotFound
+			return nil, true, AppNotFound
 		}
-		p.cacheLock.RUnlock()
-		return item.value, nil
+		return item.value, true, nil
 	}
-	p.cacheLock.RUnlock()
+	return nil, false, nil
+}
+
+// AppConfig returns the config for the given app package name.
+func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*database.AuthorizedApp, error) {
+	logger := logging.FromContext(ctx)
+
+	data, cacheHit, error := p.checkCache(name)
+	if cacheHit {
+		return data, error
+	}
 
 	// Acquire a more aggressive lock now because we're about to mutate. However,
 	// it's possible that a concurrent routine has already mutated between our
 	// read and write locks, so we have to check again.
 	p.cacheLock.Lock()
-	item, ok = p.cache[name]
+	defer p.cacheLock.Unlock()
+	item, ok := p.cache[name]
 	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
 		if item.value == nil {
-			p.cacheLock.Unlock()
 			return nil, AppNotFound
 		}
-		p.cacheLock.Unlock()
 		return item.value, nil
 	}
 
 	// Load config.
-	config, err := p.loadAPIConfigFromDatabase(ctx, name)
+	config, err := p.loadAuthorizedAppFromDatabase(ctx, name)
 	if err != nil {
-		return nil, fmt.Errorf("apiconfig: %w", err)
+		return nil, fmt.Errorf("authorizedapp: %w", err)
 	}
 
 	// Cache configs.
-	logger.Infof("apiconfig: loaded %v, caching for %s", name, p.cacheDuration)
+	logger.Infof("authorizedapp: loaded %v, caching for %s", name, p.cacheDuration)
 	p.cache[name] = &cacheItem{
 		value:    config,
 		cachedAt: time.Now(),
 	}
 
-	
-	p.cacheLock.Unlock()
-	
 	// Handle not found.
 	if config == nil {
 		return nil, AppNotFound
@@ -129,13 +134,13 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 	return config, nil
 }
 
-// loadAPIConfigFromDatabase is a lower-level private API that actually loads and parses
-// a single APIConfigs from the database.
-func (p *DatabaseProvider) loadAPIConfigFromDatabase(ctx context.Context, name string) (*model.APIConfig, error) {
+// loadAuthorizedAppFromDatabase is a lower-level private API that actually loads and parses
+// a single AuthorizedApp from the database.
+func (p *DatabaseProvider) loadAuthorizedAppFromDatabase(ctx context.Context, name string) (*database.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
 
-	logger.Infof("apiconfig: loading %v from database", name)
-	config, err := p.database.GetAPIConfig(ctx, p.secretManager, name)
+	logger.Infof("authorizedapp: loading %v from database", name)
+	config, err := p.database.GetAuthorizedApp(ctx, p.secretManager, name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %v from database: %w", name, err)
 	}

@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/model"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -37,7 +36,7 @@ var (
 	signingKey        = flag.String("signing-key", "gxKey", "The KMS resource ID to use for signing batches.")
 	signingKeyID      = flag.String("signing-key-id", "", "The ID of the signing key (for clients).")
 	signingKeyVersion = flag.String("signing-key-version", "", "The version of the signing key (for clients).")
-	appPkgID          = flag.String("app-pkg-id", "", "The App Packge ID to put in export headers")
+	appPkgID          = flag.String("app-pkg-id", "", "The App Package ID to put in export headers")
 	bundleID          = flag.String("bundle-id", "", "The BundleID to put in export headers")
 )
 
@@ -90,7 +89,7 @@ func main() {
 	}
 	defer db.Close(ctx)
 
-	si := model.SignatureInfo{
+	si := database.SignatureInfo{
 		SigningKey:        *signingKey,
 		AppPackageName:    *appPkgID,
 		BundleID:          *bundleID,
@@ -101,7 +100,7 @@ func main() {
 		log.Fatalf("AddSignatureInfo: %v", err)
 	}
 
-	ec := model.ExportConfig{
+	ec := database.ExportConfig{
 		BucketName:       *bucketName,
 		FilenameRoot:     *filenameRoot,
 		Period:           *period,

@@ -37,6 +37,7 @@ type Config struct {
 	PaddingRange   int           `envconfig:"EXPORT_FILE_PADDING_RANGE" default:"100"`
 	MaxRecords     int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
 	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
+	MinWindowAge   time.Duration `envconfig:"MIN_WINDOW_AGE" default:"2h"`
 }
 
 // DB returns the database config.

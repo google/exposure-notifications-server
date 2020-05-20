@@ -19,9 +19,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/apiconfig"
+	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/envconfig"
+	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -29,16 +30,16 @@ import (
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
-// DBConfigProvider ensures that the envionment config can provide a DB config.
-// All binaries in this application connect to the databse via the same method.
+// DBConfigProvider ensures that the environment config can provide a DB config.
+// All binaries in this application connect to the database via the same method.
 type DBConfigProvider interface {
 	DB() *database.Config
 }
 
-// APIConfigProvider signals that the config provided knows how to configure
-// and requires a APIConfigs.
-type APIConfigProvider interface {
-	APIConfigConfig() *apiconfig.Config
+// AuthorizedAppConfigProvider signals that the config provided knows how to
+// configure authorized apps.
+type AuthorizedAppConfigProvider interface {
+	AuthorizedAppConfig() *authorizedapp.Config
 }
 
 // KeyManagerProvider is a marker interface indicating the KeyManagerProvider should be installed.
@@ -54,8 +55,10 @@ type BlobStorageConfigProvider interface {
 // Function returned from setup to be deferred until the caller exits.
 type Defer func()
 
-// Setup runs common intitializion code for all servers.
+// Setup runs common initialization code for all servers.
 func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, Defer, error) {
+	logger := logging.FromContext(ctx)
+
 	// Can be changed with a different secret manager interface.
 	// TODO(mikehelmick): Make this extensible to other providers.
 	// TODO(sethvargo): Make TTL configurable.
@@ -67,6 +70,7 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 	if err := envconfig.Process(ctx, config, sm); err != nil {
 		return nil, nil, fmt.Errorf("error loading environment variables: %v", err)
 	}
+	logger.Infof("Effective environment variables: %+v", config)
 
 	// Start building serverenv opts
 	opts := []serverenv.Option{
@@ -82,7 +86,6 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 		}
 		opts = append(opts, serverenv.WithKeyManager(km))
 	}
-
 	// TODO(mikehelmick): Make this extensible to other providers.
 	if _, ok := config.(BlobStorageConfigProvider); ok {
 		storage, err := storage.NewFilesystemStorage(ctx)
@@ -97,17 +100,24 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
+	{
+		// Log the database config, but omit the password field.
+		redactedDB := config.DB()
+		redactedDB.Password = "<hidden>"
+		logger.Infof("Effective DB config: %+v", redactedDB)
+	}
 	opts = append(opts, serverenv.WithDatabase(db))
 
-	// APIConfig must come after database setup due to the dependency.
-	if typ, ok := config.(APIConfigProvider); ok {
-		provider, err := apiconfig.NewDatabaseProvider(ctx, db, typ.APIConfigConfig(), apiconfig.WithSecretManager(sm))
+	// AuthorizedApp must come after database setup due to the dependency.
+	if typ, ok := config.(AuthorizedAppConfigProvider); ok {
+		logger.Infof("Effective AuthorizedApp config: %+v", typ.AuthorizedAppConfig())
+		provider, err := authorizedapp.NewDatabaseProvider(ctx, db, typ.AuthorizedAppConfig(), authorizedapp.WithSecretManager(sm))
 		if err != nil {
 			// Ensure the database is closed on an error.
 			defer db.Close(ctx)
-			return nil, nil, fmt.Errorf("unable to create APIConfig provider: %v", err)
+			return nil, nil, fmt.Errorf("unable to create AuthorizedApp provider: %v", err)
 		}
-		opts = append(opts, serverenv.WithAPIConfigProvider(provider))
+		opts = append(opts, serverenv.WithAuthorizedAppProvider(provider))
 	}
 
 	return serverenv.New(ctx, opts...), func() { db.Close(ctx) }, nil
