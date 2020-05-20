@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/util"
 	"github.com/google/exposure-notifications-server/testing/enclient"
-	"github.com/google/exposure-notifications-server/testing/util"
 )
 
 var (

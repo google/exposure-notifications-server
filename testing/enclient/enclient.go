@@ -2,13 +2,10 @@ package enclient
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/big"
 	"net/http"
 	"time"
 

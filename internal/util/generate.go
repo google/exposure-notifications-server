@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/testing/enclient"
 )
 
 const (
@@ -31,7 +32,7 @@ const (
 	maxIntervalCount = 144
 )
 
-func RandomIntervalCount() int32 {
+func RandomIntervalCount() (int32, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(maxIntervalCount))
 	if err != nil {
 		return 0, err
@@ -71,13 +72,13 @@ func RandomArrValue(arr []string) (string, error) {
 
 func GenerateExposureKeys(numKeys, tr int) []database.ExposureKey {
 	// When publishing multiple keys - they'll be on different days.
-	intervalCount, err := RandIntervalCount()
+	intervalCount, err := RandomIntervalCount()
 	if err != nil {
 		log.Fatalf("problem with random interval: %v", err)
 	}
 	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
 	exposureKeys := make([]database.ExposureKey, numKeys)
-	for i, rawKey := range keys {
+	for i := 0; i < numKeys; i++ {
 		transmissionRisk := tr
 		if transmissionRisk < 0 {
 			transmissionRisk, err = RandomTransmissionRisk()
@@ -85,7 +86,10 @@ func GenerateExposureKeys(numKeys, tr int) []database.ExposureKey {
 				log.Fatalf("problem with transmission risk: %v", err)
 			}
 		}
-		exposureKeys[i] = RandomExposureKey(intervalNumber, intervalCount, transmissionRisk)
+		exposureKeys[i], err = RandomExposureKey(enclient.Interval(intervalNumber), intervalCount, transmissionRisk)
+		if err != nil {
+			log.Fatalf("problem creating random exposure key: %v", err)
+		}
 
 		// Adjust interval math for next key.
 		intervalCount, err = RandomIntervalCount()
@@ -98,34 +102,47 @@ func GenerateExposureKeys(numKeys, tr int) []database.ExposureKey {
 }
 
 // Creates a random exposure key.
-func RandomExposureKey(intervalNumber Interval, intervalCount int32, transmissionRisk int) database.ExposureKey {
-        return ExposureKey(GenerateKey(), intervalNumber, intervalCount, transmissionRisk)
+func RandomExposureKey(intervalNumber enclient.Interval, intervalCount int32, transmissionRisk int) (database.ExposureKey, error) {
+	key, err := GenerateKey()
+	if err != nil {
+		return database.ExposureKey{}, err
+	}
+	return database.ExposureKey{
+		Key:              key,
+		IntervalNumber:   int32(intervalNumber),
+		IntervalCount:    intervalCount,
+		TransmissionRisk: transmissionRisk,
+	}, nil
 }
 
 // Generates the random byte sequence.
-func RandomBytes(arrLen int) []byte {
-        padding := make([]byte, arrLen)
-        _, err := rand.Read(padding)
-        if err != nil {
-                log.Fatalf("error generating padding: %v", err)
-        }
-        return padding
+func RandomBytes(arrLen int) ([]byte, error) {
+	padding := make([]byte, arrLen)
+	_, err := rand.Read(padding)
+	if err != nil {
+		return nil, err
+	}
+	return padding, nil
 }
 
-func GenerateKey() string {
-        return ToBase64(RandomBytes(dkLen))
+func GenerateKey() (string, error) {
+	b, err := RandomBytes(dkLen)
+	if err != nil {
+		return "", err
+	}
+	return ToBase64(b), nil
 }
 
 // Encodes bytes array to base64.
 func ToBase64(key []byte) string {
-        return base64.StdEncoding.EncodeToString(key)
+	return base64.StdEncoding.EncodeToString(key)
 }
 
 // Decodes base64 string to []byte.
 func DecodeKey(b64key string) []byte {
-        k, err := base64.StdEncoding.DecodeString(b64key)
-        if err != nil {
-                log.Fatalf("unable to decode key: %v", err)
-        }
-        return k
+	k, err := base64.StdEncoding.DecodeString(b64key)
+	if err != nil {
+		log.Fatalf("unable to decode key: %v", err)
+	}
+	return k
 }

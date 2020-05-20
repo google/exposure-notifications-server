@@ -95,7 +95,7 @@ func main() {
 			log.Fatalf("unable to decode key: %v", k.Key)
 		}
 		exposureKeys[i].ExposureKey = decoded
-		n, err := util.RandIntervalCount()
+		n, err := util.RandomIntervalCount()
 		if err != nil {
 			log.Fatalf("problem with interval count: %v", err)
 		}
