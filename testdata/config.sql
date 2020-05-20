@@ -17,11 +17,11 @@
 INSERT INTO AuthorizedApp (
   app_package_name, platform, allowed_regions,
   safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
-  devicecheck_team_id_secret, devicecheck_key_id_secret, devicecheck_private_key_secret
+  devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
 ) VALUES (
   'com.example.ios.app', 'ios', ARRAY[]::VARCHAR[],
   false, false, 60, 60,
-  'projects/38554818207/secrets/ios-devicecheck-team-id/versions/1', 'projects/38554818207/secrets/ios-devicecheck-key-id/versions/1', 'projects/38554818207/secrets/ios-devicecheck-private-key/versions/1'
+  'ABCD1234', 'DEFG5678', 'projects/38554818207/secrets/ios-devicecheck-private-key/versions/1'
 ), (
   'com.example.android.app', 'android', ARRAY[]::VARCHAR[],
   false, false, 60, 60,
