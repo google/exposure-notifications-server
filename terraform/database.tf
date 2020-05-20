@@ -23,7 +23,7 @@ resource "google_sql_database_instance" "db-inst" {
   project          = data.google_project.project.project_id
   region           = var.region
   database_version = "POSTGRES_11"
-  name             = "contact-tracing-${random_string.db-name.result}"
+  name             = "en-${random_string.db-name.result}"
 
   settings {
     tier              = var.cloudsql_tier
