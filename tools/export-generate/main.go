@@ -165,7 +165,7 @@ func writeFile(eb *database.ExportBatch, currentBatch []*database.Exposure, b, n
 	}
 	data, err := export.MarshalExportFile(eb, currentBatch, b, numBatches, []export.ExportSigners{signer})
 	if err != nil {
-		log.Fatalf("error marshalling export file: %w", err)
+		log.Fatalf("error marshalling export file: %v", err)
 	}
 	fileName := fmt.Sprintf(eb.FilenameRoot+"%d-records-%d-of-%d"+filenameSuffix, numRecords, b, numBatches)
 	log.Printf("Creating %v", fileName)
