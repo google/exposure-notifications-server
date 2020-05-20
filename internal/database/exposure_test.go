@@ -27,7 +27,7 @@ func TestExposures(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer resetTestDB(t)
+	defer ResetTestDB(t)
 	ctx := context.Background()
 
 	// Insert some Exposures.
@@ -156,7 +156,7 @@ func TestIterateExposuresCursor(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer resetTestDB(t)
+	defer ResetTestDB(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	// Insert some Exposures.
 	exposures := []*Exposure{

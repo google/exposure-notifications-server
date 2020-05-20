@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/go-cmp/cmp"
@@ -192,11 +193,11 @@ func TestVerifyOptsFor(t *testing.T) {
 	testTime := time.Date(2020, 1, 13, 5, 6, 4, 6, time.Local)
 
 	cases := []struct {
-		cfg  *database.AuthorizedApp
+		cfg  *model.AuthorizedApp
 		opts *VerifyOpts
 	}{
 		{
-			cfg: &database.AuthorizedApp{
+			cfg: &model.AuthorizedApp{
 				AppPackageName:           "foo",
 				SafetyNetBasicIntegrity:  true,
 				SafetyNetCTSProfileMatch: true,
@@ -213,7 +214,7 @@ func TestVerifyOptsFor(t *testing.T) {
 			},
 		},
 		{
-			cfg: &database.AuthorizedApp{
+			cfg: &model.AuthorizedApp{
 				AppPackageName:           "foo",
 				SafetyNetBasicIntegrity:  true,
 				SafetyNetCTSProfileMatch: false,
@@ -230,7 +231,7 @@ func TestVerifyOptsFor(t *testing.T) {
 			},
 		},
 		{
-			cfg: &database.AuthorizedApp{
+			cfg: &model.AuthorizedApp{
 				AppPackageName:           "foo",
 				SafetyNetApkDigestSHA256: []string{"bar"},
 				SafetyNetBasicIntegrity:  true,

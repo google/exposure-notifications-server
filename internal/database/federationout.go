@@ -45,7 +45,7 @@ func (db *DB) AddFederationOutAuthorization(ctx context.Context, auth *Federatio
 
 // GetFederationOutAuthorization returns a FederationOutAuthorization record, or ErrNotFound if not found.
 func (db *DB) GetFederationOutAuthorization(ctx context.Context, issuer, subject string) (*FederationOutAuthorization, error) {
-	conn, err := db.pool.Acquire(ctx)
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}

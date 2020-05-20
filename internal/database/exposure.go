@@ -55,7 +55,7 @@ type IterateExposuresCriteria struct {
 // the iteration at the failed row. If IterateExposures returns a nil error,
 // the first return value will be the empty string.
 func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*Exposure) error) (cur string, err error) {
-	conn, err := db.pool.Acquire(ctx)
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return "", fmt.Errorf("acquiring connection: %v", err)
 	}

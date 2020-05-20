@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/android"
+	authorizedapp "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/database"
 )
 
@@ -33,7 +34,7 @@ func TestVerifyRegions(t *testing.T) {
 	cases := []struct {
 		name string
 		data *database.Publish
-		cfg  *database.AuthorizedApp
+		cfg  *authorizedapp.AuthorizedApp
 		err  bool
 	}{
 		{
@@ -45,14 +46,14 @@ func TestVerifyRegions(t *testing.T) {
 		{
 			name: "nil_regions_allows_all",
 			data: &database.Publish{Regions: []string{"US"}},
-			cfg: &database.AuthorizedApp{
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 			},
 		},
 		{
 			name: "empty_regions_allows_all",
 			data: &database.Publish{Regions: []string{"US"}},
-			cfg: &database.AuthorizedApp{
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 				AllowedRegions: map[string]struct{}{},
 			},
@@ -60,7 +61,7 @@ func TestVerifyRegions(t *testing.T) {
 		{
 			name: "region_matches_one",
 			data: &database.Publish{Regions: []string{"US"}},
-			cfg: &database.AuthorizedApp{
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 				AllowedRegions: map[string]struct{}{
 					"US": {},
@@ -71,7 +72,7 @@ func TestVerifyRegions(t *testing.T) {
 		{
 			name: "region_matches_all",
 			data: &database.Publish{Regions: []string{"US", "CA"}},
-			cfg: &database.AuthorizedApp{
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 				AllowedRegions: map[string]struct{}{
 					"US": {},
@@ -82,7 +83,7 @@ func TestVerifyRegions(t *testing.T) {
 		{
 			name: "region_matches_some",
 			data: &database.Publish{Regions: []string{"US", "MX"}},
-			cfg: &database.AuthorizedApp{
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 				AllowedRegions: map[string]struct{}{
 					"US": {},
@@ -94,7 +95,7 @@ func TestVerifyRegions(t *testing.T) {
 		{
 			name: "region_matches_none",
 			data: &database.Publish{Regions: []string{"MX"}},
-			cfg: &database.AuthorizedApp{
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 				AllowedRegions: map[string]struct{}{
 					"US": {},
@@ -117,14 +118,14 @@ func TestVerifyRegions(t *testing.T) {
 }
 
 func TestVerifySafetyNet(t *testing.T) {
-	allRegions := &database.AuthorizedApp{
+	allRegions := &authorizedapp.AuthorizedApp{
 		AppPackageName: appPkgName,
 	}
 
 	cases := []struct {
 		Data              *database.Publish
 		Msg               string
-		Cfg               *database.AuthorizedApp
+		Cfg               *authorizedapp.AuthorizedApp
 		AttestationResult error
 	}{
 		{

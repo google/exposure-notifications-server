@@ -70,7 +70,7 @@ func TestLock(t *testing.T) {
 	}
 
 	// Lock table should be empty.
-	conn, err := testDB.pool.Acquire(ctx)
+	conn, err := testDB.Pool.Acquire(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

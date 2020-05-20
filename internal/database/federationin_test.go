@@ -29,7 +29,7 @@ func TestFederationIn(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer resetTestDB(t)
+	defer ResetTestDB(t)
 	ctx := context.Background()
 
 	ts := time.Date(2020, 5, 6, 0, 0, 0, 0, time.UTC)
