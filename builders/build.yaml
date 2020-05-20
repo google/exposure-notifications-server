@@ -1,3 +1,21 @@
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#
+# Builds container imges.
+#
+
 options:
   env:
   - 'KO_DOCKER_REPO=us.gcr.io/${PROJECT_ID}'
@@ -5,16 +23,6 @@ options:
   machineType: N1_HIGHCPU_8
 
 steps:
-# Build ko, prerequisite.
-- id: ko-build
-  name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--tag=gcr.io/$PROJECT_ID/ko', '-f', 'terraform/ko.Dockerfile', 'terraform/']
-  waitFor: ['-']
-- id: ko-push
-  name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/ko']
-  waitFor: ['ko-build']
-
 # Tests
 - id: test
   name: 'mirror.gcr.io/library/golang'
@@ -25,49 +33,49 @@ steps:
 
 # Build and publish containers`
 - id: export
-  name: 'gcr.io/$PROJECT_ID/ko'
+  name: 'gcr.io/cloud-devrel-public-resources/exposure-notifications/ko:latest'
   args:
   - publish
   - -P
   - ./cmd/export
-  waitFor: ['ko-push', 'test']
+  waitFor: ['test']
 
 - id: federationin
-  name: 'gcr.io/$PROJECT_ID/ko'
+  name: 'gcr.io/cloud-devrel-public-resources/exposure-notifications/ko:latest'
   args:
   - publish
   - -P
   - ./cmd/federationin
-  waitFor: ['ko-push', 'test']
+  waitFor: ['test']
 
 - id: federationout
-  name: 'gcr.io/$PROJECT_ID/ko'
+  name: 'gcr.io/cloud-devrel-public-resources/exposure-notifications/ko:latest'
   args:
   - publish
   - -P
   - ./cmd/federationout
-  waitFor: ['ko-push', 'test']
+  waitFor: ['test']
 
 - id: exposure
-  name: 'gcr.io/$PROJECT_ID/ko'
+  name: 'gcr.io/cloud-devrel-public-resources/exposure-notifications/ko:latest'
   args:
   - publish
   - -P
   - ./cmd/exposure
-  waitFor: ['ko-push', 'test']
+  waitFor: ['test']
 
 - id: cleanup-export
-  name: 'gcr.io/$PROJECT_ID/ko'
+  name: 'gcr.io/cloud-devrel-public-resources/exposure-notifications/ko:latest'
   args:
   - publish
   - -P
   - ./cmd/cleanup-export
-  waitFor: ['ko-push', 'test']
+  waitFor: ['test']
 
 - id: cleanup-exposure
-  name: 'gcr.io/$PROJECT_ID/ko'
+  name: 'gcr.io/cloud-devrel-public-resources/exposure-notifications/ko:latest'
   args:
   - publish
   - -P
   - ./cmd/cleanup-exposure
-  waitFor: ['ko-push', 'test']
+  waitFor: ['test']
