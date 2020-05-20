@@ -24,7 +24,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/model"
 
 	pgx "github.com/jackc/pgx/v4"
 )
@@ -55,7 +54,7 @@ type IterateExposuresCriteria struct {
 // criteria.LastCursor in a subsequent call to IterateExposures, will continue
 // the iteration at the failed row. If IterateExposures returns a nil error,
 // the first return value will be the empty string.
-func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*model.Exposure) error) (cur string, err error) {
+func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*Exposure) error) (cur string, err error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return "", fmt.Errorf("acquiring connection: %v", err)
@@ -95,12 +94,12 @@ func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCri
 			return cursor(), err
 		}
 		var (
-			m          model.Exposure
+			m          Exposure
 			encodedKey string
 			syncID     *int64
 		)
 		if err := rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
-			&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &m.VerificationAuthorityName, &syncID); err != nil {
+			&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &syncID); err != nil {
 			return cursor(), err
 		}
 		var err error
@@ -127,7 +126,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	q := `
 		SELECT
 			exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
-			created_at, local_provenance, verification_authority_name, sync_id
+			created_at, local_provenance, sync_id
 		FROM
 			Exposure
 		WHERE 1=1
@@ -179,16 +178,16 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 }
 
 // InsertExposures inserts a set of exposures.
-func (db *DB) InsertExposures(ctx context.Context, exposures []*model.Exposure) error {
+func (db *DB) InsertExposures(ctx context.Context, exposures []*Exposure) error {
 	return db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		const stmtName = "insert exposures"
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
 				Exposure
 			    (exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
-			     created_at, local_provenance, verification_authority_name, sync_id)
+			     created_at, local_provenance, sync_id)
 			VALUES
-			  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			  ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			ON CONFLICT (exposure_key) DO NOTHING
 		`)
 		if err != nil {
@@ -201,7 +200,7 @@ func (db *DB) InsertExposures(ctx context.Context, exposures []*model.Exposure) 
 				syncID = &inf.FederationSyncID
 			}
 			_, err := tx.Exec(ctx, stmtName, encodeExposureKey(inf.ExposureKey), inf.TransmissionRisk, inf.AppPackageName, inf.Regions, inf.IntervalNumber, inf.IntervalCount,
-				inf.CreatedAt, inf.LocalProvenance, inf.VerificationAuthorityName, syncID)
+				inf.CreatedAt, inf.LocalProvenance, syncID)
 			if err != nil {
 				return fmt.Errorf("inserting exposure: %v", err)
 			}

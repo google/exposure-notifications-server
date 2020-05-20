@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package apiconfig
+package authorizedapp
 
 import (
 	"time"
 )
 
 type Config struct {
-	// CacheDuration is the amount of time APIConfigs should be cached before
+	// CacheDuration is the amount of time AuthorizedApp should be cached before
 	// being re-read from their provider.
-	CacheDuration time.Duration `envconfig:"APICONFIG_CACHE_DURATION" default:"5m"`
+	CacheDuration time.Duration `envconfig:"AUTHORIZED_APP_CACHE_DURATION" default:"5m"`
 }
 
-// APIConfig implements an interface for setup.
-func (c *Config) APIConfigConfig() *Config {
+// AuthorizedApp implements an interface for setup.
+func (c *Config) AuthorizedApp() *Config {
 	return c
 }

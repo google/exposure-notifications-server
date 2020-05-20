@@ -63,10 +63,8 @@ func TestNewServer(t *testing.T) {
 				}
 			} else if err != nil {
 				t.Fatalf("got unexpected error: %v", err)
-			} else {
-				if got.env != tc.env {
-					t.Fatalf("got %+v: want %v", got.env, tc.env)
-				}
+			} else if got.env != tc.env {
+				t.Fatalf("got %+v: want %v", got.env, tc.env)
 			}
 		})
 	}

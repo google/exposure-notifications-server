@@ -128,9 +128,9 @@ func resetTestDB(t *testing.T) {
 	defer conn.Release()
 
 	_, err = conn.Exec(ctx, `
-		TRUNCATE 
+		TRUNCATE
 			FederationInQuery, FederationInSync, FederationOutAuthorization,
-			Exposure, APIConfig,
+			Exposure, AuthorizedApp,
 			ExportConfig, ExportBatch, ExportFile
 	`)
 	if err != nil {

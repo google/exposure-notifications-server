@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/model"
-
 	pgx "github.com/jackc/pgx/v4"
 )
 
@@ -30,7 +28,7 @@ type FinalizeSyncFn func(maxTimestamp time.Time, totalInserted int) error
 type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx.Row
 
 // GetFederationInQuery returns a query for given queryID. If not found, ErrNotFound will be returned.
-func (db *DB) GetFederationInQuery(ctx context.Context, queryID string) (*model.FederationInQuery, error) {
+func (db *DB) GetFederationInQuery(ctx context.Context, queryID string) (*FederationInQuery, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
@@ -40,7 +38,7 @@ func (db *DB) GetFederationInQuery(ctx context.Context, queryID string) (*model.
 	return getFederationInQuery(ctx, queryID, conn.QueryRow)
 }
 
-func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRowFn) (*model.FederationInQuery, error) {
+func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRowFn) (*FederationInQuery, error) {
 	row := queryRow(ctx, `
 		SELECT
 			query_id, server_addr, oidc_audience, include_regions, exclude_regions, last_timestamp
@@ -51,7 +49,7 @@ func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRow
 		`, queryID)
 
 	// See https://www.opsdash.com/blog/postgres-arrays-golang.html for working with Postgres arrays in Go.
-	q := model.FederationInQuery{}
+	q := FederationInQuery{}
 	if err := row.Scan(&q.QueryID, &q.ServerAddr, &q.Audience, &q.IncludeRegions, &q.ExcludeRegions, &q.LastTimestamp); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrNotFound
@@ -62,7 +60,7 @@ func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRow
 }
 
 // AddFederationInQuery adds a FederationInQuery entity. It will overwrite a query with matching q.queryID if it exists.
-func (db *DB) AddFederationInQuery(ctx context.Context, q *model.FederationInQuery) error {
+func (db *DB) AddFederationInQuery(ctx context.Context, q *FederationInQuery) error {
 	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		query := `
 			INSERT INTO
@@ -84,7 +82,7 @@ func (db *DB) AddFederationInQuery(ctx context.Context, q *model.FederationInQue
 }
 
 // GetFederationInSync returns a federation sync record for given syncID. If not found, ErrNotFound will be returned.
-func (db *DB) GetFederationInSync(ctx context.Context, syncID int64) (*model.FederationInSync, error) {
+func (db *DB) GetFederationInSync(ctx context.Context, syncID int64) (*FederationInSync, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
@@ -94,7 +92,7 @@ func (db *DB) GetFederationInSync(ctx context.Context, syncID int64) (*model.Fed
 	return getFederationInSync(ctx, syncID, conn.QueryRow)
 }
 
-func getFederationInSync(ctx context.Context, syncID int64, queryRowContext queryRowFn) (*model.FederationInSync, error) {
+func getFederationInSync(ctx context.Context, syncID int64, queryRowContext queryRowFn) (*FederationInSync, error) {
 	row := queryRowContext(ctx, `
 		SELECT
 			sync_id, query_id, started, completed, insertions, max_timestamp
@@ -104,7 +102,7 @@ func getFederationInSync(ctx context.Context, syncID int64, queryRowContext quer
 			sync_id=$1
 		`, syncID)
 
-	s := model.FederationInSync{}
+	s := FederationInSync{}
 	var (
 		completed, max *time.Time
 		insertions     *int
@@ -128,7 +126,7 @@ func getFederationInSync(ctx context.Context, syncID int64, queryRowContext quer
 }
 
 // StartFederationInSync stores a historical record of a query sync starting. It returns a FederationInSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
-func (db *DB) StartFederationInSync(ctx context.Context, q *model.FederationInQuery, started time.Time) (int64, FinalizeSyncFn, error) {
+func (db *DB) StartFederationInSync(ctx context.Context, q *FederationInQuery, started time.Time) (int64, FinalizeSyncFn, error) {
 	conn, err := db.pool.Acquire(ctx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("acquiring connection: %w", err)
