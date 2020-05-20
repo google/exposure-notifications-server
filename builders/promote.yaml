@@ -18,7 +18,8 @@
 
 substitutions:
   _REGION:
-  _REVISION:
+  _REVISION: 'LATEST'
+  _PERCENTAGE: '100'
 
 steps:
 - id: export
@@ -32,7 +33,7 @@ steps:
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --to-revisions "${_REVISION}=100"
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
 - id: federationin
@@ -46,7 +47,7 @@ steps:
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --to-revisions "${_REVISION}=100"
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
 - id: federationout
@@ -60,7 +61,7 @@ steps:
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --to-revisions "${_REVISION}=100"
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
 - id: exposure
@@ -74,7 +75,7 @@ steps:
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --to-revisions "${_REVISION}=100"
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
 - id: cleanup-export
@@ -88,7 +89,7 @@ steps:
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --to-revisions "${_REVISION}=100"
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
 - id: cleanup-exposure
@@ -102,5 +103,5 @@ steps:
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --to-revisions "${_REVISION}=100"
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']

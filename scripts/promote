@@ -33,7 +33,12 @@ if [ -z "${REVISION:-}" ]; then
   REVISION="LATEST"
 fi
 
+if [ -z "${PERCENTAGE:-}" ]; then
+  echo "🚧 Moving 100% of traffic" >&2
+  PERCENTAGE="100"
+fi
+
 gcloud builds submit "${ROOT}" \
   --config "${ROOT}/builders/promote.yaml" \
-  --substitutions "_REGION=${REGION},_REVISION=${REVISION}" \
+  --substitutions "_REGION=${REGION},_REVISION=${REVISION},_PERCENTAGE=${PERCENTAGE}" \
   --project "${PROJECT_ID}"
