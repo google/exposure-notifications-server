@@ -173,7 +173,7 @@ resource "google_cloudbuild_trigger" "update-schema" {
 
   name        = "update-schema"
   description = "Build the containers for the schema migrator and run it to ensure the DB is up to date."
-  filename    = "builders/schema.yaml"
+  filename    = "builders/migrate.yaml"
 
   github {
     owner = var.repo_owner
@@ -193,7 +193,7 @@ resource "google_cloudbuild_trigger" "update-schema" {
 
 resource "null_resource" "submit-update-schema" {
   provisioner "local-exec" {
-    command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=${join(",", formatlist("%s=%s", keys(local.schema_substitutions), values(local.schema_substitutions)))}"
+    command = "gcloud builds submit ../ --config ../builders/migrate.yaml --project ${data.google_project.project.project_id} --substitutions=${join(",", formatlist("%s=%s", keys(local.schema_substitutions), values(local.schema_substitutions)))}"
   }
 
   triggers = {
