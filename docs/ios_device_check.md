@@ -2,6 +2,9 @@
 
 ## Verifying iOS devices using DeviceCheck
 
+**Important: Using the DeviceCheck API requires a valid and active Apple iOS Developer
+subscription.**
+
 Apple uses the [DeviceCheck API](https://developer.apple.com/documentation/devicecheck)
 to verify device integrity. As part of the DeviceCheck verification process, the
 server receives a token that is generated on the device to verify the iOS
@@ -18,11 +21,9 @@ Each developer, called a "team", requires a different key for verification. If
 you are running a multi-tenant server that supports iOS apps from multiple
 developers, you will need to acquire and register DeviceCheck for each team.
 
-## Getting a Team ID
+## Finding your Team ID
 
-**A Team ID requires a valid and active Apple iOS Developer subscription.**
-
-To get a Team ID:
+To find your Team ID:
 
 1. [Create or sign in to your developer account](https://developer.apple.com/account/#/membership).
 
@@ -32,8 +33,7 @@ To get a Team ID:
 ## Generating the DeviceCheck private key
 
 In order for the server to communicate with Apple's servers, you will need to
-create an Apple authenticate key with `DeviceCheck` enabled. **This requires a
-valid and active iOS Apple developer subscription.**
+create an Apple authenticate key with `DeviceCheck` enabled.
 
 1. [Sign in to your developer account](https://developer.apple.com/account/#/membership).
 
@@ -85,7 +85,7 @@ to the secret at any time.
   When you create a project, keep a note of the project ID, you will need it in
   this tutorial.
 
-- The [gcloud](https://cloud.google.com/sdk/install) command-line tool.
+- The [`gcloud`](https://cloud.google.com/sdk/install) command-line tool.
 
 - Your Team ID, Key ID, and Private Key in .p8 format. These values come from
   the Apple Developer Portal using the instructions above.
@@ -96,30 +96,29 @@ to the secret at any time.
 - A communication channel between yourself and your server operator, such as a
   shared chat room, email, or a tele/video conference bridge.
 
-### Sharing the private key
+### Sharing the DeviceCheck Private Key
 
 To share the DeviceCheck Private Key with a server operator:
 
 1. If you have not already done so, authenticate the gcloud CLI:
 
-   ```console
+   ```text
    gcloud auth login && gcloud auth application-default login
    ```
 
    This will open two browser windows and ask you to authenticate with your
    Google account. Use the same account that owns the Google Cloud project.
 
-1. Enable the [Secret Manager service](https://cloud.google.com/secret-manager/docs)
-   on your Google Cloud project:
+1. Enable the Secret Manager service on your Google Cloud project:
 
-   ```console
+   ```text
    gcloud services enable secretmanager.googleapis.com \
       --project "${PROJECT_ID}"
    ```
 
 1. Create a secret and upload the private key into the secret:
 
-   ```console
+   ```text
    gcloud secrets create "devicecheck-key" \
       --project "${PROJECT_ID}" \
       --replication-policy "automatic" \
@@ -128,7 +127,7 @@ To share the DeviceCheck Private Key with a server operator:
 
 1. Grant the server's service account the ability to access the secret:
 
-   ```console
+   ```text
    gcloud secrets add-iam-policy-binding "devicecheck-key" \
       --project "${PROJECT_ID}" \
       --role "roles/secretmanager.secretAccessor" \
@@ -137,7 +136,7 @@ To share the DeviceCheck Private Key with a server operator:
 
 1. Get the secret resource ID, for sharing with the server operator:
 
-   ```console
+   ```text
    gcloud secrets describe "1" \
       --project "${PROJECT_ID}" \
       --secret "devicecheck-key" \
@@ -146,7 +145,7 @@ To share the DeviceCheck Private Key with a server operator:
 
     You should see something like the following:
 
-   ```console
+   ```text
    projects/123456789/secrets/devicecheck-key/versions/1
    ```
 
