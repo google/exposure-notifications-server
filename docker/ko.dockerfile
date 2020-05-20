@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang
-RUN go get github.com/google/ko/cmd/ko
+FROM golang:1.14
+
+RUN go get -u github.com/google/ko/cmd/ko
+
 ENTRYPOINT ["ko"]
