@@ -38,13 +38,13 @@ const (
 	algorithm = "1.2.840.10045.4.3.2"
 )
 
-type exportSigners struct {
-	signatureInfo *database.SignatureInfo
-	signer        crypto.Signer
+type ExportSigners struct {
+	SignatureInfo *database.SignatureInfo
+	Signer        crypto.Signer
 }
 
 // MarshalExportFile converts the inputs into an encoded byte array.
-func MarshalExportFile(eb *database.ExportBatch, exposures []*database.Exposure, batchNum, batchSize int, signers []exportSigners) ([]byte, error) {
+func MarshalExportFile(eb *database.ExportBatch, exposures []*database.Exposure, batchNum, batchSize int, signers []ExportSigners) ([]byte, error) {
 	// create main exposure key export binary
 	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize), signers)
 	if err != nil {
@@ -82,7 +82,7 @@ func MarshalExportFile(eb *database.ExportBatch, exposures []*database.Exposure,
 	return buf.Bytes(), nil
 }
 
-func marshalContents(eb *database.ExportBatch, exposures []*database.Exposure, batchNum int32, batchSize int32, signers []exportSigners) ([]byte, error) {
+func marshalContents(eb *database.ExportBatch, exposures []*database.Exposure, batchNum int32, batchSize int32, signers []ExportSigners) ([]byte, error) {
 	exportBytes := []byte("EK Export v1    ")
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))
@@ -110,7 +110,7 @@ func marshalContents(eb *database.ExportBatch, exposures []*database.Exposure, b
 
 	var exportSigInfos []*export.SignatureInfo
 	for _, si := range signers {
-		exportSigInfos = append(exportSigInfos, createSignatureInfo(si.signatureInfo))
+		exportSigInfos = append(exportSigInfos, createSignatureInfo(si.SignatureInfo))
 	}
 
 	pbeke := export.TemporaryExposureKeyExport{
@@ -146,16 +146,16 @@ func createSignatureInfo(si *database.SignatureInfo) *export.SignatureInfo {
 	return sigInfo
 }
 
-func marshalSignature(eb *database.ExportBatch, exportContents []byte, batchNum, batchSize int32, signers []exportSigners) ([]byte, error) {
+func marshalSignature(eb *database.ExportBatch, exportContents []byte, batchNum, batchSize int32, signers []ExportSigners) ([]byte, error) {
 
 	var signatures []*export.TEKSignature
 	for _, s := range signers {
-		sig, err := generateSignature(exportContents, s.signer)
+		sig, err := generateSignature(exportContents, s.Signer)
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate signature: %v", err)
 		}
 		teks := &export.TEKSignature{
-			SignatureInfo: createSignatureInfo(s.signatureInfo),
+			SignatureInfo: createSignatureInfo(s.SignatureInfo),
 			BatchNum:      proto.Int32(batchNum),
 			BatchSize:     proto.Int32(batchSize),
 			Signature:     sig,

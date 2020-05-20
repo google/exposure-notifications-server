@@ -1,0 +1,16 @@
+{
+  "temporaryExposureKeys": [
+    {
+      "key": "Fy/EgOWYSQw0F3YEM5sVQw==",
+      "rollingStartNumber": 2649980,
+      "rollingPeriod": 1,
+      "transmissionRisk": 8
+    },
+    {
+      "key": "K2MFOsSDI43hdhaehh89zQ==",
+      "rollingStartNumber": 2649866,
+      "rollingPeriod": 114,
+      "transmissionRisk": 1
+    }
+  ]
+}
