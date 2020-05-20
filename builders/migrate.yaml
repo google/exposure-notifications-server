@@ -25,7 +25,7 @@ substitutions:
   _DBUSER:
 
 steps:
-- id: secrets
+- id: 'secrets'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
   args:
   - 'bash'
@@ -33,7 +33,7 @@ steps:
   - |-
     gcloud secrets versions access "${_DBPASS_SECRET}" > dbpass
 
-- id: migrate
+- id: 'migrate'
   name: 'gcr.io/cloud-devrel-public-resources/exposure-notifications/migrate:latest'
   entrypoint: /bin/sh
   args:
