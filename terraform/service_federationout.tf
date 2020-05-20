@@ -28,6 +28,16 @@ resource "google_project_iam_member" "federationout-cloudsql" {
   member  = "serviceAccount:${google_service_account.federationout.email}"
 }
 
+resource "google_service_account_iam_member" "cloudbuild-deploy-federationout" {
+  service_account_id = google_service_account.federationout.id
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+
+  depends_on = [
+    google_project_service.services["cloudbuild.googleapis.com"],
+  ]
+}
+
 resource "google_secret_manager_secret_iam_member" "federationout-db-pwd" {
   provider = google-beta
 
