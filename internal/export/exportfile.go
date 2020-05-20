@@ -67,6 +67,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*publishmodel.Exposure
 	// create compressed archive of binary and signature
 	buf := new(bytes.Buffer)
 	zw := zip.NewWriter(buf)
+
 	zf, err := zw.Create(exportBinaryName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create zip entry for export: %w", err)
