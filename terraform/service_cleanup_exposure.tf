@@ -47,6 +47,13 @@ resource "google_cloud_run_service" "cleanup-exposure" {
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/cleanup-exposure:latest"
 
+        resources {
+          limits = {
+            cpu    = "2"
+            memory = "1G"
+          }
+        }
+
         dynamic "env" {
           for_each = local.common_cloudrun_env_vars
           content {

@@ -12,21 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "random_string" "bucket-name" {
-  length  = 5
-  special = false
-  number  = false
-  upper   = false
+resource "google_kms_key_ring" "export-signing" {
+  project  = data.google_project.project.project_id
+  name     = "export-signing"
+  location = var.region
 }
 
-resource "google_storage_bucket" "export" {
-  project            = data.google_project.project.project_id
-  name               = "exposure-notification-export-${random_string.bucket-name.result}"
-  bucket_policy_only = true
-}
-
-resource "google_storage_bucket_iam_member" "public" {
-  bucket = google_storage_bucket.export.name
-  role   = "roles/storage.objectViewer"
-  member = "allUsers"
+resource "google_kms_crypto_key" "export-signer" {
+  key_ring = google_kms_key_ring.export-signing.self_link
+  name     = "signer"
+  purpose  = "ASYMMETRIC_SIGN"
+  version_template {
+    algorithm        = "EC_SIGN_P256_SHA256"
+    protection_level = "HSM"
+  }
 }

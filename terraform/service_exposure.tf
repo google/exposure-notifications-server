@@ -47,6 +47,13 @@ resource "google_cloud_run_service" "exposure" {
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/exposure:latest"
 
+        resources {
+          limits = {
+            cpu    = "2"
+            memory = "1G"
+          }
+        }
+
         dynamic "env" {
           for_each = local.common_cloudrun_env_vars
           content {
@@ -72,10 +79,10 @@ resource "google_cloud_run_service" "exposure" {
   ]
 }
 
-resource "google_cloud_run_service_iam_policy" "exposure-noauth" {
+resource "google_cloud_run_service_iam_member" "exposure-public" {
   location = google_cloud_run_service.exposure.location
   project  = google_cloud_run_service.exposure.project
   service  = google_cloud_run_service.exposure.name
-
-  policy_data = data.google_iam_policy.noauth.policy_data
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }

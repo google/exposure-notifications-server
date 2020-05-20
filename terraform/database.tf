@@ -23,7 +23,7 @@ resource "google_sql_database_instance" "db-inst" {
   project          = data.google_project.project.project_id
   region           = var.region
   database_version = "POSTGRES_11"
-  name             = "contact-tracing-${random_string.db-name.result}"
+  name             = "en-${random_string.db-name.result}"
 
   settings {
     tier              = var.cloudsql_tier
@@ -185,6 +185,11 @@ resource "null_resource" "submit-update-schema" {
   provisioner "local-exec" {
     command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=_PORT=5432,_PASSWORD_SECRET=${google_secret_manager_secret.db-pwd.secret_id},_USER=${google_sql_user.user.name},_NAME=${google_sql_database.db.name},_SSLMODE=disable,_CLOUDSQLPATH=${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
   }
+
+  triggers = {
+    database = google_sql_database_instance.db-inst.name,
+  }
+
   depends_on = [
     google_project_iam_member.cloudbuild-secrets,
     google_project_iam_member.cloudbuild-sql,

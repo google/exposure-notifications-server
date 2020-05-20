@@ -32,8 +32,18 @@ data "google_project" "project" {
 
 resource "google_project_service" "services" {
   project = data.google_project.project.project_id
-  for_each = toset(["run.googleapis.com", "cloudkms.googleapis.com", "secretmanager.googleapis.com", "storage-api.googleapis.com", "cloudscheduler.googleapis.com",
-  "sql-component.googleapis.com", "cloudbuild.googleapis.com", "servicenetworking.googleapis.com", "compute.googleapis.com", "sqladmin.googleapis.com"])
+  for_each = toset([
+    "cloudbuild.googleapis.com",
+    "cloudkms.googleapis.com",
+    "cloudscheduler.googleapis.com",
+    "compute.googleapis.com",
+    "run.googleapis.com",
+    "secretmanager.googleapis.com",
+    "servicenetworking.googleapis.com",
+    "sql-component.googleapis.com",
+    "sqladmin.googleapis.com",
+    "storage-api.googleapis.com",
+  ])
   service            = each.value
   disable_on_destroy = false
 }
@@ -123,15 +133,6 @@ locals {
       value = google_sql_database.db.name
     },
   ]
-}
-
-data "google_iam_policy" "noauth" {
-  binding {
-    role = "roles/run.invoker"
-    members = [
-      "allUsers",
-    ]
-  }
 }
 
 # Cloud Scheduler requires AppEngine projects!

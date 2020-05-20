@@ -47,6 +47,13 @@ resource "google_cloud_run_service" "federationout" {
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationout:latest"
 
+        resources {
+          limits = {
+            cpu    = "2"
+            memory = "1G"
+          }
+        }
+
         dynamic "env" {
           for_each = local.common_cloudrun_env_vars
           content {
@@ -72,10 +79,10 @@ resource "google_cloud_run_service" "federationout" {
   ]
 }
 
-resource "google_cloud_run_service_iam_policy" "federationout-noauth" {
+resource "google_cloud_run_service_iam_member" "federationout-public" {
   location = google_cloud_run_service.federationout.location
   project  = google_cloud_run_service.federationout.project
   service  = google_cloud_run_service.federationout.name
-
-  policy_data = data.google_iam_policy.noauth.policy_data
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }

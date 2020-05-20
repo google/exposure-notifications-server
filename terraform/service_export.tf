@@ -42,6 +42,12 @@ resource "google_storage_bucket_iam_member" "export-objectadmin" {
   member = "serviceAccount:${google_service_account.export.email}"
 }
 
+resource "google_kms_key_ring_iam_member" "export-signerverifier" {
+  key_ring_id = google_kms_key_ring.export-signing.self_link
+  role        = "roles/cloudkms.signerVerifier"
+  member      = "serviceAccount:${google_service_account.export.email}"
+}
+
 resource "google_cloud_run_service" "export" {
   name     = "export"
   location = var.region
@@ -52,6 +58,13 @@ resource "google_cloud_run_service" "export" {
 
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/export:latest"
+
+        resources {
+          limits = {
+            cpu    = "2"
+            memory = "1G"
+          }
+        }
 
         env {
           name  = "EXPORT_FILE_MAX_RECORDS"
@@ -96,7 +109,7 @@ resource "google_cloud_run_service" "export" {
 resource "google_service_account" "export-invoker" {
   project      = data.google_project.project.project_id
   account_id   = "en-export-invoker-sa"
-  display_name = "Exposure Notification Cleanup Exposure Invoker"
+  display_name = "Exposure Notification Export Invoker"
 }
 
 resource "google_cloud_run_service_iam_member" "export-invoker" {

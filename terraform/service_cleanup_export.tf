@@ -53,6 +53,13 @@ resource "google_cloud_run_service" "cleanup-export" {
       containers {
         image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/cleanup-export:latest"
 
+        resources {
+          limits = {
+            cpu    = "2"
+            memory = "2G"
+          }
+        }
+
         dynamic "env" {
           for_each = local.common_cloudrun_env_vars
           content {
