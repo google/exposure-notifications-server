@@ -61,7 +61,7 @@ create an Apple authenticate key with `DeviceCheck` enabled.
 ## Configuring the server to use DeviceCheck
 
 To enable and configure Apple's DeviceCheck on the server, you must specify the
-following information for each iOS application your server supports:
+following information for **every** iOS app your server supports:
 
 - **Team ID** - developer ID, used as the `iss` in the JWT.
 
