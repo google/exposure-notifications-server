@@ -49,7 +49,7 @@ valid and active iOS Apple developer subscription.**
 
 1. Click **Continue**.
 
-1. On the configmration page, do the following:
+1. On the confirmation page, do the following:
 
    1. Save the DeviceCheck Key ID value to a secure location - this is usually
       a 10 character alpha-numeric ID such as `ABCDE1FGHI`.
