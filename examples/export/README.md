@@ -34,7 +34,7 @@ The export file in this directory was generated with the keys above
 and the `keys.json` file as follows:
 
 ```shell
-$ go run ./tools/export-generate --signing-key=private.pem --tek-file=keys.json
+$ go run ./tools/export-generate --signing-key=./examples/export/private.pem --tek-file=./examples/export/keys.json
 ```
 
 ## Inspecting an export
