@@ -42,6 +42,12 @@ resource "google_storage_bucket_iam_member" "export-objectadmin" {
   member = "serviceAccount:${google_service_account.export.email}"
 }
 
+resource "google_kms_key_ring_iam_member" "export-signerverifier" {
+  key_ring_id = google_kms_key_ring.export-signing.self_link
+  role        = "roles/cloudkms.signerVerifier"
+  member      = "serviceAccount:${google_service_account.export.email}"
+}
+
 resource "google_cloud_run_service" "export" {
   name     = "export"
   location = var.region
