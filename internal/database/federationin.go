@@ -29,7 +29,7 @@ type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx
 
 // GetFederationInQuery returns a query for given queryID. If not found, ErrNotFound will be returned.
 func (db *DB) GetFederationInQuery(ctx context.Context, queryID string) (*FederationInQuery, error) {
-	conn, err := db.pool.Acquire(ctx)
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -83,7 +83,7 @@ func (db *DB) AddFederationInQuery(ctx context.Context, q *FederationInQuery) er
 
 // GetFederationInSync returns a federation sync record for given syncID. If not found, ErrNotFound will be returned.
 func (db *DB) GetFederationInSync(ctx context.Context, syncID int64) (*FederationInSync, error) {
-	conn, err := db.pool.Acquire(ctx)
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -127,7 +127,7 @@ func getFederationInSync(ctx context.Context, syncID int64, queryRowContext quer
 
 // StartFederationInSync stores a historical record of a query sync starting. It returns a FederationInSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
 func (db *DB) StartFederationInSync(ctx context.Context, q *FederationInQuery, started time.Time) (int64, FinalizeSyncFn, error) {
-	conn, err := db.pool.Acquire(ctx)
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("acquiring connection: %w", err)
 	}

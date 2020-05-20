@@ -76,7 +76,7 @@ func (db *DB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*Exp
 		}
 	}()
 
-	conn, err := db.pool.Acquire(ctx)
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -143,7 +143,7 @@ func (db *DB) AddSignatureInfo(ctx context.Context, si *SignatureInfo) error {
 }
 
 func (db *DB) LookupSignatureInfos(ctx context.Context, ids []int64, validUntil time.Time) ([]*SignatureInfo, error) {
-	conn, err := db.pool.Acquire(ctx)
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -185,7 +185,7 @@ func (db *DB) LookupSignatureInfos(ctx context.Context, ids []int64, validUntil 
 // exists.
 // TODO(squee1945): This needs a
 func (db *DB) LatestExportBatchEnd(ctx context.Context, ec *ExportConfig) (time.Time, error) {
-	conn, err := db.pool.Acquire(ctx)
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -243,7 +243,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 	// Lookup a set of candidate batch IDs.
 	var openBatchIDs []int64
 	err := func() error { // Use a func to allow defer conn.Release() to work.
-		conn, err := db.pool.Acquire(ctx)
+		conn, err := db.Pool.Acquire(ctx)
 		if err != nil {
 			return fmt.Errorf("acquiring connection: %w", err)
 		}
@@ -348,7 +348,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 
 // LookupExportBatch returns an ExportBatch for the given batchID.
 func (db *DB) LookupExportBatch(ctx context.Context, batchID int64) (*ExportBatch, error) {
-	conn, err := db.pool.Acquire(ctx)
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -415,7 +415,7 @@ func (db *DB) FinalizeBatch(ctx context.Context, eb *ExportBatch, files []string
 
 // LookupExportFiles returns a list of export files for the given ExportConfig exportConfigID.
 func (db *DB) LookupExportFiles(ctx context.Context, exportConfigID int64) ([]string, error) {
-	conn, err := db.pool.Acquire(ctx)
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -464,7 +464,7 @@ type joinedExportBatchFile struct {
 }
 
 func (db *DB) LookupExportFile(ctx context.Context, filename string) (*ExportFile, error) {
-	conn, err := db.pool.Acquire(ctx)
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -497,7 +497,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 	// Fetch filenames for  batches where at least one file is not deleted yet.
 	var files []joinedExportBatchFile
 	err := func() error { // Use a func to allow defer conn.Release() to work.
-		conn, err := db.pool.Acquire(ctx)
+		conn, err := db.Pool.Acquire(ctx)
 		if err != nil {
 			return fmt.Errorf("acquiring connection: %w", err)
 		}

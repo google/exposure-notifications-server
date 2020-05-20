@@ -20,15 +20,27 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/ios"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	pgx "github.com/jackc/pgx/v4"
 )
 
+type AuthorizedAppDB struct {
+	db *database.DB
+}
+
+func NewAuthorizedAppDB(db *database.DB) *AuthorizedAppDB {
+	return &AuthorizedAppDB{
+		db: db,
+	}
+}
+
 // GetAuthorizedApp loads a single AuthorizedApp for the given name. If no row
 // exists, this returns nil.
-func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*AuthorizedApp, error) {
-	conn, err := db.pool.Acquire(ctx)
+func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*model.AuthorizedApp, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
 	}
@@ -45,7 +57,7 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 
 	row := conn.QueryRow(ctx, query, name)
 
-	config := NewAuthorizedApp()
+	config := model.NewAuthorizedApp()
 	var allowedRegions []string
 	var safetyNetPastSeconds, safetyNetFutureSeconds *int
 	var deviceCheckTeamID, deviceCheckKeyID, deviceCheckPrivateKeySecret sql.NullString

@@ -255,7 +255,6 @@ type ContactTracingInfo struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Transmission risk is an integer with valid values from 1-8.
 	TransmissionRisk int32          `protobuf:"varint,1,opt,name=transmissionRisk,proto3" json:"transmissionRisk,omitempty"` // required
 	ExposureKeys     []*ExposureKey `protobuf:"bytes,2,rep,name=exposureKeys,proto3" json:"exposureKeys,omitempty"`
 }

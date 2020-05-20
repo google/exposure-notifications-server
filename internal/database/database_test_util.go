@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 
 	if os.Getenv("DB_USER") != "" {
 		var err error
-		testDB, err = createTestDB(ctx)
+		testDB, err = CreateTestDB(ctx)
 		if err != nil {
 			log.Fatalf("creating test DB: %v", err)
 		}
@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
 // openTestDB connects to the Postgres server specified by the DB_XXX environment
 // variables, creates an empty test database on it, and returns a *DB connected
 // to that database.
-func createTestDB(ctx context.Context) (*DB, error) {
+func CreateTestDB(ctx context.Context) (*DB, error) {
 	const testDBName = "exposure-server-test"
 
 	// Connect to the default database to create the test database.
@@ -65,7 +65,7 @@ func createTestDB(ctx context.Context) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := db.createDatabase(ctx, testDBName); err != nil {
+	if err := createDatabase(ctx, db, testDBName); err != nil {
 		return nil, err
 	}
 	db.Close(ctx)
@@ -76,8 +76,8 @@ func createTestDB(ctx context.Context) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	const source = "file://../../migrations"
-	uri := dbURI(&config)
+	const source = "file://../../../migrations"
+	uri := DbURI(&config)
 	m, err := migrate.New(source, uri)
 	if err != nil {
 		return nil, err
@@ -96,8 +96,8 @@ func createTestDB(ctx context.Context) (*DB, error) {
 	return db, nil
 }
 
-func (db *DB) createDatabase(ctx context.Context, name string) error {
-	conn, err := db.pool.Acquire(ctx)
+func createDatabase(ctx context.Context, db *DB, name string) error {
+	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return err
 	}
@@ -118,10 +118,10 @@ func mustExec(t *testing.T, conn *pgxpool.Conn, stmt string, args ...interface{}
 	}
 }
 
-func resetTestDB(t *testing.T) {
+func ResetTestDB(t *testing.T, testDB *DB) {
 	t.Helper()
 	ctx := context.Background()
-	conn, err := testDB.pool.Acquire(ctx)
+	conn, err := testDB.Pool.Acquire(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
