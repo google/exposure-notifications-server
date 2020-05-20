@@ -135,15 +135,6 @@ locals {
   ]
 }
 
-data "google_iam_policy" "noauth" {
-  binding {
-    role = "roles/run.invoker"
-    members = [
-      "allUsers",
-    ]
-  }
-}
-
 # Cloud Scheduler requires AppEngine projects!
 resource "google_app_engine_application" "app" {
   project     = data.google_project.project.project_id
