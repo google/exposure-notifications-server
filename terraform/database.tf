@@ -156,6 +156,17 @@ resource "google_secret_manager_secret_version" "db-pwd-initial" {
   secret_data = google_sql_user.user.password
 }
 
+locals {
+  schema_substitutions = {
+    "_DBCONN" : google_sql_database_instance.db-inst.connection_name,
+    "_DBNAME" : google_sql_database.db.name,
+    "_DBPASS_SECRET" : google_secret_manager_secret_version.db-pwd-initial.name,
+    "_DBPORT" : "5432",
+    "_DBSSLMODE" : "disable",
+    "_DBUSER" : google_sql_user.user.name,
+  }
+}
+
 resource "google_cloudbuild_trigger" "update-schema" {
   provider = google-beta
   count    = var.use_build_triggers ? 1 : 0
@@ -163,6 +174,7 @@ resource "google_cloudbuild_trigger" "update-schema" {
   name        = "update-schema"
   description = "Build the containers for the schema migrator and run it to ensure the DB is up to date."
   filename    = "builders/schema.yaml"
+
   github {
     owner = var.repo_owner
     name  = var.repo_name
@@ -170,24 +182,23 @@ resource "google_cloudbuild_trigger" "update-schema" {
       branch = "^master$"
     }
   }
-  substitutions = {
-    "_CLOUDSQLPATH" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-    "_PORT" : "5432"
-    "_PASSWORD_SECRET" : google_secret_manager_secret.db-pwd.secret_id
-    "_USER" : google_sql_user.user.name
-    "_NAME" : google_sql_database.db.name
-    "_SSLMODE" : "disable"
-  }
-  depends_on = [google_project_iam_member.cloudbuild-secrets, google_project_iam_member.cloudbuild-sql]
+
+  substitutions = local.schema_substitutions
+
+  depends_on = [
+    google_project_iam_member.cloudbuild-secrets,
+    google_project_iam_member.cloudbuild-sql,
+  ]
 }
 
 resource "null_resource" "submit-update-schema" {
   provisioner "local-exec" {
-    command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=_PORT=5432,_PASSWORD_SECRET=${google_secret_manager_secret.db-pwd.secret_id},_USER=${google_sql_user.user.name},_NAME=${google_sql_database.db.name},_SSLMODE=disable,_CLOUDSQLPATH=${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+    command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=${join(",", formatlist("%s=%s", keys(local.schema_substitutions), values(local.schema_substitutions)))}"
   }
 
   triggers = {
-    database = google_sql_database_instance.db-inst.name,
+    database      = google_sql_database_instance.db-inst.name,
+    substitutions = join(",", values(local.schema_substitutions)),
   }
 
   depends_on = [

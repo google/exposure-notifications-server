@@ -22,8 +22,8 @@ substitutions:
   _PERCENTAGE: '100'
 
 steps:
-- id: export
-  name: gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine
+- id: 'export'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
   args:
   - 'bash'
   - '-c'
@@ -36,8 +36,8 @@ steps:
       --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
-- id: federationin
-  name: gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine
+- id: 'federationin'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
   args:
   - 'bash'
   - '-c'
@@ -50,8 +50,8 @@ steps:
       --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
-- id: federationout
-  name: gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine
+- id: 'federationout'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
   args:
   - 'bash'
   - '-c'
@@ -64,8 +64,8 @@ steps:
       --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
-- id: exposure
-  name: gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine
+- id: 'exposure'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
   args:
   - 'bash'
   - '-c'
@@ -78,8 +78,8 @@ steps:
       --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
-- id: cleanup-export
-  name: gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine
+- id: 'cleanup-export'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
   args:
   - 'bash'
   - '-c'
@@ -92,8 +92,8 @@ steps:
       --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
-- id: cleanup-exposure
-  name: gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine
+- id: 'cleanup-exposure'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
   args:
   - 'bash'
   - '-c'
