@@ -76,9 +76,9 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 
 	// TODO(mikehelmick): Make this extensible to other providers.
 	if _, ok := config.(KeyManagerProvider); ok {
-		km, err := signing.NewGCPKMS(ctx)
+		km, err := signing.NewLocalSigner()
 		if err != nil {
-	//		return nil, nil, fmt.Errorf("unable to connect to key manager: %w", err)
+			return nil, nil, fmt.Errorf("unable to connect to key manager: %w", err)
 		}
 		opts = append(opts, serverenv.WithKeyManager(km))
 	}
