@@ -19,6 +19,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -35,15 +36,15 @@ import (
 
 var (
 	signingKey     = flag.String("signing-key", "", "The path to a private key PEM to use for signing")
-	keyID          = flag.String("key-id", "", "Value to use in verification_key_id")
-	keyVersion     = flag.String("key-version", "", "Value to use in verification_key_version")
+	keyID          = flag.String("key-id", "some_id", "Value to use in verification_key_id")
+	keyVersion     = flag.String("key-version", "1", "Value to use in verification_key_version")
 	filenameRoot   = flag.String("filename-root", "/tmp/testExport-", "The root filename for the export file(s).")
 	region         = flag.String("region", "US", "The region for the test export.")
 	startTimestamp = flag.String("start-timestamp", "2020-05-01T15:00:00Z", "The test export start timestamp (RFC3339).")
 	endTimestamp   = flag.String("end-timestamp", "2020-05-02T15:00:00Z", "The test export end timestamp (RFC3339).")
 	numKeys        = flag.Int("num-keys", 450, "Number of total random temporary exposure keys to generate in the export")
-	// TODO(guray): keys-infile if want to pass in keys
-	batchSize = flag.Int("batches-size", 100, "Max number of keys in each file in the batch")
+	tekFile        = flag.String("tek-file", "", "File containing one base64 encoded Temporary Exposure Key per line. If set, num-keys ignored.")
+	batchSize      = flag.Int("batches-size", 100, "Max number of keys in each file in the batch")
 )
 
 const (
@@ -87,20 +88,45 @@ func main() {
 	if err != nil {
 		log.Fatalf("problem with random transmission risk: %v", err)
 	}
-	keys := util.GenerateExposureKeys(*numKeys, tr)
-	exposureKeys := make([]database.Exposure, *numKeys)
-	for i, k := range keys {
-		decoded, err := base64.StdEncoding.DecodeString(k.Key)
+	var actualNumKeys int
+	var exposureKeys []database.Exposure
+	if *tekFile != "" {
+		log.Printf("Using TEKs provided in: %s", *tekFile)
+		file, err := ioutil.ReadFile(*tekFile)
 		if err != nil {
-			log.Fatalf("unable to decode key: %v", k.Key)
+			log.Fatalf("unable to read file: %v", err)
 		}
-		exposureKeys[i].ExposureKey = decoded
-		n, err := util.RandomIntervalCount()
+		data := database.ExposureKeys{}
+		err = json.Unmarshal([]byte(file), &data)
 		if err != nil {
-			log.Fatalf("problem with interval count: %v", err)
+			log.Fatalf("unable to parse json: %v", err)
 		}
-		exposureKeys[i].IntervalNumber = n
-		exposureKeys[i].IntervalCount = n
+		for _, k := range data.Keys {
+			ek, err := database.TransformExposureKey(k, "", []string{}, time.Now(), int32(0), math.MaxInt32)
+			if err != nil {
+				log.Fatalf("invalid exposure key: %v", err)
+			}
+			exposureKeys = append(exposureKeys, *ek)
+		}
+		actualNumKeys = len(exposureKeys)
+	} else {
+		keys := util.GenerateExposureKeys(*numKeys, tr)
+		actualNumKeys = *numKeys
+
+		exposureKeys = make([]database.Exposure, actualNumKeys)
+		for i, k := range keys {
+			decoded, err := base64.StdEncoding.DecodeString(k.Key)
+			if err != nil {
+				log.Fatalf("unable to decode key: %v", k.Key)
+			}
+			exposureKeys[i].ExposureKey = decoded
+			n, err := util.RandomIntervalCount()
+			if err != nil {
+				log.Fatalf("problem with interval count: %v", err)
+			}
+			exposureKeys[i].IntervalNumber = n
+			exposureKeys[i].IntervalCount = n
+		}
 	}
 
 	// split up into batches
@@ -110,21 +136,21 @@ func main() {
 		EndTimestamp:   endTime,
 		Region:         *region,
 	}
-	numBatches := int(math.Ceil(float64(*numKeys) / float64(*batchSize)))
+	numBatches := int(math.Ceil(float64(actualNumKeys) / float64(*batchSize)))
 	log.Printf("number of batches: %d", numBatches)
 	b := 0
 	currentBatch := []*database.Exposure{}
-	for i := 0; i < *numKeys; i++ {
+	for i := 0; i < actualNumKeys; i++ {
 		currentBatch = append(currentBatch, &exposureKeys[i])
 		if len(currentBatch) == *batchSize {
 			b++
-			writeFile(eb, currentBatch, b, numBatches, *numKeys, privateKey)
+			writeFile(eb, currentBatch, b, numBatches, actualNumKeys, privateKey)
 			currentBatch = []*database.Exposure{}
 		}
 	}
 	if len(currentBatch) > 0 {
 		b++
-		writeFile(eb, currentBatch, b, numBatches, *numKeys, privateKey)
+		writeFile(eb, currentBatch, b, numBatches, actualNumKeys, privateKey)
 	}
 }
 

@@ -135,6 +135,13 @@ type ExposureKey struct {
 	TransmissionRisk int    `json:"transmissionRisk"`
 }
 
+// ExposureKeys represents a set of ExposureKey objects as input to
+// export file generation utility.
+// Keys: Required and must have length >= 1
+type ExposureKeys struct {
+	Keys []ExposureKey `json:"temporaryExposureKeys"`
+}
+
 // Exposure represents the record as stored in the database
 // TODO(mikehelmick) - refactor this so that there is a public
 // Exposure struct that doesn't have public fields and an
@@ -185,12 +192,62 @@ func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, trun
 	}, nil
 }
 
+// TransformExposureKey converts individual key data to an exposure entity.
+// Validations during the transform include:
+//
+// * exposure keys are exactly 16 bytes in length after base64 decoding
+// * minInterval <= interval number <= maxInterval
+// * MinIntervalCount <= interval count <= MaxIntervalCount
+//
+func TransformExposureKey(exposureKey ExposureKey, appPackageName string, upcaseRegions []string, createdAt time.Time, minIntervalNumber, maxIntervalNumber int32) (*Exposure, error) {
+	binKey, err := base64util.DecodeString(exposureKey.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate individual pieces of the exposure key
+	if len(binKey) != KeyLength {
+		return nil, fmt.Errorf("invalid key length, %v, must be %v", len(binKey), KeyLength)
+	}
+	if ic := exposureKey.IntervalCount; ic < MinIntervalCount || ic > MaxIntervalCount {
+		return nil, fmt.Errorf("invalid interval count, %v, must be >= %v && <= %v", ic, MinIntervalCount, MaxIntervalCount)
+	}
+
+	// Validate the IntervalNumber.
+	if exposureKey.IntervalNumber < minIntervalNumber {
+		return nil, fmt.Errorf("interval number %v is too old, must be >= %v", exposureKey.IntervalNumber, minIntervalNumber)
+	}
+	if exposureKey.IntervalNumber >= maxIntervalNumber {
+		return nil, fmt.Errorf("interval number %v is in the future, must be < %v", exposureKey.IntervalNumber, maxIntervalNumber)
+	}
+
+	// Validate that the key is no longer effective.
+	if exposureKey.IntervalNumber+exposureKey.IntervalCount > maxIntervalNumber {
+		return nil, fmt.Errorf("interval number %v + interval count %v represents a key that is still valid, must end <= %v",
+			exposureKey.IntervalNumber, exposureKey.IntervalCount, maxIntervalNumber)
+	}
+
+	if tr := exposureKey.TransmissionRisk; tr < MinTransmissionRisk || tr > MaxTransmissionRisk {
+		return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, MinTransmissionRisk, MaxTransmissionRisk)
+	}
+
+	return &Exposure{
+		ExposureKey:      binKey,
+		TransmissionRisk: exposureKey.TransmissionRisk,
+		AppPackageName:   appPackageName,
+		Regions:          upcaseRegions,
+		IntervalNumber:   exposureKey.IntervalNumber,
+		IntervalCount:    exposureKey.IntervalCount,
+		CreatedAt:        createdAt,
+		LocalProvenance:  true,
+	}, nil
+}
+
 // TransformPublish converts incoming key data to a list of exposure entities.
 // The data in the request is validated during the transform, including:
 //
 // * 0 exposure Keys in the requests
 // * > Transformer.maxExposureKeys in the request
-// * exposure keys that aren't exactly 16 bytes in length after base64 decoding
 //
 func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]*Exposure, error) {
 	// Validate the number of keys that want to be published.
@@ -219,46 +276,9 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 	}
 
 	for _, exposureKey := range inData.Keys {
-		binKey, err := base64util.DecodeString(exposureKey.Key)
+		exposure, err := TransformExposureKey(exposureKey, inData.AppPackageName, upcaseRegions, createdAt, minIntervalNumber, maxIntervalNumber)
 		if err != nil {
-			return nil, err
-		}
-
-		// Validate individual pieces of this publish request.
-		if len(binKey) != KeyLength {
-			return nil, fmt.Errorf("invalid key length, %v, must be %v", len(binKey), KeyLength)
-		}
-		if ic := exposureKey.IntervalCount; ic < MinIntervalCount || ic > MaxIntervalCount {
-			return nil, fmt.Errorf("invalid interval count, %v, must be >= %v && <= %v", ic, MinIntervalCount, MaxIntervalCount)
-		}
-
-		// Validate the IntervalNumber.
-		if exposureKey.IntervalNumber < minIntervalNumber {
-			return nil, fmt.Errorf("interval number %v is too old, must be >= %v", exposureKey.IntervalNumber, minIntervalNumber)
-		}
-		if exposureKey.IntervalNumber >= maxIntervalNumber {
-			return nil, fmt.Errorf("interval number %v is in the future, must be < %v", exposureKey.IntervalNumber, maxIntervalNumber)
-		}
-
-		// Validate that the key is no longer effective.
-		if exposureKey.IntervalNumber+exposureKey.IntervalCount > maxIntervalNumber {
-			return nil, fmt.Errorf("interval number %v + interval count %v represents a key that is still valid, must end <= %v",
-				exposureKey.IntervalNumber, exposureKey.IntervalCount, maxIntervalNumber)
-		}
-
-		if tr := exposureKey.TransmissionRisk; tr < MinTransmissionRisk || tr > MaxTransmissionRisk {
-			return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, MinTransmissionRisk, MaxTransmissionRisk)
-		}
-
-		exposure := &Exposure{
-			ExposureKey:      binKey,
-			TransmissionRisk: exposureKey.TransmissionRisk,
-			AppPackageName:   inData.AppPackageName,
-			Regions:          upcaseRegions,
-			IntervalNumber:   exposureKey.IntervalNumber,
-			IntervalCount:    exposureKey.IntervalCount,
-			CreatedAt:        createdAt,
-			LocalProvenance:  true,
+			return nil, fmt.Errorf("Invalid publish data: %v", err)
 		}
 		entities = append(entities, exposure)
 	}
