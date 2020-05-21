@@ -29,12 +29,12 @@ import (
 
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/database"
+	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/pb"
-
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
-	"github.com/google/exposure-notifications-server/internal/publish/model"
+	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 
 	"google.golang.org/api/idtoken"
@@ -53,8 +53,8 @@ var (
 
 type (
 	fetchFn               func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
-	insertExposuresFn     func(context.Context, []*model.Exposure) error
-	startFederationSyncFn func(context.Context, *database.FederationInQuery, time.Time) (int64, coredb.FinalizeSyncFn, error)
+	insertExposuresFn     func(context.Context, []*publishmodel.Exposure) error
+	startFederationSyncFn func(context.Context, *model.FederationInQuery, time.Time) (int64, database.FinalizeSyncFn, error)
 )
 
 type pullDependencies struct {
@@ -190,7 +190,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *coredb.FederationInQuery, batchStart time.Time, truncateWindow time.Duration) error {
+func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *model.FederationInQuery, batchStart time.Time, truncateWindow time.Duration) error {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Processing query %q", q.QueryID)
 
@@ -211,7 +211,7 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 		logger.Infof("Inserted %d keys", total)
 	}()
 
-	createdAt := model.TruncateWindow(batchStart, truncateWindow)
+	createdAt := publishmodel.TruncateWindow(batchStart, truncateWindow)
 	partial := true
 	for partial {
 
@@ -228,7 +228,7 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 		}
 
 		// Loop through the result set, storing in publishdb.
-		var exposures []*model.Exposure
+		var exposures []*publishmodel.Exposure
 		for _, ctr := range response.Response {
 
 			var upperRegions []string
@@ -240,12 +240,12 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 			for _, cti := range ctr.ContactTracingInfo {
 				for _, key := range cti.ExposureKeys {
 
-					if cti.TransmissionRisk < model.MinTransmissionRisk || cti.TransmissionRisk > model.MaxTransmissionRisk {
+					if cti.TransmissionRisk < publishmodel.MinTransmissionRisk || cti.TransmissionRisk > publishmodel.MaxTransmissionRisk {
 						logger.Errorf("invalid transmission risk %v - dropping record.", cti.TransmissionRisk)
 						continue
 					}
 
-					exposures = append(exposures, &model.Exposure{
+					exposures = append(exposures, &publishmodel.Exposure{
 						TransmissionRisk: int(cti.TransmissionRisk),
 						ExposureKey:      key.ExposureKey,
 						Regions:          upperRegions,

@@ -17,23 +17,43 @@ package database
 import (
 	"context"
 	"errors"
+	"log"
+	"os"
 	"testing"
 	"time"
+
+	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/federationin/model"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+var testDB *coredb.DB
+
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	if os.Getenv("DB_USER") != "" {
+		var err error
+		testDB, err = coredb.CreateTestDB(ctx)
+		if err != nil {
+			log.Fatalf("creating test DB: %v", err)
+		}
+	}
+	os.Exit(m.Run())
+}
 
 // TestFederationIn tests functions operating over FederationInQuery, FederationInSync.
 func TestFederationIn(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t, testDB)
+	defer coredb.ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	ts := time.Date(2020, 5, 6, 0, 0, 0, 0, time.UTC)
-	want := &FederationInQuery{
+	want := &model.FederationInQuery{
 		QueryID:        "qid",
 		ServerAddr:     "addr",
 		IncludeRegions: []string{"MX"},
@@ -41,15 +61,15 @@ func TestFederationIn(t *testing.T) {
 		LastTimestamp:  ts,
 	}
 	// GetFederationQuery should fail if not found.
-	if _, err := testDB.GetFederationInQuery(ctx, want.QueryID); !errors.Is(err, ErrNotFound) {
+	if _, err := New(testDB).GetFederationInQuery(ctx, want.QueryID); !errors.Is(err, coredb.ErrNotFound) {
 		t.Errorf("got %v, want ErrNotFound", err)
 	}
 
 	// Add a query, then get it.
-	if err := testDB.AddFederationInQuery(ctx, want); err != nil {
+	if err := New(testDB).AddFederationInQuery(ctx, want); err != nil {
 		t.Fatal(err)
 	}
-	got, err := testDB.GetFederationInQuery(ctx, want.QueryID)
+	got, err := New(testDB).GetFederationInQuery(ctx, want.QueryID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,10 +79,10 @@ func TestFederationIn(t *testing.T) {
 
 	// AddFederationQuery should overwrite.
 	want.ServerAddr = "addr2"
-	if err := testDB.AddFederationInQuery(ctx, want); err != nil {
+	if err := New(testDB).AddFederationInQuery(ctx, want); err != nil {
 		t.Fatal(err)
 	}
-	got, err = testDB.GetFederationInQuery(ctx, want.QueryID)
+	got, err = New(testDB).GetFederationInQuery(ctx, want.QueryID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,21 +91,21 @@ func TestFederationIn(t *testing.T) {
 	}
 
 	// GetFederationSync should fail if not found.
-	if _, err := testDB.GetFederationInSync(ctx, 1); !errors.Is(err, ErrNotFound) {
+	if _, err := New(testDB).GetFederationInSync(ctx, 1); !errors.Is(err, coredb.ErrNotFound) {
 		t.Errorf("got %v, want ErrNotFound", err)
 	}
 
 	// Start a sync.
 	now := time.Now().Truncate(time.Microsecond)
-	syncID, finalize, err := testDB.StartFederationInSync(ctx, want, now)
+	syncID, finalize, err := New(testDB).StartFederationInSync(ctx, want, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotSync, err := testDB.GetFederationInSync(ctx, syncID)
+	gotSync, err := New(testDB).GetFederationInSync(ctx, syncID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantSync := &FederationInSync{
+	wantSync := &model.FederationInSync{
 		SyncID:  syncID,
 		QueryID: want.QueryID,
 		Started: now,
@@ -103,7 +123,7 @@ func TestFederationIn(t *testing.T) {
 	if err := finalize(wantSync.MaxTimestamp, wantSync.Insertions); err != nil {
 		t.Fatal(err)
 	}
-	gotSync, err = testDB.GetFederationInSync(ctx, syncID)
+	gotSync, err = New(testDB).GetFederationInSync(ctx, syncID)
 	if err != nil {
 		t.Fatal(err)
 	}
