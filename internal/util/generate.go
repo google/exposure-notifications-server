@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/testing/enclient"
 )
 
@@ -58,7 +58,7 @@ func RandomIntWithMin(min, max int) (int, error) {
 }
 
 func RandomTransmissionRisk() (int, error) {
-	n, err := RandomInt(database.MaxTransmissionRisk)
+	n, err := RandomInt(model.MaxTransmissionRisk)
 	return n + 1, err
 }
 
@@ -70,14 +70,14 @@ func RandomArrValue(arr []string) (string, error) {
 	return arr[n], nil
 }
 
-func GenerateExposureKeys(numKeys, tr int) []database.ExposureKey {
+func GenerateExposureKeys(numKeys, tr int) []model.ExposureKey {
 	// When publishing multiple keys - they'll be on different days.
 	intervalCount, err := RandomIntervalCount()
 	if err != nil {
 		log.Fatalf("problem with random interval: %v", err)
 	}
 	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
-	exposureKeys := make([]database.ExposureKey, numKeys)
+	exposureKeys := make([]model.ExposureKey, numKeys)
 	for i := 0; i < numKeys; i++ {
 		transmissionRisk := tr
 		if transmissionRisk < 0 {
@@ -102,12 +102,12 @@ func GenerateExposureKeys(numKeys, tr int) []database.ExposureKey {
 }
 
 // Creates a random exposure key.
-func RandomExposureKey(intervalNumber enclient.Interval, intervalCount int32, transmissionRisk int) (database.ExposureKey, error) {
+func RandomExposureKey(intervalNumber enclient.Interval, intervalCount int32, transmissionRisk int) (model.ExposureKey, error) {
 	key, err := GenerateKey()
 	if err != nil {
-		return database.ExposureKey{}, err
+		return model.ExposureKey{}, err
 	}
-	return database.ExposureKey{
+	return model.ExposureKey{
 		Key:              key,
 		IntervalNumber:   int32(intervalNumber),
 		IntervalCount:    intervalCount,

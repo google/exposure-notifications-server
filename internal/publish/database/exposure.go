@@ -23,7 +23,9 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 
 	pgx "github.com/jackc/pgx/v4"
 )
@@ -32,6 +34,16 @@ const (
 	// InsertExposuresBatchSize is the maximum number of exposures that can be inserted at once.
 	InsertExposuresBatchSize = 500
 )
+
+type PublishDB struct {
+	db *database.DB
+}
+
+func New(db *database.DB) *PublishDB {
+	return &PublishDB{
+		db: db,
+	}
+}
 
 // IterateExposuresCriteria is criteria to iterate exposures.
 type IterateExposuresCriteria struct {
@@ -54,8 +66,8 @@ type IterateExposuresCriteria struct {
 // criteria.LastCursor in a subsequent call to IterateExposures, will continue
 // the iteration at the failed row. If IterateExposures returns a nil error,
 // the first return value will be the empty string.
-func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*Exposure) error) (cur string, err error) {
-	conn, err := db.Pool.Acquire(ctx)
+func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*model.Exposure) error) (cur string, err error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return "", fmt.Errorf("acquiring connection: %v", err)
 	}
@@ -94,7 +106,7 @@ func (db *DB) IterateExposures(ctx context.Context, criteria IterateExposuresCri
 			return cursor(), err
 		}
 		var (
-			m          Exposure
+			m          model.Exposure
 			encodedKey string
 			syncID     *int64
 		)
@@ -178,8 +190,8 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 }
 
 // InsertExposures inserts a set of exposures.
-func (db *DB) InsertExposures(ctx context.Context, exposures []*Exposure) error {
-	return db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+func (db *PublishDB) InsertExposures(ctx context.Context, exposures []*model.Exposure) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		const stmtName = "insert exposures"
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
@@ -210,10 +222,10 @@ func (db *DB) InsertExposures(ctx context.Context, exposures []*Exposure) error 
 }
 
 // DeleteExposures deletes exposures created before "before" date. Returns the number of records deleted.
-func (db *DB) DeleteExposures(ctx context.Context, before time.Time) (int64, error) {
+func (db *PublishDB) DeleteExposures(ctx context.Context, before time.Time) (int64, error) {
 	var count int64
 	// ReadCommitted is sufficient here because we are dealing with historical, immutable rows.
-	err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			DELETE FROM
 				Exposure

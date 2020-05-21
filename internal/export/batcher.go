@@ -25,6 +25,8 @@ import (
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
+	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
+
 	"github.com/google/exposure-notifications-server/internal/logging"
 )
 
@@ -140,7 +142,7 @@ var sanityDate = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 func makeBatchRanges(period time.Duration, latestEnd, now time.Time, truncateWindow time.Duration) []batchRange {
 
 	// Compute the end of the exposure publish window; we don't want any batches with an end date greater than this time.
-	publishEnd := coredb.TruncateWindow(now, truncateWindow)
+	publishEnd := publishmodel.TruncateWindow(now, truncateWindow)
 
 	// Special case: if there have not been batches before, return only a single one.
 	// We use sanityDate here because the loop below will happily create batch ranges

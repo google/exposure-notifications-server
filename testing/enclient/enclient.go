@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 )
 
 const (
@@ -70,8 +70,8 @@ func NewInterval(time int64) Interval {
 }
 
 // Creates an exposure key.
-func ExposureKey(key string, intervalNumber Interval, intervalCount int32, transmissionRisk int) database.ExposureKey {
-	return database.ExposureKey{
+func ExposureKey(key string, intervalNumber Interval, intervalCount int32, transmissionRisk int) model.ExposureKey {
+	return model.ExposureKey{
 		Key:              key,
 		IntervalNumber:   int32(intervalNumber),
 		IntervalCount:    intervalCount,

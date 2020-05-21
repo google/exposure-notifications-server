@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/util"
 	"github.com/google/exposure-notifications-server/testing/enclient"
 )
@@ -84,7 +84,7 @@ func main() {
 		log.Printf("could not get random padding: %v", err)
 	}
 
-	data := database.Publish{
+	data := model.Publish{
 		Keys:           exposureKeys,
 		Regions:        region,
 		AppPackageName: *appPackage,

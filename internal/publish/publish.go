@@ -22,9 +22,11 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
-	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/publish/database"
+
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
 )
@@ -40,9 +42,9 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("missing AuthorizedApp provider in server environment")
 	}
 
-	transformer, err := database.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow)
+	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow)
 	if err != nil {
-		return nil, fmt.Errorf("database.NewTransformer: %w", err)
+		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
 	logger.Infof("max keys per upload: %v", config.MaxKeysOnPublish)
 	logger.Infof("max interval start age: %v", config.MaxIntervalAge)
@@ -52,7 +54,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		serverenv:             env,
 		transformer:           transformer,
 		config:                config,
-		database:              env.Database(),
+		database:              database.New(env.Database()),
 		authorizedAppProvider: env.AuthorizedAppProvider(),
 	}, nil
 }
@@ -60,8 +62,8 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 type publishHandler struct {
 	config                *Config
 	serverenv             *serverenv.ServerEnv
-	transformer           *database.Transformer
-	database              *database.DB
+	transformer           *model.Transformer
+	database              *database.PublishDB
 	authorizedAppProvider authorizedapp.Provider
 }
 
@@ -77,7 +79,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
-	var data database.Publish
+	var data model.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.

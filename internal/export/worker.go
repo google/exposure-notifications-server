@@ -26,7 +26,11 @@ import (
 
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export/database"
+	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+
 	"github.com/google/exposure-notifications-server/internal/export/model"
+	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
+
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/util"
 )
@@ -86,9 +90,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	logger := logging.FromContext(ctx)
 	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d", eb.BatchID, eb.FilenameRoot, eb.Region, s.config.MaxRecords)
 
-	exportDB := database.New(s.db)
-
-	criteria := coredb.IterateExposuresCriteria{
+	criteria := publishdb.IterateExposuresCriteria{
 		SinceTimestamp:      eb.StartTimestamp,
 		UntilTimestamp:      eb.EndTimestamp,
 		IncludeRegions:      []string{eb.Region},
@@ -98,10 +100,10 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	// Build up groups of exposures in memory. We need to use memory so we can determine the
 	// total number of groups (which is embedded in each export file). This technique avoids
 	// SELECT COUNT which would lock the database slowing new uploads.
-	var groups [][]*coredb.Exposure
-	var exposures []*coredb.Exposure
+	var groups [][]*publishmodel.Exposure
+	var exposures []*publishmodel.Exposure
 
-	_, err := s.db.IterateExposures(ctx, criteria, func(exp *coredb.Exposure) error {
+	_, err := s.publishdb.IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
 		exposures = append(exposures, exp)
 		if len(exposures) == s.config.MaxRecords {
 			groups = append(groups, exposures)
@@ -128,7 +130,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	}
 
 	// Load the non-expired signature infos associated with this export batch.
-	sigInfos, err := exportDB.LookupSignatureInfos(ctx, eb.SignatureInfoIDs, time.Now())
+	sigInfos, err := s.exportdb.LookupSignatureInfos(ctx, eb.SignatureInfoIDs, time.Now())
 	if err != nil {
 		return fmt.Errorf("error loading signature info for batch %d, %w", eb.BatchID, err)
 	}
@@ -166,7 +168,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	}
 
 	// Write the files records in database and complete the batch.
-	if err := exportDB.FinalizeBatch(ctx, eb, objectNames, batchSize); err != nil {
+	if err := s.exportdb.FinalizeBatch(ctx, eb, objectNames, batchSize); err != nil {
 		return fmt.Errorf("completing batch: %w", err)
 	}
 	logger.Infof("Batch %d completed", eb.BatchID)
@@ -174,7 +176,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 }
 
 type createFileInfo struct {
-	exposures      []*coredb.Exposure
+	exposures      []*publishmodel.Exposure
 	exportBatch    *model.ExportBatch
 	signatureInfos []*model.SignatureInfo
 	batchNum       int
@@ -298,7 +300,7 @@ func randomInt(min, max int) (int, error) {
 	return int(n.Int64()) + min, nil
 }
 
-func ensureMinNumExposures(exposures []*coredb.Exposure, region string, minLength, jitter int) ([]*coredb.Exposure, error) {
+func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, minLength, jitter int) ([]*publishmodel.Exposure, error) {
 	if len(exposures) == 0 {
 		return exposures, nil
 	}
@@ -310,7 +312,7 @@ func ensureMinNumExposures(exposures []*coredb.Exposure, region string, minLengt
 		// Pieces needed are
 		// (1) exposure key, (2) interval number, (3) transmission risk
 		// Exposure key is 16 random bytes.
-		eKey := make([]byte, coredb.KeyLength)
+		eKey := make([]byte, publishmodel.KeyLength)
 		_, err := rand.Read(eKey)
 		if err != nil {
 			return nil, fmt.Errorf("rand.Read: %w", err)
@@ -336,13 +338,13 @@ func ensureMinNumExposures(exposures []*coredb.Exposure, region string, minLengt
 		}
 		intervalCount := exposures[fromIdx].IntervalCount
 
-		ek := &coredb.Exposure{
+		ek := &publishmodel.Exposure{
 			ExposureKey:      eKey,
 			TransmissionRisk: transmissionRisk,
 			Regions:          []string{region},
 			IntervalNumber:   intervalNumber,
 			IntervalCount:    intervalCount,
-			// The rest of the coredb.Exposure fields are not used in the export file.
+			// The rest of the publishmodel.Exposure fields are not used in the export file.
 		}
 		exposures = append(exposures, ek)
 	}

@@ -17,7 +17,10 @@ package export
 import (
 	"fmt"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export/database"
+	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
@@ -35,15 +38,19 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	}
 
 	return &Server{
-		db:     env.Database(),
-		config: config,
-		env:    env,
+		db:        env.Database(),
+		exportdb:  database.New(env.Database()),
+		publishdb: publishdb.New(env.Database()),
+		config:    config,
+		env:       env,
 	}, nil
 }
 
 // Server hosts end points to manage export batches.
 type Server struct {
-	db     *database.DB
-	config *Config
-	env    *serverenv.ServerEnv
+	db        *coredb.DB
+	exportdb  *database.ExportDB
+	publishdb *publishdb.PublishDB
+	config    *Config
+	env       *serverenv.ServerEnv
 }

@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
+
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/pb"
 
@@ -38,7 +40,7 @@ var (
 )
 
 // makeRemoteExposure returns a mock model.Exposure with LocalProvenance=false.
-func makeRemoteExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *database.Exposure {
+func makeRemoteExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *model.Exposure {
 	inf := makeExposure(diagKey, diagStatus, regions...)
 	inf.LocalProvenance = false
 	inf.FederationSyncID = syncID
@@ -62,12 +64,12 @@ func (r *remoteFetchServer) fetch(ctx context.Context, req *pb.FederationFetchRe
 	return response, nil
 }
 
-// exposureDB mocks the database, recording exposure insertions.
-type exposureDB struct {
-	exposures []*database.Exposure
+// publishDB mocks the database, recording exposure insertions.
+type publishDB struct {
+	exposures []*model.Exposure
 }
 
-func (idb *exposureDB) insertExposures(ctx context.Context, exposures []*database.Exposure) error {
+func (idb *publishDB) insertExposures(ctx context.Context, exposures []*model.Exposure) error {
 	idb.exposures = append(idb.exposures, exposures...)
 	return nil
 }
@@ -99,7 +101,7 @@ func TestFederationPull(t *testing.T) {
 		name             string
 		batchSize        int
 		fetchResponses   []*pb.FederationFetchResponse
-		wantExposures    []*database.Exposure
+		wantExposures    []*model.Exposure
 		wantTokens       []string
 		wantMaxTimestamp time.Time
 	}{
@@ -135,7 +137,7 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantExposures: []*database.Exposure{
+			wantExposures: []*model.Exposure{
 				makeRemoteExposure(aaa, 1, "US"),
 				makeRemoteExposure(bbb, 1, "US"),
 				makeRemoteExposure(ccc, 2, "CA", "US"),
@@ -171,7 +173,7 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantExposures: []*database.Exposure{
+			wantExposures: []*model.Exposure{
 				makeRemoteExposure(aaa, 1, "US"),
 				makeRemoteExposure(bbb, 1, "US"),
 			},
@@ -212,7 +214,7 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantExposures: []*database.Exposure{
+			wantExposures: []*model.Exposure{
 				makeRemoteExposure(aaa, 8, "US"),
 				makeRemoteExposure(bbb, 8, "US"),
 				makeRemoteExposure(ccc, 7, "US"),
@@ -249,7 +251,7 @@ func TestFederationPull(t *testing.T) {
 					FetchResponseKeyTimestamp: 400,
 				},
 			},
-			wantExposures: []*database.Exposure{
+			wantExposures: []*model.Exposure{
 				makeRemoteExposure(aaa, 3, "US"),
 				makeRemoteExposure(bbb, 3, "US"),
 				makeRemoteExposure(ccc, 2, "CA", "US"),
@@ -265,7 +267,7 @@ func TestFederationPull(t *testing.T) {
 			ctx := context.Background()
 			query := &database.FederationInQuery{}
 			remote := remoteFetchServer{responses: tc.fetchResponses}
-			idb := exposureDB{}
+			idb := publishDB{}
 			sdb := syncDB{}
 			batchStart := time.Now()
 			if tc.batchSize > 0 {
@@ -284,7 +286,7 @@ func TestFederationPull(t *testing.T) {
 				t.Fatalf("pull returned err=%v, want err=nil", err)
 			}
 
-			if diff := cmp.Diff(tc.wantExposures, idb.exposures, cmpopts.IgnoreFields(database.Exposure{}, "CreatedAt")); diff != "" {
+			if diff := cmp.Diff(tc.wantExposures, idb.exposures, cmpopts.IgnoreFields(model.Exposure{}, "CreatedAt")); diff != "" {
 				t.Errorf("exposures mismatch (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.wantTokens, remote.gotTokens); diff != "" {
@@ -309,8 +311,8 @@ func TestFederationPull(t *testing.T) {
 	}
 }
 
-func makeExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *database.Exposure {
-	return &database.Exposure{
+func makeExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *model.Exposure {
+	return &model.Exposure{
 		Regions:          regions,
 		TransmissionRisk: diagStatus,
 		ExposureKey:      diagKey.ExposureKey,
