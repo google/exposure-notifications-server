@@ -49,8 +49,8 @@ func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.Secr
 	query := `
 		SELECT
 			app_package_name, platform, allowed_regions,
-			safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
-			devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
+			safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
+			devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
 		FROM
 			AuthorizedApp
 		WHERE app_package_name = $1`
@@ -63,8 +63,8 @@ func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.Secr
 	var deviceCheckTeamID, deviceCheckKeyID, deviceCheckPrivateKeySecret sql.NullString
 	if err := row.Scan(
 		&config.AppPackageName, &config.Platform, &allowedRegions,
-		&config.SafetyNetApkDigestSHA256, &config.SafetyNetCTSProfileMatch, &config.SafetyNetBasicIntegrity, &safetyNetPastSeconds, &safetyNetFutureSeconds,
-		&deviceCheckTeamID, &deviceCheckKeyID, &deviceCheckPrivateKeySecret,
+		&config.SafetyNetDisabled, &config.SafetyNetApkDigestSHA256, &config.SafetyNetCTSProfileMatch, &config.SafetyNetBasicIntegrity, &safetyNetPastSeconds, &safetyNetFutureSeconds,
+		&config.DeviceCheckDisabled, &deviceCheckTeamID, &deviceCheckKeyID, &deviceCheckPrivateKeySecret,
 	); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
