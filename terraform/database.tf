@@ -62,51 +62,6 @@ resource "google_sql_ssl_cert" "client_cert" {
   instance    = google_sql_database_instance.db-inst.name
 }
 
-resource "google_secret_manager_secret" "ssl-ca-cert" {
-  provider  = google-beta
-  secret_id = "dbServerCA"
-  replication {
-    automatic = true
-  }
-  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
-}
-
-resource "google_secret_manager_secret_version" "db-ca-cert" {
-  provider    = google-beta
-  secret      = google_secret_manager_secret.ssl-ca-cert.id
-  secret_data = google_sql_ssl_cert.client_cert.server_ca_cert
-}
-
-resource "google_secret_manager_secret" "ssl-key" {
-  provider  = google-beta
-  secret_id = "dbClientKey"
-  replication {
-    automatic = true
-  }
-  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
-}
-
-resource "google_secret_manager_secret_version" "db-key" {
-  provider    = google-beta
-  secret      = google_secret_manager_secret.ssl-key.id
-  secret_data = google_sql_ssl_cert.client_cert.private_key
-}
-
-resource "google_secret_manager_secret" "ssl-cert" {
-  provider  = google-beta
-  secret_id = "dbClientCert"
-  replication {
-    automatic = true
-  }
-  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
-}
-
-resource "google_secret_manager_secret_version" "db-cert" {
-  provider    = google-beta
-  secret      = google_secret_manager_secret.ssl-cert.id
-  secret_data = google_sql_ssl_cert.client_cert.cert
-}
-
 resource "random_password" "userpassword" {
   length  = 16
   special = false
@@ -132,23 +87,10 @@ resource "google_secret_manager_secret" "db-pwd" {
   replication {
     automatic = true
   }
-  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
-}
 
-resource "google_project_iam_member" "cloudbuild-secrets" {
-  project = data.google_project.project.project_id
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-
-  depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
-}
-
-resource "google_project_iam_member" "cloudbuild-sql" {
-  project = data.google_project.project.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-
-  depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
+  depends_on = [
+    google_project_service.services["secretmanager.googleapis.com"],
+  ]
 }
 
 resource "google_secret_manager_secret_version" "db-pwd-initial" {
@@ -183,14 +125,29 @@ resource "google_cloudbuild_trigger" "update-schema" {
   }
 
   substitutions = local.schema_substitutions
+# Grant Cloud Build the ability to access the database password (required to run
+# migrations).
+resource "google_secret_manager_secret_iam_member" "cloudbuild-db-pwd" {
+  provider  = google-beta
+  secret_id = google_secret_manager_secret.db-pwd.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 
   depends_on = [
-    google_project_iam_member.cloudbuild-secrets,
-    google_project_iam_member.cloudbuild-sql,
+    google_project_service.services["cloudbuild.googleapis.com"],
   ]
 }
 
 resource "null_resource" "submit-update-schema" {
+# Grant Cloud Build the ability to connect to Cloud SQL.
+resource "google_project_iam_member" "cloudbuild-sql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+
+  depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
+}
+
   provisioner "local-exec" {
     command = "gcloud builds submit ../ --config ../builders/migrate.yaml --project ${data.google_project.project.project_id} --substitutions=${join(",", formatlist("%s=%s", keys(local.schema_substitutions), values(local.schema_substitutions)))}"
   }
