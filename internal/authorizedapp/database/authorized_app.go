@@ -139,6 +139,7 @@ func scanOneAuthorizedApp(ctx context.Context, row pgx.Row, sm secrets.SecretMan
 
 	// Resolve secrets to their plaintext values
 	if v := deviceCheckPrivateKeySecret; v.Valid && v.String != "" {
+		config.DeviceCheckPrivateKeySecret = v.String
 		plaintext, err := sm.GetSecretValue(ctx, v.String)
 		if err != nil {
 			return nil, fmt.Errorf("devicecheck_private_key_secret at %s (%s): %w",

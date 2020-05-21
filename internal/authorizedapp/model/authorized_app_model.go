@@ -49,10 +49,11 @@ type AuthorizedApp struct {
 	SafetyNetFutureTime      time.Duration
 
 	// DeviceCheck configuration.
-	DeviceCheckDisabled   bool
-	DeviceCheckKeyID      string
-	DeviceCheckTeamID     string
-	DeviceCheckPrivateKey *ecdsa.PrivateKey
+	DeviceCheckDisabled         bool
+	DeviceCheckKeyID            string
+	DeviceCheckTeamID           string
+	DeviceCheckPrivateKey       *ecdsa.PrivateKey
+	DeviceCheckPrivateKeySecret string
 }
 
 func NewAuthorizedApp() *AuthorizedApp {
@@ -83,6 +84,10 @@ func (c *AuthorizedApp) RegionsOnePerLine() string {
 		regions = append(regions, r)
 	}
 	return strings.Join(regions, "\n")
+}
+
+func (c *AuthorizedApp) APKDigestOnePerLine() string {
+	return strings.Join(c.SafetyNetApkDigestSHA256, "\n")
 }
 
 // IsAllowedRegion returns true if the regions list is empty or if the given

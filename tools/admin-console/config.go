@@ -39,16 +39,21 @@ func (c *Config) DB() *database.Config {
 	return c.Database
 }
 
-func (c *Config) RenderTemplate(w http.ResponseWriter, tmpl string, p *map[string]interface{}) {
+func (c *Config) RenderTemplate(w http.ResponseWriter, tmpl string, p *map[string]interface{}) error {
 	file := fmt.Sprintf("%s/%s.html", c.TemplatePath, tmpl)
 	t, err := template.ParseFiles(file)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
-		return
+		log.Printf("ERROR: %v", err)
+		return err
 	}
 	if err := t.Execute(w, p); err != nil {
+		message := fmt.Sprintf("error rendering template: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Fatalf("Error rendering html %v", err)
+		w.Write([]byte(message))
+		log.Printf("ERROR: %v", err)
+		return fmt.Errorf("error rendering template: %w", err)
 	}
+	return nil
 }

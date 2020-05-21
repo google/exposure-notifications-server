@@ -15,6 +15,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"fmt"
 	"net/http"
 
 	authorizedappdb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
@@ -32,6 +34,25 @@ func NewAppHandler(c *Config, env *serverenv.ServerEnv) *appHandler {
 }
 
 func (h *appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		h.handleGet(w, r)
+		return
+	}
+	// else if r.Method == "POST" {
+	//	h.handlePost(w, r)
+	//	return
+	//}
+
+	m := map[string]interface{}{}
+	m["error"] = fmt.Errorf("Invalid request")
+	h.config.RenderTemplate(w, "error", &m)
+	return
+}
+
+func (h *appHandler) handlePost(w http.ResponseWriter, r *http.Request) {
+}
+
+func (h *appHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	m := map[string]interface{}{}
 
@@ -56,5 +77,6 @@ func (h *appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	m["app"] = authorizedApp
+	m["previousKey"] = base64.StdEncoding.EncodeToString([]byte(authorizedApp.AppPackageName))
 	h.config.RenderTemplate(w, "app_view", &m)
 }

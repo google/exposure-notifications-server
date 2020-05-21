@@ -28,11 +28,13 @@
 <h2>Edit Application {{.app.AppPackageName}}</h2>
 {{end}}
 
-<form method="POST" action="/app?save=true&apn={{.app.AppPackageName}}" class="form-horizontal">
+<form method="POST" action="/app?&apn={{.app.AppPackageName}}" class="form-horizontal">
+  <input type="hidden" name="key" value="{{.previousKey}}" />
+  <div class="alert alert-info" role="alert">Basic Application Authorization Information</div>
   <div class="form-group row">
     <label class="control-label col-sm-3" for="AppPackageName">App Package Name / Bundle ID:</label>
     <div class="col-sm-6">
-      <input type="text" id="AppPackageName" name="AppPackageName" size="40" value="{{.app.AppPackageName}}">
+      <input type="text" id="AppPackageName" name="AppPackageName" size="50" value="{{.app.AppPackageName}}">
     </div>
   </div>
   <div class="form-group row">
@@ -41,25 +43,105 @@
     <select name="platform" id="platform" value="{{.app.Platform}}">
       <option value="android">Android</option>
       <option value="ios">iOS</option>
+      <option value="both">boty</option>
     </select>
     </div>
   </div>
   <div class="form-group row">
     <label class="control-label col-sm-3" for="Regions">Regions:</label>
     <div class="col-sm-6">
-      <textarea class="form-control" id="Regions" rows="5">{{.app.RegionsOnePerLine}}</textarea>
+      <textarea class="form-control" id="Regions" rows="3">{{.app.RegionsOnePerLine}}</textarea>
       <small id="RegionsHelpBlock" class="form-text text-muted">One per line, leave blank for all</small>
     </div>
   </div>
   <hr/>
-  <small id="RegionsHelpBlock" class="form-text text-muted">For Android Applications, </small>
+
+  <div class="alert alert-info" role="alert">For Android Applications, these settings define if SafetyNet device attestation is in use and how it should be inforced.</div>
   <div class="form-group row">
-    <label class="control-label col-sm-3" for="Regions">Regions:</label>
+    <label class="control-label col-sm-3" for="SafetyNetDisabled">SafetyNet Verification Disabled:</label>
     <div class="col-sm-6">
-      <textarea class="form-control" id="Regions" rows="5">{{.app.RegionsOnePerLine}}</textarea>
-      <small id="RegionsHelpBlock" class="form-text text-muted">One per line, leave blank for all</small>
+      <select name="SafetyNetDisabled" id="SafetyNetDisabled" value="{{.app.SafetyNetDisabled}}">
+        <option value="false">false</option>
+        <option value="true">true</option>
+      </select>
     </div>
   </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="SafetyNetApkDigestSHA256">Android APK Digest SHA256:</label>
+    <div class="col-sm-6">
+      <textarea class="form-control" id="SafetyNetApkDigestSHA256" rows="3">{{.app.APKDigestOnePerLine}}</textarea>
+      <small id="RegionsHelpBlock" class="form-text text-muted">One per line. Normally there is one, but could be more than one if there are test/release builds.</small>
+    </div>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="SafetyNetBasicIntegrity">Require Basic Integrity:</label>
+    <div class="col-sm-6">
+      <select name="SafetyNetDisabled" id="SafetyNetBasicIntegrity" value="{{.app.SafetyNetBasicIntegrity}}">
+        <option value="true">true</option>
+        <option value="false">false</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="SafetyNetCTSProfileMatch">Require CTS Profile Match:</label>
+    <div class="col-sm-6">
+      <select name="SafetyNetDisabled" id="SafetyNetCTSProfileMatch" value="{{.app.SafetyNetCTSProfileMatch}}">
+        <option value="true">true</option>
+        <option value="false">false</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="SafetyNetPastTime">Attestation Max Age:</label>
+    <div class="col-sm-6">
+      <input type="text" id="SafetyNetPastTime" name="SafetyNetPastTime" size="10" value="{{.app.SafetyNetPastTime}}">
+    </div>
+    <small id="SafetyNetPastTimeHelpBlock" class="form-text text-muted">Valid time units are "s", "m", "h". This value should be small (30-60 seconds max)</small>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="SafetyNetFutureTime">Attestation Future Time:</label>
+    <div class="col-sm-6">
+      <input type="text" id="SafetyNetFutureTime" name="SafetyNetFutureTime" size="10" value="{{.app.SafetyNetFutureTime}}">
+    </div>
+    <small id="SafetyNetFutureTimeHelpBlock" class="form-text text-muted">If Attestsions may have a time newer than this server's time. Normally this value will small, perhaps `1s`.</small>
+  </div>
+  <hr/>
+
+
+  <div class="alert alert-info" role="alert">For iOS applications, should DeviceCheck be used and how should it be configured.</div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="DeviceCheckDisabled">DeviceCheck Verification Disabled:</label>
+    <div class="col-sm-6">
+      <select name="DeviceCheckDisabled" id="DeviceCheckDisabled" value="{{.app.DeviceCheckDisabled}}">
+        <option value="false">false</option>
+        <option value="true">true</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="DeviceCheckKeyID">DeviceCheck Key ID:</label>
+    <div class="col-sm-6">
+      <input type="text" id="DeviceCheckKeyID" name="DeviceCheckKeyID" size="40" value="{{.app.DeviceCheckKeyID}}">
+    </div>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="DeviceCheckTeamID">DeviceCheck Team ID:</label>
+    <div class="col-sm-6">
+      <input type="text" id="DeviceCheckTeamID" name="DeviceCheckTeamID" size="40" value="{{.app.DeviceCheckTeamID}}">
+    </div>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="DeviceCheckPrivateKeySecret">DeviceCheck Private Key Secret:</label>
+    <div class="col-sm-6">
+      <input type="text" id="DeviceCheckPrivateKeySecret" name="DeviceCheckPrivateKeySecret" size="80" value="{{.app.DeviceCheckPrivateKeySecret}}">
+    </div>
+    <small id="DeviceCheckPrivateKeySecretHelpBlock" class="form-text text-muted">The actual private key must be stored in your Secret Manager, this is the resource ID for the secret.</small>
+  </div>
+
+  <hr/>
+  <button type="submit" class="btn btn-outline-primary" value="save">Save Changes</button>
+  <a href="/" class="btn btn-outline-secondary">Cancel</a>
+  <button type="submit" class="btn btn-outline-danger" value="delete">Delete</button>
 
 </form>
 
