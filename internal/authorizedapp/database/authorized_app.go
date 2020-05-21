@@ -47,8 +47,8 @@ func (aa *AuthorizedAppDB) GetAllAuthorizedApps(ctx context.Context, sm secrets.
 	query := `
     SELECT
       app_package_name, platform, allowed_regions,
-      safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
-      devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
+      safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
+      devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
     FROM
       AuthorizedApp
     ORDER BY app_package_name ASC`

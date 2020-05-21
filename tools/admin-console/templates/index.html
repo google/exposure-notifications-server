@@ -5,12 +5,26 @@
 </head>
 
 <body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+   <a class="navbar-brand" href="#">Exposure Notification Server</a>
+   <div class="collapse navbar-collapse" id="navbarText">
+      <ul class="navbar-nav mr-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="/">Home</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
 <div class="container">
-<h1>Exposure Notifications Server - Admin Console</h1>
+
+<div class="jumbotron">
+  <h1 class="display-4">Exposure Notifications Server</h1>
+  <h2 class="display-4">Admin Console</h2>
+  <hr class="my-4">
+</div>
 
 <h2>Authorized Applications</h2>
 <ul>
-  <li><a href="/app?apn=">Create new Authorized Application</a></li>
   {{if .apps}}
     {{range .apps}}
       <li><a href="/app?apn={{.AppPackageName}}">{{.AppPackageName}}</a> | {{.Platform}}</li>
@@ -19,6 +33,7 @@
     <li><i>There are no authorized applications</i></li>
   {{end}}
 </ul>
+<a href="/app?apn="  class="btn btn-outline-primary">Create new Authorized Application</a>
 
 <hr/>
 <h2>Export Configurations</h2>

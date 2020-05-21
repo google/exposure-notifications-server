@@ -41,7 +41,7 @@ func (h *appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		appID = appIds[0]
 	}
 
-	authorizedApp := &model.AuthorizedApp{}
+	authorizedApp := model.NewAuthorizedApp()
 
 	if appID == "" {
 		m["new"] = true

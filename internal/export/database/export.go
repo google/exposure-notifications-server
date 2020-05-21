@@ -86,7 +86,7 @@ func (db *ExportDB) GetAllExportConfigs(ctx context.Context) ([]*model.ExportCon
 	defer conn.Release()
 
 	rows, err := conn.Query(ctx, `
-    SELECT
+		SELECT
 			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signature_info_ids
 		FROM
 			ExportConfig`)

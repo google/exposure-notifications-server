@@ -6,8 +6,21 @@
 </head>
 
 <body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+ <a class="navbar-brand" href="#">Exposure Notification Server</a>
+ <div class="collapse navbar-collapse" id="navbarText">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item">
+        <a class="nav-link" href="/">Home</a>
+      </li>
+    </ul>
+  </div>
+</nav>
+
 <div class="container">
-<h1>Exposure Notifications Server - Authorized App Details</h1>
+<div class="jumbotron">
+  <h2 class="display-4">Authorized App Details</h2>
+</div>
 
 {{if .new}}
 <h2>Create New Authorized Application</h2>
@@ -38,6 +51,16 @@
       <small id="RegionsHelpBlock" class="form-text text-muted">One per line, leave blank for all</small>
     </div>
   </div>
+  <hr/>
+  <small id="RegionsHelpBlock" class="form-text text-muted">For Android Applications, </small>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="Regions">Regions:</label>
+    <div class="col-sm-6">
+      <textarea class="form-control" id="Regions" rows="5">{{.app.RegionsOnePerLine}}</textarea>
+      <small id="RegionsHelpBlock" class="form-text text-muted">One per line, leave blank for all</small>
+    </div>
+  </div>
+
 </form>
 
 </div>
