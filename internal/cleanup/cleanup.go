@@ -98,7 +98,7 @@ func NewExportHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, e
 	return &exportCleanupHandler{
 		config:    config,
 		env:       env,
-		database:  env.Database(),
+		database:  database.New(env.Database()),
 		blobstore: env.Blobstore(),
 	}, nil
 }
@@ -106,7 +106,7 @@ func NewExportHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, e
 type exportCleanupHandler struct {
 	config    *Config
 	env       *serverenv.ServerEnv
-	database  *coredb.DB
+	database  *database.ExportDB
 	blobstore storage.Blobstore
 }
 
@@ -129,7 +129,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
 	defer cancel()
 
-	count, err := database.New(h.database).DeleteFilesBefore(timeoutCtx, cutoff, h.blobstore)
+	count, err := h.database.DeleteFilesBefore(timeoutCtx, cutoff, h.blobstore)
 	if err != nil {
 		logger.Errorf("Failed deleting export files: %v", err)
 		metrics.WriteInt("cleanup-exports-delete-failed", true, 1)
