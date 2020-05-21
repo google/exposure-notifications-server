@@ -68,6 +68,12 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 }
 
+locals {
+  build_substitutions = {
+    "_REGION" : var.region,
+  }
+}
+
 # This step automatically runs a build as well, so everything that uses an image depends on it.
 resource "google_cloudbuild_trigger" "build-and-publish" {
   provider = google-beta
@@ -83,6 +89,8 @@ resource "google_cloudbuild_trigger" "build-and-publish" {
       branch = "^master$"
     }
   }
+
+  substitutions = local.build_substitutions
 
   depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
 }
