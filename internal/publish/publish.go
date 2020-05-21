@@ -77,7 +77,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
-	var data *database.Publish
+	var data database.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
@@ -110,7 +110,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		}
 	}
 
-	if err := verification.VerifyRegions(appConfig, data); err != nil {
+	if err := verification.VerifyRegions(appConfig, &data); err != nil {
 		message := fmt.Sprintf("verifying allowed regions: %v", err)
 		return response{status: http.StatusUnauthorized, message: message, metric: "publish-region-not-authorized", count: 1}
 	}
@@ -119,7 +119,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		if appConfig.DeviceCheckDisabled {
 			logger.Errorf("skipping DeviceCheck for %v (disabled)", data.AppPackageName)
 			h.serverenv.MetricsExporter(ctx).WriteInt("publish-devicecheck-skip", true, 1)
-		} else if err := verification.VerifyDeviceCheck(ctx, appConfig, data); err != nil {
+		} else if err := verification.VerifyDeviceCheck(ctx, appConfig, &data); err != nil {
 			message := fmt.Sprintf("unable to verify devicecheck payload: %v", err)
 			logger.Error(message)
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-devicecheck-invalid", count: 1}
@@ -128,7 +128,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		if appConfig.SafetyNetDisabled {
 			logger.Errorf("skipping SafetyNet for %v (disabled)", data.AppPackageName)
 			h.serverenv.MetricsExporter(ctx).WriteInt("publish-safetynet-skip", true, 1)
-		} else if err := verification.VerifySafetyNet(ctx, time.Now(), appConfig, data); err != nil {
+		} else if err := verification.VerifySafetyNet(ctx, time.Now(), appConfig, &data); err != nil {
 			message := fmt.Sprintf("unable to verify safetynet payload: %v", err)
 			logger.Error(message)
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-safetnet-invalid", count: 1}
@@ -140,7 +140,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	}
 
 	batchTime := time.Now()
-	exposures, err := h.transformer.TransformPublish(data, batchTime)
+	exposures, err := h.transformer.TransformPublish(&data, batchTime)
 	if err != nil {
 		message := fmt.Sprintf("unable to read request data: %v", err)
 		logger.Error(message)
