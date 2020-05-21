@@ -46,6 +46,10 @@ type VerifyOpts struct {
 // matches the properties that we expect based on the AuthorizedApp entry. See
 // https://developer.android.com/training/safetynet/attestation#use-response-server
 // for details on the format of these attestations.
+//
+// Given APK name is present in the attestation and that the attestation is provided
+// by Google Play Services in the context of exposure notification, it is possible for 
+// Google to determine and deanonymize the user of the app submitting notification.
 func ValidateAttestation(ctx context.Context, attestation string, opts *VerifyOpts) error {
 	defer trace.StartRegion(ctx, "ValidateAttestation").End()
 	logger := logging.FromContext(ctx)

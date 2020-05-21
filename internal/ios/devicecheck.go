@@ -82,6 +82,11 @@ func ValidateDeviceToken(ctx context.Context, deviceToken string, opts *VerifyOp
 	}
 
 	// Build the request and add the authorization header.
+	//
+	// This request submits a unique device ID back to Apple in 
+	// the context of exposure notification.
+	// Combined with private key id (exposure app team's id), it informs 
+	// Apple precisely, which phone (and thus which person) reports the infection case.
 	req, err := http.NewRequest(http.MethodPost, endpoint, requestBody)
 	if err != nil {
 		return fmt.Errorf("failed to build request: %w", err)

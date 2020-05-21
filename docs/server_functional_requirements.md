@@ -5,6 +5,11 @@
 This documents the functional requirements for building a decentralized exposure
 notification system. For deployment strategies, see [Server Deployment Options](server_deployment_options.md).
 
+## Security requirements
+
+The current version of this software does not guarantee anonymity to Apple and/or Google
+of the person submitting exposure notification.
+
 ### System Components
 
 The Exposure Notification Server's architecture has been split into components.
