@@ -59,6 +59,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(m.Run())
 }
+
 func TestGetAuthorizedApp(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")

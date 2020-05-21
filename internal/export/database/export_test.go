@@ -25,11 +25,14 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
+	exposuredb "github.com/google/exposure-notifications-server/internal/publish/database"
+	exposuremodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/go-cmp/cmp"
 	pgx "github.com/jackc/pgx/v4"
 )
 
 var testDB *database.DB
+var testExposureDB *exposuredb.ExposureDB
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
@@ -40,6 +43,7 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatalf("creating test DB: %v", err)
 		}
+		testExposureDB = exposuredb.New(testDB)
 	}
 	os.Exit(m.Run())
 }
@@ -477,21 +481,21 @@ func TestKeysInBatch(t *testing.T) {
 	}
 
 	// Create key aligned with the StartTimestamp
-	sek := &database.Exposure{
+	sek := &exposuremodel.Exposure{
 		ExposureKey: []byte("aaa"),
 		Regions:     []string{ec.Region},
 		CreatedAt:   startTimestamp,
 	}
 
 	// Create key aligned with the EndTimestamp
-	eek := &database.Exposure{
+	eek := &exposuremodel.Exposure{
 		ExposureKey: []byte("bbb"),
 		Regions:     []string{ec.Region},
 		CreatedAt:   endTimestamp,
 	}
 
 	// Add the keys to the database.
-	if err := testDB.InsertExposures(ctx, []*database.Exposure{sek, eek}); err != nil {
+	if err := testExposureDB.InsertExposures(ctx, []*exposuremodel.Exposure{sek, eek}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -512,14 +516,14 @@ func TestKeysInBatch(t *testing.T) {
 
 	// Lookup the keys; they must be only the key created_at the startTimestamp
 	// (because start is inclusive, end is exclusive).
-	criteria := database.IterateExposuresCriteria{
+	criteria := exposuredb.IterateExposuresCriteria{
 		IncludeRegions: []string{leased.Region},
 		SinceTimestamp: leased.StartTimestamp,
 		UntilTimestamp: leased.EndTimestamp,
 	}
 
-	var got []*database.Exposure
-	_, err = testDB.IterateExposures(ctx, criteria, func(exp *database.Exposure) error {
+	var got []*exposuremodel.Exposure
+	_, err = testExposureDB.IterateExposures(ctx, criteria, func(exp *exposuremodel.Exposure) error {
 		got = append(got, exp)
 		return nil
 	})

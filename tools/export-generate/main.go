@@ -29,7 +29,8 @@ import (
 	"math"
 	"time"
 
-	coredb "github.com/google/exposure-notifications-server/internal/database"
+	exposuremodel "github.com/google/exposure-notifications-server/internal/publish/model"
+
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 
@@ -91,20 +92,20 @@ func main() {
 		log.Fatalf("problem with random transmission risk: %v", err)
 	}
 	var actualNumKeys int
-	var exposureKeys []coredb.Exposure
+	var exposureKeys []exposuremodel.Exposure
 	if *tekFile != "" {
 		log.Printf("Using TEKs provided in: %s", *tekFile)
 		file, err := ioutil.ReadFile(*tekFile)
 		if err != nil {
 			log.Fatalf("unable to read file: %v", err)
 		}
-		data := coredb.ExposureKeys{}
+		data := exposuremodel.ExposureKeys{}
 		err = json.Unmarshal([]byte(file), &data)
 		if err != nil {
 			log.Fatalf("unable to parse json: %v", err)
 		}
 		for _, k := range data.Keys {
-			ek, err := coredb.TransformExposureKey(k, "", []string{}, time.Now(), int32(0), math.MaxInt32)
+			ek, err := exposuremodel.TransformExposureKey(k, "", []string{}, time.Now(), int32(0), math.MaxInt32)
 			if err != nil {
 				log.Fatalf("invalid exposure key: %v", err)
 			}
@@ -115,7 +116,7 @@ func main() {
 		keys := util.GenerateExposureKeys(*numKeys, tr)
 		actualNumKeys = *numKeys
 
-		exposureKeys = make([]coredb.Exposure, actualNumKeys)
+		exposureKeys = make([]exposuremodel.Exposure, actualNumKeys)
 		for i, k := range keys {
 			decoded, err := base64.StdEncoding.DecodeString(k.Key)
 			if err != nil {
@@ -141,13 +142,13 @@ func main() {
 	numBatches := int(math.Ceil(float64(actualNumKeys) / float64(*batchSize)))
 	log.Printf("number of batches: %d", numBatches)
 	b := 0
-	currentBatch := []*coredb.Exposure{}
+	currentBatch := []*exposuremodel.Exposure{}
 	for i := 0; i < actualNumKeys; i++ {
 		currentBatch = append(currentBatch, &exposureKeys[i])
 		if len(currentBatch) == *batchSize {
 			b++
 			writeFile(eb, currentBatch, b, numBatches, actualNumKeys, privateKey)
-			currentBatch = []*coredb.Exposure{}
+			currentBatch = []*exposuremodel.Exposure{}
 		}
 	}
 	if len(currentBatch) > 0 {
@@ -156,7 +157,7 @@ func main() {
 	}
 }
 
-func writeFile(eb *model.ExportBatch, currentBatch []*coredb.Exposure, b, numBatches, numRecords int, privateKey *ecdsa.PrivateKey) {
+func writeFile(eb *model.ExportBatch, currentBatch []*exposuremodel.Exposure, b, numBatches, numRecords int, privateKey *ecdsa.PrivateKey) {
 	signatureInfo := &model.SignatureInfo{
 		SigningKeyID:      *keyID,
 		SigningKeyVersion: *keyVersion,

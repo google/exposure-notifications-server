@@ -21,8 +21,8 @@ import (
 	"net/http"
 	"time"
 
-	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export/database"
+	exposuredb "github.com/google/exposure-notifications-server/internal/publish/database"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -43,14 +43,14 @@ func NewExposureHandler(config *Config, env *serverenv.ServerEnv) (http.Handler,
 	return &exposureCleanupHandler{
 		config:   config,
 		env:      env,
-		database: env.Database(),
+		database: exposuredb.New(env.Database()),
 	}, nil
 }
 
 type exposureCleanupHandler struct {
 	config   *Config
 	env      *serverenv.ServerEnv
-	database *coredb.DB
+	database *exposuredb.ExposureDB
 }
 
 func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

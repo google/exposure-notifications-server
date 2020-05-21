@@ -27,10 +27,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/publish/database"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 
 	"google.golang.org/api/idtoken"
@@ -49,8 +51,8 @@ var (
 
 type (
 	fetchFn               func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
-	insertExposuresFn     func(context.Context, []*database.Exposure) error
-	startFederationSyncFn func(context.Context, *database.FederationInQuery, time.Time) (int64, database.FinalizeSyncFn, error)
+	insertExposuresFn     func(context.Context, []*model.Exposure) error
+	startFederationSyncFn func(context.Context, *coredb.FederationInQuery, time.Time) (int64, coredb.FinalizeSyncFn, error)
 )
 
 type pullDependencies struct {
@@ -63,16 +65,18 @@ type pullDependencies struct {
 // federation results for a single federation query.
 func NewHandler(env *serverenv.ServerEnv, config *Config) http.Handler {
 	return &handler{
-		env:    env,
-		db:     env.Database(),
-		config: config,
+		env:        env,
+		db:         env.Database(),
+		exposuredb: database.New(env.Database()),
+		config:     config,
 	}
 }
 
 type handler struct {
-	env    *serverenv.ServerEnv
-	db     *database.DB
-	config *Config
+	env        *serverenv.ServerEnv
+	db         *coredb.DB
+	exposuredb *database.ExposureDB
+	config     *Config
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +106,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	lock := "query_" + queryID
 	unlockFn, err := h.db.Lock(ctx, lock, h.config.Timeout)
 	if err != nil {
-		if errors.Is(err, database.ErrAlreadyLocked) {
+		if errors.Is(err, coredb.ErrAlreadyLocked) {
 			metrics.WriteInt("federation-pull-lock-contention", true, 1)
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
 			logger.Infof(msg)
@@ -116,7 +120,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	query, err := h.db.GetFederationInQuery(ctx, queryID)
 	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
+		if errors.Is(err, coredb.ErrNotFound) {
 			badRequestf(ctx, w, "unknown %s", queryParam)
 			return
 		}
@@ -170,7 +174,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	deps := pullDependencies{
 		fetch:               client.Fetch,
-		insertExposures:     h.db.InsertExposures,
+		insertExposures:     h.exposuredb.InsertExposures,
 		startFederationSync: h.db.StartFederationInSync,
 	}
 	batchStart := time.Now()
@@ -184,7 +188,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *database.FederationInQuery, batchStart time.Time, truncateWindow time.Duration) error {
+func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *coredb.FederationInQuery, batchStart time.Time, truncateWindow time.Duration) error {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Processing query %q", q.QueryID)
 
@@ -205,7 +209,7 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 		logger.Infof("Inserted %d keys", total)
 	}()
 
-	createdAt := database.TruncateWindow(batchStart, truncateWindow)
+	createdAt := model.TruncateWindow(batchStart, truncateWindow)
 	partial := true
 	for partial {
 
@@ -222,7 +226,7 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 		}
 
 		// Loop through the result set, storing in database.
-		var exposures []*database.Exposure
+		var exposures []*model.Exposure
 		for _, ctr := range response.Response {
 
 			var upperRegions []string
@@ -234,12 +238,12 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 			for _, cti := range ctr.ContactTracingInfo {
 				for _, key := range cti.ExposureKeys {
 
-					if cti.TransmissionRisk < database.MinTransmissionRisk || cti.TransmissionRisk > database.MaxTransmissionRisk {
+					if cti.TransmissionRisk < model.MinTransmissionRisk || cti.TransmissionRisk > model.MaxTransmissionRisk {
 						logger.Errorf("invalid transmission risk %v - dropping record.", cti.TransmissionRisk)
 						continue
 					}
 
-					exposures = append(exposures, &database.Exposure{
+					exposures = append(exposures, &model.Exposure{
 						TransmissionRisk: int(cti.TransmissionRisk),
 						ExposureKey:      key.ExposureKey,
 						Regions:          upperRegions,

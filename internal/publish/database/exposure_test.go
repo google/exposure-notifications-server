@@ -17,22 +17,43 @@ package database
 import (
 	"context"
 	"errors"
+	"log"
+	"os"
 	"testing"
 	"time"
 
+	coredb "github.com/google/exposure-notifications-server/internal/database"
+
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/go-cmp/cmp"
 )
 
+var testDB *coredb.DB
+var testExposureDB *ExposureDB
+
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	if os.Getenv("DB_USER") != "" {
+		var err error
+		testDB, err = coredb.CreateTestDB(ctx)
+		if err != nil {
+			log.Fatalf("creating test DB: %v", err)
+		}
+		testExposureDB = New(testDB)
+	}
+	os.Exit(m.Run())
+}
 func TestExposures(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t, testDB)
+	defer coredb.ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	// Insert some Exposures.
 	batchTime := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC).Truncate(time.Microsecond)
-	exposures := []*Exposure{
+	exposures := []*model.Exposure{
 		{
 			ExposureKey:     []byte("ABC"),
 			Regions:         []string{"US", "CA", "MX"},
@@ -66,7 +87,7 @@ func TestExposures(t *testing.T) {
 			LocalProvenance: false,
 		},
 	}
-	if err := testDB.InsertExposures(ctx, exposures); err != nil {
+	if err := testExposureDB.InsertExposures(ctx, exposures); err != nil {
 		t.Fatal(err)
 	}
 
@@ -112,7 +133,7 @@ func TestExposures(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%+v: %v", test.criteria, err)
 		}
-		var want []*Exposure
+		var want []*model.Exposure
 		for _, i := range test.want {
 			want = append(want, exposures[i])
 		}
@@ -122,7 +143,7 @@ func TestExposures(t *testing.T) {
 	}
 
 	// Delete some exposures.
-	gotN, err := testDB.DeleteExposures(ctx, exposures[2].CreatedAt)
+	gotN, err := testExposureDB.DeleteExposures(ctx, exposures[2].CreatedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,9 +161,9 @@ func TestExposures(t *testing.T) {
 
 }
 
-func listExposures(ctx context.Context, c IterateExposuresCriteria) (_ []*Exposure, err error) {
-	var exps []*Exposure
-	_, err = testDB.IterateExposures(ctx, c, func(e *Exposure) error {
+func listExposures(ctx context.Context, c IterateExposuresCriteria) (_ []*model.Exposure, err error) {
+	var exps []*model.Exposure
+	_, err = testExposureDB.IterateExposures(ctx, c, func(e *model.Exposure) error {
 		exps = append(exps, e)
 		return nil
 	})
@@ -156,10 +177,10 @@ func TestIterateExposuresCursor(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer ResetTestDB(t, testDB)
+	defer coredb.ResetTestDB(t, testDB)
 	ctx, cancel := context.WithCancel(context.Background())
 	// Insert some Exposures.
-	exposures := []*Exposure{
+	exposures := []*model.Exposure{
 		{
 			ExposureKey:    []byte("ABC"),
 			Regions:        []string{"US", "CA", "MX"},
@@ -176,12 +197,12 @@ func TestIterateExposuresCursor(t *testing.T) {
 			Regions:        []string{"MX", "CA"},
 		},
 	}
-	if err := testDB.InsertExposures(ctx, exposures); err != nil {
+	if err := testExposureDB.InsertExposures(ctx, exposures); err != nil {
 		t.Fatal(err)
 	}
 	// Iterate over them, canceling the context in the middle.
-	var seen []*Exposure
-	cursor, err := testDB.IterateExposures(ctx, IterateExposuresCriteria{}, func(e *Exposure) error {
+	var seen []*model.Exposure
+	cursor, err := testExposureDB.IterateExposures(ctx, IterateExposuresCriteria{}, func(e *model.Exposure) error {
 		seen = append(seen, e)
 		if len(seen) == 2 {
 			cancel()
@@ -200,8 +221,8 @@ func TestIterateExposuresCursor(t *testing.T) {
 	// Resume from the cursor.
 	ctx = context.Background()
 	seen = nil
-	cursor, err = testDB.IterateExposures(ctx, IterateExposuresCriteria{LastCursor: cursor},
-		func(e *Exposure) error { seen = append(seen, e); return nil })
+	cursor, err = testExposureDB.IterateExposures(ctx, IterateExposuresCriteria{LastCursor: cursor},
+		func(e *model.Exposure) error { seen = append(seen, e); return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
