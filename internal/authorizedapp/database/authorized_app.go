@@ -37,6 +37,43 @@ func New(db *database.DB) *AuthorizedAppDB {
 	}
 }
 
+func (aa *AuthorizedAppDB) GetAllAuthorizedApps(ctx context.Context, sm secrets.SecretManager) ([]*model.AuthorizedApp, error) {
+	conn, err := aa.db.Pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %v", err)
+	}
+	defer conn.Release()
+
+	query := `
+    SELECT
+      app_package_name, platform, allowed_regions,
+      safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
+      devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
+    FROM
+      AuthorizedApp
+    ORDER BY app_package_name ASC`
+
+	rows, err := conn.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []*model.AuthorizedApp
+	for rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("iterating rows: %w", err)
+		}
+
+		app, err := scanOneAuthorizedApp(ctx, rows, sm)
+		if err != nil {
+			return nil, fmt.Errorf("error reading authorized apps: %w", err)
+		}
+		result = append(result, app)
+	}
+	return result, nil
+}
+
 // GetAuthorizedApp loads a single AuthorizedApp for the given name. If no row
 // exists, this returns nil.
 func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*model.AuthorizedApp, error) {
@@ -57,6 +94,10 @@ func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.Secr
 
 	row := conn.QueryRow(ctx, query, name)
 
+	return scanOneAuthorizedApp(ctx, row, sm)
+}
+
+func scanOneAuthorizedApp(ctx context.Context, row pgx.Row, sm secrets.SecretManager) (*model.AuthorizedApp, error) {
 	config := model.NewAuthorizedApp()
 	var allowedRegions []string
 	var safetyNetPastSeconds, safetyNetFutureSeconds *int

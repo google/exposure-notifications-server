@@ -1,0 +1,45 @@
+<html>
+<head>
+  <title>Edit Authorized App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+</head>
+
+<body>
+<div class="container">
+<h1>Exposure Notifications Server - Authorized App Details</h1>
+
+{{if .new}}
+<h2>Create New Authorized Application</h2>
+{{else}}
+<h2>Edit Application {{.app.AppPackageName}}</h2>
+{{end}}
+
+<form method="POST" action="/app?save=true&apn={{.app.AppPackageName}}" class="form-horizontal">
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="AppPackageName">App Package Name / Bundle ID:</label>
+    <div class="col-sm-6">
+      <input type="text" id="AppPackageName" name="AppPackageName" size="40" value="{{.app.AppPackageName}}">
+    </div>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="Platform">Platform:</label>
+    <div class="col-sm-6">
+    <select name="platform" id="platform" value="{{.app.Platform}}">
+      <option value="android">Android</option>
+      <option value="ios">iOS</option>
+    </select>
+    </div>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="Regions">Regions:</label>
+    <div class="col-sm-6">
+      <textarea class="form-control" id="Regions" rows="5">{{.app.RegionsOnePerLine}}</textarea>
+      <small id="RegionsHelpBlock" class="form-text text-muted">One per line, leave blank for all</small>
+    </div>
+  </div>
+</form>
+
+</div>
+</body>
+</html>

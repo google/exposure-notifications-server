@@ -16,6 +16,7 @@ package model
 
 import (
 	"crypto/ecdsa"
+	"strings"
 	"time"
 )
 
@@ -74,6 +75,14 @@ func (c *AuthorizedApp) IsAndroid() bool {
 // i.e. AppPackageName and BundleID are the same.
 func (c *AuthorizedApp) IsDualPlatform() bool {
 	return c.Platform == bothPlatforms
+}
+
+func (c *AuthorizedApp) RegionsOnePerLine() string {
+	regions := []string{}
+	for r, _ := range c.AllowedRegions {
+		regions = append(regions, r)
+	}
+	return strings.Join(regions, "\n")
 }
 
 // IsAllowedRegion returns true if the regions list is empty or if the given

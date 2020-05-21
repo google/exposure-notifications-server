@@ -78,6 +78,35 @@ func (db *ExportDB) AddExportConfig(ctx context.Context, ec *model.ExportConfig)
 	})
 }
 
+func (db *ExportDB) GetAllExportConfigs(ctx context.Context) ([]*model.ExportConfig, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	rows, err := conn.Query(ctx, `
+    SELECT
+			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signature_info_ids
+		FROM
+			ExportConfig`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := []*model.ExportConfig{}
+	for rows.Next() {
+		ec, err := scanOneExportConfig(rows)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, ec)
+	}
+
+	return results, nil
+}
+
 // IterateExportConfigs applies f to each ExportConfig whose FromTimestamp is
 // before the given time. If f returns a non-nil error, the iteration stops, and
 // the returned error will match f's error with errors.Is.
@@ -109,23 +138,31 @@ func (db *ExportDB) IterateExportConfigs(ctx context.Context, t time.Time, f fun
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var (
-			m             model.ExportConfig
-			periodSeconds int
-			thru          *time.Time
-		)
-		if err := rows.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru, &m.SignatureInfoIDs); err != nil {
+		m, err := scanOneExportConfig(rows)
+		if err != nil {
 			return err
 		}
-		m.Period = time.Duration(periodSeconds) * time.Second
-		if thru != nil {
-			m.Thru = *thru
-		}
-		if err := f(&m); err != nil {
+		if err = f(m); err != nil {
 			return err
 		}
 	}
 	return rows.Err()
+}
+
+func scanOneExportConfig(row pgx.Row) (*model.ExportConfig, error) {
+	var (
+		m             model.ExportConfig
+		periodSeconds int
+		thru          *time.Time
+	)
+	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru, &m.SignatureInfoIDs); err != nil {
+		return nil, err
+	}
+	m.Period = time.Duration(periodSeconds) * time.Second
+	if thru != nil {
+		m.Thru = *thru
+	}
+	return &m, nil
 }
 
 func (db *ExportDB) AddSignatureInfo(ctx context.Context, si *model.SignatureInfo) error {
