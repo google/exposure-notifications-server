@@ -24,7 +24,7 @@ import (
 	"sort"
 
 	"github.com/google/exposure-notifications-server/internal/export/model"
-	exposuremodel "github.com/google/exposure-notifications-server/internal/publish/model"
+	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 
@@ -46,7 +46,7 @@ type ExportSigners struct {
 }
 
 // MarshalExportFile converts the inputs into an encoded byte array.
-func MarshalExportFile(eb *model.ExportBatch, exposures []*exposuremodel.Exposure, batchNum, batchSize int, signers []ExportSigners) ([]byte, error) {
+func MarshalExportFile(eb *model.ExportBatch, exposures []*publishmodel.Exposure, batchNum, batchSize int, signers []ExportSigners) ([]byte, error) {
 	// create main exposure key export binary
 	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize), signers)
 	if err != nil {
@@ -84,7 +84,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*exposuremodel.Exposur
 	return buf.Bytes(), nil
 }
 
-func marshalContents(eb *model.ExportBatch, exposures []*exposuremodel.Exposure, batchNum int32, batchSize int32, signers []ExportSigners) ([]byte, error) {
+func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, batchNum int32, batchSize int32, signers []ExportSigners) ([]byte, error) {
 	exportBytes := []byte("EK Export v1    ")
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))

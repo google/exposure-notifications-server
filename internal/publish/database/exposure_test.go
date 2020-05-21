@@ -29,7 +29,7 @@ import (
 )
 
 var testDB *coredb.DB
-var testExposureDB *ExposureDB
+var testPublishDB *PublishDB
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatalf("creating test DB: %v", err)
 		}
-		testExposureDB = New(testDB)
+		testPublishDB = New(testDB)
 	}
 	os.Exit(m.Run())
 }
@@ -87,7 +87,7 @@ func TestExposures(t *testing.T) {
 			LocalProvenance: false,
 		},
 	}
-	if err := testExposureDB.InsertExposures(ctx, exposures); err != nil {
+	if err := testPublishDB.InsertExposures(ctx, exposures); err != nil {
 		t.Fatal(err)
 	}
 
@@ -143,7 +143,7 @@ func TestExposures(t *testing.T) {
 	}
 
 	// Delete some exposures.
-	gotN, err := testExposureDB.DeleteExposures(ctx, exposures[2].CreatedAt)
+	gotN, err := testPublishDB.DeleteExposures(ctx, exposures[2].CreatedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestExposures(t *testing.T) {
 
 func listExposures(ctx context.Context, c IterateExposuresCriteria) (_ []*model.Exposure, err error) {
 	var exps []*model.Exposure
-	_, err = testExposureDB.IterateExposures(ctx, c, func(e *model.Exposure) error {
+	_, err = testPublishDB.IterateExposures(ctx, c, func(e *model.Exposure) error {
 		exps = append(exps, e)
 		return nil
 	})
@@ -197,12 +197,12 @@ func TestIterateExposuresCursor(t *testing.T) {
 			Regions:        []string{"MX", "CA"},
 		},
 	}
-	if err := testExposureDB.InsertExposures(ctx, exposures); err != nil {
+	if err := testPublishDB.InsertExposures(ctx, exposures); err != nil {
 		t.Fatal(err)
 	}
 	// Iterate over them, canceling the context in the middle.
 	var seen []*model.Exposure
-	cursor, err := testExposureDB.IterateExposures(ctx, IterateExposuresCriteria{}, func(e *model.Exposure) error {
+	cursor, err := testPublishDB.IterateExposures(ctx, IterateExposuresCriteria{}, func(e *model.Exposure) error {
 		seen = append(seen, e)
 		if len(seen) == 2 {
 			cancel()
@@ -221,7 +221,7 @@ func TestIterateExposuresCursor(t *testing.T) {
 	// Resume from the cursor.
 	ctx = context.Background()
 	seen = nil
-	cursor, err = testExposureDB.IterateExposures(ctx, IterateExposuresCriteria{LastCursor: cursor},
+	cursor, err = testPublishDB.IterateExposures(ctx, IterateExposuresCriteria{LastCursor: cursor},
 		func(e *model.Exposure) error { seen = append(seen, e); return nil })
 	if err != nil {
 		t.Fatal(err)

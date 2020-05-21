@@ -50,18 +50,18 @@ type iterateExposuresFunc func(context.Context, database.IterateExposuresCriteri
 // NewServer builds a new FederationServer.
 func NewServer(env *serverenv.ServerEnv, config *Config) pb.FederationServer {
 	return &Server{
-		env:        env,
-		db:         env.Database(),
-		exposuredb: database.New(env.Database()),
-		config:     config,
+		env:       env,
+		db:        env.Database(),
+		publishdb: database.New(env.Database()),
+		config:    config,
 	}
 }
 
 type Server struct {
-	env        *serverenv.ServerEnv
-	db         *coredb.DB
-	exposuredb *database.ExposureDB
-	config     *Config
+	env       *serverenv.ServerEnv
+	db        *coredb.DB
+	publishdb *database.PublishDB
+	config    *Config
 }
 
 type authKey struct{}
@@ -71,7 +71,7 @@ func (s Server) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
-	response, err := s.fetch(ctx, req, s.exposuredb.IterateExposures, model.TruncateWindow(time.Now(), s.config.TruncateWindow)) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?
+	response, err := s.fetch(ctx, req, s.publishdb.IterateExposures, model.TruncateWindow(time.Now(), s.config.TruncateWindow)) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?
 	if err != nil {
 		s.env.MetricsExporter(ctx).WriteInt("federation-fetch-failed", true, 1)
 		logger.Errorf("Fetch error: %v", err)

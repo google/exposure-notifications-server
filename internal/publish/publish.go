@@ -63,7 +63,7 @@ type publishHandler struct {
 	config                *Config
 	serverenv             *serverenv.ServerEnv
 	transformer           *model.Transformer
-	database              *database.ExposureDB
+	database              *database.PublishDB
 	authorizedAppProvider authorizedapp.Provider
 }
 

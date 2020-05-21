@@ -35,12 +35,12 @@ const (
 	InsertExposuresBatchSize = 500
 )
 
-type ExposureDB struct {
+type PublishDB struct {
 	db *database.DB
 }
 
-func New(db *database.DB) *ExposureDB {
-	return &ExposureDB{
+func New(db *database.DB) *PublishDB {
+	return &PublishDB{
 		db: db,
 	}
 }
@@ -66,7 +66,7 @@ type IterateExposuresCriteria struct {
 // criteria.LastCursor in a subsequent call to IterateExposures, will continue
 // the iteration at the failed row. If IterateExposures returns a nil error,
 // the first return value will be the empty string.
-func (db *ExposureDB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*model.Exposure) error) (cur string, err error) {
+func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*model.Exposure) error) (cur string, err error) {
 	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return "", fmt.Errorf("acquiring connection: %v", err)
@@ -190,7 +190,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 }
 
 // InsertExposures inserts a set of exposures.
-func (db *ExposureDB) InsertExposures(ctx context.Context, exposures []*model.Exposure) error {
+func (db *PublishDB) InsertExposures(ctx context.Context, exposures []*model.Exposure) error {
 	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		const stmtName = "insert exposures"
 		_, err := tx.Prepare(ctx, stmtName, `
@@ -222,7 +222,7 @@ func (db *ExposureDB) InsertExposures(ctx context.Context, exposures []*model.Ex
 }
 
 // DeleteExposures deletes exposures created before "before" date. Returns the number of records deleted.
-func (db *ExposureDB) DeleteExposures(ctx context.Context, before time.Time) (int64, error) {
+func (db *PublishDB) DeleteExposures(ctx context.Context, before time.Time) (int64, error) {
 	var count int64
 	// ReadCommitted is sufficient here because we are dealing with historical, immutable rows.
 	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {

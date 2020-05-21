@@ -25,8 +25,8 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
-	exposuredb "github.com/google/exposure-notifications-server/internal/publish/database"
-	exposuremodel "github.com/google/exposure-notifications-server/internal/publish/model"
+	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/go-cmp/cmp"
 	pgx "github.com/jackc/pgx/v4"
 )
@@ -479,21 +479,21 @@ func TestKeysInBatch(t *testing.T) {
 	}
 
 	// Create key aligned with the StartTimestamp
-	sek := &exposuremodel.Exposure{
+	sek := &publishmodel.Exposure{
 		ExposureKey: []byte("aaa"),
 		Regions:     []string{ec.Region},
 		CreatedAt:   startTimestamp,
 	}
 
 	// Create key aligned with the EndTimestamp
-	eek := &exposuremodel.Exposure{
+	eek := &publishmodel.Exposure{
 		ExposureKey: []byte("bbb"),
 		Regions:     []string{ec.Region},
 		CreatedAt:   endTimestamp,
 	}
 
 	// Add the keys to the database.
-	if err := exposuredb.New(testDB).InsertExposures(ctx, []*exposuremodel.Exposure{sek, eek}); err != nil {
+	if err := publishdb.New(testDB).InsertExposures(ctx, []*publishmodel.Exposure{sek, eek}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -514,14 +514,14 @@ func TestKeysInBatch(t *testing.T) {
 
 	// Lookup the keys; they must be only the key created_at the startTimestamp
 	// (because start is inclusive, end is exclusive).
-	criteria := exposuredb.IterateExposuresCriteria{
+	criteria := publishdb.IterateExposuresCriteria{
 		IncludeRegions: []string{leased.Region},
 		SinceTimestamp: leased.StartTimestamp,
 		UntilTimestamp: leased.EndTimestamp,
 	}
 
-	var got []*exposuremodel.Exposure
-	_, err = exposuredb.New(testDB).IterateExposures(ctx, criteria, func(exp *exposuremodel.Exposure) error {
+	var got []*publishmodel.Exposure
+	_, err = publishdb.New(testDB).IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
 		got = append(got, exp)
 		return nil
 	})

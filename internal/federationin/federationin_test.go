@@ -64,12 +64,12 @@ func (r *remoteFetchServer) fetch(ctx context.Context, req *pb.FederationFetchRe
 	return response, nil
 }
 
-// exposureDB mocks the database, recording exposure insertions.
-type exposureDB struct {
+// publishDB mocks the database, recording exposure insertions.
+type publishDB struct {
 	exposures []*model.Exposure
 }
 
-func (idb *exposureDB) insertExposures(ctx context.Context, exposures []*model.Exposure) error {
+func (idb *publishDB) insertExposures(ctx context.Context, exposures []*model.Exposure) error {
 	idb.exposures = append(idb.exposures, exposures...)
 	return nil
 }
@@ -267,7 +267,7 @@ func TestFederationPull(t *testing.T) {
 			ctx := context.Background()
 			query := &database.FederationInQuery{}
 			remote := remoteFetchServer{responses: tc.fetchResponses}
-			idb := exposureDB{}
+			idb := publishDB{}
 			sdb := syncDB{}
 			batchStart := time.Now()
 			if tc.batchSize > 0 {

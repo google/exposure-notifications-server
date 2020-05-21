@@ -65,18 +65,18 @@ type pullDependencies struct {
 // federation results for a single federation query.
 func NewHandler(env *serverenv.ServerEnv, config *Config) http.Handler {
 	return &handler{
-		env:        env,
-		db:         env.Database(),
-		exposuredb: database.New(env.Database()),
-		config:     config,
+		env:       env,
+		db:        env.Database(),
+		publishdb: database.New(env.Database()),
+		config:    config,
 	}
 }
 
 type handler struct {
-	env        *serverenv.ServerEnv
-	db         *coredb.DB
-	exposuredb *database.ExposureDB
-	config     *Config
+	env       *serverenv.ServerEnv
+	db        *coredb.DB
+	publishdb *database.PublishDB
+	config    *Config
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -174,7 +174,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	deps := pullDependencies{
 		fetch:               client.Fetch,
-		insertExposures:     h.exposuredb.InsertExposures,
+		insertExposures:     h.publishdb.InsertExposures,
 		startFederationSync: h.db.StartFederationInSync,
 	}
 	batchStart := time.Now()
