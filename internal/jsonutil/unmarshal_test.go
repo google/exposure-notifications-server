@@ -161,7 +161,7 @@ func unmarshalTestHelper(t *testing.T, payloads []string, errors []string, expCo
 	for i, testStr := range payloads {
 		body := ioutil.NopCloser(bytes.NewReader([]byte(testStr)))
 		r := httptest.NewRequest("POST", "/", body)
-		r.Header.Set("content-type", "application/json")
+		r.Header.Set("content-type", "application/json; charset=utf-8")
 
 		w := httptest.NewRecorder()
 		data := &database.Publish{}
