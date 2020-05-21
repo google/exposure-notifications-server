@@ -15,5 +15,6 @@
 *.tfstate*
 *.terraform/
 terraform.tfvars
+terraform/state.tf
 
 /local/

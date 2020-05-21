@@ -1,5 +1,3 @@
-#!/bin/sh
-
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export PROJECT_ID=$(gcloud config get-value core/project)
-export KO_DOCKER_REPO="us.gcr.io/${PROJECT_ID}"
-export DOCKER_REPO_OVERRIDE="us.gcr.io/${PROJECT_ID}"
+FROM golang:1.14 AS builder
+
+ARG SERVICE
+
+RUN apt-get -qq update && apt-get -yqq install upx
+
+ENV GO111MODULE=on \
+  CGO_ENABLED=0 \
+  GOOS=linux \
+  GOARCH=amd64
+
+WORKDIR /src
+COPY . .
+
+RUN go build \
+  -trimpath \
+  -ldflags "-s -w -extldflags '-static'" \
+  -installsuffix cgo \
+  -tags netgo \
+  -o /bin/service \
+  ./cmd/${SERVICE}
+
+RUN strip /bin/service
+RUN upx -q -9 /bin/service
+
+
+FROM scratch
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /bin/service /bin/service
+
+ENV PORT 8080
+
+ENTRYPOINT ["/bin/service"]

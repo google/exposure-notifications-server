@@ -30,6 +30,8 @@ steps:
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
   args:
   - 'bash'
+  - '-eEuo'
+  - 'pipefail'
   - '-c'
   - |-
     gcloud secrets versions access "${_DB_PASS_SECRET}" > ./dbpass
