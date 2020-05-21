@@ -39,7 +39,7 @@ type Config struct {
 	MaxRecords     int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
 	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 	MinWindowAge   time.Duration `envconfig:"MIN_WINDOW_AGE" default:"2h"`
-	BlobstoreType  string        `envconfig:"BLOBSTORE_TYPE" default:"GCS"`
+	BlobstoreType  string        `envconfig:"BLOBSTORE_TYPE" default:"CLOUD_STORAGE"`
 }
 
 // DB returns the database config.
@@ -55,6 +55,6 @@ func (c *Config) KeyManager() bool {
 // BlobStorage returns the BlobStorage configuration.
 func (c *Config) BlobStorage() storage.BlobstoreConfig {
 	return storage.BlobstoreConfig{
-		Factory: storage.NewBlobstoreFactory(storage.BlobstoreType(c.BlobstoreType)),
+		BlobstoreType: storage.BlobstoreType(c.BlobstoreType),
 	}
 }

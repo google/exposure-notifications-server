@@ -26,14 +26,14 @@ import (
 type BlobstoreType string
 
 const (
-	None       BlobstoreType = "NONE"
-	Gcs        BlobstoreType = "GCS"
-	Filesystem BlobstoreType = "FILESYSTEM"
+	None          BlobstoreType = "NONE"
+	Cloud_storage BlobstoreType = "CLOUD_STORAGE"
+	Filesystem    BlobstoreType = "FILESYSTEM"
 )
 
 // Blobstore Configuration
 type BlobstoreConfig struct {
-	Factory BlobstoreFactory
+	BlobstoreType BlobstoreType
 }
 
 // Blobstore defines the minimum interface for a blob storage system.
@@ -44,9 +44,6 @@ type Blobstore interface {
 	// DeleteObject deltes an object or does nothing if the object doesn't exist.
 	DeleteObject(ctx context.Context, bucket, objectName string) error
 }
-
-// Creates a new Blobstore using the provided context
-type BlobstoreFactory func(ctx context.Context) (Blobstore, error)
 
 // Blobstore that does nothing.
 type NoopBlobstore struct{}
@@ -66,21 +63,18 @@ func (s *NoopBlobstore) DeleteObject(ctx context.Context, folder, filename strin
 }
 
 // Creates a new BlobstoreFactory based on the provided BlobstoreType.
-func NewBlobstoreFactory(blobstoreType BlobstoreType) BlobstoreFactory {
-	return func(ctx context.Context) (Blobstore, error) {
-		logger := logging.FromContext(ctx)
-		logger.Infof("BlobstoreType is set up to %v", blobstoreType)
+func CreateBlobstore(ctx context.Context, config BlobstoreConfig) (Blobstore, error) {
+	logger := logging.FromContext(ctx)
+	logger.Infof("BlobstoreType is set up to %v", config.BlobstoreType)
 
-		switch blobstoreType {
-		case Gcs:
-			return NewGoogleCloudStorage(ctx)
-		case Filesystem:
-			return NewFilesystemStorage(ctx)
-		case None:
-			return NewNoopBlobstore(ctx)
-		default:
-			return nil, fmt.Errorf("Unknown BlobstoreType: %v", blobstoreType)
-		}
+	switch config.BlobstoreType {
+	case Cloud_storage:
+		return NewGoogleCloudStorage(ctx)
+	case Filesystem:
+		return NewFilesystemStorage(ctx)
+	case None:
+		return NewNoopBlobstore(ctx)
+	default:
+		return nil, fmt.Errorf("Unknown BlobstoreType: %v", config.BlobstoreType)
 	}
-
 }
