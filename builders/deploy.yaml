@@ -13,100 +13,27 @@
 # limitations under the License.
 
 #
-# Re-deploys existing Cloud Run services. The services must have been deployed
-# with Terraform first, before using this script.
+# Deploys a Cloud Run service.
 #
 
 substitutions:
   _REGION:
+  _SERVICE:
+  _TAG:
 
 steps:
-- id: 'export'
+- id: 'deploy'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
   args:
   - 'bash'
+  - '-eEuo'
+  - 'pipefail'
   - '-c'
   - |-
-    gcloud run deploy export \
+    gcloud run deploy "${_SERVICE}" \
       --quiet \
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/export:latest" \
+      --image "gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/${_SERVICE}:${_TAG}" \
       --no-traffic
-  waitFor: ['-']
-
-- id: 'federationin'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
-  args:
-  - 'bash'
-  - '-c'
-  - |-
-    gcloud run deploy federationin \
-      --quiet \
-      --project "${PROJECT_ID}" \
-      --platform "managed" \
-      --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/federationin:latest" \
-      --no-traffic
-  waitFor: ['-']
-
-- id: 'federationout'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
-  args:
-  - 'bash'
-  - '-c'
-  - |-
-    gcloud run deploy federationout \
-      --quiet \
-      --project "${PROJECT_ID}" \
-      --platform "managed" \
-      --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/federationout:latest" \
-      --no-traffic
-  waitFor: ['-']
-
-- id: 'exposure'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
-  args:
-  - 'bash'
-  - '-c'
-  - |-
-    gcloud run deploy exposure \
-      --quiet \
-      --project "${PROJECT_ID}" \
-      --platform "managed" \
-      --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/exposure:latest" \
-      --no-traffic
-  waitFor: ['-']
-
-- id: 'cleanup-export'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
-  args:
-  - 'bash'
-  - '-c'
-  - |-
-    gcloud run deploy cleanup-export \
-      --quiet \
-      --project "${PROJECT_ID}" \
-      --platform "managed" \
-      --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/cleanup-export:latest" \
-      --no-traffic
-  waitFor: ['-']
-
-- id: 'cleanup-exposure'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
-  args:
-  - 'bash'
-  - '-c'
-  - |-
-    gcloud run deploy cleanup-exposure \
-      --quiet \
-      --project "${PROJECT_ID}" \
-      --platform "managed" \
-      --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/cleanup-exposure:latest" \
-      --no-traffic
-  waitFor: ['-']
