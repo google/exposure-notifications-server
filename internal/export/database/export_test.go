@@ -32,7 +32,6 @@ import (
 )
 
 var testDB *database.DB
-var testExposureDB *exposuredb.ExposureDB
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
@@ -43,7 +42,6 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatalf("creating test DB: %v", err)
 		}
-		testExposureDB = exposuredb.New(testDB)
 	}
 	os.Exit(m.Run())
 }
@@ -495,7 +493,7 @@ func TestKeysInBatch(t *testing.T) {
 	}
 
 	// Add the keys to the database.
-	if err := testExposureDB.InsertExposures(ctx, []*exposuremodel.Exposure{sek, eek}); err != nil {
+	if err := exposuredb.New(testDB).InsertExposures(ctx, []*exposuremodel.Exposure{sek, eek}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -523,7 +521,7 @@ func TestKeysInBatch(t *testing.T) {
 	}
 
 	var got []*exposuremodel.Exposure
-	_, err = testExposureDB.IterateExposures(ctx, criteria, func(exp *exposuremodel.Exposure) error {
+	_, err = exposuredb.New(testDB).IterateExposures(ctx, criteria, func(exp *exposuremodel.Exposure) error {
 		got = append(got, exp)
 		return nil
 	})
