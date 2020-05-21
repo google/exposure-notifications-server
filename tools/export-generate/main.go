@@ -44,7 +44,7 @@ var (
 	region         = flag.String("region", "US", "The region for the test export.")
 	startTimestamp = flag.String("start-timestamp", "2020-05-01T15:00:00Z", "The test export start timestamp (RFC3339).")
 	endTimestamp   = flag.String("end-timestamp", "2020-05-02T15:00:00Z", "The test export end timestamp (RFC3339).")
-	numKeys        = flag.Int("num-keys", 450, "Number of total random temporary exposure keys to generate in the export")
+	numKeys        = flag.Int("num-keys", 450, "Number of total random temporary exposure keys to generate. Ignored if tek-file set.")
 	tekFile        = flag.String("tek-file", "", "JSON file of TEKs in the same format as calling publish endpoint")
 	batchSize      = flag.Int("batches-size", 100, "Max number of keys in each file in the batch")
 )
@@ -112,6 +112,7 @@ func main() {
 		}
 		actualNumKeys = len(exposureKeys)
 	} else {
+		log.Printf("Genrating %d random TEKs", *numKeys)
 		keys := util.GenerateExposureKeys(*numKeys, tr)
 		actualNumKeys = *numKeys
 
