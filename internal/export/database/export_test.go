@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 
 	if os.Getenv("DB_USER") != "" {
 		var err error
-		testDB, err = database.CreateTestDB(ctx)
+		testDB, err = database.CreateTestDB(ctx, "export")
 		if err != nil {
 			log.Fatalf("creating test DB: %v", err)
 		}

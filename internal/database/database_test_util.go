@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 
 	if os.Getenv("DB_USER") != "" {
 		var err error
-		testDB, err = CreateTestDB(ctx)
+		testDB, err = CreateTestDB(ctx, "core")
 		if err != nil {
 			log.Fatalf("creating test DB: %v", err)
 		}
@@ -50,8 +50,8 @@ func TestMain(m *testing.M) {
 // openTestDB connects to the Postgres server specified by the DB_XXX environment
 // variables, creates an empty test database on it, and returns a *DB connected
 // to that database.
-func CreateTestDB(ctx context.Context) (*DB, error) {
-	const testDBName = "exposure-server-test"
+func CreateTestDB(ctx context.Context, suffix string) (*DB, error) {
+	var testDBName = fmt.Sprintf("exposure-server-test-%s", suffix)
 
 	// Connect to the default database to create the test database.
 	var config Config
