@@ -87,6 +87,12 @@ resource "google_cloud_run_service" "federationout" {
     google_project_service.services["sqladmin.googleapis.com"],
     null_resource.build,
   ]
+
+  lifecycle {
+    ignore_changes = [
+      template,
+    ]
+  }
 }
 
 resource "google_cloud_run_service_iam_member" "federationout-public" {

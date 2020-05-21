@@ -86,6 +86,8 @@ resource "null_resource" "build" {
   ]
 }
 
+# Grant Cloud Build the ability to deploy images. It does not do so in these
+# configurations, but it will do future deployments.
 resource "google_project_iam_member" "cloudbuild-deploy" {
   project = data.google_project.project.project_id
   role    = "roles/run.admin"
@@ -136,4 +138,12 @@ locals {
 resource "google_app_engine_application" "app" {
   project     = data.google_project.project.project_id
   location_id = var.appengine_location
+}
+
+output "region" {
+  value = var.region
+}
+
+output "project" {
+  value = data.google_project.project.project_id
 }

@@ -128,6 +128,7 @@ resource "google_sql_database" "db" {
 resource "google_secret_manager_secret" "db-pwd" {
   provider  = google-beta
   secret_id = "dbPassword"
+
   replication {
     automatic = true
   }
