@@ -61,7 +61,7 @@ resource "google_cloud_run_service" "cleanup-export" {
       service_account_name = google_service_account.cleanup-export.email
 
       containers {
-        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/cleanup-export:initial"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/cleanup-export:initial"
 
         resources {
           limits = {

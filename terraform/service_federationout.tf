@@ -55,7 +55,7 @@ resource "google_cloud_run_service" "federationout" {
       service_account_name = google_service_account.federationout.email
 
       containers {
-        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationout:initial"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationout:initial"
 
         resources {
           limits = {
