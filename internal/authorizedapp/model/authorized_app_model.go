@@ -20,6 +20,7 @@ import (
 )
 
 const (
+	bothPlatforms = "both"
 	iosDevice     = "ios"
 	androidDevice = "android"
 )
@@ -61,12 +62,18 @@ func NewAuthorizedApp() *AuthorizedApp {
 
 // IsIOS returns true if the platform is equal to `iosDevice`
 func (c *AuthorizedApp) IsIOS() bool {
-	return c.Platform == iosDevice
+	return c.Platform == iosDevice || c.Platform == bothPlatforms
 }
 
 // IsAndroid returns true if the platform is equal to `android`
 func (c *AuthorizedApp) IsAndroid() bool {
-	return c.Platform == androidDevice
+	return c.Platform == androidDevice || c.Platform == bothPlatforms
+}
+
+// IsDualPlatform returns true if the platform is equal to 'both'
+// i.e. AppPackageName and BundleID are the same.
+func (c *AuthorizedApp) IsDualPlatform() bool {
+	return c.Platform == bothPlatforms
 }
 
 // IsAllowedRegion returns true if the regions list is empty or if the given
