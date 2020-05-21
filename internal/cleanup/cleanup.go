@@ -21,8 +21,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
-	exportdb "github.com/google/exposure-notifications-server/internal/export/database"
+	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export/database"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -50,7 +50,7 @@ func NewExposureHandler(config *Config, env *serverenv.ServerEnv) (http.Handler,
 type exposureCleanupHandler struct {
 	config   *Config
 	env      *serverenv.ServerEnv
-	database *database.DB
+	database *coredb.DB
 }
 
 func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +106,7 @@ func NewExportHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, e
 type exportCleanupHandler struct {
 	config    *Config
 	env       *serverenv.ServerEnv
-	database  *database.DB
+	database  *coredb.DB
 	blobstore storage.Blobstore
 }
 
@@ -129,7 +129,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
 	defer cancel()
 
-	count, err := exportdb.New(h.database).DeleteFilesBefore(timeoutCtx, cutoff, h.blobstore)
+	count, err := database.New(h.database).DeleteFilesBefore(timeoutCtx, cutoff, h.blobstore)
 	if err != nil {
 		logger.Errorf("Failed deleting export files: %v", err)
 		metrics.WriteInt("cleanup-exports-delete-failed", true, 1)
