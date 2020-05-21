@@ -27,7 +27,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/pb"
 
 	coredb "github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/publish/database"
+	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+	publishdb "github.com/google/exposure-notifications-server/internal/federationout/database"
+
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"google.golang.org/api/idtoken"
@@ -45,22 +47,22 @@ const (
 // Compile time assert that this server implements the required grpc interface.
 var _ pb.FederationServer = (*Server)(nil)
 
-type iterateExposuresFunc func(context.Context, database.IterateExposuresCriteria, func(*model.Exposure) error) (string, error)
+type iterateExposuresFunc func(context.Context, publishdb.IterateExposuresCriteria, func(*model.Exposure) error) (string, error)
 
 // NewServer builds a new FederationServer.
 func NewServer(env *serverenv.ServerEnv, config *Config) pb.FederationServer {
 	return &Server{
 		env:       env,
-		db:        env.Database(),
-		publishdb: database.New(env.Database()),
+		db:        database.New(env.Database()_,
+		publishdb: publishdb.New(env.Database()),
 		config:    config,
 	}
 }
 
 type Server struct {
 	env       *serverenv.ServerEnv
-	db        *coredb.DB
-	publishdb *database.PublishDB
+	db        *database.FederationOutDB
+	publishdb *publishdb.PublishDB
 	config    *Config
 }
 
@@ -103,7 +105,7 @@ func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFun
 		req.ExcludeRegionIdentifiers = union(req.ExcludeRegionIdentifiers, auth.ExcludeRegions)
 	}
 
-	criteria := database.IterateExposuresCriteria{
+	criteria := publishdb.IterateExposuresCriteria{
 		IncludeRegions:      req.RegionIdentifiers,
 		ExcludeRegions:      req.ExcludeRegionIdentifiers,
 		SinceTimestamp:      time.Unix(req.LastFetchResponseKeyTimestamp, 0),

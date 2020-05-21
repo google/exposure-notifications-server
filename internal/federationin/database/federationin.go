@@ -19,8 +19,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/database"
 	pgx "github.com/jackc/pgx/v4"
 )
+
+type FederationInDB struct {
+	db *database.DB
+}
+
+func New(db *database.DB) *FederationInDB {
+	return &FederationInDB{
+		db: db,
+	}
+}
 
 // FinalizeSyncFn is used to finalize a historical sync record.
 type FinalizeSyncFn func(maxTimestamp time.Time, totalInserted int) error
@@ -28,7 +39,7 @@ type FinalizeSyncFn func(maxTimestamp time.Time, totalInserted int) error
 type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx.Row
 
 // GetFederationInQuery returns a query for given queryID. If not found, ErrNotFound will be returned.
-func (db *DB) GetFederationInQuery(ctx context.Context, queryID string) (*FederationInQuery, error) {
+func (db *FederationInDB) GetFederationInQuery(ctx context.Context, queryID string) (*FederationInQuery, error) {
 	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
@@ -60,7 +71,7 @@ func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRow
 }
 
 // AddFederationInQuery adds a FederationInQuery entity. It will overwrite a query with matching q.queryID if it exists.
-func (db *DB) AddFederationInQuery(ctx context.Context, q *FederationInQuery) error {
+func (db *FederationInDB) AddFederationInQuery(ctx context.Context, q *FederationInQuery) error {
 	return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		query := `
 			INSERT INTO
@@ -126,7 +137,7 @@ func getFederationInSync(ctx context.Context, syncID int64, queryRowContext quer
 }
 
 // StartFederationInSync stores a historical record of a query sync starting. It returns a FederationInSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
-func (db *DB) StartFederationInSync(ctx context.Context, q *FederationInQuery, started time.Time) (int64, FinalizeSyncFn, error) {
+func (db *FederationInDB) StartFederationInSync(ctx context.Context, q *FederationInQuery, started time.Time) (int64, FinalizeSyncFn, error) {
 	conn, err := db.Pool.Acquire(ctx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("acquiring connection: %w", err)
