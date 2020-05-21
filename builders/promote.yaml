@@ -17,91 +17,23 @@
 #
 
 substitutions:
+  _PERCENTAGE: '100'
   _REGION:
   _REVISION: 'LATEST'
-  _PERCENTAGE: '100'
+  _SERVICE:
 
 steps:
 - id: 'export'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
   args:
   - 'bash'
+  - '-eEuo'
+  - 'pipefail'
   - '-c'
   - |-
-    gcloud run services update-traffic export \
+    gcloud run services update-traffic ${_SERVICE} \
       --quiet \
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
       --to-revisions "${_REVISION}=${_PERCENTAGE}"
-  waitFor: ['-']
-
-- id: 'federationin'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
-  args:
-  - 'bash'
-  - '-c'
-  - |-
-    gcloud run services update-traffic federationin \
-      --quiet \
-      --project "${PROJECT_ID}" \
-      --platform "managed" \
-      --region "${_REGION}" \
-      --to-revisions "${_REVISION}=${_PERCENTAGE}"
-  waitFor: ['-']
-
-- id: 'federationout'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
-  args:
-  - 'bash'
-  - '-c'
-  - |-
-    gcloud run services update-traffic federationout \
-      --quiet \
-      --project "${PROJECT_ID}" \
-      --platform "managed" \
-      --region "${_REGION}" \
-      --to-revisions "${_REVISION}=${_PERCENTAGE}"
-  waitFor: ['-']
-
-- id: 'exposure'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
-  args:
-  - 'bash'
-  - '-c'
-  - |-
-    gcloud run services update-traffic exposure \
-      --quiet \
-      --project "${PROJECT_ID}" \
-      --platform "managed" \
-      --region "${_REGION}" \
-      --to-revisions "${_REVISION}=${_PERCENTAGE}"
-  waitFor: ['-']
-
-- id: 'cleanup-export'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
-  args:
-  - 'bash'
-  - '-c'
-  - |-
-    gcloud run services update-traffic cleanup-export \
-      --quiet \
-      --project "${PROJECT_ID}" \
-      --platform "managed" \
-      --region "${_REGION}" \
-      --to-revisions "${_REVISION}=${_PERCENTAGE}"
-  waitFor: ['-']
-
-- id: 'cleanup-exposure'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
-  args:
-  - 'bash'
-  - '-c'
-  - |-
-    gcloud run services update-traffic cleanup-exposure \
-      --quiet \
-      --project "${PROJECT_ID}" \
-      --platform "managed" \
-      --region "${_REGION}" \
-      --to-revisions "${_REVISION}=${_PERCENTAGE}"
-  waitFor: ['-']

@@ -17,6 +17,7 @@
 set -eEuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
+ALL_SERVICES="cleanup-export,cleanup-exposure,export,exposure,federationin,federationout"
 
 if [ -z "${PROJECT_ID:-}" ]; then
   echo "✋ Missing PROJECT_ID!" >&2
@@ -26,6 +27,16 @@ fi
 if [ -z "${REGION:-}" ]; then
   echo "✋ Missing REGION!" >&2
   exit 1
+fi
+
+if [ -z "${SERVICES:-}" ]; then
+  echo "✋ Missing SERVICES!" >&2
+  exit 1
+fi
+
+if [ "${SERVICES}" == "all" ]; then
+  SERVICES="${ALL_SERVICES}"
+  echo "🚧 Building all services! (${SERVICES})" >&2
 fi
 
 if [ -z "${REVISION:-}" ]; then
@@ -38,7 +49,13 @@ if [ -z "${PERCENTAGE:-}" ]; then
   PERCENTAGE="100"
 fi
 
-gcloud builds submit "${ROOT}" \
-  --config "${ROOT}/builders/promote.yaml" \
-  --substitutions "_REGION=${REGION},_REVISION=${REVISION},_PERCENTAGE=${PERCENTAGE}" \
-  --project "${PROJECT_ID}"
+IFS=',' read -ra SERVICES_ARR <<< "${SERVICES}"
+for SERVICE in "${SERVICES_ARR[@]}"; do
+  gcloud builds submit --no-source \
+    --project "${PROJECT_ID}" \
+    --config "${ROOT}/builders/promote.yaml" \
+    --substitutions "_REGION=${REGION},_REVISION=${REVISION},_PERCENTAGE=${PERCENTAGE},_SERVICE=${SERVICE}" \
+    &
+done
+
+wait
