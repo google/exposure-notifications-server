@@ -61,7 +61,7 @@ resource "google_cloud_run_service" "cleanup-export" {
       service_account_name = google_service_account.cleanup-export.email
 
       containers {
-        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/cleanup-export:latest"
+        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/cleanup-export:initial"
 
         resources {
           limits = {
@@ -91,7 +91,7 @@ resource "google_cloud_run_service" "cleanup-export" {
   depends_on = [
     google_project_service.services["run.googleapis.com"],
     google_project_service.services["sqladmin.googleapis.com"],
-    null_resource.submit-build-and-publish,
+    null_resource.build,
   ]
 }
 

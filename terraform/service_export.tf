@@ -67,7 +67,7 @@ resource "google_cloud_run_service" "export" {
       service_account_name = google_service_account.export.email
 
       containers {
-        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/export:latest"
+        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/export:initial"
 
         resources {
           limits = {
@@ -107,7 +107,7 @@ resource "google_cloud_run_service" "export" {
   depends_on = [
     google_project_service.services["run.googleapis.com"],
     google_project_service.services["sqladmin.googleapis.com"],
-    google_cloudbuild_trigger.build-and-publish,
+    null_resource.build,
   ]
 }
 
