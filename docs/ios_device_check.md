@@ -10,6 +10,11 @@ to verify device integrity. As part of the DeviceCheck verification process, the
 server receives a token that is generated on the device to verify the iOS
 device.
 
+Requiring DeviceCheck is an optional (but strongly encouraged) configuration for
+iOS apps submitting requests to the server. When implemented correctly,
+DeviceCheck verifies that a request came from an authentic iOS device. This
+protection can help mitigate various attacks from a bad actor.
+
 When the server receives the `device_token` from an iOS device, it needs to
 communicate with Apple's servers to verify the authenticity of the token. This
 request requires authentication and authorization. Authentication is provided

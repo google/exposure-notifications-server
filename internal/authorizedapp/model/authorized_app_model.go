@@ -39,6 +39,7 @@ type AuthorizedApp struct {
 	AllowedRegions map[string]struct{}
 
 	// SafetyNet configuration.
+	SafetyNetDisabled        bool
 	SafetyNetApkDigestSHA256 []string
 	SafetyNetBasicIntegrity  bool
 	SafetyNetCTSProfileMatch bool
@@ -46,6 +47,7 @@ type AuthorizedApp struct {
 	SafetyNetFutureTime      time.Duration
 
 	// DeviceCheck configuration.
+	DeviceCheckDisabled   bool
 	DeviceCheckKeyID      string
 	DeviceCheckTeamID     string
 	DeviceCheckPrivateKey *ecdsa.PrivateKey
