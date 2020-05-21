@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
 // Compile-time check to assert this config matches requirements.
@@ -38,6 +39,7 @@ type Config struct {
 	MaxRecords     int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
 	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 	MinWindowAge   time.Duration `envconfig:"MIN_WINDOW_AGE" default:"2h"`
+	BlobstoreType  string        `envconfig:"BLOBSTORE_TYPE" default:"CLOUD_STORAGE"`
 }
 
 // DB returns the database config.
@@ -51,6 +53,8 @@ func (c *Config) KeyManager() bool {
 }
 
 // BlobStorage returns the BlobStorage configuration.
-func (c *Config) BlobStorage() bool {
-	return true
+func (c *Config) BlobStorage() storage.BlobstoreConfig {
+	return storage.BlobstoreConfig{
+		BlobstoreType: storage.BlobstoreType(c.BlobstoreType),
+	}
 }

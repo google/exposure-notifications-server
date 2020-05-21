@@ -47,9 +47,9 @@ type KeyManagerProvider interface {
 	KeyManager() bool
 }
 
-// BlobStorageConfigProvider is a marker interface indicating the BlobStorage interface should be installed.
+// BlobStorageConfigProvider provides the information about current Blobstore configuration.
 type BlobStorageConfigProvider interface {
-	BlobStorage() bool
+	BlobStorage() storage.BlobstoreConfig
 }
 
 // Function returned from setup to be deferred until the caller exits.
@@ -86,13 +86,15 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 		}
 		opts = append(opts, serverenv.WithKeyManager(km))
 	}
-	// TODO(mikehelmick): Make this extensible to other providers.
+
 	if _, ok := config.(BlobStorageConfigProvider); ok {
-		storage, err := storage.NewGoogleCloudStorage(ctx)
+		provider := config.(BlobStorageConfigProvider)
+		blobStore, err := storage.CreateBlobstore(ctx, provider.BlobStorage())
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to connect to storage system: %v", err)
 		}
-		opts = append(opts, serverenv.WithBlobStorage(storage))
+		blobStorage := serverenv.WithBlobStorage(blobStore)
+		opts = append(opts, blobStorage)
 	}
 
 	// Setup the database connection.
