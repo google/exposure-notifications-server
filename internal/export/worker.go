@@ -41,7 +41,7 @@ func (s *Server) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.WorkerTimeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
-	exportDB := database.NewExportDB(s.db)
+	exportDB := database.New(s.db)
 
 	emitIndexForEmptyBatch := true
 	for {
@@ -86,7 +86,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	logger := logging.FromContext(ctx)
 	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d", eb.BatchID, eb.FilenameRoot, eb.Region, s.config.MaxRecords)
 
-	exportDB := database.NewExportDB(s.db)
+	exportDB := database.New(s.db)
 
 	criteria := coredb.IterateExposuresCriteria{
 		SinceTimestamp:      eb.StartTimestamp,
@@ -250,7 +250,7 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 }
 
 func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObjectNames []string) (string, int, error) {
-	exportDB := database.NewExportDB(s.db)
+	exportDB := database.New(s.db)
 	objects, err := exportDB.LookupExportFiles(ctx, eb.ConfigID)
 	if err != nil {
 		return "", 0, fmt.Errorf("lookup existing export files for batch %d: %w", eb.BatchID, err)

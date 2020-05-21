@@ -143,7 +143,7 @@ func (p *DatabaseProvider) loadAuthorizedAppFromDatabase(ctx context.Context, na
 	logger := logging.FromContext(ctx)
 
 	logger.Infof("authorizedapp: loading %v from database", name)
-	config, err := authorizedappdb.NewAuthorizedAppDB(p.database).GetAuthorizedApp(ctx, p.secretManager, name)
+	config, err := authorizedappdb.New(p.database).GetAuthorizedApp(ctx, p.secretManager, name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %v from database: %w", name, err)
 	}

@@ -61,7 +61,7 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	effectiveTime := time.Now().Add(-1 * s.config.MinWindowAge)
-	err = database.NewExportDB(s.db).IterateExportConfigs(ctx, effectiveTime, func(ec *model.ExportConfig) error {
+	err = database.New(s.db).IterateExportConfigs(ctx, effectiveTime, func(ec *model.ExportConfig) error {
 		totalConfigs++
 		if batchesCreated, err := s.maybeCreateBatches(ctx, ec, effectiveTime); err != nil {
 			logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
@@ -94,7 +94,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 	logger := logging.FromContext(ctx)
 	metrics := s.env.MetricsExporter(ctx)
 
-	latestEnd, err := database.NewExportDB(s.db).LatestExportBatchEnd(ctx, ec)
+	latestEnd, err := database.New(s.db).LatestExportBatchEnd(ctx, ec)
 	if err != nil {
 		return 0, fmt.Errorf("fetching most recent batch for config %d: %w", ec.ConfigID, err)
 	}
@@ -122,7 +122,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 		})
 	}
 
-	if err := database.NewExportDB(s.db).AddExportBatches(ctx, batches); err != nil {
+	if err := database.New(s.db).AddExportBatches(ctx, batches); err != nil {
 		return 0, fmt.Errorf("creating export batches for config %d: %w", ec.ConfigID, err)
 	}
 

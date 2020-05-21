@@ -100,7 +100,7 @@ func main() {
 		SigningKeyVersion: *signingKeyVersion,
 		SigningKeyID:      *signingKeyID,
 	}
-	if err := database.NewExportDB(db).AddSignatureInfo(ctx, &si); err != nil {
+	if err := database.New(db).AddSignatureInfo(ctx, &si); err != nil {
 		log.Fatalf("AddSignatureInfo: %v", err)
 	}
 
@@ -113,7 +113,7 @@ func main() {
 		Thru:             thruTime,
 		SignatureInfoIDs: []int64{si.ID},
 	}
-	if err := database.NewExportDB(db).AddExportConfig(ctx, &ec); err != nil {
+	if err := database.New(db).AddExportConfig(ctx, &ec); err != nil {
 		log.Fatalf("Failure: %v", err)
 	}
 	log.Printf("Successfully created ExportConfig %d.", ec.ConfigID)

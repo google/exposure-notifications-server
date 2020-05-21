@@ -129,7 +129,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
 	defer cancel()
 
-	count, err := exportdb.NewExportDB(h.database).DeleteFilesBefore(timeoutCtx, cutoff, h.blobstore)
+	count, err := exportdb.New(h.database).DeleteFilesBefore(timeoutCtx, cutoff, h.blobstore)
 	if err != nil {
 		logger.Errorf("Failed deleting export files: %v", err)
 		metrics.WriteInt("cleanup-exports-delete-failed", true, 1)

@@ -31,7 +31,7 @@ type AuthorizedAppDB struct {
 	db *database.DB
 }
 
-func NewAuthorizedAppDB(db *database.DB) *AuthorizedAppDB {
+func New(db *database.DB) *AuthorizedAppDB {
 	return &AuthorizedAppDB{
 		db: db,
 	}

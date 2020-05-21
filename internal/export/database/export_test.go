@@ -58,7 +58,7 @@ func TestAddSignatureInfo(t *testing.T) {
 		SigningKeyID:      "310",
 		EndTimestamp:      thruTime,
 	}
-	if err := NewExportDB(testDB).AddSignatureInfo(ctx, want); err != nil {
+	if err := New(testDB).AddSignatureInfo(ctx, want); err != nil {
 		t.Fatal(err)
 	}
 	conn, err := testDB.Pool.Acquire(ctx)
@@ -112,11 +112,11 @@ func TestLookupSignatureInfos(t *testing.T) {
 		},
 	}
 	for _, si := range want {
-		NewExportDB(testDB).AddSignatureInfo(ctx, si)
+		New(testDB).AddSignatureInfo(ctx, si)
 	}
 
 	ids := []int64{want[0].ID, want[1].ID, want[2].ID}
-	got, err := NewExportDB(testDB).LookupSignatureInfos(ctx, ids, testTime)
+	got, err := New(testDB).LookupSignatureInfos(ctx, ids, testTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestAddExportConfig(t *testing.T) {
 		Thru:             thruTime,
 		SignatureInfoIDs: []int64{42, 84},
 	}
-	if err := NewExportDB(testDB).AddExportConfig(ctx, want); err != nil {
+	if err := New(testDB).AddExportConfig(ctx, want); err != nil {
 		t.Fatal(err)
 	}
 	conn, err := testDB.Pool.Acquire(ctx)
@@ -215,13 +215,13 @@ func TestIterateExportConfigs(t *testing.T) {
 	for _, ec := range ecs {
 		ec.Period = time.Hour
 		ec.Region = "R"
-		if err := NewExportDB(testDB).AddExportConfig(ctx, ec); err != nil {
+		if err := New(testDB).AddExportConfig(ctx, ec); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	var got []*model.ExportConfig
-	err := NewExportDB(testDB).IterateExportConfigs(ctx, now, func(m *model.ExportConfig) error {
+	err := New(testDB).IterateExportConfigs(ctx, now, func(m *model.ExportConfig) error {
 		got = append(got, m)
 		return nil
 	})
@@ -252,7 +252,7 @@ func TestBatches(t *testing.T) {
 		Thru:             now.Add(time.Hour),
 		SignatureInfoIDs: []int64{1, 2, 3, 4},
 	}
-	if err := NewExportDB(testDB).AddExportConfig(ctx, config); err != nil {
+	if err := New(testDB).AddExportConfig(ctx, config); err != nil {
 		t.Fatal(err)
 	}
 	var batches []*model.ExportBatch
@@ -272,11 +272,11 @@ func TestBatches(t *testing.T) {
 			SignatureInfoIDs: []int64{1, 2, 3, 4},
 		})
 	}
-	if err := NewExportDB(testDB).AddExportBatches(ctx, batches); err != nil {
+	if err := New(testDB).AddExportBatches(ctx, batches); err != nil {
 		t.Fatal(err)
 	}
 
-	gotLatest, err := NewExportDB(testDB).LatestExportBatchEnd(ctx, config)
+	gotLatest, err := New(testDB).LatestExportBatchEnd(ctx, config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +289,7 @@ func TestBatches(t *testing.T) {
 		var batchID int64
 		// Lease all the batches.
 		for range batches {
-			got, err := NewExportDB(testDB).LeaseBatch(ctx, time.Hour, now)
+			got, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -312,14 +312,14 @@ func TestBatches(t *testing.T) {
 			batchID = got.BatchID
 		}
 		// Every batch is leased.
-		got, err := NewExportDB(testDB).LeaseBatch(ctx, time.Hour, now)
+		got, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
 		if got != nil || err != nil {
 			t.Errorf("all leased: got (%v, %v), want (nil, nil)", got, err)
 		}
 		return batchID
 	}
 	// Now, all end times are in the future, so no batches can be leased.
-	got, err := NewExportDB(testDB).LeaseBatch(ctx, time.Hour, now)
+	got, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
 	if got != nil || err != nil {
 		t.Errorf("got (%v, %v), want (nil, nil)", got, err)
 	}
@@ -336,7 +336,7 @@ func TestBatches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err = NewExportDB(testDB).LookupExportBatch(ctx, batchID)
+	got, err = New(testDB).LookupExportBatch(ctx, batchID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -349,7 +349,7 @@ func TestFinalizeBatch(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	exportDB := NewExportDB(testDB)
+	exportDB := New(testDB)
 	defer database.ResetTestDB(t, testDB)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Microsecond)
@@ -456,7 +456,7 @@ func TestKeysInBatch(t *testing.T) {
 		Region:       "US",
 		From:         now.Add(-24 * time.Hour),
 	}
-	if err := NewExportDB(testDB).AddExportConfig(ctx, ec); err != nil {
+	if err := New(testDB).AddExportConfig(ctx, ec); err != nil {
 		t.Fatal(err)
 	}
 
@@ -472,7 +472,7 @@ func TestKeysInBatch(t *testing.T) {
 		Region:         ec.Region,
 		Status:         model.ExportBatchOpen,
 	}
-	if err := NewExportDB(testDB).AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
+	if err := New(testDB).AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -497,7 +497,7 @@ func TestKeysInBatch(t *testing.T) {
 
 	// Re-fetch the ExposureBatch by leasing it; this is important to this test which is trying
 	// to ensure our dates are going in-and-out of the database correctly.
-	leased, err := NewExportDB(testDB).LeaseBatch(ctx, time.Hour, now)
+	leased, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -542,7 +542,7 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 		t.Skip("no test DB")
 	}
 	defer database.ResetTestDB(t, testDB)
-	exportDB := NewExportDB(testDB)
+	exportDB := New(testDB)
 	ctx := context.Background()
 
 	// Add foreign key records.

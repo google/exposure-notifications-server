@@ -38,7 +38,7 @@ type ExportDB struct {
 	db *database.DB
 }
 
-func NewExportDB(db *database.DB) *ExportDB {
+func New(db *database.DB) *ExportDB {
 	return &ExportDB{
 		db: db,
 	}
