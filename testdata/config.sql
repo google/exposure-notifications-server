@@ -14,16 +14,22 @@
 
 -- Use this as a template to inject configurations for your publish API endpoint.
 
+BEGIN;
+
 INSERT INTO AuthorizedApp (
   app_package_name, platform, allowed_regions,
-  safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
-  devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
+  devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
 ) VALUES (
-  'com.example.ios.app', 'ios', ARRAY[]::VARCHAR[],
-  false, false, 60, 60,
-  'ABCD1234', 'DEFG5678', 'projects/38554818207/secrets/ios-devicecheck-private-key/versions/1'
-), (
-  'com.example.android.app', 'android', ARRAY[]::VARCHAR[],
-  false, false, 60, 60,
-  NULL, NULL, NULL
+  'com.example.ios.app', 'ios', '{}',
+  false, 'ABCD1234', 'DEFG5678', 'projects/12345/secrets/ios-devicecheck-private-key/versions/1'
 );
+
+INSERT INTO AuthorizedApp (
+  app_package_name, platform, allowed_regions,
+  safetynet_disabled, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds
+) VALUES (
+  'com.example.android.app', 'android', '{}',
+  false, false, false, 60, 60
+);
+
+END;

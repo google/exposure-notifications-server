@@ -37,15 +37,6 @@ func main() {
 	}
 	defer closer()
 
-	if config.BypassDeviceCheck {
-		logger.Errorf("Bypassing DeviceCheck verification for iOS devices. " +
-			"This should only be done in test environments!")
-	}
-	if config.BypassSafetyNet {
-		logger.Errorf("Bypassing SafetyNet verification for Android devices. " +
-			"This should only be done in test environments!")
-	}
-
 	handler, err := publish.NewHandler(ctx, &config, env)
 	if err != nil {
 		logger.Fatalf("unable to create publish handler: %v", err)

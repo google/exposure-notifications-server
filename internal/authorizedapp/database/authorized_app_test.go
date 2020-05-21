@@ -129,21 +129,22 @@ func TestGetAuthorizedApp(t *testing.T) {
 			sql: `
 				INSERT INTO AuthorizedApp (
 					app_package_name, platform, allowed_regions,
-					safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity
+					safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity
 				)
 				VALUES (
 					$1, $2, $3,
-					$4, $5, $6
+					$4, $5, $6, $7
 				)
 			`,
 			args: []interface{}{
 				"myapp", "android", []string{},
-				[]string{"092fcfb", "252f10c"}, false, false,
+				false, []string{"092fcfb", "252f10c"}, false, false,
 			},
 			exp: &model.AuthorizedApp{
 				AppPackageName:           "myapp",
 				Platform:                 "android",
 				AllowedRegions:           map[string]struct{}{},
+				SafetyNetDisabled:        false,
 				SafetyNetApkDigestSHA256: []string{"092fcfb", "252f10c"},
 				SafetyNetBasicIntegrity:  false,
 				SafetyNetCTSProfileMatch: false,
@@ -191,16 +192,23 @@ func TestGetAuthorizedApp(t *testing.T) {
 			sql: `
 				INSERT INTO AuthorizedApp (
 					app_package_name, platform, allowed_regions,
-					devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
-				) VALUES ($1, $2, $3, $4, $5, $6)
+					devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
+				) VALUES (
+					$1, $2, $3,
+					$4, $5, $6, $7
+				)
 			`,
-			args: []interface{}{"myapp", "ios", []string{"US"}, "ABCD1234", "DEFG5678", "private_key"},
+			args: []interface{}{
+				"myapp", "ios", []string{"US"},
+				false, "ABCD1234", "DEFG5678", "private_key",
+			},
 			exp: &model.AuthorizedApp{
 				AppPackageName:           "myapp",
 				Platform:                 "ios",
 				AllowedRegions:           map[string]struct{}{"US": {}},
 				SafetyNetCTSProfileMatch: true,
 				SafetyNetBasicIntegrity:  true,
+				DeviceCheckDisabled:      false,
 				DeviceCheckTeamID:        "ABCD1234",
 				DeviceCheckKeyID:         "DEFG5678",
 				DeviceCheckPrivateKey:    p8PrivateKey,

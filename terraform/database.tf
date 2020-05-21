@@ -158,12 +158,10 @@ resource "google_secret_manager_secret_version" "db-pwd-initial" {
 
 locals {
   schema_substitutions = {
-    "_DBCONN" : google_sql_database_instance.db-inst.connection_name,
-    "_DBNAME" : google_sql_database.db.name,
-    "_DBPASS_SECRET" : google_secret_manager_secret_version.db-pwd-initial.name,
-    "_DBPORT" : "5432",
-    "_DBSSLMODE" : "disable",
-    "_DBUSER" : google_sql_user.user.name,
+    "_DB_CONN" : google_sql_database_instance.db-inst.connection_name,
+    "_DB_NAME" : google_sql_database.db.name,
+    "_DB_PASS_SECRET" : google_secret_manager_secret_version.db-pwd-initial.name,
+    "_DB_USER" : google_sql_user.user.name,
   }
 }
 
@@ -173,7 +171,7 @@ resource "google_cloudbuild_trigger" "update-schema" {
 
   name        = "update-schema"
   description = "Build the containers for the schema migrator and run it to ensure the DB is up to date."
-  filename    = "builders/schema.yaml"
+  filename    = "builders/migrate.yaml"
 
   github {
     owner = var.repo_owner
@@ -193,7 +191,7 @@ resource "google_cloudbuild_trigger" "update-schema" {
 
 resource "null_resource" "submit-update-schema" {
   provisioner "local-exec" {
-    command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=${join(",", formatlist("%s=%s", keys(local.schema_substitutions), values(local.schema_substitutions)))}"
+    command = "gcloud builds submit ../ --config ../builders/migrate.yaml --project ${data.google_project.project.project_id} --substitutions=${join(",", formatlist("%s=%s", keys(local.schema_substitutions), values(local.schema_substitutions)))}"
   }
 
   triggers = {
@@ -205,4 +203,20 @@ resource "null_resource" "submit-update-schema" {
     google_project_iam_member.cloudbuild-secrets,
     google_project_iam_member.cloudbuild-sql,
   ]
+}
+
+output "db_conn" {
+  value = google_sql_database_instance.db-inst.connection_name
+}
+
+output "db_name" {
+  value = google_sql_database.db.name
+}
+
+output "db_user" {
+  value = google_sql_user.user.name
+}
+
+output "db_pass_secret" {
+  value = google_secret_manager_secret_version.db-pwd-initial.name
 }
