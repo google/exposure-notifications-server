@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# The region must be one that supports CloudRun and AppEngine:
+# * asia-northeast1 (Tokyo)
+# * europe-west1 (Belgium)
+# * us-central1 (Iowa)
+# * us-east1 (South Carolina)
+# * us-east4 (Northern Virginia)
 variable "region" {
   type    = string
   default = "us-central1"
-}
-
-variable "appengine_location" {
-  type    = string
-  default = "us-central"
 }
 
 variable "project" {
