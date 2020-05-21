@@ -99,32 +99,6 @@ resource "google_secret_manager_secret_version" "db-pwd-initial" {
   secret_data = google_sql_user.user.password
 }
 
-locals {
-  schema_substitutions = {
-    "_DB_CONN" : google_sql_database_instance.db-inst.connection_name,
-    "_DB_NAME" : google_sql_database.db.name,
-    "_DB_PASS_SECRET" : google_secret_manager_secret_version.db-pwd-initial.name,
-    "_DB_USER" : google_sql_user.user.name,
-  }
-}
-
-resource "google_cloudbuild_trigger" "update-schema" {
-  provider = google-beta
-  count    = var.use_build_triggers ? 1 : 0
-
-  name        = "update-schema"
-  description = "Build the containers for the schema migrator and run it to ensure the DB is up to date."
-  filename    = "builders/migrate.yaml"
-
-  github {
-    owner = var.repo_owner
-    name  = var.repo_name
-    push {
-      branch = "^master$"
-    }
-  }
-
-  substitutions = local.schema_substitutions
 # Grant Cloud Build the ability to access the database password (required to run
 # migrations).
 resource "google_secret_manager_secret_iam_member" "cloudbuild-db-pwd" {
@@ -138,7 +112,6 @@ resource "google_secret_manager_secret_iam_member" "cloudbuild-db-pwd" {
   ]
 }
 
-resource "null_resource" "submit-update-schema" {
 # Grant Cloud Build the ability to connect to Cloud SQL.
 resource "google_project_iam_member" "cloudbuild-sql" {
   project = data.google_project.project.project_id
@@ -148,17 +121,28 @@ resource "google_project_iam_member" "cloudbuild-sql" {
   depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
 }
 
+# Migrate runs the initial database migrations.
+resource "null_resource" "migrate" {
   provisioner "local-exec" {
-    command = "gcloud builds submit ../ --config ../builders/migrate.yaml --project ${data.google_project.project.project_id} --substitutions=${join(",", formatlist("%s=%s", keys(local.schema_substitutions), values(local.schema_substitutions)))}"
-  }
+    environment = {
+      PROJECT_ID     = data.google_project.project.project_id
+      DB_CONN        = google_sql_database_instance.db-inst.connection_name
+      DB_PASS_SECRET = google_secret_manager_secret_version.db-pwd-initial.name
+      DB_NAME        = google_sql_database.db.name
+      DB_USER        = google_sql_user.user.name
+      COMMAND        = "up"
 
-  triggers = {
-    database      = google_sql_database_instance.db-inst.name,
-    substitutions = join(",", values(local.schema_substitutions)),
+      REGION   = var.region
+      SERVICES = "all"
+      TAG      = "initial"
+    }
+
+    command = "${path.module}/../scripts/migrate"
   }
 
   depends_on = [
-    google_project_iam_member.cloudbuild-secrets,
+    google_project_service.services["cloudbuild.googleapis.com"],
+    google_secret_manager_secret_iam_member.cloudbuild-db-pwd,
     google_project_iam_member.cloudbuild-sql,
   ]
 }
