@@ -21,6 +21,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/storage"
 
@@ -32,8 +34,18 @@ const (
 	oneDay       = 24 * time.Hour
 )
 
+type ExportDB struct {
+	db *database.DB
+}
+
+func New(db *database.DB) *ExportDB {
+	return &ExportDB{
+		db: db,
+	}
+}
+
 // AddExportConfig creates a new ExportConfig record from which batch jobs are created.
-func (db *DB) AddExportConfig(ctx context.Context, ec *ExportConfig) error {
+func (db *ExportDB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error {
 	if ec.Period > oneDay {
 		return errors.New("maximum period is 24h")
 	}
@@ -48,7 +60,7 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *ExportConfig) error {
 	if !ec.Thru.IsZero() {
 		thru = &ec.Thru
 	}
-	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				ExportConfig
@@ -69,14 +81,14 @@ func (db *DB) AddExportConfig(ctx context.Context, ec *ExportConfig) error {
 // IterateExportConfigs applies f to each ExportConfig whose FromTimestamp is
 // before the given time. If f returns a non-nil error, the iteration stops, and
 // the returned error will match f's error with errors.Is.
-func (db *DB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*ExportConfig) error) (err error) {
+func (db *ExportDB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*model.ExportConfig) error) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("IterateExportConfigs(%s): %w", t, err)
 		}
 	}()
 
-	conn, err := db.Pool.Acquire(ctx)
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -98,7 +110,7 @@ func (db *DB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*Exp
 	defer rows.Close()
 	for rows.Next() {
 		var (
-			m             ExportConfig
+			m             model.ExportConfig
 			periodSeconds int
 			thru          *time.Time
 		)
@@ -116,7 +128,7 @@ func (db *DB) IterateExportConfigs(ctx context.Context, t time.Time, f func(*Exp
 	return rows.Err()
 }
 
-func (db *DB) AddSignatureInfo(ctx context.Context, si *SignatureInfo) error {
+func (db *ExportDB) AddSignatureInfo(ctx context.Context, si *model.SignatureInfo) error {
 	if si.SigningKey == "" {
 		return fmt.Errorf("signing key cannot be empty for a signature info")
 	}
@@ -125,7 +137,7 @@ func (db *DB) AddSignatureInfo(ctx context.Context, si *SignatureInfo) error {
 	if !si.EndTimestamp.IsZero() {
 		thru = &si.EndTimestamp
 	}
-	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
       INSERT INTO
         SignatureInfo
@@ -142,8 +154,8 @@ func (db *DB) AddSignatureInfo(ctx context.Context, si *SignatureInfo) error {
 	})
 }
 
-func (db *DB) LookupSignatureInfos(ctx context.Context, ids []int64, validUntil time.Time) ([]*SignatureInfo, error) {
-	conn, err := db.Pool.Acquire(ctx)
+func (db *ExportDB) LookupSignatureInfos(ctx context.Context, ids []int64, validUntil time.Time) ([]*model.SignatureInfo, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -161,12 +173,12 @@ func (db *DB) LookupSignatureInfos(ctx context.Context, ids []int64, validUntil 
 		return nil, err
 	}
 
-	var sigInfos []*SignatureInfo
+	var sigInfos []*model.SignatureInfo
 	for rows.Next() {
 		if rows.Err() != nil {
 			return nil, rows.Err()
 		}
-		var info SignatureInfo
+		var info model.SignatureInfo
 		var thru *time.Time
 		if err := rows.Scan(&info.ID, &info.SigningKey, &info.AppPackageName, &info.BundleID, &info.SigningKeyVersion, &info.SigningKeyID, &thru); err != nil {
 			return nil, err
@@ -184,8 +196,8 @@ func (db *DB) LookupSignatureInfos(ctx context.Context, ids []int64, validUntil 
 // a given ExportConfig. It returns the zero time if no previous ExportBatch
 // exists.
 // TODO(squee1945): This needs a
-func (db *DB) LatestExportBatchEnd(ctx context.Context, ec *ExportConfig) (time.Time, error) {
-	conn, err := db.Pool.Acquire(ctx)
+func (db *ExportDB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportConfig) (time.Time, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -214,8 +226,8 @@ func (db *DB) LatestExportBatchEnd(ctx context.Context, ec *ExportConfig) (time.
 }
 
 // AddExportBatches inserts new export batches.
-func (db *DB) AddExportBatches(ctx context.Context, batches []*ExportBatch) error {
-	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+func (db *ExportDB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch) error {
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		const stmtName = "insert export batches"
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
@@ -239,11 +251,11 @@ func (db *DB) AddExportBatches(ctx context.Context, batches []*ExportBatch) erro
 }
 
 // LeaseBatch returns a leased ExportBatch for the worker to process. If no work to do, nil will be returned.
-func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) (*ExportBatch, error) {
+func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) (*model.ExportBatch, error) {
 	// Lookup a set of candidate batch IDs.
 	var openBatchIDs []int64
 	err := func() error { // Use a func to allow defer conn.Release() to work.
-		conn, err := db.Pool.Acquire(ctx)
+		conn, err := db.db.Pool.Acquire(ctx)
 		if err != nil {
 			return fmt.Errorf("acquiring connection: %w", err)
 		}
@@ -265,7 +277,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 			AND
 				end_timestamp < $3
 			LIMIT 100
-		`, ExportBatchOpen, ExportBatchPending, now)
+		`, model.ExportBatchOpen, model.ExportBatchPending, now)
 		if err != nil {
 			return err
 		}
@@ -297,7 +309,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 	for _, bid := range openBatchIDs {
 		// In a serialized transaction, fetch the existing batch and make sure it can be leased, then lease it.
 		leased := false
-		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		err := db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 
 			row := tx.QueryRow(ctx, `
 				SELECT
@@ -314,7 +326,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 				return err
 			}
 
-			if status == ExportBatchComplete || (expires != nil && status == ExportBatchPending && now.Before(*expires)) {
+			if status == model.ExportBatchComplete || (expires != nil && status == model.ExportBatchPending && now.Before(*expires)) {
 				// Something beat us to this batch, it's no longer available.
 				return nil
 			}
@@ -326,7 +338,7 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 					status = $1, lease_expires = $2
 				WHERE
 				    batch_id = $3
-				`, ExportBatchPending, now.Add(ttl), bid)
+				`, model.ExportBatchPending, now.Add(ttl), bid)
 			if err != nil {
 				return err
 			}
@@ -347,8 +359,8 @@ func (db *DB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) 
 }
 
 // LookupExportBatch returns an ExportBatch for the given batchID.
-func (db *DB) LookupExportBatch(ctx context.Context, batchID int64) (*ExportBatch, error) {
-	conn, err := db.Pool.Acquire(ctx)
+func (db *ExportDB) LookupExportBatch(ctx context.Context, batchID int64) (*model.ExportBatch, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -357,7 +369,9 @@ func (db *DB) LookupExportBatch(ctx context.Context, batchID int64) (*ExportBatc
 	return lookupExportBatch(ctx, batchID, conn.QueryRow)
 }
 
-func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) (*ExportBatch, error) {
+type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx.Row
+
+func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) (*model.ExportBatch, error) {
 	row := queryRow(ctx, `
 		SELECT
 			batch_id, config_id, bucket_name, filename_root, start_timestamp, end_timestamp, region, status, lease_expires, signature_info_ids
@@ -369,10 +383,10 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 		`, batchID)
 
 	var expires *time.Time
-	eb := ExportBatch{}
+	eb := model.ExportBatch{}
 	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.BucketName, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.Region, &eb.Status, &expires, &eb.SignatureInfoIDs); err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, ErrNotFound
+			return nil, database.ErrNotFound
 		}
 		return nil, err
 	}
@@ -383,21 +397,21 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 }
 
 // FinalizeBatch writes the ExportFile records and marks the ExportBatch as complete.
-func (db *DB) FinalizeBatch(ctx context.Context, eb *ExportBatch, files []string, batchSize int) error {
-	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+func (db *ExportDB) FinalizeBatch(ctx context.Context, eb *model.ExportBatch, files []string, batchSize int) error {
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		// Update ExportFile for the files created.
 		for i, file := range files {
-			ef := ExportFile{
+			ef := model.ExportFile{
 				BucketName: eb.BucketName,
 				Filename:   file,
 				BatchID:    eb.BatchID,
 				Region:     eb.Region,
 				BatchNum:   i + 1,
 				BatchSize:  batchSize,
-				Status:     ExportBatchComplete,
+				Status:     model.ExportBatchComplete,
 			}
 			if err := addExportFile(ctx, tx, &ef); err != nil {
-				if err == ErrKeyConflict {
+				if err == database.ErrKeyConflict {
 					logging.FromContext(ctx).Infof("ExportFile %q already exists in database, skipping without overwriting. This can occur when reprocessing a failed batch.", file)
 				} else {
 					return fmt.Errorf("adding export file entry: %w", err)
@@ -414,8 +428,8 @@ func (db *DB) FinalizeBatch(ctx context.Context, eb *ExportBatch, files []string
 }
 
 // LookupExportFiles returns a list of export files for the given ExportConfig exportConfigID.
-func (db *DB) LookupExportFiles(ctx context.Context, exportConfigID int64) ([]string, error) {
-	conn, err := db.Pool.Acquire(ctx)
+func (db *ExportDB) LookupExportFiles(ctx context.Context, exportConfigID int64) ([]string, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -434,7 +448,7 @@ func (db *DB) LookupExportFiles(ctx context.Context, exportConfigID int64) ([]st
 			eb.status = $2
 		ORDER BY
 			ef.filename
-		`, exportConfigID, ExportBatchComplete)
+		`, exportConfigID, model.ExportBatchComplete)
 	if err != nil {
 		return nil, err
 	}
@@ -463,8 +477,8 @@ type joinedExportBatchFile struct {
 	batchStatus string
 }
 
-func (db *DB) LookupExportFile(ctx context.Context, filename string) (*ExportFile, error) {
-	conn, err := db.Pool.Acquire(ctx)
+func (db *ExportDB) LookupExportFile(ctx context.Context, filename string) (*model.ExportFile, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -480,10 +494,10 @@ func (db *DB) LookupExportFile(ctx context.Context, filename string) (*ExportFil
 		LIMIT 1
 		`, filename)
 
-	ef := ExportFile{}
+	ef := model.ExportFile{}
 	if err := row.Scan(&ef.BucketName, &ef.Filename, &ef.BatchID, &ef.Region, &ef.BatchNum, &ef.BatchSize, &ef.Status); err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, ErrNotFound
+			return nil, database.ErrNotFound
 		}
 		return nil, err
 	}
@@ -491,13 +505,13 @@ func (db *DB) LookupExportFile(ctx context.Context, filename string) (*ExportFil
 }
 
 // DeleteFilesBefore deletes the export batch files for batches ending before the time passed in.
-func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore storage.Blobstore) (int, error) {
+func (db *ExportDB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore storage.Blobstore) (int, error) {
 	logger := logging.FromContext(ctx)
 
 	// Fetch filenames for  batches where at least one file is not deleted yet.
 	var files []joinedExportBatchFile
 	err := func() error { // Use a func to allow defer conn.Release() to work.
-		conn, err := db.Pool.Acquire(ctx)
+		conn, err := db.db.Pool.Acquire(ctx)
 		if err != nil {
 			return fmt.Errorf("acquiring connection: %w", err)
 		}
@@ -518,7 +532,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 			WHERE
 				eb.end_timestamp < $1
 				AND eb.status != $2`
-		rows, err := conn.Query(ctx, q, before, ExportBatchDeleted)
+		rows, err := conn.Query(ctx, q, before, model.ExportBatchDeleted)
 		if err != nil {
 			return fmt.Errorf("fetching filenames: %w", err)
 		}
@@ -543,7 +557,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 	for _, f := range files {
 
 		// If file is already deleted, skip to the next.
-		if f.fileStatus == ExportBatchDeleted {
+		if f.fileStatus == model.ExportBatchDeleted {
 			batchFileDeleteCounter[f.batchID]++
 			continue
 		}
@@ -555,15 +569,15 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 			return 0, fmt.Errorf("delete object: %w", err)
 		}
 
-		err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		err := db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Update Status in ExportFile.
-			if err := updateExportFileStatus(ctx, tx, f.batchID, f.filename, ExportBatchDeleted); err != nil {
+			if err := updateExportFileStatus(ctx, tx, f.batchID, f.filename, model.ExportBatchDeleted); err != nil {
 				return fmt.Errorf("updating ExportFile: %w", err)
 			}
 
 			// If batch completely deleted, update in ExportBatch.
 			if batchFileDeleteCounter[f.batchID] == f.count {
-				if err := updateExportBatchStatus(ctx, tx, f.batchID, ExportBatchDeleted); err != nil {
+				if err := updateExportBatchStatus(ctx, tx, f.batchID, model.ExportBatchDeleted); err != nil {
 					return fmt.Errorf("updating ExportBatch: %w", err)
 				}
 			}
@@ -582,7 +596,7 @@ func (db *DB) DeleteFilesBefore(ctx context.Context, before time.Time, blobstore
 
 // addExportFile adds a row to ExportFile. If the row already exists (based on the primary key),
 // ErrKeyConflict is returned.
-func addExportFile(ctx context.Context, tx pgx.Tx, ef *ExportFile) error {
+func addExportFile(ctx context.Context, tx pgx.Tx, ef *model.ExportFile) error {
 	tag, err := tx.Exec(ctx, `
 		INSERT INTO
 			ExportFile
@@ -595,7 +609,7 @@ func addExportFile(ctx context.Context, tx pgx.Tx, ef *ExportFile) error {
 		return fmt.Errorf("inserting to ExportFile: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return ErrKeyConflict
+		return database.ErrKeyConflict
 	}
 	return nil
 }
@@ -638,9 +652,9 @@ func completeBatch(ctx context.Context, tx pgx.Tx, batchID int64) error {
 		return err
 	}
 
-	if batch.Status == ExportBatchComplete {
+	if batch.Status == model.ExportBatchComplete {
 		// Batch is already completed.
-		logger.Warnf("When completing a batch, the status of batch %d was already %s.", batchID, ExportBatchComplete)
+		logger.Warnf("When completing a batch, the status of batch %d was already %s.", batchID, model.ExportBatchComplete)
 		return nil
 	}
 
@@ -651,7 +665,7 @@ func completeBatch(ctx context.Context, tx pgx.Tx, batchID int64) error {
 			status = $1, lease_expires = NULL
 		WHERE
 			batch_id = $2
-		`, ExportBatchComplete, batchID)
+		`, model.ExportBatchComplete, batchID)
 	if err != nil {
 		return err
 	}

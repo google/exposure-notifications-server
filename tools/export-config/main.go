@@ -22,7 +22,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export/database"
+
+	"github.com/google/exposure-notifications-server/internal/export/model"
+
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -77,30 +81,30 @@ func main() {
 	}
 
 	ctx := context.Background()
-	var config database.Config
+	var config coredb.Config
 	err := envconfig.Process("database", &config)
 	if err != nil {
 		log.Fatalf("error loading environment variables: %v", err)
 	}
 
-	db, err := database.NewFromEnv(ctx, &config)
+	db, err := coredb.NewFromEnv(ctx, &config)
 	if err != nil {
 		log.Fatalf("unable to connect to database: %v", err)
 	}
 	defer db.Close(ctx)
 
-	si := database.SignatureInfo{
+	si := model.SignatureInfo{
 		SigningKey:        *signingKey,
 		AppPackageName:    *appPkgID,
 		BundleID:          *bundleID,
 		SigningKeyVersion: *signingKeyVersion,
 		SigningKeyID:      *signingKeyID,
 	}
-	if err := db.AddSignatureInfo(ctx, &si); err != nil {
+	if err := database.New(db).AddSignatureInfo(ctx, &si); err != nil {
 		log.Fatalf("AddSignatureInfo: %v", err)
 	}
 
-	ec := database.ExportConfig{
+	ec := model.ExportConfig{
 		BucketName:       *bucketName,
 		FilenameRoot:     *filenameRoot,
 		Period:           *period,
@@ -109,7 +113,7 @@ func main() {
 		Thru:             thruTime,
 		SignatureInfoIDs: []int64{si.ID},
 	}
-	if err := db.AddExportConfig(ctx, &ec); err != nil {
+	if err := database.New(db).AddExportConfig(ctx, &ec); err != nil {
 		log.Fatalf("Failure: %v", err)
 	}
 	log.Printf("Successfully created ExportConfig %d.", ec.ConfigID)

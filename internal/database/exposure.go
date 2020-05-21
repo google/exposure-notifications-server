@@ -179,7 +179,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 
 // InsertExposures inserts a set of exposures.
 func (db *DB) InsertExposures(ctx context.Context, exposures []*Exposure) error {
-	return db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+	return db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		const stmtName = "insert exposures"
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
@@ -213,7 +213,7 @@ func (db *DB) InsertExposures(ctx context.Context, exposures []*Exposure) error 
 func (db *DB) DeleteExposures(ctx context.Context, before time.Time) (int64, error) {
 	var count int64
 	// ReadCommitted is sufficient here because we are dealing with historical, immutable rows.
-	err := db.inTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+	err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			DELETE FROM
 				Exposure

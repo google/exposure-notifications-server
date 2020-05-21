@@ -239,7 +239,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			config, err := NewAuthorizedAppDB(testDB).GetAuthorizedApp(ctx, sm, "myapp")
+			config, err := New(testDB).GetAuthorizedApp(ctx, sm, "myapp")
 			if (err != nil) != c.err {
 				t.Fatal(err)
 			}

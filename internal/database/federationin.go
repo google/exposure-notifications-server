@@ -61,7 +61,7 @@ func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRow
 
 // AddFederationInQuery adds a FederationInQuery entity. It will overwrite a query with matching q.queryID if it exists.
 func (db *DB) AddFederationInQuery(ctx context.Context, q *FederationInQuery) error {
-	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		query := `
 			INSERT INTO
 				FederationInQuery
@@ -153,7 +153,7 @@ func (db *DB) StartFederationInSync(ctx context.Context, q *FederationInQuery, s
 	finalize := func(maxTimestamp time.Time, totalInserted int) error {
 		completed := started.Add(time.Now().Sub(startedTimer))
 
-		return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Special case: when no keys are pulled, the maxTimestamp will be 0, so we don't update the
 			// FederationQuery in this case to prevent it from going back and fetching old keys from the past.
 			if totalInserted > 0 {

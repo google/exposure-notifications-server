@@ -23,7 +23,7 @@ import (
 
 // AddFederationOutAuthorization adds or updates a FederationOutAuthorization record.
 func (db *DB) AddFederationOutAuthorization(ctx context.Context, auth *FederationOutAuthorization) error {
-	return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		q := `
 			INSERT INTO
 				FederationOutAuthorization
