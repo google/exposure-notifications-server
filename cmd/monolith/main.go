@@ -29,6 +29,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
 var _ setup.DBConfigProvider = (*MonoConfig)(nil)
@@ -45,11 +46,16 @@ type MonoConfig struct {
 	Publish       *publish.Config
 	Database      *database.Config
 	FederationIn  *federationin.Config
+	BlobstoreType string `envconfig:"BLOBSTORE_TYPE" default:"GCS"`
 }
 
-func (c *MonoConfig) DB() *database.Config                       { return c.Database }
-func (c *MonoConfig) KeyManager() bool                           { return true }
-func (c *MonoConfig) BlobStorage() bool                          { return true }
+func (c *MonoConfig) DB() *database.Config { return c.Database }
+func (c *MonoConfig) KeyManager() bool     { return true }
+func (c *MonoConfig) BlobStorage() storage.BlobstoreConfig {
+	return storage.BlobstoreConfig{
+		Factory: storage.NewBlobstoreFactory(storage.BlobstoreType(c.BlobstoreType)),
+	}
+}
 func (c *MonoConfig) AuthorizedAppConfig() *authorizedapp.Config { return c.AuthorizedApp }
 
 func main() {
