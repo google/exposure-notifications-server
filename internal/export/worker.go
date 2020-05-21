@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/util"
 )
 
 const (
@@ -176,13 +177,13 @@ type createFileInfo struct {
 func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, error) {
 	logger := logging.FromContext(ctx)
 
-	var signers []exportSigners
+	var signers []ExportSigners
 	for _, si := range cfi.signatureInfos {
 		signer, err := s.env.GetSignerForKey(ctx, si.SigningKey)
 		if err != nil {
 			return "", fmt.Errorf("unable to get signer for key %v: %w", si.SigningKey, err)
 		}
-		signers = append(signers, exportSigners{signatureInfo: si, signer: signer})
+		signers = append(signers, ExportSigners{SignatureInfo: si, Signer: signer})
 	}
 
 	// Generate exposure key export file.
@@ -308,7 +309,7 @@ func ensureMinNumExposures(exposures []*database.Exposure, region string, minLen
 		}
 
 		// Transmission risk is within the bounds.
-		transmissionRisk, err := randomInt(database.MinTransmissionRisk, database.MaxTransmissionRisk)
+		transmissionRisk, err := util.RandomTransmissionRisk()
 		if err != nil {
 			return nil, fmt.Errorf("randomInt: %w", err)
 		}

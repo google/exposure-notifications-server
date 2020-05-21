@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang
-RUN go get github.com/google/ko/cmd/ko
-ENTRYPOINT ["ko"]
+set -eEuo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
+
+if [ -z "${PROJECT_ID:-}" ]; then
+  echo "✋ Missing PROJECT_ID!" >&2
+  exit 1
+fi
+
+if [ -z "${REGION:-}" ]; then
+  echo "✋ Missing REGION!" >&2
+  exit 1
+fi
+
+gcloud builds submit "${ROOT}" \
+  --config "${ROOT}/builders/deploy.yaml" \
+  --substitutions "_REGION=${REGION}" \
+  --project "${PROJECT_ID}"

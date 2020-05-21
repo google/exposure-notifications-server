@@ -90,12 +90,27 @@ resource "google_cloudbuild_trigger" "build-and-publish" {
 # "build" does first time setup - it is different from "deploy" which we set up to trigger for later.
 resource "null_resource" "submit-build-and-publish" {
   provisioner "local-exec" {
-    command = "gcloud builds submit ../ --config ../builders/build.yaml --project ${data.google_project.project.project_id}"
+    environment = {
+      PROJECT_ID = data.google_project.project.project_id
+      REGION     = var.region
+    }
+
+    command = "${path.module}/../scripts/build"
   }
 
   depends_on = [
     google_project_iam_member.cloudbuild-secrets,
     google_project_iam_member.cloudbuild-sql,
+  ]
+}
+
+resource "google_project_iam_member" "cloudbuild-deploy" {
+  project = data.google_project.project.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+
+  depends_on = [
+    google_project_service.services["cloudbuild.googleapis.com"],
   ]
 }
 

@@ -20,15 +20,27 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/ios"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	pgx "github.com/jackc/pgx/v4"
 )
 
+type AuthorizedAppDB struct {
+	db *database.DB
+}
+
+func NewAuthorizedAppDB(db *database.DB) *AuthorizedAppDB {
+	return &AuthorizedAppDB{
+		db: db,
+	}
+}
+
 // GetAuthorizedApp loads a single AuthorizedApp for the given name. If no row
 // exists, this returns nil.
-func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*AuthorizedApp, error) {
-	conn, err := db.pool.Acquire(ctx)
+func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*model.AuthorizedApp, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
 	}
@@ -37,22 +49,22 @@ func (db *DB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, na
 	query := `
 		SELECT
 			app_package_name, platform, allowed_regions,
-			safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
-			devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
+			safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
+			devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
 		FROM
 			AuthorizedApp
 		WHERE app_package_name = $1`
 
 	row := conn.QueryRow(ctx, query, name)
 
-	config := NewAuthorizedApp()
+	config := model.NewAuthorizedApp()
 	var allowedRegions []string
 	var safetyNetPastSeconds, safetyNetFutureSeconds *int
 	var deviceCheckTeamID, deviceCheckKeyID, deviceCheckPrivateKeySecret sql.NullString
 	if err := row.Scan(
 		&config.AppPackageName, &config.Platform, &allowedRegions,
-		&config.SafetyNetApkDigestSHA256, &config.SafetyNetCTSProfileMatch, &config.SafetyNetBasicIntegrity, &safetyNetPastSeconds, &safetyNetFutureSeconds,
-		&deviceCheckTeamID, &deviceCheckKeyID, &deviceCheckPrivateKeySecret,
+		&config.SafetyNetDisabled, &config.SafetyNetApkDigestSHA256, &config.SafetyNetCTSProfileMatch, &config.SafetyNetBasicIntegrity, &safetyNetPastSeconds, &safetyNetFutureSeconds,
+		&config.DeviceCheckDisabled, &deviceCheckTeamID, &deviceCheckKeyID, &deviceCheckPrivateKeySecret,
 	); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil

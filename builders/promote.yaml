@@ -13,12 +13,13 @@
 # limitations under the License.
 
 #
-# Re-deploys existing Cloud Run services. The services must have been deployed
-# with Terraform first, before using this script.
+# Promotes the revision of a service to receive 100% of traffic.
 #
 
 substitutions:
   _REGION:
+  _REVISION: 'LATEST'
+  _PERCENTAGE: '100'
 
 steps:
 - id: 'export'
@@ -27,13 +28,12 @@ steps:
   - 'bash'
   - '-c'
   - |-
-    gcloud run deploy export \
+    gcloud run services update-traffic export \
       --quiet \
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/export:latest" \
-      --no-traffic
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
 - id: 'federationin'
@@ -42,13 +42,12 @@ steps:
   - 'bash'
   - '-c'
   - |-
-    gcloud run deploy federationin \
+    gcloud run services update-traffic federationin \
       --quiet \
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/federationin:latest" \
-      --no-traffic
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
 - id: 'federationout'
@@ -57,13 +56,12 @@ steps:
   - 'bash'
   - '-c'
   - |-
-    gcloud run deploy federationout \
+    gcloud run services update-traffic federationout \
       --quiet \
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/federationout:latest" \
-      --no-traffic
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
 - id: 'exposure'
@@ -72,13 +70,12 @@ steps:
   - 'bash'
   - '-c'
   - |-
-    gcloud run deploy exposure \
+    gcloud run services update-traffic exposure \
       --quiet \
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/exposure:latest" \
-      --no-traffic
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
 - id: 'cleanup-export'
@@ -87,13 +84,12 @@ steps:
   - 'bash'
   - '-c'
   - |-
-    gcloud run deploy cleanup-export \
+    gcloud run services update-traffic cleanup-export \
       --quiet \
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/cleanup-export:latest" \
-      --no-traffic
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']
 
 - id: 'cleanup-exposure'
@@ -102,11 +98,10 @@ steps:
   - 'bash'
   - '-c'
   - |-
-    gcloud run deploy cleanup-exposure \
+    gcloud run services update-traffic cleanup-exposure \
       --quiet \
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --image "us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/cleanup-exposure:latest" \
-      --no-traffic
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor: ['-']

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/util"
 	"github.com/google/exposure-notifications-server/testing/enclient"
 )
 
@@ -56,8 +57,11 @@ var (
 func main() {
 	flag.Parse()
 
-	exposureKeys := enclient.GenerateExposureKeys(*numKeys, *transmissionRiskFlag)
-	regionIdx := randomInt(len(defaultRegions))
+	exposureKeys := util.GenerateExposureKeys(*numKeys, *transmissionRiskFlag)
+	regionIdx, err := util.RandomInt(len(defaultRegions))
+	if err != nil {
+		log.Printf("error getting random region: %v", err)
+	}
 	region := defaultRegions[regionIdx]
 	if *regions != "" {
 		region = strings.Split(*regions, ",")
@@ -65,10 +69,20 @@ func main() {
 
 	verificationAuthorityName := *authorityName
 	if verificationAuthorityName == "" {
-		verificationAuthorityName = randomArrValue(verificationAuthorityNames)
+		verificationAuthorityName, err = util.RandomArrValue(verificationAuthorityNames)
+		if err != nil {
+			log.Printf("could not get random verification authority: %v", err)
+		}
 	}
 
-	padding := enclient.RandomBytes(randomInt(1000) + 1000)
+	i, err := util.RandomInt(1000)
+	if err != nil {
+		log.Printf("error getting random int: %v", err)
+	}
+	padding, err := util.RandomBytes(i + 1000)
+	if err != nil {
+		log.Printf("could not get random padding: %v", err)
+	}
 
 	data := database.Publish{
 		Keys:           exposureKeys,
@@ -94,14 +108,6 @@ func main() {
 		log.Printf("sending the request again...")
 		sendRequest(data)
 	}
-}
-
-func randomInt(maxValue int) int {
-	return enclient.RandomInt(maxValue)
-}
-
-func randomArrValue(arr []string) string {
-	return arr[randomInt(len(arr))]
 }
 
 func sendRequest(data interface{}) {

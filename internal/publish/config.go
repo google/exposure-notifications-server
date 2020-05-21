@@ -36,9 +36,7 @@ type Config struct {
 	MaxIntervalAge     time.Duration `envconfig:"MAX_INTERVAL_AGE_ON_PUBLISH" default:"360h"`
 	TruncateWindow     time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 
-	// Bypass flags for local development and testing.
-	BypassSafetyNet   bool `envconfig:"BYPASS_SAFETYNET"`
-	BypassDeviceCheck bool `envconfig:"BYPASS_DEVICECHECK"`
+	// Flags for local development and testing.
 	DebugAPIResponses bool `envconfig:"DEBUG_API_RESPONSES"`
 
 	AuthorizedApp *authorizedapp.Config

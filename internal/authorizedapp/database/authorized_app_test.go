@@ -22,9 +22,13 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"log"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -41,11 +45,25 @@ func (s *testSecretManager) GetSecretValue(ctx context.Context, name string) (st
 	return v, nil
 }
 
+var testDB *coredb.DB
+
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	if os.Getenv("DB_USER") != "" {
+		var err error
+		testDB, err = coredb.CreateTestDB(ctx)
+		if err != nil {
+			log.Fatalf("creating test DB: %v", err)
+		}
+	}
+	os.Exit(m.Run())
+}
 func TestGetAuthorizedApp(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
 	}
-	defer resetTestDB(t)
+	defer coredb.ResetTestDB(t, testDB)
 	ctx := context.Background()
 
 	// Create private key for parsing later
@@ -72,7 +90,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 		name string
 		sql  string
 		args []interface{}
-		exp  *AuthorizedApp
+		exp  *model.AuthorizedApp
 		err  bool
 	}{
 		{
@@ -83,7 +101,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 			`,
 
 			args: []interface{}{"myapp", "android", []string{"US"}},
-			exp: &AuthorizedApp{
+			exp: &model.AuthorizedApp{
 				AppPackageName:           "myapp",
 				Platform:                 "android",
 				AllowedRegions:           map[string]struct{}{"US": {}},
@@ -98,7 +116,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 				VALUES ($1, $2, $3)
 			`,
 			args: []interface{}{"myapp", "android", []string{}},
-			exp: &AuthorizedApp{
+			exp: &model.AuthorizedApp{
 				AppPackageName:           "myapp",
 				Platform:                 "android",
 				AllowedRegions:           map[string]struct{}{},
@@ -111,21 +129,22 @@ func TestGetAuthorizedApp(t *testing.T) {
 			sql: `
 				INSERT INTO AuthorizedApp (
 					app_package_name, platform, allowed_regions,
-					safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity
+					safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity
 				)
 				VALUES (
 					$1, $2, $3,
-					$4, $5, $6
+					$4, $5, $6, $7
 				)
 			`,
 			args: []interface{}{
 				"myapp", "android", []string{},
-				[]string{"092fcfb", "252f10c"}, false, false,
+				false, []string{"092fcfb", "252f10c"}, false, false,
 			},
-			exp: &AuthorizedApp{
+			exp: &model.AuthorizedApp{
 				AppPackageName:           "myapp",
 				Platform:                 "android",
 				AllowedRegions:           map[string]struct{}{},
+				SafetyNetDisabled:        false,
 				SafetyNetApkDigestSHA256: []string{"092fcfb", "252f10c"},
 				SafetyNetBasicIntegrity:  false,
 				SafetyNetCTSProfileMatch: false,
@@ -141,7 +160,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 				) VALUES ($1, $2, $3, $4)
 			`,
 			args: []interface{}{"myapp", "android", []string{"US"}, 1800},
-			exp: &AuthorizedApp{
+			exp: &model.AuthorizedApp{
 				AppPackageName:           "myapp",
 				Platform:                 "android",
 				AllowedRegions:           map[string]struct{}{"US": {}},
@@ -159,7 +178,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 				) VALUES ($1, $2, $3, $4)
 			`,
 			args: []interface{}{"myapp", "android", []string{"US"}, 1800},
-			exp: &AuthorizedApp{
+			exp: &model.AuthorizedApp{
 				AppPackageName:           "myapp",
 				Platform:                 "android",
 				AllowedRegions:           map[string]struct{}{"US": {}},
@@ -173,16 +192,23 @@ func TestGetAuthorizedApp(t *testing.T) {
 			sql: `
 				INSERT INTO AuthorizedApp (
 					app_package_name, platform, allowed_regions,
-					devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
-				) VALUES ($1, $2, $3, $4, $5, $6)
+					devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
+				) VALUES (
+					$1, $2, $3,
+					$4, $5, $6, $7
+				)
 			`,
-			args: []interface{}{"myapp", "ios", []string{"US"}, "ABCD1234", "DEFG5678", "private_key"},
-			exp: &AuthorizedApp{
+			args: []interface{}{
+				"myapp", "ios", []string{"US"},
+				false, "ABCD1234", "DEFG5678", "private_key",
+			},
+			exp: &model.AuthorizedApp{
 				AppPackageName:           "myapp",
 				Platform:                 "ios",
 				AllowedRegions:           map[string]struct{}{"US": {}},
 				SafetyNetCTSProfileMatch: true,
 				SafetyNetBasicIntegrity:  true,
+				DeviceCheckDisabled:      false,
 				DeviceCheckTeamID:        "ABCD1234",
 				DeviceCheckKeyID:         "DEFG5678",
 				DeviceCheckPrivateKey:    p8PrivateKey,
@@ -201,19 +227,19 @@ func TestGetAuthorizedApp(t *testing.T) {
 
 		t.Run(c.name, func(t *testing.T) {
 			// Acquire a connection
-			conn, err := testDB.pool.Acquire(ctx)
+			conn, err := testDB.Pool.Acquire(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer conn.Release()
-			defer resetTestDB(t)
+			defer coredb.ResetTestDB(t, testDB)
 
 			// Insert the data
 			if _, err := conn.Exec(ctx, c.sql, c.args...); err != nil {
 				t.Fatal(err)
 			}
 
-			config, err := testDB.GetAuthorizedApp(ctx, sm, "myapp")
+			config, err := NewAuthorizedAppDB(testDB).GetAuthorizedApp(ctx, sm, "myapp")
 			if (err != nil) != c.err {
 				t.Fatal(err)
 			}
