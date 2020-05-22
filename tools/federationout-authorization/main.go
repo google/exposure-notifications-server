@@ -21,8 +21,10 @@ import (
 	"flag"
 	"log"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin"
+	"github.com/google/exposure-notifications-server/internal/federationin/model"
+	"github.com/google/exposure-notifications-server/internal/federationout/database"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -68,19 +70,20 @@ func main() {
 	}
 
 	ctx := context.Background()
-	var config database.Config
+	var config coredb.Config
 	err := envconfig.Process("database", &config)
 	if err != nil {
 		log.Fatalf("error loading environment variables: %v", err)
 	}
 
-	db, err := database.NewFromEnv(ctx, &config)
+	coredb, err := coredb.NewFromEnv(ctx, &config)
 	if err != nil {
 		log.Fatalf("unable to connect to database: %v", err)
 	}
-	defer db.Close(ctx)
+	defer coredb.Close(ctx)
+	db := database.New(coredb)
 
-	auth := &database.FederationOutAuthorization{
+	auth := &model.FederationOutAuthorization{
 		Issuer:         defaultIssuer, // Authorization interceptor currently only supports defaultIssuer.
 		Subject:        *subject,
 		Audience:       *audience,

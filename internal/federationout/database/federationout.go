@@ -18,12 +18,24 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	pgx "github.com/jackc/pgx/v4"
 )
 
+type FederationOutDB struct {
+	db *database.DB
+}
+
+func New(db *database.DB) *FederationOutDB {
+	return &FederationOutDB{
+		db: db,
+	}
+}
+
 // AddFederationOutAuthorization adds or updates a FederationOutAuthorization record.
-func (db *DB) AddFederationOutAuthorization(ctx context.Context, auth *FederationOutAuthorization) error {
-	return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+func (db *FederationOutDB) AddFederationOutAuthorization(ctx context.Context, auth *model.FederationOutAuthorization) error {
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		q := `
 			INSERT INTO
 				FederationOutAuthorization
@@ -44,8 +56,8 @@ func (db *DB) AddFederationOutAuthorization(ctx context.Context, auth *Federatio
 }
 
 // GetFederationOutAuthorization returns a FederationOutAuthorization record, or ErrNotFound if not found.
-func (db *DB) GetFederationOutAuthorization(ctx context.Context, issuer, subject string) (*FederationOutAuthorization, error) {
-	conn, err := db.Pool.Acquire(ctx)
+func (db *FederationOutDB) GetFederationOutAuthorization(ctx context.Context, issuer, subject string) (*model.FederationOutAuthorization, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -62,10 +74,10 @@ func (db *DB) GetFederationOutAuthorization(ctx context.Context, issuer, subject
 			oidc_subject = $2
 		LIMIT 1
 		`, issuer, subject)
-	auth := FederationOutAuthorization{}
+	auth := model.FederationOutAuthorization{}
 	if err := row.Scan(&auth.Issuer, &auth.Subject, &auth.Audience, &auth.Note, &auth.IncludeRegions, &auth.ExcludeRegions); err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, ErrNotFound
+			return nil, database.ErrNotFound
 		}
 		return nil, fmt.Errorf("scanning results: %w", err)
 	}
