@@ -14,7 +14,7 @@ provider selected by a public health authority.
 
 Our hope is by making this privacy-preserving server implementation available
 to health authorities, we can enable their developers to use the open source code
-to get started quickly. 
+to get started quickly.
 
 ## Overview
 
@@ -58,4 +58,3 @@ exposure-notifications-feedback@google.com.
 
 Contributions to this project are welcomed. For more information about
 contributing to this project, see the [contribution guidelines](CONTRIBUTING.md).
-
