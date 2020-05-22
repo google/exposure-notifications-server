@@ -16,6 +16,7 @@ package model
 
 import (
 	"crypto/ecdsa"
+	"strings"
 	"time"
 )
 
@@ -48,16 +49,55 @@ type AuthorizedApp struct {
 	SafetyNetFutureTime      time.Duration
 
 	// DeviceCheck configuration.
-	DeviceCheckDisabled   bool
-	DeviceCheckKeyID      string
-	DeviceCheckTeamID     string
-	DeviceCheckPrivateKey *ecdsa.PrivateKey
+	DeviceCheckDisabled         bool
+	DeviceCheckKeyID            string
+	DeviceCheckTeamID           string
+	DeviceCheckPrivateKey       *ecdsa.PrivateKey
+	DeviceCheckPrivateKeySecret string
 }
 
 func NewAuthorizedApp() *AuthorizedApp {
 	return &AuthorizedApp{
 		AllowedRegions: make(map[string]struct{}),
 	}
+}
+
+func (c *AuthorizedApp) AllAllowedRegions() []string {
+	regions := []string{}
+	for k := range c.AllowedRegions {
+		regions = append(regions, k)
+	}
+	return regions
+}
+
+func (c *AuthorizedApp) Validate() []string {
+	errors := make([]string, 0)
+	if c.AppPackageName == "" {
+		errors = append(errors, "AppPackageName cannot be empty")
+	}
+	if !(c.Platform == "android" || c.Platform == "ios" || c.Platform == "both") {
+		errors = append(errors, "platform must be one if {'android', 'ios', or 'both'}")
+	}
+	if c.SafetyNetDisabled == false {
+		if c.SafetyNetPastTime < 0 {
+			errors = append(errors, "SafetyNetPastTime cannot be negative")
+		}
+		if c.SafetyNetFutureTime < 0 {
+			errors = append(errors, "SafetyNetFutureTime cannot be negative")
+		}
+	}
+	if c.DeviceCheckDisabled == false {
+		if c.DeviceCheckKeyID == "" {
+			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckKeyID cannot be empty")
+		}
+		if c.DeviceCheckTeamID == "" {
+			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckTeamID cannot be empty")
+		}
+		if c.DeviceCheckPrivateKeySecret == "" {
+			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckPrivateKeySecret cannot be empty")
+		}
+	}
+	return errors
 }
 
 // IsIOS returns true if the platform is equal to `iosDevice`
@@ -74,6 +114,18 @@ func (c *AuthorizedApp) IsAndroid() bool {
 // i.e. AppPackageName and BundleID are the same.
 func (c *AuthorizedApp) IsDualPlatform() bool {
 	return c.Platform == bothPlatforms
+}
+
+func (c *AuthorizedApp) RegionsOnePerLine() string {
+	regions := []string{}
+	for r := range c.AllowedRegions {
+		regions = append(regions, r)
+	}
+	return strings.Join(regions, "\n")
+}
+
+func (c *AuthorizedApp) APKDigestOnePerLine() string {
+	return strings.Join(c.SafetyNetApkDigestSHA256, "\n")
 }
 
 // IsAllowedRegion returns true if the regions list is empty or if the given

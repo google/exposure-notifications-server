@@ -36,6 +36,17 @@ type ExportConfig struct {
 	SignatureInfoIDs []int64       `db:"signature_info_ids"`
 }
 
+func (e *ExportConfig) FormattedFromTime() string {
+	return e.From.Format(time.UnixDate)
+}
+
+func (e *ExportConfig) FormattedThruTime() string {
+	if e.Thru.IsZero() {
+		return ""
+	}
+	return e.Thru.Format(time.UnixDate)
+}
+
 type ExportBatch struct {
 	BatchID          int64     `db:"batch_id" json:"batchID"`
 	ConfigID         int64     `db:"config_id" json:"configID"`

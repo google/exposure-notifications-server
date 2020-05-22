@@ -60,6 +60,47 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestAuthorizedAppLifecycle(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	defer coredb.ResetTestDB(t, testDB)
+	ctx := context.Background()
+	aadb := New(testDB)
+	sm := &testSecretManager{
+		values: map[string]string{},
+	}
+
+	source := &model.AuthorizedApp{
+		AppPackageName:      "myapp",
+		Platform:            "both",
+		AllowedRegions:      map[string]struct{}{"US": {}},
+		SafetyNetDisabled:   true,
+		DeviceCheckDisabled: true,
+	}
+
+	if err := aadb.InsertAuthorizedApp(ctx, source); err != nil {
+		t.Fatal(err)
+	}
+
+	readBack, err := aadb.GetAuthorizedApp(ctx, sm, source.AppPackageName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(source, readBack); diff != "" {
+		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	if err := aadb.DeleteAuthorizedApp(ctx, source.AppPackageName); err != nil {
+		t.Fatal(err)
+	}
+
+	readBack, err = aadb.GetAuthorizedApp(ctx, sm, source.AppPackageName)
+	if readBack != nil {
+		t.Fatal("expected record to be deleted, but it wasn't")
+	}
+}
+
 func TestGetAuthorizedApp(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")
@@ -100,7 +141,6 @@ func TestGetAuthorizedApp(t *testing.T) {
 				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions)
 				VALUES ($1, $2, $3)
 			`,
-
 			args: []interface{}{"myapp", "android", []string{"US"}},
 			exp: &model.AuthorizedApp{
 				AppPackageName:           "myapp",
@@ -204,15 +244,16 @@ func TestGetAuthorizedApp(t *testing.T) {
 				false, "ABCD1234", "DEFG5678", "private_key",
 			},
 			exp: &model.AuthorizedApp{
-				AppPackageName:           "myapp",
-				Platform:                 "ios",
-				AllowedRegions:           map[string]struct{}{"US": {}},
-				SafetyNetCTSProfileMatch: true,
-				SafetyNetBasicIntegrity:  true,
-				DeviceCheckDisabled:      false,
-				DeviceCheckTeamID:        "ABCD1234",
-				DeviceCheckKeyID:         "DEFG5678",
-				DeviceCheckPrivateKey:    p8PrivateKey,
+				AppPackageName:              "myapp",
+				Platform:                    "ios",
+				AllowedRegions:              map[string]struct{}{"US": {}},
+				SafetyNetCTSProfileMatch:    true,
+				SafetyNetBasicIntegrity:     true,
+				DeviceCheckDisabled:         false,
+				DeviceCheckTeamID:           "ABCD1234",
+				DeviceCheckKeyID:            "DEFG5678",
+				DeviceCheckPrivateKey:       p8PrivateKey,
+				DeviceCheckPrivateKeySecret: "private_key",
 			},
 		},
 		{

@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
@@ -35,6 +36,95 @@ func New(db *database.DB) *AuthorizedAppDB {
 	return &AuthorizedAppDB{
 		db: db,
 	}
+}
+
+func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.AuthorizedApp) error {
+	if errors := m.Validate(); len(errors) > 0 {
+		return fmt.Errorf("AuthorizedApp invalid: %v", strings.Join(errors, ", "))
+	}
+
+	return aa.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			INSERT INTO
+				AuthorizedApp
+			  (app_package_name, platform, allowed_regions,
+			   safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
+			   devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret)
+			VALUES
+			  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		`, m.AppPackageName, m.Platform, m.AllAllowedRegions(),
+			m.SafetyNetDisabled, m.SafetyNetApkDigestSHA256, m.SafetyNetCTSProfileMatch, m.SafetyNetBasicIntegrity, int64(m.SafetyNetPastTime.Seconds()), int64(m.SafetyNetFutureTime.Seconds()),
+			m.DeviceCheckDisabled, m.DeviceCheckTeamID, m.DeviceCheckKeyID, m.DeviceCheckPrivateKeySecret)
+
+		if err != nil {
+			return fmt.Errorf("inserting authorizedapp: %w", err)
+		}
+		if result.RowsAffected() != 1 {
+			return fmt.Errorf("no rows inserted")
+		}
+		return nil
+	})
+}
+
+func (aa *AuthorizedAppDB) DeleteAuthorizedApp(ctx context.Context, appPackageName string) error {
+	var count int64
+	err := aa.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			DELETE FROM
+				AuthorizedApp
+			WHERE
+				app_package_name = $1
+			`, appPackageName)
+		if err != nil {
+			return fmt.Errorf("deleting authorized app: %w", err)
+		}
+		count = result.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("no rows were deleted")
+	}
+	return nil
+}
+
+func (aa *AuthorizedAppDB) GetAllAuthorizedApps(ctx context.Context, sm secrets.SecretManager) ([]*model.AuthorizedApp, error) {
+	conn, err := aa.db.Pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	query := `
+    SELECT
+      app_package_name, platform, allowed_regions,
+      safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
+      devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
+    FROM
+      AuthorizedApp
+    ORDER BY app_package_name ASC`
+
+	rows, err := conn.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []*model.AuthorizedApp
+	for rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("iterating rows: %w", err)
+		}
+
+		app, err := scanOneAuthorizedApp(ctx, rows, sm)
+		if err != nil {
+			return nil, fmt.Errorf("error reading authorized apps: %w", err)
+		}
+		result = append(result, app)
+	}
+	return result, nil
 }
 
 // GetAuthorizedApp loads a single AuthorizedApp for the given name. If no row
@@ -57,6 +147,10 @@ func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.Secr
 
 	row := conn.QueryRow(ctx, query, name)
 
+	return scanOneAuthorizedApp(ctx, row, sm)
+}
+
+func scanOneAuthorizedApp(ctx context.Context, row pgx.Row, sm secrets.SecretManager) (*model.AuthorizedApp, error) {
 	config := model.NewAuthorizedApp()
 	var allowedRegions []string
 	var safetyNetPastSeconds, safetyNetFutureSeconds *int
@@ -98,6 +192,7 @@ func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.Secr
 
 	// Resolve secrets to their plaintext values
 	if v := deviceCheckPrivateKeySecret; v.Valid && v.String != "" {
+		config.DeviceCheckPrivateKeySecret = v.String
 		plaintext, err := sm.GetSecretValue(ctx, v.String)
 		if err != nil {
 			return nil, fmt.Errorf("devicecheck_private_key_secret at %s (%s): %w",
