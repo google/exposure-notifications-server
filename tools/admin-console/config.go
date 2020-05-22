@@ -32,6 +32,8 @@ type Config struct {
 	Port         string `envconfig:"PORT" default:"8080"`
 	TemplatePath string `envconfig:"TEMPLATE_DIR" default:"tools/admin-console/templates"`
 	Database     *database.Config
+	TopFile      string `envconfig:"TOP_FILE" default:"top"`
+	BotFile      string `envconfig:"BOTTOM_FILE" default:"bottom"`
 }
 
 // DB returns the configuration for the databse.
@@ -39,21 +41,27 @@ func (c *Config) DB() *database.Config {
 	return c.Database
 }
 
-func (c *Config) RenderTemplate(w http.ResponseWriter, tmpl string, p *map[string]interface{}) error {
-	file := fmt.Sprintf("%s/%s.html", c.TemplatePath, tmpl)
-	t, err := template.ParseFiles(file)
+func (c *Config) RenderTemplate(w http.ResponseWriter, tmpl string, p TemplateMap) error {
+	files := []string{
+		fmt.Sprintf("%s/%s.html", c.TemplatePath, c.TopFile),
+		fmt.Sprintf("%s/%s.html", c.TemplatePath, tmpl),
+		fmt.Sprintf("%s/%s.html", c.TemplatePath, c.BotFile),
+	}
+
+	t, err := template.ParseFiles(files...)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		log.Printf("ERROR: %v", err)
 		return err
 	}
-	if err := t.Execute(w, p); err != nil {
+	if err := t.ExecuteTemplate(w, "view", p); err != nil {
 		message := fmt.Sprintf("error rendering template: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(message))
 		log.Printf("ERROR: %v", err)
 		return fmt.Errorf("error rendering template: %w", err)
 	}
+
 	return nil
 }

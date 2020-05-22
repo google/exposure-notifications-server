@@ -18,6 +18,7 @@ import (
 	"net/http"
 
 	aadb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
+	exdb "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
@@ -32,26 +33,30 @@ func NewIndexHandler(c *Config, env *serverenv.ServerEnv) *indexHandler {
 
 func (h *indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	m := map[string]interface{}{}
+	m := TemplateMap{}
 
 	// Load authorized apps for index.
-	db := aadb.NewAuthorizedAppDB(h.env.Database())
+	db := aadb.New(h.env.Database())
 	apps, err := db.GetAllAuthorizedApps(ctx, h.env.SecretManager())
 	if err != nil {
 		m["error"] = err
-		h.config.RenderTemplate(w, "error", &m)
+		h.config.RenderTemplate(w, "error", m)
 		return
 	}
 	m["apps"] = apps
 
 	// Load export configurations.
-	exports, err := h.env.Database().GetAllExportConfigs(ctx)
+
+	exportDB := exdb.New(h.env.Database())
+	exports, err := exportDB.GetAllExportConfigs(ctx)
 	if err != nil {
 		m["error"] = err
-		h.config.RenderTemplate(w, "error", &m)
+		h.config.RenderTemplate(w, "error", m)
 		return
 	}
 	m["exports"] = exports
 
-	h.config.RenderTemplate(w, "index", &m)
+	m.AddTitle("Exposure Notifications Server - Admin Console")
+	m.AddJumbotron("Exposure Notification Server", "Admin Console")
+	h.config.RenderTemplate(w, "index", m)
 }

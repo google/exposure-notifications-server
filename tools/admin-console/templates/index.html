@@ -1,27 +1,5 @@
-<html>
-<head>
-  <title>Exposure Notifications Server - Console</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-</head>
-
-<body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-   <a class="navbar-brand" href="#">Exposure Notification Server</a>
-   <div class="collapse navbar-collapse" id="navbarText">
-      <ul class="navbar-nav mr-auto">
-        <li class="nav-item">
-          <a class="nav-link" href="/">Home</a>
-        </li>
-      </ul>
-    </div>
-  </nav>
-<div class="container">
-
-<div class="jumbotron">
-  <h1 class="display-4">Exposure Notifications Server</h1>
-  <h2 class="display-4">Admin Console</h2>
-  <hr class="my-4">
-</div>
+{{define "view"}}
+{{template "top" .}}
 
 <h2>Authorized Applications</h2>
 <ul>
@@ -48,6 +26,5 @@
  {{end}}
 </ul>
 
-</div>
-</body>
-</html>
+{{template "bottom" .}}
+{{end}}

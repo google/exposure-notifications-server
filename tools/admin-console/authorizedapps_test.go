@@ -22,13 +22,19 @@ import (
 )
 
 func TestRenderAuthorizedApps(t *testing.T) {
-	m := map[string]interface{}{}
+	// Hello developer!
+	// If this test fails, it's likely that you changed something in
+	//  internal/authorizedapp/model/
+	// And whatever you changed is used in the
+	//  tools/admin-console/templates/app_view.html
+	// That is what caused the test failure.
+	m := TemplateMap{}
 	authorizedApp := model.NewAuthorizedApp()
 	m["app"] = authorizedApp
 
 	recorder := httptest.NewRecorder()
-	config := Config{TemplatePath: "templates"}
-	err := config.RenderTemplate(recorder, "app_view", &m)
+	config := Config{TemplatePath: "templates", TopFile: "top", BotFile: "bottom"}
+	err := config.RenderTemplate(recorder, "app_view", m)
 	if err != nil {
 		t.Fatalf("error rendoring template: %v", err)
 	}

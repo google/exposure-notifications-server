@@ -62,6 +62,44 @@ func NewAuthorizedApp() *AuthorizedApp {
 	}
 }
 
+func (c *AuthorizedApp) AllAllowedRegions() []string {
+	regions := []string{}
+	for k, _ := range c.AllowedRegions {
+		regions = append(regions, k)
+	}
+	return regions
+}
+
+func (c *AuthorizedApp) Validate() []string {
+	errors := make([]string, 0)
+	if c.AppPackageName == "" {
+		errors = append(errors, "AppPackageName cannot be empty")
+	}
+	if !(c.Platform == "android" || c.Platform == "ios" || c.Platform == "both") {
+		errors = append(errors, "platform must be one if {'android', 'ios', or 'both'}")
+	}
+	if c.SafetyNetDisabled == false {
+		if c.SafetyNetPastTime < 0 {
+			errors = append(errors, "SafetyNetPastTime cannot be negative")
+		}
+		if c.SafetyNetFutureTime < 0 {
+			errors = append(errors, "SafetyNetFutureTime cannot be negative")
+		}
+	}
+	if c.DeviceCheckDisabled == false {
+		if c.DeviceCheckKeyID == "" {
+			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckKeyID cannot be empty")
+		}
+		if c.DeviceCheckTeamID == "" {
+			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckTeamID cannot be empty")
+		}
+		if c.DeviceCheckPrivateKeySecret == "" {
+			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckPrivateKeySecret cannot be empty")
+		}
+	}
+	return errors
+}
+
 // IsIOS returns true if the platform is equal to `iosDevice`
 func (c *AuthorizedApp) IsIOS() bool {
 	return c.Platform == iosDevice || c.Platform == bothPlatforms

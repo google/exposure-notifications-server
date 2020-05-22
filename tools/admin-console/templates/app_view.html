@@ -1,26 +1,5 @@
-<html>
-<head>
-  <title>Edit Authorized App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-</head>
-
-<body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
- <a class="navbar-brand" href="#">Exposure Notification Server</a>
- <div class="collapse navbar-collapse" id="navbarText">
-    <ul class="navbar-nav mr-auto">
-      <li class="nav-item">
-        <a class="nav-link" href="/">Home</a>
-      </li>
-    </ul>
-  </div>
-</nav>
-
-<div class="container">
-<div class="jumbotron">
-  <h2 class="display-4">Authorized App Details</h2>
-</div>
+{{define "view"}}
+{{template "top" .}}
 
 {{if .new}}
 <h2>Create New Authorized Application</h2>
@@ -29,7 +8,7 @@
 {{end}}
 
 <form method="POST" action="/app?&apn={{.app.AppPackageName}}" class="form-horizontal">
-  <input type="hidden" name="key" value="{{.previousKey}}" />
+  <input type="hidden" name="Key" value="{{.previousKey}}" />
   <div class="alert alert-info" role="alert">Basic Application Authorization Information</div>
   <div class="form-group row">
     <label class="control-label col-sm-3" for="AppPackageName">App Package Name / Bundle ID:</label>
@@ -40,17 +19,17 @@
   <div class="form-group row">
     <label class="control-label col-sm-3" for="Platform">Platform:</label>
     <div class="col-sm-6">
-    <select name="platform" id="platform" value="{{.app.Platform}}">
+    <select name="Platform" id="Platform" value="{{.app.Platform}}">
       <option value="android">Android</option>
       <option value="ios">iOS</option>
-      <option value="both">boty</option>
+      <option value="both">both</option>
     </select>
     </div>
   </div>
   <div class="form-group row">
     <label class="control-label col-sm-3" for="Regions">Regions:</label>
     <div class="col-sm-6">
-      <textarea class="form-control" id="Regions" rows="3">{{.app.RegionsOnePerLine}}</textarea>
+      <textarea class="form-control" name="Regions" id="Regions" rows="3">{{.app.RegionsOnePerLine}}</textarea>
       <small id="RegionsHelpBlock" class="form-text text-muted">One per line, leave blank for all</small>
     </div>
   </div>
@@ -69,14 +48,14 @@
   <div class="form-group row">
     <label class="control-label col-sm-3" for="SafetyNetApkDigestSHA256">Android APK Digest SHA256:</label>
     <div class="col-sm-6">
-      <textarea class="form-control" id="SafetyNetApkDigestSHA256" rows="3">{{.app.APKDigestOnePerLine}}</textarea>
+      <textarea class="form-control" name="SafetyNetApkDigestSHA256" id="SafetyNetApkDigestSHA256" rows="3">{{.app.APKDigestOnePerLine}}</textarea>
       <small id="RegionsHelpBlock" class="form-text text-muted">One per line. Normally there is one, but could be more than one if there are test/release builds.</small>
     </div>
   </div>
   <div class="form-group row">
     <label class="control-label col-sm-3" for="SafetyNetBasicIntegrity">Require Basic Integrity:</label>
     <div class="col-sm-6">
-      <select name="SafetyNetDisabled" id="SafetyNetBasicIntegrity" value="{{.app.SafetyNetBasicIntegrity}}">
+      <select name="SafetyNetBasicIntegrity" id="SafetyNetBasicIntegrity" value="{{.app.SafetyNetBasicIntegrity}}">
         <option value="true">true</option>
         <option value="false">false</option>
       </select>
@@ -85,7 +64,7 @@
   <div class="form-group row">
     <label class="control-label col-sm-3" for="SafetyNetCTSProfileMatch">Require CTS Profile Match:</label>
     <div class="col-sm-6">
-      <select name="SafetyNetDisabled" id="SafetyNetCTSProfileMatch" value="{{.app.SafetyNetCTSProfileMatch}}">
+      <select name="SafetyNetCTSProfileMatch" id="SafetyNetCTSProfileMatch" value="{{.app.SafetyNetCTSProfileMatch}}">
         <option value="true">true</option>
         <option value="false">false</option>
       </select>
@@ -139,12 +118,11 @@
   </div>
 
   <hr/>
-  <button type="submit" class="btn btn-outline-primary" value="save">Save Changes</button>
+  <button type="submit" class="btn btn-outline-primary" name="TODO" value="save">Save Changes</button>
   <a href="/" class="btn btn-outline-secondary">Cancel</a>
-  <button type="submit" class="btn btn-outline-danger" value="delete">Delete</button>
+  <button type="submit" class="btn btn-outline-danger" name="TODO" value="delete">Delete</button>
 
 </form>
 
-</div>
-</body>
-</html>
+{{template "bottom" .}}
+{{end}}
