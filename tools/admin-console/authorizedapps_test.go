@@ -36,6 +36,6 @@ func TestRenderAuthorizedApps(t *testing.T) {
 	config := Config{TemplatePath: "templates", TopFile: "top", BotFile: "bottom"}
 	err := config.RenderTemplate(recorder, "app_view", m)
 	if err != nil {
-		t.Fatalf("error rendoring template: %v", err)
+		t.Fatalf("error rendering template: %v", err)
 	}
 }

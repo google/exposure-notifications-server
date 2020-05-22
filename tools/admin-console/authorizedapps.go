@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	authorizedappdb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
+	"github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
@@ -123,7 +123,7 @@ func (h *appHandler) handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aadb := authorizedappdb.New(h.env.Database())
+	aadb := database.New(h.env.Database())
 
 	if action := r.FormValue("TODO"); action == "save" {
 		priorKey, err := decodePriorKey(r.FormValue("Key"))
@@ -218,7 +218,7 @@ func (h *appHandler) handleGet(w http.ResponseWriter, r *http.Request) {
 		m.AddJumbotron("Authorized Applications", "Create New Authorized Application")
 		m["new"] = true
 	} else {
-		aadb := authorizedappdb.New(h.env.Database())
+		aadb := database.New(h.env.Database())
 		var err error
 		authorizedApp, err = aadb.GetAuthorizedApp(ctx, h.env.SecretManager(), appID)
 		if err != nil {
