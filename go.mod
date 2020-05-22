@@ -22,6 +22,7 @@ require (
 	github.com/lib/pq v1.4.0 // indirect
 	github.com/sethvargo/go-gcpkms v0.0.0-20200417004547-e50d0c7083d9
 	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
+	github.com/stretchr/testify v1.5.1
 	go.uber.org/zap v1.14.1
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect
 	golang.org/x/tools v0.0.0-20200501205727-542909fd9944 // indirect

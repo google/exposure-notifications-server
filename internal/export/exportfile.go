@@ -21,6 +21,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
+	"io/ioutil"
 	"sort"
 
 	"github.com/google/exposure-notifications-server/internal/export/model"
@@ -33,6 +34,7 @@ import (
 
 const (
 	fixedHeaderWidth     = 16
+	fixedHeader          = "EK Export v1    "
 	exportBinaryName     = "export.bin"
 	exportSignatureName  = "export.sig"
 	defaultIntervalCount = 144
@@ -84,8 +86,51 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*publishmodel.Exposure
 	return buf.Bytes(), nil
 }
 
+// Unmarshals export file and extract exposure keys information.
+func UnmarshalExportFile(payload []byte) (*export.TemporaryExposureKeyExport, error) {
+	zp, err := zip.NewReader(bytes.NewReader(payload), int64(len(payload)))
+	if err != nil {
+		return nil, fmt.Errorf("Can't read payload: %v", err)
+	}
+
+	for _, file := range zp.File {
+		if file.Name == exportBinaryName {
+			return unmarshalContent(file)
+		}
+	}
+
+	return nil, fmt.Errorf("Payload is invalid: no %v file was found", exportBinaryName)
+}
+
+func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, error) {
+	f, err := file.Open()
+	defer f.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	content, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+
+	prefix := content[:fixedHeaderWidth]
+	sprefix := string(prefix)
+	if sprefix != fixedHeader {
+		return nil, fmt.Errorf("Unknown prefix: %v", sprefix)
+	}
+
+	message := new(export.TemporaryExposureKeyExport)
+	err = proto.Unmarshal(content[fixedHeaderWidth:], message)
+	if err != nil {
+		return nil, err
+	}
+
+	return message, nil
+}
+
 func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, batchNum int32, batchSize int32, signers []ExportSigners) ([]byte, error) {
-	exportBytes := []byte("EK Export v1    ")
+	exportBytes := []byte(fixedHeader)
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))
 	}

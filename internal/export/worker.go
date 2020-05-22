@@ -201,7 +201,6 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 		return "", fmt.Errorf("marshalling export file: %w", err)
 	}
 
-	// Write to GCS.
 	objectName := exportFilename(cfi.exportBatch, cfi.batchNum)
 	logger.Infof("Created file %v, signed with %v keys", objectName, len(signers))
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
