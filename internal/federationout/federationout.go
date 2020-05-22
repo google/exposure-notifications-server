@@ -118,13 +118,13 @@ func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFun
 	logger.Infof("Query criteria: %#v", criteria)
 
 	// Filter included countries in memory.
-	includedRegions := map[string]struct{}{}
+	includedRegions := make(map[string]struct{}, len(req.RegionIdentifiers))
 	for _, region := range req.RegionIdentifiers {
 		includedRegions[region] = struct{}{}
 	}
 
 	// Filter excluded countries in memory, using a map for efficiency.
-	excludedRegions := map[string]struct{}{}
+	excludedRegions := make(map[string]struct{}, len(req.ExcludeRegionIdentifiers))
 	for _, region := range req.ExcludeRegionIdentifiers {
 		excludedRegions[region] = struct{}{}
 	}
@@ -326,7 +326,7 @@ func union(aa, bb []string) []string {
 	for _, b := range bb {
 		m[b] = struct{}{}
 	}
-	var result []string
+	result := make([]string, 0, len(m))
 	for k := range m {
 		result = append(result, k)
 	}
