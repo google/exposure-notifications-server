@@ -159,6 +159,14 @@ TAG="20200521084829" \
 
 Expect this process to take 1-2 minutes.
 
+#### Distributed tracing
+To enable distributed tracing, please ensure your environment has these variables
+
+Variable|Values|Comment
+---|---|---
+OBSERVABILITY_EXPORTER|If unset, no exporting shall be done. Use any of "stackdriver" or "ocagent" otherwise
+PROJECT_ID|The ProjectID of your associated Google Cloud Platform project on which this application shall be deployed|Required if you use "stackdrver"
+
 #### Promoting
 
 Promote an already-deployed service to begin receiving production traffic using

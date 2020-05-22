@@ -41,6 +41,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/oauth"
+
+	"go.opencensus.io/plugin/ocgrpc"
+	"go.opencensus.io/trace"
 )
 
 const (
@@ -82,7 +85,9 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := trace.StartSpan(r.Context(), "(*federationin.handler).ServeHTTP")
+	defer span.End()
+
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)
 
@@ -149,7 +154,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tlsConfig := &tls.Config{RootCAs: cp, InsecureSkipVerify: h.config.TLSSkipVerify}
-	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))}
+	dialOpts := []grpc.DialOption{
+		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
+		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+	}
 
 	var clientOpts []idtoken.ClientOption
 	if h.config.CredentialsFile != "" {
@@ -190,7 +198,15 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *model.FederationInQuery, batchStart time.Time, truncateWindow time.Duration) error {
+func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *model.FederationInQuery, batchStart time.Time, truncateWindow time.Duration) (err error) {
+	ctx, span := trace.StartSpan(ctx, "federationin.pull")
+	defer func() {
+		if err != nil {
+			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
+		}
+		span.End()
+	}()
+
 	logger := logging.FromContext(ctx)
 	logger.Infof("Processing query %q", q.QueryID)
 
@@ -213,7 +229,10 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 
 	createdAt := publishmodel.TruncateWindow(batchStart, truncateWindow)
 	partial := true
+	nPartials := int64(0)
 	for partial {
+		nPartials++
+		span.AddAttributes(trace.Int64Attribute("n_partial", nPartials))
 
 		// TODO(squee1945): react to the context timeout and complete a chunk of work so next invocation can pick up where left off.
 
