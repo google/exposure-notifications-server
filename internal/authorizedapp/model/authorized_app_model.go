@@ -64,7 +64,7 @@ func NewAuthorizedApp() *AuthorizedApp {
 
 func (c *AuthorizedApp) AllAllowedRegions() []string {
 	regions := []string{}
-	for k, _ := range c.AllowedRegions {
+	for k := range c.AllowedRegions {
 		regions = append(regions, k)
 	}
 	return regions
@@ -118,7 +118,7 @@ func (c *AuthorizedApp) IsDualPlatform() bool {
 
 func (c *AuthorizedApp) RegionsOnePerLine() string {
 	regions := []string{}
-	for r, _ := range c.AllowedRegions {
+	for r := range c.AllowedRegions {
 		regions = append(regions, r)
 	}
 	return strings.Join(regions, "\n")
