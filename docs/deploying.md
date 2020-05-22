@@ -1,3 +1,22 @@
+<!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
+
+- [Exposure Notification Reference Server](#exposure-notification-reference-server)
+	- [Building and deploying services](#building-and-deploying-services)
+		- [Before you begin](#before-you-begin)
+		- [Building and deploying](#building-and-deploying)
+		- [List of services](#list-of-services)
+		- [Provisioning infrastructure with Terraform](#provisioning-infrastructure-with-terraform)
+		- [Deploying services](#deploying-services)
+			- [Building](#building)
+			- [Deploying](#deploying)
+			- [Promoting](#promoting)
+		- [Running migrations](#running-migrations)
+			- [On Google Cloud](#on-google-cloud)
+			- [On a custom setup](#on-a-custom-setup)
+	- [Server Configuration](#server-configuration)
+
+<!-- /TOC -->
+
 # Exposure Notification Reference Server
 
 ## Building and deploying services
@@ -221,3 +240,41 @@ If you did not use the Terraform configurations to provision your server, or if 
       -path ./migrations \
       up
     ```
+
+## Server Configuration
+
+This repository includes a configuration tool that runs a local webserver that
+provides a browser based interface for manipulating the database backed
+configuration. This admin tool **does not have authentication / authorization**
+built in and should not be deployed in the internet in a public facing way.
+
+Currently the admin console tool only supports editing authorized apps.
+Editing of Export Config and Signature Info configuration is comming soon.
+
+1.  Ensure proper database connection parameters.
+
+This requires setting certain environment variables and if you are using Google
+Cloud SQL, this may include booting the `cloud_sql_proxy`
+
+If you used the terraform setup to deploy to Google Cloud Platform, this
+is how you setup the admin tool connection.
+
+```text
+gcloud auth login && gcloud auth application-default login
+export DB_CONN=$(terraform output db_conn)
+export DB_USER=$(terraform output db_user)
+export DB_PASSWORD="secret://$(terraform output db_pass_secret)"
+export DB_PORT=5400
+export DB_NAME=$(terraform output db_name)
+cloud_sql_proxy -instances=$DB_CONN=tcp:$DB_PORT &
+```
+
+2. Run the admin console
+
+```text
+go run ./tools/admin-console
+```
+
+Open a browser to [localhost:8080](http://localhost:8080/)
+
+Remember, you are editing the live configuration of the database.

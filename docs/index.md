@@ -34,17 +34,17 @@ The Exposure Notification Server is responsible for the following functions:
 
 * Periodically deleting old temporary exposure keys. After 14 days, or
   configured time period, the exposure keys can no longer be matched to a device.
-  
+
 ## Tutorials and reference documentation
 
 You can read tutorials on deploying and using the reference Exposure Notification
 Server here:
 
-[Deployment guide](deploying.md)  
-[Contributor guide](/CONTRIBUTING.md)  
-[Server Functional Requirements](server_functional_requirements.md)  
-[Server Deployment Options](server_deployment_options.md)  
-[Reference documentation](https://pkg.go.dev/mod/github.com/google/exposure-notifications-server)  
+[Deployment guide](deploying.md)
+[Contributor guide](/CONTRIBUTING.md)
+[Server Functional Requirements](server_functional_requirements.md)
+[Server Deployment Options](server_deployment_options.md)
+[Reference documentation](https://pkg.go.dev/mod/github.com/google/exposure-notifications-server)
 
 ## Issues and Questions
 
