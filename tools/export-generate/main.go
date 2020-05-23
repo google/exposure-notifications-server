@@ -186,8 +186,8 @@ func getSigningKey(fileName string) (*ecdsa.PrivateKey, error) {
 
 // Parse PEM encoded Elliptic Curve Private Key Structure
 func ParseECPrivateKeyFromPEM(key []byte) (*ecdsa.PrivateKey, error) {
-	ErrNotECPrivateKey := errors.New("Key is not a valid ECDSA private key")
-	ErrKeyMustBePEMEncoded := errors.New("Invalid Key: Key must be PEM encoded PKCS1 or PKCS8 private key")
+	ErrNotECPrivateKey := errors.New("key is not a valid ECDSA private key")
+	ErrKeyMustBePEMEncoded := errors.New("invalid Key: Key must be PEM encoded PKCS1 or PKCS8 private key")
 	var err error
 
 	// Parse PEM block

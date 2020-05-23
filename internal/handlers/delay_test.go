@@ -24,7 +24,6 @@ import (
 type th struct{}
 
 func (*th) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	return
 }
 
 func TestDelayedReturn(t *testing.T) {

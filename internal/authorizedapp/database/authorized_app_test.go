@@ -96,6 +96,9 @@ func TestAuthorizedAppLifecycle(t *testing.T) {
 	}
 
 	readBack, err = aadb.GetAuthorizedApp(ctx, sm, source.AppPackageName)
+	if err != nil {
+		t.Errorf("unexpected error seen: %v", err)
+	}
 	if readBack != nil {
 		t.Fatal("expected record to be deleted, but it wasn't")
 	}

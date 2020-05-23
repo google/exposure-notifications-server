@@ -78,7 +78,7 @@ func (c *AuthorizedApp) Validate() []string {
 	if !(c.Platform == "android" || c.Platform == "ios" || c.Platform == "both") {
 		errors = append(errors, "platform must be one if {'android', 'ios', or 'both'}")
 	}
-	if c.SafetyNetDisabled == false {
+	if !c.SafetyNetDisabled {
 		if c.SafetyNetPastTime < 0 {
 			errors = append(errors, "SafetyNetPastTime cannot be negative")
 		}
@@ -86,7 +86,7 @@ func (c *AuthorizedApp) Validate() []string {
 			errors = append(errors, "SafetyNetFutureTime cannot be negative")
 		}
 	}
-	if c.DeviceCheckDisabled == false {
+	if !c.DeviceCheckDisabled {
 		if c.DeviceCheckKeyID == "" {
 			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckKeyID cannot be empty")
 		}

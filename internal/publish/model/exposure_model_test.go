@@ -68,7 +68,7 @@ func TestInvalidBase64(t *testing.T) {
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
 
 	_, err = transformer.TransformPublish(source, batchTime)
-	expErr := `Invalid publish data: illegal base64 data at input byte 4`
+	expErr := `invalid publish data: illegal base64 data at input byte 4`
 	if err == nil || err.Error() != expErr {
 		t.Errorf("expected error '%v', got: %v", expErr, err)
 	}

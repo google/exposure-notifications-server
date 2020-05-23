@@ -13,9 +13,6 @@ import (
 )
 
 const (
-	dkLen               = 16
-	maxTransmissionRisk = 8
-	maxIntervals        = 144
 	// httpTimeout is the maximum amount of time to wait for a response.
 	httpTimeout = 30 * time.Second
 )

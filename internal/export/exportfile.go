@@ -28,7 +28,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
