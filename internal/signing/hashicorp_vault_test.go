@@ -25,9 +25,11 @@ import (
 	"strings"
 	"testing"
 
+	vaultlog "github.com/hashicorp/go-hclog"
 	vaultapi "github.com/hashicorp/vault/api"
-	"github.com/hashicorp/vault/builtin/logical/transit"
+	vaulttransit "github.com/hashicorp/vault/builtin/logical/transit"
 	vaulthttp "github.com/hashicorp/vault/http"
+	vaultlogical "github.com/hashicorp/vault/sdk/logical"
 	vault "github.com/hashicorp/vault/vault"
 )
 
@@ -69,10 +71,6 @@ func TestNewHashiCorpVaultSigner(t *testing.T) {
 }
 
 func TestHashiCorpVaultSigner_Public(t *testing.T) {
-	if err := vault.AddTestLogicalBackend("transit", transit.Factory); err != nil {
-		t.Fatal(err)
-	}
-
 	cases := []struct {
 		name       string
 		setup      func(client *vaultapi.Client) error
@@ -143,7 +141,14 @@ func TestHashiCorpVaultSigner_Public(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a Vault server.
 			ctx := context.Background()
-			core, _, token := vault.TestCoreUnsealed(t)
+			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
+				DisableMlock: true,
+				DisableCache: true,
+				Logger:       vaultlog.NewNullLogger(),
+				LogicalBackends: map[string]vaultlogical.Factory{
+					"transit": vaulttransit.Factory,
+				},
+			})
 			ln, addr := vaulthttp.TestServer(t, core)
 			defer ln.Close()
 
@@ -189,13 +194,16 @@ func TestHashiCorpVaultSigner_Public(t *testing.T) {
 }
 
 func TestHashiCorpVaultSigner_Sign(t *testing.T) {
-	if err := vault.AddTestLogicalBackend("transit", transit.Factory); err != nil {
-		t.Fatal(err)
-	}
-
 	// Create a Vault server.
 	ctx := context.Background()
-	core, _, token := vault.TestCoreUnsealed(t)
+	core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
+		DisableMlock: true,
+		DisableCache: true,
+		Logger:       vaultlog.NewNullLogger(),
+		LogicalBackends: map[string]vaultlogical.Factory{
+			"transit": vaulttransit.Factory,
+		},
+	})
 	ln, addr := vaulthttp.TestServer(t, core)
 	defer ln.Close()
 
@@ -207,8 +215,8 @@ func TestHashiCorpVaultSigner_Sign(t *testing.T) {
 	client.SetToken(token)
 
 	// Enable transit.
-	if _, err := client.Logical().Write("sys/mounts/transit", map[string]interface{}{
-		"type": "transit",
+	if err := client.Sys().Mount("transit/", &vaultapi.MountInput{
+		Type: "transit",
 	}); err != nil {
 		t.Fatal(err)
 	}
