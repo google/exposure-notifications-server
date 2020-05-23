@@ -89,7 +89,7 @@ func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.Federat
 	timerStart := time.Now()
 	return syncID, func(maxTimestamp time.Time, totalInserted int) error {
 		sdb.syncCompleted = true
-		sdb.completed = start.Add(time.Now().Sub(timerStart))
+		sdb.completed = start.Add(time.Since(timerStart))
 		sdb.maxTimestamp = maxTimestamp
 		sdb.totalInserted = totalInserted
 		return nil

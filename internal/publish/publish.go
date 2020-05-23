@@ -93,7 +93,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		// Config loaded, but app with that name isn't registered. This can also
 		// happen if the app was recently registered but the cache hasn't been
 		// refreshed.
-		if err == authorizedapp.AppNotFound {
+		if err == authorizedapp.ErrAppNotFound {
 			message := fmt.Sprintf("unauthorized app: %v", data.AppPackageName)
 			logger.Error(message)
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-app-not-authorized", count: 1}

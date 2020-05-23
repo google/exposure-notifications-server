@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/kelseyhightower/envconfig"
 
 	// imported to register the postgres migration driver
@@ -108,14 +107,6 @@ func createDatabase(ctx context.Context, db *DB, name string) error {
 	}
 	_, err = conn.Exec(ctx, fmt.Sprintf(`CREATE DATABASE %q`, name))
 	return err
-}
-
-func mustExec(t *testing.T, conn *pgxpool.Conn, stmt string, args ...interface{}) {
-	t.Helper()
-	_, err := conn.Exec(context.Background(), stmt, args...)
-	if err != nil {
-		t.Fatalf("executing %s: %v", stmt, err)
-	}
 }
 
 func ResetTestDB(t *testing.T, testDB *DB) {

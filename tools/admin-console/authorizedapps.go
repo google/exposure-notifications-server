@@ -48,7 +48,6 @@ func (h *appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m := TemplateMap{}
 	m.AddErrors("Invalid request.")
 	h.config.RenderTemplate(w, "error", m)
-	return
 }
 
 func (h *appHandler) renderError(m TemplateMap, msg string, w http.ResponseWriter) {

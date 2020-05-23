@@ -75,6 +75,6 @@ func CreateBlobstore(ctx context.Context, config BlobstoreConfig) (Blobstore, er
 	case None:
 		return NewNoopBlobstore(ctx)
 	default:
-		return nil, fmt.Errorf("Unknown BlobstoreType: %v", config.BlobstoreType)
+		return nil, fmt.Errorf("unknown BlobstoreType: %v", config.BlobstoreType)
 	}
 }

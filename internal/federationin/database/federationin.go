@@ -168,7 +168,7 @@ func (db *FederationInDB) StartFederationInSync(ctx context.Context, q *model.Fe
 	}
 
 	finalize := func(maxTimestamp time.Time, totalInserted int) error {
-		completed := started.Add(time.Now().Sub(startedTimer))
+		completed := started.Add(time.Since(startedTimer))
 
 		return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Special case: when no keys are pulled, the maxTimestamp will be 0, so we don't update the

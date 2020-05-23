@@ -27,24 +27,6 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-var (
-	validSSLModes = []string{
-		"disable",     // No SSL
-		"require",     // Always SSL (skip verification)
-		"verify-ca",   // Always SSL (verify that the certificate presented by the server was signed by a trusted CA)
-		"verify-full", // Always SSL (verify that the certification presented by
-	}
-)
-
-type config struct {
-	env       string
-	part      string
-	def       interface{}
-	req       bool
-	valid     []string
-	writeFile bool
-}
-
 type DB struct {
 	Pool *pgxpool.Pool
 }

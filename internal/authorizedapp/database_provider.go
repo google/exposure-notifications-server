@@ -86,7 +86,7 @@ func (p *DatabaseProvider) checkCache(name string) (*model.AuthorizedApp, bool, 
 	item, ok := p.cache[name]
 	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
 		if item.value == nil {
-			return nil, true, AppNotFound
+			return nil, true, ErrAppNotFound
 		}
 		return item.value, true, nil
 	}
@@ -110,7 +110,7 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 	item, ok := p.cache[name]
 	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
 		if item.value == nil {
-			return nil, AppNotFound
+			return nil, ErrAppNotFound
 		}
 		return item.value, nil
 	}
@@ -130,7 +130,7 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 
 	// Handle not found.
 	if config == nil {
-		return nil, AppNotFound
+		return nil, ErrAppNotFound
 	}
 
 	// Returned config.
