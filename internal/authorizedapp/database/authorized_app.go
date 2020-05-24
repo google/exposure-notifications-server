@@ -71,11 +71,11 @@ func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey str
 		result, err := tx.Exec(ctx, `
 			UPDATE AuthorizedApp
 			SET
-				app_package_name = $1, platform = $2, allowed_regions = $3,
+        app_package_name = $1, platform = $2, allowed_regions = $3,
 				safetynet_disabled = $4, safetynet_apk_digest = $5, safetynet_cts_profile_match = $6, safetynet_basic_integrity = $7, safetynet_past_seconds = $8, safetynet_future_seconds = $9,
 				devicecheck_disabled = $10, devicecheck_team_id = $11, devicecheck_key_id = $12, devicecheck_private_key_secret = $13
 			WHERE
-				app_package_name = $14
+			  app_package_name = $14
 			`, m.AppPackageName, m.Platform, m.AllAllowedRegions(),
 			m.SafetyNetDisabled, m.SafetyNetApkDigestSHA256, m.SafetyNetCTSProfileMatch, m.SafetyNetBasicIntegrity, int64(m.SafetyNetPastTime.Seconds()), int64(m.SafetyNetFutureTime.Seconds()),
 			m.DeviceCheckDisabled, m.DeviceCheckTeamID, m.DeviceCheckKeyID, m.DeviceCheckPrivateKeySecret, priorKey)
