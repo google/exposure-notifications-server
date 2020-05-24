@@ -37,7 +37,7 @@ const (
 // from the database.
 func NewExposureHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
 	if env.Database() == nil {
-		return nil, fmt.Errorf("missing database in server environment")
+		return nil, fmt.Errorf("cleanup.NewExposureHandler requires Database present in the ServerEnv")
 	}
 
 	return &exposureCleanupHandler{
@@ -89,10 +89,10 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 // old export files that are no longer needed by clients for download.
 func NewExportHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
 	if env.Database() == nil {
-		return nil, fmt.Errorf("missing database in server environment")
+		return nil, fmt.Errorf("export.NewExportHandler requires Database present in the ServerEnv")
 	}
 	if env.Blobstore() == nil {
-		return nil, fmt.Errorf("missing blobstore in server environment")
+		return nil, fmt.Errorf("export.NewExportHandler requires Blobstore present in the ServerEnv")
 	}
 
 	return &exportCleanupHandler{
