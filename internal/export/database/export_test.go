@@ -17,8 +17,6 @@ package database
 import (
 	"context"
 	"errors"
-	"log"
-	"os"
 	"sort"
 	"testing"
 	"time"
@@ -31,26 +29,10 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-var testDB *database.DB
-
-func TestMain(m *testing.M) {
-	ctx := context.Background()
-
-	if os.Getenv("DB_USER") != "" {
-		var err error
-		testDB, err = database.CreateTestDB(ctx, "export")
-		if err != nil {
-			log.Fatalf("creating test DB: %v", err)
-		}
-	}
-	os.Exit(m.Run())
-}
-
 func TestAddSignatureInfo(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
 	thruTime := time.Now().UTC().Add(6 * time.Hour).Truncate(time.Microsecond)
@@ -87,10 +69,9 @@ func TestAddSignatureInfo(t *testing.T) {
 }
 
 func TestLookupSignatureInfos(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
 	testTime := time.Now().UTC()
@@ -132,10 +113,9 @@ func TestLookupSignatureInfos(t *testing.T) {
 }
 
 func TestAddExportConfig(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
 	fromTime := time.Now()
@@ -182,10 +162,9 @@ func TestAddExportConfig(t *testing.T) {
 }
 
 func TestIterateExportConfigs(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
 	now := time.Now().Truncate(time.Microsecond)
@@ -238,10 +217,9 @@ func TestIterateExportConfigs(t *testing.T) {
 }
 
 func TestBatches(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
 	now := time.Now().Truncate(time.Microsecond)
@@ -348,11 +326,10 @@ func TestBatches(t *testing.T) {
 }
 
 func TestFinalizeBatch(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	exportDB := New(testDB)
-	defer database.ResetTestDB(t, testDB)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Microsecond)
 
@@ -443,10 +420,9 @@ func TestFinalizeBatch(t *testing.T) {
 
 // TestKeysInBatch ensures that keys are fetched in the correct batch when they fall on boundary conditions.
 func TestKeysInBatch(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 	now := time.Now()
 
@@ -540,10 +516,9 @@ func TestKeysInBatch(t *testing.T) {
 
 // TestAddExportFileSkipsDuplicates ensures that ExportFile records are not overwritten.
 func TestAddExportFileSkipsDuplicates(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	exportDB := New(testDB)
 	ctx := context.Background()
 

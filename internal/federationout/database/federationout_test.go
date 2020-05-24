@@ -17,37 +17,20 @@ package database
 import (
 	"context"
 	"errors"
-	"log"
-	"os"
 	"testing"
 
+	"github.com/google/exposure-notifications-server/internal/database"
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 
 	"github.com/google/go-cmp/cmp"
 )
 
-var testDB *coredb.DB
-
-func TestMain(m *testing.M) {
-	ctx := context.Background()
-
-	if os.Getenv("DB_USER") != "" {
-		var err error
-		testDB, err = coredb.CreateTestDB(ctx, "federationout")
-		if err != nil {
-			log.Fatalf("creating test DB: %v", err)
-		}
-	}
-	os.Exit(m.Run())
-}
-
 // TestFederationOutAuthorization tests the functions accessing the FederationOutAuthorization table.
 func TestFederationOutAuthorization(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer coredb.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
 	want := &model.FederationOutAuthorization{

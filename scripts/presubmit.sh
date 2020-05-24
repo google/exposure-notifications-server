@@ -101,21 +101,11 @@ echo "🚧 Compile"
 go build ./...
 
 
-echo "📚 Starting database"
-export DB_NAME="en-server-db-test"
-export DB_PORT=5435
-${ROOT}/scripts/dev dbstart && sleep 2
-${ROOT}/scripts/dev dbmigrate
-trap "${ROOT}/scripts/dev dbstop" EXIT
-
-if [ "${DB_USER:-}" == "" ]; then
-   echo "🚨 DB_USER is not configured. Test DB tests will not run."
-fi
-
-
 echo "🧪 Test"
 go test ./... \
   -coverprofile=coverage.out \
+  -count=1 \
+  -parallel=20 \
   -timeout=5m
 
 
