@@ -26,8 +26,8 @@ import (
 )
 
 func TestNewExposureHandler(t *testing.T) {
-	ctx := context.Background()
 	testDB := database.NewTestDatabase(t)
+	ctx := context.Background()
 
 	testCases := []struct {
 		name string
@@ -70,11 +70,7 @@ func TestNewExposureHandler(t *testing.T) {
 func TestNewExportHandler(t *testing.T) {
 	ctx := context.Background()
 	testDB := database.NewTestDatabase(t)
-
-	blobStorage, err := storage.NewFilesystemStorage(ctx)
-	if err != nil {
-		t.Fatalf("Failed to initialize Blobstore: %+v", err)
-	}
+	noopBlobstore, _ := storage.NewNoopBlobstore(ctx)
 
 	testCases := []struct {
 		name string
@@ -93,7 +89,7 @@ func TestNewExportHandler(t *testing.T) {
 		},
 		{
 			name: "Fully Specified",
-			env:  serverenv.New(ctx, serverenv.WithBlobStorage(blobStorage), serverenv.WithDatabase(testDB)),
+			env:  serverenv.New(ctx, serverenv.WithBlobStorage(noopBlobstore), serverenv.WithDatabase(testDB)),
 			err:  nil,
 		},
 	}
