@@ -1,4 +1,4 @@
-{{define "view"}}
+{{define "authorizedapp"}}
 {{template "top" .}}
 
 {{if .new}}
@@ -7,7 +7,7 @@
 <h2>Edit Application {{.app.AppPackageName}}</h2>
 {{end}}
 
-<form method="POST" action="/app?&apn={{.app.AppPackageName}}" class="form-horizontal">
+<form method="POST" action="/app" class="form-horizontal">
   <input type="hidden" name="Key" value="{{.previousKey}}" />
   <div class="alert alert-info" role="alert">Basic Application Authorization Information</div>
   <div class="form-group row">
@@ -19,10 +19,10 @@
   <div class="form-group row">
     <label class="control-label col-sm-3" for="Platform">Platform:</label>
     <div class="col-sm-6">
-    <select name="Platform" id="Platform" value="{{.app.Platform}}">
-      <option value="android">Android</option>
-      <option value="ios">iOS</option>
-      <option value="both">both</option>
+    <select name="Platform" id="Platform">
+      <option value="android" {{if eq "android" .app.Platform}}selected{{end}}>Android</option>
+      <option value="ios" {{if eq "ios" .app.Platform}}selected{{end}}>iOS</option>
+      <option value="both" {{if eq "both" .app.Platform}}selected{{end}}>both</option>
     </select>
     </div>
   </div>
@@ -39,9 +39,9 @@
   <div class="form-group row">
     <label class="control-label col-sm-3" for="SafetyNetDisabled">SafetyNet Verification Disabled:</label>
     <div class="col-sm-6">
-      <select name="SafetyNetDisabled" id="SafetyNetDisabled" value="{{.app.SafetyNetDisabled}}">
-        <option value="false">false</option>
-        <option value="true">true</option>
+      <select name="SafetyNetDisabled" id="SafetyNetDisabled">
+        <option value="false" {{if not .app.SafetyNetDisabled}}selected{{end}}>false</option>
+        <option value="true" {{if .app.SafetyNetDisabled}}selected{{end}}>true</option>
       </select>
     </div>
   </div>
@@ -55,18 +55,18 @@
   <div class="form-group row">
     <label class="control-label col-sm-3" for="SafetyNetBasicIntegrity">Require Basic Integrity:</label>
     <div class="col-sm-6">
-      <select name="SafetyNetBasicIntegrity" id="SafetyNetBasicIntegrity" value="{{.app.SafetyNetBasicIntegrity}}">
-        <option value="true">true</option>
-        <option value="false">false</option>
+      <select name="SafetyNetBasicIntegrity" id="SafetyNetBasicIntegrity">
+        <option value="true" {{if .app.SafetyNetBasicIntegrity}}selected{{end}}>true</option>
+        <option value="false" {{if not .app.SafetyNetBasicIntegrity}}selected{{end}}>false</option>
       </select>
     </div>
   </div>
   <div class="form-group row">
     <label class="control-label col-sm-3" for="SafetyNetCTSProfileMatch">Require CTS Profile Match:</label>
     <div class="col-sm-6">
-      <select name="SafetyNetCTSProfileMatch" id="SafetyNetCTSProfileMatch" value="{{.app.SafetyNetCTSProfileMatch}}">
-        <option value="true">true</option>
-        <option value="false">false</option>
+      <select name="SafetyNetCTSProfileMatch" id="SafetyNetCTSProfileMatch">
+        <option value="true" {{if .app.SafetyNetCTSProfileMatch}}selected{{end}}>true</option>
+        <option value="false" {{if not .app.SafetyNetCTSProfileMatch}}selected{{end}}>false</option>
       </select>
     </div>
   </div>
@@ -91,9 +91,9 @@
   <div class="form-group row">
     <label class="control-label col-sm-3" for="DeviceCheckDisabled">DeviceCheck Verification Disabled:</label>
     <div class="col-sm-6">
-      <select name="DeviceCheckDisabled" id="DeviceCheckDisabled" value="{{.app.DeviceCheckDisabled}}">
-        <option value="false">false</option>
-        <option value="true">true</option>
+      <select name="DeviceCheckDisabled" id="DeviceCheckDisabled">
+        <option value="false" {{if not .app.DeviceCheckDisabled}}selected{{end}}>false</option>
+        <option value="true" {{if .app.DeviceCheckDisabled}}selected{{end}}>true</option>
       </select>
     </div>
   </div>

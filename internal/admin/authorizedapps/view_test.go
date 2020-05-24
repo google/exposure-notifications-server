@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package authorizedapps
 
 import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/exposure-notifications-server/internal/admin"
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 )
 
@@ -28,13 +29,17 @@ func TestRenderAuthorizedApps(t *testing.T) {
 	// And whatever you changed is used in the
 	//  tools/admin-console/templates/app_view.html
 	// That is what caused the test failure.
-	m := TemplateMap{}
+	m := admin.TemplateMap{}
 	authorizedApp := model.NewAuthorizedApp()
 	m["app"] = authorizedApp
 
 	recorder := httptest.NewRecorder()
-	config := Config{TemplatePath: "templates", TopFile: "top", BotFile: "bottom"}
-	err := config.RenderTemplate(recorder, "app_view", m)
+	config := admin.Config{
+		TemplatePath: "../../../tools/admin-console/templates",
+		TopFile:      "top",
+		BotFile:      "bottom",
+	}
+	err := config.RenderTemplate(recorder, "authorizedapp", m)
 	if err != nil {
 		t.Fatalf("error rendering template: %v", err)
 	}

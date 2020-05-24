@@ -12,35 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+// Package index contains admin console handler for the main landing page.
+package index
 
 import (
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+	"github.com/google/exposure-notifications-server/internal/admin"
 	aadb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	exdb "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
 type indexHandler struct {
-	config *Config
+	config *admin.Config
 	env    *serverenv.ServerEnv
 }
 
-func NewIndexHandler(c *Config, env *serverenv.ServerEnv) *indexHandler {
+func New(c *admin.Config, env *serverenv.ServerEnv) *indexHandler {
 	return &indexHandler{config: c, env: env}
 }
 
-func (h *indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	m := TemplateMap{}
+func (h *indexHandler) Execute(c *gin.Context) {
+	ctx := c.Request.Context()
+	m := admin.TemplateMap{}
 
 	// Load authorized apps for index.
 	db := aadb.New(h.env.Database())
 	apps, err := db.GetAllAuthorizedApps(ctx, h.env.SecretManager())
 	if err != nil {
-		m["error"] = err
-		h.config.RenderTemplate(w, "error", m)
+		admin.ErrorPage(c, err.Error())
 		return
 	}
 	m["apps"] = apps
@@ -50,13 +52,12 @@ func (h *indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	exportDB := exdb.New(h.env.Database())
 	exports, err := exportDB.GetAllExportConfigs(ctx)
 	if err != nil {
-		m["error"] = err
-		h.config.RenderTemplate(w, "error", m)
+		admin.ErrorPage(c, err.Error())
 		return
 	}
 	m["exports"] = exports
 
 	m.AddTitle("Exposure Notifications Server - Admin Console")
 	m.AddJumbotron("Exposure Notification Server", "Admin Console")
-	h.config.RenderTemplate(w, "index", m)
+	c.HTML(http.StatusOK, "index", m)
 }
