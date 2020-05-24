@@ -22,13 +22,11 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"log"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
-	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -45,26 +43,10 @@ func (s *testSecretManager) GetSecretValue(ctx context.Context, name string) (st
 	return v, nil
 }
 
-var testDB *coredb.DB
-
-func TestMain(m *testing.M) {
-	ctx := context.Background()
-
-	if os.Getenv("DB_USER") != "" {
-		var err error
-		testDB, err = coredb.CreateTestDB(ctx, "authorizedapp")
-		if err != nil {
-			log.Fatalf("creating test DB: %v", err)
-		}
-	}
-	os.Exit(m.Run())
-}
-
 func TestAuthorizedAppLifecycle(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer coredb.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 	aadb := New(testDB)
 	sm := &testSecretManager{
@@ -105,10 +87,8 @@ func TestAuthorizedAppLifecycle(t *testing.T) {
 }
 
 func TestGetAuthorizedApp(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer coredb.ResetTestDB(t, testDB)
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Create private key for parsing later
@@ -271,13 +251,16 @@ func TestGetAuthorizedApp(t *testing.T) {
 		c := c
 
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			testDB := database.NewTestDatabase(t)
+
 			// Acquire a connection
 			conn, err := testDB.Pool.Acquire(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer conn.Release()
-			defer coredb.ResetTestDB(t, testDB)
 
 			// Insert the data
 			if _, err := conn.Exec(ctx, c.sql, c.args...); err != nil {

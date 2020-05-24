@@ -22,9 +22,9 @@ import (
 )
 
 func TestLock(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
+	t.Parallel()
+
+	testDB := NewTestDatabase(t)
 	ctx := context.Background()
 
 	const (

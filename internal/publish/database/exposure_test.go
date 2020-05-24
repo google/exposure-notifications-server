@@ -17,38 +17,21 @@ package database
 import (
 	"context"
 	"errors"
-	"log"
-	"os"
+	"fmt"
 	"testing"
 	"time"
 
-	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/database"
 
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/go-cmp/cmp"
 )
 
-var testDB *coredb.DB
-var testPublishDB *PublishDB
-
-func TestMain(m *testing.M) {
-	ctx := context.Background()
-
-	if os.Getenv("DB_USER") != "" {
-		var err error
-		testDB, err = coredb.CreateTestDB(ctx, "publish")
-		if err != nil {
-			log.Fatalf("creating test DB: %v", err)
-		}
-		testPublishDB = New(testDB)
-	}
-	os.Exit(m.Run())
-}
 func TestExposures(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer coredb.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
+	testPublishDB := New(testDB)
 	ctx := context.Background()
 
 	// Insert some Exposures.
@@ -129,7 +112,7 @@ func TestExposures(t *testing.T) {
 			nil,
 		},
 	} {
-		got, err := listExposures(ctx, test.criteria)
+		got, err := listExposures(ctx, testPublishDB, test.criteria)
 		if err != nil {
 			t.Fatalf("%+v: %v", test.criteria, err)
 		}
@@ -151,7 +134,7 @@ func TestExposures(t *testing.T) {
 	if gotN != wantN {
 		t.Errorf("DeleteExposures: deleted %d, want %d", gotN, wantN)
 	}
-	got, err := listExposures(ctx, IterateExposuresCriteria{})
+	got, err := listExposures(ctx, testPublishDB, IterateExposuresCriteria{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,24 +144,24 @@ func TestExposures(t *testing.T) {
 
 }
 
-func listExposures(ctx context.Context, c IterateExposuresCriteria) (_ []*model.Exposure, err error) {
+func listExposures(ctx context.Context, db *PublishDB, c IterateExposuresCriteria) (_ []*model.Exposure, err error) {
 	var exps []*model.Exposure
-	_, err = testPublishDB.IterateExposures(ctx, c, func(e *model.Exposure) error {
+	if _, err := db.IterateExposures(ctx, c, func(e *model.Exposure) error {
 		exps = append(exps, e)
 		return nil
-	})
-	if err != nil {
-		return nil, err
+	}); err != nil {
+		return nil, fmt.Errorf("failed to list exposures: %w", err)
 	}
 	return exps, nil
 }
 
 func TestIterateExposuresCursor(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer coredb.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
+	testPublishDB := New(testDB)
 	ctx, cancel := context.WithCancel(context.Background())
+
 	// Insert some Exposures.
 	exposures := []*model.Exposure{
 		{

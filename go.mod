@@ -44,6 +44,7 @@ require (
 	github.com/mitchellh/mapstructure v1.3.1 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/oracle/oci-go-sdk v19.3.0+incompatible // indirect
+	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/pierrec/lz4 v2.5.2+incompatible // indirect
 	github.com/posener/complete v1.2.3 // indirect
 	github.com/prometheus/client_golang v1.6.0 // indirect
