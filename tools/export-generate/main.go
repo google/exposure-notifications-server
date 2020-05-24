@@ -104,7 +104,7 @@ func main() {
 			log.Fatalf("unable to parse json: %v", err)
 		}
 		for _, k := range data.Keys {
-			ek, err := publishmodel.TransformExposureKey(k, "", []string{}, time.Now(), int32(0), int32(time.Now().Unix()/600)-144)
+			ek, err := publishmodel.TransformExposureKey(k, "", []string{}, time.Now(), int32(0), int32(time.Now().Unix()/600))
 			if err != nil {
 				log.Fatalf("invalid exposure key: %v", err)
 			}
