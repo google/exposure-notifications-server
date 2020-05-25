@@ -24,6 +24,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/admin"
 	"github.com/google/exposure-notifications-server/internal/admin/authorizedapps"
 	"github.com/google/exposure-notifications-server/internal/admin/index"
+	"github.com/google/exposure-notifications-server/internal/admin/siginfo"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
@@ -49,6 +50,12 @@ func main() {
 	router.GET("/app", authAppController.Execute)
 	saveAppController := authorizedapps.NewSave(&config, env)
 	router.POST("/app", saveAppController.Execute)
+
+	// Signature Info.
+	sigInfoController := siginfo.NewView(&config, env)
+	router.GET("/siginfo/:id", sigInfoController.Execute)
+	saveSigInfoController := siginfo.NewSave(&config, env)
+	router.POST("/siginfo/:id", saveSigInfoController.Execute)
 
 	log.Printf("listening on http://localhost:" + config.Port)
 	router.Run()

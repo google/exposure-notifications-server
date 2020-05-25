@@ -191,6 +191,63 @@ func (db *ExportDB) AddSignatureInfo(ctx context.Context, si *model.SignatureInf
 	})
 }
 
+func (db *ExportDB) UpdateSignatureInfo(ctx context.Context, si *model.SignatureInfo) error {
+	var thru *time.Time
+	if !si.EndTimestamp.IsZero() {
+		thru = &si.EndTimestamp
+	}
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+      UPDATE SignatureInfo
+      SET
+				signing_key = $1, app_package_name = $2, bundle_id = $3,
+				signing_key_version = $4, signing_key_id = $5, thru_timestamp = $6
+      WHERE
+				id = $7
+    `, si.SigningKey, si.AppPackageName, si.BundleID, si.SigningKeyVersion, si.SigningKeyID, thru, si.ID)
+		if err != nil {
+			return fmt.Errorf("updating signatureinfo: %w", err)
+		}
+		if result.RowsAffected() != 1 {
+			return fmt.Errorf("no rows updated")
+		}
+		return nil
+	})
+}
+
+func (db *ExportDB) ListAllSigntureInfos(ctx context.Context) ([]*model.SignatureInfo, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	rows, err := conn.Query(ctx, `
+    SELECT
+      id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
+    FROM
+      SignatureInfo
+    ORDER BY signing_key_id ASC, signing_key_version ASC, thru_timestamp DESC, app_package_name ASC, bundle_id ASC
+  `)
+	if err != nil {
+		return nil, err
+	}
+
+	var sigInfos []*model.SignatureInfo
+	for rows.Next() {
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+		si, err := scanOneSignatureInfo(ctx, rows)
+		if err != nil {
+			return nil, err
+		}
+		sigInfos = append(sigInfos, si)
+	}
+
+	return sigInfos, nil
+}
+
 func (db *ExportDB) LookupSignatureInfos(ctx context.Context, ids []int64, validUntil time.Time) ([]*model.SignatureInfo, error) {
 	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
@@ -215,18 +272,46 @@ func (db *ExportDB) LookupSignatureInfos(ctx context.Context, ids []int64, valid
 		if rows.Err() != nil {
 			return nil, rows.Err()
 		}
-		var info model.SignatureInfo
-		var thru *time.Time
-		if err := rows.Scan(&info.ID, &info.SigningKey, &info.AppPackageName, &info.BundleID, &info.SigningKeyVersion, &info.SigningKeyID, &thru); err != nil {
+		si, err := scanOneSignatureInfo(ctx, rows)
+		if err != nil {
 			return nil, err
 		}
-		if thru != nil {
-			info.EndTimestamp = *thru
-		}
-		sigInfos = append(sigInfos, &info)
+		sigInfos = append(sigInfos, si)
 	}
 
 	return sigInfos, nil
+}
+
+// GetSignatureInfo looks up a single signature info by ID.
+func (db *ExportDB) GetSignatureInfo(ctx context.Context, id int64) (*model.SignatureInfo, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	row := conn.QueryRow(ctx, `
+    SELECT
+      id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
+    FROM
+      SignatureInfo
+    WHERE
+      id = $1
+  `, id)
+
+	return scanOneSignatureInfo(ctx, row)
+}
+
+func scanOneSignatureInfo(ctx context.Context, row pgx.Row) (*model.SignatureInfo, error) {
+	var info model.SignatureInfo
+	var thru *time.Time
+	if err := row.Scan(&info.ID, &info.SigningKey, &info.AppPackageName, &info.BundleID, &info.SigningKeyVersion, &info.SigningKeyID, &thru); err != nil {
+		return nil, err
+	}
+	if thru != nil {
+		info.EndTimestamp = *thru
+	}
+	return &info, nil
 }
 
 // LatestExportBatchEnd returns the end time of the most recent ExportBatch for

@@ -70,7 +70,20 @@ func TestAuthorizedAppLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	if diff := cmp.Diff(source, readBack); diff != "" {
-		t.Errorf("mismatch (-want, +got):\n%s", diff)
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	source.AllowedRegions["CA"] = struct{}{}
+	if err := aadb.UpdateAuthorizedApp(ctx, source.AppPackageName, source); err != nil {
+		t.Fatal(err)
+	}
+
+	readBack, err = aadb.GetAuthorizedApp(ctx, sm, source.AppPackageName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(source, readBack); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}
 
 	if err := aadb.DeleteAuthorizedApp(ctx, source.AppPackageName); err != nil {

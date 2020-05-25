@@ -29,42 +29,45 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-func TestAddSignatureInfo(t *testing.T) {
+func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
 	t.Parallel()
 
 	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
-	thruTime := time.Now().UTC().Add(6 * time.Hour).Truncate(time.Microsecond)
 	want := &model.SignatureInfo{
 		SigningKey:        "/kms/project/key/1",
 		SigningKeyVersion: "1",
 		SigningKeyID:      "310",
-		EndTimestamp:      thruTime,
+		EndTimestamp:      time.Time{},
 	}
-	if err := New(testDB).AddSignatureInfo(ctx, want); err != nil {
+	exDB := New(testDB)
+	if err := exDB.AddSignatureInfo(ctx, want); err != nil {
 		t.Fatal(err)
 	}
-	conn, err := testDB.Pool.Acquire(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Release()
-	var got model.SignatureInfo
-	err = conn.QueryRow(ctx, `
-		SELECT
-		  id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
-		FROM
-			SignatureInfo
-		WHERE
-			id = $1
-	`, want.ID).Scan(&got.ID, &got.SigningKey, &got.AppPackageName, &got.BundleID, &got.SigningKeyVersion, &got.SigningKeyID, &got.EndTimestamp)
+
+	got, err := exDB.GetSignatureInfo(ctx, want.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(want, &got); diff != "" {
-		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	// Update, set expiry timestamp.
+	want.EndTimestamp = time.Now().UTC().Add(24 * time.Hour)
+	if err := exDB.UpdateSignatureInfo(ctx, want); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err = exDB.GetSignatureInfo(ctx, want.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}
 }
 
