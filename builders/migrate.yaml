@@ -1,0 +1,53 @@
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#
+# Runs schema migrations.
+#
+
+substitutions:
+  _COMMAND: 'up'
+  _DB_CONN:
+  _DB_NAME:
+  _DB_PASS_SECRET:
+  _DB_PORT: '5432'
+  _DB_SSLMODE: 'disable'
+  _DB_USER:
+
+steps:
+- id: 'secrets'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud secrets versions access "${_DB_PASS_SECRET}" > ./dbpass
+
+- id: 'migrate'
+  name: 'gcr.io/cloud-devrel-public-resources/exposure-notifications/migrate:latest'
+  entrypoint: /bin/sh
+  args:
+  - '-c'
+  - |-
+    echo "==> Configuring proxy"
+    /bin/cloud_sql_proxy -quiet -instances=${_DB_CONN}=tcp:${_DB_PORT} &
+    sleep 5
+
+    echo "==> Running migrations"
+    /usr/local/bin/migrate \
+      -database postgres://${_DB_USER}:$$(cat ./dbpass)@localhost:${_DB_PORT}/${_DB_NAME}?sslmode=${_DB_SSLMODE} \
+      -path migrations \
+      ${_COMMAND}

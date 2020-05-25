@@ -68,34 +68,33 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 }
 
-# This step automatically runs a build as well, so everything that uses an image depends on it.
-resource "google_cloudbuild_trigger" "build-and-publish" {
-  provider = google-beta
-  count    = var.use_build_triggers ? 1 : 0
-
-  name        = "build-containers"
-  description = "Build the containers for the exposure notification service and deploy them to cloud run"
-  filename    = "builders/deploy.yaml"
-  github {
-    owner = var.repo_owner
-    name  = var.repo_name
-    push {
-      branch = "^master$"
-    }
-  }
-
-  depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
-}
-
-# "build" does first time setup - it is different from "deploy" which we set up to trigger for later.
-resource "null_resource" "submit-build-and-publish" {
+# Build creates the container images. It does not deploy or promote them.
+resource "null_resource" "build" {
   provisioner "local-exec" {
-    command = "gcloud builds submit ../ --config ../builders/build.yaml --project ${data.google_project.project.project_id}"
+    environment = {
+      PROJECT_ID = data.google_project.project.project_id
+      REGION     = var.region
+      SERVICES   = "all"
+      TAG        = "initial"
+    }
+
+    command = "${path.module}/../scripts/build"
   }
 
   depends_on = [
-    google_project_iam_member.cloudbuild-secrets,
-    google_project_iam_member.cloudbuild-sql,
+    google_project_service.services["cloudbuild.googleapis.com"],
+  ]
+}
+
+# Grant Cloud Build the ability to deploy images. It does not do so in these
+# configurations, but it will do future deployments.
+resource "google_project_iam_member" "cloudbuild-deploy" {
+  project = data.google_project.project.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+
+  depends_on = [
+    google_project_service.services["cloudbuild.googleapis.com"],
   ]
 }
 
@@ -139,4 +138,12 @@ locals {
 resource "google_app_engine_application" "app" {
   project     = data.google_project.project.project_id
   location_id = var.appengine_location
+}
+
+output "region" {
+  value = var.region
+}
+
+output "project" {
+  value = data.google_project.project.project_id
 }

@@ -1,0 +1,9 @@
+export SEED_DATA_PATH="./data/config.sql"
+export PGPASSWORD=$DB_PASSWORD 
+
+psql -h $DB_HOST -U $DB_USER -c "DROP DATABASE IF EXISTS $DB_NAME"
+psql -h $DB_HOST -U $DB_USER -c "CREATE DATABASE $DB_NAME"
+
+eval $(./scripts/dev init)
+./scripts/dev dbmigrate
+psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f $SEED_DATA_PATH

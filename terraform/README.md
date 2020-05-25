@@ -1,9 +1,10 @@
 # Starting the exposure notifications server
 
-This is a set of terraform configs which should enable you to bring up a copy of
-the exposure notifications server on GCP.  It makes heavy use of the GCP
-terraform provider, developed at
-https://github.com/terraform-providers/terraform-provider-google.
+This is a set of Terraform configurations which create the required
+infrastructure for an exposure notifications server on Google Cloud. Please note
+that **Terraform is only used for the initial deployment and provisioning of
+underlying infrastructure!** It is not used for continuous delivery or
+continuous deployment.
 
 ## Requirements
 
@@ -36,18 +37,6 @@ For full instructions on deploying, view the [deployment docs](../docs/deploying
     $ export PROJECT_ID="<value-from-above>"
     ```
 
-1.  (Optional) Decide to use Cloud Build Triggers. If you do, every push to
-    master on the GitHub repo containing the exposure server code will trigger a
-    new deployment. To enable this:
-
-    1.  Visit https://console.cloud.google.com/cloud-build/triggers/connect and
-        follow the instructions to connect as a Cloud Build GitHub App. You must
-        choose a repository that you have admin permissions on.
-
-    1.  Remember which repo you used. You will need to set the repo owner (e.g.
-        'google') and name (e.g. 'exposure-notifications-server') as variables
-        in the `terraform apply`
-
 1.  Authenticate to gcloud with:
 
     ```text
@@ -56,7 +45,27 @@ For full instructions on deploying, view the [deployment docs](../docs/deploying
 
     This will open two authentication windows in your web browser.
 
-1.  Change to this directory and run `terraform init`. Terraform will
+1.  (Optional, but recommended) Create a Cloud Storage bucket for storing remote
+    state. This is important if you plan to have multiple people running
+    Terraform or collaborating.
+
+    ```text
+    $ gsutil mb -p ${PROJECT_ID} gs://${PROJECT_ID}-tf-state
+    ```
+
+    Configurre Terraform to store state in the bucket:
+
+    ```text
+    cat <<EOF > ./terraform/state.tf
+    terraform {
+      backend "gcs" {
+        bucket = "${PROJECT_ID}-tf-state"
+      }
+    }
+    EOF
+    ```
+
+1.  Change to the `terraform` directory and run `terraform init`. Terraform will
     automatically download the plugins required to execute this code:
 
     ```text
@@ -65,24 +74,28 @@ For full instructions on deploying, view the [deployment docs](../docs/deploying
 
 1.  Execute Terraform:
 
-    Without Cloud Build Triggers:
-
     ```text
     $ terraform apply \
-        -var project=$PROJECT_ID
+        -var project=${PROJECT_ID}
     ```
 
-    With Cloud Build Triggers:
+Terraform will create the required infrastructure including the database,
+service accounts, storage bucket, keys, and secrets. **As a one-time
+operation**, Terraform will also migrate the database schema and build/deploy
+the initial set of services on Cloud Run. Terraform does not manage the
+lifecycle of those resources beyond their initial creation.
 
-    ```text
-    $ terraform apply \
-        -var project=${PROJECT_ID} \
-        -var use_build_triggers=true \
-        -var repo_owner=${YOUR_REPO_OWNER} \
-        -var repo_name=${YOUR_REPO_NAME}
-    ```
+### Local development and testing example deployment
 
-Terraform will begin by creating the service accounts and enabling the services
-on GCP which are required to run this server.
+The default Terraform deployment is a production-ready, high traffic
+deployment. For local development and testing, we recommend you use the
+following sample deployment:
 
-It will then create the database and user and apply the DB schema, and run the assorted binaries with everything hooked up.
+1. Run `terraform apply` with the following command:
+
+   ```console
+   terraform apply \
+     -var project=${PROJECT_ID} \
+     -var cloudsql_tier="db-custom-1-3840" \
+     -var cloudsql_disk_size_gb="16"
+   ```

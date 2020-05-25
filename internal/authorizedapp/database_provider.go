@@ -20,7 +20,10 @@ import (
 	"sync"
 	"time"
 
+	authorizedappdb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
+	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/database"
+
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 )
@@ -40,7 +43,7 @@ type DatabaseProvider struct {
 }
 
 type cacheItem struct {
-	value    *database.AuthorizedApp
+	value    *model.AuthorizedApp
 	cachedAt time.Time
 }
 
@@ -74,7 +77,7 @@ func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, o
 // checkCache checks the local cache within a read lock.
 // The bool on return is true if there was a hit (And an error is a valid hit)
 // or false if there was a miss (or expiry) and the data source should be queried again.
-func (p *DatabaseProvider) checkCache(name string) (*database.AuthorizedApp, bool, error) {
+func (p *DatabaseProvider) checkCache(name string) (*model.AuthorizedApp, bool, error) {
 	// Acquire a read lock first, which allows concurrent readers, to check if
 	// there's an item in the cache.
 	p.cacheLock.RLock()
@@ -83,7 +86,7 @@ func (p *DatabaseProvider) checkCache(name string) (*database.AuthorizedApp, boo
 	item, ok := p.cache[name]
 	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
 		if item.value == nil {
-			return nil, true, AppNotFound
+			return nil, true, ErrAppNotFound
 		}
 		return item.value, true, nil
 	}
@@ -91,7 +94,7 @@ func (p *DatabaseProvider) checkCache(name string) (*database.AuthorizedApp, boo
 }
 
 // AppConfig returns the config for the given app package name.
-func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*database.AuthorizedApp, error) {
+func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
 
 	data, cacheHit, error := p.checkCache(name)
@@ -107,7 +110,7 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*databas
 	item, ok := p.cache[name]
 	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
 		if item.value == nil {
-			return nil, AppNotFound
+			return nil, ErrAppNotFound
 		}
 		return item.value, nil
 	}
@@ -127,7 +130,7 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*databas
 
 	// Handle not found.
 	if config == nil {
-		return nil, AppNotFound
+		return nil, ErrAppNotFound
 	}
 
 	// Returned config.
@@ -136,11 +139,11 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*databas
 
 // loadAuthorizedAppFromDatabase is a lower-level private API that actually loads and parses
 // a single AuthorizedApp from the database.
-func (p *DatabaseProvider) loadAuthorizedAppFromDatabase(ctx context.Context, name string) (*database.AuthorizedApp, error) {
+func (p *DatabaseProvider) loadAuthorizedAppFromDatabase(ctx context.Context, name string) (*model.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
 
 	logger.Infof("authorizedapp: loading %v from database", name)
-	config, err := p.database.GetAuthorizedApp(ctx, p.secretManager, name)
+	config, err := authorizedappdb.New(p.database).GetAuthorizedApp(ctx, p.secretManager, name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %v from database: %w", name, err)
 	}

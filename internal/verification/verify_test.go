@@ -22,7 +22,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/android"
-	"github.com/google/exposure-notifications-server/internal/database"
+	authorizedapp "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 )
 
 const (
@@ -32,35 +33,35 @@ const (
 func TestVerifyRegions(t *testing.T) {
 	cases := []struct {
 		name string
-		data *database.Publish
-		cfg  *database.AuthorizedApp
+		data *model.Publish
+		cfg  *authorizedapp.AuthorizedApp
 		err  bool
 	}{
 		{
 			name: "nil_config",
-			data: &database.Publish{Regions: []string{"US"}},
+			data: &model.Publish{Regions: []string{"US"}},
 			cfg:  nil,
 			err:  true,
 		},
 		{
 			name: "nil_regions_allows_all",
-			data: &database.Publish{Regions: []string{"US"}},
-			cfg: &database.AuthorizedApp{
+			data: &model.Publish{Regions: []string{"US"}},
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 			},
 		},
 		{
 			name: "empty_regions_allows_all",
-			data: &database.Publish{Regions: []string{"US"}},
-			cfg: &database.AuthorizedApp{
+			data: &model.Publish{Regions: []string{"US"}},
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 				AllowedRegions: map[string]struct{}{},
 			},
 		},
 		{
 			name: "region_matches_one",
-			data: &database.Publish{Regions: []string{"US"}},
-			cfg: &database.AuthorizedApp{
+			data: &model.Publish{Regions: []string{"US"}},
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 				AllowedRegions: map[string]struct{}{
 					"US": {},
@@ -70,8 +71,8 @@ func TestVerifyRegions(t *testing.T) {
 		},
 		{
 			name: "region_matches_all",
-			data: &database.Publish{Regions: []string{"US", "CA"}},
-			cfg: &database.AuthorizedApp{
+			data: &model.Publish{Regions: []string{"US", "CA"}},
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 				AllowedRegions: map[string]struct{}{
 					"US": {},
@@ -81,8 +82,8 @@ func TestVerifyRegions(t *testing.T) {
 		},
 		{
 			name: "region_matches_some",
-			data: &database.Publish{Regions: []string{"US", "MX"}},
-			cfg: &database.AuthorizedApp{
+			data: &model.Publish{Regions: []string{"US", "MX"}},
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 				AllowedRegions: map[string]struct{}{
 					"US": {},
@@ -93,8 +94,8 @@ func TestVerifyRegions(t *testing.T) {
 		},
 		{
 			name: "region_matches_none",
-			data: &database.Publish{Regions: []string{"MX"}},
-			cfg: &database.AuthorizedApp{
+			data: &model.Publish{Regions: []string{"MX"}},
+			cfg: &authorizedapp.AuthorizedApp{
 				AppPackageName: appPkgName,
 				AllowedRegions: map[string]struct{}{
 					"US": {},
@@ -117,32 +118,32 @@ func TestVerifyRegions(t *testing.T) {
 }
 
 func TestVerifySafetyNet(t *testing.T) {
-	allRegions := &database.AuthorizedApp{
+	allRegions := &authorizedapp.AuthorizedApp{
 		AppPackageName: appPkgName,
 	}
 
 	cases := []struct {
-		Data              *database.Publish
+		Data              *model.Publish
 		Msg               string
-		Cfg               *database.AuthorizedApp
+		Cfg               *authorizedapp.AuthorizedApp
 		AttestationResult error
 	}{
 		{
 			// With no configuration, return err.
-			&database.Publish{Regions: []string{"US"}},
+			&model.Publish{Regions: []string{"US"}},
 			"cannot enforce SafetyNet",
 			nil,
 			nil,
 		}, {
 			// Verify when Validate Attestation Passes, return nil.
-			&database.Publish{Regions: []string{"US"}},
+			&model.Publish{Regions: []string{"US"}},
 			"",
 			allRegions,
 			nil,
 		}, {
 			// Verify when ValidateAttestation raises err, with safety check
 			// enabled, return err.
-			&database.Publish{Regions: []string{"US"}},
+			&model.Publish{Regions: []string{"US"}},
 			"android.ValidateAttestation: mocked",
 			allRegions,
 			fmt.Errorf("mocked"),

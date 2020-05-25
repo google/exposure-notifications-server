@@ -15,7 +15,26 @@
 // Package storage is an interface over file/blob storage
 package storage
 
-import "context"
+import (
+	"context"
+	"fmt"
+
+	"github.com/google/exposure-notifications-server/internal/logging"
+)
+
+// Identifies the type of Blobestore to use
+type BlobstoreType string
+
+const (
+	None          BlobstoreType = "NONE"
+	Cloud_storage BlobstoreType = "CLOUD_STORAGE"
+	Filesystem    BlobstoreType = "FILESYSTEM"
+)
+
+// Blobstore Configuration
+type BlobstoreConfig struct {
+	BlobstoreType BlobstoreType
+}
 
 // Blobstore defines the minimum interface for a blob storage system.
 type Blobstore interface {
@@ -24,4 +43,38 @@ type Blobstore interface {
 
 	// DeleteObject deltes an object or does nothing if the object doesn't exist.
 	DeleteObject(ctx context.Context, bucket, objectName string) error
+}
+
+// Blobstore that does nothing.
+type NoopBlobstore struct{}
+
+func NewNoopBlobstore(ctx context.Context) (Blobstore, error) {
+	return &NoopBlobstore{}, nil
+}
+
+// No op.
+func (s *NoopBlobstore) CreateObject(ctx context.Context, folder, filename string, contents []byte) error {
+	return nil
+}
+
+// No op.
+func (s *NoopBlobstore) DeleteObject(ctx context.Context, folder, filename string) error {
+	return nil
+}
+
+// Creates a new BlobstoreFactory based on the provided BlobstoreType.
+func CreateBlobstore(ctx context.Context, config BlobstoreConfig) (Blobstore, error) {
+	logger := logging.FromContext(ctx)
+	logger.Infof("BlobstoreType is set up to %v", config.BlobstoreType)
+
+	switch config.BlobstoreType {
+	case Cloud_storage:
+		return NewGoogleCloudStorage(ctx)
+	case Filesystem:
+		return NewFilesystemStorage(ctx)
+	case None:
+		return NewNoopBlobstore(ctx)
+	default:
+		return nil, fmt.Errorf("unknown BlobstoreType: %v", config.BlobstoreType)
+	}
 }

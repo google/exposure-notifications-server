@@ -1,3 +1,22 @@
+<!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
+
+- [Exposure Notification Reference Server](#exposure-notification-reference-server)
+	- [Building and deploying services](#building-and-deploying-services)
+		- [Before you begin](#before-you-begin)
+		- [Building and deploying](#building-and-deploying)
+		- [List of services](#list-of-services)
+		- [Provisioning infrastructure with Terraform](#provisioning-infrastructure-with-terraform)
+		- [Deploying services](#deploying-services)
+			- [Building](#building)
+			- [Deploying](#deploying)
+			- [Promoting](#promoting)
+		- [Running migrations](#running-migrations)
+			- [On Google Cloud](#on-google-cloud)
+			- [On a custom setup](#on-a-custom-setup)
+	- [Server Configuration](#server-configuration)
+
+<!-- /TOC -->
+
 # Exposure Notification Reference Server
 
 ## Building and deploying services
@@ -69,110 +88,193 @@ Each service's `main` package is located in the `cmd` directory.
 | exposure cleanup | cmd/cleanup-exposure | Deletes old exposure keys |
 | export cleanup | cmd/cleanup-export | Deletes old exported files published by the exposure key export service |
 
-### Deploying using Terraform
+### Provisioning infrastructure with Terraform
 
-You can use Terraform to deploy the reference Exposure Notification on Google
-Cloud. These instructions make use of the
-[Google Cloud Terraform provider](https://github.com/terraform-providers/terraform-provider-google).
+You can use [Terraform](https://www.terraform.io) to provision the initial
+infrastructure, database, service accounts, and first deployment of the services
+on Cloud Run. **Terraform does not manage the Cloud Run services after their
+initial creation!**
 
-1. [Download and install Terraform version 0.12](https://www.terraform.io/downloads.html)
-   or newer.
+See [Deploying with Terraform](../terraform/README.md) for more information.
 
-1. [Create a Google Cloud project](https://cloud.google.com/resource-manager/docs/creating-managing-projects#creating_a_project)
+### Deploying services
 
-   Make a note of the project ID, you will be needed later. We recommend
-   setting it as an environment variable:
+While Terraform does an initial deployment of the services, it does not manage
+the Cloud Run services beyond their initial creation. If you make changes to the
+code, you will need to build, deploy, and promote new services. The general
+order of operations is:
 
-   ```console
-   export PROJECT_ID="PROJECT-ID"
-   ```
+1.  **Build** - this is the phase where the code is bundled into a container
+    image and pushed to a registry.
 
-1. **(OPTIONAL)** You can use [Cloud Build triggers](https://cloud.google.com/cloud-build/docs/automating-builds/create-github-app-triggers)
-   to automatically re-deploy when the Exposure Notification Server GitHub
-   repository is updated. To set up Cloud Build triggers:
+1.  **Deploy** - this is the phase where the container image is deployed onto
+    Cloud Run, but is not receiving any traffic.
 
-   1. Go to the
-   [Connect Repository Cloud Console page](https://console.cloud.google.com/cloud-build/triggers/connect)
-   and follow the instructions using GitHub as the source code location
-   (Cloud Build GitHub App). You must choose a repository on which you have
-   administrator permissions.
+1.  **Promote** - this is the phase where a deployed container image begins
+    receiving all or a percentage of traffic.
 
-   1. Make a note of the repository you have chosen. You must set the
-   repository name (for example, 'exposure-notification-server') and owner
-   (for example 'google') as variables when running the `terraform apply`
-   command.
+#### Building
 
-1. Authenticate with Google Cloud using the `gcloud` command-line tool:
+Build new services by using the script at `./scripts/build`, specifying the
+following values:
 
-   ```console
-   gcloud auth login && gcloud auth application-default login
-   ```
+-   `PROJECT_ID` (required) - your Google Cloud project ID.
 
-   This will open two authentication windows in your web browser.
+-   `SERVICES` (required) - comma-separated list of names of the services to
+    build, or "all" to build all. See the list of services in the table above.
 
-   You may need to `unset GOOGLE_APPLICATION_CREDENTIALS` as it takes precedence
-   over gcloud's login settings.
+-   `TAG` (optional) - tag to use for the images. If not specified, it uses a
+    datetime-based tag of the format YYYYMMDDhhmmss.
 
-1. Change to this directory and run `terraform init`.  Terraform will
-   automatically download the plugins required to execute this code.
+```text
+PROJECT_ID="my-project" \
+SERVICES="export" \
+./scripts/build
+```
 
-1. Run `terraform apply` to start deployment:
+Expect this process to take 3-5 minutes.
 
-   Without Cloud Build Triggers:
+#### Deploying
 
-   ```console
-   terraform apply \
-     -var project=$PROJECT_ID
-   ```
+Deploy already-built container using the script at `./scripts/deploy`,
+specifying the following values:
 
-   With Cloud Build Triggers:
+-   `PROJECT_ID` (required) - your Google Cloud project ID.
 
-   ```console
-   terraform apply \
-     -var project=${PROJECT_ID} \
-     -var region="us-central-1" \
-     -var use_build_triggers=true \
-     -var repo_owner=${YOUR_REPO_OWNER} \
-     -var repo_name=${YOUR_REPO_NAME}
-   ```
+-   `REGION` (required) - region in which to deploy the services.
 
-Terraform will begin by creating the service accounts and enabling the services
-on Google Cloud that are required to run this server.
+-   `SERVICES` (required) - comma-separated list of names of the services to
+    deploy, or "all" to deploy all. Note, if you specify multiple services, they
+    must use the same tag.
 
-1. Initialize or migrate the database.
+-   `TAG` (required) - tag of the deployed image (e.g. YYYYMMDDhhmmss).
 
-   To migrate the database, you will want to start the
-   [Cloud SQL Proxy](https://cloud.google.com/sql/docs/postgres/quickstart-proxy-test#install-proxy)
-   and then run the [`migrate`](https://github.com/golang-migrate/migrate)
-   command.
+```text
+PROJECT_ID="my-project" \
+REGION="us-central1" \
+SERVICES="export" \
+TAG="20200521084829" \
+./scripts/deploy
+```
 
-   ```console
-   DB_HOST="localhost"
-   DB_PORT="1433"
-   DB_USER="notification"
-   DB_PASSWORD="YOUR-DB-PASSWORD"
-   DB_SSLMODE="disable"
-   DB_NAME="main"
-   DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
+Expect this process to take 1-2 minutes.
 
-   migrate -database ${DB_URL} -path ./migrations up
-   ```
+#### Promoting
 
-### Local development and testing example deployment
+Promote an already-deployed service to begin receiving production traffic using
+the script at `./scripts/promote`, specifying the following values:
 
-The default Terraform deployment is a production-ready, high traffic
-deployment. For local development and testing, we recommend you use the
-following sample deployment:
+-   `PROJECT_ID` (required) - your Google Cloud project ID.
 
-1. Run `terraform apply` with the following command:
+-   `REGION` (required) - region in which to promote the services.
 
-   ```console
-   terraform apply \
-     -var project=${PROJECT_ID} \
-     -var region="us-central-1" \
-     -var use_build_triggers=true \
-     -var repo_owner=${YOUR_REPO_OWNER} \
-     -var repo_name=${YOUR_REPO_NAME} \
-     -var cloudsql_tier="db-custom-1-3840" \
-     -var cloudsql_disk_size_gb="16"
-   ```
+-   `SERVICES` (required) - comma-separated list of names of the services to
+    promote, or "all" to deploy all. Note, if you specify multiple services,
+    then the revision must be "LATEST".
+
+-   `REVISION` (optional) - revision of the service to promote, usually the
+    output of a deployment step. Defaults to "LATEST".
+
+-   `PERCENTAGE` (optional) - percent of traffic to shift to the new revision.
+    Defaults to "100".
+
+```text
+PROJECT_ID="my-project" \
+REGION="us-central1" \
+SERVICES="export" \
+./scripts/promote
+```
+
+Expect this process to take 1-2 minutes.
+
+### Running migrations
+
+#### On Google Cloud
+
+To migrate the production database, use the script in `./scripts/migrate`. This
+script triggers a Cloud Build invocation which uses the Cloud SQL Proxy to run
+the database migrations and uses the following environment variables:
+
+-   `PROJECT_ID` (required) - your Google Cloud project ID.
+
+-   `DB_CONN` (required) - your Cloud SQL connection name.
+
+-   `DB_PASS_SECRET` (required) - the **reference** to the secret where the
+    database password is stored in Secret Manager.
+
+-   `DB_NAME` (default: "main") - the name of the database against which to run
+    migrations.
+
+-   `DB_USER` (default: "notification") - the username with which to
+    authenticate.
+
+-   `COMMAND` (default: "up") - the migration command to run.
+
+If you created the infrastructure using Terraform, you can get these values by
+running `terraform output` from inside the `terraform/` directory:
+
+```text
+PROJECT_ID=$(terraform output project)
+DB_CONN=$(terraform output db_conn)
+DB_PASS_SECRET=$(terraform output db_pass_secret)
+```
+
+#### On a custom setup
+
+If you did not use the Terraform configurations to provision your server, or if you are running your own Postgres server,
+
+1.  Download and install the
+    [`migrate`](https://github.com/golang-migrate/migrate) tool.
+
+1.  Construct the [database URL](https://github.com/golang-migrate/migrate/tree/master/database/postgres) for your database. This is usually of the format:
+
+    ```text
+    postgres://DB_USER:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME?sslmode=require
+    ```
+
+1.  Run the migrate command with this database URL:
+
+    ```text
+    migrate \
+      -database "YOUR_DB_URL" \
+      -path ./migrations \
+      up
+    ```
+
+## Server Configuration
+
+This repository includes a configuration tool that runs a local webserver that
+provides a browser based interface for manipulating the database backed
+configuration. This admin tool **does not have authentication / authorization**
+built in and should not be deployed in the internet in a public facing way.
+
+Currently the admin console tool only supports editing authorized apps.
+Editing of Export Config and Signature Info configuration is comming soon.
+
+1.  Ensure proper database connection parameters.
+
+This requires setting certain environment variables and if you are using Google
+Cloud SQL, this may include booting the `cloud_sql_proxy`
+
+If you used the terraform setup to deploy to Google Cloud Platform, this
+is how you setup the admin tool connection.
+
+```text
+gcloud auth login && gcloud auth application-default login
+export DB_CONN=$(terraform output db_conn)
+export DB_USER=$(terraform output db_user)
+export DB_PASSWORD="secret://$(terraform output db_pass_secret)"
+export DB_PORT=5400
+export DB_NAME=$(terraform output db_name)
+cloud_sql_proxy -instances=$DB_CONN=tcp:$DB_PORT &
+```
+
+2. Run the admin console
+
+```text
+go run ./tools/admin-console
+```
+
+Open a browser to [localhost:8080](http://localhost:8080/)
+
+Remember, you are editing the live configuration of the database.

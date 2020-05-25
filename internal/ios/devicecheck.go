@@ -36,8 +36,13 @@ var (
 	// endpoint is the production Apple DeviceCheck endpoint.
 	endpoint = "https://api.devicecheck.apple.com/v1/validate_device_token"
 
-	// httpTimeout is the maximum amount of time to wait for a response.
-	httpTimeout = 5 * time.Second
+	// The Client's Transport typically has internal state (cached TCP connections), so
+	// Clients should be reused instead of created as needed. Clients are safe for concurrent
+	// use by multiple goroutines.
+	httpClient = &http.Client{
+		// the maximum amount of time to wait for a response
+		Timeout: 5 * time.Second,
+	}
 )
 
 type VerifyOpts struct {
@@ -85,8 +90,7 @@ func ValidateDeviceToken(ctx context.Context, deviceToken string, opts *VerifyOp
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", signedJwt))
 
 	// Call Apple's API.
-	client := &http.Client{Timeout: httpTimeout}
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to make request: %w", err)
 	}

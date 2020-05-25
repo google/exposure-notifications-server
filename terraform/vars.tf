@@ -26,11 +26,6 @@ variable "project" {
   type = string
 }
 
-variable "use_build_triggers" {
-  type    = bool
-  default = false
-}
-
 variable "repo_owner" {
   type    = string
   default = "google"

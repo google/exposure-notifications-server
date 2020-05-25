@@ -24,8 +24,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export/database"
+	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+
+	"github.com/google/exposure-notifications-server/internal/export/model"
+	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
+
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/util"
 )
 
 const (
@@ -38,6 +45,7 @@ func (s *Server) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.WorkerTimeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
+	exportDB := database.New(s.db)
 
 	emitIndexForEmptyBatch := true
 	for {
@@ -52,7 +60,7 @@ func (s *Server) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 		minutesAgo := time.Now().Add(-5 * time.Minute)
 
 		// Check for a batch and obtain a lease for it.
-		batch, err := s.db.LeaseBatch(ctx, s.config.WorkerTimeout, minutesAgo)
+		batch, err := exportDB.LeaseBatch(ctx, s.config.WorkerTimeout, minutesAgo)
 		if err != nil {
 			logger.Errorf("Failed to lease batch: %v", err)
 			continue
@@ -78,11 +86,11 @@ func (s *Server) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) exportBatch(ctx context.Context, eb *database.ExportBatch, emitIndexForEmptyBatch bool) error {
+func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitIndexForEmptyBatch bool) error {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d", eb.BatchID, eb.FilenameRoot, eb.Region, s.config.MaxRecords)
 
-	criteria := database.IterateExposuresCriteria{
+	criteria := publishdb.IterateExposuresCriteria{
 		SinceTimestamp:      eb.StartTimestamp,
 		UntilTimestamp:      eb.EndTimestamp,
 		IncludeRegions:      []string{eb.Region},
@@ -92,9 +100,10 @@ func (s *Server) exportBatch(ctx context.Context, eb *database.ExportBatch, emit
 	// Build up groups of exposures in memory. We need to use memory so we can determine the
 	// total number of groups (which is embedded in each export file). This technique avoids
 	// SELECT COUNT which would lock the database slowing new uploads.
-	var groups [][]*database.Exposure
-	var exposures []*database.Exposure
-	_, err := s.db.IterateExposures(ctx, criteria, func(exp *database.Exposure) error {
+	var groups [][]*publishmodel.Exposure
+	var exposures []*publishmodel.Exposure
+
+	_, err := s.publishdb.IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
 		exposures = append(exposures, exp)
 		if len(exposures) == s.config.MaxRecords {
 			groups = append(groups, exposures)
@@ -102,6 +111,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *database.ExportBatch, emit
 		}
 		return nil
 	})
+
 	if err != nil {
 		return fmt.Errorf("iterating exposures: %w", err)
 	}
@@ -120,7 +130,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *database.ExportBatch, emit
 	}
 
 	// Load the non-expired signature infos associated with this export batch.
-	sigInfos, err := s.db.LookupSignatureInfos(ctx, eb.SignatureInfoIDs, time.Now())
+	sigInfos, err := s.exportdb.LookupSignatureInfos(ctx, eb.SignatureInfoIDs, time.Now())
 	if err != nil {
 		return fmt.Errorf("error loading signature info for batch %d, %w", eb.BatchID, err)
 	}
@@ -158,7 +168,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *database.ExportBatch, emit
 	}
 
 	// Write the files records in database and complete the batch.
-	if err := s.db.FinalizeBatch(ctx, eb, objectNames, batchSize); err != nil {
+	if err := s.exportdb.FinalizeBatch(ctx, eb, objectNames, batchSize); err != nil {
 		return fmt.Errorf("completing batch: %w", err)
 	}
 	logger.Infof("Batch %d completed", eb.BatchID)
@@ -166,9 +176,9 @@ func (s *Server) exportBatch(ctx context.Context, eb *database.ExportBatch, emit
 }
 
 type createFileInfo struct {
-	exposures      []*database.Exposure
-	exportBatch    *database.ExportBatch
-	signatureInfos []*database.SignatureInfo
+	exposures      []*publishmodel.Exposure
+	exportBatch    *model.ExportBatch
+	signatureInfos []*model.SignatureInfo
 	batchNum       int
 	batchSize      int
 }
@@ -176,13 +186,13 @@ type createFileInfo struct {
 func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, error) {
 	logger := logging.FromContext(ctx)
 
-	var signers []exportSigners
+	var signers []ExportSigners
 	for _, si := range cfi.signatureInfos {
 		signer, err := s.env.GetSignerForKey(ctx, si.SigningKey)
 		if err != nil {
 			return "", fmt.Errorf("unable to get signer for key %v: %w", si.SigningKey, err)
 		}
-		signers = append(signers, exportSigners{signatureInfo: si, signer: signer})
+		signers = append(signers, ExportSigners{SignatureInfo: si, Signer: signer})
 	}
 
 	// Generate exposure key export file.
@@ -204,7 +214,7 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 
 // retryingCreateIndex create the index file. The index file includes _all_ batches for an ExportConfig,
 // so multiple workers may be racing to update it. We use a lock to make them line up after one another.
-func (s *Server) retryingCreateIndex(ctx context.Context, eb *database.ExportBatch, objectNames []string) error {
+func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch, objectNames []string) error {
 	logger := logging.FromContext(ctx)
 
 	lockID := fmt.Sprintf("export-batch-%d", eb.BatchID)
@@ -217,7 +227,7 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *database.ExportBat
 
 		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
 		if err != nil {
-			if err == database.ErrAlreadyLocked {
+			if err == coredb.ErrAlreadyLocked {
 				logger.Debugf("Lock %s is locked; sleeping %v and will try again", lockID, sleep)
 				time.Sleep(sleep)
 				continue
@@ -241,8 +251,9 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *database.ExportBat
 	return nil
 }
 
-func (s *Server) createIndex(ctx context.Context, eb *database.ExportBatch, newObjectNames []string) (string, int, error) {
-	objects, err := s.db.LookupExportFiles(ctx, eb.ConfigID)
+func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObjectNames []string) (string, int, error) {
+	exportDB := database.New(s.db)
+	objects, err := exportDB.LookupExportFiles(ctx, eb.ConfigID)
 	if err != nil {
 		return "", 0, fmt.Errorf("lookup existing export files for batch %d: %w", eb.BatchID, err)
 	}
@@ -272,11 +283,11 @@ func (s *Server) createIndex(ctx context.Context, eb *database.ExportBatch, newO
 	return indexObjectName, len(objects), nil
 }
 
-func exportFilename(eb *database.ExportBatch, batchNum int) string {
+func exportFilename(eb *model.ExportBatch, batchNum int) string {
 	return fmt.Sprintf("%s/%d-%05d%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), batchNum, filenameSuffix)
 }
 
-func exportIndexFilename(eb *database.ExportBatch) string {
+func exportIndexFilename(eb *model.ExportBatch) string {
 	return fmt.Sprintf("%s/index.txt", eb.FilenameRoot)
 }
 
@@ -289,7 +300,7 @@ func randomInt(min, max int) (int, error) {
 	return int(n.Int64()) + min, nil
 }
 
-func ensureMinNumExposures(exposures []*database.Exposure, region string, minLength, jitter int) ([]*database.Exposure, error) {
+func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, minLength, jitter int) ([]*publishmodel.Exposure, error) {
 	if len(exposures) == 0 {
 		return exposures, nil
 	}
@@ -301,14 +312,14 @@ func ensureMinNumExposures(exposures []*database.Exposure, region string, minLen
 		// Pieces needed are
 		// (1) exposure key, (2) interval number, (3) transmission risk
 		// Exposure key is 16 random bytes.
-		eKey := make([]byte, database.KeyLength)
+		eKey := make([]byte, publishmodel.KeyLength)
 		_, err := rand.Read(eKey)
 		if err != nil {
 			return nil, fmt.Errorf("rand.Read: %w", err)
 		}
 
 		// Transmission risk is within the bounds.
-		transmissionRisk, err := randomInt(database.MinTransmissionRisk, database.MaxTransmissionRisk)
+		transmissionRisk, err := util.RandomTransmissionRisk()
 		if err != nil {
 			return nil, fmt.Errorf("randomInt: %w", err)
 		}
@@ -327,13 +338,13 @@ func ensureMinNumExposures(exposures []*database.Exposure, region string, minLen
 		}
 		intervalCount := exposures[fromIdx].IntervalCount
 
-		ek := &database.Exposure{
+		ek := &publishmodel.Exposure{
 			ExposureKey:      eKey,
 			TransmissionRisk: transmissionRisk,
 			Regions:          []string{region},
 			IntervalNumber:   intervalNumber,
 			IntervalCount:    intervalCount,
-			// The rest of the database.Exposure fields are not used in the export file.
+			// The rest of the publishmodel.Exposure fields are not used in the export file.
 		}
 		exposures = append(exposures, ek)
 	}

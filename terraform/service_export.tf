@@ -22,6 +22,16 @@ resource "google_service_account" "export" {
   display_name = "Exposure Notification Export"
 }
 
+resource "google_service_account_iam_member" "cloudbuild-deploy-export" {
+  service_account_id = google_service_account.export.id
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+
+  depends_on = [
+    google_project_service.services["cloudbuild.googleapis.com"],
+  ]
+}
+
 resource "google_project_iam_member" "export-cloudsql" {
   project = data.google_project.project.project_id
   role    = "roles/cloudsql.client"
@@ -57,7 +67,7 @@ resource "google_cloud_run_service" "export" {
       service_account_name = google_service_account.export.email
 
       containers {
-        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/export:latest"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/export:initial"
 
         resources {
           limits = {
@@ -97,8 +107,14 @@ resource "google_cloud_run_service" "export" {
   depends_on = [
     google_project_service.services["run.googleapis.com"],
     google_project_service.services["sqladmin.googleapis.com"],
-    google_cloudbuild_trigger.build-and-publish,
+    null_resource.build,
   ]
+
+  lifecycle {
+    ignore_changes = [
+      template,
+    ]
+  }
 }
 
 

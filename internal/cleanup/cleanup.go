@@ -21,7 +21,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export/database"
+	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
@@ -41,14 +43,14 @@ func NewExposureHandler(config *Config, env *serverenv.ServerEnv) (http.Handler,
 	return &exposureCleanupHandler{
 		config:   config,
 		env:      env,
-		database: env.Database(),
+		database: publishdb.New(env.Database()),
 	}, nil
 }
 
 type exposureCleanupHandler struct {
 	config   *Config
 	env      *serverenv.ServerEnv
-	database *database.DB
+	database *publishdb.PublishDB
 }
 
 func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +98,7 @@ func NewExportHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, e
 	return &exportCleanupHandler{
 		config:    config,
 		env:       env,
-		database:  env.Database(),
+		database:  database.New(env.Database()),
 		blobstore: env.Blobstore(),
 	}, nil
 }
@@ -104,7 +106,7 @@ func NewExportHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, e
 type exportCleanupHandler struct {
 	config    *Config
 	env       *serverenv.ServerEnv
-	database  *database.DB
+	database  *database.ExportDB
 	blobstore storage.Blobstore
 }
 

@@ -38,7 +38,7 @@ type UnlockFn func() error
 // Lock acquires lock with given name that times out after ttl. Returns an UnlockFn that can be used to unlock the lock. ErrAlreadyLocked will be returned if there is already a lock in use.
 func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (UnlockFn, error) {
 	var expires time.Time
-	err := db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			SELECT AcquireLock($1, $2)
 		`, lockID, int(ttl.Seconds()))
@@ -59,7 +59,7 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 
 func makeUnlockFn(ctx context.Context, db *DB, lockID string, expires time.Time) UnlockFn {
 	return func() error {
-		return db.inTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			row := tx.QueryRow(ctx, `
 				SELECT ReleaseLock($1, $2)
 			`, lockID, expires)

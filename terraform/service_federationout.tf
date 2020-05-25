@@ -28,6 +28,16 @@ resource "google_project_iam_member" "federationout-cloudsql" {
   member  = "serviceAccount:${google_service_account.federationout.email}"
 }
 
+resource "google_service_account_iam_member" "cloudbuild-deploy-federationout" {
+  service_account_id = google_service_account.federationout.id
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+
+  depends_on = [
+    google_project_service.services["cloudbuild.googleapis.com"],
+  ]
+}
+
 resource "google_secret_manager_secret_iam_member" "federationout-db-pwd" {
   provider = google-beta
 
@@ -45,7 +55,7 @@ resource "google_cloud_run_service" "federationout" {
       service_account_name = google_service_account.federationout.email
 
       containers {
-        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationout:latest"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationout:initial"
 
         resources {
           limits = {
@@ -75,8 +85,14 @@ resource "google_cloud_run_service" "federationout" {
   depends_on = [
     google_project_service.services["run.googleapis.com"],
     google_project_service.services["sqladmin.googleapis.com"],
-    null_resource.submit-build-and-publish,
+    null_resource.build,
   ]
+
+  lifecycle {
+    ignore_changes = [
+      template,
+    ]
+  }
 }
 
 resource "google_cloud_run_service_iam_member" "federationout-public" {

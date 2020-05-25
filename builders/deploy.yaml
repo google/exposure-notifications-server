@@ -1,80 +1,39 @@
-options:
-  env:
-  - 'KO_DOCKER_REPO=us.gcr.io/${PROJECT_ID}'
-  - 'DOCKER_REPO_OVERRIDE=us.gcr.io/${PROJECT_ID}'
-steps:
-# Build ko, prerequisite.
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--tag=gcr.io/$PROJECT_ID/ko', '-f', 'terraform/ko.Dockerfile', 'terraform/']
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/ko']
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-# Tests
-- name: 'mirror.gcr.io/library/golang'
-  env:
-  - GO111MODULE=on
-  args: ['go', 'test', './...']
-# Build and publish containers`
-- name: 'gcr.io/$PROJECT_ID/ko'
+#
+# Deploys a Cloud Run service.
+#
+
+substitutions:
+  _REGION:
+  _SERVICE:
+  _TAG:
+
+steps:
+- id: 'deploy'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
   args:
-  - publish
-  - -P
-  - ./cmd/export
-- name: 'gcr.io/$PROJECT_ID/ko'
-  args:
-  - publish
-  - -P
-  - ./cmd/federationin
-- name: 'gcr.io/$PROJECT_ID/ko'
-  args:
-  - publish
-  - -P
-  - ./cmd/federationout
-- name: 'gcr.io/$PROJECT_ID/ko'
-  args:
-  - publish
-  - -P
-  - ./cmd/exposure
-- name: 'gcr.io/$PROJECT_ID/ko'
-  args:
-  - publish
-  - -P
-  - ./cmd/cleanup-export
-- name: 'gcr.io/$PROJECT_ID/ko'
-  args:
-  - publish
-  - -P
-  - ./cmd/cleanup-exposure
-# Deploy to Cloud Run.
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
   - '-c'
-  - |
-    gcloud run deploy exposure --image \
-      us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/exposure:latest --region us-central1 \
-      --platform managed --update-labels=env=staging --no-traffic
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
-  - '-c'
-  - |
-    gcloud run deploy export --image \
-      us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/export:latest --region us-central1 \
-      --platform managed --update-labels=env=staging --no-traffic
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
-  - '-c'
-  - |
-    gcloud run deploy federationin --image \
-      us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/federationin:latest --region us-central1 \
-      --platform managed --update-labels=env=staging --no-traffic
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
-  - '-c'
-  - |
-    gcloud run deploy federationout --image \
-      us.gcr.io/$PROJECT_ID/github.com/google/exposure-notifications-server/cmd/federationout:latest --region us-central1 \
-      --platform managed --update-labels=env=staging --no-traffic
+  - |-
+    gcloud run deploy "${_SERVICE}" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --image "gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/${_SERVICE}:${_TAG}" \
+      --no-traffic

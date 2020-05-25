@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -eEuo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
+ALL_SERVICES="cleanup-export,cleanup-exposure,export,exposure,federationin,federationout"
+
+if [ -z "${PROJECT_ID:-}" ]; then
+  echo "✋ Missing PROJECT_ID!" >&2
+  exit 1
+fi
+
+if [ -z "${REGION:-}" ]; then
+  echo "✋ Missing REGION!" >&2
+  exit 1
+fi
+
+if [ -z "${SERVICES:-}" ]; then
+  echo "✋ Missing SERVICES!" >&2
+  exit 1
+fi
+
+if [ "${SERVICES}" == "all" ]; then
+  SERVICES="${ALL_SERVICES}"
+  echo "🚧 Building all services! (${SERVICES})" >&2
+fi
+
+if [ -z "${TAG:-}" ]; then
+  TAG="$(date '+%Y%m%d%H%M%S')"
+  echo "🚧 Using generated tag! (${TAG})" >&2
+fi
+
+IFS=',' read -ra SERVICES_ARR <<< "${SERVICES}"
+for SERVICE in "${SERVICES_ARR[@]}"; do
+  gcloud builds submit --no-source \
+    --project "${PROJECT_ID}" \
+    --config "${ROOT}/builders/deploy.yaml" \
+    --substitutions "_REGION=${REGION},_SERVICE=${SERVICE},_TAG=${TAG}" \
+    &
+done
+
+wait

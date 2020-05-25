@@ -22,9 +22,11 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
-	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/publish/database"
+
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
 )
@@ -40,9 +42,9 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("missing AuthorizedApp provider in server environment")
 	}
 
-	transformer, err := database.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow)
+	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow)
 	if err != nil {
-		return nil, fmt.Errorf("database.NewTransformer: %w", err)
+		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
 	logger.Infof("max keys per upload: %v", config.MaxKeysOnPublish)
 	logger.Infof("max interval start age: %v", config.MaxIntervalAge)
@@ -52,7 +54,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		serverenv:             env,
 		transformer:           transformer,
 		config:                config,
-		database:              env.Database(),
+		database:              database.New(env.Database()),
 		authorizedAppProvider: env.AuthorizedAppProvider(),
 	}, nil
 }
@@ -60,8 +62,8 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 type publishHandler struct {
 	config                *Config
 	serverenv             *serverenv.ServerEnv
-	transformer           *database.Transformer
-	database              *database.DB
+	transformer           *model.Transformer
+	database              *database.PublishDB
 	authorizedAppProvider authorizedapp.Provider
 }
 
@@ -77,7 +79,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	ctx := r.Context()
 	logger := logging.FromContext(ctx)
 
-	var data *database.Publish
+	var data model.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
@@ -91,7 +93,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		// Config loaded, but app with that name isn't registered. This can also
 		// happen if the app was recently registered but the cache hasn't been
 		// refreshed.
-		if err == authorizedapp.AppNotFound {
+		if err == authorizedapp.ErrAppNotFound {
 			message := fmt.Sprintf("unauthorized app: %v", data.AppPackageName)
 			logger.Error(message)
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-app-not-authorized", count: 1}
@@ -110,25 +112,25 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		}
 	}
 
-	if err := verification.VerifyRegions(appConfig, data); err != nil {
+	if err := verification.VerifyRegions(appConfig, &data); err != nil {
 		message := fmt.Sprintf("verifying allowed regions: %v", err)
 		return response{status: http.StatusUnauthorized, message: message, metric: "publish-region-not-authorized", count: 1}
 	}
 
 	if appConfig.IsIOS() {
-		if h.config.BypassDeviceCheck {
-			logger.Errorf("bypassing DeviceCheck for %v", data.AppPackageName)
-			h.serverenv.MetricsExporter(ctx).WriteInt("publish-devicecheck-bypass", true, 1)
-		} else if err := verification.VerifyDeviceCheck(ctx, appConfig, data); err != nil {
+		if appConfig.DeviceCheckDisabled {
+			logger.Errorf("skipping DeviceCheck for %v (disabled)", data.AppPackageName)
+			h.serverenv.MetricsExporter(ctx).WriteInt("publish-devicecheck-skip", true, 1)
+		} else if err := verification.VerifyDeviceCheck(ctx, appConfig, &data); err != nil {
 			message := fmt.Sprintf("unable to verify devicecheck payload: %v", err)
 			logger.Error(message)
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-devicecheck-invalid", count: 1}
 		}
 	} else if appConfig.IsAndroid() {
-		if h.config.BypassSafetyNet {
-			logger.Errorf("bypassing SafetyNet for %v", data.AppPackageName)
-			h.serverenv.MetricsExporter(ctx).WriteInt("publish-safetynet-bypass", true, 1)
-		} else if err := verification.VerifySafetyNet(ctx, time.Now(), appConfig, data); err != nil {
+		if appConfig.SafetyNetDisabled {
+			logger.Errorf("skipping SafetyNet for %v (disabled)", data.AppPackageName)
+			h.serverenv.MetricsExporter(ctx).WriteInt("publish-safetynet-skip", true, 1)
+		} else if err := verification.VerifySafetyNet(ctx, time.Now(), appConfig, &data); err != nil {
 			message := fmt.Sprintf("unable to verify safetynet payload: %v", err)
 			logger.Error(message)
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-safetnet-invalid", count: 1}
@@ -140,7 +142,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	}
 
 	batchTime := time.Now()
-	exposures, err := h.transformer.TransformPublish(data, batchTime)
+	exposures, err := h.transformer.TransformPublish(&data, batchTime)
 	if err != nil {
 		message := fmt.Sprintf("unable to read request data: %v", err)
 		logger.Error(message)

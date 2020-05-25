@@ -18,17 +18,17 @@ import (
 	"context"
 	"errors"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 )
 
-// AppNotFound is the sentinel error returned when AppConfig fails to find an
+// ErrAppNotFound is the sentinel error returned when AppConfig fails to find an
 // app with the given name.
-var AppNotFound = errors.New("app not found")
+var ErrAppNotFound = errors.New("app not found")
 
 // Provider defines possible AuthorizedApp providers.
 type Provider interface {
 	// AppConfig returns the application-specific configuration for the given
 	// name. An error is returned if the configuration fails to load. An error is
 	// returned if no app with the given name is registered in the system.
-	AppConfig(ctx context.Context, name string) (*database.AuthorizedApp, error)
+	AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error)
 }

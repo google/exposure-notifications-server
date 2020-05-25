@@ -19,24 +19,24 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 )
 
 func TestRandomInt(t *testing.T) {
 	expected := make(map[int]bool)
-	for i := database.MinTransmissionRisk; i <= database.MaxTransmissionRisk; i++ {
+	for i := model.MinTransmissionRisk; i <= model.MaxTransmissionRisk; i++ {
 		expected[i] = true
 	}
 
 	// Run through 1,000 iterations. To ensure the entire range can be hit.
 	for i := 0; i < 1000; i++ {
-		v, err := randomInt(database.MinTransmissionRisk, database.MaxTransmissionRisk)
+		v, err := randomInt(model.MinTransmissionRisk, model.MaxTransmissionRisk)
 		if err != nil {
 			t.Fatalf("error getting random data")
 		}
-		if v < database.MinTransmissionRisk || v > database.MaxTransmissionRisk {
+		if v < model.MinTransmissionRisk || v > model.MaxTransmissionRisk {
 			t.Fatalf("random data outside expected bounds. %v <= %v <= %v",
-				database.MinTransmissionRisk, v, database.MaxTransmissionRisk)
+				model.MinTransmissionRisk, v, model.MaxTransmissionRisk)
 		}
 		delete(expected, v)
 	}
@@ -46,7 +46,7 @@ func TestRandomInt(t *testing.T) {
 }
 
 func TestDoNotPadZeroLength(t *testing.T) {
-	exposures := make([]*database.Exposure, 0)
+	exposures := make([]*model.Exposure, 0)
 	exposures, err := ensureMinNumExposures(exposures, "US", 1000, 100)
 	if err != nil {
 		t.Fatalf("unepected error: %v", err)
@@ -56,14 +56,14 @@ func TestDoNotPadZeroLength(t *testing.T) {
 	}
 }
 
-func addExposure(t *testing.T, exposures []*database.Exposure, interval, count int32, risk int) []*database.Exposure {
-	key := make([]byte, database.KeyLength)
+func addExposure(t *testing.T, exposures []*model.Exposure, interval, count int32, risk int) []*model.Exposure {
+	key := make([]byte, model.KeyLength)
 	_, err := rand.Read(key)
 	if err != nil {
 		t.Fatalf("error getting random data: %v", err)
 	}
 	return append(exposures,
-		&database.Exposure{
+		&model.Exposure{
 			ExposureKey:      key,
 			TransmissionRisk: risk,
 			IntervalNumber:   interval,
@@ -73,11 +73,11 @@ func addExposure(t *testing.T, exposures []*database.Exposure, interval, count i
 
 func TestEnsureMinExposures(t *testing.T) {
 	expectedTR := make(map[int]bool)
-	for i := database.MinTransmissionRisk; i <= database.MaxTransmissionRisk; i++ {
+	for i := model.MinTransmissionRisk; i <= model.MaxTransmissionRisk; i++ {
 		expectedTR[i] = true
 	}
 	// Insert a few exposures - that will be used to base the interval information off of.
-	exposures := make([]*database.Exposure, 0)
+	exposures := make([]*model.Exposure, 0)
 	exposures = addExposure(t, exposures, 123456, 144, 0)
 	exposures = addExposure(t, exposures, 789101, 88, 0)
 	// all of these combinations are expected

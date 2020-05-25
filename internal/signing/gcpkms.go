@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package signing defines the interface to and implementation of signing
 package signing
 
 import (
@@ -22,6 +21,9 @@ import (
 	kms "cloud.google.com/go/kms/apiv1"
 	"github.com/sethvargo/go-gcpkms/pkg/gcpkms"
 )
+
+// Compile-time check to verify implements interface.
+var _ KeyManager = (*GCPKMS)(nil)
 
 // GCPKMS implements the signing.KeyManager interface and can be used to sign
 // export files.

@@ -22,6 +22,16 @@ resource "google_service_account" "federationin" {
   display_name = "Exposure Notification Federation (In)"
 }
 
+resource "google_service_account_iam_member" "cloudbuild-deploy-federationin" {
+  service_account_id = google_service_account.federationin.id
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+
+  depends_on = [
+    google_project_service.services["cloudbuild.googleapis.com"],
+  ]
+}
+
 resource "google_project_iam_member" "federationin-cloudsql" {
   project = data.google_project.project.project_id
   role    = "roles/cloudsql.client"
@@ -45,7 +55,7 @@ resource "google_cloud_run_service" "federationin" {
       service_account_name = google_service_account.federationin.email
 
       containers {
-        image = "us.gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationin:latest"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationin:initial"
 
         resources {
           limits = {
@@ -75,6 +85,12 @@ resource "google_cloud_run_service" "federationin" {
   depends_on = [
     google_project_service.services["run.googleapis.com"],
     google_project_service.services["sqladmin.googleapis.com"],
-    null_resource.submit-build-and-publish,
+    null_resource.build,
   ]
+
+  lifecycle {
+    ignore_changes = [
+      template,
+    ]
+  }
 }

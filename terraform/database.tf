@@ -50,6 +50,12 @@ resource "google_sql_database_instance" "db-inst" {
   lifecycle {
     # This prevents accidential deletion of the database.
     prevent_destroy = true
+
+    # Earlier versions of the database had a different name, and its not
+    # possible to rename Cloud SQL instances.
+    ignore_changes = [
+      name,
+    ]
   }
 
   depends_on = [
@@ -60,51 +66,6 @@ resource "google_sql_database_instance" "db-inst" {
 resource "google_sql_ssl_cert" "client_cert" {
   common_name = "apollo"
   instance    = google_sql_database_instance.db-inst.name
-}
-
-resource "google_secret_manager_secret" "ssl-ca-cert" {
-  provider  = google-beta
-  secret_id = "dbServerCA"
-  replication {
-    automatic = true
-  }
-  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
-}
-
-resource "google_secret_manager_secret_version" "db-ca-cert" {
-  provider    = google-beta
-  secret      = google_secret_manager_secret.ssl-ca-cert.id
-  secret_data = google_sql_ssl_cert.client_cert.server_ca_cert
-}
-
-resource "google_secret_manager_secret" "ssl-key" {
-  provider  = google-beta
-  secret_id = "dbClientKey"
-  replication {
-    automatic = true
-  }
-  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
-}
-
-resource "google_secret_manager_secret_version" "db-key" {
-  provider    = google-beta
-  secret      = google_secret_manager_secret.ssl-key.id
-  secret_data = google_sql_ssl_cert.client_cert.private_key
-}
-
-resource "google_secret_manager_secret" "ssl-cert" {
-  provider  = google-beta
-  secret_id = "dbClientCert"
-  replication {
-    automatic = true
-  }
-  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
-}
-
-resource "google_secret_manager_secret_version" "db-cert" {
-  provider    = google-beta
-  secret      = google_secret_manager_secret.ssl-cert.id
-  secret_data = google_sql_ssl_cert.client_cert.cert
 }
 
 resource "random_password" "userpassword" {
@@ -128,26 +89,14 @@ resource "google_sql_database" "db" {
 resource "google_secret_manager_secret" "db-pwd" {
   provider  = google-beta
   secret_id = "dbPassword"
+
   replication {
     automatic = true
   }
-  depends_on = [google_project_service.services["secretmanager.googleapis.com"]]
-}
 
-resource "google_project_iam_member" "cloudbuild-secrets" {
-  project = data.google_project.project.project_id
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-
-  depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
-}
-
-resource "google_project_iam_member" "cloudbuild-sql" {
-  project = data.google_project.project.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-
-  depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
+  depends_on = [
+    google_project_service.services["secretmanager.googleapis.com"],
+  ]
 }
 
 resource "google_secret_manager_secret_version" "db-pwd-initial" {
@@ -156,42 +105,66 @@ resource "google_secret_manager_secret_version" "db-pwd-initial" {
   secret_data = google_sql_user.user.password
 }
 
-resource "google_cloudbuild_trigger" "update-schema" {
-  provider = google-beta
-  count    = var.use_build_triggers ? 1 : 0
+# Grant Cloud Build the ability to access the database password (required to run
+# migrations).
+resource "google_secret_manager_secret_iam_member" "cloudbuild-db-pwd" {
+  provider  = google-beta
+  secret_id = google_secret_manager_secret.db-pwd.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 
-  name        = "update-schema"
-  description = "Build the containers for the schema migrator and run it to ensure the DB is up to date."
-  filename    = "builders/schema.yaml"
-  github {
-    owner = var.repo_owner
-    name  = var.repo_name
-    push {
-      branch = "^master$"
-    }
-  }
-  substitutions = {
-    "_CLOUDSQLPATH" : "${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-    "_PORT" : "5432"
-    "_PASSWORD_SECRET" : google_secret_manager_secret.db-pwd.secret_id
-    "_USER" : google_sql_user.user.name
-    "_NAME" : google_sql_database.db.name
-    "_SSLMODE" : "disable"
-  }
-  depends_on = [google_project_iam_member.cloudbuild-secrets, google_project_iam_member.cloudbuild-sql]
+  depends_on = [
+    google_project_service.services["cloudbuild.googleapis.com"],
+  ]
 }
 
-resource "null_resource" "submit-update-schema" {
-  provisioner "local-exec" {
-    command = "gcloud builds submit ../ --config ../builders/schema.yaml --project ${data.google_project.project.project_id} --substitutions=_PORT=5432,_PASSWORD_SECRET=${google_secret_manager_secret.db-pwd.secret_id},_USER=${google_sql_user.user.name},_NAME=${google_sql_database.db.name},_SSLMODE=disable,_CLOUDSQLPATH=${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-  }
+# Grant Cloud Build the ability to connect to Cloud SQL.
+resource "google_project_iam_member" "cloudbuild-sql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 
-  triggers = {
-    database = google_sql_database_instance.db-inst.name,
+  depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
+}
+
+# Migrate runs the initial database migrations.
+resource "null_resource" "migrate" {
+  provisioner "local-exec" {
+    environment = {
+      PROJECT_ID     = data.google_project.project.project_id
+      DB_CONN        = google_sql_database_instance.db-inst.connection_name
+      DB_PASS_SECRET = google_secret_manager_secret_version.db-pwd-initial.name
+      DB_NAME        = google_sql_database.db.name
+      DB_USER        = google_sql_user.user.name
+      COMMAND        = "up"
+
+      REGION   = var.region
+      SERVICES = "all"
+      TAG      = "initial"
+    }
+
+    command = "${path.module}/../scripts/migrate"
   }
 
   depends_on = [
-    google_project_iam_member.cloudbuild-secrets,
+    google_project_service.services["cloudbuild.googleapis.com"],
+    google_secret_manager_secret_iam_member.cloudbuild-db-pwd,
     google_project_iam_member.cloudbuild-sql,
   ]
+}
+
+output "db_conn" {
+  value = google_sql_database_instance.db-inst.connection_name
+}
+
+output "db_name" {
+  value = google_sql_database.db.name
+}
+
+output "db_user" {
+  value = google_sql_user.user.name
+}
+
+output "db_pass_secret" {
+  value = google_secret_manager_secret_version.db-pwd-initial.name
 }

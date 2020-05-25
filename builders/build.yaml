@@ -1,73 +1,38 @@
-options:
-  env:
-  - 'KO_DOCKER_REPO=us.gcr.io/${PROJECT_ID}'
-  - 'DOCKER_REPO_OVERRIDE=us.gcr.io/${PROJECT_ID}'
-  machineType: N1_HIGHCPU_8
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#
+# Builds a container image.
+#
+
+substitutions:
+  _SERVICE:
+  _TAG:
 
 steps:
-# Build ko, prerequisite.
-- id: ko-build
-  name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--tag=gcr.io/$PROJECT_ID/ko', '-f', 'terraform/ko.Dockerfile', 'terraform/']
-  waitFor: ['-']
-- id: ko-push
-  name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/ko']
-  waitFor: ['ko-build']
+- id: 'build'
+  name: 'registry.hub.docker.com/library/docker:18'
+  args: [
+    'build',
+    '--tag', 'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/${_SERVICE}:${_TAG}',
+    '--build-arg', 'SERVICE=${_SERVICE}',
+    '.',
+  ]
 
-# Tests
-- id: test
-  name: 'mirror.gcr.io/library/golang'
-  env:
-  - GO111MODULE=on
-  args: ['go', 'test', './...']
-  waitFor: ['-']
-
-# Build and publish containers`
-- id: export
-  name: 'gcr.io/$PROJECT_ID/ko'
-  args:
-  - publish
-  - -P
-  - ./cmd/export
-  waitFor: ['ko-push', 'test']
-
-- id: federationin
-  name: 'gcr.io/$PROJECT_ID/ko'
-  args:
-  - publish
-  - -P
-  - ./cmd/federationin
-  waitFor: ['ko-push', 'test']
-
-- id: federationout
-  name: 'gcr.io/$PROJECT_ID/ko'
-  args:
-  - publish
-  - -P
-  - ./cmd/federationout
-  waitFor: ['ko-push', 'test']
-
-- id: exposure
-  name: 'gcr.io/$PROJECT_ID/ko'
-  args:
-  - publish
-  - -P
-  - ./cmd/exposure
-  waitFor: ['ko-push', 'test']
-
-- id: cleanup-export
-  name: 'gcr.io/$PROJECT_ID/ko'
-  args:
-  - publish
-  - -P
-  - ./cmd/cleanup-export
-  waitFor: ['ko-push', 'test']
-
-- id: cleanup-exposure
-  name: 'gcr.io/$PROJECT_ID/ko'
-  args:
-  - publish
-  - -P
-  - ./cmd/cleanup-exposure
-  waitFor: ['ko-push', 'test']
+- id: 'publish'
+  name: 'registry.hub.docker.com/library/docker:18'
+  args: [
+    'push',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/${_SERVICE}:${_TAG}',
+  ]
