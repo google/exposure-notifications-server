@@ -48,7 +48,7 @@ resource "google_secret_manager_secret_iam_member" "federationin-db-pwd" {
 
 resource "google_cloud_run_service" "federationin" {
   name     = "federationin"
-  location = var.region
+  location = local.cloudrun_location
 
   template {
     spec {

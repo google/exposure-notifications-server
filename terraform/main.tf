@@ -137,7 +137,7 @@ locals {
 # Cloud Scheduler requires AppEngine projects!
 resource "google_app_engine_application" "app" {
   project     = data.google_project.project.project_id
-  location_id = var.appengine_location
+  location_id = local.appengine_location
 }
 
 output "region" {
