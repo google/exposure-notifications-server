@@ -57,6 +57,7 @@ func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
 
 	// Update, set expiry timestamp.
 	want.EndTimestamp = time.Now().UTC().Add(24 * time.Hour)
+	want.EndTimestamp = want.EndTimestamp.Truncate(time.Second)
 	if err := exDB.UpdateSignatureInfo(ctx, want); err != nil {
 		t.Fatal(err)
 	}
@@ -66,6 +67,7 @@ func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	got.EndTimestamp = got.EndTimestamp.Truncate(time.Second)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}
