@@ -19,24 +19,37 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 
+	"github.com/gin-gonic/gin"
+	"github.com/google/exposure-notifications-server/internal/admin"
+	"github.com/google/exposure-notifications-server/internal/admin/authorizedapps"
+	"github.com/google/exposure-notifications-server/internal/admin/index"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 func main() {
 	ctx := context.Background()
 
-	var config Config
+	var config admin.Config
 	env, closer, err := setup.Setup(ctx, &config)
 	if err != nil {
 		log.Fatalf("setup.Setup: %v", err)
 	}
 	defer closer()
 
-	http.Handle("/", NewIndexHandler(&config, env))
-	http.Handle("/app", NewAppHandler(&config, env))
+	router := gin.Default()
+	router.LoadHTMLGlob(config.TemplatePath + "/*")
+
+	// Landing page.
+	indexController := index.New(&config, env)
+	router.GET("/", indexController.Execute)
+
+	// Authorized App Handling.
+	authAppController := authorizedapps.NewView(&config, env)
+	router.GET("/app", authAppController.Execute)
+	saveAppController := authorizedapps.NewSave(&config, env)
+	router.POST("/app", saveAppController.Execute)
 
 	log.Printf("listening on http://localhost:" + config.Port)
-	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
+	router.Run()
 }

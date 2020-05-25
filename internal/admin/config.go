@@ -14,7 +14,7 @@
 
 // This tool provides a small admin UI. Requires connection to the database
 // and permissions to access whatever else you might need to access.
-package main
+package admin
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ var _ setup.DBConfigProvider = (*Config)(nil)
 
 type Config struct {
 	Port         string `envconfig:"PORT" default:"8080"`
-	TemplatePath string `envconfig:"TEMPLATE_DIR" default:"tools/admin-console/templates"`
+	TemplatePath string `envconfig:"TEMPLATE_DIR" default:"./tools/admin-console/templates"`
 	Database     *database.Config
 	TopFile      string `envconfig:"TOP_FILE" default:"top"`
 	BotFile      string `envconfig:"BOTTOM_FILE" default:"bottom"`
@@ -55,7 +55,7 @@ func (c *Config) RenderTemplate(w http.ResponseWriter, tmpl string, p TemplateMa
 		log.Printf("ERROR: %v", err)
 		return err
 	}
-	if err := t.ExecuteTemplate(w, "view", p); err != nil {
+	if err := t.ExecuteTemplate(w, tmpl, p); err != nil {
 		message := fmt.Sprintf("error rendering template: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(message))
