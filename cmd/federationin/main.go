@@ -21,8 +21,11 @@ import (
 	"log"
 	"net/http"
 
+	"go.opencensus.io/plugin/ochttp"
+
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	_ "github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
@@ -37,7 +40,9 @@ func main() {
 	}
 	defer closer()
 
-	http.Handle("/", federationin.NewHandler(env, &config))
+	mux := http.NewServeMux()
+	mux.Handle("/", federationin.NewHandler(env, &config))
 	logger.Infof("Starting federationin server on port %s", config.Port)
-	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
+	instrumentedHandler := &ochttp.Handler{Handler: mux}
+	log.Fatal(http.ListenAndServe(":"+config.Port, instrumentedHandler))
 }

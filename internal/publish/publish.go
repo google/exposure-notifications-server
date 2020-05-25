@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"time"
 
+	"go.opencensus.io/trace"
+
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/publish/database"
 
@@ -76,7 +78,9 @@ type response struct {
 }
 
 func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) response {
-	ctx := r.Context()
+	ctx, span := trace.StartSpan(r.Context(), "(*publish.publishHandler).handleRequest")
+	defer span.End()
+
 	logger := logging.FromContext(ctx)
 
 	var data model.Publish
@@ -85,6 +89,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		// Log the unparsable JSON, but return success to the client.
 		message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
 		logger.Error(message)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{status: http.StatusBadRequest, message: message, metric: "publish-bad-json", count: 1}
 	}
 
@@ -96,13 +101,16 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		if err == authorizedapp.ErrAppNotFound {
 			message := fmt.Sprintf("unauthorized app: %v", data.AppPackageName)
 			logger.Error(message)
+			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-app-not-authorized", count: 1}
 		}
 
 		// A higher-level configuration error occurred, likely while trying to read
 		// from the database. This is retryable, although won't succeed if the error
 		// isn't transient.
-		logger.Errorf("no AuthorizedApp, dropping data: %v", err)
+		msg := fmt.Sprintf("no AuthorizedApp, dropping data: %v", err)
+		logger.Error(msg)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: msg})
 		return response{
 			status:      http.StatusInternalServerError,
 			message:     http.StatusText(http.StatusInternalServerError),
@@ -114,30 +122,38 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 
 	if err := verification.VerifyRegions(appConfig, &data); err != nil {
 		message := fmt.Sprintf("verifying allowed regions: %v", err)
+		span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
 		return response{status: http.StatusUnauthorized, message: message, metric: "publish-region-not-authorized", count: 1}
 	}
 
 	if appConfig.IsIOS() {
+		span.AddAttributes(trace.StringAttribute("app_platform", "ios"))
 		if appConfig.DeviceCheckDisabled {
 			logger.Errorf("skipping DeviceCheck for %v (disabled)", data.AppPackageName)
 			h.serverenv.MetricsExporter(ctx).WriteInt("publish-devicecheck-skip", true, 1)
 		} else if err := verification.VerifyDeviceCheck(ctx, appConfig, &data); err != nil {
 			message := fmt.Sprintf("unable to verify devicecheck payload: %v", err)
 			logger.Error(message)
+			span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-devicecheck-invalid", count: 1}
 		}
 	} else if appConfig.IsAndroid() {
+		span.AddAttributes(trace.StringAttribute("app_platform", "android"))
 		if appConfig.SafetyNetDisabled {
-			logger.Errorf("skipping SafetyNet for %v (disabled)", data.AppPackageName)
+			message := fmt.Sprintf("skipping SafetyNet for %v (disabled)", data.AppPackageName)
+			logger.Error(message)
+			span.SetStatus(trace.Status{Code: trace.StatusCodeUnknown, Message: message})
 			h.serverenv.MetricsExporter(ctx).WriteInt("publish-safetynet-skip", true, 1)
 		} else if err := verification.VerifySafetyNet(ctx, time.Now(), appConfig, &data); err != nil {
 			message := fmt.Sprintf("unable to verify safetynet payload: %v", err)
 			logger.Error(message)
+			span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-safetnet-invalid", count: 1}
 		}
 	} else {
 		message := fmt.Sprintf("invalid AuthorizedApp config %v: invalid platform %v", data.AppPackageName, data.Platform)
 		logger.Error(message)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{status: http.StatusInternalServerError, message: message, metric: "publish-authorizedapp-missing-platform", count: 1}
 	}
 
@@ -146,16 +162,20 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	if err != nil {
 		message := fmt.Sprintf("unable to read request data: %v", err)
 		logger.Error(message)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
 		return response{status: http.StatusBadRequest, message: message, metric: "publish-transform-fail", count: 1}
 	}
 
 	err = h.database.InsertExposures(ctx, exposures)
 	if err != nil {
-		logger.Errorf("error writing exposure record: %v", err)
+		message := fmt.Sprintf("error writing exposure record: %v", err)
+		logger.Error(message)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{status: http.StatusInternalServerError, message: http.StatusText(http.StatusInternalServerError), metric: "publish-db-write-error", count: 1}
 	}
 
 	message := fmt.Sprintf("Inserted %d exposures.", len(exposures))
+	span.AddAttributes(trace.Int64Attribute("inserted_exposures", int64(len(exposures))))
 	logger.Info(message)
 	return response{
 		status:  http.StatusOK,
