@@ -588,3 +588,5 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 		t.Fatalf("bucket name mismatch got %q, want %q", got.BucketName, wantBucketName)
 	}
 }
+
+// TODO(jan25) add TestDeleteFilesBefore. Related to issue #241
