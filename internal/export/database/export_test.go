@@ -589,4 +589,4 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 	}
 }
 
-// TODO TestDeleteFilesBefore
+// TODO(jan25) add TestDeleteFilesBefore. Related to issue #241

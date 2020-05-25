@@ -37,7 +37,7 @@ func TestNewExposureHandler(t *testing.T) {
 		{
 			name: "nil Database",
 			env:  serverenv.New(ctx),
-			err:  fmt.Errorf("cleanup.NewExposureHandler requires Database present in the ServerEnv"),
+			err:  fmt.Errorf("missing database in server environment"),
 		},
 		{
 			name: "Fully Specified",
@@ -80,12 +80,12 @@ func TestNewExportHandler(t *testing.T) {
 		{
 			name: "nil Database",
 			env:  serverenv.New(ctx),
-			err:  fmt.Errorf("export.NewExportHandler requires Database present in the ServerEnv"),
+			err:  fmt.Errorf("missing database in server environment"),
 		},
 		{
 			name: "nil Blobstore",
 			env:  serverenv.New(ctx, serverenv.WithDatabase(testDB)),
-			err:  fmt.Errorf("export.NewExportHandler requires Blobstore present in the ServerEnv"),
+			err:  fmt.Errorf("missing blobstore in server environment"),
 		},
 		{
 			name: "Fully Specified",
