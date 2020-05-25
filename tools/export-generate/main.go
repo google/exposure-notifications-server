@@ -128,7 +128,7 @@ func main() {
 				log.Fatalf("unable to decode key: %v", k.Key)
 			}
 			exposureKeys[i].ExposureKey = decoded
-			exposureKeys[i].IntervalNumber = k.IntervalNumber - 144 // typically the key will be at least 1 day old
+			exposureKeys[i].IntervalNumber = k.IntervalNumber - publishmodel.MaxIntervalCount // typically the key will be at least 1 day old
 			if exposureKeys[i].IntervalNumber < 0 {
 				exposureKeys[i].IntervalNumber = 0
 			}
