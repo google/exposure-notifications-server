@@ -198,13 +198,13 @@ func (db *ExportDB) UpdateSignatureInfo(ctx context.Context, si *model.Signature
 	}
 	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
-			UPDATE SignatureInfo
-			SET
+      UPDATE SignatureInfo
+      SET
 				signing_key = $1, app_package_name = $2, bundle_id = $3,
 				signing_key_version = $4, signing_key_id = $5, thru_timestamp = $6
-			WHERE
+      WHERE
 				id = $7
- 			`, si.SigningKey, si.AppPackageName, si.BundleID, si.SigningKeyVersion, si.SigningKeyID, thru, si.ID)
+    `, si.SigningKey, si.AppPackageName, si.BundleID, si.SigningKeyVersion, si.SigningKeyID, thru, si.ID)
 		if err != nil {
 			return fmt.Errorf("updating signatureinfo: %w", err)
 		}
@@ -223,12 +223,12 @@ func (db *ExportDB) ListAllSigntureInfos(ctx context.Context) ([]*model.Signatur
 	defer conn.Release()
 
 	rows, err := conn.Query(ctx, `
-		SELECT
-			id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
-		FROM
-			SignatureInfo
-		ORDER BY signing_key_id ASC, signing_key_version ASC, thru_timestamp DESC, app_package_name ASC, bundle_id ASC
-		`)
+    SELECT
+      id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
+    FROM
+      SignatureInfo
+    ORDER BY signing_key_id ASC, signing_key_version ASC, thru_timestamp DESC, app_package_name ASC, bundle_id ASC
+  `)
 	if err != nil {
 		return nil, err
 	}
@@ -291,13 +291,13 @@ func (db *ExportDB) GetSignatureInfo(ctx context.Context, id int64) (*model.Sign
 	defer conn.Release()
 
 	row := conn.QueryRow(ctx, `
-		SELECT
-			id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
-		FROM
-			SignatureInfo
-		WHERE
-			id = $1
-		`, id)
+    SELECT
+      id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
+    FROM
+      SignatureInfo
+    WHERE
+      id = $1
+  `, id)
 
 	return scanOneSignatureInfo(ctx, row)
 }
