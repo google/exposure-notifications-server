@@ -168,7 +168,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		internalErrorf(ctx, w, "Failed to create token source: %v", err)
 		return
 	}
-	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{ts}))
+	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{
+		TokenSource: ts,
+	}))
 
 	logger.Infof("Dialing %s", query.ServerAddr)
 	conn, err := grpc.Dial(query.ServerAddr, dialOpts...)
