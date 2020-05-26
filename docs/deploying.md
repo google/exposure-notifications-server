@@ -1,17 +1,16 @@
-<!-- TOC depthFrom:1 depthTo:6 orderedList:false updateOnSave:true withLinks:true -->
+<!-- TOC depthFrom:2 depthTo:6 orderedList:false updateOnSave:true withLinks:true -->
 
-- [Deployment Guide](#deployment-guide)
-  - [Before you begin](#before-you-begin)
-  - [Provisioning infrastructure with Terraform](#provisioning-infrastructure-with-terraform)
-  - [Running services](#running-services)
-    - [Building](#building)
-    - [Deploying](#deploying)
-    - [Promoting](#promoting)
-  - [Tracing services](#tracing-services)
-  - [Running migrations](#running-migrations)
-    - [On Google Cloud](#on-google-cloud)
-    - [On a custom setup](#on-a-custom-setup)
-  - [Configuring the server](#configuring-the-server)
+- [Before you begin](#before-you-begin)
+- [Provisioning infrastructure with Terraform](#provisioning-infrastructure-with-terraform)
+- [Running services](#running-services)
+  - [Building](#building)
+  - [Deploying](#deploying)
+  - [Promoting](#promoting)
+- [Tracing services](#tracing-services)
+- [Running migrations](#running-migrations)
+  - [On Google Cloud](#on-google-cloud)
+  - [On a custom setup](#on-a-custom-setup)
+- [Configuring the server](#configuring-the-server)
 
 <!-- /TOC -->
 
