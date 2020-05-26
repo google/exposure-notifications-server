@@ -23,7 +23,7 @@ type Config struct {
 	User               string        `envconfig:"DB_USER"`
 	Host               string        `envconfig:"DB_HOST" default:"localhost"`
 	Port               string        `envconfig:"DB_PORT" default:"5432"`
-	SSLMode            string        `envconfig:"DB_SSLMODE" default:"required"`
+	SSLMode            string        `envconfig:"DB_SSLMODE" default:"require"`
 	ConnectionTimeout  int           `envconfig:"DB_CONNECT_TIMEOUT"`
 	Password           string        `envconfig:"DB_PASSWORD"`
 	SSLCertPath        string        `envconfig:"DB_SSLCERT"`
