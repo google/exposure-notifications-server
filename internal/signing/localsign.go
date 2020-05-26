@@ -11,6 +11,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"encoding/asn1"
+	"math/big"
 )
 
 // GCPKMS implements the signing.KeyManager interface and can be used to sign
@@ -64,9 +66,12 @@ func (ls *LocalSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpt
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign: %w", err)
 	}
-	sig := r.Bytes()
-	sig = append(sig, s.Bytes()...)
-	return sig, nil
+	asn1Data := []*big.Int{r, s}
+	sig , err := asn1.Marshal(asn1Data)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal asn1: %w", err)
+	}
+	return sig, err
 }
 
 func decode(pemEncoded string, pemEncodedPub string) (*ecdsa.PrivateKey, *ecdsa.PublicKey, error) {
