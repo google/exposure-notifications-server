@@ -223,12 +223,12 @@ func (db *ExportDB) ListAllSigntureInfos(ctx context.Context) ([]*model.Signatur
 	defer conn.Release()
 
 	rows, err := conn.Query(ctx, `
-    SELECT
-      id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
-    FROM
-      SignatureInfo
-    ORDER BY signing_key_id ASC, signing_key_version ASC, thru_timestamp DESC, app_package_name ASC, bundle_id ASC
-  `)
+		SELECT
+			id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
+		FROM
+			SignatureInfo
+		ORDER BY signing_key_id ASC, signing_key_version ASC, thru_timestamp DESC, app_package_name ASC, bundle_id ASC
+		`)
 	if err != nil {
 		return nil, err
 	}
