@@ -244,6 +244,13 @@ the public Internet!**
     cloud_sql_proxy -instances=$DB_CONN=tcp:$DB_PORT &
     ```
 
+    And disable SSL verification:
+
+    ```text
+    # Cloud SQL uses a local proxy and handles TLS communication automatically
+    export DB_SSLMODE=disable
+    ```
+
 1.  Start the admin console:
 
     ```text
