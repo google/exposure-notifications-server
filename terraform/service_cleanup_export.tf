@@ -54,7 +54,7 @@ resource "google_storage_bucket_iam_member" "cleanup-export-objectadmin" {
 
 resource "google_cloud_run_service" "cleanup-export" {
   name     = "cleanup-export"
-  location = local.cloudrun_location
+  location = var.cloudrun_location
 
   template {
     spec {
@@ -122,7 +122,7 @@ resource "google_cloud_run_service_iam_member" "cleanup-export-invoker" {
 
 resource "google_cloud_scheduler_job" "cleanup-export-worker" {
   name             = "cleanup-export-worker"
-  region           = local.appengine_region
+  region           = var.appengine_region
   schedule         = "0 */6 * * *"
   time_zone        = "Etc/UTC"
   attempt_deadline = "600s"

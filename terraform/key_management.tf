@@ -15,7 +15,7 @@
 resource "google_kms_key_ring" "export-signing" {
   project  = data.google_project.project.project_id
   name     = "export-signing"
-  location = local.kms_location
+  location = var.kms_location
 }
 
 resource "google_kms_crypto_key" "export-signer" {

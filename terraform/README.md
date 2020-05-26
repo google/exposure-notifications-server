@@ -104,12 +104,27 @@ following sample deployment:
 
 ### Changing Regions
 
-Not all resources used by this project are currently available in all regions.
-If you change the top level `region` variable without checking that the
-target region supports all resource types then the deployment is likely to
-fail. The `vars.tf` file defines several variables that may be used to define
-various deployment regions for the different resources and this gives you more
-flexibility when deploying your service. Please refer to the vars.tf file to
-see the different choices that are available; in each case leaving the value at
-the default, `"default"`, results in the associated resources being deployed
-with a value derived from the main `region` variable.
+To enable deployment flexibility, the target region for the different resource
+types are exposed as terraform variables in `vars.tf`. Each region or location
+variable may be changed, however, they are not necessarily independent. The
+comments for each variable make a note of required dependencies and also link
+to the associated docs page listing the valid values.
+
+Note that, not all resources used by this project are currently available in
+all regions, but bringing up infrastructure in different regions needs careful
+consideration as geographic location of resources does impact service
+performance.
+
+Changing the deployment region can be accomplished by setting the new value on
+the command line in the same way as other variables are set on the examples
+above. However, every call to `terraform apply` must use the same values, or
+else terraform will attempt to move the resource from the original deployment
+location to the new - this is not always possible and may result in an error.
+
+To simplify the process it is often easier to change the defaults for your
+deployment in `vars.tf`. Alternatively, if you have multiple deployments you
+can add a file with the `.tfvars` suffix to hold your variable definitions and
+then use `terraform apply -var-file="<example>.tfvars"` to deploy the
+infrastructure. Please read the
+[terraform documentation](https://www.terraform.io/docs/configuration/variables.html#variable-definitions-tfvars-files)
+for more details.

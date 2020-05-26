@@ -48,7 +48,7 @@ resource "google_secret_manager_secret_iam_member" "cleanup-exposure-db-pwd" {
 
 resource "google_cloud_run_service" "cleanup-exposure" {
   name     = "cleanup-exposure"
-  location = local.cloudrun_location
+  location = var.cloudrun_location
 
   template {
     spec {
@@ -116,7 +116,7 @@ resource "google_cloud_run_service_iam_member" "cleanup-exposure-invoker" {
 
 resource "google_cloud_scheduler_job" "cleanup-exposure-worker" {
   name             = "cleanup-exposure-worker"
-  region           = local.appengine_region
+  region           = var.appengine_region
   schedule         = "0 */4 * * *"
   time_zone        = "Etc/UTC"
   attempt_deadline = "600s"

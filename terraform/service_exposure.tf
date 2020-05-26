@@ -48,7 +48,7 @@ resource "google_secret_manager_secret_iam_member" "exposure-db-pwd" {
 
 resource "google_cloud_run_service" "exposure" {
   name     = "exposure"
-  location = local.cloudrun_location
+  location = var.cloudrun_location
 
   template {
     spec {
