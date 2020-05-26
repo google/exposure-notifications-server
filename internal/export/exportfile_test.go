@@ -17,8 +17,6 @@ package export
 import (
 	"crypto"
 	"io"
-	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 
@@ -31,12 +29,6 @@ import (
 )
 
 func TestMarshalUnmarshalExportFile(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(tmp) })
-
 	batchStartTime := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC).Truncate(time.Second)
 	batchEndTime := batchStartTime.Add(1 * time.Hour)
 
@@ -90,17 +82,6 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 		t.Fatalf("Can't marshal export file, %v", err)
 	}
 
-	filePath := tmp + "/test-export.zip"
-	err = ioutil.WriteFile(filePath, blob, 0644)
-	if err != nil {
-		t.Fatalf("Can't create an export file: %v", err)
-	}
-
-	blob, err = ioutil.ReadFile(filePath)
-	if err != nil {
-		t.Errorf("Can't read sample file %v: %w", filePath, err)
-	}
-
 	got, err := UnmarshalExportFile(blob)
 	if err != nil {
 		t.Fatalf("Unmarshal failed: %v", err)
@@ -142,7 +123,8 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 	ignoredTemporaryExposureKeyExportFields := cmpopts.IgnoreUnexported(export.TemporaryExposureKeyExport{})
 	ignoredSignatureInfoFields := cmpopts.IgnoreUnexported(export.SignatureInfo{})
 	ignoredTemporaryExposureKeyFields := cmpopts.IgnoreUnexported(export.TemporaryExposureKey{})
-	if diff := cmp.Diff(keyExport, got, ignoredTemporaryExposureKeyExportFields, ignoredSignatureInfoFields, ignoredTemporaryExposureKeyFields); diff != "" {
+	diff := cmp.Diff(keyExport, got, ignoredTemporaryExposureKeyExportFields, ignoredSignatureInfoFields, ignoredTemporaryExposureKeyFields)
+	if diff != "" {
 		t.Fatalf("unmarshal mismatch (-want +got):\n%v", diff)
 	}
 }
