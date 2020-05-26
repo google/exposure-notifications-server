@@ -20,8 +20,11 @@ import (
 	"log"
 	"net/http"
 
+	"go.opencensus.io/plugin/ochttp"
+
 	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	_ "github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
@@ -40,7 +43,9 @@ func main() {
 	if err != nil {
 		logger.Fatalf("cleanup.NewExportHandler: %v", err)
 	}
-	http.Handle("/", handler)
+	mux := http.NewServeMux()
+	mux.Handle("/", handler)
 	logger.Infof("starting export cleanup server on :%s", config.Port)
-	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
+	instrumentedHandler := &ochttp.Handler{Handler: mux}
+	log.Fatal(http.ListenAndServe(":"+config.Port, instrumentedHandler))
 }

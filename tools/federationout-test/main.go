@@ -30,6 +30,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/oauth"
+
+	"go.opencensus.io/plugin/ocgrpc"
 )
 
 const (
@@ -74,7 +76,10 @@ func main() {
 	defer cancel()
 
 	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
-	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(creds)}
+	dialOpts := []grpc.DialOption{
+		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
+		grpc.WithTransportCredentials(creds),
+	}
 
 	idTokenSource, err := idtoken.NewTokenSource(ctx, *audience)
 	if err != nil {

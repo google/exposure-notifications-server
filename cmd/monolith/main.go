@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"go.opencensus.io/plugin/ochttp"
+
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -30,6 +32,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/storage"
+
+	// Enable observability with distributed tracing and metrics.
+	_ "github.com/google/exposure-notifications-server/internal/observability"
 )
 
 var _ setup.DBConfigProvider = (*MonoConfig)(nil)
@@ -77,30 +82,32 @@ func realMain(ctx context.Context) error {
 	}
 	defer closer()
 
+	mux := http.NewServeMux()
+
 	// Cleanup export
 	cleanupExport, err := cleanup.NewExportHandler(config.Cleanup, env)
 	if err != nil {
 		return fmt.Errorf("cleanup.NewExportHandler: %w", err)
 	}
-	http.Handle("/cleanup-export", cleanupExport)
+	mux.Handle("/cleanup-export", cleanupExport)
 
 	// Cleanup exposure
 	cleanupExposure, err := cleanup.NewExposureHandler(config.Cleanup, env)
 	if err != nil {
 		return fmt.Errorf("cleanup.NewExposureHandler: %w", err)
 	}
-	http.Handle("/cleanup-exposure", cleanupExposure)
+	mux.Handle("/cleanup-exposure", cleanupExposure)
 
 	// Export
 	exportServer, err := export.NewServer(config.Export, env)
 	if err != nil {
 		return fmt.Errorf("export.NewServer: %w", err)
 	}
-	http.HandleFunc("/export/create-batches", exportServer.CreateBatchesHandler)
-	http.HandleFunc("/export/do-work", exportServer.WorkerHandler)
+	mux.HandleFunc("/export/create-batches", exportServer.CreateBatchesHandler)
+	mux.HandleFunc("/export/do-work", exportServer.WorkerHandler)
 
 	// Federation in
-	http.Handle("/federation-in", federationin.NewHandler(env, config.FederationIn))
+	mux.Handle("/federation-in", federationin.NewHandler(env, config.FederationIn))
 
 	// Federation out
 	// TODO: this is a grpc listener and requires a lot of setup.
@@ -110,8 +117,10 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("publish.NewHandler: %w", err)
 	}
-	http.HandleFunc("/publish", handlers.WithMinimumLatency(config.Publish.MinRequestDuration, publishServer))
+	mux.HandleFunc("/publish", handlers.WithMinimumLatency(config.Publish.MinRequestDuration, publishServer))
+
+	instrumentedHandler := &ochttp.Handler{Handler: mux}
 
 	logger.Infof("monolith running at :%s", config.Port)
-	return http.ListenAndServe(":"+config.Port, nil)
+	return http.ListenAndServe(":"+config.Port, instrumentedHandler)
 }

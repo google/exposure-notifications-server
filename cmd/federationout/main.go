@@ -23,8 +23,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	"go.opencensus.io/plugin/ocgrpc"
+
 	"github.com/google/exposure-notifications-server/internal/federationout"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	_ "github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
@@ -55,6 +58,7 @@ func main() {
 		sopts = append(sopts, grpc.UnaryInterceptor(server.(*federationout.Server).AuthInterceptor))
 	}
 
+	sopts = append(sopts, grpc.StatsHandler(&ocgrpc.ServerHandler{}))
 	grpcServer := grpc.NewServer(sopts...)
 	pb.RegisterFederationServer(grpcServer, server)
 
