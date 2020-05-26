@@ -90,11 +90,8 @@ if [ $? -ne 0 ]; then
 fi
 set -e
 
-# TODO: Add this back in once a few outstanding failures are handled
-# echo "Running 'go vet'..."
-# set -x
-# go vet ./...
-# set +x
+echo "🚨 Running 'go vet'..."
+go vet ./...
 
 
 echo "🚧 Compile"

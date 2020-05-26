@@ -85,7 +85,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create token source: %v", err)
 	}
-	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{idTokenSource}))
+	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{
+		TokenSource: idTokenSource,
+	}))
 
 	conn, err := grpc.Dial(*serverAddr, dialOpts...)
 	if err != nil {
