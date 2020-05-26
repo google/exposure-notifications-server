@@ -55,6 +55,7 @@ message SignatureInfo {
   optional string verification_key_version = 3;
   // Alias with which to identify public key to be used for verification
   // Must be in character class [a-zA-Z0-9_]
+  // For cross-compatibility with Apple, use MCC (https://en.wikipedia.org/wiki/Mobile_country_code)
   optional string verification_key_id = 4;
   // ASN.1 OID for Algorithm Identifier. Supported algorithms are
   // either 1.2.840.10045.4.3.2 or 1.2.840.10045.4.3.4
