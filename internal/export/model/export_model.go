@@ -79,3 +79,27 @@ type SignatureInfo struct {
 	SigningKeyID      string    `db:"signing_key_id"`
 	EndTimestamp      time.Time `db:"thru_timestamp"`
 }
+
+// FormattedEndTimestamp returns the end date for display in the admin console.
+func (s *SignatureInfo) FormattedEndTimestamp() string {
+	if s.EndTimestamp.IsZero() {
+		return ""
+	}
+	return s.EndTimestamp.UTC().Format(time.UnixDate)
+}
+
+// HTMLEndDate returns EndDate in a format for the HTML date input default value.
+func (s *SignatureInfo) HTMLEndDate() string {
+	if s.EndTimestamp.IsZero() {
+		return ""
+	}
+	return s.EndTimestamp.UTC().Format("2006-01-02")
+}
+
+// HTMLEndTime returns EndDate in a format for the HTML time input default value.
+func (s *SignatureInfo) HTMLEndTime() string {
+	if s.EndTimestamp.IsZero() {
+		return ""
+	}
+	return s.EndTimestamp.UTC().Format("15:04")
+}

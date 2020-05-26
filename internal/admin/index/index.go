@@ -48,7 +48,6 @@ func (h *indexHandler) Execute(c *gin.Context) {
 	m["apps"] = apps
 
 	// Load export configurations.
-
 	exportDB := exdb.New(h.env.Database())
 	exports, err := exportDB.GetAllExportConfigs(ctx)
 	if err != nil {
@@ -56,6 +55,14 @@ func (h *indexHandler) Execute(c *gin.Context) {
 		return
 	}
 	m["exports"] = exports
+
+	// Load SignatureInfos
+	sigInfos, err := exportDB.ListAllSigntureInfos(ctx)
+	if err != nil {
+		admin.ErrorPage(c, err.Error())
+		return
+	}
+	m["siginfos"] = sigInfos
 
 	m.AddTitle("Exposure Notifications Server - Admin Console")
 	m.AddJumbotron("Exposure Notification Server", "Admin Console")
