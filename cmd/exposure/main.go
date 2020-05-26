@@ -20,8 +20,11 @@ import (
 	"log"
 	"net/http"
 
+	"go.opencensus.io/plugin/ochttp"
+
 	"github.com/google/exposure-notifications-server/internal/handlers"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	_ "github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
@@ -41,7 +44,9 @@ func main() {
 	if err != nil {
 		logger.Fatalf("unable to create publish handler: %v", err)
 	}
-	http.Handle("/", handlers.WithMinimumLatency(config.MinRequestDuration, handler))
+	mux := http.NewServeMux()
+	mux.Handle("/", handlers.WithMinimumLatency(config.MinRequestDuration, handler))
 	logger.Infof("starting exposure server on :%s", config.Port)
-	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
+	instrumentedHandler := &ochttp.Handler{Handler: mux}
+	log.Fatal(http.ListenAndServe(":"+config.Port, instrumentedHandler))
 }

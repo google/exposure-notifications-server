@@ -28,6 +28,8 @@ import (
 	"net/http"
 	"time"
 
+	"go.opencensus.io/plugin/ochttp"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 )
@@ -41,7 +43,8 @@ var (
 	// use by multiple goroutines.
 	httpClient = &http.Client{
 		// the maximum amount of time to wait for a response
-		Timeout: 5 * time.Second,
+		Timeout:   5 * time.Second,
+		Transport: &ochttp.Transport{},
 	}
 )
 

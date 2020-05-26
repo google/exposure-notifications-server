@@ -21,9 +21,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 )
 
-// AppNotFound is the sentinel error returned when AppConfig fails to find an
+// ErrAppNotFound is the sentinel error returned when AppConfig fails to find an
 // app with the given name.
-var AppNotFound = errors.New("app not found")
+var ErrAppNotFound = errors.New("app not found")
 
 // Provider defines possible AuthorizedApp providers.
 type Provider interface {

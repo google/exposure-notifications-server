@@ -42,7 +42,7 @@ func NewMemoryProvider(ctx context.Context, _ *Config) (Provider, error) {
 func (p *MemoryProvider) AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error) {
 	val, ok := p.Data[name]
 	if !ok {
-		return nil, AppNotFound
+		return nil, ErrAppNotFound
 	}
 	return val, nil
 }

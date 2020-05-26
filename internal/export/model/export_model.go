@@ -36,6 +36,17 @@ type ExportConfig struct {
 	SignatureInfoIDs []int64       `db:"signature_info_ids"`
 }
 
+func (e *ExportConfig) FormattedFromTime() string {
+	return e.From.Format(time.UnixDate)
+}
+
+func (e *ExportConfig) FormattedThruTime() string {
+	if e.Thru.IsZero() {
+		return ""
+	}
+	return e.Thru.Format(time.UnixDate)
+}
+
 type ExportBatch struct {
 	BatchID          int64     `db:"batch_id" json:"batchID"`
 	ConfigID         int64     `db:"config_id" json:"configID"`
@@ -67,4 +78,28 @@ type SignatureInfo struct {
 	SigningKeyVersion string    `db:"signing_key_version"`
 	SigningKeyID      string    `db:"signing_key_id"`
 	EndTimestamp      time.Time `db:"thru_timestamp"`
+}
+
+// FormattedEndTimestamp returns the end date for display in the admin console.
+func (s *SignatureInfo) FormattedEndTimestamp() string {
+	if s.EndTimestamp.IsZero() {
+		return ""
+	}
+	return s.EndTimestamp.UTC().Format(time.UnixDate)
+}
+
+// HTMLEndDate returns EndDate in a format for the HTML date input default value.
+func (s *SignatureInfo) HTMLEndDate() string {
+	if s.EndTimestamp.IsZero() {
+		return ""
+	}
+	return s.EndTimestamp.UTC().Format("2006-01-02")
+}
+
+// HTMLEndTime returns EndDate in a format for the HTML time input default value.
+func (s *SignatureInfo) HTMLEndTime() string {
+	if s.EndTimestamp.IsZero() {
+		return ""
+	}
+	return s.EndTimestamp.UTC().Format("15:04")
 }

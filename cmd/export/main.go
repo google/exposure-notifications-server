@@ -20,8 +20,11 @@ import (
 	"log"
 	"net/http"
 
+	"go.opencensus.io/plugin/ochttp"
+
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	_ "github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
@@ -40,9 +43,11 @@ func main() {
 	if err != nil {
 		logger.Fatalf("unable to create server: %v", err)
 	}
-	http.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
-	http.HandleFunc("/do-work", batchServer.WorkerHandler)               // worker that executes work
+	mux := http.NewServeMux()
+	mux.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
+	mux.HandleFunc("/do-work", batchServer.WorkerHandler)               // worker that executes work
 
 	logger.Infof("starting exposure export server on :%s", config.Port)
-	log.Fatal(http.ListenAndServe(":"+config.Port, nil))
+	instrumentedHandler := &ochttp.Handler{Handler: mux}
+	log.Fatal(http.ListenAndServe(":"+config.Port, instrumentedHandler))
 }

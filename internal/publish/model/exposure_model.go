@@ -278,7 +278,7 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 	for _, exposureKey := range inData.Keys {
 		exposure, err := TransformExposureKey(exposureKey, inData.AppPackageName, upcaseRegions, createdAt, minIntervalNumber, maxIntervalNumber)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid publish data: %v", err)
+			return nil, fmt.Errorf("invalid publish data: %v", err)
 		}
 		entities = append(entities, exposure)
 	}

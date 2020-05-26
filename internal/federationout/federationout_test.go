@@ -89,11 +89,11 @@ func TestFetch(t *testing.T) {
 		name           string
 		excludeRegions []string
 		iterations     []interface{}
-		want           pb.FederationFetchResponse
+		want           *pb.FederationFetchResponse
 	}{
 		{
 			name: "no results",
-			want: pb.FederationFetchResponse{},
+			want: &pb.FederationFetchResponse{},
 		},
 		{
 			name: "basic results",
@@ -103,7 +103,7 @@ func TestFetch(t *testing.T) {
 				makeExposure(ccc, 3, "GB"),
 				makeExposure(ddd, 4, "US", "GB"),
 			},
-			want: pb.FederationFetchResponse{
+			want: &pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
 					{
 						RegionIdentifiers: []string{"US"},
@@ -135,7 +135,7 @@ func TestFetch(t *testing.T) {
 				makeExposure(ccc, 6, "US"),
 				makeExposure(ddd, 5, "CA"),
 			},
-			want: pb.FederationFetchResponse{
+			want: &pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
 					{
 						RegionIdentifiers: []string{"US"},
@@ -162,7 +162,7 @@ func TestFetch(t *testing.T) {
 				makeExposure(ccc, 2, "US"),
 				makeExposure(ddd, 3, "US"),
 			},
-			want: pb.FederationFetchResponse{
+			want: &pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
 					{
 						RegionIdentifiers: []string{"US"},
@@ -185,7 +185,7 @@ func TestFetch(t *testing.T) {
 				makeExposure(ccc, 2, "GB"),
 				makeExposure(ddd, 1, "US", "GB"),
 			},
-			want: pb.FederationFetchResponse{
+			want: &pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
 					{
 						RegionIdentifiers: []string{"GB"},
@@ -212,7 +212,7 @@ func TestFetch(t *testing.T) {
 				makeExposure(ccc, 1, "GB"),
 				makeExposure(ddd, 1, "US", "CA", "GB"),
 			},
-			want: pb.FederationFetchResponse{},
+			want: &pb.FederationFetchResponse{},
 		},
 		{
 			name: "partial result",
@@ -222,7 +222,7 @@ func TestFetch(t *testing.T) {
 				timeout{},
 				makeExposure(ccc, 3, "GB"),
 			},
-			want: pb.FederationFetchResponse{
+			want: &pb.FederationFetchResponse{
 				Response: []*pb.ContactTracingResponse{
 					{
 						RegionIdentifiers: []string{"US"},
@@ -249,8 +249,8 @@ func TestFetch(t *testing.T) {
 			ctx := context.Background()
 			env := serverenv.New(ctx)
 			server := Server{env: env}
-			req := pb.FederationFetchRequest{ExcludeRegionIdentifiers: tc.excludeRegions}
-			got, err := server.fetch(context.Background(), &req, iterFunc(tc.iterations), time.Now())
+			req := &pb.FederationFetchRequest{ExcludeRegionIdentifiers: tc.excludeRegions}
+			got, err := server.fetch(context.Background(), req, iterFunc(tc.iterations), time.Now())
 			if err != nil {
 				t.Fatalf("fetch() returned err=%v, want err=nil", err)
 			}

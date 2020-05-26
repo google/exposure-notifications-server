@@ -1,64 +1,29 @@
-# Exposure Notification Reference Server
+<!-- TOC depthFrom:2 depthTo:6 orderedList:false updateOnSave:true withLinks:true -->
 
-## Building and deploying services
+- [Before you begin](#before-you-begin)
+- [Provisioning infrastructure with Terraform](#provisioning-infrastructure-with-terraform)
+- [Running services](#running-services)
+  - [Building](#building)
+  - [Deploying](#deploying)
+  - [Promoting](#promoting)
+- [Tracing services](#tracing-services)
+- [Running migrations](#running-migrations)
+  - [On Google Cloud](#on-google-cloud)
+  - [On a custom setup](#on-a-custom-setup)
+- [Configuring the server](#configuring-the-server)
+
+<!-- /TOC -->
+
+# Deployment Guide
 
 This page explains how to build and deploy servers within the Exposure
 Notification Reference implementation.
 
-### Before you begin
-
-To build and deploy a service, you need to install and configure the following:
-
-1. Download and install the [Google Cloud SDK](https://cloud.google.com/sdk/install).
-
-    For more information on installation and to set up, see the
-    [Cloud SDK Quickstarts](https://cloud.google.com/sdk/docs/quickstarts).
-
-1. Download and install [Go 1.14.0 or newer](https://golang.org/dl/).
-
-    Make sure the `go/bin/` folder is set in your `PATH` environment variable.
-    For more information on installing and configuring Go, see
-    [Install the Go tools](https://golang.org/doc/install#install).
-
-1. Enable Go modules and install the `ko` container builder and deployment tool:
-
-    ```console
-    GO111MODULE=on
-    go get github.com/google/ko/cmd/ko
-    ```
-
-1. Configure the `ko` tool using the `setup_ko.sh` configuration file:
-
-    ```console
-    source setup_ko.sh
-    ```
-
-### Building and deploying
-
-To build and deploy a service:
-
-1. Generate a [Google Cloud Repository](https://cloud.google.com/container-registry)
-   Docker configuration:
-
-    ```console
-    gcloud auth configure-docker
-    ```
-
-1. Build and deploy the container using the `ko publish` command from the repository's
-   root directory.
-
-    For example, to deploy the exposure key server:
-
-    ```console
-    ko publish ./cmd/exposure
-    ```
-
-You can find a list of services and their corresponding folders below.
-
-### List of services
-
 The Exposure Notification Reference implementation includes multiple services.
 Each service's `main` package is located in the `cmd` directory.
+
+Each service is deployed in the same way, but may accept different configuration
+options. Configuration options are specified via environment variables.
 
 | Service | Folder                | Description |
 |---------|-----------------------|-------------|
@@ -69,7 +34,17 @@ Each service's `main` package is located in the `cmd` directory.
 | exposure cleanup | cmd/cleanup-exposure | Deletes old exposure keys |
 | export cleanup | cmd/cleanup-export | Deletes old exported files published by the exposure key export service |
 
-### Provisioning infrastructure with Terraform
+## Before you begin
+
+To build and deploy the Exposure Notification server services, you need to
+install and configure the following:
+
+1. Download and install the [Google Cloud SDK](https://cloud.google.com/sdk/install).
+
+    For more information on installation and to set up, see the
+    [Cloud SDK Quickstarts](https://cloud.google.com/sdk/docs/quickstarts).
+
+## Provisioning infrastructure with Terraform
 
 You can use [Terraform](https://www.terraform.io) to provision the initial
 infrastructure, database, service accounts, and first deployment of the services
@@ -78,7 +53,7 @@ initial creation!**
 
 See [Deploying with Terraform](../terraform/README.md) for more information.
 
-### Deploying services
+## Running services
 
 While Terraform does an initial deployment of the services, it does not manage
 the Cloud Run services beyond their initial creation. If you make changes to the
@@ -94,7 +69,7 @@ order of operations is:
 1.  **Promote** - this is the phase where a deployed container image begins
     receiving all or a percentage of traffic.
 
-#### Building
+### Building
 
 Build new services by using the script at `./scripts/build`, specifying the
 following values:
@@ -115,7 +90,7 @@ SERVICES="export" \
 
 Expect this process to take 3-5 minutes.
 
-#### Deploying
+### Deploying
 
 Deploy already-built container using the script at `./scripts/deploy`,
 specifying the following values:
@@ -140,7 +115,7 @@ TAG="20200521084829" \
 
 Expect this process to take 1-2 minutes.
 
-#### Promoting
+### Promoting
 
 Promote an already-deployed service to begin receiving production traffic using
 the script at `./scripts/promote`, specifying the following values:
@@ -168,9 +143,18 @@ SERVICES="export" \
 
 Expect this process to take 1-2 minutes.
 
-### Running migrations
+## Tracing services
 
-#### On Google Cloud
+To enable distributed tracing, please ensure your environment has these variables
+
+Variable|Values|Comment
+---|---|---
+OBSERVABILITY_EXPORTER|If unset, no exporting shall be done. Use any of "stackdriver" or "ocagent" otherwise
+PROJECT_ID|The ProjectID of your associated Google Cloud Platform project on which this application shall be deployed|Required if you use "stackdrver"
+
+## Running migrations
+
+### On Google Cloud
 
 To migrate the production database, use the script in `./scripts/migrate`. This
 script triggers a Cloud Build invocation which uses the Cloud SQL Proxy to run
@@ -200,9 +184,10 @@ DB_CONN=$(terraform output db_conn)
 DB_PASS_SECRET=$(terraform output db_pass_secret)
 ```
 
-#### On a custom setup
+### On a custom setup
 
-If you did not use the Terraform configurations to provision your server, or if you are running your own Postgres server,
+If you did not use the Terraform configurations to provision your server, or if
+you are running your own Postgres server,
 
 1.  Download and install the
     [`migrate`](https://github.com/golang-migrate/migrate) tool.
@@ -221,3 +206,57 @@ If you did not use the Terraform configurations to provision your server, or if 
       -path ./migrations \
       up
     ```
+
+## Configuring the server
+
+This repository includes a configuration tool which provides a browser-based
+interface for manipulating the database-backed configuration. This admin tool
+**does not have authentication / authorization** and **should not be deployed on
+the public Internet!**
+
+1.  Export the database connection parameters:
+
+    ```text
+    export DB_CONN=...
+    export DB_USER=...
+    export DB_PASSWORD="secret://..."
+    export DB_PORT=...
+    export DB_NAME=...
+    ```
+
+    If you used Terraform to provision the infrastructure:
+
+    ```text
+    cd terraform/
+    export DB_CONN=$(terraform output db_conn)
+    export DB_USER=$(terraform output db_user)
+    export DB_PASSWORD="secret://$(terraform output db_pass_secret)"
+    export DB_PORT=5432
+    export DB_NAME=$(terraform output db_name)
+    cd ../
+    ```
+
+1.  Configure the Cloud SQL proxy:
+
+    If you are using Cloud SQL, start the proxy locally:
+
+    ```text
+    cloud_sql_proxy -instances=$DB_CONN=tcp:$DB_PORT &
+    ```
+
+    And disable SSL verification:
+
+    ```text
+    # Cloud SQL uses a local proxy and handles TLS communication automatically
+    export DB_SSLMODE=disable
+    ```
+
+1.  Start the admin console:
+
+    ```text
+    go run ./tools/admin-console
+    ```
+
+1.  Open a browser to [localhost:8080](http://localhost:8080/).
+
+    **Remember, you are editing the live configuration of the database!**

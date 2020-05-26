@@ -17,8 +17,6 @@ package database
 import (
 	"context"
 	"errors"
-	"log"
-	"os"
 	"sort"
 	"testing"
 	"time"
@@ -31,66 +29,54 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-var testDB *database.DB
+func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
+	t.Parallel()
 
-func TestMain(m *testing.M) {
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
-	if os.Getenv("DB_USER") != "" {
-		var err error
-		testDB, err = database.CreateTestDB(ctx)
-		if err != nil {
-			log.Fatalf("creating test DB: %v", err)
-		}
-	}
-	os.Exit(m.Run())
-}
-
-func TestAddSignatureInfo(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
-	ctx := context.Background()
-
-	thruTime := time.Now().UTC().Add(6 * time.Hour).Truncate(time.Microsecond)
 	want := &model.SignatureInfo{
 		SigningKey:        "/kms/project/key/1",
 		SigningKeyVersion: "1",
 		SigningKeyID:      "310",
-		EndTimestamp:      thruTime,
+		EndTimestamp:      time.Time{},
 	}
-	if err := New(testDB).AddSignatureInfo(ctx, want); err != nil {
+	exDB := New(testDB)
+	if err := exDB.AddSignatureInfo(ctx, want); err != nil {
 		t.Fatal(err)
 	}
-	conn, err := testDB.Pool.Acquire(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Release()
-	var got model.SignatureInfo
-	err = conn.QueryRow(ctx, `
-		SELECT
-		  id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
-		FROM
-			SignatureInfo
-		WHERE
-			id = $1
-	`, want.ID).Scan(&got.ID, &got.SigningKey, &got.AppPackageName, &got.BundleID, &got.SigningKeyVersion, &got.SigningKeyID, &got.EndTimestamp)
+
+	got, err := exDB.GetSignatureInfo(ctx, want.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(want, &got); diff != "" {
-		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	// Update, set expiry timestamp.
+	want.EndTimestamp = time.Now().UTC().Add(24 * time.Hour)
+	want.EndTimestamp = want.EndTimestamp.Truncate(time.Second)
+	if err := exDB.UpdateSignatureInfo(ctx, want); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err = exDB.GetSignatureInfo(ctx, want.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got.EndTimestamp = got.EndTimestamp.Truncate(time.Second)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}
 }
 
 func TestLookupSignatureInfos(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
 	testTime := time.Now().UTC()
@@ -132,10 +118,9 @@ func TestLookupSignatureInfos(t *testing.T) {
 }
 
 func TestAddExportConfig(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
 	fromTime := time.Now()
@@ -182,10 +167,9 @@ func TestAddExportConfig(t *testing.T) {
 }
 
 func TestIterateExportConfigs(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
 	now := time.Now().Truncate(time.Microsecond)
@@ -238,10 +222,9 @@ func TestIterateExportConfigs(t *testing.T) {
 }
 
 func TestBatches(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
 	now := time.Now().Truncate(time.Microsecond)
@@ -348,11 +331,10 @@ func TestBatches(t *testing.T) {
 }
 
 func TestFinalizeBatch(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	exportDB := New(testDB)
-	defer database.ResetTestDB(t, testDB)
 	ctx := context.Background()
 	now := time.Now().Truncate(time.Microsecond)
 
@@ -443,10 +425,9 @@ func TestFinalizeBatch(t *testing.T) {
 
 // TestKeysInBatch ensures that keys are fetched in the correct batch when they fall on boundary conditions.
 func TestKeysInBatch(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 	now := time.Now()
 
@@ -540,10 +521,9 @@ func TestKeysInBatch(t *testing.T) {
 
 // TestAddExportFileSkipsDuplicates ensures that ExportFile records are not overwritten.
 func TestAddExportFileSkipsDuplicates(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer database.ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	exportDB := New(testDB)
 	ctx := context.Background()
 
@@ -613,3 +593,5 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 		t.Fatalf("bucket name mismatch got %q, want %q", got.BucketName, wantBucketName)
 	}
 }
+
+// TODO(jan25) add TestDeleteFilesBefore. Related to issue #241

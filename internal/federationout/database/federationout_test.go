@@ -19,18 +19,21 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/exposure-notifications-server/internal/database"
+	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/federationin/model"
+
 	"github.com/google/go-cmp/cmp"
 )
 
 // TestFederationOutAuthorization tests the functions accessing the FederationOutAuthorization table.
 func TestFederationOutAuthorization(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer ResetTestDB(t, testDB)
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
-	want := &FederationOutAuthorization{
+	want := &model.FederationOutAuthorization{
 		Issuer:         "iss",
 		Subject:        "sub",
 		Audience:       "aud",
@@ -40,14 +43,14 @@ func TestFederationOutAuthorization(t *testing.T) {
 	}
 
 	// GetFederationOutAuthorization should fail if not found.
-	if _, err := testDB.GetFederationOutAuthorization(ctx, want.Issuer, want.Subject); !errors.Is(err, ErrNotFound) {
+	if _, err := New(testDB).GetFederationOutAuthorization(ctx, want.Issuer, want.Subject); !errors.Is(err, coredb.ErrNotFound) {
 		t.Errorf("got %v, want ErrNotFound", err)
 	}
 	// Add a query, then get it.
-	if err := testDB.AddFederationOutAuthorization(ctx, want); err != nil {
+	if err := New(testDB).AddFederationOutAuthorization(ctx, want); err != nil {
 		t.Fatal(err)
 	}
-	got, err := testDB.GetFederationOutAuthorization(ctx, want.Issuer, want.Subject)
+	got, err := New(testDB).GetFederationOutAuthorization(ctx, want.Issuer, want.Subject)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,10 +60,10 @@ func TestFederationOutAuthorization(t *testing.T) {
 
 	// AddFederationOutAuthorization should overwrite.
 	want.Note = "a different note"
-	if err := testDB.AddFederationOutAuthorization(ctx, want); err != nil {
+	if err := New(testDB).AddFederationOutAuthorization(ctx, want); err != nil {
 		t.Fatal(err)
 	}
-	got, err = testDB.GetFederationOutAuthorization(ctx, want.Issuer, want.Subject)
+	got, err = New(testDB).GetFederationOutAuthorization(ctx, want.Issuer, want.Subject)
 	if err != nil {
 		t.Fatal(err)
 	}

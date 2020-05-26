@@ -28,17 +28,22 @@ import (
 	"time"
 
 	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/federationin/database"
+	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/pb"
-	"github.com/google/exposure-notifications-server/internal/publish/database"
-	"github.com/google/exposure-notifications-server/internal/publish/model"
+	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 
 	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/oauth"
+
+	"go.opencensus.io/plugin/ocgrpc"
+	"go.opencensus.io/trace"
 )
 
 const (
@@ -46,13 +51,13 @@ const (
 )
 
 var (
-	fetchBatchSize = database.InsertExposuresBatchSize
+	fetchBatchSize = publishdb.InsertExposuresBatchSize
 )
 
 type (
 	fetchFn               func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
-	insertExposuresFn     func(context.Context, []*model.Exposure) error
-	startFederationSyncFn func(context.Context, *coredb.FederationInQuery, time.Time) (int64, coredb.FinalizeSyncFn, error)
+	insertExposuresFn     func(context.Context, []*publishmodel.Exposure) error
+	startFederationSyncFn func(context.Context, *model.FederationInQuery, time.Time) (int64, database.FinalizeSyncFn, error)
 )
 
 type pullDependencies struct {
@@ -66,21 +71,23 @@ type pullDependencies struct {
 func NewHandler(env *serverenv.ServerEnv, config *Config) http.Handler {
 	return &handler{
 		env:       env,
-		db:        env.Database(),
-		publishdb: database.New(env.Database()),
+		db:        database.New(env.Database()),
+		publishdb: publishdb.New(env.Database()),
 		config:    config,
 	}
 }
 
 type handler struct {
 	env       *serverenv.ServerEnv
-	db        *coredb.DB
-	publishdb *database.PublishDB
+	db        *database.FederationInDB
+	publishdb *publishdb.PublishDB
 	config    *Config
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := trace.StartSpan(r.Context(), "(*federationin.handler).ServeHTTP")
+	defer span.End()
+
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)
 
@@ -147,7 +154,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tlsConfig := &tls.Config{RootCAs: cp, InsecureSkipVerify: h.config.TLSSkipVerify}
-	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))}
+	dialOpts := []grpc.DialOption{
+		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
+		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+	}
 
 	var clientOpts []idtoken.ClientOption
 	if h.config.CredentialsFile != "" {
@@ -158,7 +168,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		internalErrorf(ctx, w, "Failed to create token source: %v", err)
 		return
 	}
-	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{ts}))
+	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{
+		TokenSource: ts,
+	}))
 
 	logger.Infof("Dialing %s", query.ServerAddr)
 	conn, err := grpc.Dial(query.ServerAddr, dialOpts...)
@@ -188,7 +200,15 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *coredb.FederationInQuery, batchStart time.Time, truncateWindow time.Duration) error {
+func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, q *model.FederationInQuery, batchStart time.Time, truncateWindow time.Duration) (err error) {
+	ctx, span := trace.StartSpan(ctx, "federationin.pull")
+	defer func() {
+		if err != nil {
+			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
+		}
+		span.End()
+	}()
+
 	logger := logging.FromContext(ctx)
 	logger.Infof("Processing query %q", q.QueryID)
 
@@ -209,9 +229,12 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 		logger.Infof("Inserted %d keys", total)
 	}()
 
-	createdAt := model.TruncateWindow(batchStart, truncateWindow)
+	createdAt := publishmodel.TruncateWindow(batchStart, truncateWindow)
 	partial := true
+	nPartials := int64(0)
 	for partial {
+		nPartials++
+		span.AddAttributes(trace.Int64Attribute("n_partial", nPartials))
 
 		// TODO(squee1945): react to the context timeout and complete a chunk of work so next invocation can pick up where left off.
 
@@ -225,8 +248,8 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 			maxTimestamp = responseTimestamp
 		}
 
-		// Loop through the result set, storing in database.
-		var exposures []*model.Exposure
+		// Loop through the result set, storing in publishdb.
+		var exposures []*publishmodel.Exposure
 		for _, ctr := range response.Response {
 
 			var upperRegions []string
@@ -238,12 +261,12 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 			for _, cti := range ctr.ContactTracingInfo {
 				for _, key := range cti.ExposureKeys {
 
-					if cti.TransmissionRisk < model.MinTransmissionRisk || cti.TransmissionRisk > model.MaxTransmissionRisk {
+					if cti.TransmissionRisk < publishmodel.MinTransmissionRisk || cti.TransmissionRisk > publishmodel.MaxTransmissionRisk {
 						logger.Errorf("invalid transmission risk %v - dropping record.", cti.TransmissionRisk)
 						continue
 					}
 
-					exposures = append(exposures, &model.Exposure{
+					exposures = append(exposures, &publishmodel.Exposure{
 						TransmissionRisk: int(cti.TransmissionRisk),
 						ExposureKey:      key.ExposureKey,
 						Regions:          upperRegions,

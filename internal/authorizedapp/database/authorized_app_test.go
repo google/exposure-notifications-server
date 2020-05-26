@@ -22,13 +22,11 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"log"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
-	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -45,26 +43,65 @@ func (s *testSecretManager) GetSecretValue(ctx context.Context, name string) (st
 	return v, nil
 }
 
-var testDB *coredb.DB
+func TestAuthorizedAppLifecycle(t *testing.T) {
+	t.Parallel()
 
-func TestMain(m *testing.M) {
+	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
-
-	if os.Getenv("DB_USER") != "" {
-		var err error
-		testDB, err = coredb.CreateTestDB(ctx)
-		if err != nil {
-			log.Fatalf("creating test DB: %v", err)
-		}
+	aadb := New(testDB)
+	sm := &testSecretManager{
+		values: map[string]string{},
 	}
-	os.Exit(m.Run())
+
+	source := &model.AuthorizedApp{
+		AppPackageName:      "myapp",
+		Platform:            "both",
+		AllowedRegions:      map[string]struct{}{"US": {}},
+		SafetyNetDisabled:   true,
+		DeviceCheckDisabled: true,
+	}
+
+	if err := aadb.InsertAuthorizedApp(ctx, source); err != nil {
+		t.Fatal(err)
+	}
+
+	readBack, err := aadb.GetAuthorizedApp(ctx, sm, source.AppPackageName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(source, readBack); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	source.AllowedRegions["CA"] = struct{}{}
+	if err := aadb.UpdateAuthorizedApp(ctx, source.AppPackageName, source); err != nil {
+		t.Fatal(err)
+	}
+
+	readBack, err = aadb.GetAuthorizedApp(ctx, sm, source.AppPackageName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(source, readBack); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	if err := aadb.DeleteAuthorizedApp(ctx, source.AppPackageName); err != nil {
+		t.Fatal(err)
+	}
+
+	readBack, err = aadb.GetAuthorizedApp(ctx, sm, source.AppPackageName)
+	if err != nil {
+		t.Errorf("unexpected error seen: %v", err)
+	}
+	if readBack != nil {
+		t.Fatal("expected record to be deleted, but it wasn't")
+	}
 }
 
 func TestGetAuthorizedApp(t *testing.T) {
-	if testDB == nil {
-		t.Skip("no test DB")
-	}
-	defer coredb.ResetTestDB(t, testDB)
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Create private key for parsing later
@@ -100,7 +137,6 @@ func TestGetAuthorizedApp(t *testing.T) {
 				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions)
 				VALUES ($1, $2, $3)
 			`,
-
 			args: []interface{}{"myapp", "android", []string{"US"}},
 			exp: &model.AuthorizedApp{
 				AppPackageName:           "myapp",
@@ -204,15 +240,16 @@ func TestGetAuthorizedApp(t *testing.T) {
 				false, "ABCD1234", "DEFG5678", "private_key",
 			},
 			exp: &model.AuthorizedApp{
-				AppPackageName:           "myapp",
-				Platform:                 "ios",
-				AllowedRegions:           map[string]struct{}{"US": {}},
-				SafetyNetCTSProfileMatch: true,
-				SafetyNetBasicIntegrity:  true,
-				DeviceCheckDisabled:      false,
-				DeviceCheckTeamID:        "ABCD1234",
-				DeviceCheckKeyID:         "DEFG5678",
-				DeviceCheckPrivateKey:    p8PrivateKey,
+				AppPackageName:              "myapp",
+				Platform:                    "ios",
+				AllowedRegions:              map[string]struct{}{"US": {}},
+				SafetyNetCTSProfileMatch:    true,
+				SafetyNetBasicIntegrity:     true,
+				DeviceCheckDisabled:         false,
+				DeviceCheckTeamID:           "ABCD1234",
+				DeviceCheckKeyID:            "DEFG5678",
+				DeviceCheckPrivateKey:       p8PrivateKey,
+				DeviceCheckPrivateKeySecret: "private_key",
 			},
 		},
 		{
@@ -227,13 +264,16 @@ func TestGetAuthorizedApp(t *testing.T) {
 		c := c
 
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			testDB := database.NewTestDatabase(t)
+
 			// Acquire a connection
 			conn, err := testDB.Pool.Acquire(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer conn.Release()
-			defer coredb.ResetTestDB(t, testDB)
 
 			// Insert the data
 			if _, err := conn.Exec(ctx, c.sql, c.args...); err != nil {

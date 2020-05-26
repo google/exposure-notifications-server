@@ -1,0 +1,56 @@
+{{define "top"}}
+<html>
+<head>
+  <title>{{if .title}} {{.title}} {{else}} Exposure Notifications {{end}}</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+  <style>
+  #main {
+    padding-top: 10px;
+  }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+   <a class="navbar-brand" href="#">Exposure Notification Server</a>
+   <div class="collapse navbar-collapse" id="navbarText">
+      <ul class="navbar-nav mr-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="/">Home</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+<div class="container" id="main">
+
+{{if .jumbotron}}
+<div class="jumbotron">
+  <h1 class="display-4">{{.jumbotron}}</h1>
+	{{if .jumbotronsub}}
+  <h2 class="display-4">{{.jumbotronsub}}</h2>
+	{{end}}
+  <hr class="my-4">
+</div>
+{{end}}
+
+{{if .error}}
+<div class="alert alert-danger" role="alert">
+  <ul>
+  {{range .error}}
+    <li>{{.}}</li>
+  {{end}}
+  </ul>
+</div>
+{{end}}
+{{if .success}}
+<div class="alert alert-success" role="alert">
+  <ul>
+  {{range .success}}
+    <li>{{.}}</li>
+  {{end}}
+  </ul>
+</div>
+{{end}}
+
+{{end}}

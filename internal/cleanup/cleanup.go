@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"time"
 
+	"go.opencensus.io/trace"
+
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 
@@ -54,13 +56,17 @@ type exposureCleanupHandler struct {
 }
 
 func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := trace.StartSpan(r.Context(), "(*cleanup.exposureCleanupHandler).ServeHTTP")
+	defer span.End()
+
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)
 
 	cutoff, err := cutoffDate(h.config.TTL)
 	if err != nil {
-		logger.Errorf("error processing cutoff time: %v", err)
+		message := fmt.Sprintf("error processing cutoff time: %v", err)
+		logger.Error(message)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		metrics.WriteInt("cleanup-exposures-setup-failed", true, 1)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
@@ -74,8 +80,10 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 	count, err := h.database.DeleteExposures(timeoutCtx, cutoff)
 	if err != nil {
-		logger.Errorf("Failed deleting exposures: %v", err)
+		message := fmt.Sprintf("Failed deleting exposures: %v", err)
+		logger.Error(message)
 		metrics.WriteInt("cleanup-exposures-delete-failed", true, 1)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
@@ -111,14 +119,18 @@ type exportCleanupHandler struct {
 }
 
 func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := trace.StartSpan(r.Context(), "(*cleanup.exportCleanupHandler).ServeHTTP")
+	defer span.End()
+
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)
 
 	cutoff, err := cutoffDate(h.config.TTL)
 	if err != nil {
-		logger.Errorf("error calculating cutoff time: %v", err)
+		message := fmt.Sprintf("error calculating cutoff time: %v", err)
 		metrics.WriteInt("cleanup-exports-setup-failed", true, 1)
+		logger.Error(message)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
@@ -131,8 +143,10 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 
 	count, err := h.database.DeleteFilesBefore(timeoutCtx, cutoff, h.blobstore)
 	if err != nil {
-		logger.Errorf("Failed deleting export files: %v", err)
+		message := fmt.Sprintf("Failed deleting export files: %v", err)
+		logger.Error(message)
 		metrics.WriteInt("cleanup-exports-delete-failed", true, 1)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}

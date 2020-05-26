@@ -1,0 +1,42 @@
+{{define "index"}}
+{{template "top" .}}
+
+<h2>Authorized Applications</h2>
+<ul>
+  {{if .apps}}
+    {{range .apps}}
+      <li><a href="/app?apn={{.AppPackageName}}">{{.AppPackageName}}</a> | {{.Platform}}</li>
+    {{end}}
+  {{else}}
+    <li><i>There are no authorized applications</i></li>
+  {{end}}
+</ul>
+<a href="/app?apn="  class="btn btn-outline-primary">Create new Authorized Application</a>
+
+<hr/>
+<h2>Export Configurations</h2>
+<ul>
+ {{if .exports}}
+   {{range .exports}}
+     <li><a href="#">{{.ConfigID}}</a> Region: {{.Region}} | Bucket: {{.BucketName}} | From: {{.FormattedFromTime}} | Thru: {{.FormattedThruTime}}</li>
+   {{end}}
+ {{else}}
+   <li><i>There are no export configurations</i></li>
+ {{end}}
+</ul>
+
+<hr/>
+<h2>Signature Info</h2>
+<ul>
+  {{if .siginfos}}
+    {{range .siginfos}}
+      <li><a href="/siginfo/{{.ID}}">{{.ID}}: KeyID: {{.SigningKeyID}}</a> | Version: {{.SigningKeyVersion}} | Thru: {{.FormattedEndTimestamp}} | SigningKey: {{.SigningKey}}</li>
+    {{end}}
+  {{else}}
+    <li><i>There are no signature info configurations.</i></li>
+  {{end}}
+</ul>
+<a href="/siginfo/0"  class="btn btn-outline-primary">Create new Signature Info</a>
+
+{{template "bottom" .}}
+{{end}}

@@ -1,0 +1,28 @@
+name: 'Close stale'
+on:
+  schedule:
+  - cron: '0 0 * * *'
+
+jobs:
+  stale:
+    runs-on: 'ubuntu-latest'
+    steps:
+    - uses: 'actions/stale@v3'
+      with:
+        repo-token: '${{ secrets.GITHUB_TOKEN }}'
+
+        stale-issue-message: |-
+          This issue is stale because it has been open for 14 days with no
+          activity. It will automatically close after 7 more days of inactivity.
+        stale-issue-label: 'kind/stale'
+        exempt-issue-labels: 'priority/important-soon,kind/bug'
+
+        stale-pr-message: |-
+          This Pull Request is stale because it has been open for 14 days with
+          no activity. It will automatically close after 7 more days of
+          inactivity.
+        stale-pr-label: 'kind/stale'
+        exempt-pr-labels: 'priority/important-soon,kind/bug'
+
+        days-before-stale: 14
+        days-before-close: 7

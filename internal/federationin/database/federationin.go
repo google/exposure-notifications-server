@@ -19,17 +19,34 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	pgx "github.com/jackc/pgx/v4"
 )
+
+type FederationInDB struct {
+	db *database.DB
+}
+
+func New(db *database.DB) *FederationInDB {
+	return &FederationInDB{
+		db: db,
+	}
+}
 
 // FinalizeSyncFn is used to finalize a historical sync record.
 type FinalizeSyncFn func(maxTimestamp time.Time, totalInserted int) error
 
 type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx.Row
 
+// Lock acquires lock with given name that times out after ttl. Returns an UnlockFn that can be used to unlock the lock. ErrAlreadyLocked will be returned if there is already a lock in use.
+func (db *FederationInDB) Lock(ctx context.Context, lockID string, ttl time.Duration) (database.UnlockFn, error) {
+	return db.db.Lock(ctx, lockID, ttl)
+}
+
 // GetFederationInQuery returns a query for given queryID. If not found, ErrNotFound will be returned.
-func (db *DB) GetFederationInQuery(ctx context.Context, queryID string) (*FederationInQuery, error) {
-	conn, err := db.Pool.Acquire(ctx)
+func (db *FederationInDB) GetFederationInQuery(ctx context.Context, queryID string) (*model.FederationInQuery, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -38,7 +55,7 @@ func (db *DB) GetFederationInQuery(ctx context.Context, queryID string) (*Federa
 	return getFederationInQuery(ctx, queryID, conn.QueryRow)
 }
 
-func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRowFn) (*FederationInQuery, error) {
+func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRowFn) (*model.FederationInQuery, error) {
 	row := queryRow(ctx, `
 		SELECT
 			query_id, server_addr, oidc_audience, include_regions, exclude_regions, last_timestamp
@@ -49,10 +66,10 @@ func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRow
 		`, queryID)
 
 	// See https://www.opsdash.com/blog/postgres-arrays-golang.html for working with Postgres arrays in Go.
-	q := FederationInQuery{}
+	q := model.FederationInQuery{}
 	if err := row.Scan(&q.QueryID, &q.ServerAddr, &q.Audience, &q.IncludeRegions, &q.ExcludeRegions, &q.LastTimestamp); err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, ErrNotFound
+			return nil, database.ErrNotFound
 		}
 		return nil, fmt.Errorf("scanning results: %w", err)
 	}
@@ -60,8 +77,8 @@ func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRow
 }
 
 // AddFederationInQuery adds a FederationInQuery entity. It will overwrite a query with matching q.queryID if it exists.
-func (db *DB) AddFederationInQuery(ctx context.Context, q *FederationInQuery) error {
-	return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+func (db *FederationInDB) AddFederationInQuery(ctx context.Context, q *model.FederationInQuery) error {
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		query := `
 			INSERT INTO
 				FederationInQuery
@@ -82,8 +99,8 @@ func (db *DB) AddFederationInQuery(ctx context.Context, q *FederationInQuery) er
 }
 
 // GetFederationInSync returns a federation sync record for given syncID. If not found, ErrNotFound will be returned.
-func (db *DB) GetFederationInSync(ctx context.Context, syncID int64) (*FederationInSync, error) {
-	conn, err := db.Pool.Acquire(ctx)
+func (db *FederationInDB) GetFederationInSync(ctx context.Context, syncID int64) (*model.FederationInSync, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -92,7 +109,7 @@ func (db *DB) GetFederationInSync(ctx context.Context, syncID int64) (*Federatio
 	return getFederationInSync(ctx, syncID, conn.QueryRow)
 }
 
-func getFederationInSync(ctx context.Context, syncID int64, queryRowContext queryRowFn) (*FederationInSync, error) {
+func getFederationInSync(ctx context.Context, syncID int64, queryRowContext queryRowFn) (*model.FederationInSync, error) {
 	row := queryRowContext(ctx, `
 		SELECT
 			sync_id, query_id, started, completed, insertions, max_timestamp
@@ -102,14 +119,14 @@ func getFederationInSync(ctx context.Context, syncID int64, queryRowContext quer
 			sync_id=$1
 		`, syncID)
 
-	s := FederationInSync{}
+	s := model.FederationInSync{}
 	var (
 		completed, max *time.Time
 		insertions     *int
 	)
 	if err := row.Scan(&s.SyncID, &s.QueryID, &s.Started, &completed, &insertions, &max); err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, ErrNotFound
+			return nil, database.ErrNotFound
 		}
 		return nil, fmt.Errorf("scanning results: %w", err)
 	}
@@ -126,8 +143,8 @@ func getFederationInSync(ctx context.Context, syncID int64, queryRowContext quer
 }
 
 // StartFederationInSync stores a historical record of a query sync starting. It returns a FederationInSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
-func (db *DB) StartFederationInSync(ctx context.Context, q *FederationInQuery, started time.Time) (int64, FinalizeSyncFn, error) {
-	conn, err := db.Pool.Acquire(ctx)
+func (db *FederationInDB) StartFederationInSync(ctx context.Context, q *model.FederationInQuery, started time.Time) (int64, FinalizeSyncFn, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return 0, nil, fmt.Errorf("acquiring connection: %w", err)
 	}
@@ -151,9 +168,9 @@ func (db *DB) StartFederationInSync(ctx context.Context, q *FederationInQuery, s
 	}
 
 	finalize := func(maxTimestamp time.Time, totalInserted int) error {
-		completed := started.Add(time.Now().Sub(startedTimer))
+		completed := started.Add(time.Since(startedTimer))
 
-		return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Special case: when no keys are pulled, the maxTimestamp will be 0, so we don't update the
 			// FederationQuery in this case to prevent it from going back and fetching old keys from the past.
 			if totalInserted > 0 {

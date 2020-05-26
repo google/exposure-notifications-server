@@ -16,7 +16,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -30,16 +29,6 @@ var (
 	// ErrKeyConflict indicates that there was a key conflict inserting a row.
 	ErrKeyConflict = errors.New("key conflict")
 )
-
-func toNullString(s string) sql.NullString {
-	if s == "" {
-		return sql.NullString{}
-	}
-	return sql.NullString{
-		String: s,
-		Valid:  true,
-	}
-}
 
 // InTx runs the given function f within a transaction with isolation level isoLevel.
 func (db *DB) InTx(ctx context.Context, isoLevel pgx.TxIsoLevel, f func(tx pgx.Tx) error) error {
