@@ -86,9 +86,9 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*publishmodel.Exposure
 	return buf.Bytes(), nil
 }
 
-// Unmarshals export file and extract exposure keys information.
-func UnmarshalExportFile(payload []byte) (*export.TemporaryExposureKeyExport, error) {
-	zp, err := zip.NewReader(bytes.NewReader(payload), int64(len(payload)))
+// Unmarshal extracts the protobuf encoded exposure key present in the zip archived payload.
+func UnmarshalExportFile(zippedProtoPayload []byte) (*export.TemporaryExposureKeyExport, error) {
+	zp, err := zip.NewReader(bytes.NewReader(zippedProtoPayload), int64(len(zippedProtoPayload)))
 	if err != nil {
 		return nil, fmt.Errorf("Can't read payload: %v", err)
 	}
@@ -104,10 +104,10 @@ func UnmarshalExportFile(payload []byte) (*export.TemporaryExposureKeyExport, er
 
 func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, error) {
 	f, err := file.Open()
-	defer f.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 
 	content, err := ioutil.ReadAll(f)
 	if err != nil {
