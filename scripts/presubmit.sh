@@ -29,7 +29,7 @@ ${ROOT}/scripts/dev protoc
 # Don't verify generated pb files here as they are tidied later.
 
 
-echo "🧽 Verify goimports formattting"
+echo "🧽 Verify goimports formatting"
 set +e
 which goimports >/dev/null 2>&1
 if [ $? -ne 0 ]; then
