@@ -41,7 +41,7 @@ You can read tutorials on deploying and using the reference Exposure Notificatio
 Server here:
 
 * [Deployment guide](deploying.md)
-* [Contributor guide](/CONTRIBUTING.md)
+* [Contributor guide](https://github.com/google/exposure-notifications-server/blob/master/CONTRIBUTING.md)
 * [Server Functional Requirements](server_functional_requirements.md)
 * [Server Deployment Options](server_deployment_options.md)
 * [Reference documentation](https://pkg.go.dev/mod/github.com/google/exposure-notifications-server)
