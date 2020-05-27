@@ -33,13 +33,16 @@ import (
 )
 
 const (
-	fixedHeaderWidth     = 16
-	fixedHeader          = "EK Export v1    "
 	exportBinaryName     = "export.bin"
 	exportSignatureName  = "export.sig"
 	defaultIntervalCount = 144
 	// http://oid-info.com/get/1.2.840.10045.4.3.2
 	algorithm = "1.2.840.10045.4.3.2"
+)
+
+var (
+	fixedHeader      = []byte("EK Export v1    ")
+	fixedHeaderWidth = 16
 )
 
 type ExportSigners struct {
@@ -115,9 +118,8 @@ func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, error
 	}
 
 	prefix := content[:fixedHeaderWidth]
-	sprefix := string(prefix)
-	if sprefix != fixedHeader {
-		return nil, fmt.Errorf("Unknown prefix: %v", sprefix)
+	if !bytes.Equal(prefix, fixedHeader) {
+		return nil, fmt.Errorf("unknown prefix: %v", string(prefix))
 	}
 
 	message := new(export.TemporaryExposureKeyExport)
@@ -130,7 +132,7 @@ func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, error
 }
 
 func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, batchNum int32, batchSize int32, signers []ExportSigners) ([]byte, error) {
-	exportBytes := []byte(fixedHeader)
+	exportBytes := fixedHeader
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))
 	}
