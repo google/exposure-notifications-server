@@ -394,7 +394,8 @@ func TestFinalizeBatch(t *testing.T) {
 	}
 
 	// Check that files were written.
-	gotFiles, err := exportDB.LookupExportFiles(ctx, eb.ConfigID)
+	ttl, _ := time.ParseDuration("20h")
+	gotFiles, err := exportDB.LookupExportFiles(ctx, ttl)
 	if err != nil {
 		t.Fatal(err)
 	}
