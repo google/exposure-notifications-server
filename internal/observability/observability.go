@@ -18,7 +18,6 @@ import (
 	"os"
 	"sync"
 
-	"contrib.go.opencensus.io/exporter/ocagent"
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/plugin/ochttp"
@@ -68,14 +67,6 @@ func exporter() traceAndViewExporter {
 	default:
 		// TODO: Add other trace and view exporters and break out of this.
 		return nil
-
-	case "ocagent":
-		// In here we'll initialize the Stackdriver exporter.
-		oce, err := ocagent.NewExporter(ocagent.WithInsecure(), ocagent.WithAddress("localhost:55678"))
-		if err != nil {
-			panic(err)
-		}
-		return oce
 
 	case "stackdriver":
 		sde, err := stackdriver.NewExporter(stackdriver.Options{
