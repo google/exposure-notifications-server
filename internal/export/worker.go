@@ -252,9 +252,9 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 
 func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObjectNames []string) (string, int, error) {
 	exportDB := database.New(s.db)
-	objects, err := exportDB.LookupExportFiles(ctx, eb.ConfigID)
+	objects, err := exportDB.LookupExportFiles(ctx, s.config.TTL)
 	if err != nil {
-		return "", 0, fmt.Errorf("lookup existing export files for batch %d: %w", eb.BatchID, err)
+		return "", 0, fmt.Errorf("lookup available export files: %w", err)
 	}
 
 	// Add the new objects (they haven't been committed to the database yet).

@@ -423,7 +423,7 @@ func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.
 		defer conn.Release()
 
 		// Query for batches that are OPEN or PENDING with expired lease. Also, only return batches with end timestamp
-		// in the past (i.e., the batch is complete).
+		// in the past (i.e., the data for the batch has all arrived).
 		rows, err := conn.Query(ctx, `
 			SELECT
 				batch_id
@@ -588,14 +588,15 @@ func (db *ExportDB) FinalizeBatch(ctx context.Context, eb *model.ExportBatch, fi
 	})
 }
 
-// LookupExportFiles returns a list of export files for the given ExportConfig exportConfigID.
-func (db *ExportDB) LookupExportFiles(ctx context.Context, exportConfigID int64) ([]string, error) {
+// LookupExportFiles returns a list of completed and unexpired export files.
+func (db *ExportDB) LookupExportFiles(ctx context.Context, ttl time.Duration) ([]string, error) {
 	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
 	}
 	defer conn.Release()
 
+	minTime := time.Now().Add(-1 * ttl)
 	rows, err := conn.Query(ctx, `
 		SELECT
 			ef.filename
@@ -604,12 +605,12 @@ func (db *ExportDB) LookupExportFiles(ctx context.Context, exportConfigID int64)
 		INNER JOIN
 			ExportBatch eb ON (eb.batch_id = ef.batch_id)
 		WHERE
-			eb.config_id = $1
+			eb.start_timestamp > $1
 		AND
 			eb.status = $2
 		ORDER BY
 			ef.filename
-		`, exportConfigID, model.ExportBatchComplete)
+		`, minTime, model.ExportBatchComplete)
 	if err != nil {
 		return nil, err
 	}
