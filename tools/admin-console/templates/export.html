@@ -1,0 +1,118 @@
+{{define "export"}}
+{{template "top" .}}
+
+{{if eq 0 .export.ConfigID}}
+<h2>Create New Export Config</h2>
+{{else}}
+<h2>Edit Export Config # {{.export.ConfigID}}</h2>
+
+<div class="alert alert-warning" role="alert">
+<p>You are editing an export config. Any changes to this config will only
+	impact future export batches for this config.</p>
+</div>
+{{end}}
+
+<div class="alert alert-info" role="alert">
+  Export configurations cannot be deleted. Instead they are expired by
+  setting and end date and time.
+</div>
+
+<form method="POST" action="/exports/{{.export.ConfigID}}" class="form-horizontal">
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="Region">Region:</label>
+    <div class="col-sm-6">
+      <input type="text" id="Region" name="Region" size="5" value="{{.export.Region}}">
+      <small id="RegionHelpBlock" class="form-text text-muted">The region of this export.
+        Must corresponding to regions accepted in Authorized Apps config, otherwise the export
+				will never have any data.
+			</small>
+    </div>
+  </div>
+
+	<div class="form-group row">
+		<label class="control-label col-sm-3" for="BucketName">Cloud Storage Bucket Name:</label>
+		<div class="col-sm-6">
+			<input type="text" id="BucketName" name="BucketName" size="50" value="{{.export.BucketName}}">
+			<small id="BucketNameHelpBlock" class="form-text text-muted">The bucket name to use when
+				storing exports on cloud based storage. For local filesystem, this is the path.
+			</small>
+		</div>
+	</div>
+	<div class="form-group row">
+		<label class="control-label col-sm-3" for="FilenameRoot">Filename root:</label>
+		<div class="col-sm-6">
+			<input type="text" id="FilenameRoot" name="FilenameRoot" size="50" value="{{.export.FilenameRoot}}">
+			<small id="FilenameRootHelpBlock" class="form-text text-muted">Common prefix for all filenames
+				that are part of this export.
+			</small>
+		</div>
+	</div>
+
+	<div class="form-group row">
+		<label class="control-label col-sm-3" for="Period">Export period:</label>
+		<div class="col-sm-6">
+			<input type="text" id="Period" name="Period" size="10" value="{{.export.Period}}">
+		  <small id="PeriodHelpBlock" class="form-text text-muted">
+        <strong>Devices can only import 15 (iOS) or 20 (Android) exports a day. With this in mind
+				a period of no less than <em>4h</em> is recommended.</strong>
+			  Valid time units are "s", "m", "h".</small>
+		</div>
+	</div>
+
+	<div class="form-group row">
+		<label class="control-label col-sm-3" for="fromdate">Valid From Date/Time:</label>
+		<div class="col-sm-6">
+			<input type="date" id="fromdate" name="fromdate" value="{{.export.FromHTMLDate}}" min="2020-05-01" max="2029-12-21-" />
+			<input type="time" id="fromtime" name="fromtime" value="{{.export.FromHTMLTime}}" />
+			<a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_blank">UTC</a>
+
+			<small id="fromdateHelpBlock" class="form-text text-muted">Start time of export. Normally left blank.</small>
+		</div>
+	</div>
+	<div class="form-group row">
+		<label class="control-label col-sm-3" for="thrudate">Valid Thru Date/Time:</label>
+		<div class="col-sm-6">
+			<input type="date" id="thrudate" name="thrudate" value="{{.export.ThruHTMLDate}}" min="2020-05-01" max="2029-12-21-" />
+			<input type="time" id="thrutime" name="thrutime" value="{{.export.ThruHTMLTime}}" />
+			<a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_blank">UTC</a>
+
+			<small id="thrudateHelpBlock" class="form-text text-muted">Generate exports until time.
+			 Normally left blank at the start, can be set to stop generating an export.</small>
+		</div>
+	</div>
+
+	<hr/>
+	<div class="alert alert-info" role="alert">
+	  Select the keys used to sign exports of this type. It is possible to have more than one
+		selected at a time. Having multiple signers is the correct way to rotate a signing key.
+		The old one should not be decomissions until Apple and Google have confirmed that the
+		new public key has been rolled out.
+	</div>
+
+	{{if .siginfos}}
+	<div class="form-group row">
+		<label class="control-label col-sm-3" for="siginfos">Signing Keys To Use:</label>
+		<div class="col-sm-6">
+    {{range .siginfos}}
+		<div class="form-check">
+      <input class="form-check-input" type="checkbox" name="siginfo" value="{{.ID}}" id="sic{{.ID}}" {{if index $.usedSigInfos .ID}}checked{{end}}>
+      <label class="form-check-label" for="sic{{.ID}}">
+				{{.ID}}: KeyID: {{.SigningKeyID}} | Version: {{.SigningKeyVersion}} | Thru: {{.FormattedEndTimestamp}} <br/> SigningKey: {{.SigningKey}}
+      </label>
+    </div>
+		{{end}}
+		</div>
+	</div>
+	{{else}}
+	  <div class="alert alert-danger" role="alert">
+    There are no Signature Info configurations. You will not be able to sign your
+		exports until one is created.
+    </div>
+	{{end}}
+
+	<hr/>
+  <button type="submit" class="btn btn-outline-primary" name="TODO" value="save">Save Changes</button>
+  <a href="/" class="btn btn-outline-secondary">Cancel</a>
+ </form>
+{{template "bottom" .}}
+{{end}}

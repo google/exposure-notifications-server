@@ -17,6 +17,7 @@ package siginfo
 import (
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/admin"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 )
 
@@ -31,14 +32,7 @@ type formData struct {
 }
 
 func (f *formData) EndTimestamp() (time.Time, error) {
-	if f.EndDate == "" {
-		// Return zero time.
-		return time.Time{}, nil
-	}
-	if f.EndTime == "" {
-		f.EndTime = "00:00"
-	}
-	return time.Parse("2006-01-02 15:04", f.EndDate+" "+f.EndTime)
+	return admin.CombineDateAndTime(f.EndDate, f.EndTime)
 }
 
 func (f *formData) PopulateSigInfo(si *model.SignatureInfo) error {
