@@ -40,11 +40,11 @@ The Exposure Notification Server is responsible for the following functions:
 You can read tutorials on deploying and using the reference Exposure Notification
 Server here:
 
-[Deployment guide](deploying.md)
-[Contributor guide](/CONTRIBUTING.md)
-[Server Functional Requirements](server_functional_requirements.md)
-[Server Deployment Options](server_deployment_options.md)
-[Reference documentation](https://pkg.go.dev/mod/github.com/google/exposure-notifications-server)
+* [Deployment guide](deploying.md)
+* [Contributor guide](/CONTRIBUTING.md)
+* [Server Functional Requirements](server_functional_requirements.md)
+* [Server Deployment Options](server_deployment_options.md)
+* [Reference documentation](https://pkg.go.dev/mod/github.com/google/exposure-notifications-server)
 
 ## Issues and Questions
 
