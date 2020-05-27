@@ -131,6 +131,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 		FilenameRoot:     "root",
 		Period:           3 * time.Hour,
 		Region:           "i1",
+		InputRegions:     []string{"US"},
 		From:             fromTime,
 		Thru:             thruTime,
 		SignatureInfoIDs: []int64{42, 84},
@@ -154,6 +155,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 	want.Period = 15 * time.Minute
 	want.Thru = time.Time{}
 	want.SignatureInfoIDs = []int64{1, 2, 3, 4, 5}
+	want.InputRegions = []string{"US", "CA"}
 
 	if err := exportDB.UpdateExportConfig(ctx, want); err != nil {
 		t.Fatal(err)

@@ -93,7 +93,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	criteria := publishdb.IterateExposuresCriteria{
 		SinceTimestamp:      eb.StartTimestamp,
 		UntilTimestamp:      eb.EndTimestamp,
-		IncludeRegions:      []string{eb.Region},
+		IncludeRegions:      eb.EffectiveInputRegions(),
 		OnlyLocalProvenance: false, // include federated ids
 	}
 

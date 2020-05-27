@@ -15,6 +15,7 @@
 package exports
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/admin"
@@ -23,6 +24,7 @@ import (
 
 type formData struct {
 	Region       string        `form:"Region"`
+	InputRegions string        `form:"InputRegions"`
 	BucketName   string        `form:"BucketName"`
 	FilenameRoot string        `form:"FilenameRoot"`
 	Period       time.Duration `form:"Period"`
@@ -47,6 +49,10 @@ func (f *formData) PopulateExportConfig(ec *model.ExportConfig) error {
 	ec.FilenameRoot = f.FilenameRoot
 	ec.Period = f.Period
 	ec.Region = f.Region
+	ec.InputRegions = strings.Split(f.InputRegions, "\n")
+	for i, s := range ec.InputRegions {
+		ec.InputRegions[i] = strings.TrimSpace(s)
+	}
 	ec.From = from
 	ec.Thru = thru
 	ec.SignatureInfoIDs = f.SigInfoIDs
