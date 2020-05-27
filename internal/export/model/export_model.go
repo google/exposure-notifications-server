@@ -16,6 +16,7 @@ package model
 
 import (
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -35,10 +36,21 @@ type ExportConfig struct {
 	BucketName       string        `db:"bucket_name"`
 	FilenameRoot     string        `db:"filename_root"`
 	Period           time.Duration `db:"period_seconds"`
-	Region           string        `db:"region"`
+	OutputRegion     string        `db:"output_region"`
+	InputRegions     []string      `db:"input_regions"`
 	From             time.Time     `db:"from_timestamp"`
 	Thru             time.Time     `db:"thru_timestamp"`
 	SignatureInfoIDs []int64       `db:"signature_info_ids"`
+}
+
+// EffectiveInputRegions either returns `InputRegions` or if that array is
+// empty, the output region (`Region`) is returned (in an array).
+func (ec *ExportConfig) EffectiveInputRegions() []string {
+	return effectiveInputRegions(ec.OutputRegion, ec.InputRegions)
+}
+
+func (ec *ExportConfig) InputRegionsOnePerLine() string {
+	return strings.Join(ec.InputRegions, "\n")
 }
 
 func (ec *ExportConfig) Validate() error {
@@ -88,20 +100,34 @@ type ExportBatch struct {
 	FilenameRoot     string    `db:"filename_root" json:"filenameRoot"`
 	StartTimestamp   time.Time `db:"start_timestamp" json:"startTimestamp"`
 	EndTimestamp     time.Time `db:"end_timestamp" json:"endTimestamp"`
-	Region           string    `db:"region" json:"region"`
+	OutputRegion     string    `db:"region" json:"output_region"`
+	InputRegions     []string  `db:"input_regions" json:"inputRegions"`
 	Status           string    `db:"status" json:"status"`
 	LeaseExpires     time.Time `db:"lease_expires" json:"leaseExpires"`
 	SignatureInfoIDs []int64   `db:"signature_info_ids"`
 }
 
+// EffectiveInputRegions either returns `InputRegions` or if that array is
+// empty, the output region (`Region`) is returned (in an array).
+func (eb *ExportBatch) EffectiveInputRegions() []string {
+	return effectiveInputRegions(eb.OutputRegion, eb.InputRegions)
+}
+
 type ExportFile struct {
-	BucketName string `db:"bucket_name"`
-	Filename   string `db:"filename"`
-	BatchID    int64  `db:"batch_id"`
-	Region     string `db:"region"`
-	BatchNum   int    `db:"batch_num"`
-	BatchSize  int    `db:"batch_size"`
-	Status     string `db:"status"`
+	BucketName   string   `db:"bucket_name"`
+	Filename     string   `db:"filename"`
+	BatchID      int64    `db:"batch_id"`
+	OutputRegion string   `db:"output_region"`
+	InputRegions []string `db:"input_regions" json:"inputRegions"`
+	BatchNum     int      `db:"batch_num"`
+	BatchSize    int      `db:"batch_size"`
+	Status       string   `db:"status"`
+}
+
+// EffectiveInputRegions either returns `InputRegions` or if that array is
+// empty, the output region (`Region`) is returned (in an array).
+func (ef *ExportFile) EffectiveInputRegions() []string {
+	return effectiveInputRegions(ef.OutputRegion, ef.InputRegions)
 }
 
 type SignatureInfo struct {
@@ -144,4 +170,11 @@ func toHTMLTime(t time.Time) string {
 		return ""
 	}
 	return t.UTC().Format("15:04")
+}
+
+func effectiveInputRegions(outRegion string, inRegions []string) []string {
+	if inRegions != nil && len(inRegions) > 0 {
+		return inRegions
+	}
+	return []string{outRegion}
 }

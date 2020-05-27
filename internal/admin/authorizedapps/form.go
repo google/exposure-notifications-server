@@ -60,11 +60,14 @@ func (f *formData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
 	a.Platform = f.Platform
 	a.AllowedRegions = make(map[string]struct{})
 	for _, region := range strings.Split(f.AllowedRegions, "\n") {
-		a.AllowedRegions[region] = struct{}{}
+		a.AllowedRegions[strings.TrimSpace(region)] = struct{}{}
 	}
 	// SafetyNet
 	a.SafetyNetDisabled = f.SafetyNetDisabled
 	a.SafetyNetApkDigestSHA256 = strings.Split(f.SafetyNetApkDigestSHA256, "\n")
+	for i, s := range a.SafetyNetApkDigestSHA256 {
+		a.SafetyNetApkDigestSHA256[i] = strings.TrimSpace(s)
+	}
 	a.SafetyNetBasicIntegrity = f.SafetyNetBasicIntegrity
 	a.SafetyNetCTSProfileMatch = f.SafetyNetCTSProfileMatch
 	var err error

@@ -130,7 +130,8 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 		BucketName:       "mocked",
 		FilenameRoot:     "root",
 		Period:           3 * time.Hour,
-		Region:           "i1",
+		OutputRegion:     "i1",
+		InputRegions:     []string{"US"},
 		From:             fromTime,
 		Thru:             thruTime,
 		SignatureInfoIDs: []int64{42, 84},
@@ -154,6 +155,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 	want.Period = 15 * time.Minute
 	want.Thru = time.Time{}
 	want.SignatureInfoIDs = []int64{1, 2, 3, 4, 5}
+	want.InputRegions = []string{"US", "CA"}
 
 	if err := exportDB.UpdateExportConfig(ctx, want); err != nil {
 		t.Fatal(err)
@@ -199,7 +201,7 @@ func TestIterateExportConfigs(t *testing.T) {
 	}
 	for _, ec := range ecs {
 		ec.Period = time.Hour
-		ec.Region = "R"
+		ec.OutputRegion = "R"
 		if err := New(testDB).AddExportConfig(ctx, ec); err != nil {
 			t.Fatal(err)
 		}
@@ -231,7 +233,7 @@ func TestBatches(t *testing.T) {
 		BucketName:       "mocked",
 		FilenameRoot:     "root",
 		Period:           time.Hour,
-		Region:           "R",
+		OutputRegion:     "R",
 		From:             now,
 		Thru:             now.Add(time.Hour),
 		SignatureInfoIDs: []int64{1, 2, 3, 4},
@@ -249,7 +251,7 @@ func TestBatches(t *testing.T) {
 			ConfigID:         config.ConfigID,
 			BucketName:       config.BucketName,
 			FilenameRoot:     config.FilenameRoot,
-			Region:           config.Region,
+			OutputRegion:     config.OutputRegion,
 			Status:           model.ExportBatchOpen,
 			StartTimestamp:   start,
 			EndTimestamp:     end,
@@ -281,10 +283,10 @@ func TestBatches(t *testing.T) {
 				t.Fatal("could not lease a batch")
 			}
 			if got.ConfigID != config.ConfigID || got.FilenameRoot != config.FilenameRoot ||
-				got.Region != config.Region || got.BucketName != config.BucketName {
+				got.OutputRegion != config.OutputRegion || got.BucketName != config.BucketName {
 				t.Errorf("LeaseBatch: got (%d, %q, %q, %q), want (%d, %q, %q, %q)",
-					got.ConfigID, got.BucketName, got.FilenameRoot, got.Region,
-					config.ConfigID, config.BucketName, config.FilenameRoot, config.Region)
+					got.ConfigID, got.BucketName, got.FilenameRoot, got.OutputRegion,
+					config.ConfigID, config.BucketName, config.FilenameRoot, config.OutputRegion)
 			}
 			if got.Status != model.ExportBatchPending {
 				t.Errorf("LeaseBatch: got status %q, want pending", got.Status)
@@ -342,7 +344,7 @@ func TestFinalizeBatch(t *testing.T) {
 		BucketName:   "some-bucket",
 		FilenameRoot: "filename-root",
 		Period:       time.Minute,
-		Region:       "US",
+		OutputRegion: "US",
 	}
 	if err := exportDB.AddExportConfig(ctx, ec); err != nil {
 		t.Fatal(err)
@@ -355,7 +357,7 @@ func TestFinalizeBatch(t *testing.T) {
 		FilenameRoot:   ec.FilenameRoot,
 		StartTimestamp: now.Add(-2 * time.Hour),
 		EndTimestamp:   now.Add(-time.Hour),
-		Region:         ec.Region,
+		OutputRegion:   ec.OutputRegion,
 		Status:         model.ExportBatchOpen,
 	}
 	if err := exportDB.AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
@@ -409,13 +411,13 @@ func TestFinalizeBatch(t *testing.T) {
 			t.Fatal(err)
 		}
 		want := &model.ExportFile{
-			BucketName: eb.BucketName,
-			Filename:   filename,
-			BatchID:    eb.BatchID,
-			Region:     eb.Region,
-			BatchNum:   i + 1,
-			BatchSize:  batchSize,
-			Status:     model.ExportBatchComplete,
+			BucketName:   eb.BucketName,
+			Filename:     filename,
+			BatchID:      eb.BatchID,
+			OutputRegion: eb.OutputRegion,
+			BatchNum:     i + 1,
+			BatchSize:    batchSize,
+			Status:       model.ExportBatchComplete,
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("mismatch for %q (-want, +got):\n%s", filename, diff)
@@ -436,7 +438,7 @@ func TestKeysInBatch(t *testing.T) {
 		BucketName:   "bucket-name",
 		FilenameRoot: "filename-root",
 		Period:       3600 * time.Second,
-		Region:       "US",
+		OutputRegion: "US",
 		From:         now.Add(-24 * time.Hour),
 	}
 	if err := New(testDB).AddExportConfig(ctx, ec); err != nil {
@@ -452,7 +454,7 @@ func TestKeysInBatch(t *testing.T) {
 		FilenameRoot:   ec.FilenameRoot,
 		StartTimestamp: startTimestamp,
 		EndTimestamp:   endTimestamp,
-		Region:         ec.Region,
+		OutputRegion:   ec.OutputRegion,
 		Status:         model.ExportBatchOpen,
 	}
 	if err := New(testDB).AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
@@ -462,14 +464,14 @@ func TestKeysInBatch(t *testing.T) {
 	// Create key aligned with the StartTimestamp
 	sek := &publishmodel.Exposure{
 		ExposureKey: []byte("aaa"),
-		Regions:     []string{ec.Region},
+		Regions:     []string{ec.OutputRegion},
 		CreatedAt:   startTimestamp,
 	}
 
 	// Create key aligned with the EndTimestamp
 	eek := &publishmodel.Exposure{
 		ExposureKey: []byte("bbb"),
-		Regions:     []string{ec.Region},
+		Regions:     []string{ec.OutputRegion},
 		CreatedAt:   endTimestamp,
 	}
 
@@ -496,7 +498,7 @@ func TestKeysInBatch(t *testing.T) {
 	// Lookup the keys; they must be only the key created_at the startTimestamp
 	// (because start is inclusive, end is exclusive).
 	criteria := publishdb.IterateExposuresCriteria{
-		IncludeRegions: []string{leased.Region},
+		IncludeRegions: []string{leased.OutputRegion},
 		SinceTimestamp: leased.StartTimestamp,
 		UntilTimestamp: leased.EndTimestamp,
 	}

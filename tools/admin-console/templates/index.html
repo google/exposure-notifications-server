@@ -18,7 +18,7 @@
 <ul>
  {{if .exports}}
    {{range .exports}}
-     <li><a href="/exports/{{.ConfigID}}">{{.ConfigID}}</a> Region: {{.Region}} | Bucket: {{.BucketName}} | From: {{.FormattedFromTime}} | Thru: {{.FormattedThruTime}}</li>
+     <li><a href="/exports/{{.ConfigID}}">{{.ConfigID}}</a> Region: {{.OutputRegion}} | Bucket: {{.BucketName}} | From: {{.FormattedFromTime}} | Thru: {{.FormattedThruTime}}</li>
    {{end}}
  {{else}}
    <li><i>There are no export configurations</i></li>

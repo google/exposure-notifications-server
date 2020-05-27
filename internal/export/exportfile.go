@@ -165,7 +165,7 @@ func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, 
 	pbeke := export.TemporaryExposureKeyExport{
 		StartTimestamp: proto.Uint64(uint64(eb.StartTimestamp.Unix())),
 		EndTimestamp:   proto.Uint64(uint64(eb.EndTimestamp.Unix())),
-		Region:         proto.String(eb.Region),
+		Region:         proto.String(eb.OutputRegion),
 		BatchNum:       proto.Int32(int32(batchNum)),
 		BatchSize:      proto.Int32(int32(batchSize)),
 		Keys:           pbeks,
