@@ -28,7 +28,7 @@ variable "db_region" {
   default = "us-central1"
 }
 
-# The region in for the key management service.
+# The region for the key management service.
 # https://cloud.google.com/kms/docs/locations
 variable "kms_location" {
   type = string
@@ -37,7 +37,8 @@ variable "kms_location" {
 
 # The location for the app engine; this implicitly defines the region for
 # scheduler jobs as specified by the cloudscheduler_region variable but the
-# values are sometimes different so they are kept as separate variables.
+# values are sometimes different (as in the default values) so they are kept as
+# separate variables.
 # https://cloud.google.com/appengine/docs/locations
 variable "appengine_location" {
   type    = string
