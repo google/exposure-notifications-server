@@ -31,7 +31,7 @@
 <ul>
   {{if .siginfos}}
     {{range .siginfos}}
-      <li><a href="/siginfo/{{.ID}}">{{.ID}}: KeyID: {{.SigningKeyID}}</a> | Version: {{.SigningKeyVersion}} | Thru: {{.FormattedEndTimestamp}} | SigningKey: {{.SigningKey}}</li>
+      <li><a href="/siginfo/{{.ID}}">{{.ID}}: KeyID: {{.SigningKeyID}}</a> | Version: {{.SigningKeyVersion}} | Thru: {{.FormattedEndTimestamp}} <br/> SigningKey: {{.SigningKey}}</li>
     {{end}}
   {{else}}
     <li><i>There are no signature info configurations.</i></li>
