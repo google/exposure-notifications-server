@@ -57,7 +57,7 @@ var (
 func main() {
 	flag.Parse()
 
-	exposureKeys := util.GenerateExposureKeys(*numKeys, *transmissionRiskFlag)
+	exposureKeys := util.GenerateExposureKeys(*numKeys, *transmissionRiskFlag, false)
 	regionIdx, err := util.RandomInt(len(defaultRegions))
 	if err != nil {
 		log.Printf("error getting random region: %v", err)

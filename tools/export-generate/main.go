@@ -118,7 +118,7 @@ func main() {
 		}
 
 		log.Printf("Generating %d random TEKs", *numKeys)
-		keys := util.GenerateExposureKeys(*numKeys, tr)
+		keys := util.GenerateExposureKeys(*numKeys, tr, false)
 		actualNumKeys = *numKeys
 
 		exposureKeys = make([]publishmodel.Exposure, actualNumKeys)
