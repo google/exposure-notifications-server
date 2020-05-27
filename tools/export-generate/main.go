@@ -43,8 +43,8 @@ var (
 	keyVersion     = flag.String("key-version", "1", "Value to use in verification_key_version")
 	filenameRoot   = flag.String("filename-root", "/tmp/testExport-", "The root filename for the export file(s).")
 	region         = flag.String("region", "US", "The region for the test export.")
-	startTimestamp = flag.String("start-timestamp", "2020-05-01T15:00:00Z", "The test export start timestamp (RFC3339).")
-	endTimestamp   = flag.String("end-timestamp", "2020-05-02T15:00:00Z", "The test export end timestamp (RFC3339).")
+	startTimestamp = flag.String("start-timestamp", "", "The test export start timestamp (RFC3339, e.g. 2020-05-01T15:00:00Z). (default yesterday)")
+	endTimestamp   = flag.String("end-timestamp", "", "The test export end timestamp (RFC3339, e.g. 2020-05-02T15:00:00Z). (default now)")
 	numKeys        = flag.Int("num-keys", 450, "Number of total random temporary exposure keys to generate. Ignored if tek-file set.")
 	tekFile        = flag.String("tek-file", "", "JSON file of TEKs in the same format as calling publish endpoint")
 	batchSize      = flag.Int("batches-size", 100, "Max number of keys in each file in the batch")
@@ -61,7 +61,11 @@ func main() {
 		log.Fatal("--signing-key is required.")
 	}
 
-	startTime := time.Now()
+	// set endTime default to now, startTime default to (now - 24h)
+	endTime := time.Now()
+	startTime := endTime.Add(-time.Hour * 24)
+
+	// command-line flags can override startTime and endTime
 	if *startTimestamp != "" {
 		var err error
 		startTime, err = time.Parse(time.RFC3339, *startTimestamp)
@@ -70,7 +74,6 @@ func main() {
 		}
 	}
 
-	var endTime time.Time
 	if *endTimestamp != "" {
 		var err error
 		endTime, err = time.Parse(time.RFC3339, *endTimestamp)
@@ -87,10 +90,6 @@ func main() {
 	}
 
 	// generate fake keys
-	tr, err := util.RandomTransmissionRisk()
-	if err != nil {
-		log.Fatalf("problem with random transmission risk: %v", err)
-	}
 	var actualNumKeys int
 	var exposureKeys []publishmodel.Exposure
 	if *tekFile != "" {
@@ -105,7 +104,7 @@ func main() {
 			log.Fatalf("unable to parse json: %v", err)
 		}
 		for _, k := range data.Keys {
-			ek, err := publishmodel.TransformExposureKey(k, "", []string{}, time.Now(), int32(0), math.MaxInt32)
+			ek, err := publishmodel.TransformExposureKey(k, "", []string{}, time.Now(), int32(0), int32(time.Now().Unix()/600))
 			if err != nil {
 				log.Fatalf("invalid exposure key: %v", err)
 			}
@@ -113,8 +112,13 @@ func main() {
 		}
 		actualNumKeys = len(exposureKeys)
 	} else {
-		log.Printf("Genrating %d random TEKs", *numKeys)
-		keys := util.GenerateExposureKeys(*numKeys, tr)
+		tr, err := util.RandomTransmissionRisk()
+		if err != nil {
+			log.Fatalf("problem with random transmission risk: %v", err)
+		}
+
+		log.Printf("Generating %d random TEKs", *numKeys)
+		keys := util.GenerateExposureKeys(*numKeys, tr, false)
 		actualNumKeys = *numKeys
 
 		exposureKeys = make([]publishmodel.Exposure, actualNumKeys)
@@ -124,12 +128,12 @@ func main() {
 				log.Fatalf("unable to decode key: %v", k.Key)
 			}
 			exposureKeys[i].ExposureKey = decoded
-			n, err := util.RandomIntervalCount()
-			if err != nil {
-				log.Fatalf("problem with interval count: %v", err)
+			exposureKeys[i].IntervalNumber = k.IntervalNumber - publishmodel.MaxIntervalCount // typically the key will be at least 1 day old
+			if exposureKeys[i].IntervalNumber < 0 {
+				exposureKeys[i].IntervalNumber = 0
 			}
-			exposureKeys[i].IntervalNumber = n
-			exposureKeys[i].IntervalCount = n
+			exposureKeys[i].IntervalCount = k.IntervalCount
+			exposureKeys[i].TransmissionRisk = k.TransmissionRisk
 		}
 	}
 

@@ -12,26 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package authorizedapps
+package exports
 
 import (
 	"net/http/httptest"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/admin"
-	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	"github.com/google/exposure-notifications-server/internal/export/model"
 )
 
-func TestRenderAuthorizedApps(t *testing.T) {
+func TestRenderSignatureInfo(t *testing.T) {
 	// Hello developer!
 	// If this test fails, it's likely that you changed something in
 	//  internal/authorizedapp/model/
 	// And whatever you changed is used in the
-	//  tools/admin-console/templates/authorizedapp.html
+	//  tools/admin-console/templates/export.html
 	// That is what caused the test failure.
 	m := admin.TemplateMap{}
-	authorizedApp := model.NewAuthorizedApp()
-	m["app"] = authorizedApp
+	exportConfig := &model.ExportConfig{}
+	m["export"] = exportConfig
+
+	sigInfos := []*model.SignatureInfo{
+		&model.SignatureInfo{ID: 5},
+	}
+	usedSigInfos := map[int64]bool{5: true}
+	m["usedSigInfos"] = usedSigInfos
+	m["siginfos"] = sigInfos
 
 	recorder := httptest.NewRecorder()
 	config := admin.Config{
@@ -39,7 +46,7 @@ func TestRenderAuthorizedApps(t *testing.T) {
 		TopFile:      "top",
 		BotFile:      "bottom",
 	}
-	err := config.RenderTemplate(recorder, "authorizedapp", m)
+	err := config.RenderTemplate(recorder, "export", m)
 	if err != nil {
 		t.Fatalf("error rendering template: %v", err)
 	}

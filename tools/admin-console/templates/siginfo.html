@@ -1,0 +1,92 @@
+{{define "siginfo"}}
+{{template "top" .}}
+
+{{if .new}}
+<h2>Create New Signature Info</h2>
+{{else}}
+<h2>Edit Signature Info # {{.siginfo.ID}}</h2>
+
+<div class="alert alert-warning" role="alert">
+<p>You are editing a signature info. This is allowed, but generally not advised
+unless you are only changing the exporitation timestamp to be sooner than it
+already is.</p>
+
+<p>If you are rotating a key, it is better to create a second signature info with
+the new key version, and then set this one to expire in 7-10 days (or a time advised
+by Apple and Google).</p>
+</div>
+{{end}}
+
+<div class="alert alert-info" role="alert">
+  Signature Info configurations cannot be deleted. Instead they are expired by
+  setting and end date and time.
+</div>
+
+<form method="POST" action="/siginfo/{{.siginfo.ID}}" class="form-horizontal">
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="SigningKey">Signing Key:</label>
+    <div class="col-sm-6">
+      <input type="text" id="SigningKey" name="SigningKey" size="50" value="{{.siginfo.SigningKey}}">
+      <small id="SigningKeyHelpBlock" class="form-text text-muted">The resource ID of the signing key.
+        The exact format will be dependent on the Key Management System that you are using.</small>
+    </div>
+  </div>
+
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="enddate">Use Until:</label>
+    <div class="col-sm-6">
+      <input type="date" id="enddate" name="enddate" value="{{.siginfo.HTMLEndDate}}" min="2020-05-01" max="2029-12-21-" />
+      <input type="time" id="endtime" name="endtime" value="{{.siginfo.HTMLEndTime}}" />
+      <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_blank">UTC</a>
+
+      <small id="enddateHelpBlock" class="form-text text-muted">For Export Configurations
+      that reference this key #, this signature will be added up until this date/time.
+      If the time is blank, the key will end at 00:00 UTC on the day specified.
+      <strong>Leave blank to use this key as long as it is attached to an export</strong></small>
+    </div>
+  </div>
+
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="SigningKeyID">Signing Key ID:</label>
+    <div class="col-sm-6">
+      <input type="text" id="SigningKeyID" name="SigningKeyID" size="50" value="{{.siginfo.SigningKeyID}}">
+      <small id="SigningKeyIDHelpBlock" class="form-text text-muted">This will normally be the
+      Mobile Country Code (<a href="https://en.wikipedia.org/wiki/Mobile_country_code" target="_blank">MCC</a>)
+      for the region that your export covers. This should be coordinated with Google and Apple.</small>
+    </div>
+  </div>
+
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="SigningKeyVersion">Signing Key Version:</label>
+    <div class="col-sm-6">
+      <input type="text" id="SigningKeyVersion" name="SigningKeyVersion" size="50" value="{{.siginfo.SigningKeyVersion}}">
+      <small id="SigningKeyVersionHelpBlock" class="form-text text-muted">The version of
+        the signing key. Normally will be 1, but may change with key rotation..</small>
+    </div>
+  </div>
+
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="AppPackageName">App Package Name:</label>
+    <div class="col-sm-6">
+      <input type="text" id="AppPackageName" name="AppPackageName" size="50" value="{{.siginfo.AppPackageName}}">
+      <small id="AppPackageNameHelpBlock" class="form-text text-muted">The android App Package Name
+      to put in the SignatureInfo block in exports. <strong>Normally left blank</strong></small>
+    </div>
+  </div>
+
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="BundleID">BundleID:</label>
+    <div class="col-sm-6">
+      <input type="text" id="BundleID" name="BundleID" size="50" value="{{.siginfo.BundleID}}">
+      <small id="BundleIDHelpBlock" class="form-text text-muted">The iOS BundleID to
+      put in the SignatureInfo block in exports.</small>
+    </div>
+  </div>
+
+  <hr/>
+  <button type="submit" class="btn btn-outline-primary" name="TODO" value="save">Save Changes</button>
+  <a href="/" class="btn btn-outline-secondary">Cancel</a>
+</form>
+
+{{template "bottom" .}}
+{{end}}

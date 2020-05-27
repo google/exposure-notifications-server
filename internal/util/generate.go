@@ -70,13 +70,19 @@ func RandomArrValue(arr []string) (string, error) {
 	return arr[n], nil
 }
 
-func GenerateExposureKeys(numKeys, tr int) []model.ExposureKey {
+func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []model.ExposureKey {
 	// When publishing multiple keys - they'll be on different days.
-	intervalCount, err := RandomIntervalCount()
-	if err != nil {
-		log.Fatalf("problem with random interval: %v", err)
+	var err error
+	intervalCount := int32(144)
+	if randomInterval {
+		intervalCount, err = RandomIntervalCount()
+		if err != nil {
+			log.Fatalf("problem with random interval: %v", err)
+		}
 	}
-	intervalNumber := int32(time.Now().Unix()/600) - intervalCount
+	// Keys will normally align to UTC day boundries.
+	utcDay := time.Now().UTC().Truncate(24 * time.Hour)
+	intervalNumber := int32(utcDay.Unix()/600) - intervalCount
 	exposureKeys := make([]model.ExposureKey, numKeys)
 	for i := 0; i < numKeys; i++ {
 		transmissionRisk := tr
@@ -92,9 +98,11 @@ func GenerateExposureKeys(numKeys, tr int) []model.ExposureKey {
 		}
 
 		// Adjust interval math for next key.
-		intervalCount, err = RandomIntervalCount()
-		if err != nil {
-			log.Fatalf("problem with random interval: %v", err)
+		if randomInterval {
+			intervalCount, err = RandomIntervalCount()
+			if err != nil {
+				log.Fatalf("problem with random interval: %v", err)
+			}
 		}
 		intervalNumber -= intervalCount
 	}

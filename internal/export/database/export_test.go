@@ -29,42 +29,47 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-func TestAddSignatureInfo(t *testing.T) {
+func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
 	t.Parallel()
 
 	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
-	thruTime := time.Now().UTC().Add(6 * time.Hour).Truncate(time.Microsecond)
 	want := &model.SignatureInfo{
 		SigningKey:        "/kms/project/key/1",
 		SigningKeyVersion: "1",
 		SigningKeyID:      "310",
-		EndTimestamp:      thruTime,
+		EndTimestamp:      time.Time{},
 	}
-	if err := New(testDB).AddSignatureInfo(ctx, want); err != nil {
+	exDB := New(testDB)
+	if err := exDB.AddSignatureInfo(ctx, want); err != nil {
 		t.Fatal(err)
 	}
-	conn, err := testDB.Pool.Acquire(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Release()
-	var got model.SignatureInfo
-	err = conn.QueryRow(ctx, `
-		SELECT
-		  id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
-		FROM
-			SignatureInfo
-		WHERE
-			id = $1
-	`, want.ID).Scan(&got.ID, &got.SigningKey, &got.AppPackageName, &got.BundleID, &got.SigningKeyVersion, &got.SigningKeyID, &got.EndTimestamp)
+
+	got, err := exDB.GetSignatureInfo(ctx, want.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(want, &got); diff != "" {
-		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	// Update, set expiry timestamp.
+	want.EndTimestamp = time.Now().UTC().Add(24 * time.Hour)
+	want.EndTimestamp = want.EndTimestamp.Truncate(time.Second)
+	if err := exDB.UpdateSignatureInfo(ctx, want); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err = exDB.GetSignatureInfo(ctx, want.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got.EndTimestamp = got.EndTimestamp.Truncate(time.Second)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}
 }
 
@@ -112,11 +117,12 @@ func TestLookupSignatureInfos(t *testing.T) {
 	}
 }
 
-func TestAddExportConfig(t *testing.T) {
+func TestAddGetUpdateExportConfig(t *testing.T) {
 	t.Parallel()
 
 	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	exportDB := New(testDB)
 
 	fromTime := time.Now()
 	thruTime := fromTime.Add(6 * time.Hour)
@@ -129,34 +135,32 @@ func TestAddExportConfig(t *testing.T) {
 		Thru:             thruTime,
 		SignatureInfoIDs: []int64{42, 84},
 	}
-	if err := New(testDB).AddExportConfig(ctx, want); err != nil {
+	if err := exportDB.AddExportConfig(ctx, want); err != nil {
 		t.Fatal(err)
 	}
-	conn, err := testDB.Pool.Acquire(ctx)
+
+	got, err := exportDB.GetExportConfig(ctx, want.ConfigID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Release()
-	var (
-		got   model.ExportConfig
-		psecs int
-	)
-	err = conn.QueryRow(ctx, `
-		SELECT
-			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signature_info_ids
-		FROM
-			ExportConfig
-		WHERE
-			config_id = $1
-	`, want.ConfigID).Scan(&got.ConfigID, &got.BucketName, &got.FilenameRoot, &psecs, &got.Region, &got.From, &got.Thru, &got.SignatureInfoIDs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got.Period = time.Duration(psecs) * time.Second
 
 	want.From = want.From.Truncate(time.Microsecond)
 	want.Thru = want.Thru.Truncate(time.Microsecond)
-	if diff := cmp.Diff(want, &got); diff != "" {
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	// Now update it.
+	want.Period = 15 * time.Minute
+	want.Thru = time.Time{}
+	want.SignatureInfoIDs = []int64{1, 2, 3, 4, 5}
+
+	if err := exportDB.UpdateExportConfig(ctx, want); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err = exportDB.GetExportConfig(ctx, want.ConfigID)
+	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 }

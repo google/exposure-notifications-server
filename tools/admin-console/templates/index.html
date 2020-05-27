@@ -16,15 +16,28 @@
 <hr/>
 <h2>Export Configurations</h2>
 <ul>
- <li>Create New <a href="/export?id=-1">Export Config</a> | <a href="/signatureinfo?id=-1">Signature Info</a></li>
  {{if .exports}}
    {{range .exports}}
-     <li><a href="/export?id={{.ConfigID}}">{{.ConfigID}}</a> Region: {{.Region}} | Bucket: {{.BucketName}} | From: {{.FormattedFromTime}} | Thru: {{.FormattedThruTime}}</li>
+     <li><a href="/exports/{{.ConfigID}}">{{.ConfigID}}</a> Region: {{.Region}} | Bucket: {{.BucketName}} | From: {{.FormattedFromTime}} | Thru: {{.FormattedThruTime}}</li>
    {{end}}
  {{else}}
    <li><i>There are no export configurations</i></li>
  {{end}}
 </ul>
+<a href="/exports/0"  class="btn btn-outline-primary">Create new Export Config</a>
+
+<hr/>
+<h2>Signature Info</h2>
+<ul>
+  {{if .siginfos}}
+    {{range .siginfos}}
+      <li><a href="/siginfo/{{.ID}}">{{.ID}}: KeyID: {{.SigningKeyID}}</a> | Version: {{.SigningKeyVersion}} | Thru: {{.FormattedEndTimestamp}} <br/> SigningKey: {{.SigningKey}}</li>
+    {{end}}
+  {{else}}
+    <li><i>There are no signature info configurations.</i></li>
+  {{end}}
+</ul>
+<a href="/siginfo/0"  class="btn btn-outline-primary">Create new Signature Info</a>
 
 {{template "bottom" .}}
 {{end}}

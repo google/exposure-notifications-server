@@ -3,6 +3,12 @@
 <head>
   <title>{{if .title}} {{.title}} {{else}} Exposure Notifications {{end}}</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+  <style>
+  #main {
+    padding-top: 10px;
+  }
+  </style>
 </head>
 
 <body>
@@ -16,15 +22,15 @@
       </ul>
     </div>
   </nav>
-<div class="container">
+<div class="container" id="main">
 
 {{if .jumbotron}}
 <div class="jumbotron">
   <h1 class="display-4">{{.jumbotron}}</h1>
 	{{if .jumbotronsub}}
-  <h2 class="display-4">{{.jumbotronsub}}</h2>
+  <h3 class="display-4">{{.jumbotronsub}}</h3>
 	{{end}}
-  <hr class="my-4">
+  <hr class="my-4"/>
 </div>
 {{end}}
 

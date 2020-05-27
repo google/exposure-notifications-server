@@ -80,10 +80,10 @@ func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey str
 			m.SafetyNetDisabled, m.SafetyNetApkDigestSHA256, m.SafetyNetCTSProfileMatch, m.SafetyNetBasicIntegrity, int64(m.SafetyNetPastTime.Seconds()), int64(m.SafetyNetFutureTime.Seconds()),
 			m.DeviceCheckDisabled, m.DeviceCheckTeamID, m.DeviceCheckKeyID, m.DeviceCheckPrivateKeySecret, priorKey)
 		if err != nil {
-			return fmt.Errorf("inserting authorizedapp: %w", err)
+			return fmt.Errorf("updating authorizedapp: %w", err)
 		}
 		if result.RowsAffected() != 1 {
-			return fmt.Errorf("no rows inserted")
+			return fmt.Errorf("no rows updated")
 		}
 		return nil
 	})

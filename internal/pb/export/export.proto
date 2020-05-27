@@ -48,11 +48,14 @@ message SignatureInfo {
   // Apple App Store Application Bundle ID
   optional string app_bundle_id = 1;
   // Android App package name
+  // Don’t set this if exports are to be consumed by multiple apps.
   optional string android_package = 2;
   // Key version for rollovers
+  // Must be in character class [a-zA-Z0-9_]. E.g., 'v1'
   optional string verification_key_version = 3;
   // Alias with which to identify public key to be used for verification
   // Must be in character class [a-zA-Z0-9_]
+  // For cross-compatibility with Apple, use MCC (https://en.wikipedia.org/wiki/Mobile_country_code)
   optional string verification_key_id = 4;
   // ASN.1 OID for Algorithm Identifier. Supported algorithms are
   // either 1.2.840.10045.4.3.2 or 1.2.840.10045.4.3.4
