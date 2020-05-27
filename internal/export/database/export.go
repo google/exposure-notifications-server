@@ -16,7 +16,6 @@ package database
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -31,7 +30,6 @@ import (
 
 const (
 	bucketEnvVar = "EXPORT_BUCKET"
-	oneDay       = 24 * time.Hour
 )
 
 type ExportDB struct {
@@ -46,14 +44,8 @@ func New(db *database.DB) *ExportDB {
 
 // AddExportConfig creates a new ExportConfig record from which batch jobs are created.
 func (db *ExportDB) AddExportConfig(ctx context.Context, ec *model.ExportConfig) error {
-	if ec.Period > oneDay {
-		return errors.New("maximum period is 24h")
-	}
-	if ec.Period == 0 {
-		return errors.New("period must be non-zero")
-	}
-	if int64(oneDay.Seconds())%int64(ec.Period.Seconds()) != 0 {
-		return errors.New("period must divide equally into 24 hours (e.g., 2h, 4h, 12h, 15m, 30m)")
+	if err := ec.Validate(); err != nil {
+		return err
 	}
 
 	var thru *time.Time
@@ -76,6 +68,53 @@ func (db *ExportDB) AddExportConfig(ctx context.Context, ec *model.ExportConfig)
 		}
 		return nil
 	})
+}
+
+// UpdateExportConfig updates an existing ExportConfig record from which batch jobs are created.
+func (db *ExportDB) UpdateExportConfig(ctx context.Context, ec *model.ExportConfig) error {
+	if err := ec.Validate(); err != nil {
+		return err
+	}
+
+	var thru *time.Time
+	if !ec.Thru.IsZero() {
+		thru = &ec.Thru
+	}
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			UPDATE
+				ExportConfig
+			SET
+				bucket_name = $1, filename_root = $2, period_seconds = $3, region = $4, from_timestamp = $5, thru_timestamp = $6, signature_info_ids = $7
+			WHERE config_id = $8
+		`, ec.BucketName, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region,
+			ec.From, thru, ec.SignatureInfoIDs, ec.ConfigID)
+		if err != nil {
+			return fmt.Errorf("updating signatureinfo: %w", err)
+		}
+		if result.RowsAffected() != 1 {
+			return fmt.Errorf("no rows updated")
+		}
+		return nil
+	})
+}
+
+func (db *ExportDB) GetExportConfig(ctx context.Context, id int64) (*model.ExportConfig, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	row := conn.QueryRow(ctx, `
+		SELECT
+			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signature_info_ids
+		FROM
+			ExportConfig
+		WHERE
+			config_id = $1`, id)
+
+	return scanOneExportConfig(row)
 }
 
 func (db *ExportDB) GetAllExportConfigs(ctx context.Context) ([]*model.ExportConfig, error) {
@@ -223,12 +262,12 @@ func (db *ExportDB) ListAllSigntureInfos(ctx context.Context) ([]*model.Signatur
 	defer conn.Release()
 
 	rows, err := conn.Query(ctx, `
-		SELECT
-			id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
-		FROM
-			SignatureInfo
-		ORDER BY signing_key_id ASC, signing_key_version ASC, thru_timestamp DESC, app_package_name ASC, bundle_id ASC
-		`)
+    SELECT
+      id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
+    FROM
+      SignatureInfo
+    ORDER BY signing_key_id ASC, signing_key_version ASC, thru_timestamp DESC, app_package_name ASC, bundle_id ASC
+  `)
 	if err != nil {
 		return nil, err
 	}

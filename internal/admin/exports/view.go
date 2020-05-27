@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package siginfo
+package exports
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/exposure-notifications-server/internal/admin"
@@ -38,26 +40,39 @@ func (v *viewController) Execute(c *gin.Context) {
 	ctx := c.Request.Context()
 	m := admin.TemplateMap{}
 
-	sigInfo := &model.SignatureInfo{}
-	if IDParam := c.Param("id"); IDParam == "0" {
-		m.AddJumbotron("Signature Info", "Create New Signature Info")
-		m["new"] = true
+	exportDB := database.New(v.env.Database())
+	exportConfig := &model.ExportConfig{}
+	if idParam := c.Param("id"); idParam == "0" {
+		// Default the period to suggest an appropriate value.
+		exportConfig.Period = 24 * time.Hour
+		m.AddJumbotron("Export Config", "Create New Export Config")
 	} else {
-		m.AddJumbotron("Signature Info", "Edit Signature Info")
+		m.AddJumbotron("Export Config", "Edit Export Config")
 
-		exportDB := database.New(v.env.Database())
-		sigID, err := strconv.ParseInt(IDParam, 10, 64)
+		cfgID, err := strconv.ParseInt(idParam, 10, 64)
 		if err != nil {
-			admin.ErrorPage(c, "Unable to parse `id` param.")
+			admin.ErrorPage(c, "unable to parse `id` param.")
 			return
 		}
-		sigInfo, err = exportDB.GetSignatureInfo(ctx, sigID)
+		exportConfig, err = exportDB.GetExportConfig(ctx, cfgID)
 		if err != nil {
-			admin.ErrorPage(c, "error loading signtaure info.")
+			admin.ErrorPage(c, fmt.Sprintf("Error loading export config: %v", err))
 			return
 		}
 	}
 
-	m["siginfo"] = sigInfo
-	c.HTML(http.StatusOK, "siginfo", m)
+	usedSigInfos := make(map[int64]bool)
+	for _, id := range exportConfig.SignatureInfoIDs {
+		usedSigInfos[id] = true
+	}
+
+	sigInfos, err := exportDB.ListAllSigntureInfos(ctx)
+	if err != nil {
+		admin.ErrorPage(c, fmt.Sprintf("Error reading the database: %v", err))
+	}
+
+	m["export"] = exportConfig
+	m["usedSigInfos"] = usedSigInfos
+	m["siginfos"] = sigInfos
+	c.HTML(http.StatusOK, "export", m)
 }

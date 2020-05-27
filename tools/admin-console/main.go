@@ -23,6 +23,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/exposure-notifications-server/internal/admin"
 	"github.com/google/exposure-notifications-server/internal/admin/authorizedapps"
+	"github.com/google/exposure-notifications-server/internal/admin/exports"
 	"github.com/google/exposure-notifications-server/internal/admin/index"
 	"github.com/google/exposure-notifications-server/internal/admin/siginfo"
 	"github.com/google/exposure-notifications-server/internal/setup"
@@ -50,6 +51,12 @@ func main() {
 	router.GET("/app", authAppController.Execute)
 	saveAppController := authorizedapps.NewSave(&config, env)
 	router.POST("/app", saveAppController.Execute)
+
+	// Export Config Handling.
+	exportConfigController := exports.NewView(&config, env)
+	router.GET("/exports/:id", exportConfigController.Execute)
+	saveExportConfigController := exports.NewSave(&config, env)
+	router.POST("/exports/:id", saveExportConfigController.Execute)
 
 	// Signature Info.
 	sigInfoController := siginfo.NewView(&config, env)
