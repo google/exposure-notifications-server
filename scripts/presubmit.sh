@@ -73,6 +73,7 @@ if [ $? -ne 0 ]; then
 fi
 set -e
 
+
 # Fail if a dependency was added without the necessary go.mod/go.sum change
 # being part of the commit.
 echo "🌌 Go mod tidy"
@@ -90,7 +91,8 @@ if [ $? -ne 0 ]; then
 fi
 set -e
 
-echo "🚨 Running 'go vet'..."
+
+echo "🚨 Running 'go vet'"
 go vet ./...
 
 
