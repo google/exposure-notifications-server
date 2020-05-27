@@ -51,7 +51,7 @@ infrastructure, database, service accounts, and first deployment of the services
 on Cloud Run. **Terraform does not manage the Cloud Run services after their
 initial creation!**
 
-See [Deploying with Terraform](../terraform/README.md) for more information.
+See [Deploying with Terraform](https://github.com/google/exposure-notifications-server/blob/master/terraform) for more information.
 
 ## Running services
 
