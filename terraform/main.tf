@@ -30,6 +30,10 @@ data "google_project" "project" {
   project_id = var.project
 }
 
+data "google_compute_network" "default" {
+  name = "default"
+}
+
 resource "google_project_service" "services" {
   project = data.google_project.project.project_id
   for_each = toset([
@@ -55,7 +59,7 @@ resource "google_compute_global_address" "private_ip_address" {
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 16
-  network       = "default"
+  network       = data.google_compute_network.default.self_link
 
   depends_on = [google_project_service.services["compute.googleapis.com"]]
 }
@@ -63,7 +67,7 @@ resource "google_compute_global_address" "private_ip_address" {
 resource "google_service_networking_connection" "private_vpc_connection" {
   provider = google-beta
 
-  network                 = "default"
+  network                 = data.google_compute_network.default.self_link
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 }
