@@ -50,6 +50,13 @@ variable "cloudsql_disk_size_gb" {
   description = "Size of the Cloud SQL disk, in GB."
 }
 
+variable "generate_cron_schedule" {
+  type    = string
+  default = "0 0 1 1 0"
+
+  description = "Schedule to execute the generation service."
+}
+
 terraform {
   required_providers {
     google      = "~> 3.20"
