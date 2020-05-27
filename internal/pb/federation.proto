@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-option go_package = "internal/pb;pb";
+option go_package = "github.com/google/exposure-notifications-server/internal/pb;pb";
 
 message FederationFetchRequest {
 	string fetchType = 1; // required

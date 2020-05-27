@@ -14,7 +14,7 @@
 
 syntax = "proto2";
 
-option go_package = "internal/pb/export;export";
+option go_package = "github.com/google/exposure-notifications-server/internal/pb/export;export";
 
 // Protobuf definition for exports of confirmed temporary exposure keys.
 //

@@ -200,7 +200,7 @@ function protoc() {
     --workdir "${ROOT}" \
     "${PROTOC_CONTAINER_IMAGE}" \
       --proto_path=${ROOT} \
-      --go_out=plugins=grpc:. \
+      --go_out=plugins=grpc,paths=source_relative:. \
       ${ROOT}/internal/pb/*.proto ${ROOT}/internal/pb/export/*.proto
 
   echo "Protos regenerated (OK)"
