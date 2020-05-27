@@ -21,6 +21,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
+	"io/ioutil"
 	"sort"
 
 	"github.com/google/exposure-notifications-server/internal/export/model"
@@ -32,12 +33,16 @@ import (
 )
 
 const (
-	fixedHeaderWidth     = 16
 	exportBinaryName     = "export.bin"
 	exportSignatureName  = "export.sig"
 	defaultIntervalCount = 144
 	// http://oid-info.com/get/1.2.840.10045.4.3.2
 	algorithm = "1.2.840.10045.4.3.2"
+)
+
+var (
+	fixedHeader      = []byte("EK Export v1    ")
+	fixedHeaderWidth = 16
 )
 
 type ExportSigners struct {
@@ -84,8 +89,50 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*publishmodel.Exposure
 	return buf.Bytes(), nil
 }
 
+// Unmarshal extracts the protobuf encoded exposure key present in the zip archived payload.
+func UnmarshalExportFile(zippedProtoPayload []byte) (*export.TemporaryExposureKeyExport, error) {
+	zp, err := zip.NewReader(bytes.NewReader(zippedProtoPayload), int64(len(zippedProtoPayload)))
+	if err != nil {
+		return nil, fmt.Errorf("Can't read payload: %v", err)
+	}
+
+	for _, file := range zp.File {
+		if file.Name == exportBinaryName {
+			return unmarshalContent(file)
+		}
+	}
+
+	return nil, fmt.Errorf("Payload is invalid: no %v file was found", exportBinaryName)
+}
+
+func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, error) {
+	f, err := file.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	content, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+
+	prefix := content[:fixedHeaderWidth]
+	if !bytes.Equal(prefix, fixedHeader) {
+		return nil, fmt.Errorf("unknown prefix: %v", string(prefix))
+	}
+
+	message := new(export.TemporaryExposureKeyExport)
+	err = proto.Unmarshal(content[fixedHeaderWidth:], message)
+	if err != nil {
+		return nil, err
+	}
+
+	return message, nil
+}
+
 func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, batchNum int32, batchSize int32, signers []ExportSigners) ([]byte, error) {
-	exportBytes := []byte("EK Export v1    ")
+	exportBytes := fixedHeader
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))
 	}
