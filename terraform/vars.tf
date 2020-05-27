@@ -13,53 +13,54 @@
 # limitations under the License.
 
 # The default region for resources in the project, individual resources should
-# have more specific variables defined to specify their regions to increase the
-# flexibility of deployments
+# have more specific variables defined to specify their region/location which
+# increases the flexibility of deployments
 variable "region" {
   type    = string
   default = "us-central1"
 }
 
-# The region in which to put the SQL DB - it is currently configured to use
-# PostgreSQL:
+# The region in which to put the SQL DB: it is currently configured to use
+# PostgreSQL.
 # https://cloud.google.com/sql/docs/postgres/locations
 variable "db_region" {
   type = string
   default = "us-central1"
 }
 
-# The region in which to put the key management service:
+# The region in for the key management service.
 # https://cloud.google.com/kms/docs/locations
 variable "kms_location" {
   type = string
   default = "us-central1"
 }
 
-# The location for the app engine; this includes scheduler jobs for the app
-# engine as defined by the appengine_region local, derived from this variable:
+# The location for the app engine; this implicitly defines the region for
+# scheduler jobs as specified by the cloudscheduler_region variable but the
+# values are sometimes different so they are kept as separate variables.
 # https://cloud.google.com/appengine/docs/locations
 variable "appengine_location" {
   type    = string
   default = "us-central"
 }
 
-# The appengine_region MUST use the same region as appengine_location but must
-# also include the region number which must sometimes be omitted from
-# appengine_location (as in the default values)
-variable "appengine_region" {
+# The cloudscheduler_region MUST use the same region as appengine_location but
+# it must include the region number even if this is omitted from the
+# appengine_location (as in the default values).
+variable "cloudscheduler_region" {
   type    = string
   default = "us-central1"
 }
 
 
-# The region in which for cloudrun jobs are executed:
+# The region in which cloudrun jobs are executed.
 # https://cloud.google.com/run/docs/locations
 variable "cloudrun_location" {
   type    = string
   default = "us-central1"
 }
 
-# The location holding the storage bucket for exported files:
+# The location holding the storage bucket for exported files.
 # https://cloud.google.com/storage/docs/locations
 variable "storage_location" {
   type    = string

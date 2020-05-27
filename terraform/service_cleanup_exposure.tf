@@ -116,7 +116,7 @@ resource "google_cloud_run_service_iam_member" "cleanup-exposure-invoker" {
 
 resource "google_cloud_scheduler_job" "cleanup-exposure-worker" {
   name             = "cleanup-exposure-worker"
-  region           = var.appengine_region
+  region           = var.cloudscheduler_region
   schedule         = "0 */4 * * *"
   time_zone        = "Etc/UTC"
   attempt_deadline = "600s"

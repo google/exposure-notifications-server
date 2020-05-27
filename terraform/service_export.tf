@@ -138,7 +138,7 @@ resource "google_cloud_run_service_iam_member" "export-invoker" {
 
 resource "google_cloud_scheduler_job" "export-worker" {
   name             = "export-worker"
-  region           = var.appengine_region
+  region           = var.cloudscheduler_region
   schedule         = "* * * * *"
   time_zone        = "Etc/UTC"
   attempt_deadline = "600s"
@@ -164,7 +164,7 @@ resource "google_cloud_scheduler_job" "export-worker" {
 
 resource "google_cloud_scheduler_job" "export-create-batches" {
   name             = "export-create-batches"
-  region           = var.appengine_region
+  region           = var.cloudscheduler_region
   schedule         = "*/5 * * * *"
   time_zone        = "Etc/UTC"
   attempt_deadline = "600s"

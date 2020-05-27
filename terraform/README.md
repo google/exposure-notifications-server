@@ -116,10 +116,11 @@ consideration as geographic location of resources does impact service
 performance.
 
 Changing the deployment region can be accomplished by setting the new value on
-the command line in the same way as other variables are set on the examples
+the command line, in the same way as other variables are set in the examples
 above. However, every call to `terraform apply` must use the same values, or
-else terraform will attempt to move the resource from the original deployment
-location to the new - this is not always possible and may result in an error.
+else terraform will attempt to move the resource from its original deployment
+location to the default location; this is not always possible and may result in
+an error.
 
 To simplify the process it is often easier to change the defaults for your
 deployment in `vars.tf`. Alternatively, if you have multiple deployments you
