@@ -60,6 +60,7 @@ type TemporaryExposureKeyExport struct {
 	// Region for which these keys came from (e.g., country)
 	Region *string `protobuf:"bytes,3,opt,name=region" json:"region,omitempty"`
 	// E.g., Batch 2 of 10. Ordinal, 1-based numbering.
+	// Note: Not yet supported on iOS. Use values of 1 for both.
 	BatchNum  *int32 `protobuf:"varint,4,opt,name=batch_num,json=batchNum" json:"batch_num,omitempty"`
 	BatchSize *int32 `protobuf:"varint,5,opt,name=batch_size,json=batchSize" json:"batch_size,omitempty"`
 	// Information about signatures

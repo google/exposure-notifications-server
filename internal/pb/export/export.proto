@@ -34,6 +34,7 @@ message TemporaryExposureKeyExport {
   optional string region = 3;
 
   // E.g., Batch 2 of 10. Ordinal, 1-based numbering.
+  // Note: Not yet supported on iOS. Use values of 1 for both.
   optional int32 batch_num = 4;
   optional int32 batch_size = 5;
 
