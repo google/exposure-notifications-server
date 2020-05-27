@@ -45,7 +45,7 @@ func TextExportRegions(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ec := ExportConfig{
-				Region:       tc.region,
+				OutputRegion: tc.region,
 				InputRegions: tc.inputRegions,
 			}
 			got := ec.EffectiveInputRegions()

@@ -36,7 +36,7 @@ type ExportConfig struct {
 	BucketName       string        `db:"bucket_name"`
 	FilenameRoot     string        `db:"filename_root"`
 	Period           time.Duration `db:"period_seconds"`
-	Region           string        `db:"region"`
+	OutputRegion     string        `db:"output_region"`
 	InputRegions     []string      `db:"input_regions"`
 	From             time.Time     `db:"from_timestamp"`
 	Thru             time.Time     `db:"thru_timestamp"`
@@ -46,7 +46,7 @@ type ExportConfig struct {
 // EffectiveInputRegions either returns `InputRegions` or if that array is
 // empty, the output region (`Region`) is returned (in an array).
 func (ec *ExportConfig) EffectiveInputRegions() []string {
-	return effectiveInputRegions(ec.Region, ec.InputRegions)
+	return effectiveInputRegions(ec.OutputRegion, ec.InputRegions)
 }
 
 func (ec *ExportConfig) InputRegionsOnePerLine() string {
@@ -100,7 +100,7 @@ type ExportBatch struct {
 	FilenameRoot     string    `db:"filename_root" json:"filenameRoot"`
 	StartTimestamp   time.Time `db:"start_timestamp" json:"startTimestamp"`
 	EndTimestamp     time.Time `db:"end_timestamp" json:"endTimestamp"`
-	Region           string    `db:"region" json:"region"`
+	OutputRegion     string    `db:"region" json:"output_region"`
 	InputRegions     []string  `db:"input_regions" json:"inputRegions"`
 	Status           string    `db:"status" json:"status"`
 	LeaseExpires     time.Time `db:"lease_expires" json:"leaseExpires"`
@@ -110,14 +110,14 @@ type ExportBatch struct {
 // EffectiveInputRegions either returns `InputRegions` or if that array is
 // empty, the output region (`Region`) is returned (in an array).
 func (eb *ExportBatch) EffectiveInputRegions() []string {
-	return effectiveInputRegions(eb.Region, eb.InputRegions)
+	return effectiveInputRegions(eb.OutputRegion, eb.InputRegions)
 }
 
 type ExportFile struct {
 	BucketName   string   `db:"bucket_name"`
 	Filename     string   `db:"filename"`
 	BatchID      int64    `db:"batch_id"`
-	Region       string   `db:"region"`
+	OutputRegion string   `db:"output_region"`
 	InputRegions []string `db:"input_regions" json:"inputRegions"`
 	BatchNum     int      `db:"batch_num"`
 	BatchSize    int      `db:"batch_size"`
@@ -127,7 +127,7 @@ type ExportFile struct {
 // EffectiveInputRegions either returns `InputRegions` or if that array is
 // empty, the output region (`Region`) is returned (in an array).
 func (ef *ExportFile) EffectiveInputRegions() []string {
-	return effectiveInputRegions(ef.Region, ef.InputRegions)
+	return effectiveInputRegions(ef.OutputRegion, ef.InputRegions)
 }
 
 type SignatureInfo struct {

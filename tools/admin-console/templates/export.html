@@ -19,11 +19,12 @@
 
 <form method="POST" action="/exports/{{.export.ConfigID}}" class="form-horizontal">
   <div class="form-group row">
-    <label class="control-label col-sm-3" for="Region">Region:</label>
+    <label class="control-label col-sm-3" for="OutputRegion">Output Region:</label>
     <div class="col-sm-6">
-      <input type="text" id="Region" name="Region" size="5" value="{{.export.Region}}">
+      <input type="text" id="OutputRegion" name="OutputRegion" size="5" value="{{.export.OutputRegion}}">
       <small id="RegionHelpBlock" class="form-text text-muted">This is the `output`
-				region that will apper in the export files. May also be the input region.
+				region that will apper in the export files. If the input regions (below) are left
+				blank, then this will also serve as the input region.
 			</small>
     </div>
   </div>

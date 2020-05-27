@@ -56,11 +56,11 @@ func (db *ExportDB) AddExportConfig(ctx context.Context, ec *model.ExportConfig)
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				ExportConfig
-				(bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signature_info_ids, input_regions)
+				(bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp, signature_info_ids, input_regions)
 			VALUES
 				($1, $2, $3, $4, $5, $6, $7, $8)
 			RETURNING config_id
-		`, ec.BucketName, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region,
+		`, ec.BucketName, ec.FilenameRoot, int(ec.Period.Seconds()), ec.OutputRegion,
 			ec.From, thru, ec.SignatureInfoIDs, ec.InputRegions)
 
 		if err := row.Scan(&ec.ConfigID); err != nil {
@@ -85,9 +85,9 @@ func (db *ExportDB) UpdateExportConfig(ctx context.Context, ec *model.ExportConf
 			UPDATE
 				ExportConfig
 			SET
-				bucket_name = $1, filename_root = $2, period_seconds = $3, region = $4, from_timestamp = $5, thru_timestamp = $6, signature_info_ids = $7, input_regions = $8
+				bucket_name = $1, filename_root = $2, period_seconds = $3, output_region = $4, from_timestamp = $5, thru_timestamp = $6, signature_info_ids = $7, input_regions = $8
 			WHERE config_id = $9
-		`, ec.BucketName, ec.FilenameRoot, int(ec.Period.Seconds()), ec.Region,
+		`, ec.BucketName, ec.FilenameRoot, int(ec.Period.Seconds()), ec.OutputRegion,
 			ec.From, thru, ec.SignatureInfoIDs, ec.InputRegions, ec.ConfigID)
 		if err != nil {
 			return fmt.Errorf("updating signatureinfo: %w", err)
@@ -108,7 +108,7 @@ func (db *ExportDB) GetExportConfig(ctx context.Context, id int64) (*model.Expor
 
 	row := conn.QueryRow(ctx, `
 		SELECT
-			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signature_info_ids, input_regions
+			config_id, bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp, signature_info_ids, input_regions
 		FROM
 			ExportConfig
 		WHERE
@@ -126,7 +126,7 @@ func (db *ExportDB) GetAllExportConfigs(ctx context.Context) ([]*model.ExportCon
 
 	rows, err := conn.Query(ctx, `
 		SELECT
-			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signature_info_ids, input_regions
+			config_id, bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp, signature_info_ids, input_regions
 		FROM
 			ExportConfig`)
 	if err != nil {
@@ -164,7 +164,7 @@ func (db *ExportDB) IterateExportConfigs(ctx context.Context, t time.Time, f fun
 
 	rows, err := conn.Query(ctx, `
 		SELECT
-			config_id, bucket_name, filename_root, period_seconds, region, from_timestamp, thru_timestamp, signature_info_ids, input_regions
+			config_id, bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp, signature_info_ids, input_regions
 		FROM
 			ExportConfig
 		WHERE
@@ -194,7 +194,7 @@ func scanOneExportConfig(row pgx.Row) (*model.ExportConfig, error) {
 		periodSeconds int
 		thru          *time.Time
 	)
-	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &m.Region, &m.From, &thru, &m.SignatureInfoIDs, &m.InputRegions); err != nil {
+	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &m.OutputRegion, &m.From, &thru, &m.SignatureInfoIDs, &m.InputRegions); err != nil {
 		return nil, err
 	}
 	m.Period = time.Duration(periodSeconds) * time.Second
@@ -393,7 +393,7 @@ func (db *ExportDB) AddExportBatches(ctx context.Context, batches []*model.Expor
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
 				ExportBatch
-				(config_id, bucket_name, filename_root, start_timestamp, end_timestamp, region, status, signature_info_ids, input_regions)
+				(config_id, bucket_name, filename_root, start_timestamp, end_timestamp, output_region, status, signature_info_ids, input_regions)
 			VALUES
 				($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		`)
@@ -403,7 +403,7 @@ func (db *ExportDB) AddExportBatches(ctx context.Context, batches []*model.Expor
 
 		for _, eb := range batches {
 			if _, err := tx.Exec(ctx, stmtName,
-				eb.ConfigID, eb.BucketName, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.Region, eb.Status, eb.SignatureInfoIDs, eb.InputRegions); err != nil {
+				eb.ConfigID, eb.BucketName, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.OutputRegion, eb.Status, eb.SignatureInfoIDs, eb.InputRegions); err != nil {
 				return err
 			}
 		}
@@ -535,7 +535,7 @@ type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx
 func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) (*model.ExportBatch, error) {
 	row := queryRow(ctx, `
 		SELECT
-			batch_id, config_id, bucket_name, filename_root, start_timestamp, end_timestamp, region, status, lease_expires, signature_info_ids, input_regions
+			batch_id, config_id, bucket_name, filename_root, start_timestamp, end_timestamp, output_region, status, lease_expires, signature_info_ids, input_regions
 		FROM
 			ExportBatch
 		WHERE
@@ -545,7 +545,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 
 	var expires *time.Time
 	eb := model.ExportBatch{}
-	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.BucketName, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.Region, &eb.Status, &expires, &eb.SignatureInfoIDs, &eb.InputRegions); err != nil {
+	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.BucketName, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.OutputRegion, &eb.Status, &expires, &eb.SignatureInfoIDs, &eb.InputRegions); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, database.ErrNotFound
 		}
@@ -566,7 +566,7 @@ func (db *ExportDB) FinalizeBatch(ctx context.Context, eb *model.ExportBatch, fi
 				BucketName:   eb.BucketName,
 				Filename:     file,
 				BatchID:      eb.BatchID,
-				Region:       eb.Region,
+				OutputRegion: eb.OutputRegion,
 				InputRegions: eb.InputRegions,
 				BatchNum:     i + 1,
 				BatchSize:    batchSize,
@@ -648,7 +648,7 @@ func (db *ExportDB) LookupExportFile(ctx context.Context, filename string) (*mod
 
 	row := conn.QueryRow(ctx, `
 		SELECT
-			bucket_name, filename, batch_id, region, batch_num, batch_size, status, input_regions
+			bucket_name, filename, batch_id, output_region, batch_num, batch_size, status, input_regions
 		FROM
 			ExportFile
 		WHERE
@@ -657,7 +657,7 @@ func (db *ExportDB) LookupExportFile(ctx context.Context, filename string) (*mod
 		`, filename)
 
 	ef := model.ExportFile{}
-	if err := row.Scan(&ef.BucketName, &ef.Filename, &ef.BatchID, &ef.Region, &ef.BatchNum, &ef.BatchSize, &ef.Status, &ef.InputRegions); err != nil {
+	if err := row.Scan(&ef.BucketName, &ef.Filename, &ef.BatchID, &ef.OutputRegion, &ef.BatchNum, &ef.BatchSize, &ef.Status, &ef.InputRegions); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, database.ErrNotFound
 		}
@@ -762,11 +762,11 @@ func addExportFile(ctx context.Context, tx pgx.Tx, ef *model.ExportFile) error {
 	tag, err := tx.Exec(ctx, `
 		INSERT INTO
 			ExportFile
-			(bucket_name, filename, batch_id, region, batch_num, batch_size, status, input_regions)
+			(bucket_name, filename, batch_id, output_region, batch_num, batch_size, status, input_regions)
 		VALUES
 			($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (filename) DO NOTHING
-		`, ef.BucketName, ef.Filename, ef.BatchID, ef.Region, ef.BatchNum, ef.BatchSize, ef.Status, ef.InputRegions)
+		`, ef.BucketName, ef.Filename, ef.BatchID, ef.OutputRegion, ef.BatchNum, ef.BatchSize, ef.Status, ef.InputRegions)
 	if err != nil {
 		return fmt.Errorf("inserting to ExportFile: %w", err)
 	}

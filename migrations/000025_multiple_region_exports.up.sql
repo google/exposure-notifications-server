@@ -15,7 +15,12 @@
 BEGIN;
 
 ALTER TABLE ExportConfig ADD COLUMN input_regions VARCHAR(5) [];
+ALTER TABLE ExportConfig RENAME COLUMN region TO output_region;
+
 ALTER TABLE ExportBatch ADD COLUMN input_regions VARCHAR(5) [];
+ALTER TABLE ExportBatch RENAME COLUMN region TO output_region;
+
 ALTER TABLE ExportFile ADD COLUMN input_regions VARCHAR(5) [];
+ALTER TABLE ExportFile RENAME COLUMN region TO output_region;
 
 END;
