@@ -40,7 +40,7 @@ const (
 	blobOperationTimeout = 50 * time.Second
 )
 
-// WorkerHandler is a handler to iterate the rows of ExportBatch, and creates GCS files.
+// WorkerHandler is a handler to iterate the rows of ExportBatch, and creates export files.
 func (s *Server) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.WorkerTimeout)
 	defer cancel()
@@ -201,7 +201,6 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 		return "", fmt.Errorf("marshalling export file: %w", err)
 	}
 
-	// Write to GCS.
 	objectName := exportFilename(cfi.exportBatch, cfi.batchNum)
 	logger.Infof("Created file %v, signed with %v keys", objectName, len(signers))
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
