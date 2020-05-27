@@ -114,7 +114,7 @@ func NewTestDatabase(tb testing.TB) *DB {
 
 	// Run the migrations.
 	if err := dbMigrate(connURL.String()); err != nil {
-		tb.Fatalf("failed to migrate databse: %s", err)
+		tb.Fatalf("failed to migrate database: %s", err)
 	}
 
 	// Create the db instance.
