@@ -111,7 +111,7 @@ locals {
     },
     {
       name  = "DB_POOL_MAX_CONNS"
-      value = "10"
+      value = "50"
     },
     {
       name  = "DB_PASSWORD"
