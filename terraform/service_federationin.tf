@@ -32,16 +32,17 @@ resource "google_service_account_iam_member" "cloudbuild-deploy-federationin" {
   ]
 }
 
-resource "google_project_iam_member" "federationin-cloudsql" {
-  project = data.google_project.project.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.federationin.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "federationin-db-pwd" {
+resource "google_secret_manager_secret_iam_member" "federationin" {
   provider = google-beta
 
-  secret_id = google_secret_manager_secret.db-pwd.id
+  for_each = toset([
+    "sslcert",
+    "sslkey",
+    "sslrootcert",
+    "password",
+  ])
+
+  secret_id = google_secret_manager_secret.db-secret[each.key].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.federationin.email}"
 }
@@ -76,15 +77,15 @@ resource "google_cloud_run_service" "federationin" {
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/maxScale" : "1000",
-        "run.googleapis.com/cloudsql-instances" : google_sql_database_instance.db-inst.connection_name
+        "autoscaling.knative.dev/maxScale" : "3",
+        "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
       }
     }
   }
 
   depends_on = [
     google_project_service.services["run.googleapis.com"],
-    google_project_service.services["sqladmin.googleapis.com"],
+    google_secret_manager_secret_iam_member.federationin,
     null_resource.build,
   ]
 

@@ -36,6 +36,10 @@ resource "google_storage_bucket_iam_member" "gcr-cleaner-objectadmin" {
   bucket = "artifacts.${data.google_project.project.project_id}.appspot.com"
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.gcr-cleaner.email}"
+
+  depends_on = [
+    google_project_service.services["containerregistry.googleapis.com"],
+  ]
 }
 
 resource "google_cloud_run_service" "gcr-cleaner" {
@@ -124,5 +128,6 @@ resource "google_cloud_scheduler_job" "gcr-cleaner-worker" {
   depends_on = [
     google_app_engine_application.app,
     google_cloud_run_service_iam_member.gcr-cleaner-invoker,
+    google_project_service.services["cloudscheduler.googleapis.com"],
   ]
 }

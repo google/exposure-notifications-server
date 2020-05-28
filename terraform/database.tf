@@ -30,6 +30,16 @@ resource "google_sql_database_instance" "db-inst" {
     disk_size         = var.cloudsql_disk_size_gb
     availability_type = "REGIONAL"
 
+    database_flags {
+      name  = "autovacuum"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "max_connections"
+      value = "100000"
+    }
+
     backup_configuration {
       enabled    = true
       start_time = "02:00"
@@ -63,32 +73,40 @@ resource "google_sql_database_instance" "db-inst" {
   ]
 }
 
-resource "google_sql_ssl_cert" "client_cert" {
-  common_name = "apollo"
-  instance    = google_sql_database_instance.db-inst.name
+resource "google_sql_database" "db" {
+  project  = data.google_project.project.project_id
+  instance = google_sql_database_instance.db-inst.name
+  name     = "main"
 }
 
-resource "random_password" "userpassword" {
-  length  = 16
+resource "google_sql_ssl_cert" "db-cert" {
+  project     = data.google_project.project.project_id
+  instance    = google_sql_database_instance.db-inst.name
+  common_name = "expsoure-notification"
+}
+
+resource "random_password" "db-password" {
+  length  = 64
   special = false
 }
 
 resource "google_sql_user" "user" {
   instance = google_sql_database_instance.db-inst.name
   name     = "notification"
-  password = random_password.userpassword.result
+  password = random_password.db-password.result
 }
 
-resource "google_sql_database" "db" {
-  instance = google_sql_database_instance.db-inst.name
+resource "google_secret_manager_secret" "db-secret" {
+  provider = google-beta
 
-  name    = "main"
-  project = data.google_project.project.project_id
-}
+  for_each = toset([
+    "sslcert",
+    "sslkey",
+    "sslrootcert",
+    "password",
+  ])
 
-resource "google_secret_manager_secret" "db-pwd" {
-  provider  = google-beta
-  secret_id = "dbPassword"
+  secret_id = "db-${each.key}"
 
   replication {
     automatic = true
@@ -99,17 +117,25 @@ resource "google_secret_manager_secret" "db-pwd" {
   ]
 }
 
-resource "google_secret_manager_secret_version" "db-pwd-initial" {
-  provider    = google-beta
-  secret      = google_secret_manager_secret.db-pwd.id
-  secret_data = google_sql_user.user.password
+resource "google_secret_manager_secret_version" "db-secret-version" {
+  provider = google-beta
+
+  for_each = {
+    sslcert     = google_sql_ssl_cert.db-cert.cert
+    sslkey      = google_sql_ssl_cert.db-cert.private_key
+    sslrootcert = google_sql_ssl_cert.db-cert.server_ca_cert
+    password    = google_sql_user.user.password
+  }
+
+  secret      = google_secret_manager_secret.db-secret[each.key].id
+  secret_data = each.value
 }
 
 # Grant Cloud Build the ability to access the database password (required to run
 # migrations).
 resource "google_secret_manager_secret_iam_member" "cloudbuild-db-pwd" {
   provider  = google-beta
-  secret_id = google_secret_manager_secret.db-pwd.id
+  secret_id = google_secret_manager_secret.db-secret["password"].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 
@@ -124,7 +150,9 @@ resource "google_project_iam_member" "cloudbuild-sql" {
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 
-  depends_on = [google_project_service.services["cloudbuild.googleapis.com"]]
+  depends_on = [
+    google_project_service.services["cloudbuild.googleapis.com"]
+  ]
 }
 
 # Migrate runs the initial database migrations.
@@ -133,7 +161,7 @@ resource "null_resource" "migrate" {
     environment = {
       PROJECT_ID     = data.google_project.project.project_id
       DB_CONN        = google_sql_database_instance.db-inst.connection_name
-      DB_PASS_SECRET = google_secret_manager_secret_version.db-pwd-initial.name
+      DB_PASS_SECRET = google_secret_manager_secret_version.db-secret-version["password"].name
       DB_NAME        = google_sql_database.db.name
       DB_USER        = google_sql_user.user.name
       COMMAND        = "up"
@@ -166,5 +194,5 @@ output "db_user" {
 }
 
 output "db_pass_secret" {
-  value = google_secret_manager_secret_version.db-pwd-initial.name
+  value = google_secret_manager_secret_version.db-secret-version["password"].name
 }

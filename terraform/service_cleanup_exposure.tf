@@ -32,16 +32,17 @@ resource "google_service_account_iam_member" "cloudbuild-deploy-cleanup-exposure
   ]
 }
 
-resource "google_project_iam_member" "cleanup-exposure-cloudsql" {
-  project = data.google_project.project.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.cleanup-exposure.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "cleanup-exposure-db-pwd" {
+resource "google_secret_manager_secret_iam_member" "cleanup-exposure-db" {
   provider = google-beta
 
-  secret_id = google_secret_manager_secret.db-pwd.id
+  for_each = toset([
+    "sslcert",
+    "sslkey",
+    "sslrootcert",
+    "password",
+  ])
+
+  secret_id = google_secret_manager_secret.db-secret[each.key].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.cleanup-exposure.email}"
 }
@@ -76,15 +77,15 @@ resource "google_cloud_run_service" "cleanup-exposure" {
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/maxScale" : "1000",
-        "run.googleapis.com/cloudsql-instances" : google_sql_database_instance.db-inst.connection_name
+        "autoscaling.knative.dev/maxScale" : "1",
+        "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
       }
     }
   }
 
   depends_on = [
     google_project_service.services["run.googleapis.com"],
-    google_project_service.services["sqladmin.googleapis.com"],
+    google_secret_manager_secret_iam_member.cleanup-exposure-db,
     null_resource.build,
   ]
 
@@ -136,5 +137,6 @@ resource "google_cloud_scheduler_job" "cleanup-exposure-worker" {
   depends_on = [
     google_app_engine_application.app,
     google_cloud_run_service_iam_member.cleanup-exposure-invoker,
+    google_project_service.services["cloudscheduler.googleapis.com"],
   ]
 }
