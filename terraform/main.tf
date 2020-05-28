@@ -172,6 +172,30 @@ output "region" {
   value = var.region
 }
 
+output "db_region" {
+  value = var.db_region
+}
+
+output "kms_location" {
+  value = var.kms_location
+}
+
+output "appengine_location" {
+  value = var.appengine_location
+}
+
+output "cloudscheduler_region" {
+  value = var.cloudscheduler_region
+}
+
+output "cloudrun_location" {
+  value = var.cloudrun_location
+}
+
+output "storage_location" {
+  value = var.storage_location
+}
+
 output "project" {
   value = data.google_project.project.project_id
 }
