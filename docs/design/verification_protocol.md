@@ -39,7 +39,9 @@ health authority in the jurisdiction.
    notifications server (this project).
 6. If the JWT is valid and signed by a trusted PHA (verified because the public
 	 key has been previously shared with the server), then the keys are imported
-	 into the server for distribution to other devices in the geography.
+	 into the server for distribution to other devices in the geography. Because
+   we are using pre-shared public keys, this verification can be done with
+   offline verification.
 
 ## JWT Verification + Accepted Claims
 
@@ -72,6 +74,7 @@ implementation of the exposure notifications server will disregard and never
 save the `phadata`
 * `trisk` : Contains an array of transmission risk overrides to enact when
 importing the associated keys.
+* `keyVersion` : The version of the public key to use for verification.
 
 ### Transmission Risk Overrides
 
