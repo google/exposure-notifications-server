@@ -25,14 +25,16 @@ Each service's `main` package is located in the `cmd` directory.
 Each service is deployed in the same way, but may accept different configuration
 options. Configuration options are specified via environment variables.
 
-| Service | Folder                | Description |
-|---------|-----------------------|-------------|
-| exposure key server  | cmd/export | Publishes exposure keys |
-| federation | cmd/federation | gRPC federation requests listener |
-| federation puller | cmd/federation-pull | Pulls federation results from federation partners |
-| exposure server | cmd/exposure |  Stores infection keys |
-| exposure cleanup | cmd/cleanup-exposure | Deletes old exposure keys |
-| export cleanup | cmd/cleanup-export | Deletes old exported files published by the exposure key export service |
+| Service          | Folder               | Description |
+|------------------|----------------------|-------------|
+| cleanup-export   | cmd/cleanup-export   | Deletes old exported files published by the exposure key export service |
+| cleanup-exposure | cmd/cleanup-exposure | Deletes old exposure keys |
+| export           | cmd/export           | Publishes exposure keys |
+| exposure         | cmd/exposure         | Stores infection keys |
+| federation-in    | cmd/federation-in    | Pulls federation results from federation partners |
+| federation-out   | cmd/federation-out   | gRPC federation requests listener |
+| generate         | cmd/generate         | Sample service that generates data |
+
 
 ## Before you begin
 
@@ -51,7 +53,7 @@ infrastructure, database, service accounts, and first deployment of the services
 on Cloud Run. **Terraform does not manage the Cloud Run services after their
 initial creation!**
 
-See [Deploying with Terraform](../terraform/README.md) for more information.
+See [Deploying with Terraform](https://github.com/google/exposure-notifications-server/blob/master/terraform) for more information.
 
 ## Running services
 

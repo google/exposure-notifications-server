@@ -70,7 +70,6 @@ func exporter() traceAndViewExporter {
 		return nil
 
 	case "ocagent":
-		// In here we'll initialize the Stackdriver exporter.
 		oce, err := ocagent.NewExporter(ocagent.WithInsecure(), ocagent.WithAddress("localhost:55678"))
 		if err != nil {
 			panic(err)

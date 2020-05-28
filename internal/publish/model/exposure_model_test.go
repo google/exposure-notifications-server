@@ -41,7 +41,7 @@ func TestInvalidNew(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		_, err := NewTransformer(c.maxKeys, time.Hour, time.Hour)
+		_, err := NewTransformer(c.maxKeys, time.Hour, time.Hour, false)
 		if err != nil && errMsg == "" {
 			t.Errorf("%v unexpected error: %v", i, err)
 		} else if err != nil && !strings.Contains(err.Error(), c.message) {
@@ -51,7 +51,7 @@ func TestInvalidNew(t *testing.T) {
 }
 
 func TestInvalidBase64(t *testing.T) {
-	transformer, err := NewTransformer(1, time.Hour*24, time.Hour)
+	transformer, err := NewTransformer(1, time.Hour*24, time.Hour, false)
 	if err != nil {
 		t.Fatalf("error creating transformer: %v", err)
 	}
@@ -108,15 +108,11 @@ func TestPublishValidation(t *testing.T) {
 	currentInterval := IntervalNumber(captureStartTime)
 	minInterval := IntervalNumber(captureStartTime.Add(-1 * maxAge))
 
-	tf, err := NewTransformer(2, maxAge, time.Hour)
-	if err != nil {
-		t.Fatalf("unepected error: %v", err)
-	}
-
 	cases := []struct {
-		name string
-		p    *Publish
-		m    string
+		name    string
+		p       *Publish
+		m       string
+		sameDay bool
 	}{
 		{
 			name: "no keys",
@@ -236,17 +232,39 @@ func TestPublishValidation(t *testing.T) {
 			},
 			m: fmt.Sprintf("interval number %v + interval count %v represents a key that is still valid, must end <= %v", currentInterval-143, 144, currentInterval),
 		},
+		{
+			name: "DEBUG: allow end of current UTC day still valid",
+			p: &Publish{
+				Keys: []ExposureKey{
+					{
+						Key:            encodeKey(generateKey(t)),
+						IntervalNumber: IntervalNumber(captureStartTime.UTC().Truncate(24 * time.Hour)),
+						IntervalCount:  144,
+					},
+				},
+			},
+			sameDay: true,
+		},
 	}
 
 	for _, c := range cases {
-		_, err = tf.TransformPublish(c.p, captureStartTime)
-		if err == nil {
-			t.Errorf("test '%v': want error '%v', got nil", c.name, c.m)
-		} else if !strings.Contains(err.Error(), c.m) {
-			t.Errorf("test '%v': want error '%v', got '%v'", c.name, c.m, err)
-		} else if err != nil && c.m == "" {
-			t.Errorf("test '%v': want error nil, got '%v'", c.name, err)
-		}
+		t.Run(c.name, func(t *testing.T) {
+			tf, err := NewTransformer(2, maxAge, time.Hour, c.sameDay)
+			if err != nil {
+				t.Fatalf("unepected error: %v", err)
+			}
+
+			_, err = tf.TransformPublish(c.p, captureStartTime)
+			if err == nil {
+				if c.m != "" {
+					t.Errorf("want error '%v', got nil", c.m)
+				}
+			} else if !strings.Contains(err.Error(), c.m) {
+				t.Errorf("want error '%v', got '%v'", c.m, err)
+			} else if err != nil && c.m == "" {
+				t.Errorf("want error nil, got '%v'", err)
+			}
+		})
 	}
 }
 
@@ -424,7 +442,7 @@ func TestTransform(t *testing.T) {
 	}
 
 	allowedAge := 14 * 24 * time.Hour
-	transformer, err := NewTransformer(10, allowedAge, time.Hour)
+	transformer, err := NewTransformer(10, allowedAge, time.Hour, false)
 	if err != nil {
 		t.Fatalf("NewTransformer returned unexpected error: %v", err)
 	}
@@ -492,7 +510,7 @@ func TestTransformOverlapping(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			batchTime := captureStartTime.Add(time.Hour * 24 * 7)
 			allowedAge := 14 * 24 * time.Hour
-			transformer, err := NewTransformer(10, allowedAge, time.Hour)
+			transformer, err := NewTransformer(10, allowedAge, time.Hour, false)
 			if err != nil {
 				t.Fatalf("NewTransformer returned unexpected error: %v", err)
 			}

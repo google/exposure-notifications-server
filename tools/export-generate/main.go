@@ -42,7 +42,7 @@ var (
 	keyID          = flag.String("key-id", "some_id", "Value to use in verification_key_id")
 	keyVersion     = flag.String("key-version", "1", "Value to use in verification_key_version")
 	filenameRoot   = flag.String("filename-root", "/tmp/testExport-", "The root filename for the export file(s).")
-	region         = flag.String("region", "US", "The region for the test export.")
+	region         = flag.String("region", "US", "The output region for the test export.")
 	startTimestamp = flag.String("start-timestamp", "", "The test export start timestamp (RFC3339, e.g. 2020-05-01T15:00:00Z). (default yesterday)")
 	endTimestamp   = flag.String("end-timestamp", "", "The test export end timestamp (RFC3339, e.g. 2020-05-02T15:00:00Z). (default now)")
 	numKeys        = flag.Int("num-keys", 450, "Number of total random temporary exposure keys to generate. Ignored if tek-file set.")
@@ -142,7 +142,7 @@ func main() {
 		FilenameRoot:   *filenameRoot,
 		StartTimestamp: startTime,
 		EndTimestamp:   endTime,
-		Region:         *region,
+		OutputRegion:   *region,
 	}
 	numBatches := int(math.Ceil(float64(actualNumKeys) / float64(*batchSize)))
 	log.Printf("number of batches: %d", numBatches)

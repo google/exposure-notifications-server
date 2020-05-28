@@ -93,7 +93,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*publishmodel.Exposure
 func UnmarshalExportFile(zippedProtoPayload []byte) (*export.TemporaryExposureKeyExport, error) {
 	zp, err := zip.NewReader(bytes.NewReader(zippedProtoPayload), int64(len(zippedProtoPayload)))
 	if err != nil {
-		return nil, fmt.Errorf("Can't read payload: %v", err)
+		return nil, fmt.Errorf("can't read payload: %v", err)
 	}
 
 	for _, file := range zp.File {
@@ -102,7 +102,7 @@ func UnmarshalExportFile(zippedProtoPayload []byte) (*export.TemporaryExposureKe
 		}
 	}
 
-	return nil, fmt.Errorf("Payload is invalid: no %v file was found", exportBinaryName)
+	return nil, fmt.Errorf("payload is invalid: no %v file was found", exportBinaryName)
 }
 
 func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, error) {
@@ -165,7 +165,7 @@ func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, 
 	pbeke := export.TemporaryExposureKeyExport{
 		StartTimestamp: proto.Uint64(uint64(eb.StartTimestamp.Unix())),
 		EndTimestamp:   proto.Uint64(uint64(eb.EndTimestamp.Unix())),
-		Region:         proto.String(eb.Region),
+		Region:         proto.String(eb.OutputRegion),
 		BatchNum:       proto.Int32(int32(batchNum)),
 		BatchSize:      proto.Int32(int32(batchSize)),
 		Keys:           pbeks,

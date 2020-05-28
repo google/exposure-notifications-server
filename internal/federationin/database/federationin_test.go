@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 
 	"github.com/google/go-cmp/cmp"
@@ -44,7 +43,7 @@ func TestFederationIn(t *testing.T) {
 		LastTimestamp:  ts,
 	}
 	// GetFederationQuery should fail if not found.
-	if _, err := New(testDB).GetFederationInQuery(ctx, want.QueryID); !errors.Is(err, coredb.ErrNotFound) {
+	if _, err := New(testDB).GetFederationInQuery(ctx, want.QueryID); !errors.Is(err, database.ErrNotFound) {
 		t.Errorf("got %v, want ErrNotFound", err)
 	}
 
@@ -74,7 +73,7 @@ func TestFederationIn(t *testing.T) {
 	}
 
 	// GetFederationSync should fail if not found.
-	if _, err := New(testDB).GetFederationInSync(ctx, 1); !errors.Is(err, coredb.ErrNotFound) {
+	if _, err := New(testDB).GetFederationInSync(ctx, 1); !errors.Is(err, database.ErrNotFound) {
 		t.Errorf("got %v, want ErrNotFound", err)
 	}
 

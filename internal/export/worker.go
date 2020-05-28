@@ -88,12 +88,12 @@ func (s *Server) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitIndexForEmptyBatch bool) error {
 	logger := logging.FromContext(ctx)
-	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d", eb.BatchID, eb.FilenameRoot, eb.Region, s.config.MaxRecords)
+	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d", eb.BatchID, eb.FilenameRoot, eb.OutputRegion, s.config.MaxRecords)
 
 	criteria := publishdb.IterateExposuresCriteria{
 		SinceTimestamp:      eb.StartTimestamp,
 		UntilTimestamp:      eb.EndTimestamp,
-		IncludeRegions:      []string{eb.Region},
+		IncludeRegions:      eb.EffectiveInputRegions(),
 		OnlyLocalProvenance: false, // include federated ids
 	}
 
@@ -124,7 +124,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		logger.Infof("No records for export batch %d", eb.BatchID)
 	}
 
-	exposures, err = ensureMinNumExposures(exposures, eb.Region, s.config.MinRecords, s.config.PaddingRange)
+	exposures, err = ensureMinNumExposures(exposures, eb.OutputRegion, s.config.MinRecords, s.config.PaddingRange)
 	if err != nil {
 		return fmt.Errorf("ensureMinNumExposures: %w", err)
 	}
@@ -252,9 +252,9 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 
 func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObjectNames []string) (string, int, error) {
 	exportDB := database.New(s.db)
-	objects, err := exportDB.LookupExportFiles(ctx, eb.ConfigID)
+	objects, err := exportDB.LookupExportFiles(ctx, s.config.TTL)
 	if err != nil {
-		return "", 0, fmt.Errorf("lookup existing export files for batch %d: %w", eb.BatchID, err)
+		return "", 0, fmt.Errorf("lookup available export files: %w", err)
 	}
 
 	// Add the new objects (they haven't been committed to the database yet).

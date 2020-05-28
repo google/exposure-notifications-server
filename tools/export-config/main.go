@@ -34,7 +34,7 @@ var (
 	bucketName        = flag.String("bucket-name", "", "The bucket name to store the export file.")
 	filenameRoot      = flag.String("filename-root", "", "The root filename for the export file.")
 	period            = flag.Duration("period", 24*time.Hour, "The frequency with which to create export files.")
-	region            = flag.String("region", "", "The region for the export batches/files.")
+	region            = flag.String("region", "", "The output region for the export batches/files.")
 	fromTimestamp     = flag.String("from-timestamp", "", "The timestamp (RFC3339) when this config becomes active.")
 	thruTimestamp     = flag.String("thru-timestamp", "", "The timestamp (RFC3339) when this config ends.")
 	signingKey        = flag.String("signing-key", "", "The KMS resource ID to use for signing batches.")
@@ -108,7 +108,7 @@ func main() {
 		BucketName:       *bucketName,
 		FilenameRoot:     *filenameRoot,
 		Period:           *period,
-		Region:           *region,
+		OutputRegion:     *region,
 		From:             fromTime,
 		Thru:             thruTime,
 		SignatureInfoIDs: []int64{si.ID},

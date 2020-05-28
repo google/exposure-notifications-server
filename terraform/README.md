@@ -8,14 +8,9 @@ continuous deployment.
 
 ## Requirements
 
-- Go 1.13 or higher. [Installation guide](https://golang.org/doc/install),
-  although `apt-get install golang` may be all you need.
+- Terraform 0.12. [Installation guide](https://www.terraform.io/downloads.html)
 
-- Terraform 0.12. [Installation guide](https://www.terraform.io/downloads.html),
-  although `go get github.com/hashicorp/terraform` may be all you need.
-
-- gcloud. [Installation guide](https://cloud.google.com/sdk/install), though
-  `apt-get install google-cloud-sdk` may work.
+- gcloud. [Installation guide](https://cloud.google.com/sdk/install)
 
     Note: Make sure you **unset** `GOOGLE_APPLICATION_CREDENTIALS` in your
     environment:
@@ -45,6 +40,27 @@ For full instructions on deploying, view the [deployment docs](../docs/deploying
 
     This will open two authentication windows in your web browser.
 
+1.  Change into the `terraform/` directory. All future commands are run from the
+    `terraform/` directory:
+
+    ```text
+    $ cd terraform/
+    ```
+
+1.  Save the project ID as a Terraform variable:
+
+    ```text
+    $ echo "project = ${PROJECT_ID}" >> ./terraform.tfvars
+    ```
+
+1.  (Optional) Enable the data generation job. This is useful for testing
+    environments as it provides a consistent flow of exposure data into the
+    system.
+
+    ```text
+    $ echo "create_generate_service = true" >> ./terraform.tfvars
+    ```
+
 1.  (Optional, but recommended) Create a Cloud Storage bucket for storing remote
     state. This is important if you plan to have multiple people running
     Terraform or collaborating.
@@ -56,7 +72,7 @@ For full instructions on deploying, view the [deployment docs](../docs/deploying
     Configure Terraform to store state in the bucket:
 
     ```text
-    cat <<EOF > ./terraform/state.tf
+    $ cat <<EOF > ./terraform/state.tf
     terraform {
       backend "gcs" {
         bucket = "${PROJECT_ID}-tf-state"
@@ -65,8 +81,8 @@ For full instructions on deploying, view the [deployment docs](../docs/deploying
     EOF
     ```
 
-1.  Change to the `terraform` directory and run `terraform init`. Terraform will
-    automatically download the plugins required to execute this code:
+1.  Run `terraform init`. Terraform will automatically download the plugins
+    required to execute this code. You only need to do this once per machine.
 
     ```text
     $ terraform init
@@ -75,8 +91,7 @@ For full instructions on deploying, view the [deployment docs](../docs/deploying
 1.  Execute Terraform:
 
     ```text
-    $ terraform apply \
-        -var project=${PROJECT_ID}
+    $ terraform apply
     ```
 
 For a full list of the available variables, see the `vars.tf` file.
@@ -89,18 +104,15 @@ lifecycle of those resources beyond their initial creation.
 
 ### Local development and testing example deployment
 
-The default Terraform deployment is a production-ready, high traffic
-deployment. For local development and testing, we recommend you use the
-following sample deployment:
+The default Terraform deployment is a production-ready, high traffic deployment.
+For local development and testing, you may want to use a less powerful setup:
 
-1. Run `terraform apply` with the following command:
-
-   ```console
-   terraform apply \
-     -var project=${PROJECT_ID} \
-     -var cloudsql_tier="db-custom-1-3840" \
-     -var cloudsql_disk_size_gb="16"
-   ```
+```hcl
+# terraform/terraform.tfvars
+project               = "..."
+cloudsql_tier         = "db-custom-1-3840"
+cloudsql_disk_size_gb = "16"
+```
 
 ### Changing Regions
 
@@ -121,11 +133,3 @@ above. However, every call to `terraform apply` must use the same values, or
 else terraform will attempt to move the resource from its original deployment
 location to the default location; this is not always possible and may result in
 an error.
-
-To simplify the process it is often easier to change the defaults for your
-deployment in `vars.tf`. Alternatively, if you have multiple deployments you
-can add a file with the `.tfvars` suffix to hold your variable definitions and
-then use `terraform apply -var-file="<example>.tfvars"` to deploy the
-infrastructure. Please read the
-[terraform documentation](https://www.terraform.io/docs/configuration/variables.html#variable-definitions-tfvars-files)
-for more details.

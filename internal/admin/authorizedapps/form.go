@@ -60,21 +60,24 @@ func (f *formData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
 	a.Platform = f.Platform
 	a.AllowedRegions = make(map[string]struct{})
 	for _, region := range strings.Split(f.AllowedRegions, "\n") {
-		a.AllowedRegions[region] = struct{}{}
+		a.AllowedRegions[strings.TrimSpace(region)] = struct{}{}
 	}
 	// SafetyNet
 	a.SafetyNetDisabled = f.SafetyNetDisabled
 	a.SafetyNetApkDigestSHA256 = strings.Split(f.SafetyNetApkDigestSHA256, "\n")
+	for i, s := range a.SafetyNetApkDigestSHA256 {
+		a.SafetyNetApkDigestSHA256[i] = strings.TrimSpace(s)
+	}
 	a.SafetyNetBasicIntegrity = f.SafetyNetBasicIntegrity
 	a.SafetyNetCTSProfileMatch = f.SafetyNetCTSProfileMatch
 	var err error
 	a.SafetyNetPastTime, err = time.ParseDuration(f.SafetyNetPastTime)
 	if err != nil {
-		return fmt.Errorf("Failed to parse durection for SafetyNetPastTime: %w", err)
+		return fmt.Errorf("failed to parse durection for SafetyNetPastTime: %w", err)
 	}
 	a.SafetyNetFutureTime, err = time.ParseDuration(f.SafetyNetFutureTime)
 	if err != nil {
-		return fmt.Errorf("Failed to parse durection for SafetyNetFutureTime: %w", err)
+		return fmt.Errorf("failed to parse durection for SafetyNetFutureTime: %w", err)
 	}
 	// DeviceCheck
 	a.DeviceCheckDisabled = f.DeviceCheckDisabled

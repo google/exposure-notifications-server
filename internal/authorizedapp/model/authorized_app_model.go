@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	bothPlatforms = "both"
-	iosDevice     = "ios"
-	androidDevice = "android"
+	BothPlatforms = "both"
+	IosDevice     = "ios"
+	AndroidDevice = "android"
 )
 
 // AuthorizedApp represents the configuration for a single exposure notification
@@ -102,18 +102,18 @@ func (c *AuthorizedApp) Validate() []string {
 
 // IsIOS returns true if the platform is equal to `iosDevice`
 func (c *AuthorizedApp) IsIOS() bool {
-	return c.Platform == iosDevice || c.Platform == bothPlatforms
+	return c.Platform == IosDevice
 }
 
 // IsAndroid returns true if the platform is equal to `android`
 func (c *AuthorizedApp) IsAndroid() bool {
-	return c.Platform == androidDevice || c.Platform == bothPlatforms
+	return c.Platform == AndroidDevice
 }
 
 // IsDualPlatform returns true if the platform is equal to 'both'
 // i.e. AppPackageName and BundleID are the same.
 func (c *AuthorizedApp) IsDualPlatform() bool {
-	return c.Platform == bothPlatforms
+	return c.Platform == BothPlatforms
 }
 
 func (c *AuthorizedApp) RegionsOnePerLine() string {

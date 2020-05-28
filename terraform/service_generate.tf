@@ -16,14 +16,14 @@
 # Create and deploy the service
 #
 
-resource "google_service_account" "cleanup-exposure" {
+resource "google_service_account" "generate" {
   project      = data.google_project.project.project_id
-  account_id   = "en-cleanup-exposure-sa"
-  display_name = "Exposure Notification Cleanup Exposure"
+  account_id   = "en-generate-sa"
+  display_name = "Exposure Notification Generate"
 }
 
-resource "google_service_account_iam_member" "cloudbuild-deploy-cleanup-exposure" {
-  service_account_id = google_service_account.cleanup-exposure.id
+resource "google_service_account_iam_member" "cloudbuild-deploy-generate" {
+  service_account_id = google_service_account.generate.id
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 
@@ -32,7 +32,7 @@ resource "google_service_account_iam_member" "cloudbuild-deploy-cleanup-exposure
   ]
 }
 
-resource "google_secret_manager_secret_iam_member" "cleanup-exposure-db" {
+resource "google_secret_manager_secret_iam_member" "generate-db" {
   provider = google-beta
 
   for_each = toset([
@@ -44,19 +44,19 @@ resource "google_secret_manager_secret_iam_member" "cleanup-exposure-db" {
 
   secret_id = google_secret_manager_secret.db-secret[each.key].id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.cleanup-exposure.email}"
+  member    = "serviceAccount:${google_service_account.generate.email}"
 }
 
-resource "google_cloud_run_service" "cleanup-exposure" {
-  name     = "cleanup-exposure"
-  location = var.cloudrun_location
+resource "google_cloud_run_service" "generate" {
+  name     = "generate"
+  location = var.region
 
   template {
     spec {
-      service_account_name = google_service_account.cleanup-exposure.email
+      service_account_name = google_service_account.generate.email
 
       containers {
-        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/cleanup-exposure:initial"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/generate:initial"
 
         resources {
           limits = {
@@ -74,7 +74,7 @@ resource "google_cloud_run_service" "cleanup-exposure" {
         }
 
         dynamic "env" {
-          for_each = lookup(var.service_environment, "cleanup_exposure", {})
+          for_each = lookup(var.service_environment, "generate", {})
           content {
             name  = env.key
             value = env.value
@@ -93,7 +93,7 @@ resource "google_cloud_run_service" "cleanup-exposure" {
 
   depends_on = [
     google_project_service.services["run.googleapis.com"],
-    google_secret_manager_secret_iam_member.cleanup-exposure-db,
+    google_secret_manager_secret_iam_member.generate-db,
     null_resource.build,
   ]
 
@@ -109,43 +109,41 @@ resource "google_cloud_run_service" "cleanup-exposure" {
 # Create scheduler job to invoke the service on a fixed interval.
 #
 
-resource "google_service_account" "cleanup-exposure-invoker" {
+resource "google_service_account" "generate-invoker" {
   project      = data.google_project.project.project_id
-  account_id   = "en-cleanup-exposure-invoker-sa"
-  display_name = "Exposure Notification Cleanup Exposure Invoker"
+  account_id   = "en-generate-invoker-sa"
+  display_name = "Exposure Notification Generate Invoker"
 }
 
-resource "google_cloud_run_service_iam_member" "cleanup-exposure-invoker" {
-  project  = google_cloud_run_service.cleanup-exposure.project
-  location = google_cloud_run_service.cleanup-exposure.location
-  service  = google_cloud_run_service.cleanup-exposure.name
+resource "google_cloud_run_service_iam_member" "generate-invoker" {
+  project  = google_cloud_run_service.generate.project
+  location = google_cloud_run_service.generate.location
+  service  = google_cloud_run_service.generate.name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.cleanup-exposure-invoker.email}"
+  member   = "serviceAccount:${google_service_account.generate-invoker.email}"
 }
 
-resource "google_cloud_scheduler_job" "cleanup-exposure-worker" {
-  name             = "cleanup-exposure-worker"
-  region           = var.cloudscheduler_region
-  schedule         = "0 */4 * * *"
+resource "google_cloud_scheduler_job" "generate-worker" {
+  name             = "generate-worker"
+  schedule         = var.generate_cron_schedule
   time_zone        = "Etc/UTC"
-  attempt_deadline = "600s"
+  attempt_deadline = "60s"
 
   retry_config {
-    retry_count = 3
+    retry_count = 1
   }
 
   http_target {
-    http_method = "POST"
-    uri         = "${google_cloud_run_service.cleanup-exposure.status.0.url}/"
+    http_method = "GET"
+    uri         = "${google_cloud_run_service.generate.status.0.url}/"
     oidc_token {
-      audience              = google_cloud_run_service.cleanup-exposure.status.0.url
-      service_account_email = google_service_account.cleanup-exposure-invoker.email
+      audience              = google_cloud_run_service.generate.status.0.url
+      service_account_email = google_service_account.generate-invoker.email
     }
   }
 
   depends_on = [
     google_app_engine_application.app,
-    google_cloud_run_service_iam_member.cleanup-exposure-invoker,
-    google_project_service.services["cloudscheduler.googleapis.com"],
+    google_cloud_run_service_iam_member.generate-invoker,
   ]
 }

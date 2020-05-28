@@ -34,7 +34,7 @@ func TestRenderSignatureInfo(t *testing.T) {
 	m["export"] = exportConfig
 
 	sigInfos := []*model.SignatureInfo{
-		&model.SignatureInfo{ID: 5},
+		{ID: 5},
 	}
 	usedSigInfos := map[int64]bool{5: true}
 	m["usedSigInfos"] = usedSigInfos

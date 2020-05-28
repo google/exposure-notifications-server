@@ -32,7 +32,7 @@ All submissions will be reviewed before merging. Submissions are reviewed using
 
 ### Source code layout
 
-Common code is in the `/pkg` folder.
+Common code is in the `/internal` folder.
 
 Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
 
@@ -51,27 +51,6 @@ Run the tests with:
 ```text
 $ go test ./...
 ```
-
-To run tests that interact with the database:
-
-1.  Set up the environment:
-
-    ```text
-    $ eval $(./scripts/dev init)
-    ```
-
-1.  Start a local database instance:
-
-    ```text
-    $ ./scripts/dev dbstart
-    ```
-
-1.  Run the tests:
-
-    ```text
-    $ go test -v ./...
-    ```
-
 
 ### Presubmit checks
 

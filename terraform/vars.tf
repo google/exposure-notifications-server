@@ -86,6 +86,27 @@ variable "cloudsql_disk_size_gb" {
   description = "Size of the Cloud SQL disk, in GB."
 }
 
+variable "generate_cron_schedule" {
+  type    = string
+  default = "0 0 1 1 0"
+
+  description = "Schedule to execute the generation service."
+}
+
+variable "registry_cleanup_cron_schedule" {
+  type    = string
+  default = "0 0 1 1 0"
+
+  description = "Schedule to execute cleanup of old Container Registry images."
+}
+
+variable "service_environment" {
+  type    = map(map(string))
+  default = {}
+
+  description = "Per-service environment overrides."
+}
+
 terraform {
   required_providers {
     google      = "~> 3.20"

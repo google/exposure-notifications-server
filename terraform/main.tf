@@ -37,35 +37,53 @@ resource "google_project_service" "services" {
     "cloudkms.googleapis.com",
     "cloudscheduler.googleapis.com",
     "compute.googleapis.com",
+    "containerregistry.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
     "servicenetworking.googleapis.com",
     "sql-component.googleapis.com",
     "sqladmin.googleapis.com",
     "storage-api.googleapis.com",
+    "vpcaccess.googleapis.com",
   ])
   service            = each.value
   disable_on_destroy = false
 }
 
 resource "google_compute_global_address" "private_ip_address" {
-  provider = google-beta
-
   name          = "private-ip-address"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 16
-  network       = "default"
+  network       = "projects/${data.google_project.project.project_id}/global/networks/default"
 
-  depends_on = [google_project_service.services["compute.googleapis.com"]]
+  depends_on = [
+    google_project_service.services["compute.googleapis.com"],
+  ]
 }
 
 resource "google_service_networking_connection" "private_vpc_connection" {
-  provider = google-beta
-
-  network                 = "default"
+  network                 = "projects/${data.google_project.project.project_id}/global/networks/default"
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+
+  depends_on = [
+    google_project_service.services["compute.googleapis.com"],
+    google_project_service.services["servicenetworking.googleapis.com"],
+  ]
+}
+
+resource "google_vpc_access_connector" "connector" {
+  project       = data.google_project.project.project_id
+  name          = "serverless-vpc-connector"
+  region        = var.region
+  network       = "default"
+  ip_cidr_range = "10.8.0.0/28"
+
+  depends_on = [
+    google_project_service.services["compute.googleapis.com"],
+    google_project_service.services["vpcaccess.googleapis.com"],
+  ]
 }
 
 # Build creates the container images. It does not deploy or promote them.
@@ -109,27 +127,37 @@ locals {
       value = "10"
     },
     {
-      name  = "DB_PASSWORD"
-      value = "secret://${google_secret_manager_secret_version.db-pwd-initial.name}"
-    },
-    {
-      # NOTE: We disable SSL here because the Cloud Run services use the Cloud
-      # SQL proxy which runs on localhost. The proxy still uses a secure
-      # connection to Cloud SQL.
       name  = "DB_SSLMODE"
-      value = "disable"
+      value = "verify-ca"
     },
     {
       name  = "DB_HOST"
-      value = "/cloudsql/${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
+      value = google_sql_database_instance.db-inst.private_ip_address
+    },
+    {
+      name  = "DB_NAME"
+      value = google_sql_database.db.name
+    },
+    {
+      name  = "DB_SSLCERT"
+      value = "secret://${google_secret_manager_secret_version.db-secret-version["sslcert"].id}?target=file"
+    },
+
+    {
+      name  = "DB_SSLKEY"
+      value = "secret://${google_secret_manager_secret_version.db-secret-version["sslkey"].id}?target=file"
+    },
+    {
+      name  = "DB_SSLROOTCERT"
+      value = "secret://${google_secret_manager_secret_version.db-secret-version["sslrootcert"].id}?target=file"
     },
     {
       name  = "DB_USER"
       value = google_sql_user.user.name
     },
     {
-      name  = "DB_NAME"
-      value = google_sql_database.db.name
+      name  = "DB_PASSWORD"
+      value = "secret://${google_secret_manager_secret_version.db-secret-version["password"].id}"
     },
   ]
 }

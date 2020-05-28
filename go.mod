@@ -5,7 +5,7 @@ go 1.14
 require (
 	cloud.google.com/go v0.57.0
 	cloud.google.com/go/storage v1.6.0
-	contrib.go.opencensus.io/exporter/ocagent v0.6.0
+	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.1
 	github.com/Azure/azure-sdk-for-go v42.3.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.10.2 // indirect
@@ -64,14 +64,12 @@ require (
 	github.com/tv42/httpunix v0.0.0-20191220191345-2ba4b9c3382c // indirect
 	go.opencensus.io v0.22.3
 	go.uber.org/zap v1.14.1
-	golang.org/x/net v0.0.0-20200520182314-0ba52f642ac2 // indirect
-	golang.org/x/sys v0.0.0-20200519105757-fe76b779f299 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
 	golang.org/x/tools v0.0.0-20200502202811-ed308ab3e770 // indirect
 	google.golang.org/api v0.25.0
-	google.golang.org/genproto v0.0.0-20200521103424-e9a78aa275b7
+	google.golang.org/genproto v0.0.0-20200527145253-8367513e4ece
 	google.golang.org/grpc v1.29.1
-	google.golang.org/protobuf v1.23.0
+	google.golang.org/protobuf v1.24.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/ini.v1 v1.56.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
