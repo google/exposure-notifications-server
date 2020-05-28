@@ -16,6 +16,10 @@ resource "google_kms_key_ring" "export-signing" {
   project  = data.google_project.project.project_id
   name     = "export-signing"
   location = var.region
+
+  depends_on = [
+    google_project_service.services["cloudkms.googleapis.com"],
+  ]
 }
 
 resource "google_kms_crypto_key" "export-signer" {
