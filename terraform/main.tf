@@ -41,6 +41,7 @@ resource "google_project_service" "services" {
     "cloudkms.googleapis.com",
     "cloudscheduler.googleapis.com",
     "compute.googleapis.com",
+    "containerregistry.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
     "servicenetworking.googleapis.com",
