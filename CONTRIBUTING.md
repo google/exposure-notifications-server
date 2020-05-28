@@ -32,7 +32,7 @@ All submissions will be reviewed before merging. Submissions are reviewed using
 
 ### Source code layout
 
-Common code is in the `/pkg` folder.
+Common code is in the `/internal` folder.
 
 Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
 
