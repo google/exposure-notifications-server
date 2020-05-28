@@ -48,6 +48,7 @@ resource "google_project_service" "services" {
     "sql-component.googleapis.com",
     "sqladmin.googleapis.com",
     "storage-api.googleapis.com",
+    "vpcaccess.googleapis.com",
   ])
   service            = each.value
   disable_on_destroy = false
@@ -69,6 +70,18 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   network                 = data.google_compute_network.default.self_link
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+}
+
+resource "google_vpc_access_connector" "connector" {
+  project       = data.google_project.project.project_id
+  name          = "serverless-vpc-connector"
+  region        = var.region
+  network       = data.google_compute_network.default.name
+  ip_cidr_range = "10.8.0.0/28"
+
+  depends_on = [
+    google_project_service.services["vpcaccess.googleapis.com"],
+  ]
 }
 
 # Build creates the container images. It does not deploy or promote them.
