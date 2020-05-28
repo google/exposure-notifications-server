@@ -32,9 +32,9 @@ health authority in the jurisdiction.
    with calculated transmission risk value, rolling period start and rolling
 	 period count values (the key data + metadata).
 	 These values are sent to the PHA server that issued the PIN.
-4. If the PIN is valid, the PHA issues a JWT that is signed using their
-   ECDSA p-256 algorithm. The JWT includes additional claims about the data
-	 (see below).
+4. If the PIN is valid, the PHA issues a JWT that is signed using ECDSA over
+   the P-256 elliptic curve with SHA-256 as a hash function. The JWT includes
+   additional claims about the data (see below).
 5. The app on the user's device sends this signed JWT to the exposure
    notifications server (this project).
 6. If the JWT is valid and signed by a trusted PHA (verified because the public
@@ -53,12 +53,12 @@ re-calculating the HMAC that was signed by the PHA verification server. The
 The JWT itself will be unpacked and the following validations will be performed.
 First, using the standard claims.
 
-* `iss` : The issuer will be used to determine which pubic key(s) are valid for
+* `iss` : The issuer will be used to determine which public key(s) are valid for
 verification. This is to allow for key rotation.
 * `aud` : The audience must be as configured for this installation of the
 exposure notifications server.
-* `iat` : Tokens issued in the future will not be accepted.
-* `exp` : Will verify that the token is not expired.
+* `iat` : The unix timestamp at which the token was issued.
+* `exp` : The unix timestamp at which the token will expire.
 * `nbf` : If present, the "not before" timestamp will be honored.
 
 We also prescribe a set of private claims to transmit data from the PHA
@@ -106,9 +106,10 @@ relevant data from the publish request.
 To calculate the HMAC, the device must create the following cleartext string:
 `key[,key]`
 
-Where the keys are base64 encoded, and then lexicographically sorted.
-Each `key` segment contains the following data, period separated: `key`,
+Each `key` segment contains the following data, period separated: `base64(TEK)`,
 `rolling period start`, `rolling period count`, `transmission risk`.
+
+The `key` segments are sorted lexicographically based on the base64 encoding.
 
 As an example:
 
