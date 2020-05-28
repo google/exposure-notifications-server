@@ -63,14 +63,14 @@ func (c *MonoConfig) BlobStorage() storage.BlobstoreConfig {
 }
 func (c *MonoConfig) AuthorizedAppConfig() *authorizedapp.Config { return c.AuthorizedApp }
 
-func RunServer(ctx context.Context) error {
+func RunServer(ctx context.Context) (*MonoConfig, error) {
 
 	logger := logging.FromContext(ctx)
 
 	var config MonoConfig
 	env, closer, err := setup.Setup(ctx, &config)
 	if err != nil {
-		return fmt.Errorf("setup.Setup: %w", err)
+		return nil, fmt.Errorf("setup.Setup: %w", err)
 	}
 	defer closer()
 
@@ -79,21 +79,21 @@ func RunServer(ctx context.Context) error {
 	// Cleanup export
 	cleanupExport, err := cleanup.NewExportHandler(config.Cleanup, env)
 	if err != nil {
-		return fmt.Errorf("cleanup.NewExportHandler: %w", err)
+		return nil, fmt.Errorf("cleanup.NewExportHandler: %w", err)
 	}
 	mux.Handle("/cleanup-export", cleanupExport)
 
 	// Cleanup exposure
 	cleanupExposure, err := cleanup.NewExposureHandler(config.Cleanup, env)
 	if err != nil {
-		return fmt.Errorf("cleanup.NewExposureHandler: %w", err)
+		return nil, fmt.Errorf("cleanup.NewExposureHandler: %w", err)
 	}
 	mux.Handle("/cleanup-exposure", cleanupExposure)
 
 	// Export
 	exportServer, err := export.NewServer(config.Export, env)
 	if err != nil {
-		return fmt.Errorf("export.NewServer: %w", err)
+		return nil, fmt.Errorf("export.NewServer: %w", err)
 	}
 	mux.HandleFunc("/export/create-batches", exportServer.CreateBatchesHandler)
 	mux.HandleFunc("/export/do-work", exportServer.WorkerHandler)
@@ -107,12 +107,12 @@ func RunServer(ctx context.Context) error {
 	// Publish
 	publishServer, err := publish.NewHandler(ctx, config.Publish, env)
 	if err != nil {
-		return fmt.Errorf("publish.NewHandler: %w", err)
+		return nil, fmt.Errorf("publish.NewHandler: %w", err)
 	}
 	mux.HandleFunc("/publish", handlers.WithMinimumLatency(config.Publish.MinRequestDuration, publishServer))
 
 	instrumentedHandler := &ochttp.Handler{Handler: mux}
 
 	logger.Infof("monolith running at :%s", config.Port)
-	return http.ListenAndServe(":"+config.Port, instrumentedHandler)
+	return &config, http.ListenAndServe(":"+config.Port, instrumentedHandler)
 }
