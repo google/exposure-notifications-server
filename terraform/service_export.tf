@@ -99,7 +99,7 @@ resource "google_cloud_run_service" "export" {
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/maxScale" : "1000",
+        "autoscaling.knative.dev/maxScale" : "2",
         "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
       }
     }

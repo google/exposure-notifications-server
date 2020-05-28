@@ -147,17 +147,14 @@ locals {
       name  = "DB_SSLKEY"
       value = "secret://${google_secret_manager_secret_version.db-secret-version["sslkey"].id}?target=file"
     },
-
     {
       name  = "DB_SSLROOTCERT"
       value = "secret://${google_secret_manager_secret_version.db-secret-version["sslrootcert"].id}?target=file"
     },
-
     {
       name  = "DB_USER"
       value = google_sql_user.user.name
     },
-
     {
       name  = "DB_PASSWORD"
       value = "secret://${google_secret_manager_secret_version.db-secret-version["password"].id}"

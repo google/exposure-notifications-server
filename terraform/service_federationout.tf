@@ -77,7 +77,7 @@ resource "google_cloud_run_service" "federationout" {
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/maxScale" : "1000",
+        "autoscaling.knative.dev/maxScale" : "5",
         "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
       }
     }
