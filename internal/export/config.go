@@ -40,6 +40,7 @@ type Config struct {
 	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 	MinWindowAge   time.Duration `envconfig:"MIN_WINDOW_AGE" default:"2h"`
 	BlobstoreType  string        `envconfig:"BLOBSTORE_TYPE" default:"CLOUD_STORAGE"`
+	TTL            time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
 }
 
 // DB returns the database config.

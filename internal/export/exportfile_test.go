@@ -39,7 +39,7 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 		FilenameRoot:     "files",
 		StartTimestamp:   batchStartTime,
 		EndTimestamp:     batchEndTime,
-		Region:           "US",
+		OutputRegion:     "US",
 		Status:           "",
 		LeaseExpires:     time.Time{},
 		SignatureInfoIDs: []int64{1, 2},

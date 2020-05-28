@@ -52,27 +52,6 @@ Run the tests with:
 $ go test ./...
 ```
 
-To run tests that interact with the database:
-
-1.  Set up the environment:
-
-    ```text
-    $ eval $(./scripts/dev init)
-    ```
-
-1.  Start a local database instance:
-
-    ```text
-    $ ./scripts/dev dbstart
-    ```
-
-1.  Run the tests:
-
-    ```text
-    $ go test -v ./...
-    ```
-
-
 ### Presubmit checks
 
 You should run the presubmit checks before committing changes. The presubmit script
