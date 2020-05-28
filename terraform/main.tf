@@ -124,7 +124,7 @@ locals {
     },
     {
       name  = "DB_POOL_MAX_CONNS"
-      value = "50"
+      value = "10"
     },
     {
       name  = "DB_SSLMODE"
