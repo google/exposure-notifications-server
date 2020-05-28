@@ -114,24 +114,40 @@ locals {
       value = "50"
     },
     {
-      name  = "DB_PASSWORD"
-      value = "secret://${google_secret_manager_secret_version.db-pwd-initial.name}"
-    },
-    {
       name  = "DB_SSLMODE"
       value = "verify-ca"
     },
     {
       name  = "DB_HOST"
-      value = "/cloudsql/${data.google_project.project.project_id}:${var.region}:${google_sql_database_instance.db-inst.name}"
-    },
-    {
-      name  = "DB_USER"
-      value = google_sql_user.user.name
+      value = google_sql_database_instance.db-inst.private_ip_address
     },
     {
       name  = "DB_NAME"
       value = google_sql_database.db.name
+    },
+    {
+      name  = "DB_SSLCERT"
+      value = "secret://${google_secret_manager_secret_version.db-secret-version["sslcert"].id}?target=file"
+    },
+
+    {
+      name  = "DB_SSLKEY"
+      value = "secret://${google_secret_manager_secret_version.db-secret-version["sslkey"].id}?target=file"
+    },
+
+    {
+      name  = "DB_SSLROOTCERT"
+      value = "secret://${google_secret_manager_secret_version.db-secret-version["sslrootcert"].id}?target=file"
+    },
+
+    {
+      name  = "DB_USER"
+      value = google_sql_user.user.name
+    },
+
+    {
+      name  = "DB_PASSWORD"
+      value = "secret://${google_secret_manager_secret_version.db-secret-version["password"].id}"
     },
   ]
 }
