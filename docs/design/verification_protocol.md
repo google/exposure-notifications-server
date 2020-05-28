@@ -10,7 +10,7 @@ document, but will be at a later date.
 
 The current exposure notifications publication protocol only has the ability
 to authenticate that a request came from a mobile device via the vendor
-specific device attestation protocols. This doesn't give us the ability
+specific device attestation protocols. This doesn't provide a way
 to certify that the diagnosis came from a trusted (by the server) public
 health authority in the jurisdiction.
 
