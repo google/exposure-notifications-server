@@ -68,15 +68,15 @@ resource "google_sql_ssl_cert" "client_cert" {
   instance    = google_sql_database_instance.db-inst.name
 }
 
-resource "random_password" "userpassword" {
-  length  = 16
+resource "random_password" "db-password" {
+  length  = 64
   special = false
 }
 
 resource "google_sql_user" "user" {
   instance = google_sql_database_instance.db-inst.name
   name     = "notification"
-  password = random_password.userpassword.result
+  password = random_password.db-password.result
 }
 
 resource "google_sql_database" "db" {
