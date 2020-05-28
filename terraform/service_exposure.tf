@@ -77,7 +77,7 @@ resource "google_cloud_run_service" "exposure" {
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/maxScale" : "50",
+        "autoscaling.knative.dev/maxScale" : "500",
         "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
       }
     }
