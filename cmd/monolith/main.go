@@ -29,7 +29,7 @@ func main() {
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 
-	if err := monolith.RunServer(ctx); err != nil {
+	if _, err := monolith.RunServer(ctx); err != nil {
 		logger.Fatal(err)
 	}
 }
