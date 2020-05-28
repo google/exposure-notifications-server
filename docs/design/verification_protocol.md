@@ -73,7 +73,8 @@ to the mobile app and/or the exposure notifications server. This specific
 implementation of the exposure notifications server will disregard and never
 save the `phadata`
 * `trisk` : Contains an array of transmission risk overrides to enact when
-importing the associated keys.
+importing the associated keys. If data is present in this field, it will
+override the data in the upload from the device.
 * `keyVersion` : The version of the public key to use for verification.
 
 ### Transmission Risk Overrides
