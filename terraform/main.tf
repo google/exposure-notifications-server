@@ -30,10 +30,6 @@ data "google_project" "project" {
   project_id = var.project
 }
 
-data "google_compute_network" "default" {
-  name = "default"
-}
-
 resource "google_project_service" "services" {
   project = data.google_project.project.project_id
   for_each = toset([
@@ -59,7 +55,7 @@ resource "google_compute_global_address" "private_ip_address" {
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 16
-  network       = data.google_compute_network.default.self_link
+  network       = "projects/${data.google_project.project.project_id}/global/networks/default"
 
   depends_on = [
     google_project_service.services["compute.googleapis.com"],
@@ -67,19 +63,25 @@ resource "google_compute_global_address" "private_ip_address" {
 }
 
 resource "google_service_networking_connection" "private_vpc_connection" {
-  network                 = data.google_compute_network.default.self_link
+  network                 = "projects/${data.google_project.project.project_id}/global/networks/default"
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+
+  depends_on = [
+    google_project_service.services["compute.googleapis.com"],
+    google_project_service.services["servicenetworking.googleapis.com"],
+  ]
 }
 
 resource "google_vpc_access_connector" "connector" {
   project       = data.google_project.project.project_id
   name          = "serverless-vpc-connector"
   region        = var.region
-  network       = data.google_compute_network.default.name
+  network       = "default"
   ip_cidr_range = "10.8.0.0/28"
 
   depends_on = [
+    google_project_service.services["compute.googleapis.com"],
     google_project_service.services["vpcaccess.googleapis.com"],
   ]
 }
