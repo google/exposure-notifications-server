@@ -176,12 +176,13 @@ type Transformer struct {
 	maxExposureKeys     int
 	maxIntervalStartAge time.Duration // How many intervals old does this server accept?
 	truncateWindow      time.Duration
+	debugAllowRestOfDay bool // raises end time of keys to the end of day, but doesn't embargo. For e2e testing only.
 }
 
 // NewTransformer creates a transformer for turning publish API requests into
 // records for insertion into the database. On the call to TransformPublish
 // all data is validated according to the transformer that is used.
-func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration) (*Transformer, error) {
+func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration, allowRestOfDay bool) (*Transformer, error) {
 	if maxExposureKeys < 0 || maxExposureKeys > maxKeysPerPublish {
 		return nil, fmt.Errorf("maxExposureKeys must be > 0 and <= %v, got %v", maxKeysPerPublish, maxExposureKeys)
 	}
@@ -189,6 +190,7 @@ func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, trun
 		maxExposureKeys:     maxExposureKeys,
 		maxIntervalStartAge: maxIntervalStartAge,
 		truncateWindow:      truncateWindow,
+		debugAllowRestOfDay: allowRestOfDay,
 	}, nil
 }
 
@@ -265,6 +267,12 @@ func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]
 	minIntervalNumber := IntervalNumber(batchTime.Add(-1 * t.maxIntervalStartAge))
 	// And have an interval <= maxInterval (configured allowed clock skew)
 	maxIntervalNumber := IntervalNumber(batchTime)
+
+	// If, for testing, we are accepting keys that are valid the rest of the day:
+	// adjust the maxIntervalNumber to be the end of the UTC day.
+	if t.debugAllowRestOfDay {
+		maxIntervalNumber = IntervalNumber(batchTime.Add(24 * time.Hour).Truncate(24 * time.Hour))
+	}
 
 	// Regions are a multi-value property, uppercase them for storage.
 	// There is no set of "valid" regions overall, but it is defined

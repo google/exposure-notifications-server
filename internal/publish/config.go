@@ -37,7 +37,8 @@ type Config struct {
 	TruncateWindow     time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 
 	// Flags for local development and testing.
-	DebugAPIResponses bool `envconfig:"DEBUG_API_RESPONSES"`
+	DebugAPIResponses   bool `envconfig:"DEBUG_API_RESPONSES"`
+	DebugAllowRestOfDay bool `envconfig:"DEBUG_ALLOW_REST_OF_DAY"`
 
 	AuthorizedApp *authorizedapp.Config
 	Database      *database.Config
