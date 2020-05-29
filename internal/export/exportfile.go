@@ -93,7 +93,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*publishmodel.Exposure
 func UnmarshalExportFile(zippedProtoPayload []byte) (*export.TemporaryExposureKeyExport, error) {
 	zp, err := zip.NewReader(bytes.NewReader(zippedProtoPayload), int64(len(zippedProtoPayload)))
 	if err != nil {
-		return nil, fmt.Errorf("Can't read payload: %v", err)
+		return nil, fmt.Errorf("can't read payload: %v", err)
 	}
 
 	for _, file := range zp.File {
@@ -102,7 +102,7 @@ func UnmarshalExportFile(zippedProtoPayload []byte) (*export.TemporaryExposureKe
 		}
 	}
 
-	return nil, fmt.Errorf("Payload is invalid: no %v file was found", exportBinaryName)
+	return nil, fmt.Errorf("payload is invalid: no %v file was found", exportBinaryName)
 }
 
 func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, error) {

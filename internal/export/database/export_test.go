@@ -162,6 +162,9 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 	}
 
 	got, err = exportDB.GetExportConfig(ctx, want.ConfigID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}

@@ -173,7 +173,7 @@ func toHTMLTime(t time.Time) string {
 }
 
 func effectiveInputRegions(outRegion string, inRegions []string) []string {
-	if inRegions != nil && len(inRegions) > 0 {
+	if len(inRegions) > 0 {
 		return inRegions
 	}
 	return []string{outRegion}

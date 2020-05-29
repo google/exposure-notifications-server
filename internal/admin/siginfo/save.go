@@ -56,6 +56,10 @@ func (h *saveController) Execute(c *gin.Context) {
 	}
 	if sigID != 0 {
 		sigInfo, err = exportDB.GetSignatureInfo(ctx, int64(sigID))
+		if err != nil {
+			admin.ErrorPage(c, fmt.Sprintf("error processing signature info: %v", err))
+			return
+		}
 	}
 	if err := form.PopulateSigInfo(sigInfo); err != nil {
 		admin.ErrorPage(c, fmt.Sprintf("error processing signature info: %v", err))
