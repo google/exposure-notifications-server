@@ -56,8 +56,8 @@ type MonoConfig struct {
 
 func (c *MonoConfig) DB() *database.Config { return c.Database }
 func (c *MonoConfig) KeyManager() bool     { return true }
-func (c *MonoConfig) BlobStorage() storage.BlobstoreConfig {
-	return storage.BlobstoreConfig{
+func (c *MonoConfig) BlobStorage() *storage.BlobstoreConfig {
+	return &storage.BlobstoreConfig{
 		BlobstoreType: storage.BlobstoreType(c.BlobstoreType),
 	}
 }

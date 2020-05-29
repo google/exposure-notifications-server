@@ -54,8 +54,8 @@ func (c *Config) KeyManager() bool {
 }
 
 // BlobStorage returns the BlobStorage configuration.
-func (c *Config) BlobStorage() storage.BlobstoreConfig {
-	return storage.BlobstoreConfig{
+func (c *Config) BlobStorage() *storage.BlobstoreConfig {
+	return &storage.BlobstoreConfig{
 		BlobstoreType: storage.BlobstoreType(c.BlobstoreType),
 	}
 }

@@ -49,7 +49,7 @@ type KeyManagerProvider interface {
 
 // BlobStorageConfigProvider provides the information about current Blobstore configuration.
 type BlobStorageConfigProvider interface {
-	BlobStorage() storage.BlobstoreConfig
+	BlobStorage() *storage.BlobstoreConfig
 }
 
 // Function returned from setup to be deferred until the caller exits.
