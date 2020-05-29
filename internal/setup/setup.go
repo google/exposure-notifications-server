@@ -87,9 +87,8 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 		opts = append(opts, serverenv.WithKeyManager(km))
 	}
 
-	if _, ok := config.(BlobStorageConfigProvider); ok {
-		provider := config.(BlobStorageConfigProvider)
-		blobStore, err := storage.CreateBlobstore(ctx, provider.BlobStorage())
+	if provider, ok := config.(BlobStorageConfigProvider); ok {
+		blobStore, err := storage.BlobstoreFor(ctx, provider.BlobStorage().BlobstoreType)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to connect to storage system: %v", err)
 		}

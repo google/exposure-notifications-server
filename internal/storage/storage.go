@@ -18,17 +18,15 @@ package storage
 import (
 	"context"
 	"fmt"
-
-	"github.com/google/exposure-notifications-server/internal/logging"
 )
 
 // Identifies the type of Blobestore to use
 type BlobstoreType string
 
 const (
-	None          BlobstoreType = "NONE"
-	Cloud_storage BlobstoreType = "CLOUD_STORAGE"
-	Filesystem    BlobstoreType = "FILESYSTEM"
+	BlobstoreTypeNone       BlobstoreType = "NONE"
+	BlobstoreTypeFilesystem               = "FILESYSTEM"
+	BlobstoreTypeGCS                      = "GCS"
 )
 
 // Blobstore Configuration
@@ -45,20 +43,17 @@ type Blobstore interface {
 	DeleteObject(ctx context.Context, bucket, objectName string) error
 }
 
-
-// Creates a new BlobstoreFactory based on the provided BlobstoreType.
-func CreateBlobstore(ctx context.Context, config BlobstoreConfig) (Blobstore, error) {
-	logger := logging.FromContext(ctx)
-	logger.Infof("BlobstoreType is set up to %v", config.BlobstoreType)
-
-	switch config.BlobstoreType {
-	case Cloud_storage:
-		return NewGoogleCloudStorage(ctx)
-	case Filesystem:
-		return NewFilesystemStorage(ctx)
-	case None:
+// BlobstoreFor returns the blobstore for the given type, or an error if one
+// does not exist.
+func BlobstoreFor(ctx context.Context, typ BlobstoreType) (Blobstore, error) {
+	switch typ {
+	case BlobstoreTypeNone:
 		return NewNoopBlobstore(ctx)
-	default:
-		return nil, fmt.Errorf("unknown BlobstoreType: %v", config.BlobstoreType)
+	case BlobstoreTypeFilesystem:
+		return NewFilesystemStorage(ctx)
+	case BlobstoreTypeGCS:
+		return NewGoogleCloudStorage(ctx)
 	}
+
+	return nil, fmt.Errorf("unknown storage type: %v", typ)
 }
