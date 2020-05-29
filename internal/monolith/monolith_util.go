@@ -51,7 +51,7 @@ type MonoConfig struct {
 	Publish       *publish.Config
 	Database      *database.Config
 	FederationIn  *federationin.Config
-	BlobstoreType string `envconfig:"BLOBSTORE_TYPE" default:"GCS"`
+	BlobstoreType string `envconfig:"BLOBSTORE_TYPE" default:"GOOGLE_CLOUD_STORAGE"`
 }
 
 func (c *MonoConfig) DB() *database.Config { return c.Database }

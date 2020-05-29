@@ -33,7 +33,7 @@ type Config struct {
 	Timeout       time.Duration `envconfig:"CLEANUP_TIMEOUT" default:"10m"`
 	TTL           time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
 	Database      *database.Config
-	BlobstoreType string `envconfig:"BLOBSTORE_TYPE" default:"GCS"`
+	BlobstoreType string `envconfig:"BLOBSTORE_TYPE" default:"GOOGLE_CLOUD_STORAGE"`
 }
 
 // DB return the databsae configuration.

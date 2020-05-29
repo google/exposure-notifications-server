@@ -24,9 +24,9 @@ import (
 type BlobstoreType string
 
 const (
-	BlobstoreTypeNone       BlobstoreType = "NONE"
-	BlobstoreTypeFilesystem               = "FILESYSTEM"
-	BlobstoreTypeGCS                      = "GCS"
+	BlobstoreTypeNone               BlobstoreType = "NONE"
+	BlobstoreTypeFilesystem         BlobstoreType = "FILESYSTEM"
+	BlobstoreTypeGoogleCloudStorage BlobstoreType = "GOOGLE_CLOUD_STORAGE"
 )
 
 // Blobstore Configuration
@@ -51,7 +51,7 @@ func BlobstoreFor(ctx context.Context, typ BlobstoreType) (Blobstore, error) {
 		return NewNoopBlobstore(ctx)
 	case BlobstoreTypeFilesystem:
 		return NewFilesystemStorage(ctx)
-	case BlobstoreTypeGCS:
+	case BlobstoreTypeGoogleCloudStorage:
 		return NewGoogleCloudStorage(ctx)
 	}
 

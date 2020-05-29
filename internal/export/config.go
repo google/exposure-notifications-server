@@ -39,7 +39,7 @@ type Config struct {
 	MaxRecords     int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
 	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 	MinWindowAge   time.Duration `envconfig:"MIN_WINDOW_AGE" default:"2h"`
-	BlobstoreType  string        `envconfig:"BLOBSTORE_TYPE" default:"GCS"`
+	BlobstoreType  string        `envconfig:"BLOBSTORE_TYPE" default:"GOOGLE_CLOUD_STORAGE"`
 	TTL            time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
 }
 
