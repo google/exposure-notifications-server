@@ -24,12 +24,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/monolith"
 )
 
-type SystemUnderTest struct {
-	Export  string
-	Publish string
-}
-
-func StartSystemUnderTest(tb testing.TB, ctx context.Context) *SystemUnderTest {
+func StartSystemUnderTest(tb testing.TB, ctx context.Context) *monolith.MonoConfig {
 	tb.Helper()
 
 	if testing.Short() {
@@ -42,9 +37,11 @@ func StartSystemUnderTest(tb testing.TB, ctx context.Context) *SystemUnderTest {
 
 	database.NewTestDatabase(tb)
 
-	monolith.RunServer(ctx)
+	monoConfig, err := monolith.RunServer(ctx)
+	if err != nil {
+		tb.Fatalf("failed to start monolith: %s", err)
+	}
 
-	sut := &SystemUnderTest{"http://localhost:80/do-work", "http://localhost:80/publish"}
-	return sut
+	return monoConfig
 
 }
