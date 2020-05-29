@@ -89,11 +89,6 @@ resource "google_cloud_run_service" "export" {
           name  = "EXPORT_FILE_MAX_RECORDS"
           value = "100"
         }
-
-        env {
-          name  = "EXPORT_BUCKET"
-          value = google_storage_bucket.export.name
-        }
       }
 
       container_concurrency = 10
