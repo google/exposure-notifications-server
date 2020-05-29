@@ -76,7 +76,7 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 resource "google_vpc_access_connector" "connector" {
   project       = data.google_project.project.project_id
   name          = "serverless-vpc-connector"
-  region        = var.region
+  region        = var.network_location
   network       = "default"
   ip_cidr_range = "10.8.0.0/28"
 
@@ -91,7 +91,7 @@ resource "null_resource" "build" {
   provisioner "local-exec" {
     environment = {
       PROJECT_ID = data.google_project.project.project_id
-      REGION     = var.region
+      REGION     = var.cloudrun_location
       SERVICES   = "all"
       TAG        = "initial"
     }
@@ -172,8 +172,12 @@ output "region" {
   value = var.region
 }
 
-output "db_region" {
-  value = var.db_region
+output "db_location" {
+  value = var.db_location
+}
+
+output "network_location" {
+  value = var.network_location
 }
 
 output "kms_location" {
@@ -184,8 +188,8 @@ output "appengine_location" {
   value = var.appengine_location
 }
 
-output "cloudscheduler_region" {
-  value = var.cloudscheduler_region
+output "cloudscheduler_location" {
+  value = var.cloudscheduler_location
 }
 
 output "cloudrun_location" {

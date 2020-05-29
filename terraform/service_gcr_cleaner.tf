@@ -44,7 +44,7 @@ resource "google_storage_bucket_iam_member" "gcr-cleaner-objectadmin" {
 
 resource "google_cloud_run_service" "gcr-cleaner" {
   name     = "gcr-cleaner"
-  location = var.region
+  location = var.cloudrun_location
 
   template {
     spec {
