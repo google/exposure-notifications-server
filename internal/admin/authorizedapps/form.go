@@ -73,11 +73,11 @@ func (f *formData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
 	var err error
 	a.SafetyNetPastTime, err = time.ParseDuration(f.SafetyNetPastTime)
 	if err != nil {
-		return fmt.Errorf("Failed to parse durection for SafetyNetPastTime: %w", err)
+		return fmt.Errorf("failed to parse durection for SafetyNetPastTime: %w", err)
 	}
 	a.SafetyNetFutureTime, err = time.ParseDuration(f.SafetyNetFutureTime)
 	if err != nil {
-		return fmt.Errorf("Failed to parse durection for SafetyNetFutureTime: %w", err)
+		return fmt.Errorf("failed to parse durection for SafetyNetFutureTime: %w", err)
 	}
 	// DeviceCheck
 	a.DeviceCheckDisabled = f.DeviceCheckDisabled

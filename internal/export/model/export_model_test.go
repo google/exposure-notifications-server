@@ -21,7 +21,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TextExportRegions(t *testing.T) {
+func TestExportRegions(t *testing.T) {
 	cases := []struct {
 		name         string
 		region       string

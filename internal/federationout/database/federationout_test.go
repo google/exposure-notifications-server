@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 
 	"github.com/google/go-cmp/cmp"
@@ -43,7 +42,7 @@ func TestFederationOutAuthorization(t *testing.T) {
 	}
 
 	// GetFederationOutAuthorization should fail if not found.
-	if _, err := New(testDB).GetFederationOutAuthorization(ctx, want.Issuer, want.Subject); !errors.Is(err, coredb.ErrNotFound) {
+	if _, err := New(testDB).GetFederationOutAuthorization(ctx, want.Issuer, want.Subject); !errors.Is(err, database.ErrNotFound) {
 		t.Errorf("got %v, want ErrNotFound", err)
 	}
 	// Add a query, then get it.

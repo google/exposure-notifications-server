@@ -20,12 +20,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestMarshalUnmarshalExportFile(t *testing.T) {

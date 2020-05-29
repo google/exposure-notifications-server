@@ -46,5 +46,8 @@ func main() {
 	}
 
 	prettyJSON, err := json.MarshalIndent(keyExport, "", "  ")
+	if err != nil {
+		log.Fatalf("error pretty printing export: %v", err)
+	}
 	log.Printf("%v", string(prettyJSON))
 }
