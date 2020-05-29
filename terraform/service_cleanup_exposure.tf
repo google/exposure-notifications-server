@@ -72,6 +72,14 @@ resource "google_cloud_run_service" "cleanup-exposure" {
             value = env.value["value"]
           }
         }
+
+        dynamic "env" {
+          for_each = lookup(var.service_environment, "cleanup_exposure", {})
+          content {
+            name  = env.key
+            value = env.value
+          }
+        }
       }
     }
 

@@ -72,6 +72,14 @@ resource "google_cloud_run_service" "generate" {
             value = env.value["value"]
           }
         }
+
+        dynamic "env" {
+          for_each = lookup(var.service_environment, "generate", {})
+          content {
+            name  = env.key
+            value = env.value
+          }
+        }
       }
     }
 

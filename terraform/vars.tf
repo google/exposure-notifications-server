@@ -64,6 +64,13 @@ variable "registry_cleanup_cron_schedule" {
   description = "Schedule to execute cleanup of old Container Registry images."
 }
 
+variable "service_environment" {
+  type    = map(map(string))
+  default = {}
+
+  description = "Per-service environment overrides."
+}
+
 terraform {
   required_providers {
     google      = "~> 3.20"
