@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	authapp "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/base64util"
 )
 
@@ -54,6 +55,7 @@ const (
 // AppPackageName: The identifier for the mobile application.
 //  - Android: The App Package AppPackageName
 //  - iOS: The BundleID
+// Platform: "ios" or "android"
 // TransmissionRisk: An integer from 0-8 (inclusive) that represents
 //  the transmission risk for this publish.
 // Verification: The attestation payload for this request. (iOS or Android specific)
@@ -69,6 +71,14 @@ type Publish struct {
 	DeviceVerificationPayload string        `json:"deviceVerificationPayload"`
 	VerificationPayload       string        `json:"verificationPayload"`
 	Padding                   string        `json:"padding"`
+}
+
+func (p *Publish) IsIOS() bool {
+	return strings.ToLower(p.Platform) == authapp.IosDevice
+}
+
+func (p *Publish) IsAndroid() bool {
+	return strings.ToLower(p.Platform) == authapp.AndroidDevice
 }
 
 // AndroidNonce returns the Android. This ensures that the data in the request
