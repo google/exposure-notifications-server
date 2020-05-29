@@ -184,6 +184,20 @@ function seed() {
   echo "Database seeded (OK)"
 }
 
+function dbclear() {
+  docker exec \
+    --interactive \
+    --env "PGPASSWORD=${DB_PASSWORD}" \
+    "${DB_NAME}" \
+    /usr/local/bin/psql \
+      --dbname "${DB_NAME}" \
+      --username "${DB_USER}" \
+      --port "5432" \
+      < "${ROOT}/testdata/clear-export.sql"
+
+  echo "Database cleared (OK)"
+}
+
 # dburl returns the full connection url.
 function dburl() {
   echo "${DB_URL}"
@@ -216,6 +230,7 @@ function help() {
   echo 1>&2 "  dbstop       stop the dev server"
   echo 1>&2 "  dbmigrate    run migrations"
   echo 1>&2 "  dbseed       seed dev data"
+  echo 1>&2 "  dbclear      clear export data and exposure keys"
   echo 1>&2 "  dburl        print url"
   echo 1>&2 "  dbshell      attach a psql session"
   echo 1>&2 "  protoc       re-compile protos"
@@ -255,6 +270,11 @@ case "${SUBCOMMAND}" in
   "dbseed" )
     shift
     seed "$@"
+    ;;
+
+  "dbclear" )
+    shift
+    dbclear "$@"
     ;;
 
   "dburl" )
