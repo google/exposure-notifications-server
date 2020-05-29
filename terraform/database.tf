@@ -21,7 +21,7 @@ resource "random_string" "db-name" {
 
 resource "google_sql_database_instance" "db-inst" {
   project          = data.google_project.project.project_id
-  region           = var.region
+  region           = var.db_location
   database_version = "POSTGRES_11"
   name             = "en-${random_string.db-name.result}"
 
@@ -166,7 +166,7 @@ resource "null_resource" "migrate" {
       DB_USER        = google_sql_user.user.name
       COMMAND        = "up"
 
-      REGION   = var.region
+      REGION   = var.db_location
       SERVICES = "all"
       TAG      = "initial"
     }

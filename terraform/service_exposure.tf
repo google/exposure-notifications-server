@@ -49,7 +49,7 @@ resource "google_secret_manager_secret_iam_member" "exposure-db" {
 
 resource "google_cloud_run_service" "exposure" {
   name     = "exposure"
-  location = var.region
+  location = var.cloudrun_location
 
   template {
     spec {

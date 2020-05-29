@@ -61,7 +61,7 @@ resource "google_kms_key_ring_iam_member" "export-signerverifier" {
 
 resource "google_cloud_run_service" "export" {
   name     = "export"
-  location = var.region
+  location = var.cloudrun_location
 
   template {
     spec {
@@ -139,6 +139,7 @@ resource "google_cloud_run_service_iam_member" "export-invoker" {
 
 resource "google_cloud_scheduler_job" "export-worker" {
   name             = "export-worker"
+  region           = var.cloudscheduler_location
   schedule         = "* * * * *"
   time_zone        = "Etc/UTC"
   attempt_deadline = "600s"
@@ -165,6 +166,7 @@ resource "google_cloud_scheduler_job" "export-worker" {
 
 resource "google_cloud_scheduler_job" "export-create-batches" {
   name             = "export-create-batches"
+  region           = var.cloudscheduler_location
   schedule         = "*/5 * * * *"
   time_zone        = "Etc/UTC"
   attempt_deadline = "600s"

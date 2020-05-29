@@ -69,7 +69,7 @@ For full instructions on deploying, view the [deployment docs](../docs/deploying
     $ gsutil mb -p ${PROJECT_ID} gs://${PROJECT_ID}-tf-state
     ```
 
-    Configurre Terraform to store state in the bucket:
+    Configure Terraform to store state in the bucket:
 
     ```text
     $ cat <<EOF > ./terraform/state.tf
@@ -111,3 +111,16 @@ project               = "..."
 cloudsql_tier         = "db-custom-1-3840"
 cloudsql_disk_size_gb = "16"
 ```
+
+### Changing Regions
+
+The target cloud region for each resource types are exposed as Terraform
+variables in `vars.tf`. Each region or location variable may be changed,
+however, they are not necessarily independent. The comments for each variable
+make a note of required dependencies and also link to the associated docs page
+listing the valid values.
+
+Note that not all resources used by this project are currently available in all
+regions, but bringing up infrastructure in different regions needs careful
+consideration as geographic location of resources does impact service
+performance.

@@ -14,7 +14,7 @@
 # Output of terraform
 *.tfstate*
 *.terraform/
-terraform.tfvars
+*.tfvars
 terraform/state.tf
 
 /local/

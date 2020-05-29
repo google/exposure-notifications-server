@@ -49,7 +49,7 @@ resource "google_secret_manager_secret_iam_member" "federationout-db" {
 
 resource "google_cloud_run_service" "federationout" {
   name     = "federationout"
-  location = var.region
+  location = var.cloudrun_location
 
   template {
     spec {

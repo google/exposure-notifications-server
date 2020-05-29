@@ -49,7 +49,7 @@ resource "google_secret_manager_secret_iam_member" "generate-db" {
 
 resource "google_cloud_run_service" "generate" {
   name     = "generate"
-  location = var.region
+  location = var.cloudrun_location
 
   template {
     spec {

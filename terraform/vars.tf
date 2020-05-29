@@ -12,28 +12,71 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# The default region for resources in the project, individual resources should
+# have more specific variables defined to specify their region/location which
+# increases the flexibility of deployments
 variable "region" {
   type    = string
   default = "us-central1"
 }
 
+# The region in which to put the SQL DB: it is currently configured to use
+# PostgreSQL.
+# https://cloud.google.com/sql/docs/postgres/locations
+variable "db_location" {
+  type    = string
+  default = "us-central1"
+}
+
+# The region for the networking components.
+# https://cloud.google.com/compute/docs/regions-zones
+variable "network_location" {
+  type    = string
+  default = "us-central1"
+}
+
+# The region for the key management service.
+# https://cloud.google.com/kms/docs/locations
+variable "kms_location" {
+  type    = string
+  default = "us-central1"
+}
+
+# The location for the app engine; this implicitly defines the region for
+# scheduler jobs as specified by the cloudscheduler_location variable but the
+# values are sometimes different (as in the default values) so they are kept as
+# separate variables.
+# https://cloud.google.com/appengine/docs/locations
 variable "appengine_location" {
   type    = string
   default = "us-central"
 }
 
+# The cloudscheduler_location MUST use the same region as appengine_location but
+# it must include the region number even if this is omitted from the
+# appengine_location (as in the default values).
+variable "cloudscheduler_location" {
+  type    = string
+  default = "us-central1"
+}
+
+
+# The region in which cloudrun jobs are executed.
+# https://cloud.google.com/run/docs/locations
+variable "cloudrun_location" {
+  type    = string
+  default = "us-central1"
+}
+
+# The location holding the storage bucket for exported files.
+# https://cloud.google.com/storage/docs/locations
+variable "storage_location" {
+  type    = string
+  default = "US"
+}
+
 variable "project" {
   type = string
-}
-
-variable "repo_owner" {
-  type    = string
-  default = "google"
-}
-
-variable "repo_name" {
-  type    = string
-  default = "exposure-notifications-server"
 }
 
 variable "cloudsql_tier" {

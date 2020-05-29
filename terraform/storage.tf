@@ -21,6 +21,7 @@ resource "random_string" "bucket-name" {
 
 resource "google_storage_bucket" "export" {
   project            = data.google_project.project.project_id
+  location           = var.storage_location
   name               = "exposure-notification-export-${random_string.bucket-name.result}"
   bucket_policy_only = true
 }
