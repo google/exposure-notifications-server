@@ -40,9 +40,9 @@ func testGoogleCloudStorageBucket(tb testing.TB) string {
 		tb.Skipf("🚧 Skipping Google Cloud Storage tests (SKIP_GOOGLE_CLOUD_STORAGE_TESTS is set)!")
 	}
 
-	projectID := os.Getenv("GOOGLE_PROJECT_ID")
+	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	if projectID == "" {
-		tb.Fatal("missing GOOGLE_PROJECT_ID!")
+		tb.Fatal("missing GOOGLE_CLOUD_PROJECT!")
 	}
 
 	ctx := context.Background()
