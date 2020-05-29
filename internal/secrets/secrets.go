@@ -16,7 +16,26 @@
 // Allows for a different implementation to be bound within the servernv.ServeEnv
 package secrets
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"time"
+)
+
+// SecretManagerType represents a type of secret manager.
+type SecretManagerType string
+
+const (
+	SecretManagerTypeAzureKeyVault        SecretManagerType = "AZURE_KEY_VAULT"
+	SecretManagerTypeGoogleSecretManager  SecretManagerType = "GOOGLE_SECRET_MANAGER"
+	SecretManagerTypeGoogleHashiCorpVault SecretManagerType = "HASHICORP_VAULT"
+)
+
+// Config represents the config for a secret manager.
+type Config struct {
+	SecretManagerType SecretManagerType `envconfig:"SECRET_MANAGER" default:"GOOGLE_SECRET_MANAGER"`
+	SecretCacheTTL    time.Duration     `envconfig:"SECRET_CACHE_TTL" default:"5m"`
+}
 
 // SecretManager defines the minimum shared functionality for a secret manager
 // used by this application.
@@ -26,3 +45,18 @@ type SecretManager interface {
 
 // SecretManagerFunc is a func that returns a secret manager or error.
 type SecretManagerFunc func(ctx context.Context) (SecretManager, error)
+
+// SecretManagerFor returns the secret manager for the given type, or an error
+// if one does not exist.
+func SecretManagerFor(ctx context.Context, typ SecretManagerType) (SecretManager, error) {
+	switch typ {
+	case SecretManagerTypeAzureKeyVault:
+		return NewAzureKeyVault(ctx)
+	case SecretManagerTypeGoogleSecretManager:
+		return NewGoogleSecretManager(ctx)
+	case SecretManagerTypeGoogleHashiCorpVault:
+		return NewHashiCorpVault(ctx)
+	}
+
+	return nil, fmt.Errorf("unknown secret manager type: %v", typ)
+}

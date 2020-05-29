@@ -48,16 +48,16 @@ func NewCacher(ctx context.Context, f SecretManagerFunc, ttl time.Duration) (Sec
 		return nil, fmt.Errorf("cacher: %w", err)
 	}
 
-	return WrapCacher(ctx, sm, ttl)
+	return WrapCacher(ctx, sm, ttl), nil
 }
 
 // WrapCacher wraps an existing SecretManager with caching.
-func WrapCacher(ctx context.Context, sm SecretManager, ttl time.Duration) (SecretManager, error) {
+func WrapCacher(ctx context.Context, sm SecretManager, ttl time.Duration) SecretManager {
 	return &Cacher{
 		sm:    sm,
 		ttl:   ttl,
 		cache: make(map[string]*cachedItem),
-	}, nil
+	}
 }
 
 // GetSecretValue implements the SecretManager interface, but caches values and

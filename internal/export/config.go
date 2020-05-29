@@ -18,20 +18,26 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
-// Compile-time check to assert this config matches requirements.
-var _ setup.KeyManagerProvider = (*Config)(nil)
-var _ setup.BlobStorageConfigProvider = (*Config)(nil)
-var _ setup.DBConfigProvider = (*Config)(nil)
+// Compile-time check to assert this config matches requirements
+var _ setup.BlobstoreConfigProvider = (*Config)(nil)
+var _ setup.DatabaseConfigProvider = (*Config)(nil)
+var _ setup.KeyManagerConfigProvider = (*Config)(nil)
+var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the export components.
 type Config struct {
-	Database       *database.Config
+	Storage       *storage.Config
+	Database      *database.Config
+	KeyManager    *signing.Config
+	SecretManager *secrets.Config
+
 	Port           string        `envconfig:"PORT" default:"8080"`
 	CreateTimeout  time.Duration `envconfig:"CREATE_BATCHES_TIMEOUT" default:"5m"`
 	WorkerTimeout  time.Duration `envconfig:"WORKER_TIMEOUT" default:"5m"`
@@ -40,27 +46,21 @@ type Config struct {
 	MaxRecords     int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
 	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 	MinWindowAge   time.Duration `envconfig:"MIN_WINDOW_AGE" default:"2h"`
-	BlobstoreType  string        `envconfig:"BLOBSTORE_TYPE" default:"CLOUD_STORAGE"`
 	TTL            time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
-
-	KeyManagerType string `envconfig:"KEY_MANAGER" default:"GOOGLE_CLOUD_KMS"`
 }
 
-// DB returns the database config.
-func (c *Config) DB() *database.Config {
+func (c *Config) BlobstoreConfig() *storage.Config {
+	return c.Storage
+}
+
+func (c *Config) DatabaseConfig() *database.Config {
 	return c.Database
 }
 
-// KeyManager returns the KeyManager configuration.
-func (c *Config) KeyManager() *signing.KeyManagerConfig {
-	return &signing.KeyManagerConfig{
-		KeyManagerType: signing.KeyManagerType(c.KeyManagerType),
-	}
+func (c *Config) KeyManagerConfig() *signing.Config {
+	return c.KeyManager
 }
 
-// BlobStorage returns the BlobStorage configuration.
-func (c *Config) BlobStorage() storage.BlobstoreConfig {
-	return storage.BlobstoreConfig{
-		BlobstoreType: storage.BlobstoreType(c.BlobstoreType),
-	}
+func (c *Config) SecretManagerConfig() *secrets.Config {
+	return c.SecretManager
 }

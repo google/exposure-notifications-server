@@ -16,6 +16,7 @@ package observability
 
 import (
 	"os"
+	"strings"
 	"sync"
 
 	"contrib.go.opencensus.io/exporter/ocagent"
@@ -64,19 +65,19 @@ type traceAndViewExporter interface {
 }
 
 func exporter() traceAndViewExporter {
-	switch os.Getenv("OBSERVABILITY_EXPORTER") {
+	switch strings.ToUpper(os.Getenv("OBSERVABILITY_EXPORTER")) {
 	default:
 		// TODO: Add other trace and view exporters and break out of this.
 		return nil
 
-	case "ocagent":
+	case "OCAGENT":
 		oce, err := ocagent.NewExporter(ocagent.WithInsecure(), ocagent.WithAddress("localhost:55678"))
 		if err != nil {
 			panic(err)
 		}
 		return oce
 
-	case "stackdriver":
+	case "STACKDRIVER":
 		sde, err := stackdriver.NewExporter(stackdriver.Options{
 			ProjectID: os.Getenv("PROJECT_ID"),
 		})

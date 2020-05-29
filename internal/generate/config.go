@@ -19,15 +19,20 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 // Compile-time check to assert this config matches requirements.
-var _ setup.DBConfigProvider = (*Config)(nil)
+var _ setup.DatabaseConfigProvider = (*Config)(nil)
+var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.
 type Config struct {
+	Database      *database.Config
+	SecretManager *secrets.Config
+
 	Port             string        `envconfig:"PORT" default:"8080"`
 	NumExposures     int           `envconfig:"NUM_EXPOSURES_GENERATED" default:"10"`
 	KeysPerExposure  int           `envconfig:"KEYS_PER_EXPOSURE" default:"14"`
@@ -35,11 +40,12 @@ type Config struct {
 	MaxIntervalAge   time.Duration `envconfig:"MAX_INTERVAL_AGE_ON_PUBLISH" default:"360h"`
 	TruncateWindow   time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 	DefaultRegion    string        `envconfig:"DEFAULT_REGOIN" default:"US"`
-
-	Database *database.Config
 }
 
-// DB returns the configuration for the databse.
-func (c *Config) DB() *database.Config {
+func (c *Config) DatabaseConfig() *database.Config {
 	return c.Database
+}
+
+func (c *Config) SecretManagerConfig() *secrets.Config {
+	return c.SecretManager
 }

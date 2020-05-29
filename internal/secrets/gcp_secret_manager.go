@@ -23,21 +23,21 @@ import (
 )
 
 // Compile-time check to verify implements interface.
-var _ SecretManager = (*GCPSecretManager)(nil)
+var _ SecretManager = (*GoogleSecretManager)(nil)
 
-// GCPSecretManager implements SecretManager.
-type GCPSecretManager struct {
+// GoogleSecretManager implements SecretManager.
+type GoogleSecretManager struct {
 	client *secretmanager.Client
 }
 
-// NewGCPSecretManager creates a new secret manager for GCP.
-func NewGCPSecretManager(ctx context.Context) (SecretManager, error) {
+// NewGoogleSecretManager creates a new secret manager for GCP.
+func NewGoogleSecretManager(ctx context.Context) (SecretManager, error) {
 	client, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("secretmanager.NewClient: %w", err)
 	}
 
-	sm := &GCPSecretManager{
+	sm := &GoogleSecretManager{
 		client: client,
 	}
 
@@ -48,7 +48,7 @@ func NewGCPSecretManager(ctx context.Context) (SecretManager, error) {
 // of the format:
 //
 //     projects/my-project/secrets/my-secret/versions/123
-func (sm *GCPSecretManager) GetSecretValue(ctx context.Context, name string) (string, error) {
+func (sm *GoogleSecretManager) GetSecretValue(ctx context.Context, name string) (string, error) {
 	result, err := sm.client.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
 		Name: name,
 	})

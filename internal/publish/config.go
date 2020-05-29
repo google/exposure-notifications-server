@@ -20,16 +20,22 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 // Compile-time check to assert this config matches requirements.
 var _ setup.AuthorizedAppConfigProvider = (*Config)(nil)
-var _ setup.DBConfigProvider = (*Config)(nil)
+var _ setup.DatabaseConfigProvider = (*Config)(nil)
+var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.
 type Config struct {
+	AuthorizedApp *authorizedapp.Config
+	Database      *database.Config
+	SecretManager *secrets.Config
+
 	Port               string        `envconfig:"PORT" default:"8080"`
 	MinRequestDuration time.Duration `envconfig:"TARGET_REQUEST_DURATION" default:"5s"`
 	MaxKeysOnPublish   int           `envconfig:"MAX_KEYS_ON_PUBLISH" default:"15"`
@@ -39,17 +45,16 @@ type Config struct {
 	// Flags for local development and testing.
 	DebugAPIResponses   bool `envconfig:"DEBUG_API_RESPONSES"`
 	DebugAllowRestOfDay bool `envconfig:"DEBUG_ALLOW_REST_OF_DAY"`
-
-	AuthorizedApp *authorizedapp.Config
-	Database      *database.Config
 }
 
-// AuthorizedApp returns the configuration for authorizedapp.
 func (c *Config) AuthorizedAppConfig() *authorizedapp.Config {
 	return c.AuthorizedApp
 }
 
-// DB returns the configuration for the databse.
-func (c *Config) DB() *database.Config {
+func (c *Config) DatabaseConfig() *database.Config {
 	return c.Database
+}
+
+func (c *Config) SecretManagerConfig() *secrets.Config {
+	return c.SecretManager
 }

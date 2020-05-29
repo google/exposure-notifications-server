@@ -17,7 +17,6 @@ package setup
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -30,10 +29,16 @@ import (
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
-// DBConfigProvider ensures that the environment config can provide a DB config.
+// BlobstoreConfigProvider provides the information about current storage
+// configuration.
+type BlobstoreConfigProvider interface {
+	BlobstoreConfig() *storage.Config
+}
+
+// DatabaseConfigProvider ensures that the environment config can provide a DB config.
 // All binaries in this application connect to the database via the same method.
-type DBConfigProvider interface {
-	DB() *database.Config
+type DatabaseConfigProvider interface {
+	DatabaseConfig() *database.Config
 }
 
 // AuthorizedAppConfigProvider signals that the config provided knows how to
@@ -42,31 +47,44 @@ type AuthorizedAppConfigProvider interface {
 	AuthorizedAppConfig() *authorizedapp.Config
 }
 
-// KeyManagerProvider is a marker interface indicating the KeyManagerProvider should be installed.
-type KeyManagerProvider interface {
-	KeyManager() *signing.KeyManagerConfig
+// KeyManagerConfigProvider is a marker interface indicating the key manager
+// should be installed.
+type KeyManagerConfigProvider interface {
+	KeyManagerConfig() *signing.Config
 }
 
-// BlobStorageConfigProvider provides the information about current Blobstore configuration.
-type BlobStorageConfigProvider interface {
-	BlobStorage() storage.BlobstoreConfig
+// SecretManagerConfigProvider signals that the config knows how to configure a
+// secret manager.
+type SecretManagerConfigProvider interface {
+	SecretManagerConfig() *secrets.Config
 }
 
 // Function returned from setup to be deferred until the caller exits.
 type Defer func()
 
 // Setup runs common initialization code for all servers.
-func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, Defer, error) {
+func Setup(ctx context.Context, config DatabaseConfigProvider) (*serverenv.ServerEnv, Defer, error) {
 	logger := logging.FromContext(ctx)
 
-	// Can be changed with a different secret manager interface.
-	// TODO(mikehelmick): Make this extensible to other providers.
-	// TODO(sethvargo): Make TTL configurable.
-	sm, err := secrets.NewCacher(ctx, secrets.NewGCPSecretManager, 5*time.Minute)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to connect to secret manager: %v", err)
+	// Load the secret manager - this needs to be loaded first because other
+	// processors may require access to secrets.
+	var sm secrets.SecretManager
+	if provider, ok := config.(SecretManagerConfigProvider); ok {
+		smConfig := provider.SecretManagerConfig()
+
+		var err error
+		sm, err = secrets.SecretManagerFor(ctx, smConfig.SecretManagerType)
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to connect to secret manager: %v", err)
+		}
+
+		// Enable caching, if provided.
+		if ttl := smConfig.SecretCacheTTL; ttl > 0 {
+			sm = secrets.WrapCacher(ctx, sm, ttl)
+		}
 	}
 
+	// Process first round of environment variables.
 	if err := envconfig.Process(ctx, config, sm); err != nil {
 		return nil, nil, fmt.Errorf("error loading environment variables: %v", err)
 	}
@@ -79,17 +97,19 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 	}
 
 	// Configure key management for signing.
-	if provider, ok := config.(KeyManagerProvider); ok {
-		km, err := signing.KeyManagerFor(ctx, provider.KeyManager().KeyManagerType)
+	if provider, ok := config.(KeyManagerConfigProvider); ok {
+		kmConfig := provider.KeyManagerConfig()
+		km, err := signing.KeyManagerFor(ctx, kmConfig.KeyManagerType)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to connect to key manager: %w", err)
 		}
 		opts = append(opts, serverenv.WithKeyManager(km))
 	}
 
-	if _, ok := config.(BlobStorageConfigProvider); ok {
-		provider := config.(BlobStorageConfigProvider)
-		blobStore, err := storage.CreateBlobstore(ctx, provider.BlobStorage())
+	// Configure blob storage.
+	if provider, ok := config.(BlobstoreConfigProvider); ok {
+		bsConfig := provider.BlobstoreConfig()
+		blobStore, err := storage.BlobstoreFor(ctx, bsConfig.BlobstoreType)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to connect to storage system: %v", err)
 		}
@@ -98,13 +118,13 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 	}
 
 	// Setup the database connection.
-	db, err := database.NewFromEnv(ctx, config.DB())
+	db, err := database.NewFromEnv(ctx, config.DatabaseConfig())
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
 	{
 		// Log the database config, but omit the password field.
-		redactedDB := config.DB()
+		redactedDB := config.DatabaseConfig()
 		redactedDB.Password = "<hidden>"
 		logger.Infof("Effective DB config: %+v", redactedDB)
 	}

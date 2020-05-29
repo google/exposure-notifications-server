@@ -29,9 +29,9 @@ const (
 	KeyManagerTypeHashiCorpVault KeyManagerType = "HASHICORP_VAULT"
 )
 
-// KeyManagerConfig defines configuration.
-type KeyManagerConfig struct {
-	KeyManagerType KeyManagerType
+// Config defines configuration.
+type Config struct {
+	KeyManagerType KeyManagerType `envconfig:"KEY_MANAGER" default:"GOOGLE_CLOUD_KMS"`
 }
 
 // KeyManager defines the interface for working with a KMS system that

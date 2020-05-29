@@ -34,10 +34,7 @@ func TestCacher_GetSecretValue(t *testing.T) {
 	ctx := context.Background()
 
 	sm := &testSecretManager{value: "first"}
-	cached, err := WrapCacher(ctx, sm, 250*time.Millisecond)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cached := WrapCacher(ctx, sm, 250*time.Millisecond)
 
 	// Read the value once, which should cache it.
 	if _, err := cached.GetSecretValue(ctx, "secret"); err != nil {

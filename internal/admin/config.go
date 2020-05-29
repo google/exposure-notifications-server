@@ -23,22 +23,43 @@ import (
 	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	"github.com/google/exposure-notifications-server/internal/signing"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
-var _ setup.DBConfigProvider = (*Config)(nil)
+var _ setup.DatabaseConfigProvider = (*Config)(nil)
+var _ setup.KeyManagerConfigProvider = (*Config)(nil)
+var _ setup.SecretManagerConfigProvider = (*Config)(nil)
+var _ setup.BlobstoreConfigProvider = (*Config)(nil)
 
 type Config struct {
+	Database      *database.Config
+	KeyManager    *signing.Config
+	SecretManager *secrets.Config
+	Storage       *storage.Config
+
 	Port         string `envconfig:"PORT" default:"8080"`
 	TemplatePath string `envconfig:"TEMPLATE_DIR" default:"./tools/admin-console/templates"`
-	Database     *database.Config
 	TopFile      string `envconfig:"TOP_FILE" default:"top"`
 	BotFile      string `envconfig:"BOTTOM_FILE" default:"bottom"`
 }
 
-// DB returns the configuration for the databse.
-func (c *Config) DB() *database.Config {
+func (c *Config) DatabaseConfig() *database.Config {
 	return c.Database
+}
+
+func (c *Config) KeyManagerConfig() *signing.Config {
+	return c.KeyManager
+}
+
+func (c *Config) SecretManagerConfig() *secrets.Config {
+	return c.SecretManager
+}
+
+func (c *Config) BlobstoreConfig() *storage.Config {
+	return c.Storage
 }
 
 func (c *Config) RenderTemplate(w http.ResponseWriter, tmpl string, p TemplateMap) error {
