@@ -126,7 +126,11 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		return response{status: http.StatusUnauthorized, message: message, metric: "publish-region-not-authorized", count: 1}
 	}
 
-	if appConfig.IsIOS() {
+	// If an AuthorizedApp is configured for a single platform only, we can ignore
+	// the incoming platform field on the Publish request.
+	// If the AuthorizedApp is dual platform, then let the in coming Publish.Platform
+	// decide which attestation validation is used.
+	if appConfig.IsIOS() || (appConfig.IsDualPlatform() && data.IsIOS()) {
 		span.AddAttributes(trace.StringAttribute("app_platform", "ios"))
 		if appConfig.DeviceCheckDisabled {
 			logger.Errorf("skipping DeviceCheck for %v (disabled)", data.AppPackageName)
@@ -137,7 +141,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 			span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-devicecheck-invalid", count: 1}
 		}
-	} else if appConfig.IsAndroid() {
+	} else if appConfig.IsAndroid() || (appConfig.IsDualPlatform() && data.IsAndroid()) {
 		span.AddAttributes(trace.StringAttribute("app_platform", "android"))
 		if appConfig.SafetyNetDisabled {
 			message := fmt.Sprintf("skipping SafetyNet for %v (disabled)", data.AppPackageName)
@@ -153,8 +157,8 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	} else {
 		message := fmt.Sprintf("invalid AuthorizedApp config %v: invalid platform %v", data.AppPackageName, data.Platform)
 		logger.Error(message)
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		return response{status: http.StatusInternalServerError, message: message, metric: "publish-authorizedapp-missing-platform", count: 1}
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
+		return response{status: http.StatusBadRequest, message: message, metric: "publish-authorizedapp-missing-platform", count: 1}
 	}
 
 	batchTime := time.Now()
