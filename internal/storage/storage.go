@@ -45,22 +45,6 @@ type Blobstore interface {
 	DeleteObject(ctx context.Context, bucket, objectName string) error
 }
 
-// Blobstore that does nothing.
-type NoopBlobstore struct{}
-
-func NewNoopBlobstore(ctx context.Context) (Blobstore, error) {
-	return &NoopBlobstore{}, nil
-}
-
-// No op.
-func (s *NoopBlobstore) CreateObject(ctx context.Context, folder, filename string, contents []byte) error {
-	return nil
-}
-
-// No op.
-func (s *NoopBlobstore) DeleteObject(ctx context.Context, folder, filename string) error {
-	return nil
-}
 
 // Creates a new BlobstoreFactory based on the provided BlobstoreType.
 func CreateBlobstore(ctx context.Context, config BlobstoreConfig) (Blobstore, error) {
