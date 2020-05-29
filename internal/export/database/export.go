@@ -28,10 +28,6 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-const (
-	bucketEnvVar = "EXPORT_BUCKET"
-)
-
 type ExportDB struct {
 	db *database.DB
 }
