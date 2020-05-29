@@ -85,9 +85,12 @@ resource "google_cloud_run_service" "export" {
           }
         }
 
-        env {
-          name  = "EXPORT_FILE_MAX_RECORDS"
-          value = "100"
+        dynamic "env" {
+          for_each = lookup(var.service_environment, "export", {})
+          content {
+            name  = env.key
+            value = env.value
+          }
         }
       }
 
