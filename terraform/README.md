@@ -94,8 +94,6 @@ For full instructions on deploying, view the [deployment docs](../docs/deploying
     $ terraform apply
     ```
 
-For a full list of the available variables, see the `vars.tf` file.
-
 Terraform will create the required infrastructure including the database,
 service accounts, storage bucket, keys, and secrets. **As a one-time
 operation**, Terraform will also migrate the database schema and build/deploy
@@ -116,20 +114,13 @@ cloudsql_disk_size_gb = "16"
 
 ### Changing Regions
 
-To enable deployment flexibility, the target region for the different resource
-types are exposed as terraform variables in `vars.tf`. Each region or location
-variable may be changed, however, they are not necessarily independent. The
-comments for each variable make a note of required dependencies and also link
-to the associated docs page listing the valid values.
+The target cloud region for each resource types are exposed as Terraform
+variables in `vars.tf`. Each region or location variable may be changed,
+however, they are not necessarily independent. The comments for each variable
+make a note of required dependencies and also link to the associated docs page
+listing the valid values.
 
-Note that, not all resources used by this project are currently available in
-all regions, but bringing up infrastructure in different regions needs careful
+Note that not all resources used by this project are currently available in all
+regions, but bringing up infrastructure in different regions needs careful
 consideration as geographic location of resources does impact service
 performance.
-
-Changing the deployment region can be accomplished by setting the new value on
-the command line, in the same way as other variables are set in the examples
-above. However, every call to `terraform apply` must use the same values, or
-else terraform will attempt to move the resource from its original deployment
-location to the default location; this is not always possible and may result in
-an error.
