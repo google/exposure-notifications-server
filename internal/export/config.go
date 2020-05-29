@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
@@ -41,6 +42,8 @@ type Config struct {
 	MinWindowAge   time.Duration `envconfig:"MIN_WINDOW_AGE" default:"2h"`
 	BlobstoreType  string        `envconfig:"BLOBSTORE_TYPE" default:"CLOUD_STORAGE"`
 	TTL            time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
+
+	KeyManagerType string `envconfig:"KEY_MANAGER" default:"GOOGLE_CLOUD_KMS"`
 }
 
 // DB returns the database config.
@@ -49,8 +52,10 @@ func (c *Config) DB() *database.Config {
 }
 
 // KeyManager returns the KeyManager configuration.
-func (c *Config) KeyManager() bool {
-	return true
+func (c *Config) KeyManager() *signing.KeyManagerConfig {
+	return &signing.KeyManagerConfig{
+		KeyManagerType: signing.KeyManagerType(c.KeyManagerType),
+	}
 }
 
 // BlobStorage returns the BlobStorage configuration.

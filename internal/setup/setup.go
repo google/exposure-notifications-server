@@ -44,7 +44,7 @@ type AuthorizedAppConfigProvider interface {
 
 // KeyManagerProvider is a marker interface indicating the KeyManagerProvider should be installed.
 type KeyManagerProvider interface {
-	KeyManager() bool
+	KeyManager() *signing.KeyManagerConfig
 }
 
 // BlobStorageConfigProvider provides the information about current Blobstore configuration.
@@ -78,9 +78,9 @@ func Setup(ctx context.Context, config DBConfigProvider) (*serverenv.ServerEnv, 
 		serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext),
 	}
 
-	// TODO(mikehelmick): Make this extensible to other providers.
-	if _, ok := config.(KeyManagerProvider); ok {
-		km, err := signing.NewGCPKMS(ctx)
+	// Configure key management for signing.
+	if provider, ok := config.(KeyManagerProvider); ok {
+		km, err := signing.KeyManagerFor(ctx, provider.KeyManager().KeyManagerType)
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to connect to key manager: %w", err)
 		}
