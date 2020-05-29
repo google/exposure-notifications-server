@@ -1,7 +1,5 @@
 BEGIN;
 
-DELETE FROM exportfile;
-DELETE FROM exportbatch;
-DELETE FROM exposure;
+TRUNCATE exportfile, exportbatch, exposure CASCADE;
 
 END;
