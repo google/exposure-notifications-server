@@ -100,6 +100,10 @@ echo "🚧 Compile"
 go build ./...
 
 
+echo "Running 'staticcheck'"
+${ROOT}/scripts/dev staticcheck
+
+
 echo "🧪 Test"
 go test ./... \
   -coverprofile=coverage.out \

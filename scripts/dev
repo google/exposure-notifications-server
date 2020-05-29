@@ -23,6 +23,7 @@ DOCKER_CMD="$(command -v docker || true)"
 DB_CONTAINER_IMAGE="registry.hub.docker.com/library/postgres:12-alpine"
 MIGRATE_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notifications/migrate:latest"
 PROTOC_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notifications/protoc:latest"
+STATICCHECK_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notifications/staticcheck:latest"
 
 # Database parameters
 DB_HOST="${DB_HOST:-127.0.0.1}"
@@ -206,6 +207,23 @@ function protoc() {
   echo "Protos regenerated (OK)"
 }
 
+# staticcheck runs staticcheck
+function staticcheck() {
+  docker pull --quiet "${STATICCHECK_CONTAINER_IMAGE}" > /dev/null
+
+  # Mounts the Go and staticcheck caches to speed things up
+  docker run \
+    --rm \
+    --volume "${ROOT}:${ROOT}" \
+    --workdir "${ROOT}" \
+    --volume "$(go env GOCACHE)"/:/root/.cache/go-build \
+    --volume "$(go env GOCACHE)"/../staticcheck:/root/.cache/staticcheck \
+    "${STATICCHECK_CONTAINER_IMAGE}" \
+    ./...
+
+  echo "staticcheck succeeded"
+}
+
 # help prints help.
 function help() {
   echo 1>&2 "Usage: ${PROGNAME} <command>"
@@ -219,6 +237,7 @@ function help() {
   echo 1>&2 "  dburl        print url"
   echo 1>&2 "  dbshell      attach a psql session"
   echo 1>&2 "  protoc       re-compile protos"
+  echo 1>&2 "  staticcheck  run staticcheck"
 }
 
 SUBCOMMAND="${1:-}"
@@ -265,6 +284,11 @@ case "${SUBCOMMAND}" in
   "protoc" )
     shift
     protoc "$@"
+    ;;
+
+  "staticcheck" )
+    shift
+    staticcheck "$@"
     ;;
 
   *)
