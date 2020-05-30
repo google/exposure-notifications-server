@@ -18,22 +18,20 @@ package storage
 import (
 	"context"
 	"fmt"
-
-	"github.com/google/exposure-notifications-server/internal/logging"
 )
 
-// Identifies the type of Blobestore to use
+// BlobstoreType defines a specific blobstore.
 type BlobstoreType string
 
 const (
-	None          BlobstoreType = "NONE"
-	Cloud_storage BlobstoreType = "CLOUD_STORAGE"
-	Filesystem    BlobstoreType = "FILESYSTEM"
+	BlobstoreTypeGoogleCloudStorage BlobstoreType = "GOOGLE_CLOUD_STORAGE"
+	BlobstoreTypeFilesystem         BlobstoreType = "FILESYSTEM"
+	BlobstoreTypeNoop               BlobstoreType = "NOOP"
 )
 
-// Blobstore Configuration
-type BlobstoreConfig struct {
-	BlobstoreType BlobstoreType
+// Config defines the configuration for a blobstore.
+type Config struct {
+	BlobstoreType BlobstoreType `envconfig:"BLOBSTORE" default:"GOOGLE_CLOUD_STORAGE"`
 }
 
 // Blobstore defines the minimum interface for a blob storage system.
@@ -45,36 +43,17 @@ type Blobstore interface {
 	DeleteObject(ctx context.Context, bucket, objectName string) error
 }
 
-// Blobstore that does nothing.
-type NoopBlobstore struct{}
-
-func NewNoopBlobstore(ctx context.Context) (Blobstore, error) {
-	return &NoopBlobstore{}, nil
-}
-
-// No op.
-func (s *NoopBlobstore) CreateObject(ctx context.Context, folder, filename string, contents []byte) error {
-	return nil
-}
-
-// No op.
-func (s *NoopBlobstore) DeleteObject(ctx context.Context, folder, filename string) error {
-	return nil
-}
-
-// Creates a new BlobstoreFactory based on the provided BlobstoreType.
-func CreateBlobstore(ctx context.Context, config BlobstoreConfig) (Blobstore, error) {
-	logger := logging.FromContext(ctx)
-	logger.Infof("BlobstoreType is set up to %v", config.BlobstoreType)
-
-	switch config.BlobstoreType {
-	case Cloud_storage:
+// BlobstoreFor returns the blob store for the given type, or an error if one
+// does not exist.
+func BlobstoreFor(ctx context.Context, typ BlobstoreType) (Blobstore, error) {
+	switch typ {
+	case BlobstoreTypeGoogleCloudStorage:
 		return NewGoogleCloudStorage(ctx)
-	case Filesystem:
+	case BlobstoreTypeFilesystem:
 		return NewFilesystemStorage(ctx)
-	case None:
+	case BlobstoreTypeNoop:
 		return NewNoopBlobstore(ctx)
 	default:
-		return nil, fmt.Errorf("unknown BlobstoreType: %v", config.BlobstoreType)
+		return nil, fmt.Errorf("unknown blob store: %v", typ)
 	}
 }

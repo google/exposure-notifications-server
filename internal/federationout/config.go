@@ -18,15 +18,19 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 // Compile-time check to assert this config matches requirements.
-var _ setup.DBConfigProvider = (*Config)(nil)
+var _ setup.DatabaseConfigProvider = (*Config)(nil)
+var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 
 // Config is the configuration for the federation components (data sent to other servers).
 type Config struct {
-	Database       *database.Config
+	Database      *database.Config
+	SecretManager *secrets.Config
+
 	Port           string        `envconfig:"PORT" default:"8080"`
 	Timeout        time.Duration `envconfig:"RPC_TIMEOUT" default:"5m"`
 	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
@@ -42,7 +46,10 @@ type Config struct {
 	TLSKeyFile  string `envconfig:"TLS_KEY_FILE"`
 }
 
-// DB returns the database config.
-func (c *Config) DB() *database.Config {
+func (c *Config) DatabaseConfig() *database.Config {
 	return c.Database
+}
+
+func (c *Config) SecretManagerConfig() *secrets.Config {
+	return c.SecretManager
 }

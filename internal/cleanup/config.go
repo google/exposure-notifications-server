@@ -18,32 +18,36 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
 // Compile-time check to assert this config matches requirements.
-var _ setup.BlobStorageConfigProvider = (*Config)(nil)
-var _ setup.DBConfigProvider = (*Config)(nil)
+var _ setup.BlobstoreConfigProvider = (*Config)(nil)
+var _ setup.DatabaseConfigProvider = (*Config)(nil)
+var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the cleanup components.
 type Config struct {
-	Port          string        `envconfig:"PORT" default:"8080"`
-	Timeout       time.Duration `envconfig:"CLEANUP_TIMEOUT" default:"10m"`
-	TTL           time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
+	Storage       *storage.Config
 	Database      *database.Config
-	BlobstoreType string `envconfig:"BLOBSTORE_TYPE" default:"CLOUD_STORAGE"`
+	SecretManager *secrets.Config
+
+	Port    string        `envconfig:"PORT" default:"8080"`
+	Timeout time.Duration `envconfig:"CLEANUP_TIMEOUT" default:"10m"`
+	TTL     time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
 }
 
-// DB return the databsae configuration.
-func (c *Config) DB() *database.Config {
+func (c *Config) BlobstoreConfig() *storage.Config {
+	return c.Storage
+}
+
+func (c *Config) DatabaseConfig() *database.Config {
 	return c.Database
 }
 
-// BlobStorage returns the BlobStorage configuration.
-func (c *Config) BlobStorage() storage.BlobstoreConfig {
-	return storage.BlobstoreConfig{
-		BlobstoreType: storage.BlobstoreType(c.BlobstoreType),
-	}
+func (c *Config) SecretManagerConfig() *secrets.Config {
+	return c.SecretManager
 }

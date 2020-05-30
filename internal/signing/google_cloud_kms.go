@@ -23,23 +23,23 @@ import (
 )
 
 // Compile-time check to verify implements interface.
-var _ KeyManager = (*GCPKMS)(nil)
+var _ KeyManager = (*GoogleCloudKMS)(nil)
 
-// GCPKMS implements the signing.KeyManager interface and can be used to sign
+// GoogleCloudKMS implements the signing.KeyManager interface and can be used to sign
 // export files.
-type GCPKMS struct {
+type GoogleCloudKMS struct {
 	client *kms.KeyManagementClient
 }
 
-func NewGCPKMS(ctx context.Context) (KeyManager, error) {
+func NewGoogleCloudKMS(ctx context.Context) (KeyManager, error) {
 	client, err := kms.NewKeyManagementClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &GCPKMS{client}, nil
+	return &GoogleCloudKMS{client}, nil
 }
 
-func (kms *GCPKMS) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
+func (kms *GoogleCloudKMS) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
 	signer, err := gcpkms.NewSigner(ctx, kms.client, keyID)
 	if err != nil {
 		return nil, err

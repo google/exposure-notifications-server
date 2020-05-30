@@ -11,6 +11,11 @@
   - [On Google Cloud](#on-google-cloud)
   - [On a custom setup](#on-a-custom-setup)
 - [Configuring the server](#configuring-the-server)
+- [Configuring components](#configuring-components)
+  - [Blob storage](#blob-storage)
+  - [Key management](#key-management)
+  - [Secrets management](#secrets-management)
+  - [Observability](#observability)
 
 <!-- /TOC -->
 
@@ -262,3 +267,62 @@ the public Internet!**
 1.  Open a browser to [localhost:8080](http://localhost:8080/).
 
     **Remember, you are editing the live configuration of the database!**
+
+
+## Configuring components
+
+### Blob storage
+
+The blob storage component defines where and how export files are written. The
+following configurations are available:
+
+| Name                   | `BLOBSTORE` value      | Description
+| ---------------------- | ---------------------- | -----------
+| Google Cloud Storage\* | `GOOGLE_CLOUD_STORAGE` | Store data in Google Cloud Storage.
+| Filesystem             | `FILESYSTEM`           | Store data on a filesystem.
+| Noop                   | `NOOP`                 | No files are written.
+
+\* default
+
+### Key management
+
+The key management component is responsible for signing exports. The following
+configurations are available:
+
+| Name               | `KEY_MANAGER` value | Description
+| ------------------ | ------------------- | -----------
+| Google Cloud KMS\* | `GOOGLE_CLOUD_KMS`  | Perform signing using Google Cloud KMS.
+| HashiCorp Vault    | `HASHICORP_VAULT`   | Perform signing using HashiCorp Vault.
+
+\* default
+
+
+### Secrets management
+
+The secrets management component is responsible for acquiring secrets. The
+following configurations are available:
+
+| Name                    | `SECRET_MANAGER` value  | Description
+| ----------------------- | ----------------------- | -----------
+| Azure Key Vault         | `AZURE_KEY_VAULT`       | Resolve with Key Vault.
+| Google Secret Manager\* | `GOOGLE_SECRET_MANAGER` | Resolve with Secret Manager.
+| HashiCorp Vault         | `HASHICORP_VAULT`       | Resolve with Vault.
+
+\* default
+
+In the interest of performance, secrets are TTL-cached to eliminate the secret
+manager from most hot paths. Configure this TTL with `SECRET_CACHE_TTL` which is
+expressed as a time duration like "5m" or "15s". The default cache time is 5
+minutes and lower values are strongly discouraged.
+
+### Observability
+
+The observability component is responsible for metrics. The following
+configurations are available:
+
+| Name                    | `OBSERVABILITY_EXPORTER` value  | Description
+| ----------------------- | ------------------------------- | -----------
+| OpenCensus Agent        | `OCAGENT`                       | Use OpenCensus.
+| Stackdriver\*           | `STACKDRIVER`                   | Use Stackdriver.
+
+\* default

@@ -18,11 +18,37 @@ package signing
 import (
 	"context"
 	"crypto"
+	"fmt"
 )
+
+// KeyManagerType defines a specific key manager.
+type KeyManagerType string
+
+const (
+	KeyManagerTypeGoogleCloudKMS KeyManagerType = "GOOGLE_CLOUD_KMS"
+	KeyManagerTypeHashiCorpVault KeyManagerType = "HASHICORP_VAULT"
+)
+
+// Config defines configuration.
+type Config struct {
+	KeyManagerType KeyManagerType `envconfig:"KEY_MANAGER" default:"GOOGLE_CLOUD_KMS"`
+}
 
 // KeyManager defines the interface for working with a KMS system that
 // is able to sign bytes using PKI.
 // KeyManager implementations must be able to return a crypto.Signer
 type KeyManager interface {
 	NewSigner(ctx context.Context, keyID string) (crypto.Signer, error)
+}
+
+// KeyManagerFor returns the appropriate key manager for the given type.
+func KeyManagerFor(ctx context.Context, typ KeyManagerType) (KeyManager, error) {
+	switch typ {
+	case KeyManagerTypeGoogleCloudKMS:
+		return NewGoogleCloudKMS(ctx)
+	case KeyManagerTypeHashiCorpVault:
+		return NewHashiCorpVault(ctx)
+	}
+
+	return nil, fmt.Errorf("unknown key manager type: %v", typ)
 }

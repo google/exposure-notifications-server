@@ -30,41 +30,56 @@ import (
 	"github.com/google/exposure-notifications-server/internal/handlers"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/publish"
+	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
 
 	// Enable observability with distributed tracing and metrics.
 	_ "github.com/google/exposure-notifications-server/internal/observability"
 )
 
-var _ setup.DBConfigProvider = (*MonoConfig)(nil)
 var _ setup.AuthorizedAppConfigProvider = (*MonoConfig)(nil)
-var _ setup.BlobStorageConfigProvider = (*MonoConfig)(nil)
-var _ setup.KeyManagerProvider = (*MonoConfig)(nil)
+var _ setup.BlobstoreConfigProvider = (*MonoConfig)(nil)
+var _ setup.DatabaseConfigProvider = (*MonoConfig)(nil)
+var _ setup.KeyManagerConfigProvider = (*MonoConfig)(nil)
+var _ setup.SecretManagerConfigProvider = (*MonoConfig)(nil)
 
 type MonoConfig struct {
-	Port string `envconfig:"PORT" default:"8080"`
-
 	AuthorizedApp *authorizedapp.Config
+	Storage       *storage.Config
 	Cleanup       *cleanup.Config
-	Export        *export.Config
-	Publish       *publish.Config
 	Database      *database.Config
+	Export        *export.Config
 	FederationIn  *federationin.Config
-	BlobstoreType string `envconfig:"BLOBSTORE_TYPE" default:"CLOUD_STORAGE"`
+	KeyManager    *signing.Config
+	Publish       *publish.Config
+	SecretManager *secrets.Config
+
+	Port string `envconfig:"PORT" default:"8080"`
 }
 
-func (c *MonoConfig) DB() *database.Config { return c.Database }
-func (c *MonoConfig) KeyManager() bool     { return true }
-func (c *MonoConfig) BlobStorage() storage.BlobstoreConfig {
-	return storage.BlobstoreConfig{
-		BlobstoreType: storage.BlobstoreType(c.BlobstoreType),
-	}
+func (c *MonoConfig) AuthorizedAppConfig() *authorizedapp.Config {
+	return c.AuthorizedApp
 }
-func (c *MonoConfig) AuthorizedAppConfig() *authorizedapp.Config { return c.AuthorizedApp }
+
+func (c *MonoConfig) BlobstoreConfig() *storage.Config {
+	return c.Storage
+}
+
+func (c *MonoConfig) DatabaseConfig() *database.Config {
+	return c.Database
+}
+
+func (c *MonoConfig) KeyManagerConfig() *signing.Config {
+	return c.KeyManager
+}
+
+func (c *MonoConfig) SecretManagerConfig() *secrets.Config {
+	return c.SecretManager
+}
 
 func RunServer(ctx context.Context) (*MonoConfig, error) {
-
 	logger := logging.FromContext(ctx)
 
 	var config MonoConfig
