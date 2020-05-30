@@ -205,7 +205,7 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 	logger.Infof("Created file %v, signed with %v keys", objectName, len(signers))
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
-	if err := s.env.Blobstore().CreateObject(ctx, cfi.exportBatch.BucketName, objectName, data); err != nil {
+	if err := s.env.Blobstore().CreateObject(ctx, cfi.exportBatch.BucketName, objectName, data, false); err != nil {
 		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, cfi.exportBatch.BucketName, err)
 	}
 	return objectName, nil
@@ -276,7 +276,7 @@ func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObje
 	indexObjectName := exportIndexFilename(eb)
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
-	if err := s.env.Blobstore().CreateObject(ctx, eb.BucketName, indexObjectName, data); err != nil {
+	if err := s.env.Blobstore().CreateObject(ctx, eb.BucketName, indexObjectName, data, false); err != nil {
 		return "", 0, fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, eb.BucketName, err)
 	}
 	return indexObjectName, len(objects), nil

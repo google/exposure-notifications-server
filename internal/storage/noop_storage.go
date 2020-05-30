@@ -26,7 +26,7 @@ func NewNoopBlobstore(ctx context.Context) (Blobstore, error) {
 	return &NoopBlobstore{}, nil
 }
 
-func (s *NoopBlobstore) CreateObject(ctx context.Context, folder, filename string, contents []byte) error {
+func (s *NoopBlobstore) CreateObject(ctx context.Context, folder, filename string, contents []byte, cacheable bool) error {
 	return nil
 }
 
