@@ -54,11 +54,12 @@ func TestAuthorizedAppLifecycle(t *testing.T) {
 	}
 
 	source := &model.AuthorizedApp{
-		AppPackageName:      "myapp",
-		Platform:            "both",
-		AllowedRegions:      map[string]struct{}{"US": {}},
-		SafetyNetDisabled:   true,
-		DeviceCheckDisabled: true,
+		AppPackageName:            "myapp",
+		Platform:                  "both",
+		AllowedRegions:            map[string]struct{}{"US": {}},
+		AllowedHealthAuthorityIDs: map[int64]struct{}{1: {}, 2: {}},
+		SafetyNetDisabled:         true,
+		DeviceCheckDisabled:       true,
 	}
 
 	if err := aadb.InsertAuthorizedApp(ctx, source); err != nil {
@@ -134,31 +135,33 @@ func TestGetAuthorizedApp(t *testing.T) {
 		{
 			name: "bare",
 			sql: `
-				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions)
-				VALUES ($1, $2, $3)
+				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions, allowed_health_authority_ids)
+				VALUES ($1, $2, $3, $4)
 			`,
-			args: []interface{}{"myapp", "android", []string{"US"}},
+			args: []interface{}{"myapp", "android", []string{"US"}, []int64{1}},
 			exp: &model.AuthorizedApp{
-				AppPackageName:           "myapp",
-				Platform:                 "android",
-				AllowedRegions:           map[string]struct{}{"US": {}},
-				SafetyNetBasicIntegrity:  true,
-				SafetyNetCTSProfileMatch: true,
+				AppPackageName:            "myapp",
+				Platform:                  "android",
+				AllowedRegions:            map[string]struct{}{"US": {}},
+				AllowedHealthAuthorityIDs: map[int64]struct{}{1: {}},
+				SafetyNetBasicIntegrity:   true,
+				SafetyNetCTSProfileMatch:  true,
 			},
 		},
 		{
 			name: "all_regions",
 			sql: `
-				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions)
-				VALUES ($1, $2, $3)
+				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions, allowed_health_authority_ids)
+				VALUES ($1, $2, $3, $4)
 			`,
-			args: []interface{}{"myapp", "android", []string{}},
+			args: []interface{}{"myapp", "android", []string{}, []int64{1}},
 			exp: &model.AuthorizedApp{
-				AppPackageName:           "myapp",
-				Platform:                 "android",
-				AllowedRegions:           map[string]struct{}{},
-				SafetyNetBasicIntegrity:  true,
-				SafetyNetCTSProfileMatch: true,
+				AppPackageName:            "myapp",
+				Platform:                  "android",
+				AllowedRegions:            map[string]struct{}{},
+				AllowedHealthAuthorityIDs: map[int64]struct{}{1: {}},
+				SafetyNetBasicIntegrity:   true,
+				SafetyNetCTSProfileMatch:  true,
 			},
 		},
 		{
@@ -178,13 +181,14 @@ func TestGetAuthorizedApp(t *testing.T) {
 				false, []string{"092fcfb", "252f10c"}, false, false,
 			},
 			exp: &model.AuthorizedApp{
-				AppPackageName:           "myapp",
-				Platform:                 "android",
-				AllowedRegions:           map[string]struct{}{},
-				SafetyNetDisabled:        false,
-				SafetyNetApkDigestSHA256: []string{"092fcfb", "252f10c"},
-				SafetyNetBasicIntegrity:  false,
-				SafetyNetCTSProfileMatch: false,
+				AppPackageName:            "myapp",
+				Platform:                  "android",
+				AllowedRegions:            map[string]struct{}{},
+				AllowedHealthAuthorityIDs: map[int64]struct{}{},
+				SafetyNetDisabled:         false,
+				SafetyNetApkDigestSHA256:  []string{"092fcfb", "252f10c"},
+				SafetyNetBasicIntegrity:   false,
+				SafetyNetCTSProfileMatch:  false,
 			},
 		},
 
@@ -198,12 +202,13 @@ func TestGetAuthorizedApp(t *testing.T) {
 			`,
 			args: []interface{}{"myapp", "android", []string{"US"}, 1800},
 			exp: &model.AuthorizedApp{
-				AppPackageName:           "myapp",
-				Platform:                 "android",
-				AllowedRegions:           map[string]struct{}{"US": {}},
-				SafetyNetBasicIntegrity:  true,
-				SafetyNetCTSProfileMatch: true,
-				SafetyNetPastTime:        30 * time.Minute,
+				AppPackageName:            "myapp",
+				Platform:                  "android",
+				AllowedRegions:            map[string]struct{}{"US": {}},
+				AllowedHealthAuthorityIDs: map[int64]struct{}{},
+				SafetyNetBasicIntegrity:   true,
+				SafetyNetCTSProfileMatch:  true,
+				SafetyNetPastTime:         30 * time.Minute,
 			},
 		},
 		{
@@ -216,12 +221,13 @@ func TestGetAuthorizedApp(t *testing.T) {
 			`,
 			args: []interface{}{"myapp", "android", []string{"US"}, 1800},
 			exp: &model.AuthorizedApp{
-				AppPackageName:           "myapp",
-				Platform:                 "android",
-				AllowedRegions:           map[string]struct{}{"US": {}},
-				SafetyNetBasicIntegrity:  true,
-				SafetyNetCTSProfileMatch: true,
-				SafetyNetFutureTime:      30 * time.Minute,
+				AppPackageName:            "myapp",
+				Platform:                  "android",
+				AllowedRegions:            map[string]struct{}{"US": {}},
+				AllowedHealthAuthorityIDs: map[int64]struct{}{},
+				SafetyNetBasicIntegrity:   true,
+				SafetyNetCTSProfileMatch:  true,
+				SafetyNetFutureTime:       30 * time.Minute,
 			},
 		},
 		{
@@ -243,6 +249,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 				AppPackageName:              "myapp",
 				Platform:                    "ios",
 				AllowedRegions:              map[string]struct{}{"US": {}},
+				AllowedHealthAuthorityIDs:   map[int64]struct{}{},
 				SafetyNetCTSProfileMatch:    true,
 				SafetyNetBasicIntegrity:     true,
 				DeviceCheckDisabled:         false,

@@ -34,12 +34,19 @@ type AuthorizedApp struct {
 	AppPackageName string
 
 	// Platform is the app platform like "android" or "ios".
+	// Deprecated - Platform doesn't matter with device attestations going away.
 	Platform string
 
 	// AllowedRegions is the list of allowed regions for this app. If the list is
 	// empty, all regions are permitted.
 	AllowedRegions map[string]struct{}
 
+	// AllowedHealthAuthorityIDs represents the set of allowed health authorities
+	// that this app can obtain and verify diagnosis verification certificates from.
+	AllowedHealthAuthorityIDs map[int64]struct{}
+
+	// DEPRECATION NOTICE:
+	// Everything below here is deprecated.
 	// SafetyNet configuration.
 	SafetyNetDisabled        bool
 	SafetyNetApkDigestSHA256 []string
@@ -58,7 +65,8 @@ type AuthorizedApp struct {
 
 func NewAuthorizedApp() *AuthorizedApp {
 	return &AuthorizedApp{
-		AllowedRegions: make(map[string]struct{}),
+		AllowedRegions:            make(map[string]struct{}),
+		AllowedHealthAuthorityIDs: make(map[int64]struct{}),
 	}
 }
 
@@ -68,6 +76,14 @@ func (c *AuthorizedApp) AllAllowedRegions() []string {
 		regions = append(regions, k)
 	}
 	return regions
+}
+
+func (c *AuthorizedApp) AllAllowedHealthAuthorityIDs() []int64 {
+	has := []int64{}
+	for k := range c.AllowedHealthAuthorityIDs {
+		has = append(has, k)
+	}
+	return has
 }
 
 func (c *AuthorizedApp) Validate() []string {

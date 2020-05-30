@@ -64,13 +64,15 @@ const (
 //  Note: This project doesn't directly include a diagnosis code verification System
 //        but does provide the ability to configure one in `serverevn.ServerEnv`
 type Publish struct {
-	Keys                      []ExposureKey `json:"temporaryExposureKeys"`
-	Regions                   []string      `json:"regions"`
-	AppPackageName            string        `json:"appPackageName"`
-	Platform                  string        `json:"platform"`
-	DeviceVerificationPayload string        `json:"deviceVerificationPayload"`
-	VerificationPayload       string        `json:"verificationPayload"`
-	Padding                   string        `json:"padding"`
+	Keys                []ExposureKey `json:"temporaryExposureKeys"`
+	Regions             []string      `json:"regions"`
+	AppPackageName      string        `json:"appPackageName"`
+	VerificationPayload string        `json:"verificationPayload"`
+	HMACKey             string        `json:"hmackey"`
+	Padding             string        `json:"padding"`
+
+	Platform                  string `json:"platform"`                  // DEPRECATED
+	DeviceVerificationPayload string `json:"deviceVerificationPayload"` // DEPRECATED
 }
 
 func (p *Publish) IsIOS() bool {

@@ -47,12 +47,12 @@ func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.Aut
 		result, err := tx.Exec(ctx, `
 			INSERT INTO
 				AuthorizedApp
-			  (app_package_name, platform, allowed_regions,
+			  (app_package_name, platform, allowed_regions, allowed_health_authority_ids,
 			   safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
 			   devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret)
 			VALUES
-			  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-		`, m.AppPackageName, m.Platform, m.AllAllowedRegions(),
+			  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		`, m.AppPackageName, m.Platform, m.AllAllowedRegions(), m.AllAllowedHealthAuthorityIDs(),
 			m.SafetyNetDisabled, m.SafetyNetApkDigestSHA256, m.SafetyNetCTSProfileMatch, m.SafetyNetBasicIntegrity, int64(m.SafetyNetPastTime.Seconds()), int64(m.SafetyNetFutureTime.Seconds()),
 			m.DeviceCheckDisabled, m.DeviceCheckTeamID, m.DeviceCheckKeyID, m.DeviceCheckPrivateKeySecret)
 
@@ -71,12 +71,12 @@ func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey str
 		result, err := tx.Exec(ctx, `
 			UPDATE AuthorizedApp
 			SET
-				app_package_name = $1, platform = $2, allowed_regions = $3,
-				safetynet_disabled = $4, safetynet_apk_digest = $5, safetynet_cts_profile_match = $6, safetynet_basic_integrity = $7, safetynet_past_seconds = $8, safetynet_future_seconds = $9,
-				devicecheck_disabled = $10, devicecheck_team_id = $11, devicecheck_key_id = $12, devicecheck_private_key_secret = $13
+				app_package_name = $1, platform = $2, allowed_regions = $3, allowed_health_authority_ids = $4,
+				safetynet_disabled = $5, safetynet_apk_digest = $6, safetynet_cts_profile_match = $7, safetynet_basic_integrity = $8, safetynet_past_seconds = $9, safetynet_future_seconds = $10,
+				devicecheck_disabled = $11, devicecheck_team_id = $12, devicecheck_key_id = $13, devicecheck_private_key_secret = $14
 			WHERE
-				app_package_name = $14
-			`, m.AppPackageName, m.Platform, m.AllAllowedRegions(),
+				app_package_name = $15
+			`, m.AppPackageName, m.Platform, m.AllAllowedRegions(), m.AllAllowedHealthAuthorityIDs(),
 			m.SafetyNetDisabled, m.SafetyNetApkDigestSHA256, m.SafetyNetCTSProfileMatch, m.SafetyNetBasicIntegrity, int64(m.SafetyNetPastTime.Seconds()), int64(m.SafetyNetFutureTime.Seconds()),
 			m.DeviceCheckDisabled, m.DeviceCheckTeamID, m.DeviceCheckKeyID, m.DeviceCheckPrivateKeySecret, priorKey)
 		if err != nil {
@@ -121,13 +121,13 @@ func (aa *AuthorizedAppDB) GetAllAuthorizedApps(ctx context.Context, sm secrets.
 	defer conn.Release()
 
 	query := `
-    SELECT
-      app_package_name, platform, allowed_regions,
-      safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
-      devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
-    FROM
-      AuthorizedApp
-    ORDER BY app_package_name ASC`
+		SELECT
+			app_package_name, platform, allowed_regions, allowed_health_authority_ids,
+			safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
+			devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
+		FROM
+			AuthorizedApp
+		ORDER BY app_package_name ASC`
 
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
@@ -161,7 +161,7 @@ func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.Secr
 
 	query := `
 		SELECT
-			app_package_name, platform, allowed_regions,
+			app_package_name, platform, allowed_regions, allowed_health_authority_ids,
 			safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
 			devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
 		FROM
@@ -176,10 +176,11 @@ func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.Secr
 func scanOneAuthorizedApp(ctx context.Context, row pgx.Row, sm secrets.SecretManager) (*model.AuthorizedApp, error) {
 	config := model.NewAuthorizedApp()
 	var allowedRegions []string
+	var AllowedHealthAuthorityIDs []int64
 	var safetyNetPastSeconds, safetyNetFutureSeconds *int
 	var deviceCheckTeamID, deviceCheckKeyID, deviceCheckPrivateKeySecret sql.NullString
 	if err := row.Scan(
-		&config.AppPackageName, &config.Platform, &allowedRegions,
+		&config.AppPackageName, &config.Platform, &allowedRegions, &AllowedHealthAuthorityIDs,
 		&config.SafetyNetDisabled, &config.SafetyNetApkDigestSHA256, &config.SafetyNetCTSProfileMatch, &config.SafetyNetBasicIntegrity, &safetyNetPastSeconds, &safetyNetFutureSeconds,
 		&config.DeviceCheckDisabled, &deviceCheckTeamID, &deviceCheckKeyID, &deviceCheckPrivateKeySecret,
 	); err != nil {
@@ -202,6 +203,10 @@ func scanOneAuthorizedApp(ctx context.Context, row pgx.Row, sm secrets.SecretMan
 	// build the regions map
 	for _, r := range allowedRegions {
 		config.AllowedRegions[r] = struct{}{}
+	}
+	// and the health authorities map
+	for _, haID := range AllowedHealthAuthorityIDs {
+		config.AllowedHealthAuthorityIDs[haID] = struct{}{}
 	}
 
 	// Handle nulls
