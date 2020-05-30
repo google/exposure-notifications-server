@@ -39,6 +39,9 @@ func New(db *database.DB) *HealthAuthorityDB {
 
 // AddHealthAuthority inserts a new HealthAuthority record into the database.
 func (db *HealthAuthorityDB) AddHealthAuthority(ctx context.Context, ha *model.HealthAuthority) error {
+	if ha == nil {
+		return errors.New("provided HealthAuthority cannot be nil")
+	}
 	if len(ha.Keys) != 0 {
 		return fmt.Errorf("unable to insert health authority with keys, attach keys later")
 	}
@@ -93,6 +96,13 @@ func (db *HealthAuthorityDB) GetHealthAuthority(ctx context.Context, issuer stri
 }
 
 func (db *HealthAuthorityDB) AddHealthAuthorityKey(ctx context.Context, ha *model.HealthAuthority, hak *model.HealthAuthorityKey) error {
+	if ha == nil {
+		return errors.New("provided HealthAuthority cannot be nil")
+	}
+	if hak == nil {
+		return errors.New("provided HealthAuthorityKey cannot be nil")
+	}
+
 	if err := hak.Validate(); err != nil {
 		return err
 	}

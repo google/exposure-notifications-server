@@ -41,9 +41,9 @@ type AuthorizedApp struct {
 	// empty, all regions are permitted.
 	AllowedRegions map[string]struct{}
 
-	// AllowedHealthAuthorities represents the set of allowed health authorities
+	// AllowedHealthAuthorityIDs represents the set of allowed health authorities
 	// that this app can obtain and verify diagnosis verification certificates from.
-	AllowedHealthAuthorities map[int64]struct{}
+	AllowedHealthAuthorityIDs map[int64]struct{}
 
 	// DEPRECATION NOTICE:
 	// Everything below here is deprecated.
@@ -65,8 +65,8 @@ type AuthorizedApp struct {
 
 func NewAuthorizedApp() *AuthorizedApp {
 	return &AuthorizedApp{
-		AllowedRegions:           make(map[string]struct{}),
-		AllowedHealthAuthorities: make(map[int64]struct{}),
+		AllowedRegions:            make(map[string]struct{}),
+		AllowedHealthAuthorityIDs: make(map[int64]struct{}),
 	}
 }
 
@@ -78,9 +78,9 @@ func (c *AuthorizedApp) AllAllowedRegions() []string {
 	return regions
 }
 
-func (c *AuthorizedApp) AllAllowedHealthAuthorities() []int64 {
+func (c *AuthorizedApp) AllAllowedHealthAuthorityIDs() []int64 {
 	has := []int64{}
-	for k := range c.AllowedHealthAuthorities {
+	for k := range c.AllowedHealthAuthorityIDs {
 		has = append(has, k)
 	}
 	return has

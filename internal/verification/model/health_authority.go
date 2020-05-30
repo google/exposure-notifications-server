@@ -20,17 +20,16 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"reflect"
 	"time"
 )
 
 // HealthAuthority represents a public health authority that is authorized to
 // issue diagnosis verification certificates accepted by this server.
 type HealthAuthority struct {
-	ID       int64  `db:"id"`
-	Issuer   string `db:"iss"`
-	Audience string `db:"audience"`
-	Name     string `db:"name"`
+	ID       int64
+	Issuer   string
+	Audience string
+	Name     string
 	Keys     []*HealthAuthorityKey
 }
 
@@ -50,11 +49,11 @@ func (ha *HealthAuthority) Validate() error {
 
 // HealthAuthorityKey represents a public key version for a given health authority.
 type HealthAuthorityKey struct {
-	AuthorityID  int64     `db:"health_authority_id"`
-	Version      string    `db:"version"`
-	From         time.Time `db:"from_timestamp"`
-	Thru         time.Time `db:"thru_timestamp"`
-	PublicKeyPEM string    `db:"public_key"`
+	AuthorityID  int64
+	Version      string
+	From         time.Time
+	Thru         time.Time
+	PublicKeyPEM string
 }
 
 // Validate returns an error if the HealthAuthorityKey is not valid.
@@ -67,7 +66,7 @@ func (k *HealthAuthorityKey) Validate() error {
 
 // IsValid returns true if the key is valid based on the current time.
 func (k *HealthAuthorityKey) IsValid() bool {
-	return k.IsValidAt(time.Now().UTC())
+	return k.IsValidAt(time.Now())
 }
 
 // IsValidAt returns true if the key is valid at a specific point in time.
@@ -86,9 +85,11 @@ func (k *HealthAuthorityKey) PublicKey() (*ecdsa.PublicKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("x509.ParsePKIXPublicKey: %w", err)
 	}
-	switch pub := pub.(type) {
+
+	switch typ := pub.(type) {
 	case *ecdsa.PublicKey:
-		return pub, nil
+		return typ, nil
+	default:
+		return nil, fmt.Errorf("unsupported public key type: %T", typ)
 	}
-	return nil, fmt.Errorf("unsupported public key type: %v", reflect.TypeOf(pub))
 }

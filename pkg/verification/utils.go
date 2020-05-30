@@ -36,7 +36,7 @@ func CalculateExposureKeyHMAC(keys []model.ExposureKey, secret []byte) ([]byte, 
 	})
 
 	// Build the cleartext.
-	perKeyText := []string{}
+	perKeyText := make([]string, 0, len(keys))
 	for _, ek := range keys {
 		perKeyText = append(perKeyText,
 			fmt.Sprintf("%s.%d.%d.%d", ek.Key, ek.IntervalNumber, ek.IntervalCount, ek.TransmissionRisk))

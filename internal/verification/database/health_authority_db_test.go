@@ -79,7 +79,7 @@ func TestAddRetrieveHealthAuthorityKeys(t *testing.T) {
 	wantKeys := []*model.HealthAuthorityKey{
 		&model.HealthAuthorityKey{
 			Version:      "v1",
-			From:         time.Now(),
+			From:         time.Now().Truncate(time.Second),
 			PublicKeyPEM: validPEM,
 		},
 	}
@@ -95,8 +95,6 @@ func TestAddRetrieveHealthAuthorityKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want.Keys[0].From.Truncate(time.Millisecond)
-	got.Keys[0].From.Truncate(time.Millisecond)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}

@@ -91,7 +91,7 @@ func TestVerifyCertificate(t *testing.T) {
 
 	// Fake authorized app.
 	authApp := aamodel.NewAuthorizedApp()
-	authApp.AllowedHealthAuthorities[healthAuthority.ID] = struct{}{}
+	authApp.AllowedHealthAuthorityIDs[healthAuthority.ID] = struct{}{}
 
 	// Build a sample certificate.
 	publish := pubmodel.Publish{

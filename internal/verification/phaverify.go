@@ -71,7 +71,8 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 
 		// Find a key version.
 		for _, hak := range ha.Keys {
-			if hak.Version == claims.KeyVersion {
+			// Key version matches and the key is valid based on the current time.
+			if hak.Version == claims.KeyVersion && hak.IsValid() {
 				healthAuthorityID = ha.ID
 				// Extract the public key from the PEM block.
 				return hak.PublicKey()
@@ -91,7 +92,8 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 	}
 
 	// JWT is valid and signature is valid.
-	if _, ok := authApp.AllowedHealthAuthorities[healthAuthorityID]; !ok {
+	// This is chacked after the signature verification to prevent timing attacks.
+	if _, ok := authApp.AllowedHealthAuthorityIDs[healthAuthorityID]; !ok {
 		return nil, fmt.Errorf("app %v has not authorized health authority issuer: %v", authApp.AppPackageName, claims.Issuer)
 	}
 
@@ -105,6 +107,9 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 		return nil, fmt.Errorf("error decoding HMAC secret from publish request: %w", err)
 	}
 	wantHMAC, err := utils.CalculateExposureKeyHMAC(publish.Keys, secret)
+	if err != nil {
+		return nil, fmt.Errorf("calculating expected HMAC: %w", err)
+	}
 
 	if !hmac.Equal(wantHMAC, jwtHMAC) {
 		return nil, fmt.Errorf("HMAC mismatch, publish request does not match disgnosis verification certificate")

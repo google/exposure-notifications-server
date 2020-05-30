@@ -17,6 +17,6 @@ BEGIN;
 DROP TABLE HealthAuthorityKey;
 DROP TABLE HealthAuthority;
 
-ALTER TABLE AuthorizedApp DROP COLUMN health_authority_ids;
+ALTER TABLE AuthorizedApp DROP COLUMN allowed_health_authority_ids;
 
 END;

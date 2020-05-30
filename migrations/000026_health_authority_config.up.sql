@@ -32,7 +32,7 @@ CREATE TABLE HealthAuthorityKey(
 );
 
 ALTER TABLE AuthorizedApp
-  ADD COLUMN health_authority_ids int[];
+  ADD COLUMN allowed_health_authority_ids int[];
 
 
 END;
