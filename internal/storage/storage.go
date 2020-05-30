@@ -37,7 +37,7 @@ type Config struct {
 // Blobstore defines the minimum interface for a blob storage system.
 type Blobstore interface {
 	// CreateObject creates or overwrites an object in the storage system.
-	CreateObject(ctx context.Context, bucket, objectName string, contents []byte) error
+	CreateObject(ctx context.Context, bucket, objectName string, contents []byte, cacheable bool) error
 
 	// DeleteObject deltes an object or does nothing if the object doesn't exist.
 	DeleteObject(ctx context.Context, bucket, objectName string) error

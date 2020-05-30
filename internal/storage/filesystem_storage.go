@@ -38,7 +38,7 @@ func NewFilesystemStorage(ctx context.Context) (Blobstore, error) {
 
 // CreateObject creates a new object on the filesystem or overwrites an existing
 // one.
-func (s *FilesystemStorage) CreateObject(ctx context.Context, folder, filename string, contents []byte) error {
+func (s *FilesystemStorage) CreateObject(ctx context.Context, folder, filename string, contents []byte, cacheable bool) error {
 	pth := filepath.Join(folder, filename)
 	if err := ioutil.WriteFile(pth, contents, 0644); err != nil {
 		return fmt.Errorf("failed to create object: %w", err)

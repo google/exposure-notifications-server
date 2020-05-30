@@ -43,8 +43,13 @@ func NewGoogleCloudStorage(ctx context.Context) (Blobstore, error) {
 }
 
 // CreateObject creates a new cloud storage object or overwrites an existing one.
-func (gcs *GoogleCloudStorage) CreateObject(ctx context.Context, bucket, objectName string, contents []byte) error {
+func (gcs *GoogleCloudStorage) CreateObject(ctx context.Context, bucket, objectName string, contents []byte, cacheable bool) error {
 	wc := gcs.client.Bucket(bucket).Object(objectName).NewWriter(ctx)
+	if !cacheable {
+		wc.Metadata = map[string]string{
+			"Cache-Control": "no-cache, max-age=0",
+		}
+	}
 	if _, err := wc.Write(contents); err != nil {
 		return fmt.Errorf("storage.Writer.Write: %w", err)
 	}
