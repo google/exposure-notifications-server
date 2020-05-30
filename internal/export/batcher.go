@@ -46,14 +46,18 @@ func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
 			metrics.WriteInt("export-batcher-lock-contention", true, 1)
 			msg := fmt.Sprintf("Lock %s already in use, no work will be performed", lock)
 			logger.Infof(msg)
-			w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.
+			fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
 			return
 		}
 		logger.Errorf("Could not acquire lock %s: %v", lock, err)
 		http.Error(w, fmt.Sprintf("Could not acquire lock %s, check logs.", lock), http.StatusInternalServerError)
 		return
 	}
-	defer unlockFn()
+	defer func() {
+		if err := unlockFn(); err != nil {
+			logger.Errorf("failed to unlock: %v", err)
+		}
+	}()
 
 	totalConfigs := 0
 	totalBatches := 0
@@ -141,7 +145,6 @@ type batchRange struct {
 var sanityDate = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func makeBatchRanges(period time.Duration, latestEnd, now time.Time, truncateWindow time.Duration) []batchRange {
-
 	// Compute the end of the exposure publish window; we don't want any batches with an end date greater than this time.
 	publishEnd := publishmodel.TruncateWindow(now, truncateWindow)
 

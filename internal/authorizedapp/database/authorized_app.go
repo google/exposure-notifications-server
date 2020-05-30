@@ -17,6 +17,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -152,8 +153,8 @@ func (aa *AuthorizedAppDB) GetAllAuthorizedApps(ctx context.Context, sm secrets.
 
 // GetAuthorizedApp loads a single AuthorizedApp for the given name. If no row
 // exists, this returns nil.
-func (db *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*model.AuthorizedApp, error) {
-	conn, err := db.db.Pool.Acquire(ctx)
+func (aa *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*model.AuthorizedApp, error) {
+	conn, err := aa.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %v", err)
 	}
@@ -184,7 +185,7 @@ func scanOneAuthorizedApp(ctx context.Context, row pgx.Row, sm secrets.SecretMan
 		&config.SafetyNetDisabled, &config.SafetyNetApkDigestSHA256, &config.SafetyNetCTSProfileMatch, &config.SafetyNetBasicIntegrity, &safetyNetPastSeconds, &safetyNetFutureSeconds,
 		&config.DeviceCheckDisabled, &deviceCheckTeamID, &deviceCheckKeyID, &deviceCheckPrivateKeySecret,
 	); err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err

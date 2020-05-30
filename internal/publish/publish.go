@@ -17,6 +17,7 @@ package publish
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -98,7 +99,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		// Config loaded, but app with that name isn't registered. This can also
 		// happen if the app was recently registered but the cache hasn't been
 		// refreshed.
-		if err == authorizedapp.ErrAppNotFound {
+		if errors.Is(err, authorizedapp.ErrAppNotFound) {
 			message := fmt.Sprintf("unauthorized app: %v", data.AppPackageName)
 			logger.Error(message)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
@@ -203,7 +204,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Handle success. If debug enabled, write the message in the response.
 	if response.status == http.StatusOK {
 		if h.config.DebugAPIResponses {
-			w.Write([]byte(response.message))
+			fmt.Fprint(w, response.message)
 		} else {
 			w.WriteHeader(http.StatusOK)
 		}
@@ -214,7 +215,7 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// out the error and status.
 	if h.config.DebugAPIResponses || response.errorInProd {
 		w.WriteHeader(response.status)
-		w.Write([]byte(response.message))
+		fmt.Fprint(w, response.message)
 		return
 	}
 

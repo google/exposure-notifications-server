@@ -139,7 +139,7 @@ func (p *Publish) AndroidNonce() string {
 //   is configurable per installation.
 // IntervalCount must >= `minIntervalCount` and <= `maxIntervalCount`
 //   1 - 144 inclusive.
-// transmissionRisk must be >= 0 and <= 8
+// transmissionRisk must be >= 0 and <= 8.
 type ExposureKey struct {
 	Key              string `json:"key"`
 	IntervalNumber   int32  `json:"rollingStartNumber"`
@@ -149,7 +149,7 @@ type ExposureKey struct {
 
 // ExposureKeys represents a set of ExposureKey objects as input to
 // export file generation utility.
-// Keys: Required and must have length >= 1
+// Keys: Required and must have length >= 1.
 type ExposureKeys struct {
 	Keys []ExposureKey `json:"temporaryExposureKeys"`
 }
@@ -159,7 +159,7 @@ type ExposureKeys struct {
 // Exposure struct that doesn't have public fields and an
 // internal struct that does. Separate out the database model
 // from direct access.
-// Mark records as writable/nowritable - is exposure key encrypted
+// Mark records as writable/nowritable - is exposure key encrypted.
 type Exposure struct {
 	ExposureKey      []byte    `db:"exposure_key"`
 	TransmissionRisk int       `db:"transmission_risk"`

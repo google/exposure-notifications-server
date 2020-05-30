@@ -27,16 +27,16 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
-type saveController struct {
+type SaveController struct {
 	config *admin.Config
 	env    *serverenv.ServerEnv
 }
 
-func NewSave(c *admin.Config, env *serverenv.ServerEnv) *saveController {
-	return &saveController{config: c, env: env}
+func NewSave(c *admin.Config, env *serverenv.ServerEnv) *SaveController {
+	return &SaveController{config: c, env: env}
 }
 
-func (h *saveController) Execute(c *gin.Context) {
+func (h *SaveController) Execute(c *gin.Context) {
 	var form formData
 	err := c.Bind(&form)
 	if err != nil {
@@ -90,7 +90,6 @@ func (h *saveController) Execute(c *gin.Context) {
 		m["previousKey"] = base64.StdEncoding.EncodeToString([]byte(authApp.AppPackageName))
 		c.HTML(http.StatusOK, "authorizedapp", m)
 		return
-
 	} else if form.Action == "delete" {
 		priorKey := form.PriorKey()
 

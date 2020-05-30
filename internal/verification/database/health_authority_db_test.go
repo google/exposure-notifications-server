@@ -77,7 +77,7 @@ func TestAddRetrieveHealthAuthorityKeys(t *testing.T) {
 	}
 
 	wantKeys := []*model.HealthAuthorityKey{
-		&model.HealthAuthorityKey{
+		{
 			Version:      "v1",
 			From:         time.Now().Truncate(time.Second),
 			PublicKeyPEM: validPEM,

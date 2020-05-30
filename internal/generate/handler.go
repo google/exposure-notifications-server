@@ -91,7 +91,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			message := fmt.Sprintf("Error transofmring generated exposures: %v", err)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(message))
+			fmt.Fprint(w, message)
 			return
 		}
 
@@ -100,11 +100,11 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			message := fmt.Sprintf("error writing exposure record: %v", err)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(message))
+			fmt.Fprint(w, message)
 			return
 		}
 		logger.Infof("Generated %v exposures", len(exposures))
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Generated exposure keys."))
+	fmt.Fprint(w, "Generated exposure keys.")
 }

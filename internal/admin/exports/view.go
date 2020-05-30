@@ -27,16 +27,16 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
-type viewController struct {
+type ViewController struct {
 	config *admin.Config
 	env    *serverenv.ServerEnv
 }
 
-func NewView(c *admin.Config, env *serverenv.ServerEnv) *viewController {
-	return &viewController{config: c, env: env}
+func NewView(c *admin.Config, env *serverenv.ServerEnv) *ViewController {
+	return &ViewController{config: c, env: env}
 }
 
-func (v *viewController) Execute(c *gin.Context) {
+func (v *ViewController) Execute(c *gin.Context) {
 	ctx := c.Request.Context()
 	m := admin.TemplateMap{}
 

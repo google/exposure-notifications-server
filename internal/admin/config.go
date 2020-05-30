@@ -72,14 +72,14 @@ func (c *Config) RenderTemplate(w http.ResponseWriter, tmpl string, p TemplateMa
 	t, err := template.ParseFiles(files...)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		fmt.Fprint(w, err)
 		log.Printf("ERROR: %v", err)
 		return err
 	}
 	if err := t.ExecuteTemplate(w, tmpl, p); err != nil {
 		message := fmt.Sprintf("error rendering template: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(message))
+		fmt.Fprint(w, message)
 		log.Printf("ERROR: %v", err)
 		return fmt.Errorf("error rendering template: %w", err)
 	}

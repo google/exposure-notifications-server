@@ -36,7 +36,7 @@ type Config struct {
 
 // KeyManager defines the interface for working with a KMS system that
 // is able to sign bytes using PKI.
-// KeyManager implementations must be able to return a crypto.Signer
+// KeyManager implementations must be able to return a crypto.Signer.
 type KeyManager interface {
 	NewSigner(ctx context.Context, keyID string) (crypto.Signer, error)
 }

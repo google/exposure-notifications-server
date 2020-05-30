@@ -17,6 +17,7 @@ package export
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -40,7 +41,8 @@ const (
 	blobOperationTimeout = 50 * time.Second
 )
 
-// WorkerHandler is a handler to iterate the rows of ExportBatch, and creates export files.
+// WorkerHandler is a handler to iterate the rows of ExportBatch, and creates
+// export files.
 func (s *Server) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.WorkerTimeout)
 	defer cancel()
@@ -56,7 +58,8 @@ func (s *Server) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Only consider batches that closed a few minutes ago to allow the publish windows to close properly.
+		// Only consider batches that closed a few minutes ago to allow the publish
+		// windows to close properly.
 		minutesAgo := time.Now().Add(-5 * time.Minute)
 
 		// Check for a batch and obtain a lease for it.
@@ -76,10 +79,10 @@ func (s *Server) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 			logger.Errorf("Failed to create files for batch: %v.", err)
 			continue
 		}
-		// We re-write the index file for empty batches for self-healing so that the index
-		// file reflects the ExportFile table in database. However, if a single worker
-		// processes a number of empty batches quickly, we want to avoid writing the same
-		// file repeatedly and hitting a rate limit.
+		// We re-write the index file for empty batches for self-healing so that the
+		// index file reflects the ExportFile table in database. However, if a
+		// single worker processes a number of empty batches quickly, we want to
+		// avoid writing the same file repeatedly and hitting a rate limit.
 		emitIndexForEmptyBatch = false
 
 		fmt.Fprintf(w, "Batch %d marked completed. \n", batch.BatchID)
@@ -97,9 +100,10 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		OnlyLocalProvenance: false, // include federated ids
 	}
 
-	// Build up groups of exposures in memory. We need to use memory so we can determine the
-	// total number of groups (which is embedded in each export file). This technique avoids
-	// SELECT COUNT which would lock the database slowing new uploads.
+	// Build up groups of exposures in memory. We need to use memory so we can
+	// determine the total number of groups (which is embedded in each export
+	// file). This technique avoids SELECT COUNT which would lock the database
+	// slowing new uploads.
 	var groups [][]*publishmodel.Exposure
 	var exposures []*publishmodel.Exposure
 
@@ -144,7 +148,8 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 			return nil
 		}
 
-		// TODO(squee1945): Uploading in parallel (to a point) probably makes better use of network.
+		// TODO(squee1945): Uploading in parallel (to a point) probably makes better
+		// use of network.
 		objectName, err := s.createFile(ctx,
 			createFileInfo{
 				exposures:      exposures,
@@ -186,13 +191,13 @@ type createFileInfo struct {
 func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, error) {
 	logger := logging.FromContext(ctx)
 
-	var signers []ExportSigners
+	var signers []*Signer
 	for _, si := range cfi.signatureInfos {
 		signer, err := s.env.GetSignerForKey(ctx, si.SigningKey)
 		if err != nil {
 			return "", fmt.Errorf("unable to get signer for key %v: %w", si.SigningKey, err)
 		}
-		signers = append(signers, ExportSigners{SignatureInfo: si, Signer: signer})
+		signers = append(signers, &Signer{SignatureInfo: si, Signer: signer})
 	}
 
 	// Generate exposure key export file.
@@ -211,8 +216,9 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 	return objectName, nil
 }
 
-// retryingCreateIndex create the index file. The index file includes _all_ batches for an ExportConfig,
-// so multiple workers may be racing to update it. We use a lock to make them line up after one another.
+// retryingCreateIndex create the index file. The index file includes _all_
+// batches for an ExportConfig, so multiple workers may be racing to update it.
+// We use a lock to make them line up after one another.
 func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch, objectNames []string) error {
 	logger := logging.FromContext(ctx)
 
@@ -226,7 +232,7 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 
 		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
 		if err != nil {
-			if err == coredb.ErrAlreadyLocked {
+			if errors.Is(err, coredb.ErrAlreadyLocked) {
 				logger.Debugf("Lock %s is locked; sleeping %v and will try again", lockID, sleep)
 				time.Sleep(sleep)
 				continue
@@ -290,7 +296,7 @@ func exportIndexFilename(eb *model.ExportBatch) string {
 	return fmt.Sprintf("%s/index.txt", eb.FilenameRoot)
 }
 
-// randomInt is inclusive, [min:max]
+// randomInt is inclusive, [min:max].
 func randomInt(min, max int) (int, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(max-min+1)))
 	if err != nil {
@@ -343,7 +349,8 @@ func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, mi
 			Regions:          []string{region},
 			IntervalNumber:   intervalNumber,
 			IntervalCount:    intervalCount,
-			// The rest of the publishmodel.Exposure fields are not used in the export file.
+			// The rest of the publishmodel.Exposure fields are not used in the export
+			// file.
 		}
 		exposures = append(exposures, ek)
 	}

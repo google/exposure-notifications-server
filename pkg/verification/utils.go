@@ -44,7 +44,9 @@ func CalculateExposureKeyHMAC(keys []model.ExposureKey, secret []byte) ([]byte, 
 
 	cleartext := strings.Join(perKeyText, ",")
 	mac := hmac.New(sha256.New, secret)
-	mac.Write([]byte(cleartext))
+	if _, err := mac.Write([]byte(cleartext)); err != nil {
+		return nil, fmt.Errorf("failed to write hmac: %w", err)
+	}
 
 	return mac.Sum(nil), nil
 }

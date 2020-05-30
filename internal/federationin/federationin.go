@@ -117,13 +117,17 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			metrics.WriteInt("federation-pull-lock-contention", true, 1)
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
 			logger.Infof(msg)
-			w.Write([]byte(msg)) // We return status 200 here so that Cloud Scheduler does not retry.
+			fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
 			return
 		}
 		internalErrorf(ctx, w, "Could not acquire lock %s for query %s: %v", lock, queryID, err)
 		return
 	}
-	defer unlockFn()
+	defer func() {
+		if err := unlockFn(); err != nil {
+			logger.Errorf("failed to unlock: %v", err)
+		}
+	}()
 
 	query, err := h.db.GetFederationInQuery(ctx, queryID)
 	if err != nil {
@@ -195,7 +199,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if timeoutContext.Err() != nil && timeoutContext.Err() == context.DeadlineExceeded {
+	if errors.Is(timeoutContext.Err(), context.DeadlineExceeded) {
 		logger.Infof("Federation puller timed out at %v before fetching entire set.", h.config.Timeout)
 	}
 }
@@ -251,7 +255,6 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 		// Loop through the result set, storing in publishdb.
 		var exposures []*publishmodel.Exposure
 		for _, ctr := range response.Response {
-
 			var upperRegions []string
 			for _, region := range ctr.RegionIdentifiers {
 				upperRegions = append(upperRegions, strings.ToUpper(strings.TrimSpace(region)))
@@ -260,7 +263,6 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 
 			for _, cti := range ctr.ContactTracingInfo {
 				for _, key := range cti.ExposureKeys {
-
 					if cti.TransmissionRisk < publishmodel.MinTransmissionRisk || cti.TransmissionRisk > publishmodel.MaxTransmissionRisk {
 						logger.Errorf("invalid transmission risk %v - dropping record.", cti.TransmissionRisk)
 						continue

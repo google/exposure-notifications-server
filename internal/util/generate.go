@@ -48,7 +48,7 @@ func RandomInt(maxValue int) (int, error) {
 	return int(n.Int64()), nil
 }
 
-// RandomIntWithMin is inclusive, [min:max]
+// RandomIntWithMin is inclusive, [min:max].
 func RandomIntWithMin(min, max int) (int, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(max-min+1)))
 	if err != nil {

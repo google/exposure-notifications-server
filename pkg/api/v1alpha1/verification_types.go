@@ -31,7 +31,7 @@ const (
 )
 
 // TransmissionRiskVector is an additional set of claims that can be
-// included in the verification certificatin for a diagnosis as recieved
+// included in the verification certificatin for a diagnosis as received
 // from a trusted public health authority.
 type TransmissionRiskVector []TransmissionRiskOverride
 

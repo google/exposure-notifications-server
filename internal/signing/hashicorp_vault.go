@@ -77,7 +77,7 @@ type HashiCorpVaultSigner struct {
 	publicKey crypto.PublicKey
 }
 
-// NewHashiCorpVaultSigner creates a new signing interface compatiable with
+// NewHashiCorpVaultSigner creates a new signing interface compatible with
 // HashiCorp Vault's transit backend. The key name and key version are required.
 func NewHashiCorpVaultSigner(ctx context.Context, client *vaultapi.Client, name, version string) (*HashiCorpVaultSigner, error) {
 	if client == nil {

@@ -25,16 +25,16 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
-type indexHandler struct {
+type Handler struct {
 	config *admin.Config
 	env    *serverenv.ServerEnv
 }
 
-func New(c *admin.Config, env *serverenv.ServerEnv) *indexHandler {
-	return &indexHandler{config: c, env: env}
+func New(c *admin.Config, env *serverenv.ServerEnv) *Handler {
+	return &Handler{config: c, env: env}
 }
 
-func (h *indexHandler) Execute(c *gin.Context) {
+func (h *Handler) Execute(c *gin.Context) {
 	ctx := c.Request.Context()
 	m := admin.TemplateMap{}
 

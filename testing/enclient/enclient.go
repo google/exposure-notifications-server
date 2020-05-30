@@ -22,7 +22,7 @@ type Interval int32
 // Posts requests to the specified url.
 // This methods attempts to serialize data argument as a json.
 func PostRequest(url string, data interface{}) (*http.Response, error) {
-	request := bytes.NewBuffer(JsonRequest(data))
+	request := bytes.NewBuffer(JSONRequest(data))
 	r, err := http.NewRequest("POST", url, request)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func PostRequest(url string, data interface{}) (*http.Response, error) {
 }
 
 // Serializes the given argument to json.
-func JsonRequest(data interface{}) []byte {
+func JSONRequest(data interface{}) []byte {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		log.Fatalf("unable to marshal json payload")
