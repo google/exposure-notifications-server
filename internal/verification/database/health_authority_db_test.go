@@ -96,6 +96,7 @@ func TestAddRetrieveHealthAuthorityKeys(t *testing.T) {
 	}
 
 	want.Keys[0].From.Truncate(time.Millisecond)
+	got.Keys[0].From.Truncate(time.Millisecond)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}
