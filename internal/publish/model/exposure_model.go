@@ -67,9 +67,10 @@ type Publish struct {
 	Keys                      []ExposureKey `json:"temporaryExposureKeys"`
 	Regions                   []string      `json:"regions"`
 	AppPackageName            string        `json:"appPackageName"`
-	Platform                  string        `json:"platform"`
-	DeviceVerificationPayload string        `json:"deviceVerificationPayload"`
+	Platform                  string        `json:"platform"`                  // DEPRECATED
+	DeviceVerificationPayload string        `json:"deviceVerificationPayload"` // DEPRECATED
 	VerificationPayload       string        `json:"verificationPayload"`
+	HMACKey                   string        `json:"hmackey"`
 	Padding                   string        `json:"padding"`
 }
 

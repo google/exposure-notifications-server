@@ -44,10 +44,7 @@ func (db *ExportDB) AddExportConfig(ctx context.Context, ec *model.ExportConfig)
 		return err
 	}
 
-	var thru *time.Time
-	if !ec.Thru.IsZero() {
-		thru = &ec.Thru
-	}
+	thru := db.db.NullableTime(ec.Thru)
 	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
@@ -72,10 +69,7 @@ func (db *ExportDB) UpdateExportConfig(ctx context.Context, ec *model.ExportConf
 		return err
 	}
 
-	var thru *time.Time
-	if !ec.Thru.IsZero() {
-		thru = &ec.Thru
-	}
+	thru := db.db.NullableTime(ec.Thru)
 	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE

@@ -17,13 +17,17 @@
 // These APIs are not considered to be stable at HEAD.
 package v1alpha1
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/dgrijalva/jwt-go"
+)
 
 const (
-	exposureKeyHMACClaim          = "tekmac"
-	healthAuthorityDataClaim      = "phadata"
-	transmissionRiskOverrideClaim = "tris"
-	keyVersionClaim               = "keyVersion"
+	ExposureKeyHMACClaim          = "tekmac"
+	HealthAuthorityDataClaim      = "phadata"
+	TransmissionRiskOverrideClaim = "trisk"
+	KeyVersionClaim               = "keyVersion"
 )
 
 // TransmissionRiskVector is an additional set of claims that can be
@@ -52,4 +56,19 @@ func (a TransmissionRiskVector) Less(i, j int) bool {
 
 func (a TransmissionRiskVector) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
+}
+
+type VerificationClaims struct {
+	PHAClaims         map[string]string      `json:"phadata"`
+	TransmissionRisks TransmissionRiskVector `json:"trisk"`
+	SignedMAC         string                 `json:"tekmac"`
+	KeyVersion        string                 `json:"keyVersion"`
+	jwt.StandardClaims
+}
+
+func NewVerificationClaims() *VerificationClaims {
+	return &VerificationClaims{
+		PHAClaims:         make(map[string]string),
+		TransmissionRisks: []TransmissionRiskOverride{},
+	}
 }
