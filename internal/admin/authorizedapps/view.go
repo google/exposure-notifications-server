@@ -31,7 +31,7 @@ type ViewController struct {
 	env    *serverenv.ServerEnv
 }
 
-func NewView(c *admin.Config, env *serverenv.ServerEnv) *ViewController {
+func NewView(c *admin.Config, env *serverenv.ServerEnv) admin.Controller {
 	return &ViewController{config: c, env: env}
 }
 

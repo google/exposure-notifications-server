@@ -30,7 +30,7 @@ type Handler struct {
 	env    *serverenv.ServerEnv
 }
 
-func New(c *admin.Config, env *serverenv.ServerEnv) *Handler {
+func New(c *admin.Config, env *serverenv.ServerEnv) admin.Controller {
 	return &Handler{config: c, env: env}
 }
 

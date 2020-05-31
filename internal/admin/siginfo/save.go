@@ -31,7 +31,7 @@ type SaveController struct {
 	env    *serverenv.ServerEnv
 }
 
-func NewSave(c *admin.Config, env *serverenv.ServerEnv) *SaveController {
+func NewSave(c *admin.Config, env *serverenv.ServerEnv) admin.Controller {
 	return &SaveController{config: c, env: env}
 }
 
