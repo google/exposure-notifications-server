@@ -35,10 +35,10 @@ var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 var _ setup.BlobstoreConfigProvider = (*Config)(nil)
 
 type Config struct {
-	Database      *database.Config
-	KeyManager    *signing.Config
-	SecretManager *secrets.Config
-	Storage       *storage.Config
+	Database      database.Config
+	KeyManager    signing.Config
+	SecretManager secrets.Config
+	Storage       storage.Config
 
 	Port         string `envconfig:"PORT" default:"8080"`
 	TemplatePath string `envconfig:"TEMPLATE_DIR" default:"./tools/admin-console/templates"`
@@ -47,19 +47,19 @@ type Config struct {
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
-	return c.Database
+	return &c.Database
 }
 
 func (c *Config) KeyManagerConfig() *signing.Config {
-	return c.KeyManager
+	return &c.KeyManager
 }
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
-	return c.SecretManager
+	return &c.SecretManager
 }
 
 func (c *Config) BlobstoreConfig() *storage.Config {
-	return c.Storage
+	return &c.Storage
 }
 
 func (c *Config) RenderTemplate(w http.ResponseWriter, tmpl string, p TemplateMap) error {

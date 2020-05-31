@@ -46,37 +46,37 @@ var _ setup.KeyManagerConfigProvider = (*MonoConfig)(nil)
 var _ setup.SecretManagerConfigProvider = (*MonoConfig)(nil)
 
 type MonoConfig struct {
-	AuthorizedApp *authorizedapp.Config
-	Storage       *storage.Config
-	Cleanup       *cleanup.Config
-	Database      *database.Config
-	Export        *export.Config
-	FederationIn  *federationin.Config
-	KeyManager    *signing.Config
-	Publish       *publish.Config
-	SecretManager *secrets.Config
+	AuthorizedApp authorizedapp.Config
+	Storage       storage.Config
+	Cleanup       cleanup.Config
+	Database      database.Config
+	Export        export.Config
+	FederationIn  federationin.Config
+	KeyManager    signing.Config
+	Publish       publish.Config
+	SecretManager secrets.Config
 
 	Port string `envconfig:"PORT" default:"8080"`
 }
 
 func (c *MonoConfig) AuthorizedAppConfig() *authorizedapp.Config {
-	return c.AuthorizedApp
+	return &c.AuthorizedApp
 }
 
 func (c *MonoConfig) BlobstoreConfig() *storage.Config {
-	return c.Storage
+	return &c.Storage
 }
 
 func (c *MonoConfig) DatabaseConfig() *database.Config {
-	return c.Database
+	return &c.Database
 }
 
 func (c *MonoConfig) KeyManagerConfig() *signing.Config {
-	return c.KeyManager
+	return &c.KeyManager
 }
 
 func (c *MonoConfig) SecretManagerConfig() *secrets.Config {
-	return c.SecretManager
+	return &c.SecretManager
 }
 
 func RunServer(ctx context.Context) (*MonoConfig, error) {
@@ -92,21 +92,21 @@ func RunServer(ctx context.Context) (*MonoConfig, error) {
 	mux := http.NewServeMux()
 
 	// Cleanup export
-	cleanupExport, err := cleanup.NewExportHandler(config.Cleanup, env)
+	cleanupExport, err := cleanup.NewExportHandler(&config.Cleanup, env)
 	if err != nil {
 		return nil, fmt.Errorf("cleanup.NewExportHandler: %w", err)
 	}
 	mux.Handle("/cleanup-export", cleanupExport)
 
 	// Cleanup exposure
-	cleanupExposure, err := cleanup.NewExposureHandler(config.Cleanup, env)
+	cleanupExposure, err := cleanup.NewExposureHandler(&config.Cleanup, env)
 	if err != nil {
 		return nil, fmt.Errorf("cleanup.NewExposureHandler: %w", err)
 	}
 	mux.Handle("/cleanup-exposure", cleanupExposure)
 
 	// Export
-	exportServer, err := export.NewServer(config.Export, env)
+	exportServer, err := export.NewServer(&config.Export, env)
 	if err != nil {
 		return nil, fmt.Errorf("export.NewServer: %w", err)
 	}
@@ -114,13 +114,13 @@ func RunServer(ctx context.Context) (*MonoConfig, error) {
 	mux.HandleFunc("/export/do-work", exportServer.WorkerHandler)
 
 	// Federation in
-	mux.Handle("/federation-in", federationin.NewHandler(env, config.FederationIn))
+	mux.Handle("/federation-in", federationin.NewHandler(env, &config.FederationIn))
 
 	// Federation out
 	// TODO: this is a grpc listener and requires a lot of setup.
 
 	// Publish
-	publishServer, err := publish.NewHandler(ctx, config.Publish, env)
+	publishServer, err := publish.NewHandler(ctx, &config.Publish, env)
 	if err != nil {
 		return nil, fmt.Errorf("publish.NewHandler: %w", err)
 	}

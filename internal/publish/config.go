@@ -32,9 +32,9 @@ var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 // Config represents the configuration and associated environment variables for
 // the publish components.
 type Config struct {
-	AuthorizedApp *authorizedapp.Config
-	Database      *database.Config
-	SecretManager *secrets.Config
+	AuthorizedApp authorizedapp.Config
+	Database      database.Config
+	SecretManager secrets.Config
 
 	Port               string        `envconfig:"PORT" default:"8080"`
 	MinRequestDuration time.Duration `envconfig:"TARGET_REQUEST_DURATION" default:"5s"`
@@ -48,13 +48,13 @@ type Config struct {
 }
 
 func (c *Config) AuthorizedAppConfig() *authorizedapp.Config {
-	return c.AuthorizedApp
+	return &c.AuthorizedApp
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
-	return c.Database
+	return &c.Database
 }
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
-	return c.SecretManager
+	return &c.SecretManager
 }

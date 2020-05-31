@@ -71,11 +71,14 @@ func Setup(ctx context.Context, config DatabaseConfigProvider) (*serverenv.Serve
 	var sm secrets.SecretManager
 	if provider, ok := config.(SecretManagerConfigProvider); ok {
 		smConfig := provider.SecretManagerConfig()
+		if err := envconfig.Process(ctx, smConfig, nil); err != nil {
+			return nil, nil, fmt.Errorf("unable to process secret manager environment: %w", err)
+		}
 
 		var err error
 		sm, err = secrets.SecretManagerFor(ctx, smConfig.SecretManagerType)
 		if err != nil {
-			return nil, nil, fmt.Errorf("unable to connect to secret manager: %v", err)
+			return nil, nil, fmt.Errorf("unable to connect to secret manager: %w", err)
 		}
 
 		// Enable caching, if provided.
@@ -86,7 +89,7 @@ func Setup(ctx context.Context, config DatabaseConfigProvider) (*serverenv.Serve
 
 	// Process first round of environment variables.
 	if err := envconfig.Process(ctx, config, sm); err != nil {
-		return nil, nil, fmt.Errorf("error loading environment variables: %v", err)
+		return nil, nil, fmt.Errorf("error loading environment variables: %w", err)
 	}
 	logger.Infof("Effective environment variables: %+v", config)
 

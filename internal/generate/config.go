@@ -30,8 +30,8 @@ var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 // Config represents the configuration and associated environment variables for
 // the publish components.
 type Config struct {
-	Database      *database.Config
-	SecretManager *secrets.Config
+	Database      database.Config
+	SecretManager secrets.Config
 
 	Port             string        `envconfig:"PORT" default:"8080"`
 	NumExposures     int           `envconfig:"NUM_EXPOSURES_GENERATED" default:"10"`
@@ -43,9 +43,9 @@ type Config struct {
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
-	return c.Database
+	return &c.Database
 }
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
-	return c.SecretManager
+	return &c.SecretManager
 }
