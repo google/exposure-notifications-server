@@ -45,10 +45,10 @@ func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.Aut
 		result, err := tx.Exec(ctx, `
 			INSERT INTO
 				AuthorizedApp
-			  (app_package_name, platform, allowed_regions,
+				(app_package_name, platform, allowed_regions,
 				allowed_health_authority_ids, bypass_health_authority_verification)
 			VALUES
-			  ($1, $2, $3, $4, $5)
+				($1, $2, $3, $4, $5)
 		`, m.AppPackageName, m.Platform, m.AllAllowedRegions(),
 			m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification)
 
