@@ -31,7 +31,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/google/exposure-notifications-server/internal/verification"
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
@@ -121,46 +120,22 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		}
 	}
 
-	if err := verification.VerifyRegions(appConfig, &data); err != nil {
-		message := fmt.Sprintf("verifying allowed regions: %v", err)
-		span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
-		return response{status: http.StatusUnauthorized, message: message, metric: "publish-region-not-authorized", count: 1}
+	// Verify the request is from a permitted region.
+	for _, r := range data.Regions {
+		if !appConfig.IsAllowedRegion(r) {
+			err := fmt.Errorf("app %v tried to write to unauthorized region %v", appConfig.AppPackageName, r)
+			message := fmt.Sprintf("verifying allowed regions: %v", err)
+			span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
+			return response{
+				status:  http.StatusUnauthorized,
+				message: message,
+				metric:  "publish-region-not-authorized",
+				count:   1,
+			}
+		}
 	}
 
-	// If an AuthorizedApp is configured for a single platform only, we can ignore
-	// the incoming platform field on the Publish request.
-	// If the AuthorizedApp is dual platform, then let the in coming Publish.Platform
-	// decide which attestation validation is used.
-	if appConfig.IsIOS() || (appConfig.IsDualPlatform() && data.IsIOS()) {
-		span.AddAttributes(trace.StringAttribute("app_platform", "ios"))
-		if appConfig.DeviceCheckDisabled {
-			logger.Errorf("skipping DeviceCheck for %v (disabled)", data.AppPackageName)
-			h.serverenv.MetricsExporter(ctx).WriteInt("publish-devicecheck-skip", true, 1)
-		} else if err := verification.VerifyDeviceCheck(ctx, appConfig, &data); err != nil {
-			message := fmt.Sprintf("unable to verify devicecheck payload: %v", err)
-			logger.Error(message)
-			span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
-			return response{status: http.StatusUnauthorized, message: message, metric: "publish-devicecheck-invalid", count: 1}
-		}
-	} else if appConfig.IsAndroid() || (appConfig.IsDualPlatform() && data.IsAndroid()) {
-		span.AddAttributes(trace.StringAttribute("app_platform", "android"))
-		if appConfig.SafetyNetDisabled {
-			message := fmt.Sprintf("skipping SafetyNet for %v (disabled)", data.AppPackageName)
-			logger.Error(message)
-			span.SetStatus(trace.Status{Code: trace.StatusCodeUnknown, Message: message})
-			h.serverenv.MetricsExporter(ctx).WriteInt("publish-safetynet-skip", true, 1)
-		} else if err := verification.VerifySafetyNet(ctx, time.Now(), appConfig, &data); err != nil {
-			message := fmt.Sprintf("unable to verify safetynet payload: %v", err)
-			logger.Error(message)
-			span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
-			return response{status: http.StatusUnauthorized, message: message, metric: "publish-safetnet-invalid", count: 1}
-		}
-	} else {
-		message := fmt.Sprintf("invalid AuthorizedApp config %v: invalid platform %v", data.AppPackageName, data.Platform)
-		logger.Error(message)
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
-		return response{status: http.StatusBadRequest, message: message, metric: "publish-authorizedapp-missing-platform", count: 1}
-	}
+	// TODO(helmick): Hook up PHA verification.
 
 	batchTime := time.Now()
 	exposures, err := h.transformer.TransformPublish(&data, batchTime)

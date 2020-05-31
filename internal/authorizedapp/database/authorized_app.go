@@ -16,15 +16,12 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/ios"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	pgx "github.com/jackc/pgx/v4"
 )
@@ -48,14 +45,12 @@ func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.Aut
 		result, err := tx.Exec(ctx, `
 			INSERT INTO
 				AuthorizedApp
-			  (app_package_name, platform, allowed_regions, allowed_health_authority_ids, bypass_health_authority_verification,
-			   safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
-			   devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret)
+			  (app_package_name, platform, allowed_regions,
+				allowed_health_authority_ids, bypass_health_authority_verification)
 			VALUES
-			  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-		`, m.AppPackageName, m.Platform, m.AllAllowedRegions(), m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification,
-			m.SafetyNetDisabled, m.SafetyNetApkDigestSHA256, m.SafetyNetCTSProfileMatch, m.SafetyNetBasicIntegrity, int64(m.SafetyNetPastTime.Seconds()), int64(m.SafetyNetFutureTime.Seconds()),
-			m.DeviceCheckDisabled, m.DeviceCheckTeamID, m.DeviceCheckKeyID, m.DeviceCheckPrivateKeySecret)
+			  ($1, $2, $3, $4, $5)
+		`, m.AppPackageName, m.Platform, m.AllAllowedRegions(),
+			m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification)
 
 		if err != nil {
 			return fmt.Errorf("inserting authorizedapp: %w", err)
@@ -72,14 +67,13 @@ func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey str
 		result, err := tx.Exec(ctx, `
 			UPDATE AuthorizedApp
 			SET
-				app_package_name = $1, platform = $2, allowed_regions = $3, allowed_health_authority_ids = $4, bypass_health_authority_verification = $5,
-				safetynet_disabled = $6, safetynet_apk_digest = $7, safetynet_cts_profile_match = $8, safetynet_basic_integrity = $9, safetynet_past_seconds = $10, safetynet_future_seconds = $11,
-				devicecheck_disabled = $12, devicecheck_team_id = $13, devicecheck_key_id = $14, devicecheck_private_key_secret = $15
+				app_package_name = $1, platform = $2, allowed_regions = $3,
+				allowed_health_authority_ids = $4, bypass_health_authority_verification = $5
 			WHERE
-				app_package_name = $16
-			`, m.AppPackageName, m.Platform, m.AllAllowedRegions(), m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification,
-			m.SafetyNetDisabled, m.SafetyNetApkDigestSHA256, m.SafetyNetCTSProfileMatch, m.SafetyNetBasicIntegrity, int64(m.SafetyNetPastTime.Seconds()), int64(m.SafetyNetFutureTime.Seconds()),
-			m.DeviceCheckDisabled, m.DeviceCheckTeamID, m.DeviceCheckKeyID, m.DeviceCheckPrivateKeySecret, priorKey)
+				app_package_name = $6
+			`, m.AppPackageName, m.Platform, m.AllAllowedRegions(),
+			m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification,
+			priorKey)
 		if err != nil {
 			return fmt.Errorf("updating authorizedapp: %w", err)
 		}
@@ -123,9 +117,8 @@ func (aa *AuthorizedAppDB) GetAllAuthorizedApps(ctx context.Context, sm secrets.
 
 	query := `
 		SELECT
-			app_package_name, platform, allowed_regions, allowed_health_authority_ids, bypass_health_authority_verification,
-			safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
-			devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
+			app_package_name, platform, allowed_regions,
+			allowed_health_authority_ids, bypass_health_authority_verification
 		FROM
 			AuthorizedApp
 		ORDER BY app_package_name ASC`
@@ -162,9 +155,8 @@ func (aa *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.Secr
 
 	query := `
 		SELECT
-			app_package_name, platform, allowed_regions, allowed_health_authority_ids, bypass_health_authority_verification,
-			safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity, safetynet_past_seconds, safetynet_future_seconds,
-			devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
+			app_package_name, platform, allowed_regions,
+			allowed_health_authority_ids, bypass_health_authority_verification
 		FROM
 			AuthorizedApp
 		WHERE app_package_name = $1`
@@ -177,13 +169,10 @@ func (aa *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.Secr
 func scanOneAuthorizedApp(ctx context.Context, row pgx.Row, sm secrets.SecretManager) (*model.AuthorizedApp, error) {
 	config := model.NewAuthorizedApp()
 	var allowedRegions []string
-	var AllowedHealthAuthorityIDs []int64
-	var safetyNetPastSeconds, safetyNetFutureSeconds *int
-	var deviceCheckTeamID, deviceCheckKeyID, deviceCheckPrivateKeySecret sql.NullString
+	var allowedHealthAuthorityIDs []int64
 	if err := row.Scan(
-		&config.AppPackageName, &config.Platform, &allowedRegions, &AllowedHealthAuthorityIDs, &config.BypassHealthAuthorityVerification,
-		&config.SafetyNetDisabled, &config.SafetyNetApkDigestSHA256, &config.SafetyNetCTSProfileMatch, &config.SafetyNetBasicIntegrity, &safetyNetPastSeconds, &safetyNetFutureSeconds,
-		&config.DeviceCheckDisabled, &deviceCheckTeamID, &deviceCheckKeyID, &deviceCheckPrivateKeySecret,
+		&config.AppPackageName, &config.Platform, &allowedRegions,
+		&allowedHealthAuthorityIDs, &config.BypassHealthAuthorityVerification,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -191,49 +180,13 @@ func scanOneAuthorizedApp(ctx context.Context, row pgx.Row, sm secrets.SecretMan
 		return nil, err
 	}
 
-	// Convert time in seconds from DB into time.Duration
-	if safetyNetPastSeconds != nil {
-		d := time.Duration(*safetyNetPastSeconds) * time.Second
-		config.SafetyNetPastTime = d
-	}
-	if safetyNetFutureSeconds != nil {
-		d := time.Duration(*safetyNetFutureSeconds) * time.Second
-		config.SafetyNetFutureTime = d
-	}
-
 	// build the regions map
 	for _, r := range allowedRegions {
 		config.AllowedRegions[r] = struct{}{}
 	}
 	// and the health authorities map
-	for _, haID := range AllowedHealthAuthorityIDs {
+	for _, haID := range allowedHealthAuthorityIDs {
 		config.AllowedHealthAuthorityIDs[haID] = struct{}{}
-	}
-
-	// Handle nulls
-	if v := deviceCheckTeamID; v.Valid && v.String != "" {
-		config.DeviceCheckTeamID = v.String
-	}
-
-	if v := deviceCheckKeyID; v.Valid && v.String != "" {
-		config.DeviceCheckKeyID = v.String
-	}
-
-	// Resolve secrets to their plaintext values
-	if v := deviceCheckPrivateKeySecret; v.Valid && v.String != "" {
-		config.DeviceCheckPrivateKeySecret = v.String
-		plaintext, err := sm.GetSecretValue(ctx, v.String)
-		if err != nil {
-			return nil, fmt.Errorf("devicecheck_private_key_secret at %s (%s): %w",
-				config.AppPackageName, config.Platform, err)
-		}
-
-		key, err := ios.ParsePrivateKey(plaintext)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse private key at %s (%s): %w",
-				config.AppPackageName, config.Platform, err)
-		}
-		config.DeviceCheckPrivateKey = key
 	}
 
 	return config, nil

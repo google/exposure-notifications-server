@@ -15,9 +15,7 @@
 package model
 
 import (
-	"crypto/ecdsa"
 	"strings"
-	"time"
 )
 
 const (
@@ -45,23 +43,6 @@ type AuthorizedApp struct {
 	// that this app can obtain and verify diagnosis verification certificates from.
 	AllowedHealthAuthorityIDs         map[int64]struct{}
 	BypassHealthAuthorityVerification bool
-
-	// DEPRECATION NOTICE:
-	// Everything below here is deprecated.
-	// SafetyNet configuration.
-	SafetyNetDisabled        bool
-	SafetyNetApkDigestSHA256 []string
-	SafetyNetBasicIntegrity  bool
-	SafetyNetCTSProfileMatch bool
-	SafetyNetPastTime        time.Duration
-	SafetyNetFutureTime      time.Duration
-
-	// DeviceCheck configuration.
-	DeviceCheckDisabled         bool
-	DeviceCheckKeyID            string
-	DeviceCheckTeamID           string
-	DeviceCheckPrivateKey       *ecdsa.PrivateKey
-	DeviceCheckPrivateKeySecret string
 }
 
 func NewAuthorizedApp() *AuthorizedApp {
@@ -95,25 +76,6 @@ func (c *AuthorizedApp) Validate() []string {
 	if !(c.Platform == "android" || c.Platform == "ios" || c.Platform == "both") {
 		errors = append(errors, "platform must be one if {'android', 'ios', or 'both'}")
 	}
-	if !c.SafetyNetDisabled {
-		if c.SafetyNetPastTime < 0 {
-			errors = append(errors, "SafetyNetPastTime cannot be negative")
-		}
-		if c.SafetyNetFutureTime < 0 {
-			errors = append(errors, "SafetyNetFutureTime cannot be negative")
-		}
-	}
-	if !c.DeviceCheckDisabled {
-		if c.DeviceCheckKeyID == "" {
-			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckKeyID cannot be empty")
-		}
-		if c.DeviceCheckTeamID == "" {
-			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckTeamID cannot be empty")
-		}
-		if c.DeviceCheckPrivateKeySecret == "" {
-			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckPrivateKeySecret cannot be empty")
-		}
-	}
 	return errors
 }
 
@@ -139,10 +101,6 @@ func (c *AuthorizedApp) RegionsOnePerLine() string {
 		regions = append(regions, r)
 	}
 	return strings.Join(regions, "\n")
-}
-
-func (c *AuthorizedApp) APKDigestOnePerLine() string {
-	return strings.Join(c.SafetyNetApkDigestSHA256, "\n")
 }
 
 // IsAllowedRegion returns true if the regions list is empty or if the given

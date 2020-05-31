@@ -22,8 +22,8 @@ The Exposure Notification Server is responsible for the following functions:
 
 * Accepting the temporary exposure keys of affected users from mobile devices.
 
-* Validating the temporary exposure keys using the
-[device attestation API](https://developer.android.com/training/safetynet/attestation).
+* Validating the temporary exposure keys using a configurable third-party
+  verification service.
 
 * Storing the temporary exposure keys in a database.
 

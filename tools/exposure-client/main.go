@@ -85,13 +85,11 @@ func main() {
 	}
 
 	data := model.Publish{
-		Keys:           exposureKeys,
-		Regions:        region,
-		AppPackageName: *appPackage,
-		// This tool cannot generate valid safetynet attestations.
-		DeviceVerificationPayload: "some invalid data",
-		VerificationPayload:       verificationAuthorityName,
-		Padding:                   base64.RawStdEncoding.EncodeToString(padding),
+		Keys:                exposureKeys,
+		Regions:             region,
+		AppPackageName:      *appPackage,
+		VerificationPayload: verificationAuthorityName,
+		Padding:             base64.RawStdEncoding.EncodeToString(padding),
 	}
 
 	prettyJSON, err := json.MarshalIndent(data, "", "  ")

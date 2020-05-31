@@ -24,7 +24,6 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.10.0
 	github.com/golang/protobuf v1.4.2
 	github.com/google/go-cmp v0.4.1
-	github.com/google/uuid v1.1.1
 	github.com/hashicorp/go-hclog v0.13.0
 	github.com/hashicorp/go-memdb v1.2.1 // indirect
 	github.com/hashicorp/go-msgpack v1.1.5 // indirect

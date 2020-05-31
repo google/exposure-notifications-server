@@ -15,8 +15,6 @@
 package model
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"sort"
 	"strings"
@@ -81,50 +79,6 @@ func (p *Publish) IsIOS() bool {
 
 func (p *Publish) IsAndroid() bool {
 	return strings.ToLower(p.Platform) == authapp.AndroidDevice
-}
-
-// AndroidNonce returns the Android. This ensures that the data in the request
-// is the same data that was used to create the device attestation.
-func (p *Publish) AndroidNonce() string {
-	// base64 keys are to be lexicographically sorted
-	sortedKeys := make([]ExposureKey, len(p.Keys))
-	copy(sortedKeys, p.Keys)
-	sort.Slice(sortedKeys, func(i int, j int) bool {
-		return sortedKeys[i].Key < sortedKeys[j].Key
-	})
-
-	// regions are to be uppercased and then lexographically sorted
-	sortedRegions := make([]string, len(p.Regions))
-	for i, r := range p.Regions {
-		sortedRegions[i] = strings.ToUpper(r)
-	}
-	sort.Strings(sortedRegions)
-
-	keys := make([]string, 0, len(sortedKeys))
-	for _, k := range sortedKeys {
-		keys = append(keys, fmt.Sprintf("%v.%v.%v.%v", k.Key, k.IntervalNumber, k.IntervalCount, k.TransmissionRisk))
-	}
-
-	// The cleartext is a combination of all of the data on the request
-	// in a specific order.
-	//
-	// appPackageName|key[,key]|region[,region]|verificationAuthorityName
-	// Keys are encoded as
-	//     base64(exposureKey).intervalNumber.IntervalCount.transmissionRisk
-	// When there is > 1 key, keys are comma separated.
-	// Keys must in sorted order based on the sorting of the base64 exposure key.
-	// Regions are uppercased, sorted, and comma separated
-	cleartext :=
-		p.AppPackageName + "|" +
-			strings.Join(keys, ",") + "|" + // where key is b64key.intervalNum.intervalCount
-			strings.Join(sortedRegions, ",") + "|" +
-			p.VerificationPayload
-
-	// Take the sha256 checksum of that data
-	sum := sha256.Sum256([]byte(cleartext))
-
-	// Base64 encode the result.
-	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
 // ExposureKey is the 16 byte key, the start time of the key and the
