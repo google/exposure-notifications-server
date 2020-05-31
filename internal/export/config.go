@@ -33,10 +33,10 @@ var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 // Config represents the configuration and associated environment variables for
 // the export components.
 type Config struct {
-	Storage       *storage.Config
-	Database      *database.Config
-	KeyManager    *signing.Config
-	SecretManager *secrets.Config
+	Storage       storage.Config
+	Database      database.Config
+	KeyManager    signing.Config
+	SecretManager secrets.Config
 
 	Port           string        `envconfig:"PORT" default:"8080"`
 	CreateTimeout  time.Duration `envconfig:"CREATE_BATCHES_TIMEOUT" default:"5m"`
@@ -50,17 +50,17 @@ type Config struct {
 }
 
 func (c *Config) BlobstoreConfig() *storage.Config {
-	return c.Storage
+	return &c.Storage
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
-	return c.Database
+	return &c.Database
 }
 
 func (c *Config) KeyManagerConfig() *signing.Config {
-	return c.KeyManager
+	return &c.KeyManager
 }
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
-	return c.SecretManager
+	return &c.SecretManager
 }
