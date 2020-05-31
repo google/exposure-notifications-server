@@ -18,22 +18,12 @@ import (
 	"strings"
 )
 
-const (
-	BothPlatforms = "both"
-	IosDevice     = "ios"
-	AndroidDevice = "android"
-)
-
 // AuthorizedApp represents the configuration for a single exposure notification
 // application and their access to and requirements for using the API. DB times
 // of 0 are interpreted to be "unbounded" in that direction.
 type AuthorizedApp struct {
 	// AppPackageName is the name of the package like com.company.app.
 	AppPackageName string
-
-	// Platform is the app platform like "android" or "ios".
-	// Deprecated - Platform doesn't matter with device attestations going away.
-	Platform string
 
 	// AllowedRegions is the list of allowed regions for this app. If the list is
 	// empty, all regions are permitted.
@@ -73,26 +63,7 @@ func (c *AuthorizedApp) Validate() []string {
 	if c.AppPackageName == "" {
 		errors = append(errors, "AppPackageName cannot be empty")
 	}
-	if !(c.Platform == "android" || c.Platform == "ios" || c.Platform == "both") {
-		errors = append(errors, "platform must be one if {'android', 'ios', or 'both'}")
-	}
 	return errors
-}
-
-// IsIOS returns true if the platform is equal to `iosDevice`.
-func (c *AuthorizedApp) IsIOS() bool {
-	return c.Platform == IosDevice
-}
-
-// IsAndroid returns true if the platform is equal to `android`.
-func (c *AuthorizedApp) IsAndroid() bool {
-	return c.Platform == AndroidDevice
-}
-
-// IsDualPlatform returns true if the platform is equal to 'both'
-// i.e. AppPackageName and BundleID are the same.
-func (c *AuthorizedApp) IsDualPlatform() bool {
-	return c.Platform == BothPlatforms
 }
 
 func (c *AuthorizedApp) RegionsOnePerLine() string {

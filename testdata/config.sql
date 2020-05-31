@@ -17,15 +17,9 @@
 BEGIN;
 
 INSERT INTO AuthorizedApp (
-  app_package_name, platform, allowed_regions
-) VALUES (
-  'com.example.ios.app', 'ios', '{}',
-);
-
-INSERT INTO AuthorizedApp (
-  app_package_name, platform, allowed_regions
-) VALUES (
-  'com.example.android.app', 'android', '{}',
-);
+  app_package_name, allowed_regions
+) VALUES
+  ('com.example.ios.app', '{}'),
+  ('com.example.android.app', '{}');
 
 END;

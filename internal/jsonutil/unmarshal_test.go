@@ -116,7 +116,6 @@ func TestValidPublishMessage(t *testing.T) {
 		  {"key": "DEF", "rollingStartNumber": %v, "rollingPeriod": 122, "TransmissionRisk": 2},
 			{"key": "123", "rollingStartNumber": %v, "rollingPeriod": 1, "TransmissionRisk": 2}],
     "appPackageName": "com.google.android.awesome",
-    "platform": "android",
     "regions": ["CA", "US"],
     "VerificationPayload": "1234-ABCD-EFGH-5678"}`
 	json = fmt.Sprintf(json, intervalNumber, intervalNumber, intervalNumber)
@@ -143,7 +142,6 @@ func TestValidPublishMessage(t *testing.T) {
 			{Key: "123", IntervalNumber: intervalNumber, IntervalCount: 1, TransmissionRisk: 2},
 		},
 		Regions:             []string{"CA", "US"},
-		Platform:            "android",
 		AppPackageName:      "com.google.android.awesome",
 		VerificationPayload: "1234-ABCD-EFGH-5678",
 	}

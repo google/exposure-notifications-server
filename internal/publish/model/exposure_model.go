@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	authapp "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/base64util"
 )
 
@@ -53,7 +52,6 @@ const (
 // AppPackageName: The identifier for the mobile application.
 //  - Android: The App Package AppPackageName
 //  - iOS: The BundleID
-// Platform: "ios" or "android"
 // TransmissionRisk: An integer from 0-8 (inclusive) that represents
 //  the transmission risk for this publish.
 // Verification: The attestation payload for this request. (iOS or Android specific)
@@ -61,6 +59,10 @@ const (
 // VerificationAuthorityName: a string that should be verified against the code provider.
 //  Note: This project doesn't directly include a diagnosis code verification System
 //        but does provide the ability to configure one in `serverevn.ServerEnv`
+//
+// The following fields are deprecated, but accepted for backwards-compatability:
+// DeviceVerificationPayload: (attestation)
+// Platform: "ios" or "android"
 type Publish struct {
 	Keys                []ExposureKey `json:"temporaryExposureKeys"`
 	Regions             []string      `json:"regions"`
@@ -71,14 +73,6 @@ type Publish struct {
 
 	Platform                  string `json:"platform"`                  // DEPRECATED
 	DeviceVerificationPayload string `json:"deviceVerificationPayload"` // DEPRECATED
-}
-
-func (p *Publish) IsIOS() bool {
-	return strings.ToLower(p.Platform) == authapp.IosDevice
-}
-
-func (p *Publish) IsAndroid() bool {
-	return strings.ToLower(p.Platform) == authapp.AndroidDevice
 }
 
 // ExposureKey is the 16 byte key, the start time of the key and the

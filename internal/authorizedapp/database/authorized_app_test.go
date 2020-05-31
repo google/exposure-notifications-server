@@ -54,7 +54,6 @@ func TestAuthorizedAppLifecycle(t *testing.T) {
 
 	source := &model.AuthorizedApp{
 		AppPackageName:            "myapp",
-		Platform:                  "both",
 		AllowedRegions:            map[string]struct{}{"US": {}},
 		AllowedHealthAuthorityIDs: map[int64]struct{}{1: {}, 2: {}},
 	}
@@ -132,13 +131,12 @@ func TestGetAuthorizedApp(t *testing.T) {
 		{
 			name: "bare",
 			sql: `
-				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions, allowed_health_authority_ids)
-				VALUES ($1, $2, $3, $4)
+				INSERT INTO AuthorizedApp (app_package_name, allowed_regions, allowed_health_authority_ids)
+				VALUES ($1, $2, $3)
 			`,
-			args: []interface{}{"myapp", "android", []string{"US"}, []int64{1}},
+			args: []interface{}{"myapp", []string{"US"}, []int64{1}},
 			exp: &model.AuthorizedApp{
 				AppPackageName:            "myapp",
-				Platform:                  "android",
 				AllowedRegions:            map[string]struct{}{"US": {}},
 				AllowedHealthAuthorityIDs: map[int64]struct{}{1: {}},
 			},
@@ -146,13 +144,12 @@ func TestGetAuthorizedApp(t *testing.T) {
 		{
 			name: "all_regions",
 			sql: `
-				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions, allowed_health_authority_ids)
-				VALUES ($1, $2, $3, $4)
+				INSERT INTO AuthorizedApp (app_package_name, allowed_regions, allowed_health_authority_ids)
+				VALUES ($1, $2, $3)
 			`,
-			args: []interface{}{"myapp", "android", []string{}, []int64{1}},
+			args: []interface{}{"myapp", []string{}, []int64{1}},
 			exp: &model.AuthorizedApp{
 				AppPackageName:            "myapp",
-				Platform:                  "android",
 				AllowedRegions:            map[string]struct{}{},
 				AllowedHealthAuthorityIDs: map[int64]struct{}{1: {}},
 			},

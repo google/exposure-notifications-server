@@ -45,11 +45,11 @@ func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.Aut
 		result, err := tx.Exec(ctx, `
 			INSERT INTO
 				AuthorizedApp
-				(app_package_name, platform, allowed_regions,
+				(app_package_name, allowed_regions,
 				allowed_health_authority_ids, bypass_health_authority_verification)
 			VALUES
-				($1, $2, $3, $4, $5)
-		`, m.AppPackageName, m.Platform, m.AllAllowedRegions(),
+				($1, $2, $3, $4)
+		`, m.AppPackageName, m.AllAllowedRegions(),
 			m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification)
 
 		if err != nil {
@@ -67,11 +67,11 @@ func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey str
 		result, err := tx.Exec(ctx, `
 			UPDATE AuthorizedApp
 			SET
-				app_package_name = $1, platform = $2, allowed_regions = $3,
-				allowed_health_authority_ids = $4, bypass_health_authority_verification = $5
+				app_package_name = $1, allowed_regions = $2,
+				allowed_health_authority_ids = $3, bypass_health_authority_verification = $4
 			WHERE
-				app_package_name = $6
-			`, m.AppPackageName, m.Platform, m.AllAllowedRegions(),
+				app_package_name = $5
+			`, m.AppPackageName, m.AllAllowedRegions(),
 			m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification,
 			priorKey)
 		if err != nil {
@@ -117,7 +117,7 @@ func (aa *AuthorizedAppDB) GetAllAuthorizedApps(ctx context.Context, sm secrets.
 
 	query := `
 		SELECT
-			app_package_name, platform, allowed_regions,
+			app_package_name, allowed_regions,
 			allowed_health_authority_ids, bypass_health_authority_verification
 		FROM
 			AuthorizedApp
@@ -155,7 +155,7 @@ func (aa *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.Secr
 
 	query := `
 		SELECT
-			app_package_name, platform, allowed_regions,
+			app_package_name, allowed_regions,
 			allowed_health_authority_ids, bypass_health_authority_verification
 		FROM
 			AuthorizedApp
@@ -171,7 +171,7 @@ func scanOneAuthorizedApp(ctx context.Context, row pgx.Row, sm secrets.SecretMan
 	var allowedRegions []string
 	var allowedHealthAuthorityIDs []int64
 	if err := row.Scan(
-		&config.AppPackageName, &config.Platform, &allowedRegions,
+		&config.AppPackageName, &allowedRegions,
 		&allowedHealthAuthorityIDs, &config.BypassHealthAuthorityVerification,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

@@ -82,7 +82,7 @@ Minimum required fields, followed by a JSON example:
 * `appPackageName` (**REQUIRED**)
   * Type: string
   * Description: name of the application bundle that sent the request.
-* `platform` (**REQUIRED**)
+* `platform` (**DEPRECATED**)
   * Type: string
   * Description: Mobile device platform this request originated from.
 * `deviceVerificationPayload` (**DEPRECATED**)
@@ -109,7 +109,6 @@ The following snippet is an example POST request payload in JSON format.
     {"key": "base64 KEYN", "rollingStartNumber": 12499, "rollingPeriod": 100, "transmissionRisk": 7}],
   "regions": ["US", "CA", "MX"],
   "appPackageName": "com.foo.app",
-  "platform": "android",
   "verificationPayload": "signature /code from  of verifying authority",
   "padding": "random string data..."
 }

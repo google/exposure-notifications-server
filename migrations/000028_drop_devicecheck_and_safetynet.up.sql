@@ -16,6 +16,7 @@ BEGIN;
 
 -- WARNING: this drops these columns in a non-backwards-compatible way.
 ALTER TABLE AuthorizedApp
+  DROP COLUMN platform,
   DROP COLUMN safetynet_disabled,
   DROP COLUMN safetynet_apk_digest,
   DROP COLUMN safetynet_cts_profile_match,

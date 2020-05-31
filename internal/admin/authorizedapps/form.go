@@ -28,7 +28,6 @@ type formData struct {
 
 	// Authorized App Data
 	AppPackageName string `form:"AppPackageName"`
-	Platform       string `form:"Platform"`
 	AllowedRegions string `form:"Regions"`
 }
 
@@ -45,7 +44,6 @@ func (f *formData) PriorKey() string {
 
 func (f *formData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
 	a.AppPackageName = f.AppPackageName
-	a.Platform = f.Platform
 	a.AllowedRegions = make(map[string]struct{})
 	for _, region := range strings.Split(f.AllowedRegions, "\n") {
 		a.AllowedRegions[strings.TrimSpace(region)] = struct{}{}
