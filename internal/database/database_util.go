@@ -43,7 +43,7 @@ import (
 //
 // All database tests can be skipped by running `go test -short` or by setting
 // the `SKIP_DATABASE_TESTS` environment variable.
-func NewTestDatabase(tb testing.TB) *DB {
+func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
 	tb.Helper()
 
 	if testing.Short() {
@@ -126,6 +126,20 @@ func NewTestDatabase(tb testing.TB) *DB {
 		db.Close(context.Background())
 	})
 
+	return db, &Config{
+		Name:     dbname,
+		User:     username,
+		Host:     container.GetBoundIP("5432/tcp"),
+		Port:     container.GetPort("5432/tcp"),
+		SSLMode:  "disable",
+		Password: password,
+	}
+}
+
+func NewTestDatabase(tb testing.TB) *DB {
+	tb.Helper()
+
+	db, _ := NewTestDatabaseWithConfig(tb)
 	return db
 }
 
