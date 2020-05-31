@@ -75,7 +75,7 @@ func (k *HealthAuthorityKey) IsValidAt(t time.Time) bool {
 }
 
 // PublicKey decodes the PublicKeyPEM text and returns the `*ecdsa.PublicKey`
-// This system only supports verifying ECDSA JWTs, `alg: ES256`
+// This system only supports verifying ECDSA JWTs, `alg: ES256`.
 func (k *HealthAuthorityKey) PublicKey() (*ecdsa.PublicKey, error) {
 	block, _ := pem.Decode([]byte(k.PublicKeyPEM))
 	if block == nil || block.Type != "PUBLIC KEY" {

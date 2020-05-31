@@ -267,7 +267,7 @@ func (db *ExportDB) ListAllSigntureInfos(ctx context.Context) ([]*model.Signatur
 		if rows.Err() != nil {
 			return nil, rows.Err()
 		}
-		si, err := scanOneSignatureInfo(ctx, rows)
+		si, err := scanOneSignatureInfo(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -301,7 +301,7 @@ func (db *ExportDB) LookupSignatureInfos(ctx context.Context, ids []int64, valid
 		if rows.Err() != nil {
 			return nil, rows.Err()
 		}
-		si, err := scanOneSignatureInfo(ctx, rows)
+		si, err := scanOneSignatureInfo(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -328,10 +328,10 @@ func (db *ExportDB) GetSignatureInfo(ctx context.Context, id int64) (*model.Sign
 			id = $1
 		`, id)
 
-	return scanOneSignatureInfo(ctx, row)
+	return scanOneSignatureInfo(row)
 }
 
-func scanOneSignatureInfo(ctx context.Context, row pgx.Row) (*model.SignatureInfo, error) {
+func scanOneSignatureInfo(row pgx.Row) (*model.SignatureInfo, error) {
 	var info model.SignatureInfo
 	var thru *time.Time
 	if err := row.Scan(&info.ID, &info.SigningKey, &info.AppPackageName, &info.BundleID, &info.SigningKeyVersion, &info.SigningKeyID, &thru); err != nil {
@@ -346,7 +346,6 @@ func scanOneSignatureInfo(ctx context.Context, row pgx.Row) (*model.SignatureInf
 // LatestExportBatchEnd returns the end time of the most recent ExportBatch for
 // a given ExportConfig. It returns the zero time if no previous ExportBatch
 // exists.
-// TODO(squee1945): This needs a
 func (db *ExportDB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportConfig) (time.Time, error) {
 	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
@@ -461,7 +460,6 @@ func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.
 		// In a serialized transaction, fetch the existing batch and make sure it can be leased, then lease it.
 		leased := false
 		err := db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
-
 			row := tx.QueryRow(ctx, `
 				SELECT
 					status, lease_expires
@@ -708,7 +706,6 @@ func (db *ExportDB) DeleteFilesBefore(ctx context.Context, before time.Time, blo
 	batchFileDeleteCounter := make(map[int64]int)
 
 	for _, f := range files {
-
 		// If file is already deleted, skip to the next.
 		if f.fileStatus == model.ExportBatchDeleted {
 			batchFileDeleteCounter[f.batchID]++
@@ -724,7 +721,7 @@ func (db *ExportDB) DeleteFilesBefore(ctx context.Context, before time.Time, blo
 
 		err := db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Update Status in ExportFile.
-			if err := updateExportFileStatus(ctx, tx, f.batchID, f.filename, model.ExportBatchDeleted); err != nil {
+			if err := updateExportFileStatus(ctx, tx, f.filename, model.ExportBatchDeleted); err != nil {
 				return fmt.Errorf("updating ExportFile: %w", err)
 			}
 
@@ -767,7 +764,7 @@ func addExportFile(ctx context.Context, tx pgx.Tx, ef *model.ExportFile) error {
 	return nil
 }
 
-func updateExportFileStatus(ctx context.Context, tx pgx.Tx, batchID int64, filename, status string) error {
+func updateExportFileStatus(ctx context.Context, tx pgx.Tx, filename, status string) error {
 	_, err := tx.Exec(ctx, `
 		UPDATE
 			ExportFile

@@ -117,8 +117,6 @@ NTG3+oqI0Q6a3kPOuAAAupr373j7O1YXrM2KAix966EPwTNlK7YCcJa0m6PKz9DT
 			} else if k == nil {
 				t.Errorf("ECDSA public key is unexpectedly nil")
 			}
-
 		})
 	}
-
 }

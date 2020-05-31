@@ -45,13 +45,13 @@ var (
 	fixedHeaderWidth = 16
 )
 
-type ExportSigners struct {
+type Signer struct {
 	SignatureInfo *model.SignatureInfo
 	Signer        crypto.Signer
 }
 
 // MarshalExportFile converts the inputs into an encoded byte array.
-func MarshalExportFile(eb *model.ExportBatch, exposures []*publishmodel.Exposure, batchNum, batchSize int, signers []ExportSigners) ([]byte, error) {
+func MarshalExportFile(eb *model.ExportBatch, exposures []*publishmodel.Exposure, batchNum, batchSize int, signers []*Signer) ([]byte, error) {
 	// create main exposure key export binary
 	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize), signers)
 	if err != nil {
@@ -59,7 +59,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures []*publishmodel.Exposure
 	}
 
 	// create signature file
-	sigContents, err := marshalSignature(eb, expContents, int32(batchNum), int32(batchSize), signers)
+	sigContents, err := marshalSignature(expContents, int32(batchNum), int32(batchSize), signers)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal signature file: %w", err)
 	}
@@ -131,7 +131,7 @@ func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, error
 	return message, nil
 }
 
-func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, batchNum int32, batchSize int32, signers []ExportSigners) ([]byte, error) {
+func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, batchNum int32, batchSize int32, signers []*Signer) ([]byte, error) {
 	exportBytes := fixedHeader
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))
@@ -166,8 +166,8 @@ func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, 
 		StartTimestamp: proto.Uint64(uint64(eb.StartTimestamp.Unix())),
 		EndTimestamp:   proto.Uint64(uint64(eb.EndTimestamp.Unix())),
 		Region:         proto.String(eb.OutputRegion),
-		BatchNum:       proto.Int32(int32(batchNum)),
-		BatchSize:      proto.Int32(int32(batchSize)),
+		BatchNum:       proto.Int32(batchNum),
+		BatchSize:      proto.Int32(batchSize),
 		Keys:           pbeks,
 		SignatureInfos: exportSigInfos,
 	}
@@ -195,8 +195,7 @@ func createSignatureInfo(si *model.SignatureInfo) *export.SignatureInfo {
 	return sigInfo
 }
 
-func marshalSignature(eb *model.ExportBatch, exportContents []byte, batchNum, batchSize int32, signers []ExportSigners) ([]byte, error) {
-
+func marshalSignature(exportContents []byte, batchNum, batchSize int32, signers []*Signer) ([]byte, error) {
 	var signatures []*export.TEKSignature
 	for _, s := range signers {
 		sig, err := generateSignature(exportContents, s.Signer)

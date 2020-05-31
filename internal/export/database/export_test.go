@@ -100,7 +100,9 @@ func TestLookupSignatureInfos(t *testing.T) {
 		},
 	}
 	for _, si := range want {
-		New(testDB).AddSignatureInfo(ctx, si)
+		if err := New(testDB).AddSignatureInfo(ctx, si); err != nil {
+			t.Fatalf("failed to add signature info %v: %v", si, err)
+		}
 	}
 
 	ids := []int64{want[0].ID, want[1].ID, want[2].ID}

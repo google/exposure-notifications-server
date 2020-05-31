@@ -22,7 +22,6 @@ import (
 )
 
 func TestTransmissionRiskVectorSort(t *testing.T) {
-
 	got := TransmissionRiskVector{
 		{0, 0},
 		{3, 100},

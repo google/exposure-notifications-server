@@ -65,5 +65,7 @@ func main() {
 	router.POST("/siginfo/:id", saveSigInfoController.Execute)
 
 	log.Printf("listening on http://localhost:" + config.Port)
-	router.Run()
+	if err := router.Run(); err != nil {
+		log.Fatal(err)
+	}
 }

@@ -32,7 +32,7 @@ type saveController struct {
 	env    *serverenv.ServerEnv
 }
 
-func NewSave(c *admin.Config, env *serverenv.ServerEnv) *saveController {
+func NewSave(c *admin.Config, env *serverenv.ServerEnv) admin.Controller {
 	return &saveController{config: c, env: env}
 }
 
@@ -90,7 +90,6 @@ func (h *saveController) Execute(c *gin.Context) {
 		m["previousKey"] = base64.StdEncoding.EncodeToString([]byte(authApp.AppPackageName))
 		c.HTML(http.StatusOK, "authorizedapp", m)
 		return
-
 	} else if form.Action == "delete" {
 		priorKey := form.PriorKey()
 

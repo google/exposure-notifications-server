@@ -117,12 +117,12 @@ func (c *AuthorizedApp) Validate() []string {
 	return errors
 }
 
-// IsIOS returns true if the platform is equal to `iosDevice`
+// IsIOS returns true if the platform is equal to `iosDevice`.
 func (c *AuthorizedApp) IsIOS() bool {
 	return c.Platform == IosDevice
 }
 
-// IsAndroid returns true if the platform is equal to `android`
+// IsAndroid returns true if the platform is equal to `android`.
 func (c *AuthorizedApp) IsAndroid() bool {
 	return c.Platform == AndroidDevice
 }

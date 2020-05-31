@@ -80,5 +80,5 @@ func (kv *AzureKeyVault) GetSecretValue(ctx context.Context, name string) (strin
 	if result.Value == nil {
 		return "", fmt.Errorf("found secret %v, but value was nil", name)
 	}
-	return string(*result.Value), nil
+	return *result.Value, nil
 }

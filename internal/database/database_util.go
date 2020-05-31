@@ -16,6 +16,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -137,7 +138,7 @@ func dbMigrate(u string) error {
 	if err != nil {
 		return fmt.Errorf("failed create migrate: %w", err)
 	}
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("failed run migrate: %w", err)
 	}
 	srcErr, dbErr := m.Close()

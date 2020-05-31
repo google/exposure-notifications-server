@@ -39,11 +39,7 @@ func NewFromEnv(ctx context.Context, config *Config) (*DB, error) {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Creating connection pool.")
 
-	connStr, err := dbConnectionString(ctx, config)
-
-	if err != nil {
-		return nil, fmt.Errorf("invalid database config: %v", err)
-	}
+	connStr := dbConnectionString(config)
 
 	pool, err := pgxpool.Connect(ctx, connStr)
 	if err != nil {
@@ -62,13 +58,13 @@ func (db *DB) Close(ctx context.Context) {
 
 // dbConnectionString builds a connection string suitable for the pgx Postgres driver, using the
 // values of vars.
-func dbConnectionString(ctx context.Context, config *Config) (string, error) {
+func dbConnectionString(config *Config) string {
 	vals := dbValues(config)
 	var p []string
 	for k, v := range vals {
 		p = append(p, fmt.Sprintf("%s=%s", k, v))
 	}
-	return strings.Join(p, " "), nil
+	return strings.Join(p, " ")
 }
 
 // dbURI builds a Postgres URI suitable for the lib/pq driver, which is used by

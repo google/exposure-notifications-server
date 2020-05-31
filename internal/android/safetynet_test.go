@@ -202,8 +202,8 @@ func TestVerifyOptsFor(t *testing.T) {
 				AppPackageName:           "foo",
 				SafetyNetBasicIntegrity:  true,
 				SafetyNetCTSProfileMatch: true,
-				SafetyNetPastTime:        time.Duration(15 * time.Minute),
-				SafetyNetFutureTime:      time.Duration(1 * time.Second),
+				SafetyNetPastTime:        15 * time.Minute,
+				SafetyNetFutureTime:      1 * time.Second,
 			},
 			opts: &VerifyOpts{
 				AppPkgName:      "foo",

@@ -31,7 +31,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-// The VerifyOpts determine the fields that are required for verification
+// The VerifyOpts determine the fields that are required for verification.
 type VerifyOpts struct {
 	AppPkgName      string
 	APKDigest       []string
@@ -165,7 +165,7 @@ func VerifyOptsFor(c *model.AuthorizedApp, from time.Time, nonce string) *Verify
 
 // The keyFunc is based on the Android sample code
 // https://github.com/googlesamples/android-play-safetynet/blob/d7513a54e2f28c0dcd7f8d8d0fa03adb5d87b91a/server/java/src/main/java/OfflineVerify.java
-func keyFunc(ctx context.Context, tok *jwt.Token) (interface{}, error) {
+func keyFunc(tok *jwt.Token) (interface{}, error) {
 	x5c, ok := tok.Header["x5c"].([]interface{})
 	if !ok || len(x5c) == 0 {
 		return nil, fmt.Errorf("attestation is missing certificate")
@@ -215,11 +215,7 @@ func verifyAttestation(ctx context.Context, signedAttestation string) (jwt.MapCl
 	defer trace.StartRegion(ctx, "verifyAttestation").End()
 	// jwt.Parse also validates the signature after extracting
 	// the key via the keyFunc, which validates the certificate chain.
-	token, err := jwt.Parse(signedAttestation,
-		func(tok *jwt.Token) (interface{}, error) {
-			return keyFunc(ctx, tok)
-		})
-
+	token, err := jwt.Parse(signedAttestation, keyFunc)
 	if err != nil {
 		return nil, fmt.Errorf("jwt.Parse: %w", err)
 	}

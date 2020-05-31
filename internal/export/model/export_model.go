@@ -66,31 +66,31 @@ func (ec *ExportConfig) Validate() error {
 	return nil
 }
 
-func (e *ExportConfig) FormattedFromTime() string {
-	return e.From.Format(time.UnixDate)
+func (ec *ExportConfig) FormattedFromTime() string {
+	return ec.From.Format(time.UnixDate)
 }
 
-func (e *ExportConfig) FormattedThruTime() string {
-	if e.Thru.IsZero() {
+func (ec *ExportConfig) FormattedThruTime() string {
+	if ec.Thru.IsZero() {
 		return ""
 	}
-	return e.Thru.Format(time.UnixDate)
+	return ec.Thru.Format(time.UnixDate)
 }
 
-func (e *ExportConfig) FromHTMLDate() string {
-	return toHTMLDate(e.From)
+func (ec *ExportConfig) FromHTMLDate() string {
+	return toHTMLDate(ec.From)
 }
 
-func (e *ExportConfig) FromHTMLTime() string {
-	return toHTMLTime(e.From)
+func (ec *ExportConfig) FromHTMLTime() string {
+	return toHTMLTime(ec.From)
 }
 
-func (e *ExportConfig) ThruHTMLDate() string {
-	return toHTMLDate(e.Thru)
+func (ec *ExportConfig) ThruHTMLDate() string {
+	return toHTMLDate(ec.Thru)
 }
 
-func (e *ExportConfig) ThruHTMLTime() string {
-	return toHTMLTime(e.Thru)
+func (ec *ExportConfig) ThruHTMLTime() string {
+	return toHTMLTime(ec.Thru)
 }
 
 type ExportBatch struct {

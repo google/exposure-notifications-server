@@ -46,7 +46,9 @@ func main() {
 	}
 
 	teksl := &export.TEKSignatureList{}
-	proto.Unmarshal(inData, teksl)
+	if err := proto.Unmarshal(inData, teksl); err != nil {
+		log.Fatalf("failed to unmarshal proto: %v", err)
+	}
 
 	log.Printf("Data: \n%v", teksl)
 	sig := teksl.Signatures[0].Signature

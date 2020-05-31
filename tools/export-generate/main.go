@@ -61,11 +61,11 @@ func main() {
 		log.Fatal("--signing-key is required.")
 	}
 
-	// set endTime default to now, startTime default to (now - 24h)
+	// set endTime default to now, startTime default to (now - 24h).
 	endTime := time.Now()
 	startTime := endTime.Add(-time.Hour * 24)
 
-	// command-line flags can override startTime and endTime
+	// command-line flags can override startTime and endTime.
 	if *startTimestamp != "" {
 		var err error
 		startTime, err = time.Parse(time.RFC3339, *startTimestamp)
@@ -82,14 +82,14 @@ func main() {
 		}
 	}
 
-	// parse signing key
+	// parse signing key.
 	var privateKey *ecdsa.PrivateKey
 	privateKey, err := getSigningKey(*signingKey)
 	if err != nil {
 		log.Fatalf("unable to generate signing key: %v", err)
 	}
 
-	// generate fake keys
+	// generate fake keys.
 	var actualNumKeys int
 	var exposureKeys []publishmodel.Exposure
 	if *tekFile != "" {
@@ -99,7 +99,7 @@ func main() {
 			log.Fatalf("unable to read file: %v", err)
 		}
 		data := publishmodel.ExposureKeys{}
-		err = json.Unmarshal([]byte(file), &data)
+		err = json.Unmarshal(file, &data)
 		if err != nil {
 			log.Fatalf("unable to parse json: %v", err)
 		}
@@ -137,7 +137,7 @@ func main() {
 		}
 	}
 
-	// split up into batches
+	// split up into batches.
 	eb := &model.ExportBatch{
 		FilenameRoot:   *filenameRoot,
 		StartTimestamp: startTime,
@@ -167,11 +167,11 @@ func writeFile(eb *model.ExportBatch, currentBatch []*publishmodel.Exposure, b, 
 		SigningKeyID:      *keyID,
 		SigningKeyVersion: *keyVersion,
 	}
-	signer := export.ExportSigners{
+	signer := &export.Signer{
 		SignatureInfo: signatureInfo,
 		Signer:        privateKey,
 	}
-	data, err := export.MarshalExportFile(eb, currentBatch, b, numBatches, []export.ExportSigners{signer})
+	data, err := export.MarshalExportFile(eb, currentBatch, b, numBatches, []*export.Signer{signer})
 	if err != nil {
 		log.Fatalf("error marshalling export file: %v", err)
 	}
@@ -188,19 +188,19 @@ func getSigningKey(fileName string) (*ecdsa.PrivateKey, error) {
 	return ParseECPrivateKeyFromPEM(keyBytes)
 }
 
-// Parse PEM encoded Elliptic Curve Private Key Structure
+// Parse PEM encoded Elliptic Curve Private Key Structure.
 func ParseECPrivateKeyFromPEM(key []byte) (*ecdsa.PrivateKey, error) {
 	ErrNotECPrivateKey := errors.New("key is not a valid ECDSA private key")
 	ErrKeyMustBePEMEncoded := errors.New("invalid Key: Key must be PEM encoded PKCS1 or PKCS8 private key")
 	var err error
 
-	// Parse PEM block
+	// Parse PEM block.
 	var block *pem.Block
 	if block, _ = pem.Decode(key); block == nil {
 		return nil, ErrKeyMustBePEMEncoded
 	}
 
-	// Parse the key
+	// Parse the key.
 	var parsedKey interface{}
 	if parsedKey, err = x509.ParseECPrivateKey(block.Bytes); err != nil {
 		return nil, err

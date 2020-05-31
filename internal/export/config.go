@@ -24,7 +24,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
-// Compile-time check to assert this config matches requirements
+// Compile-time check to assert this config matches requirements.
 var _ setup.BlobstoreConfigProvider = (*Config)(nil)
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
 var _ setup.KeyManagerConfigProvider = (*Config)(nil)

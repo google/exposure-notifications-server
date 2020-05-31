@@ -141,7 +141,6 @@ func TestExposures(t *testing.T) {
 	if diff := cmp.Diff(exposures[2:], got); diff != "" {
 		t.Errorf("DeleteExposures: mismatch (-want, +got):\n%s", diff)
 	}
-
 }
 
 func listExposures(ctx context.Context, db *PublishDB, c IterateExposuresCriteria) (_ []*model.Exposure, err error) {

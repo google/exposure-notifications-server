@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package index contains admin console handler for the main landing page.
+// Package index contains admin console indexHandler for the main landing page.
 package index
 
 import (
@@ -30,7 +30,7 @@ type indexHandler struct {
 	env    *serverenv.ServerEnv
 }
 
-func New(c *admin.Config, env *serverenv.ServerEnv) *indexHandler {
+func New(c *admin.Config, env *serverenv.ServerEnv) admin.Controller {
 	return &indexHandler{config: c, env: env}
 }
 

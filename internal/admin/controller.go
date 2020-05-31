@@ -6,8 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Controller is the interfactor for controlers that can be pluggied into
-// Gin for the admin console portion of this project.
+// Controller is the interfactor for controllers that can be pluggied into Gin
+// for the admin console portion of this project.
 type Controller interface {
 	Execute(g *gin.Context)
 }

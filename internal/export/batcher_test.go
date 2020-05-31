@@ -128,7 +128,6 @@ func TestMakeBatchRanges(t *testing.T) {
 					t.Errorf("unexpected range difference between start and end for index %d, got %v, want %v", i, got[i].end.Sub(got[i].start), tc.period)
 				}
 			}
-
 		})
 	}
 }

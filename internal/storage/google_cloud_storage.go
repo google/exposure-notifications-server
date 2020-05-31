@@ -33,7 +33,7 @@ type GoogleCloudStorage struct {
 }
 
 // NewGoogleCloudStorage creates a Google Cloud Storage Client, suitable
-// for use with serverenv.ServerEnv
+// for use with serverenv.ServerEnv.
 func NewGoogleCloudStorage(ctx context.Context) (Blobstore, error) {
 	client, err := storage.NewClient(ctx)
 	if err != nil {

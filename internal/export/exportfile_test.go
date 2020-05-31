@@ -75,9 +75,9 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 
 	signer := &customTestSigner{}
 
-	blob, err := MarshalExportFile(batch, exposures, 1, 1, []ExportSigners{
-		{SignatureInfo: signatureInfo,
-			Signer: signer}})
+	blob, err := MarshalExportFile(batch, exposures, 1, 1, []*Signer{
+		{SignatureInfo: signatureInfo, Signer: signer},
+	})
 	if err != nil {
 		t.Fatalf("Can't marshal export file, %v", err)
 	}
