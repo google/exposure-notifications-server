@@ -168,27 +168,28 @@ func TestGetAuthorizedApp(t *testing.T) {
 			name: "safetynet_fileds",
 			sql: `
 				INSERT INTO AuthorizedApp (
-					app_package_name, platform, allowed_regions,
+					app_package_name, platform, allowed_regions, bypass_health_authority_verification,
 					safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity
 				)
 				VALUES (
-					$1, $2, $3,
-					$4, $5, $6, $7
+					$1, $2, $3, $4,
+					$5, $6, $7, $8
 				)
 			`,
 			args: []interface{}{
-				"myapp", "android", []string{},
+				"myapp", "android", []string{}, true,
 				false, []string{"092fcfb", "252f10c"}, false, false,
 			},
 			exp: &model.AuthorizedApp{
-				AppPackageName:            "myapp",
-				Platform:                  "android",
-				AllowedRegions:            map[string]struct{}{},
-				AllowedHealthAuthorityIDs: map[int64]struct{}{},
-				SafetyNetDisabled:         false,
-				SafetyNetApkDigestSHA256:  []string{"092fcfb", "252f10c"},
-				SafetyNetBasicIntegrity:   false,
-				SafetyNetCTSProfileMatch:  false,
+				AppPackageName:                    "myapp",
+				Platform:                          "android",
+				AllowedRegions:                    map[string]struct{}{},
+				AllowedHealthAuthorityIDs:         map[int64]struct{}{},
+				BypassHealthAuthorityVerification: true,
+				SafetyNetDisabled:                 false,
+				SafetyNetApkDigestSHA256:          []string{"092fcfb", "252f10c"},
+				SafetyNetBasicIntegrity:           false,
+				SafetyNetCTSProfileMatch:          false,
 			},
 		},
 

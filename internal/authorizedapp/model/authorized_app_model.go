@@ -43,7 +43,8 @@ type AuthorizedApp struct {
 
 	// AllowedHealthAuthorityIDs represents the set of allowed health authorities
 	// that this app can obtain and verify diagnosis verification certificates from.
-	AllowedHealthAuthorityIDs map[int64]struct{}
+	AllowedHealthAuthorityIDs         map[int64]struct{}
+	BypassHealthAuthorityVerification bool
 
 	// DEPRECATION NOTICE:
 	// Everything below here is deprecated.
