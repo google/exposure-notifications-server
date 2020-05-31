@@ -27,16 +27,16 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
-type SaveController struct {
+type saveController struct {
 	config *admin.Config
 	env    *serverenv.ServerEnv
 }
 
 func NewSave(c *admin.Config, env *serverenv.ServerEnv) admin.Controller {
-	return &SaveController{config: c, env: env}
+	return &saveController{config: c, env: env}
 }
 
-func (h *SaveController) Execute(c *gin.Context) {
+func (h *saveController) Execute(c *gin.Context) {
 	var form formData
 	err := c.Bind(&form)
 	if err != nil {

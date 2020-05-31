@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package index contains admin console handler for the main landing page.
+// Package index contains admin console indexHandler for the main landing page.
 package index
 
 import (
@@ -25,16 +25,16 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
-type Handler struct {
+type indexHandler struct {
 	config *admin.Config
 	env    *serverenv.ServerEnv
 }
 
 func New(c *admin.Config, env *serverenv.ServerEnv) admin.Controller {
-	return &Handler{config: c, env: env}
+	return &indexHandler{config: c, env: env}
 }
 
-func (h *Handler) Execute(c *gin.Context) {
+func (h *indexHandler) Execute(c *gin.Context) {
 	ctx := c.Request.Context()
 	m := admin.TemplateMap{}
 
