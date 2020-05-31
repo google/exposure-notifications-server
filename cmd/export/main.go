@@ -17,8 +17,9 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"net/http"
+	"time"
 
 	"go.opencensus.io/plugin/ochttp"
 
@@ -30,24 +31,54 @@ import (
 
 func main() {
 	ctx := context.Background()
+	config := export.Config{}
+	if err := realMain(ctx, &config); err != nil {
+		logger := logging.FromContext(context.Background())
+		logger.Fatalf("export: %v", err)
+	}
+}
+
+func realMain(ctx context.Context, config *export.Config) error {
 	logger := logging.FromContext(ctx)
 
-	var config export.Config
-	env, closer, err := setup.Setup(ctx, &config)
+	env, closer, err := setup.Setup(ctx, config)
 	if err != nil {
-		logger.Fatalf("setup.Setup: %v", err)
+		return fmt.Errorf("setup: %w", err)
 	}
 	defer closer()
 
-	batchServer, err := export.NewServer(&config, env)
+	batchServer, err := export.NewServer(config, env)
 	if err != nil {
-		logger.Fatalf("unable to create server: %v", err)
+		return fmt.Errorf("failed to create server: %w", err)
 	}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/create-batches", batchServer.CreateBatchesHandler) // controller that creates work items
-	mux.HandleFunc("/do-work", batchServer.WorkerHandler)               // worker that executes work
 
-	logger.Infof("starting exposure export server on :%s", config.Port)
-	instrumentedHandler := &ochttp.Handler{Handler: mux}
-	log.Fatal(http.ListenAndServe(":"+config.Port, instrumentedHandler))
+	mux := http.NewServeMux()
+	mux.HandleFunc("/create-batches", batchServer.CreateBatchesHandler)
+	mux.HandleFunc("/do-work", batchServer.WorkerHandler)
+
+	server := &http.Server{
+		Addr: ":" + config.Port,
+		Handler: &ochttp.Handler{
+			Handler: mux,
+		},
+	}
+
+	go func() {
+		logger.Infof("starting export server on :%s", config.Port)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Errorf("failed to run server: %v", err)
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		shutdownCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
+		defer done()
+
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("failed to shutdown server: %w", err)
+		}
+	}
+
+	return nil
 }
