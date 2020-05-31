@@ -14,6 +14,7 @@
 
 BEGIN;
 
+-- WARNING: this drops these columns in a non-backwards-compatible way.
 ALTER TABLE AuthorizedApp
   DROP COLUMN safetynet_disabled,
   DROP COLUMN safetynet_apk_digest,
