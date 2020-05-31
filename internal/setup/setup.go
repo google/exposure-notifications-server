@@ -70,6 +70,14 @@ func Setup(ctx context.Context, config DatabaseConfigProvider) (*serverenv.Serve
 	// processors may require access to secrets.
 	var sm secrets.SecretManager
 	if provider, ok := config.(SecretManagerConfigProvider); ok {
+		// The environment configuration defines which secret manager to use, so we
+		// need to process the envconfig in here. Once we know which secret manager
+		// to use, we can load the secret manager and then re-process (later) any
+		// secret:// references.
+		//
+		// NOTE: it is not possible to specify which secret manager to use via a
+		// secret:// reference. This configuration option must always be the
+		// plaintext string.
 		smConfig := provider.SecretManagerConfig()
 		if err := envconfig.Process(ctx, smConfig, nil); err != nil {
 			return nil, nil, fmt.Errorf("unable to process secret manager environment: %w", err)
