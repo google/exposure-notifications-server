@@ -17,10 +17,8 @@
 set -eEuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
-# Find all non-generated Go files. This works by excluding
-# files that start with the official "generated file" header.
-# See https://github.com/golang/go/issues/13560#issuecomment-288457920
-SOURCE_FILES=($(grep -L -HR "^\/\/ Code generated .* DO NOT EDIT\.$" --include="*.go" ${ROOT}))
+SOURCE_DIRS="cmd internal tools"
+
 
 echo "🌳 Set up environment variables"
 eval $(${ROOT}/scripts/dev init)
@@ -28,12 +26,7 @@ eval $(${ROOT}/scripts/dev init)
 
 echo "🚒 Verify Protobufs are up to date"
 ${ROOT}/scripts/dev protoc
-git diff *.go | tee /dev/stderr | (! read)
-if [ $? -ne 0 ]; then
-   echo "✋ Found uncommited changes after regenerating Protobufs."
-   echo "✋ Commit these changes before merging."
-   exit 1
-fi
+# Don't verify generated pb files here as they are tidied later.
 
 
 echo "🧽 Verify goimports formattting"
@@ -45,9 +38,11 @@ if [ $? -ne 0 ]; then
    echo "✋ to enable import cleanup. Import cleanup skipped."
 else
    echo "🧽 Format with goimports"
-   goimports -w ${SOURCE_FILES[@]}
+   goimports -w $(echo $SOURCE_DIRS)
    # Check if there were uncommited changes.
-   git diff *.go | tee /dev/stderr | (! read)
+   # Ignore comment line changes as sometimes proto gen just updates versions
+   # of the generator
+   git diff -G'(^\s+[^/])' *.go | tee /dev/stderr | (! read)
    if [ $? -ne 0 ]; then
       echo "✋ Found uncommited changes after goimports."
       echo "✋ Commit these changes before merging."
@@ -59,8 +54,8 @@ set -e
 
 echo "🧹 Verify gofmt format"
 set +e
-gofmt -s -w ${SOURCE_FILES[@]}
-git diff *.go | tee /dev/stderr | (! read)
+diff -u <(echo -n) <(gofmt -d -s .)
+git diff -G'(^\s+[^/])' *.go | tee /dev/stderr | (! read)
 if [ $? -ne 0 ]; then
    echo "✋ Found uncommited changes after gofmt."
    echo "✋ Commit these changes before merging."
