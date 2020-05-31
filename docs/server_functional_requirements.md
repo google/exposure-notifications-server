@@ -165,7 +165,7 @@ analysis.
 
 You should schedule a script that generates files for download over the HTTPS
 protocol to client devices. The generation of these files are a regular and
-frequent operation (at least once a day per device), we recommend that you
+frequent operation (so each device can at least download once a day), we recommend that you
 generate the files in a single operation rather than on-demand, and distribute
 the files using a CDN.
 
