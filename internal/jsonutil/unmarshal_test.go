@@ -63,15 +63,13 @@ func TestMultipleJson(t *testing.T) {
 			 {"key": "DEF"},
 			 {"key": "123"}],
 		"appPackageName": "com.google.android.awesome",
-		"regions": ["us"],
-		"deviceVerificationPayload": "foo"}
+		"regions": ["us"]}
 		{"temporaryExposureKeys":
 			[{"key": "ABC"},
 			 {"key": "DEF"},
 			 {"key": "123"}],
 		"appPackageName": "com.google.android.awesome",
-		"regions": ["us"],
-		"deviceVerificationPayload": "foo"}`,
+		"regions": ["us"]}`,
 	}
 	errors := []string{
 		"body must contain only one JSON object",
@@ -118,9 +116,7 @@ func TestValidPublishMessage(t *testing.T) {
 		  {"key": "DEF", "rollingStartNumber": %v, "rollingPeriod": 122, "TransmissionRisk": 2},
 			{"key": "123", "rollingStartNumber": %v, "rollingPeriod": 1, "TransmissionRisk": 2}],
     "appPackageName": "com.google.android.awesome",
-    "platform": "android",
     "regions": ["CA", "US"],
-    "DeviceVerificationPayload": "foo",
     "VerificationPayload": "1234-ABCD-EFGH-5678"}`
 	json = fmt.Sprintf(json, intervalNumber, intervalNumber, intervalNumber)
 
@@ -145,11 +141,9 @@ func TestValidPublishMessage(t *testing.T) {
 			{Key: "DEF", IntervalNumber: intervalNumber, IntervalCount: 122, TransmissionRisk: 2},
 			{Key: "123", IntervalNumber: intervalNumber, IntervalCount: 1, TransmissionRisk: 2},
 		},
-		Regions:                   []string{"CA", "US"},
-		Platform:                  "android",
-		AppPackageName:            "com.google.android.awesome",
-		DeviceVerificationPayload: "foo",
-		VerificationPayload:       "1234-ABCD-EFGH-5678",
+		Regions:             []string{"CA", "US"},
+		AppPackageName:      "com.google.android.awesome",
+		VerificationPayload: "1234-ABCD-EFGH-5678",
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unmarshal mismatch (-want +got):\n%v", diff)

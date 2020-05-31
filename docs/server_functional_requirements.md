@@ -81,19 +81,14 @@ Minimum required fields, followed by a JSON example:
   * Description: 2 letter country to identify the region(s) a key is valid for.
 * `appPackageName` (**REQUIRED**)
   * Type: string
-  * Constraints:
-    * For Android device, this must match the device `appPackageName` in the
-      SafetyNet verification payload
   * Description: name of the application bundle that sent the request.
-* `platform` (**REQUIRED**)
+* `platform` (**DEPRECATED**)
   * Type: string
   * Description: Mobile device platform this request originated from.
-* `deviceVerificationPayload` (**REQUIRED**)
+* `deviceVerificationPayload` (**DEPRECATED**)
   * Type: String
-  * Description:  Verification payload.
-    * For Android devices this is a SafetyNet device attestation in JSON Web
-    Signature (JWS) format.
-    * For iOS devices, this is a DeviceCheck attestation.
+  * Description:  Device attestation. This field is deprecated in favor of
+    `verificationPayload`, which comes from a verification authority.
 * `verificationPayload`
   * Type: String
   * Description: some signature / code confirming authorization by the verification authority.
@@ -114,8 +109,6 @@ The following snippet is an example POST request payload in JSON format.
     {"key": "base64 KEYN", "rollingStartNumber": 12499, "rollingPeriod": 100, "transmissionRisk": 7}],
   "regions": ["US", "CA", "MX"],
   "appPackageName": "com.foo.app",
-  "platform": "android",
-  "deviceVerificationPayload": "base64 encoded attestation payload string",
   "verificationPayload": "signature /code from  of verifying authority",
   "padding": "random string data..."
 }
@@ -125,24 +118,6 @@ The following snippet is an example POST request payload in JSON format.
 
 * Required: A whitelist check for `appPackageName` and the regions in
 which the app is allowed to report on.
-
-* Required: Android device verification. The SafetyNet device attestation API
-can be used to confirm a genuine Android device. For more information on
-SafetyNet, see the
-[SafetyNet Attestation API](https://developer.android.com/training/safetynet/attestation).
-
-  * Having `temporaryTracingKeys` and `regions` be part of the device
-  attestation will allow only data used to verify the device to be uploaded.
-
-  * For verification instructions, see [Verify the SafetyNet attestation response.](https://developer.android.com/training/safetynet/attestation#verify-attestation-response)
-
-* Required: iOS device verification. You can use the `DeviceCheck` API can be
-used to confirm a genuine iOS device. For more
-information, see the
-[DeviceCheck overview](https://developer.apple.com/documentation/devicecheck).
-
-  * For verification instructions, see
-  [Communicate with APNs using authentication tokens](https://help.apple.com/developer-account/#/deva05921840)
 
 * Recommended: The `transaction_id` in the payload should be the SHA256 hash of
 the concatenation of:
@@ -206,10 +181,6 @@ The use of a secure secret manager (for example,
 [Key Vault](https://azure.microsoft.com/en-us/services/key-vault/),
 [Cloud Secret](https://cloud.google.com/secret-manager)) or a hardened
 on-premises equivalent is required to store the following data:
-
-* API keys
-  * Android SafetyNet API key
-  * API keys and credentials needed for publication to the CDN
 
 * Private signing key
   * The private key for signing the client download files

@@ -15,15 +15,7 @@
 package model
 
 import (
-	"crypto/ecdsa"
 	"strings"
-	"time"
-)
-
-const (
-	BothPlatforms = "both"
-	IosDevice     = "ios"
-	AndroidDevice = "android"
 )
 
 // AuthorizedApp represents the configuration for a single exposure notification
@@ -33,10 +25,6 @@ type AuthorizedApp struct {
 	// AppPackageName is the name of the package like com.company.app.
 	AppPackageName string
 
-	// Platform is the app platform like "android" or "ios".
-	// Deprecated - Platform doesn't matter with device attestations going away.
-	Platform string
-
 	// AllowedRegions is the list of allowed regions for this app. If the list is
 	// empty, all regions are permitted.
 	AllowedRegions map[string]struct{}
@@ -45,23 +33,6 @@ type AuthorizedApp struct {
 	// that this app can obtain and verify diagnosis verification certificates from.
 	AllowedHealthAuthorityIDs         map[int64]struct{}
 	BypassHealthAuthorityVerification bool
-
-	// DEPRECATION NOTICE:
-	// Everything below here is deprecated.
-	// SafetyNet configuration.
-	SafetyNetDisabled        bool
-	SafetyNetApkDigestSHA256 []string
-	SafetyNetBasicIntegrity  bool
-	SafetyNetCTSProfileMatch bool
-	SafetyNetPastTime        time.Duration
-	SafetyNetFutureTime      time.Duration
-
-	// DeviceCheck configuration.
-	DeviceCheckDisabled         bool
-	DeviceCheckKeyID            string
-	DeviceCheckTeamID           string
-	DeviceCheckPrivateKey       *ecdsa.PrivateKey
-	DeviceCheckPrivateKeySecret string
 }
 
 func NewAuthorizedApp() *AuthorizedApp {
@@ -92,45 +63,7 @@ func (c *AuthorizedApp) Validate() []string {
 	if c.AppPackageName == "" {
 		errors = append(errors, "AppPackageName cannot be empty")
 	}
-	if !(c.Platform == "android" || c.Platform == "ios" || c.Platform == "both") {
-		errors = append(errors, "platform must be one if {'android', 'ios', or 'both'}")
-	}
-	if !c.SafetyNetDisabled {
-		if c.SafetyNetPastTime < 0 {
-			errors = append(errors, "SafetyNetPastTime cannot be negative")
-		}
-		if c.SafetyNetFutureTime < 0 {
-			errors = append(errors, "SafetyNetFutureTime cannot be negative")
-		}
-	}
-	if !c.DeviceCheckDisabled {
-		if c.DeviceCheckKeyID == "" {
-			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckKeyID cannot be empty")
-		}
-		if c.DeviceCheckTeamID == "" {
-			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckTeamID cannot be empty")
-		}
-		if c.DeviceCheckPrivateKeySecret == "" {
-			errors = append(errors, "When DeviceCheck is enabled, DeviceCheckPrivateKeySecret cannot be empty")
-		}
-	}
 	return errors
-}
-
-// IsIOS returns true if the platform is equal to `iosDevice`.
-func (c *AuthorizedApp) IsIOS() bool {
-	return c.Platform == IosDevice
-}
-
-// IsAndroid returns true if the platform is equal to `android`.
-func (c *AuthorizedApp) IsAndroid() bool {
-	return c.Platform == AndroidDevice
-}
-
-// IsDualPlatform returns true if the platform is equal to 'both'
-// i.e. AppPackageName and BundleID are the same.
-func (c *AuthorizedApp) IsDualPlatform() bool {
-	return c.Platform == BothPlatforms
 }
 
 func (c *AuthorizedApp) RegionsOnePerLine() string {
@@ -139,10 +72,6 @@ func (c *AuthorizedApp) RegionsOnePerLine() string {
 		regions = append(regions, r)
 	}
 	return strings.Join(regions, "\n")
-}
-
-func (c *AuthorizedApp) APKDigestOnePerLine() string {
-	return strings.Join(c.SafetyNetApkDigestSHA256, "\n")
 }
 
 // IsAllowedRegion returns true if the regions list is empty or if the given

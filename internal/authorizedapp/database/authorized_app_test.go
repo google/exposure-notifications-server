@@ -23,7 +23,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -55,11 +54,8 @@ func TestAuthorizedAppLifecycle(t *testing.T) {
 
 	source := &model.AuthorizedApp{
 		AppPackageName:            "myapp",
-		Platform:                  "both",
 		AllowedRegions:            map[string]struct{}{"US": {}},
 		AllowedHealthAuthorityIDs: map[int64]struct{}{1: {}, 2: {}},
-		SafetyNetDisabled:         true,
-		DeviceCheckDisabled:       true,
 	}
 
 	if err := aadb.InsertAuthorizedApp(ctx, source); err != nil {
@@ -135,129 +131,27 @@ func TestGetAuthorizedApp(t *testing.T) {
 		{
 			name: "bare",
 			sql: `
-				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions, allowed_health_authority_ids)
-				VALUES ($1, $2, $3, $4)
+				INSERT INTO AuthorizedApp (app_package_name, allowed_regions, allowed_health_authority_ids)
+				VALUES ($1, $2, $3)
 			`,
-			args: []interface{}{"myapp", "android", []string{"US"}, []int64{1}},
+			args: []interface{}{"myapp", []string{"US"}, []int64{1}},
 			exp: &model.AuthorizedApp{
 				AppPackageName:            "myapp",
-				Platform:                  "android",
 				AllowedRegions:            map[string]struct{}{"US": {}},
 				AllowedHealthAuthorityIDs: map[int64]struct{}{1: {}},
-				SafetyNetBasicIntegrity:   true,
-				SafetyNetCTSProfileMatch:  true,
 			},
 		},
 		{
 			name: "all_regions",
 			sql: `
-				INSERT INTO AuthorizedApp (app_package_name, platform, allowed_regions, allowed_health_authority_ids)
-				VALUES ($1, $2, $3, $4)
+				INSERT INTO AuthorizedApp (app_package_name, allowed_regions, allowed_health_authority_ids)
+				VALUES ($1, $2, $3)
 			`,
-			args: []interface{}{"myapp", "android", []string{}, []int64{1}},
+			args: []interface{}{"myapp", []string{}, []int64{1}},
 			exp: &model.AuthorizedApp{
 				AppPackageName:            "myapp",
-				Platform:                  "android",
 				AllowedRegions:            map[string]struct{}{},
 				AllowedHealthAuthorityIDs: map[int64]struct{}{1: {}},
-				SafetyNetBasicIntegrity:   true,
-				SafetyNetCTSProfileMatch:  true,
-			},
-		},
-		{
-			name: "safetynet_fileds",
-			sql: `
-				INSERT INTO AuthorizedApp (
-					app_package_name, platform, allowed_regions, bypass_health_authority_verification,
-					safetynet_disabled, safetynet_apk_digest, safetynet_cts_profile_match, safetynet_basic_integrity
-				)
-				VALUES (
-					$1, $2, $3, $4,
-					$5, $6, $7, $8
-				)
-			`,
-			args: []interface{}{
-				"myapp", "android", []string{}, true,
-				false, []string{"092fcfb", "252f10c"}, false, false,
-			},
-			exp: &model.AuthorizedApp{
-				AppPackageName:                    "myapp",
-				Platform:                          "android",
-				AllowedRegions:                    map[string]struct{}{},
-				AllowedHealthAuthorityIDs:         map[int64]struct{}{},
-				BypassHealthAuthorityVerification: true,
-				SafetyNetDisabled:                 false,
-				SafetyNetApkDigestSHA256:          []string{"092fcfb", "252f10c"},
-				SafetyNetBasicIntegrity:           false,
-				SafetyNetCTSProfileMatch:          false,
-			},
-		},
-
-		{
-			name: "safetynet_past_seconds",
-			sql: `
-				INSERT INTO AuthorizedApp (
-					app_package_name, platform, allowed_regions,
-					safetynet_past_seconds
-				) VALUES ($1, $2, $3, $4)
-			`,
-			args: []interface{}{"myapp", "android", []string{"US"}, 1800},
-			exp: &model.AuthorizedApp{
-				AppPackageName:            "myapp",
-				Platform:                  "android",
-				AllowedRegions:            map[string]struct{}{"US": {}},
-				AllowedHealthAuthorityIDs: map[int64]struct{}{},
-				SafetyNetBasicIntegrity:   true,
-				SafetyNetCTSProfileMatch:  true,
-				SafetyNetPastTime:         30 * time.Minute,
-			},
-		},
-		{
-			name: "safetynet_future_seconds",
-			sql: `
-				INSERT INTO AuthorizedApp (
-					app_package_name, platform, allowed_regions,
-					safetynet_future_seconds
-				) VALUES ($1, $2, $3, $4)
-			`,
-			args: []interface{}{"myapp", "android", []string{"US"}, 1800},
-			exp: &model.AuthorizedApp{
-				AppPackageName:            "myapp",
-				Platform:                  "android",
-				AllowedRegions:            map[string]struct{}{"US": {}},
-				AllowedHealthAuthorityIDs: map[int64]struct{}{},
-				SafetyNetBasicIntegrity:   true,
-				SafetyNetCTSProfileMatch:  true,
-				SafetyNetFutureTime:       30 * time.Minute,
-			},
-		},
-		{
-			name: "devicecheck",
-			sql: `
-				INSERT INTO AuthorizedApp (
-					app_package_name, platform, allowed_regions,
-					devicecheck_disabled, devicecheck_team_id, devicecheck_key_id, devicecheck_private_key_secret
-				) VALUES (
-					$1, $2, $3,
-					$4, $5, $6, $7
-				)
-			`,
-			args: []interface{}{
-				"myapp", "ios", []string{"US"},
-				false, "ABCD1234", "DEFG5678", "private_key",
-			},
-			exp: &model.AuthorizedApp{
-				AppPackageName:              "myapp",
-				Platform:                    "ios",
-				AllowedRegions:              map[string]struct{}{"US": {}},
-				AllowedHealthAuthorityIDs:   map[int64]struct{}{},
-				SafetyNetCTSProfileMatch:    true,
-				SafetyNetBasicIntegrity:     true,
-				DeviceCheckDisabled:         false,
-				DeviceCheckTeamID:           "ABCD1234",
-				DeviceCheckKeyID:            "DEFG5678",
-				DeviceCheckPrivateKey:       p8PrivateKey,
-				DeviceCheckPrivateKeySecret: "private_key",
 			},
 		},
 		{

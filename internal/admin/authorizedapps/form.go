@@ -16,9 +16,7 @@ package authorizedapps
 
 import (
 	"encoding/base64"
-	"fmt"
 	"strings"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 )
@@ -29,19 +27,8 @@ type formData struct {
 	Action  string `form:"TODO"`
 
 	// Authorized App Data
-	AppPackageName              string `form:"AppPackageName"`
-	Platform                    string `form:"Platform"`
-	AllowedRegions              string `form:"Regions"`
-	SafetyNetDisabled           bool   `form:"SafetyNetDisabled"`
-	SafetyNetApkDigestSHA256    string `form:"SafetyNetApkDigestSHA256"`
-	SafetyNetBasicIntegrity     bool   `form:"SafetyNetBasicIntegrity"`
-	SafetyNetCTSProfileMatch    bool   `form:"SafetyNetCTSProfileMatch"`
-	SafetyNetPastTime           string `form:"SafetyNetPastTime"`
-	SafetyNetFutureTime         string `form:"SafetyNetFutureTime"`
-	DeviceCheckDisabled         bool   `form:"DeviceCheckDisabled"`
-	DeviceCheckKeyID            string `form:"DeviceCheckKeyID"`
-	DeviceCheckTeamID           string `form:"DeviceCheckTeamID"`
-	DeviceCheckPrivateKeySecret string `form:"DeviceCheckPrivateKeySecret"`
+	AppPackageName string `form:"AppPackageName"`
+	AllowedRegions string `form:"Regions"`
 }
 
 func (f *formData) PriorKey() string {
@@ -57,32 +44,9 @@ func (f *formData) PriorKey() string {
 
 func (f *formData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
 	a.AppPackageName = f.AppPackageName
-	a.Platform = f.Platform
 	a.AllowedRegions = make(map[string]struct{})
 	for _, region := range strings.Split(f.AllowedRegions, "\n") {
 		a.AllowedRegions[strings.TrimSpace(region)] = struct{}{}
 	}
-	// SafetyNet
-	a.SafetyNetDisabled = f.SafetyNetDisabled
-	a.SafetyNetApkDigestSHA256 = strings.Split(f.SafetyNetApkDigestSHA256, "\n")
-	for i, s := range a.SafetyNetApkDigestSHA256 {
-		a.SafetyNetApkDigestSHA256[i] = strings.TrimSpace(s)
-	}
-	a.SafetyNetBasicIntegrity = f.SafetyNetBasicIntegrity
-	a.SafetyNetCTSProfileMatch = f.SafetyNetCTSProfileMatch
-	var err error
-	a.SafetyNetPastTime, err = time.ParseDuration(f.SafetyNetPastTime)
-	if err != nil {
-		return fmt.Errorf("failed to parse durection for SafetyNetPastTime: %w", err)
-	}
-	a.SafetyNetFutureTime, err = time.ParseDuration(f.SafetyNetFutureTime)
-	if err != nil {
-		return fmt.Errorf("failed to parse durection for SafetyNetFutureTime: %w", err)
-	}
-	// DeviceCheck
-	a.DeviceCheckDisabled = f.DeviceCheckDisabled
-	a.DeviceCheckKeyID = f.DeviceCheckKeyID
-	a.DeviceCheckTeamID = f.DeviceCheckTeamID
-	a.DeviceCheckPrivateKeySecret = f.DeviceCheckPrivateKeySecret
 	return nil
 }

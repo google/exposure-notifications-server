@@ -12,14 +12,20 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
--- Use this as a template to inject configurations for your publish API endpoint.
-
 BEGIN;
 
-INSERT INTO AuthorizedApp (
-  app_package_name, allowed_regions
-) VALUES
-  ('com.example.ios.app', '{}'),
-  ('com.example.android.app', '{}');
+-- WARNING: this drops these columns in a non-backwards-compatible way.
+ALTER TABLE AuthorizedApp
+  DROP COLUMN platform,
+  DROP COLUMN safetynet_disabled,
+  DROP COLUMN safetynet_apk_digest,
+  DROP COLUMN safetynet_cts_profile_match,
+  DROP COLUMN safetynet_basic_integrity,
+  DROP COLUMN safetynet_past_seconds,
+  DROP COLUMN safetynet_future_seconds,
+  DROP COLUMN devicecheck_disabled,
+  DROP COLUMN devicecheck_team_id,
+  DROP COLUMN devicecheck_key_id,
+  DROP COLUMN devicecheck_private_key_secret;
 
 END;

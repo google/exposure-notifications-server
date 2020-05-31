@@ -18,12 +18,17 @@ import (
 	"testing"
 )
 
-func TestBaseAuthorizedApp(t *testing.T) {
+func TestAuthorizedApp_IsAllowedRegion(t *testing.T) {
 	cfg := NewAuthorizedApp()
-	if cfg.IsIOS() {
-		t.Errorf("cfg.IoIOS, got true, want false")
+	cfg.AllowedRegions = map[string]struct{}{
+		"US": {},
 	}
-	if cfg.IsAndroid() {
-		t.Errorf("cfg.IoAndroid, got true, want false")
+
+	if ok := cfg.IsAllowedRegion("US"); !ok {
+		t.Errorf("expected US to be allowed")
+	}
+
+	if ok := cfg.IsAllowedRegion("CA"); ok {
+		t.Errorf("expected CA to not be allowed")
 	}
 }

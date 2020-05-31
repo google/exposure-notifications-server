@@ -5,7 +5,7 @@
 <ul>
   {{if .apps}}
     {{range .apps}}
-      <li><a href="/app?apn={{.AppPackageName}}">{{.AppPackageName}}</a> | {{.Platform}}</li>
+      <li><a href="/app?apn={{.AppPackageName}}">{{.AppPackageName}}</a></li>
     {{end}}
   {{else}}
     <li><i>There are no authorized applications</i></li>
