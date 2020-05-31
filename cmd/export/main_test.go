@@ -16,27 +16,86 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/export"
+	"github.com/google/exposure-notifications-server/internal/secrets"
+	"github.com/google/exposure-notifications-server/internal/signing"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
-func TestMain(t *testing.T) {
+// Note: this test relies on environment variables and therefore CANNOT be run
+// in parallel.
+func TestSetup(t *testing.T) {
+	t.Run("defaults", func(t *testing.T) {
+		_, databaseConfig := database.NewTestDatabaseWithConfig(t)
+		os.Setenv("DB_NAME", databaseConfig.Name)
+		os.Setenv("DB_USER", databaseConfig.User)
+		os.Setenv("DB_HOST", databaseConfig.Host)
+		os.Setenv("DB_PORT", databaseConfig.Port)
+		os.Setenv("DB_SSLMODE", databaseConfig.SSLMode)
+		os.Setenv("DB_PASSWORD", databaseConfig.Password)
+
+		config, env, closer, err := doSetup()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer closer()
+
+		// Database
+		if got, want := config.Database.Name, databaseConfig.Name; got != want {
+			t.Errorf("expected name %v to be %v", got, want)
+		}
+		if got, want := config.Database.User, databaseConfig.User; got != want {
+			t.Errorf("expected user %v to be %v", got, want)
+		}
+		if got, want := config.Database.SSLMode, databaseConfig.SSLMode; got != want {
+			t.Errorf("expected sslmode %v to be %v", got, want)
+		}
+
+		// KeyManager
+		if got, want := config.KeyManager.KeyManagerType, signing.KeyManagerType("GOOGLE_CLOUD_KMS"); got != want {
+			t.Errorf("expected keymanagertype %v to be %v", got, want)
+		}
+
+		// SecretManager
+		if got, want := config.SecretManager.SecretManagerType, secrets.SecretManagerType("GOOGLE_SECRET_MANAGER"); got != want {
+			t.Errorf("expected secretmanager %v to be %v", got, want)
+		}
+
+		// Storage
+		if got, want := config.Storage.BlobstoreType, storage.BlobstoreType("GOOGLE_CLOUD_STORAGE"); got != want {
+			t.Errorf("expected storage %v to be %v", got, want)
+		}
+
+		if env.Blobstore() == nil {
+			t.Errorf("expected blobstore")
+		}
+
+		if env.Database() == nil {
+			t.Errorf("expected database")
+		}
+
+		if env.KeyManager() == nil {
+			t.Errorf("expected keymanager")
+		}
+
+		if env.SecretManager() == nil {
+			t.Errorf("expected secretmanager")
+		}
+	})
+}
+
+func TestServer_Run(t *testing.T) {
 	t.Parallel()
 
-	db, databaseConfig := database.NewTestDatabaseWithConfig(t)
-
-	exportConfig := &export.Config{
-		Database: *databaseConfig,
-	}
-
-	t.Errorf("\n\n%#v\n\n", exportConfig)
-
-	_ = db
-
+	// TODO(sethvargo): don't rely on envvar parsing for this test - construct the
+	// serverenv and config objects in advance.
+	_, databaseConfig := database.NewTestDatabaseWithConfig(t)
 	os.Setenv("DB_NAME", databaseConfig.Name)
 	os.Setenv("DB_USER", databaseConfig.User)
 	os.Setenv("DB_HOST", databaseConfig.Host)
@@ -44,14 +103,48 @@ func TestMain(t *testing.T) {
 	os.Setenv("DB_SSLMODE", databaseConfig.SSLMode)
 	os.Setenv("DB_PASSWORD", databaseConfig.Password)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	config, env, closer, err := doSetup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closer()
 
-	go func() {
-		if err := realMain(ctx, exportConfig); err != nil {
+	ctx := context.Background()
+	srv, err := NewServer(ctx, config, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := srv.Stop(); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	time.Sleep(2 * time.Second)
+	go srv.Run()
+
+	// TODO(sethvargo): more robust check
+	time.Sleep(500 * time.Millisecond)
+
+	func() {
+		client := &http.Client{Timeout: 5 * time.Second}
+		u := fmt.Sprintf("http://%s/create-batches", srv.srv.Addr)
+		resp, err := client.Get(u)
+		if err != nil {
+			t.Error(err)
+		}
+
+		t.Errorf("\n\n%#v\n\n", resp)
+	}()
+
+	func() {
+		client := &http.Client{Timeout: 5 * time.Second}
+		u := fmt.Sprintf("http://%s/do-work", srv.srv.Addr)
+		resp, err := client.Get(u)
+		if err != nil {
+			t.Error(err)
+		}
+
+		t.Errorf("\n\n%#v\n\n", resp)
+	}()
+
 }
