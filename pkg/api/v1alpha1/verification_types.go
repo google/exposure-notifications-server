@@ -40,8 +40,8 @@ var _ sort.Interface = TransmissionRiskVector{}
 
 // TransmissionRiskOverride is an indvidual transmission risk override.
 type TransmissionRiskOverride struct {
-	TranismissionRisk  int `json:"tr"`
-	SinceRollingPeriod int `json:"sinceRollingPeriod"`
+	TranismissionRisk  int   `json:"tr"`
+	SinceRollingPeriod int32 `json:"sinceRollingPeriod"`
 }
 
 func (a TransmissionRiskVector) Len() int {
