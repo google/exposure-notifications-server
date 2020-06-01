@@ -26,6 +26,7 @@ import (
 type SecretManagerType string
 
 const (
+	SecretManagerTypeAWSSecretsManager    SecretManagerType = "AWS_SECRETS_MANAGER"
 	SecretManagerTypeAzureKeyVault        SecretManagerType = "AZURE_KEY_VAULT"
 	SecretManagerTypeGoogleSecretManager  SecretManagerType = "GOOGLE_SECRET_MANAGER"
 	SecretManagerTypeGoogleHashiCorpVault SecretManagerType = "HASHICORP_VAULT"
@@ -51,6 +52,8 @@ type SecretManagerFunc func(ctx context.Context) (SecretManager, error)
 // if one does not exist.
 func SecretManagerFor(ctx context.Context, typ SecretManagerType) (SecretManager, error) {
 	switch typ {
+	case SecretManagerTypeAWSSecretsManager:
+		return NewAWSSecretsManager(ctx)
 	case SecretManagerTypeAzureKeyVault:
 		return NewAzureKeyVault(ctx)
 	case SecretManagerTypeGoogleSecretManager:

@@ -305,6 +305,7 @@ following configurations are available:
 
 | Name                    | `SECRET_MANAGER` value  | Description
 | ----------------------- | ----------------------- | -----------
+| AWS Secrets Manager     | `AWS_SECRETS_MANAGER`   | Resolve with Secrets Manager.
 | Azure Key Vault         | `AZURE_KEY_VAULT`       | Resolve with Key Vault.
 | Google Secret Manager\* | `GOOGLE_SECRET_MANAGER` | Resolve with Secret Manager.
 | HashiCorp Vault         | `HASHICORP_VAULT`       | Resolve with Vault.

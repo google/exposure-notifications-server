@@ -15,7 +15,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.213 // indirect
 	github.com/armon/go-proxyproto v0.0.0-20200108142055-f0b8253b1507 // indirect
-	github.com/aws/aws-sdk-go v1.31.4 // indirect
+	github.com/aws/aws-sdk-go v1.31.4
 	github.com/circonus-labs/circonusllhist v0.1.4 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-gonic/gin v1.6.3
