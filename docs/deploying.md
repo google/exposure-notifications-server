@@ -279,6 +279,7 @@ following configurations are available:
 | Name                   | `BLOBSTORE` value      | Description
 | ---------------------- | ---------------------- | -----------
 | AWS S3                 | `AWS_S3`               | Store data in AWS S3.
+| Azure Blobstore        | `AZURE_BLOB_STORAGE`   | Store data in Azure Storage.
 | Google Cloud Storage\* | `GOOGLE_CLOUD_STORAGE` | Store data in Google Cloud Storage.
 | Filesystem             | `FILESYSTEM`           | Store data on a filesystem.
 | Noop                   | `NOOP`                 | No files are written.
