@@ -15,7 +15,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.213 // indirect
 	github.com/armon/go-proxyproto v0.0.0-20200108142055-f0b8253b1507 // indirect
-	github.com/aws/aws-sdk-go v1.31.4 // indirect
+	github.com/aws/aws-sdk-go v1.31.4
 	github.com/circonus-labs/circonusllhist v0.1.4 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-gonic/gin v1.6.3
@@ -42,6 +42,7 @@ require (
 	github.com/keybase/go-crypto v0.0.0-20200123153347-de78d2cb44f4 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.5.2 // indirect
+	github.com/lstoll/awskms v0.0.0-20191202211033-9042d2a6f52c
 	github.com/mitchellh/cli v1.1.1 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/mapstructure v1.3.1 // indirect
