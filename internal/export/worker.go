@@ -60,7 +60,7 @@ func (s *Server) WorkerHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Only consider batches that closed a few minutes ago to allow the publish
 		// windows to close properly.
-		minutesAgo := time.Now().Add(-5 * time.Minute)
+		minutesAgo := time.Now().Add(-s.config.ExportBatchShift * time.Second)
 
 		// Check for a batch and obtain a lease for it.
 		batch, err := exportDB.LeaseBatch(ctx, s.config.WorkerTimeout, minutesAgo)
