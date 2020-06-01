@@ -27,6 +27,7 @@ type KeyManagerType string
 const (
 	KeyManagerTypeGoogleCloudKMS KeyManagerType = "GOOGLE_CLOUD_KMS"
 	KeyManagerTypeHashiCorpVault KeyManagerType = "HASHICORP_VAULT"
+	KeyManagerTypeNoop           KeyManagerType = "NOOP"
 )
 
 // Config defines configuration.
@@ -48,6 +49,8 @@ func KeyManagerFor(ctx context.Context, typ KeyManagerType) (KeyManager, error) 
 		return NewGoogleCloudKMS(ctx)
 	case KeyManagerTypeHashiCorpVault:
 		return NewHashiCorpVault(ctx)
+	case KeyManagerTypeNoop:
+		return NewNoop(ctx)
 	}
 
 	return nil, fmt.Errorf("unknown key manager type: %v", typ)

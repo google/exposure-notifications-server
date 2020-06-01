@@ -29,6 +29,7 @@ const (
 	SecretManagerTypeAzureKeyVault        SecretManagerType = "AZURE_KEY_VAULT"
 	SecretManagerTypeGoogleSecretManager  SecretManagerType = "GOOGLE_SECRET_MANAGER"
 	SecretManagerTypeGoogleHashiCorpVault SecretManagerType = "HASHICORP_VAULT"
+	SecretManagerTypeNoop                 SecretManagerType = "NOOP"
 )
 
 // Config represents the config for a secret manager.
@@ -56,6 +57,8 @@ func SecretManagerFor(ctx context.Context, typ SecretManagerType) (SecretManager
 		return NewGoogleSecretManager(ctx)
 	case SecretManagerTypeGoogleHashiCorpVault:
 		return NewHashiCorpVault(ctx)
+	case SecretManagerTypeNoop:
+		return NewNoop(ctx)
 	}
 
 	return nil, fmt.Errorf("unknown secret manager type: %v", typ)
