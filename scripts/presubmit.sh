@@ -16,13 +16,9 @@
 
 set -eEuo pipefail
 
-ROOT_RELATIVE="/.."
-if [ "$0" == ".git/hooks/pre-push" ]; then
-   ROOT_RELATIVE="/../.."
-fi
-
-ROOT="$(cd "$(dirname "$0")${ROOT_RELATIVE}" &>/dev/null; pwd -P)"
+ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 SOURCE_DIRS="cmd internal tools"
+
 
 echo "🌳 Set up environment variables"
 eval $(${ROOT}/scripts/dev init)
