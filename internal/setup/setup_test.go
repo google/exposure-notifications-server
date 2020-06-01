@@ -45,7 +45,7 @@ func (t *testSecretManagerConfig) DatabaseConfig() *database.Config {
 
 func (t *testSecretManagerConfig) SecretManagerConfig() *secrets.Config {
 	return &secrets.Config{
-		SecretManagerType: secrets.SecretManagerType("GOOGLE_SECRET_MANAGER"),
+		SecretManagerType: secrets.SecretManagerType("NOOP"),
 		SecretCacheTTL:    10 * time.Minute,
 	}
 }
@@ -60,7 +60,7 @@ func (t *testKeyManagerConfig) DatabaseConfig() *database.Config {
 
 func (t *testKeyManagerConfig) KeyManagerConfig() *signing.Config {
 	return &signing.Config{
-		KeyManagerType: signing.KeyManagerType("GOOGLE_CLOUD_KMS"),
+		KeyManagerType: signing.KeyManagerType("NOOP"),
 	}
 }
 
@@ -74,7 +74,7 @@ func (t *testBlobstoreConfig) DatabaseConfig() *database.Config {
 
 func (t *testBlobstoreConfig) BlobstoreConfig() *storage.Config {
 	return &storage.Config{
-		BlobstoreType: storage.BlobstoreType("GOOGLE_CLOUD_STORAGE"),
+		BlobstoreType: storage.BlobstoreType("NOOP"),
 	}
 }
 
@@ -150,8 +150,8 @@ func TestSetup(t *testing.T) {
 			t.Errorf("expected key manager to exist")
 		}
 
-		if _, ok := km.(*signing.GoogleCloudKMS); !ok {
-			t.Errorf("expected %T to be GoogleCloudKMS", km)
+		if _, ok := km.(*signing.Noop); !ok {
+			t.Errorf("expected %T to be Noop", km)
 		}
 	})
 
@@ -172,8 +172,8 @@ func TestSetup(t *testing.T) {
 			t.Errorf("expected blobstore to exist")
 		}
 
-		if _, ok := bs.(*storage.GoogleCloudStorage); !ok {
-			t.Errorf("expected %T to be GoogleCloudStorage", bs)
+		if _, ok := bs.(*storage.Noop); !ok {
+			t.Errorf("expected %T to be Noop", bs)
 		}
 	})
 

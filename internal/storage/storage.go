@@ -52,7 +52,7 @@ func BlobstoreFor(ctx context.Context, typ BlobstoreType) (Blobstore, error) {
 	case BlobstoreTypeFilesystem:
 		return NewFilesystemStorage(ctx)
 	case BlobstoreTypeNoop:
-		return NewNoopBlobstore(ctx)
+		return NewNoop(ctx)
 	default:
 		return nil, fmt.Errorf("unknown blob store: %v", typ)
 	}

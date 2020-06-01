@@ -12,24 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package secrets
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
-// Compile-time check to verify implements.
-var _ Blobstore = (*NoopBlobstore)(nil)
+// Compile-time check to verify implements interface.
+var _ SecretManager = (*Noop)(nil)
 
-// NoopBlobstore is a blobstore that does nothing.
-type NoopBlobstore struct{}
+// Noop is a secret manager that does nothing and always returns an error.
+type Noop struct{}
 
-func NewNoopBlobstore(ctx context.Context) (Blobstore, error) {
-	return &NoopBlobstore{}, nil
+func NewNoop(ctx context.Context) (SecretManager, error) {
+	return &Noop{}, nil
 }
 
-func (s *NoopBlobstore) CreateObject(ctx context.Context, folder, filename string, contents []byte, cacheable bool) error {
-	return nil
-}
-
-func (s *NoopBlobstore) DeleteObject(ctx context.Context, folder, filename string) error {
-	return nil
+// GetSecretValue implements secrets.
+func (n *Noop) GetSecretValue(_ context.Context, _ string) (string, error) {
+	return "", fmt.Errorf("noop cannot resolve secrets")
 }

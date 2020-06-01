@@ -70,7 +70,7 @@ func TestNewExposureHandler(t *testing.T) {
 func TestNewExportHandler(t *testing.T) {
 	ctx := context.Background()
 	testDB := database.NewTestDatabase(t)
-	noopBlobstore, _ := storage.NewNoopBlobstore(ctx)
+	noopBlobstore, _ := storage.NewNoop(ctx)
 
 	testCases := []struct {
 		name string

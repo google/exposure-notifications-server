@@ -293,6 +293,7 @@ configurations are available:
 | ------------------ | ------------------- | -----------
 | Google Cloud KMS\* | `GOOGLE_CLOUD_KMS`  | Perform signing using Google Cloud KMS.
 | HashiCorp Vault    | `HASHICORP_VAULT`   | Perform signing using HashiCorp Vault.
+| Noop               | `NOOP`              | No keys are managed.
 
 \* default
 
@@ -307,6 +308,7 @@ following configurations are available:
 | Azure Key Vault         | `AZURE_KEY_VAULT`       | Resolve with Key Vault.
 | Google Secret Manager\* | `GOOGLE_SECRET_MANAGER` | Resolve with Secret Manager.
 | HashiCorp Vault         | `HASHICORP_VAULT`       | Resolve with Vault.
+| Noop                    | `NOOP`                  | No secrets are resolved.
 
 \* default
 
