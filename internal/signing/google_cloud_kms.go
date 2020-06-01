@@ -40,9 +40,5 @@ func NewGoogleCloudKMS(ctx context.Context) (KeyManager, error) {
 }
 
 func (kms *GoogleCloudKMS) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
-	signer, err := gcpkms.NewSigner(ctx, kms.client, keyID)
-	if err != nil {
-		return nil, err
-	}
-	return signer, nil
+	return gcpkms.NewSigner(ctx, kms.client, keyID)
 }
