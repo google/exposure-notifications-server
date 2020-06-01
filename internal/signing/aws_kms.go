@@ -17,28 +17,35 @@ package signing
 import (
 	"context"
 	"crypto"
+	"fmt"
 
-	kms "cloud.google.com/go/kms/apiv1"
-	"github.com/sethvargo/go-gcpkms/pkg/gcpkms"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/lstoll/awskms"
 )
 
 // Compile-time check to verify implements interface.
-var _ KeyManager = (*GoogleCloudKMS)(nil)
+var _ KeyManager = (*AWSKMS)(nil)
 
-// GoogleCloudKMS implements the signing.KeyManager interface and can be used to sign
-// export files.
-type GoogleCloudKMS struct {
-	client *kms.KeyManagementClient
+// AWSKMS implements the signing.KeyManager interface and can be used to sign
+// export files using AWS KMS.
+type AWSKMS struct {
+	svc *kms.KMS
 }
 
-func NewGoogleCloudKMS(ctx context.Context) (KeyManager, error) {
-	client, err := kms.NewKeyManagementClient(ctx)
+func NewAWSKMS(ctx context.Context) (KeyManager, error) {
+	sess, err := session.NewSession()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
-	return &GoogleCloudKMS{client}, nil
+
+	svc := kms.New(sess)
+
+	return &AWSKMS{
+		svc: svc,
+	}, nil
 }
 
-func (kms *GoogleCloudKMS) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
-	return gcpkms.NewSigner(ctx, kms.client, keyID)
+func (s *AWSKMS) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
+	return awskms.NewSigner(ctx, s.svc, keyID)
 }

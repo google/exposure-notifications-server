@@ -25,6 +25,7 @@ import (
 type KeyManagerType string
 
 const (
+	KeyManagerTypeAWSKMS         KeyManagerType = "AWS_KMS"
 	KeyManagerTypeGoogleCloudKMS KeyManagerType = "GOOGLE_CLOUD_KMS"
 	KeyManagerTypeHashiCorpVault KeyManagerType = "HASHICORP_VAULT"
 	KeyManagerTypeNoop           KeyManagerType = "NOOP"
@@ -45,6 +46,8 @@ type KeyManager interface {
 // KeyManagerFor returns the appropriate key manager for the given type.
 func KeyManagerFor(ctx context.Context, typ KeyManagerType) (KeyManager, error) {
 	switch typ {
+	case KeyManagerTypeAWSKMS:
+		return NewAWSKMS(ctx)
 	case KeyManagerTypeGoogleCloudKMS:
 		return NewGoogleCloudKMS(ctx)
 	case KeyManagerTypeHashiCorpVault:

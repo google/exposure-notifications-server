@@ -291,6 +291,7 @@ configurations are available:
 
 | Name               | `KEY_MANAGER` value | Description
 | ------------------ | ------------------- | -----------
+| AWS KMS            | `AWS_KMS`           | Perform signing using AWS KMS.
 | Google Cloud KMS\* | `GOOGLE_CLOUD_KMS`  | Perform signing using Google Cloud KMS.
 | HashiCorp Vault    | `HASHICORP_VAULT`   | Perform signing using HashiCorp Vault.
 | Noop               | `NOOP`              | No keys are managed.

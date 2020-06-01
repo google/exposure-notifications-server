@@ -222,7 +222,7 @@ func marshalSignature(exportContents []byte, batchNum, batchSize int32, signers 
 
 func generateSignature(data []byte, signer crypto.Signer) ([]byte, error) {
 	digest := sha256.Sum256(data)
-	sig, err := signer.Sign(rand.Reader, digest[:], nil)
+	sig, err := signer.Sign(rand.Reader, digest[:], crypto.SHA256)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign: %w", err)
 	}

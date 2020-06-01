@@ -16,6 +16,7 @@ package signing
 
 import (
 	"context"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha256"
@@ -239,7 +240,7 @@ func TestHashiCorpVaultSigner_Sign(t *testing.T) {
 	digest := sha256.Sum256(data)
 
 	// Sign!
-	sig, err := signer.Sign(rand.Reader, digest[:], nil)
+	sig, err := signer.Sign(rand.Reader, digest[:], crypto.SHA256)
 	if err != nil {
 		t.Fatal(err)
 	}
