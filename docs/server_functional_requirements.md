@@ -42,7 +42,8 @@ users to mobile devices.
 
 When a user reports a diagnosis, it is reported using the publish API server.
 In the reference server implementation, the data is encoded in JSON and sent
-over HTTPS, however you can use any encoding and protocol.
+over HTTPS, however you can use any encoding and protocol. None of the data
+stored in the database is personally identifiable information (PII).
 
 A given mobile application and server pair could agree upon additional
 information to be shared. The information described in this section is the
@@ -81,7 +82,9 @@ Minimum required fields, followed by a JSON example:
   * Description: 2 letter country to identify the region(s) a key is valid for.
 * `appPackageName` (**REQUIRED**)
   * Type: string
-  * Description: name of the application bundle that sent the request.
+  * Description: Name of the application being used to send the request. This
+    is used to determine what app is uploading keys and if it is an allowed
+    region for that app.
 * `platform` (**DEPRECATED**)
   * Type: string
   * Description: Mobile device platform this request originated from.
@@ -91,7 +94,8 @@ Minimum required fields, followed by a JSON example:
     `verificationPayload`, which comes from a verification authority.
 * `verificationPayload`
   * Type: String
-  * Description: some signature / code confirming authorization by the verification authority.
+  * Description: verificationPayload is a signed certificate from a public
+    health authority, indicating a confirmed diagnosis
 * `padding`
   * Type: String
   * Constraints:
@@ -119,7 +123,7 @@ The following snippet is an example POST request payload in JSON format.
 * Required: A whitelist check for `appPackageName` and the regions in
 which the app is allowed to report on.
 
-* Recommended: The `transaction_id` in the payload should be the SHA256 hash of
+* Recommended: The `transaction_id` in the payload should be the SHA 256 hash of
 the concatenation of:
 
   * `appPackageName`
@@ -135,6 +139,11 @@ attestations should return success, with the data only saved for abuse
 analysis.
 
 * Appropriate denial of service protection should be put in place.
+
+* Recommended: Our overall security and privacy recommendation is to, from
+  the mobile application, periodically send chaff requests to the sever so that
+  ALL users appear to be reporting themselves as infected multiple times per
+  day.
 
 ### Batch creation and publishing
 
