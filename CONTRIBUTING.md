@@ -57,16 +57,6 @@ $ go test ./...
 You should run the presubmit checks before committing changes. The presubmit script
 is located at `scripts/presubmit.sh`.
 
-You can add a prepush hook by linking to the presubmit script to automatically
-run before pushing a branch to the remote GitHub repository. To add the
-presubmit script as a prepush hook, go to the root directory of the repository
-and type:
-
-```
-ln -s -f ../../scripts/presubmit.sh .git/hooks/pre-push
-chmod a+x .git/hooks/pre-push
-```
-
 ### Running locally
 
 These instructions use [Docker][docker] to run components locally. You may be
