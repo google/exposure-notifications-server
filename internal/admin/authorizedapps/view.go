@@ -15,6 +15,7 @@
 package authorizedapps
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	verdb "github.com/google/exposure-notifications-server/internal/verification/database"
 )
 
 type viewController struct {
@@ -33,6 +35,23 @@ type viewController struct {
 
 func NewView(c *admin.Config, env *serverenv.ServerEnv) admin.Controller {
 	return &viewController{config: c, env: env}
+}
+
+func addHealthAuthorityInfo(ctx context.Context, haDB *verdb.HealthAuthorityDB, app *model.AuthorizedApp, m admin.TemplateMap) error {
+	// Load the health authorities.
+	healthAuthorities, err := haDB.ListAllHealthAuthoritiesWithoutKeys(ctx)
+	if err != nil {
+		return fmt.Errorf("Error loading health authorities: %w", err)
+	}
+
+	usedAuthorities := make(map[int64]bool)
+	for _, k := range app.AllAllowedHealthAuthorityIDs() {
+		usedAuthorities[k] = true
+	}
+
+	m["has"] = healthAuthorities
+	m["usedHealthAuthorities"] = usedAuthorities
+	return nil
 }
 
 func (h *viewController) Execute(c *gin.Context) {
@@ -55,6 +74,13 @@ func (h *viewController) Execute(c *gin.Context) {
 		}
 		m.AddJumbotron("Authorized Applications", fmt.Sprintf("Edit: `%v`", authorizedApp.AppPackageName))
 	}
+
+	// Load the health authorities.
+	if err := addHealthAuthorityInfo(ctx, verdb.New(h.env.Database()), authorizedApp, m); err != nil {
+		admin.ErrorPage(c, err.Error())
+		return
+	}
+
 	m["app"] = authorizedApp
 	m["previousKey"] = base64.StdEncoding.EncodeToString([]byte(authorizedApp.AppPackageName))
 	c.HTML(http.StatusOK, "authorizedapp", m)

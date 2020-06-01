@@ -57,6 +57,15 @@ func TestAddRetrieveHealthAuthority(t *testing.T) {
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}
+
+	got, err = haDB.GetHealthAuthorityByID(ctx, want.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
 }
 
 func TestAddRetrieveHealthAuthorityKeys(t *testing.T) {

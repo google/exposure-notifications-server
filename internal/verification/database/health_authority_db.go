@@ -65,6 +65,61 @@ func (db *HealthAuthorityDB) AddHealthAuthority(ctx context.Context, ha *model.H
 	})
 }
 
+func (db *HealthAuthorityDB) UpdateHealthAuthority(ctx context.Context, ha *model.HealthAuthority) error {
+	if ha == nil {
+		return errors.New("provided HealthAuthority cannot be nil")
+	}
+	if err := ha.Validate(); err != nil {
+		return err
+	}
+
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			UPDATE HealthAuthority
+			SET
+				iss = $1, aud = $2, name = $3
+			WHERE
+			  id = $4
+			`, ha.Issuer, ha.Audience, ha.Name, ha.ID)
+		if err != nil {
+			return fmt.Errorf("updating health authority: %w", err)
+		}
+		if result.RowsAffected() != 1 {
+			return fmt.Errorf("no rows updates")
+		}
+		return nil
+	})
+}
+
+func (db *HealthAuthorityDB) GetHealthAuthorityByID(ctx context.Context, id int64) (*model.HealthAuthority, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	row := conn.QueryRow(ctx, `
+		SELECT
+			id, iss, aud, name
+		FROM
+			HealthAuthority
+		WHERE
+			id = $1`, id)
+
+	var ha model.HealthAuthority
+	if err := row.Scan(&ha.ID, &ha.Issuer, &ha.Audience, &ha.Name); err != nil {
+		return nil, err
+	}
+
+	haks, err := db.GetHealthAuthorityKeys(ctx, &ha)
+	if err != nil {
+		return nil, err
+	}
+	ha.Keys = haks
+
+	return &ha, nil
+}
+
 // GetHealthAuthority retrieves a HealthAuthority record by the issuer name.
 func (db *HealthAuthorityDB) GetHealthAuthority(ctx context.Context, issuer string) (*model.HealthAuthority, error) {
 	conn, err := db.db.Pool.Acquire(ctx)
@@ -81,17 +136,54 @@ func (db *HealthAuthorityDB) GetHealthAuthority(ctx context.Context, issuer stri
 		WHERE
 			iss = $1`, issuer)
 
-	var ha model.HealthAuthority
-	if err := row.Scan(&ha.ID, &ha.Issuer, &ha.Audience, &ha.Name); err != nil {
+	ha, err := scanOneHealthAuthority(row)
+	if err != nil {
 		return nil, err
 	}
 
-	haks, err := db.GetHealthAuthorityKeys(ctx, &ha)
+	haks, err := db.GetHealthAuthorityKeys(ctx, ha)
 	if err != nil {
 		return nil, err
 	}
 	ha.Keys = haks
 
+	return ha, nil
+}
+
+func (db *HealthAuthorityDB) ListAllHealthAuthoritiesWithoutKeys(ctx context.Context) ([]*model.HealthAuthority, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	rows, err := conn.Query(ctx, `
+		SELECT
+		  id, iss, aud, name
+	 	FROM
+			HealthAuthority
+		ORDER BY iss ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := []*model.HealthAuthority{}
+	for rows.Next() {
+		if ha, err := scanOneHealthAuthority(rows); err != nil {
+			return nil, err
+		} else {
+			results = append(results, ha)
+		}
+	}
+	return results, nil
+}
+
+func scanOneHealthAuthority(row pgx.Row) (*model.HealthAuthority, error) {
+	var ha model.HealthAuthority
+	if err := row.Scan(&ha.ID, &ha.Issuer, &ha.Audience, &ha.Name); err != nil {
+		return nil, err
+	}
 	return &ha, nil
 }
 
@@ -125,6 +217,30 @@ func (db *HealthAuthorityDB) AddHealthAuthorityKey(ctx context.Context, ha *mode
 		}
 		if result.RowsAffected() != 1 {
 			return fmt.Errorf("no rows inserted")
+		}
+		return nil
+	})
+}
+
+func (db *HealthAuthorityDB) UpdateHealthAuthorityKey(ctx context.Context, hak *model.HealthAuthorityKey) error {
+	if _, err := hak.PublicKey(); err != nil {
+		return err
+	}
+
+	thru := db.db.NullableTime(hak.Thru)
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			UPDATE HealthAuthorityKey
+			SET
+				from_timestamp = $1, thru_timestamp = $2, public_key = $3
+			WHERE
+				version = $4
+			`, hak.From, thru, hak.PublicKeyPEM, hak.Version)
+		if err != nil {
+			return fmt.Errorf("updating health authority key: %w", err)
+		}
+		if result.RowsAffected() != 1 {
+			return fmt.Errorf("no rows updated")
 		}
 		return nil
 	})

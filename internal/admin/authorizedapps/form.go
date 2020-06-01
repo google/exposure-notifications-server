@@ -27,8 +27,9 @@ type formData struct {
 	Action  string `form:"TODO"`
 
 	// Authorized App Data
-	AppPackageName string `form:"AppPackageName"`
-	AllowedRegions string `form:"Regions"`
+	AppPackageName     string  `form:"AppPackageName"`
+	AllowedRegions     string  `form:"Regions"`
+	HealthAuthorityIDs []int64 `form:"healthauthorities"`
 }
 
 func (f *formData) PriorKey() string {
@@ -47,6 +48,10 @@ func (f *formData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
 	a.AllowedRegions = make(map[string]struct{})
 	for _, region := range strings.Split(f.AllowedRegions, "\n") {
 		a.AllowedRegions[strings.TrimSpace(region)] = struct{}{}
+	}
+	a.AllowedHealthAuthorityIDs = make(map[int64]struct{})
+	for _, haID := range f.HealthAuthorityIDs {
+		a.AllowedHealthAuthorityIDs[haID] = struct{}{}
 	}
 	return nil
 }

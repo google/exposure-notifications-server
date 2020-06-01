@@ -14,6 +14,19 @@
 <a href="/app?apn="  class="btn btn-outline-primary">Create new Authorized Application</a>
 
 <hr/>
+<h2>Health Authority and Health Authority Keys</h2>
+<ul>
+  {{if .healthauthorities}}
+    {{range .healthauthorities}}
+      <li><a href="/healthauthority/{{.ID}}">{{.Issuer}}</a> | {{.Name}}</li>
+    {{end}}
+  {{else}}
+    <li><i>There are no health authorities configured</i><li>
+  {{end}}
+</ul>
+<a href="/healthauthority/0"  class="btn btn-outline-primary">Create new Health Authority</a>
+
+<hr/>
 <h2>Export Configurations</h2>
 <ul>
  {{if .exports}}
