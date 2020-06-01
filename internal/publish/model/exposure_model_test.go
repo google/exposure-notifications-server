@@ -18,11 +18,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -446,6 +448,195 @@ func TestTransformOverlapping(t *testing.T) {
 			}
 			if err.Error() != "exposure keys have overlapping intervals" {
 				t.Errorf("Wrong error, want '%v', got '%v'", "exposure key intervals are not consecutive", err)
+			}
+		})
+	}
+}
+
+func TestApplyOverrides(t *testing.T) {
+	cases := []struct {
+		Name      string
+		Publish   Publish
+		Overrides verifyapi.TransmissionRiskVector
+		Want      []ExposureKey
+	}{
+		{
+			Name: "no overrides",
+			Publish: Publish{
+				Keys: []ExposureKey{
+					{
+						Key:              "A",
+						IntervalNumber:   1,
+						IntervalCount:    2,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			Overrides: make([]verifyapi.TransmissionRiskOverride, 0),
+			Want: []ExposureKey{
+				{
+					Key:              "A",
+					IntervalNumber:   1,
+					IntervalCount:    2,
+					TransmissionRisk: 1,
+				},
+			},
+		},
+		{
+			Name: "aligned interval transmission risks",
+			Publish: Publish{
+				Keys: []ExposureKey{
+					{
+						Key:              "A",
+						IntervalNumber:   1,
+						IntervalCount:    2,
+						TransmissionRisk: 1,
+					},
+					{
+						Key:              "B",
+						IntervalNumber:   3,
+						IntervalCount:    2,
+						TransmissionRisk: 1,
+					},
+					{
+						Key:              "C",
+						IntervalNumber:   5,
+						IntervalCount:    2,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			Overrides: []verifyapi.TransmissionRiskOverride{
+				{
+					SinceRollingPeriod: 5,
+					TranismissionRisk:  5,
+				},
+				{
+					SinceRollingPeriod: 3,
+					TranismissionRisk:  3,
+				},
+				{
+					SinceRollingPeriod: 0,
+					TranismissionRisk:  0,
+				},
+			},
+			Want: []ExposureKey{
+				{
+					Key:              "A",
+					IntervalNumber:   1,
+					IntervalCount:    2,
+					TransmissionRisk: 0,
+				},
+				{
+					Key:              "B",
+					IntervalNumber:   3,
+					IntervalCount:    2,
+					TransmissionRisk: 3,
+				},
+				{
+					Key:              "C",
+					IntervalNumber:   5,
+					IntervalCount:    2,
+					TransmissionRisk: 5,
+				},
+			},
+		},
+		{
+			Name: "unaligned, with 0 fallback.",
+			Publish: Publish{
+				Keys: []ExposureKey{
+					{
+						Key:              "A",
+						IntervalNumber:   1,
+						IntervalCount:    2,
+						TransmissionRisk: 1,
+					},
+					{
+						Key:              "B",
+						IntervalNumber:   3,
+						IntervalCount:    2,
+						TransmissionRisk: 1,
+					},
+					{
+						Key:              "C",
+						IntervalNumber:   5,
+						IntervalCount:    2,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			Overrides: []verifyapi.TransmissionRiskOverride{
+				{
+					SinceRollingPeriod: 4,
+					TranismissionRisk:  5, // anything effective at time >= 4 gets TR 5.
+				},
+				{
+					SinceRollingPeriod: 0,
+					TranismissionRisk:  2, // 2 since beginning of time.
+				},
+			},
+			Want: []ExposureKey{
+				{
+					Key:              "A",
+					IntervalNumber:   1,
+					IntervalCount:    2,
+					TransmissionRisk: 2,
+				},
+				{
+					Key:              "B",
+					IntervalNumber:   3,
+					IntervalCount:    2,
+					TransmissionRisk: 5,
+				},
+				{
+					Key:              "C",
+					IntervalNumber:   5,
+					IntervalCount:    2,
+					TransmissionRisk: 5,
+				},
+			},
+		},
+		{
+			Name: "overrides run out",
+			Publish: Publish{
+				Keys: []ExposureKey{
+					{
+						Key:              "A",
+						IntervalNumber:   1,
+						IntervalCount:    2,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			Overrides: []verifyapi.TransmissionRiskOverride{
+				{
+					SinceRollingPeriod: 4,
+					TranismissionRisk:  5, // anything effective at time >= 4 gets TR 5.
+				},
+			},
+			Want: []ExposureKey{
+				{
+					Key:              "A",
+					IntervalNumber:   1,
+					IntervalCount:    2,
+					TransmissionRisk: 1,
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			tc.Publish.ApplyTransmissionRiskOverrides(tc.Overrides)
+			sorter := cmp.Transformer("Sort", func(in []ExposureKey) []ExposureKey {
+				out := append([]ExposureKey(nil), in...) // Copy input to avoid mutating it
+				sort.Slice(out, func(i int, j int) bool {
+					return strings.Compare(out[i].Key, out[j].Key) <= 0
+				})
+				return out
+			})
+			if diff := cmp.Diff(tc.Want, tc.Publish.Keys, sorter); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})
 	}

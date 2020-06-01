@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
+
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
 const (
@@ -73,6 +75,44 @@ type Publish struct {
 
 	Platform                  string `json:"platform"`                  // DEPRECATED
 	DeviceVerificationPayload string `json:"deviceVerificationPayload"` // DEPRECATED
+}
+
+// ApplyTransmissionRiskOverrides modifies the transmission risk values in the publish request
+// based on the provided TransmissionRiskVector.
+// In the live system, the TransmissionRiskVector values come from a trusted public health authority
+// and are embedded in the verification certificate (JWT) transmitted on the publish request.
+func (p *Publish) ApplyTransmissionRiskOverrides(overrides verifyapi.TransmissionRiskVector) {
+	if len(overrides) == 0 {
+		return
+	}
+	// The default sort order for TransmissionRiskVector is descending by SinceRollingPeriod.
+	sort.Sort(overrides)
+	// Sort the keys with the largest start interval first (descending), same as overrides.
+	sort.Slice(p.Keys, func(i int, j int) bool {
+		return p.Keys[i].IntervalNumber > p.Keys[j].IntervalNumber
+	})
+
+	overrideIdx := 0
+	for i, eKey := range p.Keys {
+		// Advance the overrideIdx until the current key is covered or we exhaust the
+		// override index.
+		for overrideIdx < len(overrides) &&
+			eKey.IntervalNumber+eKey.IntervalCount <= overrides[overrideIdx].SinceRollingPeriod {
+			overrideIdx++
+		}
+
+		// If we've run out of overrides to apply, then we have to break free.
+		if overrideIdx >= len(overrides) {
+			break
+		}
+
+		// Check to see if this key is in the current override.
+		// If the key was EVERY valid during the SinceRollingPeriod then the override applies.
+		if eKey.IntervalNumber+eKey.IntervalCount >= overrides[overrideIdx].SinceRollingPeriod {
+			p.Keys[i].TransmissionRisk = overrides[overrideIdx].TranismissionRisk
+			// don't advance overrideIdx, there might be additional keys in this override.
+		}
+	}
 }
 
 // ExposureKey is the 16 byte key, the start time of the key and the

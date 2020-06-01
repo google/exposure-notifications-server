@@ -25,12 +25,13 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
-	"github.com/google/exposure-notifications-server/internal/publish/database"
-
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/internal/verification"
+	verifydb "github.com/google/exposure-notifications-server/internal/verification/database"
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
@@ -58,6 +59,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		config:                config,
 		database:              database.New(env.Database()),
 		authorizedAppProvider: env.AuthorizedAppProvider(),
+		verifier:              verification.New(verifydb.New(env.Database())),
 	}, nil
 }
 
@@ -67,6 +69,7 @@ type publishHandler struct {
 	transformer           *model.Transformer
 	database              *database.PublishDB
 	authorizedAppProvider authorizedapp.Provider
+	verifier              *verification.Verifier
 }
 
 type response struct {
@@ -82,6 +85,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	defer span.End()
 
 	logger := logging.FromContext(ctx)
+	metrics := h.serverenv.MetricsExporter(ctx)
 
 	var data model.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
@@ -135,7 +139,24 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		}
 	}
 
-	// TODO(helmick): Hook up PHA verification.
+	// Perform health authority certificat verification.
+	overrides, err := h.verifier.VerifyDiagnosisCertificate(ctx, appConfig, &data)
+	if err != nil {
+		if appConfig.BypassHealthAuthorityVerification {
+			logger.Warnf("bypassing health authority certificate verification for app: %v", appConfig.AppPackageName)
+			metrics.WriteInt("publish-health-authority-verification-bypassed", true, 1)
+		} else {
+			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
+			logger.Error(message)
+			span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
+			return response{status: http.StatusUnauthorized, message: message, metric: "publish-bad-verification", count: 1}
+		}
+	}
+
+	// Apply overrides
+	if len(overrides) > 0 {
+		data.ApplyTransmissionRiskOverrides(overrides)
+	}
 
 	batchTime := time.Now()
 	exposures, err := h.transformer.TransformPublish(&data, batchTime)
