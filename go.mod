@@ -60,7 +60,6 @@ require (
 	github.com/shirou/gopsutil v2.20.4+incompatible // indirect
 	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
 	github.com/smartystreets/goconvey v1.6.4 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tv42/httpunix v0.0.0-20191220191345-2ba4b9c3382c // indirect
 	go.opencensus.io v0.22.3
 	go.uber.org/zap v1.14.1
