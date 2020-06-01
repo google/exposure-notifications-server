@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package storage is an interface over Google Cloud Storage.
 package storage
 
 import (
@@ -44,11 +43,14 @@ func NewGoogleCloudStorage(ctx context.Context) (Blobstore, error) {
 
 // CreateObject creates a new cloud storage object or overwrites an existing one.
 func (gcs *GoogleCloudStorage) CreateObject(ctx context.Context, bucket, objectName string, contents []byte, cacheable bool) error {
-	wc := gcs.client.Bucket(bucket).Object(objectName).NewWriter(ctx)
+	cacheControl := "public, max-age=86400"
 	if !cacheable {
-		wc.Metadata = map[string]string{
-			"Cache-Control": "no-cache, max-age=0",
-		}
+		cacheControl = "no-cache, max-age=0"
+	}
+
+	wc := gcs.client.Bucket(bucket).Object(objectName).NewWriter(ctx)
+	wc.Metadata = map[string]string{
+		"Cache-Control": cacheControl,
 	}
 	if _, err := wc.Write(contents); err != nil {
 		return fmt.Errorf("storage.Writer.Write: %w", err)
