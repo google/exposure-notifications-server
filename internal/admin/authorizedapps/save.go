@@ -25,6 +25,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	verdb "github.com/google/exposure-notifications-server/internal/verification/database"
 )
 
 type saveController struct {
@@ -86,6 +87,12 @@ func (h *saveController) Execute(c *gin.Context) {
 				m.AddSuccess(fmt.Sprintf("Saved authorized app: %v", authApp.AppPackageName))
 			}
 		}
+
+		if err := addHealthAuthorityInfo(ctx, verdb.New(h.env.Database()), authApp, m); err != nil {
+			admin.ErrorPage(c, err.Error())
+			return
+		}
+
 		m["app"] = authApp
 		m["previousKey"] = base64.StdEncoding.EncodeToString([]byte(authApp.AppPackageName))
 		c.HTML(http.StatusOK, "authorizedapp", m)
@@ -99,8 +106,14 @@ func (h *saveController) Execute(c *gin.Context) {
 			return
 		}
 
+		authorizedApp := model.NewAuthorizedApp()
+		if err := addHealthAuthorityInfo(ctx, verdb.New(h.env.Database()), authorizedApp, m); err != nil {
+			admin.ErrorPage(c, err.Error())
+			return
+		}
+
 		m.AddSuccess(fmt.Sprintf("Successfully deleted app `%v`", priorKey))
-		m["app"] = model.NewAuthorizedApp()
+		m["app"] = authorizedApp
 		c.HTML(http.StatusOK, "authorizedapp", m)
 		return
 	}

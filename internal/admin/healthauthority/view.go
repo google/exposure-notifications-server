@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package siginfo
+package healthauthority
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/exposure-notifications-server/internal/admin"
-	"github.com/google/exposure-notifications-server/internal/export/database"
-	"github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/internal/verification/database"
+	"github.com/google/exposure-notifications-server/internal/verification/model"
 )
 
 type viewController struct {
@@ -38,26 +40,28 @@ func (v *viewController) Execute(c *gin.Context) {
 	ctx := c.Request.Context()
 	m := admin.TemplateMap{}
 
-	sigInfo := &model.SignatureInfo{}
+	healthAuthority := &model.HealthAuthority{}
 	if IDParam := c.Param("id"); IDParam == "0" {
-		m.AddJumbotron("Signature Info", "Create New Signature Info")
+		m.AddJumbotron("Health Authorities", "Create New Health Authority")
 		m["new"] = true
 	} else {
-		m.AddJumbotron("Signature Info", "Edit Signature Info")
+		m.AddJumbotron("Health Authorities", "Edit Health Authority")
 
-		sigID, err := strconv.ParseInt(IDParam, 10, 64)
+		haID, err := strconv.ParseInt(IDParam, 10, 64)
 		if err != nil {
 			admin.ErrorPage(c, "Unable to parse `id` param.")
 			return
 		}
-		exportDB := database.New(v.env.Database())
-		sigInfo, err = exportDB.GetSignatureInfo(ctx, sigID)
+
+		haDB := database.New(v.env.Database())
+		healthAuthority, err = haDB.GetHealthAuthorityByID(ctx, haID)
 		if err != nil {
-			admin.ErrorPage(c, "error loading signtaure info.")
+			admin.ErrorPage(c, fmt.Sprintf("Unable to find requested health authority: %v. Error: %v", haID, err))
 			return
 		}
 	}
 
-	m["siginfo"] = sigInfo
-	c.HTML(http.StatusOK, "siginfo", m)
+	m["ha"] = healthAuthority
+	m["hak"] = &model.HealthAuthorityKey{From: time.Now()} // For create form.
+	c.HTML(http.StatusOK, "healthauthority", m)
 }
