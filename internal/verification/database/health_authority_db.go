@@ -79,7 +79,7 @@ func (db *HealthAuthorityDB) UpdateHealthAuthority(ctx context.Context, ha *mode
 			SET
 				iss = $1, aud = $2, name = $3
 			WHERE
-			  id = $4
+				id = $4
 			`, ha.Issuer, ha.Audience, ha.Name, ha.ID)
 		if err != nil {
 			return fmt.Errorf("updating health authority: %w", err)
@@ -159,7 +159,7 @@ func (db *HealthAuthorityDB) ListAllHealthAuthoritiesWithoutKeys(ctx context.Con
 
 	rows, err := conn.Query(ctx, `
 		SELECT
-		  id, iss, aud, name
+			id, iss, aud, name
 	 	FROM
 			HealthAuthority
 		ORDER BY iss ASC`)
@@ -255,11 +255,11 @@ func (db *HealthAuthorityDB) GetHealthAuthorityKeys(ctx context.Context, ha *mod
 
 	rows, err := conn.Query(ctx, `
 		SELECT
-		  health_authority_id, version, from_timestamp, thru_timestamp, public_key
+			health_authority_id, version, from_timestamp, thru_timestamp, public_key
 		FROM
-		  HealthAuthorityKey
+			HealthAuthorityKey
 		WHERE
-		  health_authority_id = $1`, ha.ID)
+			health_authority_id = $1`, ha.ID)
 	if err != nil {
 		return nil, err
 	}
