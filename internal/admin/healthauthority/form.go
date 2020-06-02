@@ -36,10 +36,10 @@ func (f *formData) PopulateHealthAuthority(ha *model.HealthAuthority) {
 type keyFormData struct {
 	Version  string `form:"Version"`
 	PEMBlock string `form:"PublicKeyPEM"`
-	FromDate string `form:"fromdate"`
-	FromTime string `form:"fromtime"`
-	ThruDate string `form:"thrudate"`
-	ThruTime string `form:"thrutime"`
+	FromDate string `form:"FromDate"`
+	FromTime string `form:"FromTime"`
+	ThruDate string `form:"ThruDate"`
+	ThruTime string `form:"ThruTime"`
 }
 
 func (f *keyFormData) FromTimestamp() (time.Time, error) {

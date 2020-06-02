@@ -77,12 +77,10 @@ func (h *keyController) Execute(c *gin.Context) {
 
 	} else if action == "revoke" || action == "reinstate" || action == "activate" {
 		version := c.Param("version")
-		log.Printf("VERSION: %v", version)
 
 		// find the key.
 		var hak *model.HealthAuthorityKey
 		for _, key := range healthAuthority.Keys {
-			log.Printf("HAK %+v", key)
 			if key.Version == version {
 				hak = key
 				break
@@ -99,13 +97,15 @@ func (h *keyController) Execute(c *gin.Context) {
 			}
 		} else if action == "revoke" {
 			hak.Thru = time.Now()
-			if hak.Thru.After(hak.From) {
+			if !hak.Thru.After(hak.From) {
 				// make it so that the key doesn't expire before it is active.
 				hak.Thru = hak.From
 			}
 		} else {
 			hak.Thru = time.Time{}
 		}
+
+		log.Printf("HAK %+v", hak)
 
 		err = haDB.UpdateHealthAuthorityKey(ctx, hak)
 		if err != nil {

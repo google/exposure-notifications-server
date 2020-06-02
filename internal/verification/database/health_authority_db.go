@@ -234,8 +234,8 @@ func (db *HealthAuthorityDB) UpdateHealthAuthorityKey(ctx context.Context, hak *
 			SET
 				from_timestamp = $1, thru_timestamp = $2, public_key = $3
 			WHERE
-				version = $4
-			`, hak.From, thru, hak.PublicKeyPEM, hak.Version)
+				health_authority_id = $4 AND version = $5
+			`, hak.From, thru, hak.PublicKeyPEM, hak.AuthorityID, hak.Version)
 		if err != nil {
 			return fmt.Errorf("updating health authority key: %w", err)
 		}

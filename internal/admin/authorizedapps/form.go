@@ -24,12 +24,12 @@ import (
 type formData struct {
 	// Top Level
 	FormKey string `form:"Key"`
-	Action  string `form:"TODO"`
+	Action  string `form:"Action"`
 
 	// Authorized App Data
 	AppPackageName     string  `form:"AppPackageName"`
 	AllowedRegions     string  `form:"Regions"`
-	HealthAuthorityIDs []int64 `form:"healthauthorities"`
+	HealthAuthorityIDs []int64 `form:"Healthauthorities"`
 }
 
 func (f *formData) PriorKey() string {

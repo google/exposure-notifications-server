@@ -37,11 +37,11 @@
 
   {{if .has}}
   <div class="form-group row">
-		<label class="control-label col-sm-3" for="healthauthorities">Health Authority Certifictes to Accept:</label>
+		<label class="control-label col-sm-3" for="Healthauthorities">Health Authority Certifictes to Accept:</label>
 		<div class="col-sm-6">
     {{range .has}}
 		<div class="form-check">
-      <input class="form-check-input" type="checkbox" name="healthauthorities" value="{{.ID}}" id="ha{{.ID}}" {{if index $.usedHealthAuthorities .ID}}checked{{end}}>
+      <input class="form-check-input" type="checkbox" name="Healthauthorities" value="{{.ID}}" id="ha{{.ID}}" {{if index $.usedHealthAuthorities .ID}}checked{{end}}>
       <label class="form-check-label" for="ha{{.ID}}">
 				{{.ID}}: Iss: {{.Issuer}} Aud: {{.Audience}} Name: {{.Name}}
       </label>
@@ -55,9 +55,9 @@
   </div>
   {{end}}
 
-  <button type="submit" class="btn btn-outline-primary" name="TODO" value="save">Save Changes</button>
+  <button type="submit" class="btn btn-outline-primary" name="Action" value="save">Save Changes</button>
   <a href="/" class="btn btn-outline-secondary">Cancel</a>
-  <button type="submit" class="btn btn-outline-danger" name="TODO" value="delete">Delete</button>
+  <button type="submit" class="btn btn-outline-danger" name="Action" value="delete">Delete</button>
 
 </form>
 
