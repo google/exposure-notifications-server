@@ -19,6 +19,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/monolith"
@@ -37,11 +38,10 @@ func StartSystemUnderTest(tb testing.TB, ctx context.Context) *monolith.MonoConf
 
 	database.NewTestDatabase(tb)
 
-	monoConfig, err := monolith.RunServer(ctx)
-	if err != nil {
-		tb.Fatalf("failed to start monolith: %s", err)
-	}
+	go monolith.RunServer(ctx)
 
-	return monoConfig
+	time.Sleep(10 * time.Second)
+
+	return nil
 
 }
