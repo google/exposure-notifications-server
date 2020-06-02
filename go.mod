@@ -8,6 +8,7 @@ require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.1
 	github.com/Azure/azure-sdk-for-go v42.3.0+incompatible
+	github.com/Azure/azure-storage-blob-go v0.8.0
 	github.com/Azure/go-autorest/autorest v0.10.2 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.8.3 // indirect
 	github.com/DataDog/datadog-go v3.7.1+incompatible // indirect
