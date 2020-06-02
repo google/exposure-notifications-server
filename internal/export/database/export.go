@@ -401,7 +401,7 @@ func (db *ExportDB) AddExportBatches(ctx context.Context, batches []*model.Expor
 }
 
 // LeaseBatch returns a leased ExportBatch for the worker to process. If no work to do, nil will be returned.
-func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.Time) (*model.ExportBatch, error) {
+func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, batchMaxCloseTime time.Time) (*model.ExportBatch, error) {
 	// Lookup a set of candidate batch IDs.
 	var openBatchIDs []int64
 	err := func() error { // Use a func to allow defer conn.Release() to work.
@@ -427,7 +427,7 @@ func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.
 			AND
 				end_timestamp < $3
 			LIMIT 100
-		`, model.ExportBatchOpen, model.ExportBatchPending, now)
+		`, model.ExportBatchOpen, model.ExportBatchPending, batchMaxCloseTime)
 		if err != nil {
 			return err
 		}
@@ -475,7 +475,7 @@ func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.
 				return err
 			}
 
-			if status == model.ExportBatchComplete || (expires != nil && status == model.ExportBatchPending && now.Before(*expires)) {
+			if status == model.ExportBatchComplete || (expires != nil && status == model.ExportBatchPending && batchMaxCloseTime.Before(*expires)) {
 				// Something beat us to this batch, it's no longer available.
 				return nil
 			}
@@ -487,7 +487,7 @@ func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, now time.
 					status = $1, lease_expires = $2
 				WHERE
 				    batch_id = $3
-				`, model.ExportBatchPending, now.Add(ttl), bid)
+				`, model.ExportBatchPending, batchMaxCloseTime.Add(ttl), bid)
 			if err != nil {
 				return err
 			}
