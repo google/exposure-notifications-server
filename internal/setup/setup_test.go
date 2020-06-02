@@ -35,6 +35,13 @@ func (t *testDatabaseConfig) DatabaseConfig() *database.Config {
 	return t.database
 }
 
+func (t *testDatabaseConfig) SecretManagerConfig() *secrets.Config {
+	return &secrets.Config{
+		SecretManagerType: secrets.SecretManagerType("NOOP"),
+		SecretCacheTTL:    10 * time.Minute,
+	}
+}
+
 type testSecretManagerConfig struct {
 	database *database.Config
 }
@@ -61,6 +68,13 @@ func (t *testKeyManagerConfig) DatabaseConfig() *database.Config {
 func (t *testKeyManagerConfig) KeyManagerConfig() *signing.Config {
 	return &signing.Config{
 		KeyManagerType: signing.KeyManagerType("NOOP"),
+	}
+}
+
+func (t *testKeyManagerConfig) SecretManagerConfig() *secrets.Config {
+	return &secrets.Config{
+		SecretManagerType: secrets.SecretManagerType("NOOP"),
+		SecretCacheTTL:    time.Nanosecond,
 	}
 }
 
