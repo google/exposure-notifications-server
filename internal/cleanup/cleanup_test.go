@@ -26,6 +26,8 @@ import (
 )
 
 func TestNewExposureHandler(t *testing.T) {
+	t.Parallel()
+
 	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
@@ -47,7 +49,11 @@ func TestNewExposureHandler(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			got, err := NewExposureHandler(&Config{}, tc.env)
 			if tc.err != nil {
 				if err.Error() != tc.err.Error() {
@@ -68,6 +74,8 @@ func TestNewExposureHandler(t *testing.T) {
 }
 
 func TestNewExportHandler(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	testDB := database.NewTestDatabase(t)
 	noopBlobstore, _ := storage.NewNoop(ctx)
@@ -95,7 +103,11 @@ func TestNewExportHandler(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			got, err := NewExportHandler(&Config{}, tc.env)
 			if tc.err != nil {
 				if err.Error() != tc.err.Error() {
