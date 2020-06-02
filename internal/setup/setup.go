@@ -27,6 +27,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
+
+	kenvconfig "github.com/kelseyhightower/envconfig"
 )
 
 // BlobstoreConfigProvider provides the information about current storage
@@ -79,7 +81,7 @@ func Setup(ctx context.Context, config DatabaseConfigProvider) (*serverenv.Serve
 		// secret:// reference. This configuration option must always be the
 		// plaintext string.
 		smConfig := provider.SecretManagerConfig()
-		if err := envconfig.Process(ctx, smConfig, nil); err != nil {
+		if err := kenvconfig.Process("", smConfig); err != nil {
 			return nil, nil, fmt.Errorf("unable to process secret manager environment: %w", err)
 		}
 
