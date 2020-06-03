@@ -87,13 +87,16 @@ func TestEnsureMinExposures(t *testing.T) {
 	eIntervals["789101.144"] = false
 	eIntervals["789101.88"] = true
 
+	numKeys := 4000
+	variance := 100
+
 	// pad the download.
-	exposures, err := ensureMinNumExposures(exposures, "US", 2000, 10)
+	exposures, err := ensureMinNumExposures(exposures, "US", numKeys, variance)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(exposures) < 2000 || len(exposures) > 2010 {
-		t.Errorf("wrong number of exposures, want: >=2000 and <=2010, got: %v", len(exposures))
+	if len(exposures) < numKeys || len(exposures) > numKeys+variance {
+		t.Errorf("wrong number of exposures, want: >=%v and <=%v, got: %v", numKeys, numKeys+variance, len(exposures))
 	}
 
 	for _, e := range exposures {
