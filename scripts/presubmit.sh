@@ -17,8 +17,6 @@
 set -eEuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
-SOURCE_DIRS="cmd internal tools"
-
 
 echo "🌳 Set up environment variables"
 eval $(${ROOT}/scripts/dev init)
@@ -26,7 +24,12 @@ eval $(${ROOT}/scripts/dev init)
 
 echo "🚒 Verify Protobufs are up to date"
 ${ROOT}/scripts/dev protoc
-# Don't verify generated pb files here as they are tidied later.
+git diff *.go | tee /dev/stderr | (! read)
+if [ $? -ne 0 ]; then
+   echo "✋ Found uncommited changes after regenerating Protobufs."
+   echo "✋ Commit these changes before merging."
+   exit 1
+fi
 
 
 echo "🧽 Verify goimports formattting"
@@ -38,11 +41,12 @@ if [ $? -ne 0 ]; then
    echo "✋ to enable import cleanup. Import cleanup skipped."
 else
    echo "🧽 Format with goimports"
-   goimports -w $(echo $SOURCE_DIRS)
+   # Find all non-generated Go files. This works by excluding
+   # files that start with the official "generated file" header.
+   # See https://github.com/golang/go/issues/13560#issuecomment-288457920
+   grep -L -HR "^\/\/ Code generated .* DO NOT EDIT\.$" --include="*.go" "${ROOT}" | xargs goimports -w
    # Check if there were uncommited changes.
-   # Ignore comment line changes as sometimes proto gen just updates versions
-   # of the generator
-   git diff -G'(^\s+[^/])' *.go | tee /dev/stderr | (! read)
+   git diff *.go | tee /dev/stderr | (! read)
    if [ $? -ne 0 ]; then
       echo "✋ Found uncommited changes after goimports."
       echo "✋ Commit these changes before merging."
@@ -54,8 +58,11 @@ set -e
 
 echo "🧹 Verify gofmt format"
 set +e
-diff -u <(echo -n) <(gofmt -d -s .)
-git diff -G'(^\s+[^/])' *.go | tee /dev/stderr | (! read)
+# Find all non-generated Go files. This works by excluding
+# files that start with the official "generated file" header.
+# See https://github.com/golang/go/issues/13560#issuecomment-288457920
+grep -L -HR "^\/\/ Code generated .* DO NOT EDIT\.$" --include="*.go" "${ROOT}" | xargs gofmt -s -w 
+git diff *.go | tee /dev/stderr | (! read)
 if [ $? -ne 0 ]; then
    echo "✋ Found uncommited changes after gofmt."
    echo "✋ Commit these changes before merging."
