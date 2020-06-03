@@ -17,6 +17,7 @@ package authorizedapp
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -96,6 +97,10 @@ func (p *DatabaseProvider) checkCache(name string) (*model.AuthorizedApp, bool, 
 // AppConfig returns the config for the given app package name.
 func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
+
+	// The database treats the app package names as case-insensitive, but our
+	// cacher does not. To maximize cache hits, convert to lowercase.
+	name = strings.ToLower(name)
 
 	data, cacheHit, error := p.checkCache(name)
 	if cacheHit {

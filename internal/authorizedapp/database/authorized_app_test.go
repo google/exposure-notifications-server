@@ -132,7 +132,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 			name: "bare",
 			sql: `
 				INSERT INTO AuthorizedApp (app_package_name, allowed_regions, allowed_health_authority_ids)
-				VALUES ($1, $2, $3)
+				VALUES (LOWER($1), $2, $3)
 			`,
 			args: []interface{}{"myapp", []string{"US"}, []int64{1}},
 			exp: &model.AuthorizedApp{
@@ -145,7 +145,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 			name: "all_regions",
 			sql: `
 				INSERT INTO AuthorizedApp (app_package_name, allowed_regions, allowed_health_authority_ids)
-				VALUES ($1, $2, $3)
+				VALUES (LOWER($1), $2, $3)
 			`,
 			args: []interface{}{"myapp", []string{}, []int64{1}},
 			exp: &model.AuthorizedApp{

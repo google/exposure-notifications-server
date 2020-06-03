@@ -16,6 +16,7 @@ package authorizedapp
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 )
@@ -40,6 +41,9 @@ func NewMemoryProvider(ctx context.Context, _ *Config) (Provider, error) {
 
 // AppConfig returns the config for the given app package name.
 func (p *MemoryProvider) AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error) {
+	// Match case-insensitivy of the database.
+	name = strings.ToLower(name)
+
 	val, ok := p.Data[name]
 	if !ok {
 		return nil, ErrAppNotFound

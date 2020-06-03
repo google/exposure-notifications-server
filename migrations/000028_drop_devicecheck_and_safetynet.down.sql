@@ -15,7 +15,7 @@
 BEGIN;
 
 ALTER TABLE AuthorizedApp
-  ADD COLUMN platform VARCHAR(10) NOT NULL,
+  ADD COLUMN platform VARCHAR(10) NOT NULL DEFAULT '',
   ADD COLUMN safetynet_disabled BOOLEAN NOT NULL DEFAULT false,
   ADD COLUMN safetynet_apk_digest VARCHAR(64)[],
   ADD COLUMN safetynet_cts_profile_match BOOLEAN DEFAULT true,
