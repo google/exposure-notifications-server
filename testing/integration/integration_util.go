@@ -25,6 +25,15 @@ import (
 	"github.com/google/exposure-notifications-server/internal/monolith"
 )
 
+func SetEnvAndRunServer(ctx context.Context) {
+	// Set all of these to not need to connect to external resources.
+	os.Setenv("BLOBSTORE", "FILESYSTEM")
+	os.Setenv("KEY_MANAGER", "NOOP")
+	os.Setenv("SECRET_MANAGER", "NOOP")
+
+	monolith.RunServer(ctx)
+}
+
 func StartSystemUnderTest(tb testing.TB, ctx context.Context) *monolith.MonoConfig {
 	tb.Helper()
 
@@ -38,8 +47,9 @@ func StartSystemUnderTest(tb testing.TB, ctx context.Context) *monolith.MonoConf
 
 	database.NewTestDatabase(tb)
 
-	go monolith.RunServer(ctx)
+	go SetEnvAndRunServer(ctx)
 
+	//TODO: Make a better test.
 	time.Sleep(10 * time.Second)
 
 	return nil
