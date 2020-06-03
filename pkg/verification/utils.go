@@ -21,12 +21,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/google/exposure-notifications-server/internal/publish/model"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
 // CalculateExposureKeyHMAC will calculate the verification protocol HMAC value.
 // Input keys are already to be base64 encoded. They will be sorted if necessary.
-func CalculateExposureKeyHMAC(keys []model.ExposureKey, secret []byte) ([]byte, error) {
+func CalculateExposureKeyHMAC(keys []verifyapi.ExposureKey, secret []byte) ([]byte, error) {
 	if len(keys) == 0 {
 		return nil, fmt.Errorf("cannot calculate hmac on empty exposure keys")
 	}

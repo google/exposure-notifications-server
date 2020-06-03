@@ -35,6 +35,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/model"
 
 	"github.com/google/exposure-notifications-server/internal/util"
+
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
 var (
@@ -98,7 +100,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("unable to read file: %v", err)
 		}
-		data := publishmodel.ExposureKeys{}
+		data := verifyapi.ExposureKeys{}
 		err = json.Unmarshal(file, &data)
 		if err != nil {
 			log.Fatalf("unable to parse json: %v", err)
@@ -128,7 +130,7 @@ func main() {
 				log.Fatalf("unable to decode key: %v", k.Key)
 			}
 			exposureKeys[i].ExposureKey = decoded
-			exposureKeys[i].IntervalNumber = k.IntervalNumber - publishmodel.MaxIntervalCount // typically the key will be at least 1 day old
+			exposureKeys[i].IntervalNumber = k.IntervalNumber - verifyapi.MaxIntervalCount // typically the key will be at least 1 day old
 			if exposureKeys[i].IntervalNumber < 0 {
 				exposureKeys[i].IntervalNumber = 0
 			}
