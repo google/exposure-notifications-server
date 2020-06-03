@@ -62,7 +62,7 @@ const (
 //  Note: This project doesn't directly include a diagnosis code verification System
 //        but does provide the ability to configure one in `serverevn.ServerEnv`
 //
-// The following fields are deprecated, but accepted for backwards-compatability:
+// The following fields are deprecated, but accepted for backwards-compatibility:
 // DeviceVerificationPayload: (attestation)
 // Platform: "ios" or "android"
 type Publish struct {
