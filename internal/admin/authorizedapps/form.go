@@ -27,9 +27,10 @@ type formData struct {
 	Action  string `form:"Action"`
 
 	// Authorized App Data
-	AppPackageName     string  `form:"AppPackageName"`
-	AllowedRegions     string  `form:"Regions"`
-	HealthAuthorityIDs []int64 `form:"Healthauthorities"`
+	AppPackageName                    string  `form:"AppPackageName"`
+	AllowedRegions                    string  `form:"Regions"`
+	BypassHealthAuthorityVerification bool    `form:"BypassHealthAuthorityVerification"`
+	HealthAuthorityIDs                []int64 `form:"Healthauthorities"`
 }
 
 func (f *formData) PriorKey() string {
@@ -53,5 +54,6 @@ func (f *formData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
 	for _, haID := range f.HealthAuthorityIDs {
 		a.AllowedHealthAuthorityIDs[haID] = struct{}{}
 	}
+	a.BypassHealthAuthorityVerification = f.BypassHealthAuthorityVerification
 	return nil
 }
