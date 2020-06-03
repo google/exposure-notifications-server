@@ -17,7 +17,8 @@ syntax = "proto3";
 option go_package = "github.com/google/exposure-notifications-server/internal/pb;pb";
 
 message FederationFetchRequest {
-	string fetchType = 1; // required
+	// fetchType is not used in the federation API and will be removed.
+	string fetchType = 1 [deprecated = true];
 	repeated string regionIdentifiers = 2;
 	repeated string excludeRegionIdentifiers = 3;
 	int64 lastFetchResponseKeyTimestamp = 4; // required
