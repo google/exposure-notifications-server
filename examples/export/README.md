@@ -1,14 +1,15 @@
 # Working with Export Files
 
-This demonstrates some utilities and commands to help understand the format documented in
-the [Exposure Key File Format documentation](https://www.google.com/covid19/exposurenotifications/pdfs/Exposure-Key-File-Format-and-Verification.pdf)
+This demonstrates some utilities and commands to help understand the format
+documented in the
+[Exposure Key File Format documentation](https://www.google.com/covid19/exposurenotifications/pdfs/Exposure-Key-File-Format-and-Verification.pdf)
 
 ## Generating signing keys
 
-Export files are signed and verified in the Exposure Notification API prior to matching.
-Any standard cryptography tools can be used to generate the asymmetric key pair used
-to sign the files. The following illustrates how this can be done with
-[OpenSSL](https://www.openssl.org/).
+Export files are signed and verified in the Exposure Notification API prior to
+matching. Any standard cryptography tools can be used to generate the asymmetric
+key pair used to sign the files. The following illustrates how this can be done
+with [OpenSSL](https://www.openssl.org/).
 
 To generate the private key used for signing:
 
@@ -16,11 +17,11 @@ To generate the private key used for signing:
 $ openssl ecparam -genkey -name prime256v1 -noout -out private.pem
 ```
 
-`private.pem` would not be shared. For verification, the corresponding public key
-would need to be shared. The public key could be generated as follows. Again,
-any standard cryptography tools can be used, including key management services.
-This just illustrates one way it can be done, and how the files in the repo were
-created.
+`private.pem` would not be shared. For verification, the corresponding public
+key would need to be shared. The public key could be generated as follows.
+Again, any standard cryptography tools can be used, including key management
+services. This just illustrates one way it can be done, and how the files in the
+repo were created.
 
 ```shell
 $ openssl ec -in private.pem -pubout -out public.pem
@@ -28,10 +29,9 @@ $ openssl ec -in private.pem -pubout -out public.pem
 
 ## Generating an export
 
-There is a utility that can generate either a random export file or
-use the JSON format in the publish api call to specify the contents.
-The export file in this directory was generated with the keys above
-and the `keys.json` file as follows:
+There is a utility that can generate either a random export file or use the JSON
+format in the publish api call to specify the contents. The export file in this
+directory was generated with the keys above and the `keys.json` file as follows:
 
 ```shell
 $ go run ./tools/export-generate --signing-key=./examples/export/private.pem --tek-file=./examples/export/keys.json
@@ -52,9 +52,9 @@ Archive:  testExport-2-records-1-of-1.zip
       249                     2 files
 ```
 
-The contents of `export.bin` includes a fixed width header in addition to
-the serialized proto. It can be decoded at the commandline by skipping the
-header with `tail`:
+The contents of `export.bin` includes a fixed width header in addition to the
+serialized proto. It can be decoded at the commandline by skipping the header
+with `tail`:
 
 ```
 $ tail +17c < export.bin | protoc --decode TemporaryExposureKeyExport --proto_path ../../internal/pb/export/ export.proto | head -n 10
@@ -74,8 +74,8 @@ signature_infos {
 ## Verifying an export
 
 There's a handy utility to extract the raw bytes of the signature from the
-SignatureInfo proto in the `export.sig` file. Then you can use any
-standard tools to verify the signature.
+SignatureInfo proto in the `export.sig` file. Then you can use any standard
+tools to verify the signature.
 
 ```shell
 $ go run ./tools/unwrap-signature/ --in=export.sig --out=sigRaw
@@ -83,4 +83,3 @@ $ go run ./tools/unwrap-signature/ --in=export.sig --out=sigRaw
 $ openssl dgst -sha256 -verify public.pem -signature sigRaw export.bin
 Verified OK
 ```
-

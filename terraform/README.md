@@ -12,16 +12,17 @@ continuous deployment.
 
 - gcloud. [Installation guide](https://cloud.google.com/sdk/install)
 
-    Note: Make sure you **unset** `GOOGLE_APPLICATION_CREDENTIALS` in your
-    environment:
+  Note: Make sure you **unset** `GOOGLE_APPLICATION_CREDENTIALS` in your
+  environment:
 
-    ```text
-    unset GOOGLE_APPLICATION_CREDENTIALS
-    ```
+  ```text
+  unset GOOGLE_APPLICATION_CREDENTIALS
+  ```
 
 ## Instructions
 
-For full instructions on deploying, view the [deployment docs](../docs/deploying.md)
+For full instructions on deploying, view the
+[deployment docs](../docs/deploying.md)
 
 1.  Create a GCP project.
     [Instructions](https://cloud.google.com/resource-manager/docs/creating-managing-projects).

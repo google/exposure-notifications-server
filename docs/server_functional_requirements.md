@@ -3,7 +3,8 @@
 ## Functional requirements
 
 This documents the functional requirements for building a decentralized exposure
-notification system. For deployment strategies, see [Server Deployment Options](server_deployment_options.md).
+notification system. For deployment strategies, see
+[Server Deployment Options](server_deployment_options.md).
 
 ### System Components
 
@@ -14,36 +15,36 @@ The following diagram shows the relationship between the different components:
 
 The server components are responsible for the following functions:
 
-* Accepting the temporary exposure keys of positively diagnosed users from
-mobile devices, validating those keys via device attestation APIs, and
-storing those keys in a database.
+- Accepting the temporary exposure keys of positively diagnosed users from
+  mobile devices, validating those keys via device attestation APIs, and storing
+  those keys in a database.
 
-* Periodically generating incremental files for download by client
-devices for performing the key matching algorithm that is run on the mobile
-device. The incremental files **must be digitally signed with a private key**.
-The corresponding public key is pushed to mobile device separately.
+- Periodically generating incremental files for download by client devices for
+  performing the key matching algorithm that is run on the mobile device. The
+  incremental files **must be digitally signed with a private key**. The
+  corresponding public key is pushed to mobile device separately.
 
-  * Recommended: You should use a content delivery network (CDN) to serve these
-  files.
+  - Recommended: You should use a content delivery network (CDN) to serve these
+    files.
 
-* Required: A database for storage of published diagnosis keys.
+- Required: A database for storage of published diagnosis keys.
 
-* Required: A key/secret management system for storage of API keys, other
-authorization credentials (CDN for example), and private keys for signing
-device download content.
+- Required: A key/secret management system for storage of API keys, other
+  authorization credentials (CDN for example), and private keys for signing
+  device download content.
 
-* Recommended: Periodically deleting old temporary exposure keys. After 14
-days (or configured time period) the keys can no longer be matched to devices.
+- Recommended: Periodically deleting old temporary exposure keys. After 14 days
+  (or configured time period) the keys can no longer be matched to devices.
 
-* Recommended: Using a CDN to distribute the temporary exposure keys of affected
-users to mobile devices.
+- Recommended: Using a CDN to distribute the temporary exposure keys of affected
+  users to mobile devices.
 
 ### Publishing temporary exposure keys
 
-When a user reports a diagnosis, it is reported using the publish API server.
-In the reference server implementation, the data is encoded in JSON and sent
-over HTTPS, however you can use any encoding and protocol. None of the data
-stored in the database is personally identifiable information (PII).
+When a user reports a diagnosis, it is reported using the publish API server. In
+the reference server implementation, the data is encoded in JSON and sent over
+HTTPS, however you can use any encoding and protocol. None of the data stored in
+the database is personally identifiable information (PII).
 
 A given mobile application and server pair could agree upon additional
 information to be shared. The information described in this section is the
@@ -52,55 +53,56 @@ necessary client batches for ingestion into the device for key matching.
 
 Minimum required fields, followed by a JSON example:
 
-* `temporaryExposureKeys`
-  * **Type**: Array of `ExposureKey` JSON objects (below)
-  * **REQUIRED**: contain 1-14 `ExposureKey` object (an individual app/server
+- `temporaryExposureKeys`
+  - **Type**: Array of `ExposureKey` JSON objects (below)
+  - **REQUIRED**: contain 1-14 `ExposureKey` object (an individual app/server
     could keep longer history)
-  * **Description**: The verified temporary exposure keys
-  * `ExposureKey` object properties
-    * `key` (**REQUIRED**)
-      * Type: String
-      * Description: Base64 encoded temporary exposure key from the device
-    * `rollingStartNumber` (**REQUIRED**)
-      * Type: integer (uint32)
-      * Description: Intervals are 10 minute increments since the UTC epoch
-    * `rollingPeriod` (**OPTIONAL** - this may not be present for some keys)
-      * Type: integer (uint32)
-      * Constraints
-        * Valid values are [1..144]
-        * If not present, 144 is the default value (1 day of intervals)
-      * Description: Number of intervals that the key is valid for
-    * `transmissionRisk` (**REQUIRED**)
-      * Type: Integer
-      * **The values and meanings of this enum are not finalized at this time.** //TODO(llatif): check status
-      * Constraints:
-        * Valid values range from 0-8
-      * Description: //TODO(llatif): Add description
-* `regions` (**REQUIRED**)
+  - **Description**: The verified temporary exposure keys
+  - `ExposureKey` object properties
+    - `key` (**REQUIRED**)
+      - Type: String
+      - Description: Base64 encoded temporary exposure key from the device
+    - `rollingStartNumber` (**REQUIRED**)
+      - Type: integer (uint32)
+      - Description: Intervals are 10 minute increments since the UTC epoch
+    - `rollingPeriod` (**OPTIONAL** - this may not be present for some keys)
+      - Type: integer (uint32)
+      - Constraints
+        - Valid values are [1..144]
+        - If not present, 144 is the default value (1 day of intervals)
+      - Description: Number of intervals that the key is valid for
+    - `transmissionRisk` (**REQUIRED**)
+      - Type: Integer
+      - **The values and meanings of this enum are not finalized at this time.**
+        //TODO(llatif): check status
+      - Constraints:
+        - Valid values range from 0-8
+      - Description: //TODO(llatif): Add description
+- `regions` (**REQUIRED**)
   [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) format.
-  * Type: Array of string
-  * Description: 2 letter country to identify the region(s) a key is valid for.
-* `appPackageName` (**REQUIRED**)
-  * Type: string
-  * Description: Name of the application being used to send the request. This
-    is used to determine what app is uploading keys and if it is an allowed
-    region for that app.
-* `platform` (**DEPRECATED**)
-  * Type: string
-  * Description: Mobile device platform this request originated from.
-* `deviceVerificationPayload` (**DEPRECATED**)
-  * Type: String
-  * Description:  Device attestation. This field is deprecated in favor of
+  - Type: Array of string
+  - Description: 2 letter country to identify the region(s) a key is valid for.
+- `appPackageName` (**REQUIRED**)
+  - Type: string
+  - Description: Name of the application being used to send the request. This is
+    used to determine what app is uploading keys and if it is an allowed region
+    for that app.
+- `platform` (**DEPRECATED**)
+  - Type: string
+  - Description: Mobile device platform this request originated from.
+- `deviceVerificationPayload` (**DEPRECATED**)
+  - Type: String
+  - Description: Device attestation. This field is deprecated in favor of
     `verificationPayload`, which comes from a verification authority.
-* `verificationPayload`
-  * Type: String
-  * Description: verificationPayload is a signed certificate from a public
+- `verificationPayload`
+  - Type: String
+  - Description: verificationPayload is a signed certificate from a public
     health authority, indicating a confirmed diagnosis
-* `padding`
-  * Type: String
-  * Constraints:
-    * Recommend size is random between 1 and 2 kilobytes.
-  * Description: Random data to obscure the size of the request network packet
+- `padding`
+  - Type: String
+  - Constraints:
+    - Recommend size is random between 1 and 2 kilobytes.
+  - Description: Random data to obscure the size of the request network packet
     sniffers.
 
 The following snippet is an example POST request payload in JSON format.
@@ -108,9 +110,25 @@ The following snippet is an example POST request payload in JSON format.
 ```json
 {
   "temporaryExposureKeys": [
-    {"key": "base64 KEY1", "rollingStartNumber": 12345, "rollingPeriod": 144, "transmissionRisk": 5},
-    {"key": "base64 KEY2", "rollingStartNumber": 12489, "rollingPeriod": 10, "transmissionRisk": 6},
-    {"key": "base64 KEYN", "rollingStartNumber": 12499, "rollingPeriod": 100, "transmissionRisk": 7}],
+    {
+      "key": "base64 KEY1",
+      "rollingStartNumber": 12345,
+      "rollingPeriod": 144,
+      "transmissionRisk": 5
+    },
+    {
+      "key": "base64 KEY2",
+      "rollingStartNumber": 12489,
+      "rollingPeriod": 10,
+      "transmissionRisk": 6
+    },
+    {
+      "key": "base64 KEYN",
+      "rollingStartNumber": 12499,
+      "rollingPeriod": 100,
+      "transmissionRisk": 7
+    }
+  ],
   "regions": ["US", "CA", "MX"],
   "appPackageName": "com.foo.app",
   "verificationPayload": "signature /code from  of verifying authority",
@@ -120,30 +138,28 @@ The following snippet is an example POST request payload in JSON format.
 
 ### Requirements and recommendations
 
-* Required: A whitelist check for `appPackageName` and the regions in
-which the app is allowed to report on.
+- Required: A whitelist check for `appPackageName` and the regions in which the
+  app is allowed to report on.
 
-* Recommended: The `transaction_id` in the payload should be the SHA 256 hash of
-the concatenation of:
+- Recommended: The `transaction_id` in the payload should be the SHA 256 hash of
+  the concatenation of:
 
-  * `appPackageName`
+  - `appPackageName`
 
-  * Concatenation of the `TrackingKey.Key` values in their base64 encoding,
-  sorted lexicographically
+  - Concatenation of the `TrackingKey.Key` values in their base64 encoding,
+    sorted lexicographically
 
-  * Concatenation of regions, uppercased, sorted lexicographically
+  - Concatenation of regions, uppercased, sorted lexicographically
 
-* Recommended: To discourage abuse, only failures in processing should
-return retry-able error codes to clients. For example, invalid device
-attestations should return success, with the data only saved for abuse
-analysis.
+- Recommended: To discourage abuse, only failures in processing should return
+  retry-able error codes to clients. For example, invalid device attestations
+  should return success, with the data only saved for abuse analysis.
 
-* Appropriate denial of service protection should be put in place.
+- Appropriate denial of service protection should be put in place.
 
-* Recommended: Our overall security and privacy recommendation is to, from
-  the mobile application, periodically send chaff requests to the sever so that
-  ALL users appear to be reporting themselves as infected multiple times per
-  day.
+- Recommended: Our overall security and privacy recommendation is to, from the
+  mobile application, periodically send chaff requests to the sever so that ALL
+  users appear to be reporting themselves as infected multiple times per day.
 
 ### Batch creation and publishing
 
@@ -161,27 +177,28 @@ While additional data can be included in the downloads, there is a minimum set
 that is required by the exposure notification API, which is relayed from
 affected users in an unmodified form.
 
-The device operating system and libraries will use the known public key to verify
-an attached data signature before loading the data. To make the data verifiable:
+The device operating system and libraries will use the known public key to
+verify an attached data signature before loading the data. To make the data
+verifiable:
 
-* The data must be signed with the private key of the server.
+- The data must be signed with the private key of the server.
 
-* The public key for the server will be distributed by Apple and Google to
-devices along with a list containing the countries for which the server
-can provide data to.
+- The public key for the server will be distributed by Apple and Google to
+  devices along with a list containing the countries for which the server can
+  provide data to.
 
-* Export files must be signed using the ECDSA on the P-256 Curve with a
-SHA-256 digest.
+- Export files must be signed using the ECDSA on the P-256 Curve with a SHA-256
+  digest.
 
 **Important: The matching algorithm only runs on data that has been verified
 with the public key distributed by the device configuration mechanism.**
 
-The app on the device must know which files to download. We recommend that
-a consistent index file is used so that a client would download that index file
-to discover any new, unprocessed batches.
+The app on the device must know which files to download. We recommend that a
+consistent index file is used so that a client would download that index file to
+discover any new, unprocessed batches.
 
-If you are using a CDN to distribute these files, ensure that the cache
-control expiration is set so that the file is refreshed frequently for distribution.
+If you are using a CDN to distribute these files, ensure that the cache control
+expiration is set so that the file is refreshed frequently for distribution.
 
 ### Managing secrets
 
@@ -191,21 +208,21 @@ The use of a secure secret manager (for example,
 [Cloud Secret](https://cloud.google.com/secret-manager)) or a hardened
 on-premises equivalent is required to store the following data:
 
-* Private signing key
-  * The private key for signing the client download files
+- Private signing key
+  - The private key for signing the client download files
 
 ### Data Deletion
 
 Since devices will only be retaining the temporary exposure keys for a limited
 time (a configurable number of days), we recommend:
 
-* Dropping keys from the database on a similar schedule as they would be dropped
-from devices.
+- Dropping keys from the database on a similar schedule as they would be dropped
+  from devices.
 
-* Removing obsolete files from the CDN.
+- Removing obsolete files from the CDN.
 
-* If used, the index file on the CDN should be updated to no longer point to
-deleted files.
+- If used, the index file on the CDN should be updated to no longer point to
+  deleted files.
 
 You should design your database to accommodate bulk deletion due to abuse,
 broken apps, human error, or incorrect lab results.

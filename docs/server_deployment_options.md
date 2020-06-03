@@ -3,18 +3,17 @@
 ## Server deployment options
 
 This document describes possible strategies for building and hosting the
-Exposure Notification Server components. You should use this information
-explore and compare trade-offs when making hosting decisions.
+Exposure Notification Server components. You should use this information explore
+and compare trade-offs when making hosting decisions.
 
-The Exposure Notifications Server can be deployed in the following
-environments:
+The Exposure Notifications Server can be deployed in the following environments:
 
-* Fully self-hosted or on-premises
-* Fully managed Google Cloud
-* A combination of self-hosted and fully managed
+- Fully self-hosted or on-premises
+- Fully managed Google Cloud
+- A combination of self-hosted and fully managed
 
-For more details on each
-component, see the [Server Functional Requirements](server_functional_requirements.md).
+For more details on each component, see the
+[Server Functional Requirements](server_functional_requirements.md).
 
 ## Server architecture
 
@@ -27,15 +26,15 @@ devices.
 
 ![Exposure Notification Server data egress flow](images/data-retrieval.svg "Exposure Notification Server data egress flow")
 
-The Exposure Notification Server compute components have been designed to be stateless,
-scalable, and rely on data stored in a shared databased. This makes the compute
-components suited to deployment on
+The Exposure Notification Server compute components have been designed to be
+stateless, scalable, and rely on data stored in a shared databased. This makes
+the compute components suited to deployment on
 [serverless compute platforms](https://en.wikipedia.org/wiki/Serverless_computing).
 
 Serverless platforms can scale down to zero during times of zero usage, which is
 likely if the Exposure Notification Server deployment covers a single or small
-number of countries. During times of high demand, serverless platforms can
-scale to meet demand.
+number of countries. During times of high demand, serverless platforms can scale
+to meet demand.
 
 ## Server components
 
@@ -212,9 +211,9 @@ You can host all components of the Exposure Notification Server on-premises.
 
 Deploying compute and data components on-premises allows you to have complete
 control of all components and deploy them in any location by using an
-on-premises Google Kubernetes Engine cluster. However, an on-premises
-deployment will require you to configure and maintain the underlying
-infrastructure, and ensure it is able to meet usage demands.
+on-premises Google Kubernetes Engine cluster. However, an on-premises deployment
+will require you to configure and maintain the underlying infrastructure, and
+ensure it is able to meet usage demands.
 
 When the Exposure Notification Server is deployed on-premises, we recommend you
 deploy audit and access logging to the data and API endpoints. This is
@@ -230,10 +229,10 @@ be hosted on-premises or on Google Cloud.
 ![A diagram of data egress with the Exposure Notification Server that has compute components on Google Cloud and data on-premises](images/hybrid_out.png "image_tooltip")
 
 This example deployment has compute components running on Google Cloud
-Serverless products, with databases hosted on-premises. Alternatively, you
-could use an [Anthos](https://cloud.google.com/anthos/) cluster to host
-compute components on premises, and have the data components hosted on Google
-Cloud as a fully managed service.
+Serverless products, with databases hosted on-premises. Alternatively, you could
+use an [Anthos](https://cloud.google.com/anthos/) cluster to host compute
+components on premises, and have the data components hosted on Google Cloud as a
+fully managed service.
 
 ### Fully hosted on Google Cloud
 
@@ -248,5 +247,5 @@ PostgreSQL database.
 
 This solution requires hosting within a
 [Google Cloud location](https://cloud.google.com/about/locations) which may not
-exist in a location that permits use for all parts of the Exposure
-Notification Server architecture.
+exist in a location that permits use for all parts of the Exposure Notification
+Server architecture.

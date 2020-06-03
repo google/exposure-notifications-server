@@ -1,7 +1,7 @@
 # Exposure Server Components - contribution guidelines
 
-Contributions to this project are welcomed. We request that you
-read through the guidelines before getting started.
+Contributions to this project are welcomed. We request that you read through the
+guidelines before getting started.
 
 ## Contributor License Agreement
 
@@ -54,8 +54,8 @@ $ go test ./...
 
 ### Presubmit checks
 
-You should run the presubmit checks before committing changes. The presubmit script
-is located at `scripts/presubmit.sh`.
+You should run the presubmit checks before committing changes. The presubmit
+script is located at `scripts/presubmit.sh`.
 
 ### Running locally
 
@@ -115,11 +115,10 @@ Docker is installed and available in your `$PATH`.
 
     **Warning: This will also delete any stored data in the database.**
 
-
 ## Documentation
 
-User documentation for this project is in the [`docs`](/docs/index.md) directory,
-with information on building, deploying, and using the reference implementation.
-
+User documentation for this project is in the [`docs`](/docs/index.md)
+directory, with information on building, deploying, and using the reference
+implementation.
 
 [docker]: https://docs.docker.com/get-docker/
