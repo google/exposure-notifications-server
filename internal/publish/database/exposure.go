@@ -137,7 +137,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	var args []interface{}
 	q := `
 		SELECT
-			exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
+			exposure_key, transmission_risk, LOWER(app_package_name), regions, interval_number, interval_count,
 			created_at, local_provenance, sync_id
 		FROM
 			Exposure
@@ -199,7 +199,7 @@ func (db *PublishDB) InsertExposures(ctx context.Context, exposures []*model.Exp
 			    (exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
 			     created_at, local_provenance, sync_id)
 			VALUES
-			  ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			  ($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9)
 			ON CONFLICT (exposure_key) DO NOTHING
 		`)
 		if err != nil {

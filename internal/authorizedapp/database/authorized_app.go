@@ -48,7 +48,7 @@ func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.Aut
 				(app_package_name, allowed_regions,
 				allowed_health_authority_ids, bypass_health_authority_verification)
 			VALUES
-				($1, $2, $3, $4)
+				(LOWER($1), $2, $3, $4)
 		`, m.AppPackageName, m.AllAllowedRegions(),
 			m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification)
 
@@ -67,10 +67,10 @@ func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey str
 		result, err := tx.Exec(ctx, `
 			UPDATE AuthorizedApp
 			SET
-				app_package_name = $1, allowed_regions = $2,
+				app_package_name = LOWER($1), allowed_regions = $2,
 				allowed_health_authority_ids = $3, bypass_health_authority_verification = $4
 			WHERE
-				app_package_name = $5
+				LOWER(app_package_name) = LOWER($5)
 			`, m.AppPackageName, m.AllAllowedRegions(),
 			m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification,
 			priorKey)
@@ -84,15 +84,15 @@ func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey str
 	})
 }
 
-func (aa *AuthorizedAppDB) DeleteAuthorizedApp(ctx context.Context, appPackageName string) error {
+func (aa *AuthorizedAppDB) DeleteAuthorizedApp(ctx context.Context, name string) error {
 	var count int64
 	err := aa.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			DELETE FROM
 				AuthorizedApp
 			WHERE
-				app_package_name = $1
-			`, appPackageName)
+				LOWER(app_package_name) = LOWER($1)
+			`, name)
 		if err != nil {
 			return fmt.Errorf("deleting authorized app: %w", err)
 		}
@@ -117,7 +117,7 @@ func (aa *AuthorizedAppDB) GetAllAuthorizedApps(ctx context.Context, sm secrets.
 
 	query := `
 		SELECT
-			app_package_name, allowed_regions,
+			LOWER(app_package_name), allowed_regions,
 			allowed_health_authority_ids, bypass_health_authority_verification
 		FROM
 			AuthorizedApp
@@ -155,11 +155,11 @@ func (aa *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.Secr
 
 	query := `
 		SELECT
-			app_package_name, allowed_regions,
+			LOWER(app_package_name), allowed_regions,
 			allowed_health_authority_ids, bypass_health_authority_verification
 		FROM
 			AuthorizedApp
-		WHERE app_package_name = $1`
+		WHERE LOWER(app_package_name) = LOWER($1)`
 
 	row := conn.QueryRow(ctx, query, name)
 

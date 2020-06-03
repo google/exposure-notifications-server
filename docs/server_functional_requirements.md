@@ -81,7 +81,7 @@ Minimum required fields, followed by a JSON example:
   * Type: Array of string
   * Description: 2 letter country to identify the region(s) a key is valid for.
 * `appPackageName` (**REQUIRED**)
-  * Type: string
+  * Type: string (lowercase)
   * Description: Name of the application being used to send the request. This
     is used to determine what app is uploading keys and if it is an allowed
     region for that app.
