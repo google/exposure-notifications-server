@@ -48,7 +48,10 @@ func (f *formData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
 	a.AppPackageName = f.AppPackageName
 	a.AllowedRegions = make(map[string]struct{})
 	for _, region := range strings.Split(f.AllowedRegions, "\n") {
-		a.AllowedRegions[strings.TrimSpace(region)] = struct{}{}
+		region = strings.TrimSpace(region)
+		if region != "" {
+			a.AllowedRegions[strings.TrimSpace(region)] = struct{}{}
+		}
 	}
 	a.AllowedHealthAuthorityIDs = make(map[int64]struct{})
 	for _, haID := range f.HealthAuthorityIDs {
