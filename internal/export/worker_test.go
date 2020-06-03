@@ -20,23 +20,24 @@ import (
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
 func TestRandomInt(t *testing.T) {
 	expected := make(map[int]bool)
-	for i := model.MinTransmissionRisk; i <= model.MaxTransmissionRisk; i++ {
+	for i := verifyapi.MinTransmissionRisk; i <= verifyapi.MaxTransmissionRisk; i++ {
 		expected[i] = true
 	}
 
 	// Run through 1,000 iterations. To ensure the entire range can be hit.
 	for i := 0; i < 1000; i++ {
-		v, err := randomInt(model.MinTransmissionRisk, model.MaxTransmissionRisk)
+		v, err := randomInt(verifyapi.MinTransmissionRisk, verifyapi.MaxTransmissionRisk)
 		if err != nil {
 			t.Fatalf("error getting random data")
 		}
-		if v < model.MinTransmissionRisk || v > model.MaxTransmissionRisk {
+		if v < verifyapi.MinTransmissionRisk || v > verifyapi.MaxTransmissionRisk {
 			t.Fatalf("random data outside expected bounds. %v <= %v <= %v",
-				model.MinTransmissionRisk, v, model.MaxTransmissionRisk)
+				verifyapi.MinTransmissionRisk, v, verifyapi.MaxTransmissionRisk)
 		}
 		delete(expected, v)
 	}
@@ -57,7 +58,7 @@ func TestDoNotPadZeroLength(t *testing.T) {
 }
 
 func addExposure(t *testing.T, exposures []*model.Exposure, interval, count int32, risk int) []*model.Exposure {
-	key := make([]byte, model.KeyLength)
+	key := make([]byte, verifyapi.KeyLength)
 	_, err := rand.Read(key)
 	if err != nil {
 		t.Fatalf("error getting random data: %v", err)
@@ -73,7 +74,7 @@ func addExposure(t *testing.T, exposures []*model.Exposure, interval, count int3
 
 func TestEnsureMinExposures(t *testing.T) {
 	expectedTR := make(map[int]bool)
-	for i := model.MinTransmissionRisk; i <= model.MaxTransmissionRisk; i++ {
+	for i := verifyapi.MinTransmissionRisk; i <= verifyapi.MaxTransmissionRisk; i++ {
 		expectedTR[i] = true
 	}
 	// Insert a few exposures - that will be used to base the interval information off of.

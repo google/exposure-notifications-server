@@ -32,6 +32,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifydb "github.com/google/exposure-notifications-server/internal/verification/database"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
@@ -87,7 +88,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	logger := logging.FromContext(ctx)
 	metrics := h.serverenv.MetricsExporter(ctx)
 
-	var data model.Publish
+	var data verifyapi.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
@@ -155,7 +156,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 
 	// Apply overrides
 	if len(overrides) > 0 {
-		data.ApplyTransmissionRiskOverrides(overrides)
+		model.ApplyTransmissionRiskOverrides(&data, overrides)
 	}
 
 	batchTime := time.Now()

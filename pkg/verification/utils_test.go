@@ -18,13 +18,13 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/google/exposure-notifications-server/internal/publish/model"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
 func TestCalculateHac(t *testing.T) {
 	secret := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 
-	eKeys := []model.ExposureKey{
+	eKeys := []verifyapi.ExposureKey{
 		{
 			Key:              "z2Cx9hdz2SlxZ8GEgqTYpA==",
 			IntervalNumber:   1,

@@ -29,7 +29,7 @@ import (
 )
 
 func TestInvalidNew(t *testing.T) {
-	errMsg := fmt.Sprintf("maxExposureKeys must be > 0 and <= %v", maxKeysPerPublish)
+	errMsg := fmt.Sprintf("maxExposureKeys must be > 0 and <= %v", verifyapi.MaxKeysPerPublish)
 	cases := []struct {
 		maxKeys int
 		message string
@@ -37,9 +37,9 @@ func TestInvalidNew(t *testing.T) {
 		{0, errMsg},
 		{1, ""},
 		{5, ""},
-		{maxKeysPerPublish - 1, ""},
-		{maxKeysPerPublish, ""},
-		{maxKeysPerPublish + 1, errMsg},
+		{verifyapi.MaxKeysPerPublish - 1, ""},
+		{verifyapi.MaxKeysPerPublish, ""},
+		{verifyapi.MaxKeysPerPublish + 1, errMsg},
 	}
 
 	for i, c := range cases {
@@ -57,8 +57,8 @@ func TestInvalidBase64(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating transformer: %v", err)
 	}
-	source := &Publish{
-		Keys: []ExposureKey{
+	source := &verifyapi.Publish{
+		Keys: []verifyapi.ExposureKey{
 			{
 				Key: base64.StdEncoding.EncodeToString([]byte("ABC")) + `2`,
 			},
@@ -112,21 +112,21 @@ func TestPublishValidation(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		p       *Publish
+		p       *verifyapi.Publish
 		m       string
 		sameDay bool
 	}{
 		{
 			name: "no keys",
-			p: &Publish{
-				Keys: []ExposureKey{},
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{},
 			},
 			m: "no exposure keys in publish request",
 		},
 		{
 			name: "too many exposure keys",
-			p: &Publish{
-				Keys: []ExposureKey{
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{Key: "foo"},
 					{Key: "bar"},
 					{Key: "baz"},
@@ -136,73 +136,73 @@ func TestPublishValidation(t *testing.T) {
 		},
 		{
 			name: "transmission risk too low",
-			p: &Publish{
-				Keys: []ExposureKey{
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:              encodeKey(generateKey(t)),
 						IntervalNumber:   currentInterval - 2,
 						IntervalCount:    1,
-						TransmissionRisk: MinTransmissionRisk - 1,
+						TransmissionRisk: verifyapi.MinTransmissionRisk - 1,
 					},
 				},
 			},
-			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", MinTransmissionRisk-1, MinTransmissionRisk, MaxTransmissionRisk),
+			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", verifyapi.MinTransmissionRisk-1, verifyapi.MinTransmissionRisk, verifyapi.MaxTransmissionRisk),
 		},
 		{
 			name: "tranismission risk too high",
-			p: &Publish{
-				Keys: []ExposureKey{
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:              encodeKey(generateKey(t)),
 						IntervalNumber:   currentInterval - 2,
 						IntervalCount:    1,
-						TransmissionRisk: MaxTransmissionRisk + 1,
+						TransmissionRisk: verifyapi.MaxTransmissionRisk + 1,
 					},
 				},
 			},
-			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", MaxTransmissionRisk+1, MinTransmissionRisk, MaxTransmissionRisk),
+			m: fmt.Sprintf("invalid transmission risk: %v, must be >= %v && <= %v", verifyapi.MaxTransmissionRisk+1, verifyapi.MinTransmissionRisk, verifyapi.MaxTransmissionRisk),
 		},
 		{
 			name: "key length too short",
-			p: &Publish{
-				Keys: []ExposureKey{
-					{Key: encodeKey(generateKey(t)[0 : KeyLength-2])},
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{Key: encodeKey(generateKey(t)[0 : verifyapi.KeyLength-2])},
 				},
 			},
-			m: fmt.Sprintf("invalid key length, %v, must be %v", KeyLength-2, KeyLength),
+			m: fmt.Sprintf("invalid key length, %v, must be %v", verifyapi.KeyLength-2, verifyapi.KeyLength),
 		},
 		{
 			name: "interval count too small",
-			p: &Publish{
-				Keys: []ExposureKey{
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:           encodeKey(generateKey(t)),
-						IntervalCount: MinIntervalCount - 1,
+						IntervalCount: verifyapi.MinIntervalCount - 1,
 					},
 				},
 			},
-			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", MinIntervalCount-1, MinIntervalCount, MaxIntervalCount),
+			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", verifyapi.MinIntervalCount-1, verifyapi.MinIntervalCount, verifyapi.MaxIntervalCount),
 		},
 		{
 			name: "interval count too high",
-			p: &Publish{
-				Keys: []ExposureKey{
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:           encodeKey(generateKey(t)),
-						IntervalCount: MaxIntervalCount + 1,
+						IntervalCount: verifyapi.MaxIntervalCount + 1,
 					},
 				},
 			},
-			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", MaxIntervalCount+1, MinIntervalCount, MaxIntervalCount),
+			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", verifyapi.MaxIntervalCount+1, verifyapi.MinIntervalCount, verifyapi.MaxIntervalCount),
 		},
 		{
 			name: "interval number too low",
-			p: &Publish{
-				Keys: []ExposureKey{
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:            encodeKey(generateKey(t)),
 						IntervalNumber: minInterval - 1,
-						IntervalCount:  MaxIntervalCount,
+						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 				},
 			},
@@ -210,8 +210,8 @@ func TestPublishValidation(t *testing.T) {
 		},
 		{
 			name: "interval number too high",
-			p: &Publish{
-				Keys: []ExposureKey{
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:            encodeKey(generateKey(t)),
 						IntervalNumber: currentInterval + 1,
@@ -223,8 +223,8 @@ func TestPublishValidation(t *testing.T) {
 		},
 		{
 			name: "interval end too high",
-			p: &Publish{
-				Keys: []ExposureKey{
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:            encodeKey(generateKey(t)),
 						IntervalNumber: currentInterval - 143,
@@ -236,8 +236,8 @@ func TestPublishValidation(t *testing.T) {
 		},
 		{
 			name: "DEBUG: allow end of current UTC day still valid",
-			p: &Publish{
-				Keys: []ExposureKey{
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:            encodeKey(generateKey(t)),
 						IntervalNumber: IntervalNumber(captureStartTime.UTC().Truncate(24 * time.Hour)),
@@ -296,29 +296,29 @@ func TestTransform(t *testing.T) {
 	captureStartTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
 	intervalNumber := IntervalNumber(captureStartTime)
 
-	source := &Publish{
-		Keys: []ExposureKey{
+	source := &verifyapi.Publish{
+		Keys: []verifyapi.ExposureKey{
 			{
 				Key:              encodeKey(generateKey(t)),
 				IntervalNumber:   intervalNumber,
-				IntervalCount:    MaxIntervalCount,
+				IntervalCount:    verifyapi.MaxIntervalCount,
 				TransmissionRisk: 1,
 			},
 			{
 				Key:              encodeKey(generateKey(t)),
-				IntervalNumber:   intervalNumber + MaxIntervalCount,
-				IntervalCount:    MaxIntervalCount,
+				IntervalNumber:   intervalNumber + verifyapi.MaxIntervalCount,
+				IntervalCount:    verifyapi.MaxIntervalCount,
 				TransmissionRisk: 2,
 			},
 			{
 				Key:              encodeKey(generateKey(t)),
-				IntervalNumber:   intervalNumber + 2*MaxIntervalCount,
-				IntervalCount:    MaxIntervalCount, // Invalid, should get rounded down
+				IntervalNumber:   intervalNumber + 2*verifyapi.MaxIntervalCount,
+				IntervalCount:    verifyapi.MaxIntervalCount, // Invalid, should get rounded down
 				TransmissionRisk: 3,
 			},
 			{
 				Key:              encodeKey(generateKey(t)),
-				IntervalNumber:   intervalNumber + 3*MaxIntervalCount,
+				IntervalNumber:   intervalNumber + 3*verifyapi.MaxIntervalCount,
 				IntervalCount:    42,
 				TransmissionRisk: 4,
 			},
@@ -332,24 +332,24 @@ func TestTransform(t *testing.T) {
 		{
 			ExposureKey:      decodeKey(source.Keys[0].Key, t),
 			IntervalNumber:   intervalNumber,
-			IntervalCount:    MaxIntervalCount,
+			IntervalCount:    verifyapi.MaxIntervalCount,
 			TransmissionRisk: 1,
 		},
 		{
 			ExposureKey:      decodeKey(source.Keys[1].Key, t),
-			IntervalNumber:   intervalNumber + MaxIntervalCount,
-			IntervalCount:    MaxIntervalCount,
+			IntervalNumber:   intervalNumber + verifyapi.MaxIntervalCount,
+			IntervalCount:    verifyapi.MaxIntervalCount,
 			TransmissionRisk: 2,
 		},
 		{
 			ExposureKey:      decodeKey(source.Keys[2].Key, t),
-			IntervalNumber:   intervalNumber + 2*MaxIntervalCount,
-			IntervalCount:    MaxIntervalCount,
+			IntervalNumber:   intervalNumber + 2*verifyapi.MaxIntervalCount,
+			IntervalCount:    verifyapi.MaxIntervalCount,
 			TransmissionRisk: 3,
 		},
 		{
 			ExposureKey:      decodeKey(source.Keys[3].Key, t),
-			IntervalNumber:   intervalNumber + 3*MaxIntervalCount,
+			IntervalNumber:   intervalNumber + 3*verifyapi.MaxIntervalCount,
 			IntervalCount:    42,
 			TransmissionRisk: 4,
 		},
@@ -392,21 +392,21 @@ func TestTransformOverlapping(t *testing.T) {
 
 	cases := []struct {
 		name   string
-		source Publish
+		source verifyapi.Publish
 	}{
 		{
 			name: "overlap",
-			source: Publish{
-				Keys: []ExposureKey{
+			source: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:            encodeKey(generateKey(t)),
 						IntervalNumber: intervalNumber,
-						IntervalCount:  MaxIntervalCount,
+						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 					{
 						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: intervalNumber + MaxIntervalCount - 2,
-						IntervalCount:  MaxIntervalCount,
+						IntervalNumber: intervalNumber + verifyapi.MaxIntervalCount - 2,
+						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 				},
 				Regions:        []string{"us", "cA", "Mx"}, // will be upcased
@@ -415,17 +415,17 @@ func TestTransformOverlapping(t *testing.T) {
 		},
 		{
 			name: "overlap 2",
-			source: Publish{
-				Keys: []ExposureKey{
+			source: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:            encodeKey(generateKey(t)),
 						IntervalNumber: intervalNumber,
-						IntervalCount:  MaxIntervalCount,
+						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 					{
 						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: intervalNumber - MaxIntervalCount + 1,
-						IntervalCount:  MaxIntervalCount,
+						IntervalNumber: intervalNumber - verifyapi.MaxIntervalCount + 1,
+						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 				},
 				Regions:        []string{"us", "cA", "Mx"}, // will be upcased
@@ -456,14 +456,14 @@ func TestTransformOverlapping(t *testing.T) {
 func TestApplyOverrides(t *testing.T) {
 	cases := []struct {
 		Name      string
-		Publish   Publish
+		Publish   verifyapi.Publish
 		Overrides verifyapi.TransmissionRiskVector
-		Want      []ExposureKey
+		Want      []verifyapi.ExposureKey
 	}{
 		{
 			Name: "no overrides",
-			Publish: Publish{
-				Keys: []ExposureKey{
+			Publish: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:              "A",
 						IntervalNumber:   1,
@@ -473,7 +473,7 @@ func TestApplyOverrides(t *testing.T) {
 				},
 			},
 			Overrides: make([]verifyapi.TransmissionRiskOverride, 0),
-			Want: []ExposureKey{
+			Want: []verifyapi.ExposureKey{
 				{
 					Key:              "A",
 					IntervalNumber:   1,
@@ -484,8 +484,8 @@ func TestApplyOverrides(t *testing.T) {
 		},
 		{
 			Name: "aligned interval transmission risks",
-			Publish: Publish{
-				Keys: []ExposureKey{
+			Publish: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:              "A",
 						IntervalNumber:   1,
@@ -520,7 +520,7 @@ func TestApplyOverrides(t *testing.T) {
 					TranismissionRisk:  0,
 				},
 			},
-			Want: []ExposureKey{
+			Want: []verifyapi.ExposureKey{
 				{
 					Key:              "A",
 					IntervalNumber:   1,
@@ -543,8 +543,8 @@ func TestApplyOverrides(t *testing.T) {
 		},
 		{
 			Name: "unaligned, with 0 fallback.",
-			Publish: Publish{
-				Keys: []ExposureKey{
+			Publish: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:              "A",
 						IntervalNumber:   1,
@@ -575,7 +575,7 @@ func TestApplyOverrides(t *testing.T) {
 					TranismissionRisk:  2, // 2 since beginning of time.
 				},
 			},
-			Want: []ExposureKey{
+			Want: []verifyapi.ExposureKey{
 				{
 					Key:              "A",
 					IntervalNumber:   1,
@@ -598,8 +598,8 @@ func TestApplyOverrides(t *testing.T) {
 		},
 		{
 			Name: "overrides run out",
-			Publish: Publish{
-				Keys: []ExposureKey{
+			Publish: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:              "A",
 						IntervalNumber:   1,
@@ -614,7 +614,7 @@ func TestApplyOverrides(t *testing.T) {
 					TranismissionRisk:  5, // anything effective at time >= 4 gets TR 5.
 				},
 			},
-			Want: []ExposureKey{
+			Want: []verifyapi.ExposureKey{
 				{
 					Key:              "A",
 					IntervalNumber:   1,
@@ -627,9 +627,9 @@ func TestApplyOverrides(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			tc.Publish.ApplyTransmissionRiskOverrides(tc.Overrides)
-			sorter := cmp.Transformer("Sort", func(in []ExposureKey) []ExposureKey {
-				out := append([]ExposureKey(nil), in...) // Copy input to avoid mutating it
+			ApplyTransmissionRiskOverrides(&tc.Publish, tc.Overrides)
+			sorter := cmp.Transformer("Sort", func(in []verifyapi.ExposureKey) []verifyapi.ExposureKey {
+				out := append([]verifyapi.ExposureKey(nil), in...) // Copy input to avoid mutating it
 				sort.Slice(out, func(i int, j int) bool {
 					return strings.Compare(out[i].Key, out[j].Key) <= 0
 				})

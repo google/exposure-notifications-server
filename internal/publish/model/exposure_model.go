@@ -25,63 +25,11 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
-const (
-	// 21 Days worth of keys is the maximum per publish request (inclusive)
-	maxKeysPerPublish = 21
-
-	// only valid exposure key keyLength
-	KeyLength = 16
-
-	// Transmission risk constraints (inclusive..inclusive)
-	MinTransmissionRisk = 0 // 0 indicates, no/unknown risk.
-	MaxTransmissionRisk = 8
-
-	// Intervals are defined as 10 minute periods, there are 144 of them in a day.
-	// IntervalCount constraints (inclusive..inclusive)
-	MinIntervalCount = 1
-	MaxIntervalCount = 144
-
-	// Self explanatory.
-	// oneDay = time.Hour * 24
-
-	// interval length
-	intervalLength = 10 * time.Minute
-)
-
-// Publish represents the body of the PublishInfectedIds API call.
-// Keys: Required and must have length >= 1 and <= 21 (`maxKeysPerPublish`)
-// Regions: Array of regions. System defined, must match configuration.
-// AppPackageName: The identifier for the mobile application.
-//  - Android: The App Package AppPackageName
-//  - iOS: The BundleID
-// TransmissionRisk: An integer from 0-8 (inclusive) that represents
-//  the transmission risk for this publish.
-// Verification: The attestation payload for this request. (iOS or Android specific)
-//   Base64 encoded.
-// VerificationAuthorityName: a string that should be verified against the code provider.
-//  Note: This project doesn't directly include a diagnosis code verification System
-//        but does provide the ability to configure one in `serverevn.ServerEnv`
-//
-// The following fields are deprecated, but accepted for backwards-compatibility:
-// DeviceVerificationPayload: (attestation)
-// Platform: "ios" or "android"
-type Publish struct {
-	Keys                []ExposureKey `json:"temporaryExposureKeys"`
-	Regions             []string      `json:"regions"`
-	AppPackageName      string        `json:"appPackageName"`
-	VerificationPayload string        `json:"verificationPayload"`
-	HMACKey             string        `json:"hmackey"`
-	Padding             string        `json:"padding"`
-
-	Platform                  string `json:"platform"`                  // DEPRECATED
-	DeviceVerificationPayload string `json:"deviceVerificationPayload"` // DEPRECATED
-}
-
 // ApplyTransmissionRiskOverrides modifies the transmission risk values in the publish request
 // based on the provided TransmissionRiskVector.
 // In the live system, the TransmissionRiskVector values come from a trusted public health authority
 // and are embedded in the verification certificate (JWT) transmitted on the publish request.
-func (p *Publish) ApplyTransmissionRiskOverrides(overrides verifyapi.TransmissionRiskVector) {
+func ApplyTransmissionRiskOverrides(p *verifyapi.Publish, overrides verifyapi.TransmissionRiskVector) {
 	if len(overrides) == 0 {
 		return
 	}
@@ -115,33 +63,6 @@ func (p *Publish) ApplyTransmissionRiskOverrides(overrides verifyapi.Transmissio
 	}
 }
 
-// ExposureKey is the 16 byte key, the start time of the key and the
-// duration of the key. A duration of 0 means 24 hours.
-// - ALL fields are REQUIRED and must meet the constraints below.
-// Key must be the base64 (RFC 4648) encoded 16 byte exposure key from the device.
-// - Base64 encoding should include padding, as per RFC 4648
-// - if the key is not exactly 16 bytes in length, the request will be failed
-// - that is, the whole batch will fail.
-// IntervalNumber must be "reasonable" as in the system won't accept keys that
-//   are scheduled to start in the future or that are too far in the past, which
-//   is configurable per installation.
-// IntervalCount must >= `minIntervalCount` and <= `maxIntervalCount`
-//   1 - 144 inclusive.
-// transmissionRisk must be >= 0 and <= 8.
-type ExposureKey struct {
-	Key              string `json:"key"`
-	IntervalNumber   int32  `json:"rollingStartNumber"`
-	IntervalCount    int32  `json:"rollingPeriod"`
-	TransmissionRisk int    `json:"transmissionRisk"`
-}
-
-// ExposureKeys represents a set of ExposureKey objects as input to
-// export file generation utility.
-// Keys: Required and must have length >= 1.
-type ExposureKeys struct {
-	Keys []ExposureKey `json:"temporaryExposureKeys"`
-}
-
 // Exposure represents the record as stored in the database
 // TODO(mikehelmick) - refactor this so that there is a public
 // Exposure struct that doesn't have public fields and an
@@ -163,7 +84,7 @@ type Exposure struct {
 // IntervalNumber calculates the exposure notification system interval
 // number based on the input time.
 func IntervalNumber(t time.Time) int32 {
-	return int32(t.UTC().Unix()) / int32(intervalLength.Seconds())
+	return int32(t.UTC().Unix()) / int32(verifyapi.IntervalLength.Seconds())
 }
 
 // TruncateWindow truncates a time based on the size of the creation window.
@@ -183,8 +104,8 @@ type Transformer struct {
 // records for insertion into the database. On the call to TransformPublish
 // all data is validated according to the transformer that is used.
 func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration, allowRestOfDay bool) (*Transformer, error) {
-	if maxExposureKeys < 0 || maxExposureKeys > maxKeysPerPublish {
-		return nil, fmt.Errorf("maxExposureKeys must be > 0 and <= %v, got %v", maxKeysPerPublish, maxExposureKeys)
+	if maxExposureKeys < 0 || maxExposureKeys > verifyapi.MaxKeysPerPublish {
+		return nil, fmt.Errorf("maxExposureKeys must be > 0 and <= %v, got %v", verifyapi.MaxKeysPerPublish, maxExposureKeys)
 	}
 	return &Transformer{
 		maxExposureKeys:     maxExposureKeys,
@@ -201,18 +122,18 @@ func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, trun
 // * minInterval <= interval number <= maxInterval
 // * MinIntervalCount <= interval count <= MaxIntervalCount
 //
-func TransformExposureKey(exposureKey ExposureKey, appPackageName string, upcaseRegions []string, createdAt time.Time, minIntervalNumber, maxIntervalNumber int32) (*Exposure, error) {
+func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName string, upcaseRegions []string, createdAt time.Time, minIntervalNumber, maxIntervalNumber int32) (*Exposure, error) {
 	binKey, err := base64util.DecodeString(exposureKey.Key)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate individual pieces of the exposure key
-	if len(binKey) != KeyLength {
-		return nil, fmt.Errorf("invalid key length, %v, must be %v", len(binKey), KeyLength)
+	if len(binKey) != verifyapi.KeyLength {
+		return nil, fmt.Errorf("invalid key length, %v, must be %v", len(binKey), verifyapi.KeyLength)
 	}
-	if ic := exposureKey.IntervalCount; ic < MinIntervalCount || ic > MaxIntervalCount {
-		return nil, fmt.Errorf("invalid interval count, %v, must be >= %v && <= %v", ic, MinIntervalCount, MaxIntervalCount)
+	if ic := exposureKey.IntervalCount; ic < verifyapi.MinIntervalCount || ic > verifyapi.MaxIntervalCount {
+		return nil, fmt.Errorf("invalid interval count, %v, must be >= %v && <= %v", ic, verifyapi.MinIntervalCount, verifyapi.MaxIntervalCount)
 	}
 
 	// Validate the IntervalNumber.
@@ -229,8 +150,8 @@ func TransformExposureKey(exposureKey ExposureKey, appPackageName string, upcase
 			exposureKey.IntervalNumber, exposureKey.IntervalCount, maxIntervalNumber)
 	}
 
-	if tr := exposureKey.TransmissionRisk; tr < MinTransmissionRisk || tr > MaxTransmissionRisk {
-		return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, MinTransmissionRisk, MaxTransmissionRisk)
+	if tr := exposureKey.TransmissionRisk; tr < verifyapi.MinTransmissionRisk || tr > verifyapi.MaxTransmissionRisk {
+		return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, verifyapi.MinTransmissionRisk, verifyapi.MaxTransmissionRisk)
 	}
 
 	return &Exposure{
@@ -251,7 +172,7 @@ func TransformExposureKey(exposureKey ExposureKey, appPackageName string, upcase
 // * 0 exposure Keys in the requests
 // * > Transformer.maxExposureKeys in the request
 //
-func (t *Transformer) TransformPublish(inData *Publish, batchTime time.Time) ([]*Exposure, error) {
+func (t *Transformer) TransformPublish(inData *verifyapi.Publish, batchTime time.Time) ([]*Exposure, error) {
 	// Validate the number of keys that want to be published.
 	if len(inData.Keys) == 0 {
 		return nil, fmt.Errorf("no exposure keys in publish request")

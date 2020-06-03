@@ -33,7 +33,6 @@ import (
 
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	coredb "github.com/google/exposure-notifications-server/internal/database"
-	pubmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 
@@ -132,8 +131,8 @@ func TestVerifyCertificate(t *testing.T) {
 			authApp.AllowedHealthAuthorityIDs[healthAuthority.ID] = struct{}{}
 
 			// Build a sample certificate.
-			publish := pubmodel.Publish{
-				Keys: []pubmodel.ExposureKey{
+			publish := verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
 					{
 						Key:              "IRgYIhYiy4WMl9z68bMk6w==",
 						IntervalNumber:   2650032,

@@ -36,6 +36,7 @@ import (
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 
 	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc"
@@ -263,7 +264,7 @@ func pull(ctx context.Context, metrics metrics.Exporter, deps pullDependencies, 
 
 			for _, cti := range ctr.ContactTracingInfo {
 				for _, key := range cti.ExposureKeys {
-					if cti.TransmissionRisk < publishmodel.MinTransmissionRisk || cti.TransmissionRisk > publishmodel.MaxTransmissionRisk {
+					if cti.TransmissionRisk < verifyapi.MinTransmissionRisk || cti.TransmissionRisk > verifyapi.MaxTransmissionRisk {
 						logger.Errorf("invalid transmission risk %v - dropping record.", cti.TransmissionRisk)
 						continue
 					}
