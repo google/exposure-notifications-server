@@ -124,13 +124,13 @@ func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, trun
 	}, nil
 }
 
-type keyTransform struct {
-	minStartInterval      int32
-	maxStartInterval      int32
-	maxEndInteral         int32
-	createdAt             time.Time
-	releaseStillValidKeys bool
-	batchWindow           time.Duration
+type KeyTransform struct {
+	MinStartInterval      int32
+	MaxStartInterval      int32
+	MaxEndInteral         int32
+	CreatedAt             time.Time
+	ReleaseStillValidKeys bool
+	BatchWindow           time.Duration
 }
 
 // TransformExposureKey converts individual key data to an exposure entity.
@@ -140,7 +140,7 @@ type keyTransform struct {
 // * minInterval <= interval number <= maxInterval
 // * MinIntervalCount <= interval count <= MaxIntervalCount
 //
-func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName string, upcaseRegions []string, settings *keyTransform) (*Exposure, error) {
+func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName string, upcaseRegions []string, settings *KeyTransform) (*Exposure, error) {
 	binKey, err := base64util.DecodeString(exposureKey.Key)
 	if err != nil {
 		return nil, err
@@ -155,19 +155,19 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 	}
 
 	// Validate the IntervalNumber.
-	if exposureKey.IntervalNumber < settings.minStartInterval {
-		return nil, fmt.Errorf("interval number %v is too old, must be >= %v", exposureKey.IntervalNumber, settings.minStartInterval)
+	if exposureKey.IntervalNumber < settings.MinStartInterval {
+		return nil, fmt.Errorf("interval number %v is too old, must be >= %v", exposureKey.IntervalNumber, settings.MinStartInterval)
 	}
-	if exposureKey.IntervalNumber > settings.maxStartInterval {
-		return nil, fmt.Errorf("interval number %v is in the future, must be <= %v", exposureKey.IntervalNumber, settings.maxStartInterval)
+	if exposureKey.IntervalNumber > settings.MaxStartInterval {
+		return nil, fmt.Errorf("interval number %v is in the future, must be <= %v", exposureKey.IntervalNumber, settings.MaxStartInterval)
 	}
 
-	createdAt := settings.createdAt
+	createdAt := settings.CreatedAt
 	// If the key is valid beyond the current interval number. Adjust the createdAt time for the key.
-	if exposureKey.IntervalNumber+exposureKey.IntervalCount > settings.maxStartInterval {
+	if exposureKey.IntervalNumber+exposureKey.IntervalCount > settings.MaxStartInterval {
 		// key is still valid. The created At for this key needs to be adjusted unless debuggin is enabled.
-		if !settings.releaseStillValidKeys {
-			createdAt = TimeForIntervalNumber(exposureKey.IntervalNumber + exposureKey.IntervalCount).Truncate(settings.batchWindow)
+		if !settings.ReleaseStillValidKeys {
+			createdAt = TimeForIntervalNumber(exposureKey.IntervalNumber + exposureKey.IntervalCount).Truncate(settings.BatchWindow)
 		}
 	}
 
@@ -209,16 +209,16 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	defaultCreatedAt := TruncateWindow(batchTime, t.truncateWindow)
 	entities := make([]*Exposure, 0, len(inData.Keys))
 
-	settings := keyTransform{
+	settings := KeyTransform{
 		// An exposure key must have an interval >= minInterval (max configured age)
-		minStartInterval: IntervalNumber(batchTime.Add(-1 * t.maxIntervalStartAge)),
+		MinStartInterval: IntervalNumber(batchTime.Add(-1 * t.maxIntervalStartAge)),
 		// A key must have been issued on the device in the current interval or earlier.
-		maxStartInterval: IntervalNumber(batchTime),
+		MaxStartInterval: IntervalNumber(batchTime),
 		// And the max valid interval is the maxStartInterval + 144
-		maxEndInteral:         IntervalNumber(batchTime) + verifyapi.MaxIntervalCount,
-		createdAt:             defaultCreatedAt,
-		releaseStillValidKeys: t.debugRelesaeSameDay,
-		batchWindow:           t.truncateWindow,
+		MaxEndInteral:         IntervalNumber(batchTime) + verifyapi.MaxIntervalCount,
+		CreatedAt:             defaultCreatedAt,
+		ReleaseStillValidKeys: t.debugRelesaeSameDay,
+		BatchWindow:           t.truncateWindow,
 	}
 
 	// Regions are a multi-value property, uppercase them for storage.

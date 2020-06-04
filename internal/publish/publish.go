@@ -160,7 +160,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	}
 
 	batchTime := time.Now()
-	exposures, err := h.transformer.TransformPublish(&data, batchTime)
+	exposures, err := h.transformer.TransformPublish(ctx, &data, batchTime)
 	if err != nil {
 		message := fmt.Sprintf("unable to read request data: %v", err)
 		logger.Error(message)
