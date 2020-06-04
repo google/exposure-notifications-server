@@ -37,11 +37,11 @@ func main() {
 	logger := logging.FromContext(ctx)
 
 	var config federationout.Config
-	env, closer, err := setup.Setup(ctx, &config)
+	env, err := setup.Setup(ctx, &config)
 	if err != nil {
 		logger.Fatalf("setup.Setup: %v", err)
 	}
-	defer closer()
+	defer env.Close(ctx)
 
 	server := federationout.NewServer(env, &config)
 

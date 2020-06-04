@@ -33,11 +33,11 @@ func main() {
 	logger := logging.FromContext(ctx)
 
 	var config cleanup.Config
-	env, closer, err := setup.Setup(ctx, &config)
+	env, err := setup.Setup(ctx, &config)
 	if err != nil {
 		logger.Fatalf("setup.Setup: %v", err)
 	}
-	defer closer()
+	defer env.Close(ctx)
 
 	handler, err := cleanup.NewExposureHandler(&config, env)
 	if err != nil {

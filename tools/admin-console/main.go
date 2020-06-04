@@ -34,11 +34,11 @@ func main() {
 	ctx := context.Background()
 
 	var config admin.Config
-	env, closer, err := setup.Setup(ctx, &config)
+	env, err := setup.Setup(ctx, &config)
 	if err != nil {
 		log.Fatalf("setup.Setup: %v", err)
 	}
-	defer closer()
+	defer env.Close(ctx)
 
 	router := gin.Default()
 	router.LoadHTMLGlob(config.TemplatePath + "/*")

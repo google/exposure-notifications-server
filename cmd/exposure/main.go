@@ -34,11 +34,11 @@ func main() {
 	logger := logging.FromContext(ctx)
 
 	var config publish.Config
-	env, closer, err := setup.Setup(ctx, &config)
+	env, err := setup.Setup(ctx, &config)
 	if err != nil {
 		logger.Fatalf("setup.Setup: %v", err)
 	}
-	defer closer()
+	defer env.Close(ctx)
 
 	handler, err := publish.NewHandler(ctx, &config, env)
 	if err != nil {

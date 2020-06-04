@@ -61,8 +61,8 @@ type SecretManagerConfigProvider interface {
 	SecretManagerConfig() *secrets.Config
 }
 
-// Function returned from setup to be deferred until the caller exits.
-type Defer func()
+// Setup runs common initialization code for all servers. See SetupWith.
+func Setup(ctx context.Context, config interface{}) (*serverenv.ServerEnv, error) {
 
 // Setup runs common initialization code for all servers.
 func Setup(ctx context.Context, config DatabaseConfigProvider) (*serverenv.ServerEnv, Defer, error) {
