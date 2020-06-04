@@ -19,6 +19,9 @@ import (
 	"testing"
 )
 
+// This tests that the integration util can bring up the Monolith.
+// It should eventually be swapped out for a smoke test that ensures
+// the server is listening at all the relevant addresses.
 func TestIntegrationUtil(t *testing.T) {
 	t.Parallel()
 
