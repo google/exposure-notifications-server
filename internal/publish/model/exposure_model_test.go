@@ -15,6 +15,7 @@
 package model
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -27,6 +28,18 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 )
+
+func TestIntervalNumber(t *testing.T) {
+	// Since time to interval is lossy, truncate down to the beginnging of a window.
+	now := time.Now().Truncate(verifyapi.IntervalLength)
+
+	interval := IntervalNumber(now)
+	timeForInterval := TimeForIntervalNumber(interval)
+
+	if now.Unix() != timeForInterval.Unix() {
+		t.Errorf("interval mismatch, want: %v got %v", now.Unix(), timeForInterval.Unix())
+	}
+}
 
 func TestInvalidNew(t *testing.T) {
 	errMsg := fmt.Sprintf("maxExposureKeys must be > 0 and <= %v", verifyapi.MaxKeysPerPublish)
@@ -53,6 +66,7 @@ func TestInvalidNew(t *testing.T) {
 }
 
 func TestInvalidBase64(t *testing.T) {
+	ctx := context.Background()
 	transformer, err := NewTransformer(1, time.Hour*24, time.Hour, false)
 	if err != nil {
 		t.Fatalf("error creating transformer: %v", err)
@@ -69,7 +83,7 @@ func TestInvalidBase64(t *testing.T) {
 	}
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
 
-	_, err = transformer.TransformPublish(source, batchTime)
+	_, err = transformer.TransformPublish(ctx, source, batchTime)
 	expErr := `invalid publish data: illegal base64 data at input byte 4`
 	if err == nil || err.Error() != expErr {
 		t.Errorf("expected error '%v', got: %v", expErr, err)
@@ -219,20 +233,7 @@ func TestPublishValidation(t *testing.T) {
 					},
 				},
 			},
-			m: fmt.Sprintf("interval number %v is in the future, must be < %v", currentInterval+1, currentInterval),
-		},
-		{
-			name: "interval end too high",
-			p: &verifyapi.Publish{
-				Keys: []verifyapi.ExposureKey{
-					{
-						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: currentInterval - 143,
-						IntervalCount:  144,
-					},
-				},
-			},
-			m: fmt.Sprintf("interval number %v + interval count %v represents a key that is still valid, must end <= %v", currentInterval-143, 144, currentInterval),
+			m: fmt.Sprintf("interval number %v is in the future, must be <= %v", currentInterval+1, currentInterval),
 		},
 		{
 			name: "DEBUG: allow end of current UTC day still valid",
@@ -251,12 +252,13 @@ func TestPublishValidation(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
 			tf, err := NewTransformer(2, maxAge, time.Hour, c.sameDay)
 			if err != nil {
 				t.Fatalf("unepected error: %v", err)
 			}
 
-			_, err = tf.TransformPublish(c.p, captureStartTime)
+			_, err = tf.TransformPublish(ctx, c.p, captureStartTime)
 			if err == nil {
 				if c.m != "" {
 					t.Errorf("want error '%v', got nil", c.m)
@@ -290,6 +292,74 @@ func decodeKey(b64key string, t *testing.T) []byte {
 		t.Fatalf("unable to decode key: %v", err)
 	}
 	return k
+}
+
+func TestStillValidKey(t *testing.T) {
+	now := time.Now()
+	batchWindow := TruncateWindow(now, time.Minute)
+	intervalNumber := IntervalNumber(now) - 1
+
+	cases := []struct {
+		name               string
+		source             verifyapi.Publish
+		createdAt          time.Time
+		releaseSameDayKeys bool
+	}{
+		{
+			name: "release same day keys",
+			source: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   intervalNumber,
+						IntervalCount:    verifyapi.MaxIntervalCount,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			createdAt:          batchWindow,
+			releaseSameDayKeys: true,
+		},
+		{
+			name: "proper embargo",
+			source: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   intervalNumber,
+						IntervalCount:    verifyapi.MaxIntervalCount,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			createdAt:          TruncateWindow(TimeForIntervalNumber(intervalNumber+verifyapi.MaxIntervalCount), time.Minute),
+			releaseSameDayKeys: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			allowedAge := 2 * 24 * time.Hour
+			transformer, err := NewTransformer(10, allowedAge, time.Minute, tc.releaseSameDayKeys)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx := context.Background()
+			tf, err := transformer.TransformPublish(ctx, &tc.source, now)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(tf) != 1 {
+				t.Fatalf("wrong number of keys, want: 1 got :%v", len(tf))
+			}
+
+			if !tf[0].CreatedAt.Equal(tc.createdAt) {
+				t.Errorf("wrong createdAt time, want: %v got: %v", tc.createdAt, tf[0].CreatedAt)
+			}
+		})
+	}
 }
 
 func TestTransform(t *testing.T) {
@@ -374,7 +444,8 @@ func TestTransform(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewTransformer returned unexpected error: %v", err)
 	}
-	got, err := transformer.TransformPublish(source, batchTime)
+	ctx := context.Background()
+	got, err := transformer.TransformPublish(ctx, source, batchTime)
 	if err != nil {
 		t.Fatalf("TransformPublish returned unexpected error: %v", err)
 	}
@@ -436,13 +507,14 @@ func TestTransformOverlapping(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
 			batchTime := captureStartTime.Add(time.Hour * 24 * 7)
 			allowedAge := 14 * 24 * time.Hour
 			transformer, err := NewTransformer(10, allowedAge, time.Hour, false)
 			if err != nil {
 				t.Fatalf("NewTransformer returned unexpected error: %v", err)
 			}
-			_, err = transformer.TransformPublish(&c.source, batchTime)
+			_, err = transformer.TransformPublish(ctx, &c.source, batchTime)
 			if err == nil {
 				t.Fatalf("Expected error, got nil")
 			}
