@@ -16,180 +16,973 @@ package envconfig
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
-const (
-	testEnvVar = "VERY_FAKE_ENV_VAR"
-)
+var _ Decoder = (*CustomType)(nil)
 
-type myEnv struct {
-	Food string `envconfig:"VERY_FAKE_ENV_VAR"`
+// CustomType is used to test custom decode methods.
+type CustomType struct {
+	value string
 }
 
-func clearSecrets() {
-	for _, e := range os.Environ() {
-		parts := strings.SplitN(e, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		name := parts[0]
-		val := parts[1]
-		if strings.HasPrefix(val, SecretPrefix) {
-			os.Unsetenv(name)
-		}
-	}
+func (c *CustomType) EnvDecode(val string) error {
+	c.value = "CUSTOM-" + val
+	return nil
 }
 
-func TestResolveSecretNoSecretManager(t *testing.T) {
-	clearSecrets()
+var _ Decoder = (*CustomTypeError)(nil)
 
-	ctx := context.Background()
-	env := &myEnv{}
-	os.Setenv(testEnvVar, "secret://yo/secret/value")
-
-	expected := "no secret manager is configured"
-
-	err := Process(ctx, env, nil)
-	if err == nil {
-		t.Errorf("expected error, got nil")
-	} else if !strings.Contains(err.Error(), expected) {
-		t.Errorf("wrong error, want: `%v` got: %v", expected, err)
-	}
+// CustomTypeError returns an error on the custom decoder.
+type CustomTypeError struct {
+	Field string
 }
 
-type TestSecretManager struct {
-	values map[string]string
-	errors map[string]string
+func (c *CustomTypeError) EnvDecode(val string) error {
+	return fmt.Errorf("broken")
 }
 
-func NewTestSecretManager() *TestSecretManager {
-	return &TestSecretManager{
-		values: make(map[string]string),
-		errors: make(map[string]string),
-	}
+// Electron > Lepton > Quark
+type Electron struct {
+	Name   string `env:"ELECTRON_NAME"`
+	Lepton *Lepton
 }
 
-func (s *TestSecretManager) GetSecretValue(ctx context.Context, name string) (string, error) {
-	if v, ok := s.errors[name]; ok {
-		return "", fmt.Errorf(v)
-	}
-	if v, ok := s.values[name]; ok {
-		return v, nil
-	}
-	return "", fmt.Errorf("value not found")
+type Lepton struct {
+	Name  string `env:"LEPTON_NAME"`
+	Quark Quark
 }
 
-func TestResolveSecretEnv(t *testing.T) {
-	clearSecrets()
+type Quark struct {
+	Value int8 `env:"QUARK_VALUE"`
+}
+
+func TestProcessWith(t *testing.T) {
+	t.Parallel()
 
 	cases := []struct {
-		name        string
-		varValue    string
-		secretPath  string
-		secretValue string
-		secretError string
-		want        string
-		wantError   string
+		name     string
+		input    interface{}
+		exp      interface{}
+		lookuper Lookuper
+		err      error
+		errMsg   string
 	}{
+		// nil pointer
 		{
-			name:     "only set locally",
-			varValue: "BAR",
-			want:     "BAR",
+			name:     "nil",
+			input:    (*Electron)(nil),
+			lookuper: MapLookuper(map[string]string{}),
+			err:      ErrNotStruct,
+		},
+
+		// Bool
+		{
+			name: "bool/true",
+			input: &struct {
+				Field bool `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field bool `env:"FIELD"`
+			}{
+				Field: true,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "true",
+			}),
 		},
 		{
-			name:        "resolve from secret store",
-			varValue:    "secret://value/for/test/1",
-			secretPath:  "value/for/test/1",
-			secretValue: "BAZ",
-			want:        "BAZ",
+			name: "bool/false",
+			input: &struct {
+				Field bool `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field bool `env:"FIELD"`
+			}{
+				Field: false,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "false",
+			}),
 		},
 		{
-			name:        "secret manager error",
-			varValue:    "secret://value/for/test/2",
-			secretPath:  "value/for/test/2",
-			secretError: "secretive error",
-			wantError:   "secretive error",
+			name: "bool/error",
+			input: &struct {
+				Field bool `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid bool",
+			}),
+			errMsg: "invalid syntax",
+		},
+
+		// Float
+		{
+			name: "float32/6.022",
+			input: &struct {
+				Field float32 `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field float32 `env:"FIELD"`
+			}{
+				Field: 6.022,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "6.022",
+			}),
+		},
+		{
+			name: "float32/error",
+			input: &struct {
+				Field float32 `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid float",
+			}),
+			errMsg: "invalid syntax",
+		},
+		{
+			name: "float64/6.022",
+			input: &struct {
+				Field float64 `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field float64 `env:"FIELD"`
+			}{
+				Field: 6.022,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "6.022",
+			}),
+		},
+		{
+			name: "float32/error",
+			input: &struct {
+				Field float64 `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid float",
+			}),
+			errMsg: "invalid syntax",
+		},
+
+		// Int8-32
+		{
+			name: "int/8675309",
+			input: &struct {
+				Field int `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field int `env:"FIELD"`
+			}{
+				Field: 8675309,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "8675309",
+			}),
+		},
+		{
+			name: "int/error",
+			input: &struct {
+				Field int `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid int",
+			}),
+			errMsg: "invalid syntax",
+		},
+		{
+			name: "int8/12",
+			input: &struct {
+				Field int8 `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field int8 `env:"FIELD"`
+			}{
+				Field: 12,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "12",
+			}),
+		},
+		{
+			name: "int8/error",
+			input: &struct {
+				Field int8 `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid int",
+			}),
+			errMsg: "invalid syntax",
+		},
+		{
+			name: "int16/1245",
+			input: &struct {
+				Field int16 `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field int16 `env:"FIELD"`
+			}{
+				Field: 12345,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "12345",
+			}),
+		},
+		{
+			name: "int16/error",
+			input: &struct {
+				Field int16 `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid int",
+			}),
+			errMsg: "invalid syntax",
+		},
+		{
+			name: "int32/1245",
+			input: &struct {
+				Field int32 `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field int32 `env:"FIELD"`
+			}{
+				Field: 12345,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "12345",
+			}),
+		},
+		{
+			name: "int32/error",
+			input: &struct {
+				Field int32 `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid int",
+			}),
+			errMsg: "invalid syntax",
+		},
+
+		// Int64
+		{
+			name: "int64/1245",
+			input: &struct {
+				Field int64 `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field int64 `env:"FIELD"`
+			}{
+				Field: 12345,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "12345",
+			}),
+		},
+		{
+			name: "int64/error",
+			input: &struct {
+				Field int64 `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid int",
+			}),
+			errMsg: "invalid syntax",
+		},
+		{
+			name: "int64/duration",
+			input: &struct {
+				Field time.Duration `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field time.Duration `env:"FIELD"`
+			}{
+				Field: 10 * time.Second,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "10s",
+			}),
+		},
+		{
+			name: "int64/duration_pointer",
+			input: &struct {
+				Field *time.Duration `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field *time.Duration `env:"FIELD"`
+			}{
+				Field: func() *time.Duration { d := 10 * time.Second; return &d }(),
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "10s",
+			}),
+		},
+		{
+			name: "int64/duration_error",
+			input: &struct {
+				Field time.Duration `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid time",
+			}),
+			errMsg: "invalid duration",
+		},
+
+		// String
+		{
+			name: "string",
+			input: &struct {
+				Field string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field string `env:"FIELD"`
+			}{
+				Field: "foo",
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+		},
+
+		// Uint8-64
+		{
+			name: "uint/8675309",
+			input: &struct {
+				Field uint `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field uint `env:"FIELD"`
+			}{
+				Field: 8675309,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "8675309",
+			}),
+		},
+		{
+			name: "uint/error",
+			input: &struct {
+				Field uint `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid uint",
+			}),
+			errMsg: "invalid syntax",
+		},
+		{
+			name: "uint8/12",
+			input: &struct {
+				Field uint8 `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field uint8 `env:"FIELD"`
+			}{
+				Field: 12,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "12",
+			}),
+		},
+		{
+			name: "uint8/error",
+			input: &struct {
+				Field uint8 `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid uint",
+			}),
+			errMsg: "invalid syntax",
+		},
+		{
+			name: "uint16/1245",
+			input: &struct {
+				Field uint16 `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field uint16 `env:"FIELD"`
+			}{
+				Field: 12345,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "12345",
+			}),
+		},
+		{
+			name: "uint16/error",
+			input: &struct {
+				Field uint16 `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid uint",
+			}),
+			errMsg: "invalid syntax",
+		},
+		{
+			name: "uint32/1245",
+			input: &struct {
+				Field uint32 `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field uint32 `env:"FIELD"`
+			}{
+				Field: 12345,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "12345",
+			}),
+		},
+		{
+			name: "uint32/error",
+			input: &struct {
+				Field uint32 `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid int",
+			}),
+			errMsg: "invalid syntax",
+		},
+		{
+			name: "uint64/1245",
+			input: &struct {
+				Field uint64 `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field uint64 `env:"FIELD"`
+			}{
+				Field: 12345,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "12345",
+			}),
+		},
+		{
+			name: "uint64/error",
+			input: &struct {
+				Field uint64 `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid int",
+			}),
+			errMsg: "invalid syntax",
+		},
+		{
+			name: "uintptr/1245",
+			input: &struct {
+				Field uintptr `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field uintptr `env:"FIELD"`
+			}{
+				Field: 12345,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "12345",
+			}),
+		},
+		{
+			name: "uintptr/error",
+			input: &struct {
+				Field uintptr `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "not a valid int",
+			}),
+			errMsg: "invalid syntax",
+		},
+
+		// Map
+		{
+			name: "map/single",
+			input: &struct {
+				Field map[string]string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field map[string]string `env:"FIELD"`
+			}{
+				Field: map[string]string{"foo": "bar"},
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo:bar",
+			}),
+		},
+		{
+			name: "map/multi",
+			input: &struct {
+				Field map[string]string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field map[string]string `env:"FIELD"`
+			}{
+				Field: map[string]string{
+					"foo":  "bar",
+					"zip":  "zap",
+					"zing": "zang",
+				},
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo:bar,zip:zap,zing:zang",
+			}),
+		},
+		{
+			name: "map/empty",
+			input: &struct {
+				Field map[string]string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field map[string]string `env:"FIELD"`
+			}{
+				Field: nil,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "",
+			}),
+		},
+		{
+			name: "map/key_no_value",
+			input: &struct {
+				Field map[string]string `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+			errMsg: "invalid map item",
+		},
+		{
+			name: "map/key_error",
+			input: &struct {
+				Field map[bool]bool `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "nope:true",
+			}),
+			errMsg: "invalid syntax",
+		},
+		{
+			name: "map/value_error",
+			input: &struct {
+				Field map[bool]bool `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "true:nope",
+			}),
+			errMsg: "invalid syntax",
+		},
+
+		// Slices
+		{
+			name: "slice/single",
+			input: &struct {
+				Field []string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field []string `env:"FIELD"`
+			}{
+				Field: []string{"foo"},
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+		},
+		{
+			name: "slice/multi",
+			input: &struct {
+				Field []string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field []string `env:"FIELD"`
+			}{
+				Field: []string{"foo", "bar"},
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo,bar",
+			}),
+		},
+		{
+			name: "slice/empty",
+			input: &struct {
+				Field []string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field []string `env:"FIELD"`
+			}{
+				Field: nil,
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "",
+			}),
+		},
+		{
+			name: "slice/bytes",
+			input: &struct {
+				Field []byte `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field []byte `env:"FIELD"`
+			}{
+				Field: []byte("foo"),
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+		},
+
+		// Private fields
+		{
+			name: "private/noop",
+			input: &struct {
+				field string
+			}{},
+			exp: &struct {
+				field string
+			}{
+				field: "",
+			},
+			lookuper: MapLookuper(map[string]string{}),
+		},
+		{
+			name: "private/error",
+			input: &struct {
+				field string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				field string `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+			err: ErrPrivateField,
+		},
+
+		// Required
+		{
+			name: "required/present",
+			input: &struct {
+				Field string `env:"FIELD,required"`
+			}{},
+			exp: &struct {
+				Field string `env:"FIELD,required"`
+			}{
+				Field: "foo",
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+		},
+		{
+			name: "required/missing",
+			input: &struct {
+				Field string `env:"FIELD,required"`
+			}{},
+			lookuper: MapLookuper(map[string]string{}),
+			err:      ErrMissingRequired,
+		},
+		{
+			name: "required/default",
+			input: &struct {
+				Field string `env:"FIELD,required,default=foo"`
+			}{},
+			lookuper: MapLookuper(map[string]string{}),
+			err:      ErrRequiredAndDefault,
+		},
+
+		// Default
+		{
+			name: "default/missing",
+			input: &struct {
+				Field string `env:"FIELD,default=foo"`
+			}{},
+			exp: &struct {
+				Field string `env:"FIELD,default=foo"`
+			}{
+				Field: "foo", // uses default
+			},
+			lookuper: MapLookuper(map[string]string{}),
+		},
+		{
+			name: "default/empty",
+			input: &struct {
+				Field string `env:"FIELD,default=foo"`
+			}{},
+			exp: &struct {
+				Field string `env:"FIELD,default=foo"`
+			}{
+				Field: "", // doesn't use default
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "",
+			}),
+		},
+		{
+			name: "default/expand",
+			input: &struct {
+				Field string `env:"FIELD,default=$DEFAULT"`
+			}{},
+			exp: &struct {
+				Field string `env:"FIELD,default=$DEFAULT"`
+			}{
+				Field: "bar",
+			},
+			lookuper: MapLookuper(map[string]string{
+				"DEFAULT": "bar",
+			}),
+		},
+
+		// Custom decoder
+		{
+			name: "custom_decoder/struct",
+			input: &struct {
+				Field CustomType `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field CustomType `env:"FIELD"`
+			}{
+				Field: CustomType{
+					value: "CUSTOM-foo",
+				},
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+		},
+		{
+			name: "custom_decoder/pointer",
+			input: &struct {
+				Field *CustomType `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field *CustomType `env:"FIELD"`
+			}{
+				Field: &CustomType{
+					value: "CUSTOM-foo",
+				},
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+		},
+		{
+			name: "custom_decoder/private",
+			input: &struct {
+				field *CustomType `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{}),
+			err:      ErrPrivateField,
+		},
+		{
+			name: "custom_decoder/error",
+			input: &struct {
+				Field CustomTypeError `env:"FIELD"`
+			}{},
+			lookuper: MapLookuper(map[string]string{}),
+			errMsg:   "broken",
+		},
+
+		// Pointer pointers
+		{
+			name: "string_pointer",
+			input: &struct {
+				Field *string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field *string `env:"FIELD"`
+			}{
+				Field: func() *string { s := "foo"; return &s }(),
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+		},
+		{
+			name: "string_pointer_pointer",
+			input: &struct {
+				Field **string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field **string `env:"FIELD"`
+			}{
+				Field: func() **string { s := "foo"; ptr := &s; return &ptr }(),
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+		},
+		{
+			name: "map_pointer",
+			input: &struct {
+				Field *map[string]string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field *map[string]string `env:"FIELD"`
+			}{
+				Field: func() *map[string]string {
+					m := map[string]string{"foo": "bar"}
+					return &m
+				}(),
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo:bar",
+			}),
+		},
+		{
+			name: "slice_pointer",
+			input: &struct {
+				Field *[]string `env:"FIELD"`
+			}{},
+			exp: &struct {
+				Field *[]string `env:"FIELD"`
+			}{
+				Field: func() *[]string {
+					s := []string{"foo"}
+					return &s
+				}(),
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+		},
+
+		// Nesting
+		{
+			name:  "nested_pointer_structs",
+			input: &Electron{},
+			exp: &Electron{
+				Name: "shocking",
+				Lepton: &Lepton{
+					Name: "tea?",
+					Quark: Quark{
+						Value: 2,
+					},
+				},
+			},
+			lookuper: MapLookuper(map[string]string{
+				"ELECTRON_NAME": "shocking",
+				"LEPTON_NAME":   "tea?",
+				"QUARK_VALUE":   "2",
+			}),
+		},
+
+		// Overwriting
+		{
+			name: "no_overwrite/structs",
+			input: &Electron{
+				Name: "original",
+				Lepton: &Lepton{
+					Name: "original",
+					Quark: Quark{
+						Value: 1,
+					},
+				},
+			},
+			exp: &Electron{
+				Name: "original",
+				Lepton: &Lepton{
+					Name: "original",
+					Quark: Quark{
+						Value: 1,
+					},
+				},
+			},
+			lookuper: MapLookuper(map[string]string{
+				"ELECTRON_NAME": "shocking",
+				"LEPTON_NAME":   "tea?",
+				"QUARK_VALUE":   "2",
+			}),
+		},
+		{
+			name: "no_overwrite/pointers",
+			input: &struct {
+				Field *string `env:"FIELD"`
+			}{
+				Field: func() *string { s := "bar"; return &s }(),
+			},
+			exp: &struct {
+				Field *string `env:"FIELD"`
+			}{
+				Field: func() *string { s := "bar"; return &s }(),
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+		},
+		{
+			name: "no_overwrite/pointers_pointers",
+			input: &struct {
+				Field **string `env:"FIELD"`
+			}{
+				Field: func() **string {
+					s := "bar"
+					ptr := &s
+					return &ptr
+				}(),
+			},
+			exp: &struct {
+				Field **string `env:"FIELD"`
+			}{
+				Field: func() **string {
+					s := "bar"
+					ptr := &s
+					return &ptr
+				}(),
+			},
+			lookuper: MapLookuper(map[string]string{
+				"FIELD": "foo",
+			}),
+		},
+
+		// Unknown options
+		{
+			name: "unknown_options",
+			input: &struct {
+				Field string `env:"FIELD,cookies"`
+			}{},
+			lookuper: MapLookuper(map[string]string{}),
+			err:      ErrUnknownOption,
 		},
 	}
 
-	for _, c := range cases {
-		sm := NewTestSecretManager()
+	for _, tc := range cases {
+		tc := tc
 
-		if c.varValue == "" {
-			os.Unsetenv(testEnvVar)
-		} else {
-			os.Setenv(testEnvVar, c.varValue)
-		}
-		if c.secretValue != "" {
-			sm.values[c.secretPath] = c.secretValue
-		}
-		if c.secretError != "" {
-			sm.errors[c.secretPath] = c.secretError
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		ctx := context.Background()
+			ctx := context.Background()
+			if err := ProcessWith(ctx, tc.input, tc.lookuper); err != nil {
+				if tc.err == nil && tc.errMsg == "" {
+					t.Fatal(err)
+				}
 
-		env := &myEnv{}
-		err := Process(ctx, env, sm)
+				if tc.err != nil && !errors.Is(err, tc.err) {
+					t.Fatalf("expected \n%+v\n to be \n%+v\n", err, tc.err)
+				}
 
-		if c.wantError != "" && err == nil {
-			t.Errorf("%v process want error: '%v' got: nil", c.name, c.wantError)
-		} else if c.wantError != "" {
-			if !strings.Contains(err.Error(), c.wantError) {
-				t.Errorf("%v process want error containing: '%v', got: %w", c.name, c.wantError, err)
+				if got, want := err.Error(), tc.errMsg; want != "" && !strings.Contains(got, want) {
+					t.Fatalf("expected \n%+v\n to match \n%+v\n", got, want)
+				}
+
+				// There's an error, but it passed all our tests, so return now.
+				return
 			}
-		} else if c.want != env.Food {
-			t.Errorf("%v process want '%v' got '%v'", c.name, c.want, env.Food)
-		}
-	}
-}
 
-type myEnvToFile struct {
-	EnvToFile string `envconfig:"VERY_FAKE_ENV_VAR"`
-}
+			opts := cmp.AllowUnexported(
+				// Custom decoder type
+				CustomType{},
 
-func TestWriteSecretToFile(t *testing.T) {
-	testVal := "YOU GOT IT"
-	ctx := context.Background()
+				// Custom decoder type that returns an error
+				CustomTypeError{},
 
-	tempDir := filepath.Join(os.TempDir(), fmt.Sprintf("%d", time.Now().Unix()))
-	if err := os.Mkdir(tempDir, 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		os.RemoveAll(tempDir)
-	})
-
-	os.Setenv("SECRETS_DIR", tempDir)
-	os.Setenv("VERY_FAKE_ENV_VAR", "secret://path/to/secret?target=file")
-
-	sm := NewTestSecretManager()
-	sm.values["path/to/secret"] = testVal
-
-	env := &myEnvToFile{}
-	err := Process(ctx, env, sm)
-
-	if err != nil {
-		t.Fatalf("unable to process environment: %v", err)
-	}
-
-	if _, err := os.Stat(env.EnvToFile); err != nil {
-		t.Errorf("expected %q to exist: %v", env.EnvToFile, err)
-	}
-
-	b, err := ioutil.ReadFile(env.EnvToFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if want, got := testVal, string(b); want != got {
-		t.Errorf("expected %q to be %q", got, want)
+				// Anonymous struct with private fields
+				struct{ field string }{},
+			)
+			if diff := cmp.Diff(tc.exp, tc.input, opts); diff != "" {
+				t.Fatalf("mismatch (-want, +got):\n%s", diff)
+			}
+		})
 	}
 }
