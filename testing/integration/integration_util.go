@@ -25,16 +25,36 @@ import (
 	"github.com/google/exposure-notifications-server/internal/monolith"
 )
 
-func SetEnvAndRunServer(ctx context.Context) {
+func SetEnvAndRunServer(tb testing.TB, ctx context.Context, dbConfig *database.Config) {
+
 	// Set all of these to not need to connect to external resources.
 	os.Setenv("BLOBSTORE", "FILESYSTEM")
 	os.Setenv("KEY_MANAGER", "NOOP")
 	os.Setenv("SECRET_MANAGER", "NOOP")
 
-	monolith.RunServer(ctx)
+	// Update database environment variables.
+	os.Setenv("DB_NAME", dbConfig.Name)
+	os.Setenv("DB_USER", dbConfig.User)
+	os.Setenv("DB_HOST", dbConfig.Host)
+	os.Setenv("DB_PORT", dbConfig.Port)
+	os.Setenv("DB_SSLMODE", dbConfig.SSLMode)
+	os.Setenv("DB_CONNECT_TIMEOUT", strconv.Itoa(dbConfig.ConnectionTimeout))
+	os.Setenv("DB_PASSWORD", dbConfig.Password)
+	os.Setenv("DB_SSLCERT", dbConfig.SSLCertPath)
+	os.Setenv("DB_SSLKEY", dbConfig.SSLKeyPath)
+	os.Setenv("DB_SSLROOTCERT", dbConfig.SSLRootCertPath)
+	os.Setenv("DB_POOL_MIN_CONNS", dbConfig.PoolMinConnections)
+	os.Setenv("DB_POOL_MAX_CONNS", dbConfig.PoolMaxConnections)
+	os.Setenv("DB_POOL_MAX_CONN_LIFETIME", dbConfig.PoolMaxConnLife.String())
+	os.Setenv("DB_POOL_MAX_CONN_IDLE_TIME", dbConfig.PoolMaxConnIdle.String())
+	os.Setenv("DB_POOL_HEALTH_CHECK_PERIOD", dbConfig.PoolHealthCheck.String())
+
+	if _, err := monolith.RunServer(ctx); err != nil {
+		tb.Fatalf("Failed to start Monolith.  Error: %+v", err)
+	}
 }
 
-func StartSystemUnderTest(tb testing.TB, ctx context.Context) *monolith.MonoConfig {
+func StartSystemUnderTest(tb testing.TB, ctx context.Context) (*database.DB, *monolith.MonoConfig) {
 	tb.Helper()
 
 	if testing.Short() {
@@ -45,13 +65,12 @@ func StartSystemUnderTest(tb testing.TB, ctx context.Context) *monolith.MonoConf
 		tb.Skipf("🚧 Skipping integration tests (SKIP_INTEGRATION_TESTS is set)!")
 	}
 
-	database.NewTestDatabase(tb)
+	db, dbconfig := database.NewTestDatabaseWithConfig(tb)
 
-	go SetEnvAndRunServer(ctx)
+	go SetEnvAndRunServer(tb, ctx, dbconfig)
 
-	//TODO: Make a better test.
 	time.Sleep(10 * time.Second)
 
-	return nil
+	return db, nil
 
 }
