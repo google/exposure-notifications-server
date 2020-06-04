@@ -18,35 +18,64 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"net/http"
-
-	"go.opencensus.io/plugin/ochttp"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/generate"
+	"github.com/google/exposure-notifications-server/internal/interrupt"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	_ "github.com/google/exposure-notifications-server/internal/observability"
+	"github.com/google/exposure-notifications-server/internal/server"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, done := interrupt.Context()
+	defer done()
+
+	if err := realMain(ctx); err != nil {
+		logger := logging.FromContext(ctx)
+		logger.Fatal(err)
+	}
+}
+
+func realMain(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
 	var config generate.Config
 	env, err := setup.Setup(ctx, &config)
 	if err != nil {
-		logger.Fatalf("setup.Setup: %v", err)
+		return fmt.Errorf("setup.Setup: %w", err)
 	}
 	defer env.Close(ctx)
 
 	handler, err := generate.NewHandler(ctx, &config, env)
 	if err != nil {
-		logger.Fatalf("unable to create generate handler: %v", err)
+		return fmt.Errorf("generate.NewHandler: %w", err)
 	}
+
 	mux := http.NewServeMux()
 	mux.Handle("/", handler)
-	logger.Infof("starting generate server on :%s", config.Port)
-	instrumentedHandler := &ochttp.Handler{Handler: mux}
-	log.Fatal(http.ListenAndServe(":"+config.Port, instrumentedHandler))
+
+	server := server.New(config.Port, mux)
+	if err := server.Start(ctx); err != nil {
+		return fmt.Errorf("server.Start: %w", err)
+	}
+	logger.Infof("listening on :%s", config.Port)
+
+	// Wait for cancel or interrupt
+	<-ctx.Done()
+
+	// Shutdown
+	logger.Info("received shutdown")
+	shutdownCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
+	defer done()
+
+	if err := server.Stop(shutdownCtx); err != nil {
+		return fmt.Errorf("server.Stop: %w", err)
+	}
+
+	logger.Info("shutdown complete")
+	return nil
 }

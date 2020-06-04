@@ -19,8 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-
-	"go.opencensus.io/plugin/ochttp"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/export"
@@ -28,19 +27,20 @@ import (
 	"github.com/google/exposure-notifications-server/internal/handlers"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/publish"
+	"github.com/google/exposure-notifications-server/internal/server"
 	"github.com/google/exposure-notifications-server/internal/setup"
 
 	// Enable observability with distributed tracing and metrics.
 	_ "github.com/google/exposure-notifications-server/internal/observability"
 )
 
-func RunServer(ctx context.Context) (*Config, error) {
+func RunServer(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
 	var config Config
 	env, err := setup.Setup(ctx, &config)
 	if err != nil {
-		return nil, fmt.Errorf("setup.Setup: %w", err)
+		return fmt.Errorf("setup.Setup: %w", err)
 	}
 	defer env.Close(ctx)
 
@@ -49,21 +49,21 @@ func RunServer(ctx context.Context) (*Config, error) {
 	// Cleanup export
 	cleanupExport, err := cleanup.NewExportHandler(&config.Cleanup, env)
 	if err != nil {
-		return nil, fmt.Errorf("cleanup.NewExportHandler: %w", err)
+		return fmt.Errorf("cleanup.NewExportHandler: %w", err)
 	}
 	mux.Handle("/cleanup-export", cleanupExport)
 
 	// Cleanup exposure
 	cleanupExposure, err := cleanup.NewExposureHandler(&config.Cleanup, env)
 	if err != nil {
-		return nil, fmt.Errorf("cleanup.NewExposureHandler: %w", err)
+		return fmt.Errorf("cleanup.NewExposureHandler: %w", err)
 	}
 	mux.Handle("/cleanup-exposure", cleanupExposure)
 
 	// Export
 	exportServer, err := export.NewServer(&config.Export, env)
 	if err != nil {
-		return nil, fmt.Errorf("export.NewServer: %w", err)
+		return fmt.Errorf("export.NewServer: %w", err)
 	}
 	mux.HandleFunc("/export/create-batches", exportServer.CreateBatchesHandler)
 	mux.HandleFunc("/export/do-work", exportServer.WorkerHandler)
@@ -77,12 +77,28 @@ func RunServer(ctx context.Context) (*Config, error) {
 	// Publish
 	publishServer, err := publish.NewHandler(ctx, &config.Publish, env)
 	if err != nil {
-		return nil, fmt.Errorf("publish.NewHandler: %w", err)
+		return fmt.Errorf("publish.NewHandler: %w", err)
 	}
 	mux.HandleFunc("/publish", handlers.WithMinimumLatency(config.Publish.MinRequestDuration, publishServer))
 
-	instrumentedHandler := &ochttp.Handler{Handler: mux}
+	server := server.New(config.Port, mux)
+	if err := server.Start(ctx); err != nil {
+		return fmt.Errorf("server.Start: %w", err)
+	}
+	logger.Infof("listening on :%s", config.Port)
 
-	logger.Infof("monolith running at :%s", config.Port)
-	return &config, http.ListenAndServe(":"+config.Port, instrumentedHandler)
+	// Wait for cancel or interrupt
+	<-ctx.Done()
+
+	// Shutdown
+	logger.Info("received shutdown")
+	shutdownCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
+	defer done()
+
+	if err := server.Stop(shutdownCtx); err != nil {
+		return fmt.Errorf("server.Stop: %w", err)
+	}
+
+	logger.Info("shutdown complete")
+	return nil
 }

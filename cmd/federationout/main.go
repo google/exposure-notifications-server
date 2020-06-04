@@ -17,7 +17,8 @@ package main
 
 import (
 	"context"
-	"log"
+	"errors"
+	"fmt"
 	"net"
 
 	"google.golang.org/grpc"
@@ -26,6 +27,7 @@ import (
 	"go.opencensus.io/plugin/ocgrpc"
 
 	"github.com/google/exposure-notifications-server/internal/federationout"
+	"github.com/google/exposure-notifications-server/internal/interrupt"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	_ "github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/pb"
@@ -33,13 +35,22 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, done := interrupt.Context()
+	defer done()
+
+	if err := realMain(ctx); err != nil {
+		logger := logging.FromContext(ctx)
+		logger.Fatal(err)
+	}
+}
+
+func realMain(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
 	var config federationout.Config
 	env, err := setup.Setup(ctx, &config)
 	if err != nil {
-		logger.Fatalf("setup.Setup: %v", err)
+		return fmt.Errorf("setup.Setup: %w", err)
 	}
 	defer env.Close(ctx)
 
@@ -49,7 +60,7 @@ func main() {
 	if config.TLSCertFile != "" && config.TLSKeyFile != "" {
 		creds, err := credentials.NewServerTLSFromFile(config.TLSCertFile, config.TLSKeyFile)
 		if err != nil {
-			log.Fatalf("Failed to generate credentials: %v", err)
+			return fmt.Errorf("failed to create credentials: %w", err)
 		}
 		sopts = append(sopts, grpc.Creds(creds))
 	}
@@ -62,11 +73,28 @@ func main() {
 	grpcServer := grpc.NewServer(sopts...)
 	pb.RegisterFederationServer(grpcServer, server)
 
-	grpcEndpoint := ":" + config.Port
-	listen, err := net.Listen("tcp", grpcEndpoint)
+	addr := fmt.Sprintf(":%s", config.Port)
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		logger.Fatalf("Failed to start server: %v", err)
+		return fmt.Errorf("failed to listen on %s: %w", addr, err)
 	}
-	logger.Infof("Starting federationout gRPC listener [%s]", grpcEndpoint)
-	log.Fatal(grpcServer.Serve(listen))
+
+	go func(ctx context.Context) {
+		if err := grpcServer.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			logger := logging.FromContext(ctx)
+			logger.Errorf("grpc serving error: %v", err)
+		}
+	}(ctx)
+	logger.Infof("listening on :%s", config.Port)
+
+	// Wait for cancel or interrupt
+	<-ctx.Done()
+
+	// Shutdown
+	logger.Info("received shutdown")
+	grpcServer.GracefulStop()
+
+	logger.Info("shutdown complete")
+	return nil
+
 }
