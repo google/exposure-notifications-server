@@ -16,10 +16,11 @@ package integration
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"os"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/monolith"
@@ -49,7 +50,7 @@ func SetEnvAndRunServer(tb testing.TB, ctx context.Context, dbConfig *database.C
 	os.Setenv("DB_POOL_MAX_CONN_IDLE_TIME", dbConfig.PoolMaxConnIdle.String())
 	os.Setenv("DB_POOL_HEALTH_CHECK_PERIOD", dbConfig.PoolHealthCheck.String())
 
-	if _, err := monolith.RunServer(ctx); err != nil {
+	if _, err := monolith.RunServer(ctx); !errors.Is(err, http.ErrServerClosed) {
 		tb.Fatalf("Failed to start Monolith.  Error: %+v", err)
 	}
 }
@@ -67,9 +68,11 @@ func StartSystemUnderTest(tb testing.TB, ctx context.Context) (*database.DB, *mo
 
 	db, dbconfig := database.NewTestDatabaseWithConfig(tb)
 
-	go SetEnvAndRunServer(tb, ctx, dbconfig)
+	tb.Cleanup(func() {
+		http.Get("http://localhost:8080/shutdown")
+	})
 
-	time.Sleep(10 * time.Second)
+	go SetEnvAndRunServer(tb, ctx, dbconfig)
 
 	return db, nil
 

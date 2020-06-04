@@ -126,8 +126,14 @@ func RunServer(ctx context.Context) (*MonoConfig, error) {
 	}
 	mux.HandleFunc("/publish", handlers.WithMinimumLatency(config.Publish.MinRequestDuration, publishServer))
 
+	s := http.Server{Addr: ":" + config.Port}
+	mux.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
+		s.Shutdown(context.Background())
+	})
+
 	instrumentedHandler := &ochttp.Handler{Handler: mux}
+	s.Handler = instrumentedHandler
 
 	logger.Infof("monolith running at :%s", config.Port)
-	return &config, http.ListenAndServe(":"+config.Port, instrumentedHandler)
+	return &config, s.ListenAndServe()
 }
