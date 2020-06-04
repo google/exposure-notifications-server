@@ -35,7 +35,8 @@ var _ setup.KeyManagerConfigProvider = (*testConfig)(nil)
 var _ setup.SecretManagerConfigProvider = (*testConfig)(nil)
 
 type testConfig struct {
-	database *database.Config
+	Database *database.Config
+	Secret   string `env:"MY_SECRET"`
 }
 
 func (t *testConfig) AuthorizedAppConfig() *authorizedapp.Config {
@@ -52,7 +53,7 @@ func (t *testConfig) BlobstoreConfig() *storage.Config {
 }
 
 func (t *testConfig) DatabaseConfig() *database.Config {
-	return t.database
+	return t.Database
 }
 
 func (t *testConfig) KeyManagerConfig() *signing.Config {
@@ -71,15 +72,32 @@ func (t *testConfig) SecretManagerConfig() *secrets.Config {
 func TestSetupWith(t *testing.T) {
 	t.Parallel()
 
-	lookuper := envconfig.MapLookuper(map[string]string{})
+	lookuper := envconfig.MapLookuper(map[string]string{
+		"MY_SECRET": "secret://foo",
+	})
 
 	ctx := context.Background()
 	_, dbconfig := database.NewTestDatabaseWithConfig(t)
-	config := &testConfig{database: dbconfig}
 
 	t.Run("default", func(t *testing.T) {
 		t.Parallel()
 
+		config := &testConfig{Database: dbconfig}
+		env, err := setup.SetupWith(ctx, config, lookuper)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer env.Close(ctx)
+
+		if got, want := config.Secret, "noop-secret"; got != want {
+			t.Errorf("expected %v to be %v", got, want)
+		}
+	})
+
+	t.Run("database", func(t *testing.T) {
+		t.Parallel()
+
+		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
 		if err != nil {
 			t.Fatal(err)
@@ -95,6 +113,7 @@ func TestSetupWith(t *testing.T) {
 	t.Run("authorizedapp", func(t *testing.T) {
 		t.Parallel()
 
+		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
 		if err != nil {
 			t.Fatal(err)
@@ -114,6 +133,7 @@ func TestSetupWith(t *testing.T) {
 	t.Run("blobstore", func(t *testing.T) {
 		t.Parallel()
 
+		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
 		if err != nil {
 			t.Fatal(err)
@@ -133,6 +153,7 @@ func TestSetupWith(t *testing.T) {
 	t.Run("key_manager", func(t *testing.T) {
 		t.Parallel()
 
+		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
 		if err != nil {
 			t.Fatal(err)
@@ -152,6 +173,7 @@ func TestSetupWith(t *testing.T) {
 	t.Run("secret_manager", func(t *testing.T) {
 		t.Parallel()
 
+		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
 		if err != nil {
 			t.Fatal(err)
