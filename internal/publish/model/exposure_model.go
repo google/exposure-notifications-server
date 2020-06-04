@@ -95,8 +95,7 @@ func TruncateWindow(t time.Time, d time.Duration) time.Time {
 }
 
 // TimeForIntervalNumber returns the time at which a specific interval starts.
-// This is done by turning the internal number into the corresponding unix timestamp,
-// multiplying by 600 seconds (10 minutes).
+// The interval number * 600 (10m = 600s) is the corresponding unix timestamp.
 func TimeForIntervalNumber(interval int32) time.Time {
 	return time.Unix(int64(verifyapi.IntervalLength.Seconds())*int64(interval), 0)
 }
@@ -106,7 +105,7 @@ type Transformer struct {
 	maxExposureKeys     int
 	maxIntervalStartAge time.Duration // How many intervals old does this server accept?
 	truncateWindow      time.Duration
-	debugRelesaeSameDay bool // If true, still valid keys are not embarged.
+	debugReleaseSameDay bool // If true, still valid keys are not embargoed.
 }
 
 // NewTransformer creates a transformer for turning publish API requests into
@@ -120,7 +119,7 @@ func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, trun
 		maxExposureKeys:     maxExposureKeys,
 		maxIntervalStartAge: maxIntervalStartAge,
 		truncateWindow:      truncateWindow,
-		debugRelesaeSameDay: releaseSameDayKeys,
+		debugReleaseSameDay: releaseSameDayKeys,
 	}, nil
 }
 
@@ -194,7 +193,7 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 // * > Transformer.maxExposureKeys in the request
 //
 func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, batchTime time.Time) ([]*Exposure, error) {
-	if t.debugRelesaeSameDay {
+	if t.debugReleaseSameDay {
 		logging.FromContext(ctx).Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
 	}
 
@@ -217,7 +216,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		// And the max valid interval is the maxStartInterval + 144
 		MaxEndInteral:         IntervalNumber(batchTime) + verifyapi.MaxIntervalCount,
 		CreatedAt:             defaultCreatedAt,
-		ReleaseStillValidKeys: t.debugRelesaeSameDay,
+		ReleaseStillValidKeys: t.debugReleaseSameDay,
 		BatchWindow:           t.truncateWindow,
 	}
 
