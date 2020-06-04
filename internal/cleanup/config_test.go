@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package signing_test
+package cleanup_test
 
 import (
 	"context"
 	"errors"
 	"testing"
 
+	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/envconfig"
-	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -29,8 +29,8 @@ func TestEnvconfigProcess(t *testing.T) {
 
 	cases := []struct {
 		name     string
-		input    *signing.Config
-		exp      *signing.Config
+		input    *cleanup.Config
+		exp      *cleanup.Config
 		lookuper envconfig.Lookuper
 		err      error
 	}{
@@ -40,34 +40,22 @@ func TestEnvconfigProcess(t *testing.T) {
 			err:      envconfig.ErrNotStruct,
 		},
 		{
-			name:  "defaults",
-			input: &signing.Config{},
-			exp: &signing.Config{
-				KeyManagerType: signing.KeyManagerType("GOOGLE_CLOUD_KMS"),
-			},
+			name:     "defaults",
+			input:    &cleanup.Config{},
+			exp:      cleanup.TestConfigDefaults(),
 			lookuper: envconfig.MapLookuper(map[string]string{}),
 		},
 		{
-			name:  "values",
-			input: &signing.Config{},
-			exp: &signing.Config{
-				KeyManagerType: signing.KeyManagerType("NOOP"),
-			},
-			lookuper: envconfig.MapLookuper(map[string]string{
-				"KEY_MANAGER": "NOOP",
-			}),
+			name:     "values",
+			input:    &cleanup.Config{},
+			exp:      cleanup.TestConfigValued(),
+			lookuper: envconfig.MapLookuper(cleanup.TestConfigValues()),
 		},
 		{
-			name: "overrides",
-			input: &signing.Config{
-				KeyManagerType: signing.KeyManagerType("GOOGLE_CLOUD_KMS"),
-			},
-			exp: &signing.Config{
-				KeyManagerType: signing.KeyManagerType("GOOGLE_CLOUD_KMS"),
-			},
-			lookuper: envconfig.MapLookuper(map[string]string{
-				"KEY_MANAGER": "NOOP",
-			}),
+			name:     "overrides",
+			input:    cleanup.TestConfigOverridden(),
+			exp:      cleanup.TestConfigOverridden(),
+			lookuper: envconfig.MapLookuper(cleanup.TestConfigValues()),
 		},
 	}
 

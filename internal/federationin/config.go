@@ -44,20 +44,23 @@ type Config struct {
 	Database      database.Config
 	SecretManager secrets.Config
 
-	Port           string        `envconfig:"PORT" default:"8080"`
-	Timeout        time.Duration `envconfig:"RPC_TIMEOUT" default:"10m"`
-	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
+	Port           string        `env:"PORT, default=8080"`
+	Timeout        time.Duration `env:"RPC_TIMEOUT, default=10m"`
+	TruncateWindow time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
-	// TLSSkipVerify, if set to true, causes the server certificate to not be verified.
-	// This is typically used when testing locally with self-signed certificates.
-	TLSSkipVerify bool `envconfig:"TLS_SKIP_VERIFY" default:"false"`
+	// TLSSkipVerify, if set to true, causes the server certificate to not be
+	// verified. This is typically used when testing locally with self-signed
+	// certificates.
+	TLSSkipVerify bool `env:"TLS_SKIP_VERIFY"`
 
-	// TLSCertFile points to an optional cert file that will be appended to the system certificates.
-	TLSCertFile string `envconfig:"TLS_CERT_FILE"`
+	// TLSCertFile points to an optional cert file that will be appended to the
+	// system certificates.
+	TLSCertFile string `env:"TLS_CERT_FILE"`
 
-	// CredentialsFile points to a JSON credentials file. If running on Managed Cloud Run,
-	// or if using $GOOGLE_APPLICATION_CREDENTIALS, leave this value empty.
-	CredentialsFile string `envconfig:"CREDENTIALS_FILE"`
+	// CredentialsFile points to a JSON credentials file. If running on Managed
+	// Cloud Run, or if using $GOOGLE_APPLICATION_CREDENTIALS, leave this value
+	// empty.
+	CredentialsFile string `env:"CREDENTIALS_FILE"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
@@ -66,4 +69,77 @@ func (c *Config) DatabaseConfig() *database.Config {
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
 	return &c.SecretManager
+}
+
+// TestConfigDefaults returns a configuration populated with the default values.
+// It should only be used for testing.
+func TestConfigDefaults() *Config {
+	return &Config{
+		Database:      *database.TestConfigDefaults(),
+		SecretManager: *secrets.TestConfigDefaults(),
+
+		Port:            "8080",
+		Timeout:         10 * time.Minute,
+		TruncateWindow:  1 * time.Hour,
+		TLSSkipVerify:   false,
+		TLSCertFile:     "",
+		CredentialsFile: "",
+	}
+}
+
+// TestConfigValued returns a configuration populated with values that match
+// TestConfigValues() It should only be used for testing.
+func TestConfigValued() *Config {
+	return &Config{
+		Database:      *database.TestConfigValued(),
+		SecretManager: *secrets.TestConfigValued(),
+
+		Port:            "5555",
+		Timeout:         15 * time.Minute,
+		TruncateWindow:  11 * time.Hour,
+		TLSSkipVerify:   true,
+		TLSCertFile:     "/var/foo",
+		CredentialsFile: "/var/bar",
+	}
+}
+
+// TestConfigValues returns a list of configuration that corresponds to
+// TestConfigValued. It should only be used for testing.
+func TestConfigValues() map[string]string {
+	m := map[string]string{
+		"PORT":             "5555",
+		"RPC_TIMEOUT":      "15m",
+		"TRUNCATE_WINDOW":  "11h",
+		"TLS_SKIP_VERIFY":  "true",
+		"TLS_CERT_FILE":    "/var/foo",
+		"CREDENTIALS_FILE": "/var/bar",
+	}
+
+	embedded := []map[string]string{
+		database.TestConfigValues(),
+		secrets.TestConfigValues(),
+	}
+	for _, c := range embedded {
+		for k, v := range c {
+			m[k] = v
+		}
+	}
+
+	return m
+}
+
+// TestConfigOverridden returns a configuration with non-default values set. It
+// should only be used for testing.
+func TestConfigOverridden() *Config {
+	return &Config{
+		Database:      *database.TestConfigOverridden(),
+		SecretManager: *secrets.TestConfigOverridden(),
+
+		Port:            "4444",
+		Timeout:         25 * time.Minute,
+		TruncateWindow:  21 * time.Hour,
+		TLSSkipVerify:   true,
+		TLSCertFile:     "/etc/foo",
+		CredentialsFile: "/etc/bar",
+	}
 }

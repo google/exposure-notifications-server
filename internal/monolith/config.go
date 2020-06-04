@@ -12,47 +12,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package publish defines the exposure keys publishing API.
-package publish
+package monolith
 
 import (
-	"time"
-
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
+	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export"
+	"github.com/google/exposure-notifications-server/internal/federationin"
+	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	"github.com/google/exposure-notifications-server/internal/signing"
+	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
-// Compile-time check to assert this config matches requirements.
 var _ setup.AuthorizedAppConfigProvider = (*Config)(nil)
+var _ setup.BlobstoreConfigProvider = (*Config)(nil)
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
+var _ setup.KeyManagerConfigProvider = (*Config)(nil)
 var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 
-// Config represents the configuration and associated environment variables for
-// the publish components.
 type Config struct {
 	AuthorizedApp authorizedapp.Config
+	Storage       storage.Config
+	Cleanup       cleanup.Config
 	Database      database.Config
+	Export        export.Config
+	FederationIn  federationin.Config
+	KeyManager    signing.Config
+	Publish       publish.Config
 	SecretManager secrets.Config
 
-	Port               string        `env:"PORT, default=8080"`
-	MinRequestDuration time.Duration `env:"TARGET_REQUEST_DURATION, default=5s"`
-	MaxKeysOnPublish   int           `env:"MAX_KEYS_ON_PUBLISH, default=15"`
-	MaxIntervalAge     time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
-	TruncateWindow     time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
-
-	// Flags for local development and testing.
-	DebugAPIResponses       bool `env:"DEBUG_API_RESPONSES"`
-	DebugReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
+	Port string `env:"PORT, default=8080"`
 }
 
 func (c *Config) AuthorizedAppConfig() *authorizedapp.Config {
 	return &c.AuthorizedApp
 }
 
+func (c *Config) BlobstoreConfig() *storage.Config {
+	return &c.Storage
+}
+
 func (c *Config) DatabaseConfig() *database.Config {
 	return &c.Database
+}
+
+func (c *Config) KeyManagerConfig() *signing.Config {
+	return &c.KeyManager
 }
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
@@ -64,53 +72,59 @@ func (c *Config) SecretManagerConfig() *secrets.Config {
 func TestConfigDefaults() *Config {
 	return &Config{
 		AuthorizedApp: *authorizedapp.TestConfigDefaults(),
+		Storage:       *storage.TestConfigDefaults(),
+		Cleanup:       *cleanup.TestConfigDefaults(),
 		Database:      *database.TestConfigDefaults(),
+		Export:        *export.TestConfigDefaults(),
+		FederationIn:  *federationin.TestConfigDefaults(),
+		KeyManager:    *signing.TestConfigDefaults(),
+		Publish:       *publish.TestConfigDefaults(),
 		SecretManager: *secrets.TestConfigDefaults(),
 
-		Port:                "8080",
-		MinRequestDuration:  5 * time.Second,
-		MaxKeysOnPublish:    15,
-		MaxIntervalAge:      360 * time.Hour,
-		TruncateWindow:      1 * time.Hour,
-		DebugAPIResponses:   false,
-		DebugAllowRestOfDay: false,
+		Port: "8080",
 	}
 }
 
 // TestConfigValued returns a configuration populated with values that match
 // TestConfigValues() It should only be used for testing.
 func TestConfigValued() *Config {
-	return &Config{
+	c := &Config{
 		AuthorizedApp: *authorizedapp.TestConfigValued(),
+		Storage:       *storage.TestConfigValued(),
+		Cleanup:       *cleanup.TestConfigValued(),
 		Database:      *database.TestConfigValued(),
+		Export:        *export.TestConfigValued(),
+		FederationIn:  *federationin.TestConfigValued(),
+		KeyManager:    *signing.TestConfigValued(),
+		Publish:       *publish.TestConfigValued(),
 		SecretManager: *secrets.TestConfigValued(),
 
-		Port:                "5555",
-		MinRequestDuration:  50 * time.Second,
-		MaxKeysOnPublish:    150,
-		MaxIntervalAge:      600 * time.Minute,
-		TruncateWindow:      10 * time.Hour,
-		DebugAPIResponses:   true,
-		DebugAllowRestOfDay: true,
+		Port: "5555",
 	}
+
+	// These fields share an environment variable name, so they get overridden in
+	// the map below. Last one wins, which is publish.
+	c.Export.TruncateWindow = c.Publish.TruncateWindow
+	c.FederationIn.TruncateWindow = c.Publish.TruncateWindow
+	return c
 }
 
 // TestConfigValues returns a list of configuration that corresponds to
 // TestConfigValued. It should only be used for testing.
 func TestConfigValues() map[string]string {
 	m := map[string]string{
-		"PORT":                        "5555",
-		"TARGET_REQUEST_DURATION":     "50s",
-		"MAX_KEYS_ON_PUBLISH":         "150",
-		"MAX_INTERVAL_AGE_ON_PUBLISH": "600m",
-		"TRUNCATE_WINDOW":             "10h",
-		"DEBUG_API_RESPONSES":         "true",
-		"DEBUG_ALLOW_REST_OF_DAY":     "true",
+		"PORT": "5555",
 	}
 
 	embedded := []map[string]string{
 		authorizedapp.TestConfigValues(),
+		storage.TestConfigValues(),
+		cleanup.TestConfigValues(),
 		database.TestConfigValues(),
+		export.TestConfigValues(),
+		federationin.TestConfigValues(),
+		signing.TestConfigValues(),
+		publish.TestConfigValues(),
 		secrets.TestConfigValues(),
 	}
 	for _, c := range embedded {
@@ -127,15 +141,15 @@ func TestConfigValues() map[string]string {
 func TestConfigOverridden() *Config {
 	return &Config{
 		AuthorizedApp: *authorizedapp.TestConfigOverridden(),
+		Storage:       *storage.TestConfigOverridden(),
+		Cleanup:       *cleanup.TestConfigOverridden(),
 		Database:      *database.TestConfigOverridden(),
+		Export:        *export.TestConfigOverridden(),
+		FederationIn:  *federationin.TestConfigOverridden(),
+		KeyManager:    *signing.TestConfigOverridden(),
+		Publish:       *publish.TestConfigOverridden(),
 		SecretManager: *secrets.TestConfigOverridden(),
 
-		Port:                "4444",
-		MinRequestDuration:  20 * time.Second,
-		MaxKeysOnPublish:    250,
-		MaxIntervalAge:      200 * time.Minute,
-		TruncateWindow:      20 * time.Hour,
-		DebugAPIResponses:   true,
-		DebugAllowRestOfDay: true,
+		Port: "4444",
 	}
 }

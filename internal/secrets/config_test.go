@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/secrets"
@@ -41,46 +40,22 @@ func TestEnvconfigProcess(t *testing.T) {
 			err:      envconfig.ErrNotStruct,
 		},
 		{
-			name:  "defaults",
-			input: &secrets.Config{},
-			exp: &secrets.Config{
-				SecretManagerType: secrets.SecretManagerType("GOOGLE_SECRET_MANAGER"),
-				SecretsDir:        "/var/run/secrets",
-				SecretCacheTTL:    5 * time.Minute,
-			},
+			name:     "defaults",
+			input:    &secrets.Config{},
+			exp:      secrets.TestConfigDefaults(),
 			lookuper: envconfig.MapLookuper(map[string]string{}),
 		},
 		{
-			name:  "values",
-			input: &secrets.Config{},
-			exp: &secrets.Config{
-				SecretManagerType: secrets.SecretManagerType("NOOP"),
-				SecretsDir:        "/tmp",
-				SecretCacheTTL:    2 * time.Hour,
-			},
-			lookuper: envconfig.MapLookuper(map[string]string{
-				"SECRET_MANAGER":   "NOOP",
-				"SECRETS_DIR":      "/tmp",
-				"SECRET_CACHE_TTL": "2h",
-			}),
+			name:     "values",
+			input:    &secrets.Config{},
+			exp:      secrets.TestConfigValued(),
+			lookuper: envconfig.MapLookuper(secrets.TestConfigValues()),
 		},
 		{
-			name: "overrides",
-			input: &secrets.Config{
-				SecretManagerType: secrets.SecretManagerType("GOOGLE_SECRET_MANAGER"),
-				SecretsDir:        "/var",
-				SecretCacheTTL:    1 * time.Hour,
-			},
-			exp: &secrets.Config{
-				SecretManagerType: secrets.SecretManagerType("GOOGLE_SECRET_MANAGER"),
-				SecretsDir:        "/var",
-				SecretCacheTTL:    1 * time.Hour,
-			},
-			lookuper: envconfig.MapLookuper(map[string]string{
-				"SECRET_MANAGER":   "NOOP",
-				"SECRETS_DIR":      "/tmp",
-				"SECRET_CACHE_TTL": "2h",
-			}),
+			name:     "overrides",
+			input:    secrets.TestConfigOverridden(),
+			exp:      secrets.TestConfigOverridden(),
+			lookuper: envconfig.MapLookuper(secrets.TestConfigValues()),
 		},
 	}
 

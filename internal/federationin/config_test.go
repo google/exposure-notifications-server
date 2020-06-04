@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package database_test
+package federationin_test
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/envconfig"
+	"github.com/google/exposure-notifications-server/internal/federationin"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -29,8 +29,8 @@ func TestEnvconfigProcess(t *testing.T) {
 
 	cases := []struct {
 		name     string
-		input    *database.Config
-		exp      *database.Config
+		input    *federationin.Config
+		exp      *federationin.Config
 		lookuper envconfig.Lookuper
 		err      error
 	}{
@@ -41,21 +41,21 @@ func TestEnvconfigProcess(t *testing.T) {
 		},
 		{
 			name:     "defaults",
-			input:    &database.Config{},
-			exp:      database.TestConfigDefaults(),
+			input:    &federationin.Config{},
+			exp:      federationin.TestConfigDefaults(),
 			lookuper: envconfig.MapLookuper(map[string]string{}),
 		},
 		{
 			name:     "values",
-			input:    &database.Config{},
-			exp:      database.TestConfigValued(),
-			lookuper: envconfig.MapLookuper(database.TestConfigValues()),
+			input:    &federationin.Config{},
+			exp:      federationin.TestConfigValued(),
+			lookuper: envconfig.MapLookuper(federationin.TestConfigValues()),
 		},
 		{
 			name:     "overrides",
-			input:    database.TestConfigOverridden(),
-			exp:      database.TestConfigOverridden(),
-			lookuper: envconfig.MapLookuper(database.TestConfigValues()),
+			input:    federationin.TestConfigOverridden(),
+			exp:      federationin.TestConfigOverridden(),
+			lookuper: envconfig.MapLookuper(federationin.TestConfigValues()),
 		},
 	}
 

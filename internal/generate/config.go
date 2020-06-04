@@ -33,13 +33,13 @@ type Config struct {
 	Database      database.Config
 	SecretManager secrets.Config
 
-	Port             string        `envconfig:"PORT" default:"8080"`
-	NumExposures     int           `envconfig:"NUM_EXPOSURES_GENERATED" default:"10"`
-	KeysPerExposure  int           `envconfig:"KEYS_PER_EXPOSURE" default:"14"`
-	MaxKeysOnPublish int           `envconfig:"MAX_KEYS_ON_PUBLISH" default:"15"`
-	MaxIntervalAge   time.Duration `envconfig:"MAX_INTERVAL_AGE_ON_PUBLISH" default:"360h"`
-	TruncateWindow   time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
-	DefaultRegion    string        `envconfig:"DEFAULT_REGOIN" default:"US"`
+	Port             string        `env:"PORT, default=8080"`
+	NumExposures     int           `env:"NUM_EXPOSURES_GENERATED, default=10"`
+	KeysPerExposure  int           `env:"KEYS_PER_EXPOSURE, default=14"`
+	MaxKeysOnPublish int           `env:"MAX_KEYS_ON_PUBLISH, default=15"`
+	MaxIntervalAge   time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
+	TruncateWindow   time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
+	DefaultRegion    string        `env:"DEFAULT_REGOIN, default=US"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
@@ -48,4 +48,81 @@ func (c *Config) DatabaseConfig() *database.Config {
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
 	return &c.SecretManager
+}
+
+// TestConfigDefaults returns a configuration populated with the default values.
+// It should only be used for testing.
+func TestConfigDefaults() *Config {
+	return &Config{
+		Database:      *database.TestConfigDefaults(),
+		SecretManager: *secrets.TestConfigDefaults(),
+
+		Port:             "8080",
+		NumExposures:     10,
+		KeysPerExposure:  14,
+		MaxKeysOnPublish: 15,
+		MaxIntervalAge:   360 * time.Hour,
+		TruncateWindow:   1 * time.Hour,
+		DefaultRegion:    "US",
+	}
+}
+
+// TestConfigValued returns a configuration populated with values that match
+// TestConfigValues() It should only be used for testing.
+func TestConfigValued() *Config {
+	return &Config{
+		Database:      *database.TestConfigValued(),
+		SecretManager: *secrets.TestConfigValued(),
+
+		Port:             "5555",
+		NumExposures:     20,
+		KeysPerExposure:  24,
+		MaxKeysOnPublish: 25,
+		MaxIntervalAge:   260 * time.Hour,
+		TruncateWindow:   2 * time.Hour,
+		DefaultRegion:    "CA",
+	}
+}
+
+// TestConfigValues returns a list of configuration that corresponds to
+// TestConfigValued. It should only be used for testing.
+func TestConfigValues() map[string]string {
+	m := map[string]string{
+		"PORT":                        "5555",
+		"NUM_EXPOSURES_GENERATED":     "20",
+		"KEYS_PER_EXPOSURE":           "24",
+		"MAX_KEYS_ON_PUBLISH":         "25",
+		"MAX_INTERVAL_AGE_ON_PUBLISH": "260h",
+		"TRUNCATE_WINDOW":             "2h",
+		"DEFAULT_REGOIN":              "CA",
+	}
+
+	embedded := []map[string]string{
+		database.TestConfigValues(),
+		secrets.TestConfigValues(),
+	}
+	for _, c := range embedded {
+		for k, v := range c {
+			m[k] = v
+		}
+	}
+
+	return m
+}
+
+// TestConfigOverridden returns a configuration with non-default values set. It
+// should only be used for testing.
+func TestConfigOverridden() *Config {
+	return &Config{
+		Database:      *database.TestConfigOverridden(),
+		SecretManager: *secrets.TestConfigOverridden(),
+
+		Port:             "4444",
+		NumExposures:     30,
+		KeysPerExposure:  34,
+		MaxKeysOnPublish: 35,
+		MaxIntervalAge:   160 * time.Hour,
+		TruncateWindow:   3 * time.Hour,
+		DefaultRegion:    "LP",
+	}
 }

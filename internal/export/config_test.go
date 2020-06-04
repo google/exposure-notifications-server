@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage_test
+package export_test
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/envconfig"
-	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -29,8 +29,8 @@ func TestEnvconfigProcess(t *testing.T) {
 
 	cases := []struct {
 		name     string
-		input    *storage.Config
-		exp      *storage.Config
+		input    *export.Config
+		exp      *export.Config
 		lookuper envconfig.Lookuper
 		err      error
 	}{
@@ -40,34 +40,22 @@ func TestEnvconfigProcess(t *testing.T) {
 			err:      envconfig.ErrNotStruct,
 		},
 		{
-			name:  "defaults",
-			input: &storage.Config{},
-			exp: &storage.Config{
-				BlobstoreType: storage.BlobstoreType("GOOGLE_CLOUD_STORAGE"),
-			},
+			name:     "defaults",
+			input:    &export.Config{},
+			exp:      export.TestConfigDefaults(),
 			lookuper: envconfig.MapLookuper(map[string]string{}),
 		},
 		{
-			name:  "values",
-			input: &storage.Config{},
-			exp: &storage.Config{
-				BlobstoreType: storage.BlobstoreType("NOOP"),
-			},
-			lookuper: envconfig.MapLookuper(map[string]string{
-				"BLOBSTORE": "NOOP",
-			}),
+			name:     "values",
+			input:    &export.Config{},
+			exp:      export.TestConfigValued(),
+			lookuper: envconfig.MapLookuper(export.TestConfigValues()),
 		},
 		{
-			name: "overrides",
-			input: &storage.Config{
-				BlobstoreType: storage.BlobstoreType("GOOGLE_CLOUD_STORAGE"),
-			},
-			exp: &storage.Config{
-				BlobstoreType: storage.BlobstoreType("GOOGLE_CLOUD_STORAGE"),
-			},
-			lookuper: envconfig.MapLookuper(map[string]string{
-				"BLOBSTORE": "NOOP",
-			}),
+			name:     "overrides",
+			input:    export.TestConfigOverridden(),
+			exp:      export.TestConfigOverridden(),
+			lookuper: envconfig.MapLookuper(export.TestConfigValues()),
 		},
 	}
 

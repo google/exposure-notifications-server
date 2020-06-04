@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package database_test
+package admin_test
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/admin"
 	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/go-cmp/cmp"
 )
@@ -29,8 +29,8 @@ func TestEnvconfigProcess(t *testing.T) {
 
 	cases := []struct {
 		name     string
-		input    *database.Config
-		exp      *database.Config
+		input    *admin.Config
+		exp      *admin.Config
 		lookuper envconfig.Lookuper
 		err      error
 	}{
@@ -41,21 +41,21 @@ func TestEnvconfigProcess(t *testing.T) {
 		},
 		{
 			name:     "defaults",
-			input:    &database.Config{},
-			exp:      database.TestConfigDefaults(),
+			input:    &admin.Config{},
+			exp:      admin.TestConfigDefaults(),
 			lookuper: envconfig.MapLookuper(map[string]string{}),
 		},
 		{
 			name:     "values",
-			input:    &database.Config{},
-			exp:      database.TestConfigValued(),
-			lookuper: envconfig.MapLookuper(database.TestConfigValues()),
+			input:    &admin.Config{},
+			exp:      admin.TestConfigValued(),
+			lookuper: envconfig.MapLookuper(admin.TestConfigValues()),
 		},
 		{
 			name:     "overrides",
-			input:    database.TestConfigOverridden(),
-			exp:      database.TestConfigOverridden(),
-			lookuper: envconfig.MapLookuper(database.TestConfigValues()),
+			input:    admin.TestConfigOverridden(),
+			exp:      admin.TestConfigOverridden(),
+			lookuper: envconfig.MapLookuper(admin.TestConfigValues()),
 		},
 	}
 

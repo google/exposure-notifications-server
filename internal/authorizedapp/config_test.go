@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/envconfig"
@@ -41,34 +40,22 @@ func TestEnvconfigProcess(t *testing.T) {
 			err:      envconfig.ErrNotStruct,
 		},
 		{
-			name:  "defaults",
-			input: &authorizedapp.Config{},
-			exp: &authorizedapp.Config{
-				CacheDuration: 5 * time.Minute,
-			},
+			name:     "defaults",
+			input:    &authorizedapp.Config{},
+			exp:      authorizedapp.TestConfigDefaults(),
 			lookuper: envconfig.MapLookuper(map[string]string{}),
 		},
 		{
-			name:  "values",
-			input: &authorizedapp.Config{},
-			exp: &authorizedapp.Config{
-				CacheDuration: 10 * time.Minute,
-			},
-			lookuper: envconfig.MapLookuper(map[string]string{
-				"AUTHORIZED_APP_CACHE_DURATION": "10m",
-			}),
+			name:     "values",
+			input:    &authorizedapp.Config{},
+			exp:      authorizedapp.TestConfigValued(),
+			lookuper: envconfig.MapLookuper(authorizedapp.TestConfigValues()),
 		},
 		{
-			name: "overrides",
-			input: &authorizedapp.Config{
-				CacheDuration: 20 * time.Minute,
-			},
-			exp: &authorizedapp.Config{
-				CacheDuration: 20 * time.Minute,
-			},
-			lookuper: envconfig.MapLookuper(map[string]string{
-				"AUTHORIZED_APP_CACHE_DURATION": "10m",
-			}),
+			name:     "overrides",
+			input:    authorizedapp.TestConfigOverridden(),
+			exp:      authorizedapp.TestConfigOverridden(),
+			lookuper: envconfig.MapLookuper(authorizedapp.TestConfigValues()),
 		},
 	}
 

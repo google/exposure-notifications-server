@@ -12,28 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package authorizedapp
+package secrets
 
 import (
 	"time"
 )
 
-type Config struct {
-	// CacheDuration is the amount of time AuthorizedApp should be cached before
-	// being re-read from their provider.
-	CacheDuration time.Duration `env:"AUTHORIZED_APP_CACHE_DURATION,default=5m"`
-}
+// SecretManagerType represents a type of secret manager.
+type SecretManagerType string
 
-// AuthorizedApp implements an interface for setup.
-func (c *Config) AuthorizedApp() *Config {
-	return c
+const (
+	SecretManagerTypeAWSSecretsManager    SecretManagerType = "AWS_SECRETS_MANAGER"
+	SecretManagerTypeAzureKeyVault        SecretManagerType = "AZURE_KEY_VAULT"
+	SecretManagerTypeGoogleSecretManager  SecretManagerType = "GOOGLE_SECRET_MANAGER"
+	SecretManagerTypeGoogleHashiCorpVault SecretManagerType = "HASHICORP_VAULT"
+	SecretManagerTypeNoop                 SecretManagerType = "NOOP"
+)
+
+// Config represents the config for a secret manager.
+type Config struct {
+	SecretManagerType SecretManagerType `env:"SECRET_MANAGER, default=GOOGLE_SECRET_MANAGER"`
+	SecretsDir        string            `env:"SECRETS_DIR, default=/var/run/secrets"`
+	SecretCacheTTL    time.Duration     `env:"SECRET_CACHE_TTL, default=5m"`
 }
 
 // TestConfigDefaults returns a configuration populated with the default values.
 // It should only be used for testing.
 func TestConfigDefaults() *Config {
 	return &Config{
-		CacheDuration: 5 * time.Minute,
+		SecretManagerType: SecretManagerType("GOOGLE_SECRET_MANAGER"),
+		SecretsDir:        "/var/run/secrets",
+		SecretCacheTTL:    5 * time.Minute,
 	}
 }
 
@@ -41,7 +50,9 @@ func TestConfigDefaults() *Config {
 // TestConfigValues() It should only be used for testing.
 func TestConfigValued() *Config {
 	return &Config{
-		CacheDuration: 10 * time.Minute,
+		SecretManagerType: SecretManagerType("HASHICORP_VAULT"),
+		SecretsDir:        "/tmp/secrets",
+		SecretCacheTTL:    10 * time.Minute,
 	}
 }
 
@@ -49,7 +60,9 @@ func TestConfigValued() *Config {
 // TestConfigValued. It should only be used for testing.
 func TestConfigValues() map[string]string {
 	return map[string]string{
-		"AUTHORIZED_APP_CACHE_DURATION": "10m",
+		"SECRET_MANAGER":   "HASHICORP_VAULT",
+		"SECRETS_DIR":      "/tmp/secrets",
+		"SECRET_CACHE_TTL": "10m",
 	}
 }
 
@@ -57,6 +70,8 @@ func TestConfigValues() map[string]string {
 // should only be used for testing.
 func TestConfigOverridden() *Config {
 	return &Config{
-		CacheDuration: 30 * time.Minute,
+		SecretManagerType: SecretManagerType("NOOP"),
+		SecretsDir:        "/var/secrets",
+		SecretCacheTTL:    30 * time.Minute,
 	}
 }

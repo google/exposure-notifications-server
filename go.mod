@@ -40,7 +40,6 @@ require (
 	github.com/hashicorp/yamux v0.0.0-20190923154419-df201c70410d // indirect
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/jefferai/jsonx v1.0.1 // indirect
-	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/keybase/go-crypto v0.0.0-20200123153347-de78d2cb44f4 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.5.2 // indirect

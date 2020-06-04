@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package database_test
+package signing_test
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/envconfig"
+	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -29,8 +29,8 @@ func TestEnvconfigProcess(t *testing.T) {
 
 	cases := []struct {
 		name     string
-		input    *database.Config
-		exp      *database.Config
+		input    *signing.Config
+		exp      *signing.Config
 		lookuper envconfig.Lookuper
 		err      error
 	}{
@@ -41,21 +41,21 @@ func TestEnvconfigProcess(t *testing.T) {
 		},
 		{
 			name:     "defaults",
-			input:    &database.Config{},
-			exp:      database.TestConfigDefaults(),
+			input:    &signing.Config{},
+			exp:      signing.TestConfigDefaults(),
 			lookuper: envconfig.MapLookuper(map[string]string{}),
 		},
 		{
 			name:     "values",
-			input:    &database.Config{},
-			exp:      database.TestConfigValued(),
-			lookuper: envconfig.MapLookuper(database.TestConfigValues()),
+			input:    &signing.Config{},
+			exp:      signing.TestConfigValued(),
+			lookuper: envconfig.MapLookuper(signing.TestConfigValues()),
 		},
 		{
 			name:     "overrides",
-			input:    database.TestConfigOverridden(),
-			exp:      database.TestConfigOverridden(),
-			lookuper: envconfig.MapLookuper(database.TestConfigValues()),
+			input:    signing.TestConfigOverridden(),
+			exp:      signing.TestConfigOverridden(),
+			lookuper: envconfig.MapLookuper(signing.TestConfigValues()),
 		},
 	}
 

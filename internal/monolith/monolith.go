@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package main runs all the server components at different URL paths.
+// Package monolith runs all the server components at different URL paths.
 package monolith
 
 import (
@@ -22,72 +22,27 @@ import (
 
 	"go.opencensus.io/plugin/ochttp"
 
-	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/cleanup"
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	"github.com/google/exposure-notifications-server/internal/handlers"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/publish"
-	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
-	"github.com/google/exposure-notifications-server/internal/signing"
-	"github.com/google/exposure-notifications-server/internal/storage"
 
 	// Enable observability with distributed tracing and metrics.
 	_ "github.com/google/exposure-notifications-server/internal/observability"
 )
 
-var _ setup.AuthorizedAppConfigProvider = (*MonoConfig)(nil)
-var _ setup.BlobstoreConfigProvider = (*MonoConfig)(nil)
-var _ setup.DatabaseConfigProvider = (*MonoConfig)(nil)
-var _ setup.KeyManagerConfigProvider = (*MonoConfig)(nil)
-var _ setup.SecretManagerConfigProvider = (*MonoConfig)(nil)
-
-type MonoConfig struct {
-	AuthorizedApp authorizedapp.Config
-	Storage       storage.Config
-	Cleanup       cleanup.Config
-	Database      database.Config
-	Export        export.Config
-	FederationIn  federationin.Config
-	KeyManager    signing.Config
-	Publish       publish.Config
-	SecretManager secrets.Config
-
-	Port string `envconfig:"PORT" default:"8080"`
-}
-
-func (c *MonoConfig) AuthorizedAppConfig() *authorizedapp.Config {
-	return &c.AuthorizedApp
-}
-
-func (c *MonoConfig) BlobstoreConfig() *storage.Config {
-	return &c.Storage
-}
-
-func (c *MonoConfig) DatabaseConfig() *database.Config {
-	return &c.Database
-}
-
-func (c *MonoConfig) KeyManagerConfig() *signing.Config {
-	return &c.KeyManager
-}
-
-func (c *MonoConfig) SecretManagerConfig() *secrets.Config {
-	return &c.SecretManager
-}
-
-func RunServer(ctx context.Context) (*MonoConfig, error) {
+func RunServer(ctx context.Context) (*Config, error) {
 	logger := logging.FromContext(ctx)
 
-	var config MonoConfig
-	env, closer, err := setup.Setup(ctx, &config)
+	var config Config
+	env, err := setup.Setup(ctx, &config)
 	if err != nil {
 		return nil, fmt.Errorf("setup.Setup: %w", err)
 	}
-	defer closer()
+	defer env.Close(ctx)
 
 	mux := http.NewServeMux()
 

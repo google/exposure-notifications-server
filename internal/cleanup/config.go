@@ -31,13 +31,13 @@ var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 // Config represents the configuration and associated environment variables for
 // the cleanup components.
 type Config struct {
-	Storage       storage.Config
 	Database      database.Config
 	SecretManager secrets.Config
+	Storage       storage.Config
 
-	Port    string        `envconfig:"PORT" default:"8080"`
-	Timeout time.Duration `envconfig:"CLEANUP_TIMEOUT" default:"10m"`
-	TTL     time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
+	Port    string        `env:"PORT, default=8080"`
+	Timeout time.Duration `env:"CLEANUP_TIMEOUT, default=10m"`
+	TTL     time.Duration `env:"CLEANUP_TTL, default=336h"`
 }
 
 func (c *Config) BlobstoreConfig() *storage.Config {
@@ -50,4 +50,69 @@ func (c *Config) DatabaseConfig() *database.Config {
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
 	return &c.SecretManager
+}
+
+// TestConfigDefaults returns a configuration populated with the default values.
+// It should only be used for testing.
+func TestConfigDefaults() *Config {
+	return &Config{
+		Database:      *database.TestConfigDefaults(),
+		SecretManager: *secrets.TestConfigDefaults(),
+		Storage:       *storage.TestConfigDefaults(),
+
+		Port:    "8080",
+		Timeout: 10 * time.Minute,
+		TTL:     336 * time.Hour,
+	}
+}
+
+// TestConfigValued returns a configuration populated with values that match
+// TestConfigValues() It should only be used for testing.
+func TestConfigValued() *Config {
+	return &Config{
+		Database:      *database.TestConfigValued(),
+		SecretManager: *secrets.TestConfigValued(),
+		Storage:       *storage.TestConfigValued(),
+
+		Port:    "5555",
+		Timeout: 20 * time.Minute,
+		TTL:     447 * time.Hour,
+	}
+}
+
+// TestConfigValues returns a list of configuration that corresponds to
+// TestConfigValued. It should only be used for testing.
+func TestConfigValues() map[string]string {
+	m := map[string]string{
+		"PORT":            "5555",
+		"CLEANUP_TIMEOUT": "20m",
+		"CLEANUP_TTL":     "447h",
+	}
+
+	embedded := []map[string]string{
+		database.TestConfigValues(),
+		secrets.TestConfigValues(),
+		storage.TestConfigValues(),
+	}
+	for _, c := range embedded {
+		for k, v := range c {
+			m[k] = v
+		}
+	}
+
+	return m
+}
+
+// TestConfigOverridden returns a configuration with non-default values set. It
+// should only be used for testing.
+func TestConfigOverridden() *Config {
+	return &Config{
+		Database:      *database.TestConfigOverridden(),
+		SecretManager: *secrets.TestConfigOverridden(),
+		Storage:       *storage.TestConfigOverridden(),
+
+		Port:    "4444",
+		Timeout: 30 * time.Minute,
+		TTL:     558 * time.Hour,
+	}
 }
