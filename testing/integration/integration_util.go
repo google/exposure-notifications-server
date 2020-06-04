@@ -34,7 +34,7 @@ func SetEnvAndRunServer(ctx context.Context) {
 	monolith.RunServer(ctx)
 }
 
-func StartSystemUnderTest(tb testing.TB, ctx context.Context) *monolith.MonoConfig {
+func StartSystemUnderTest(tb testing.TB, ctx context.Context) (*database.DB, *monolith.MonoConfig) {
 	tb.Helper()
 
 	if testing.Short() {
@@ -45,13 +45,12 @@ func StartSystemUnderTest(tb testing.TB, ctx context.Context) *monolith.MonoConf
 		tb.Skipf("🚧 Skipping integration tests (SKIP_INTEGRATION_TESTS is set)!")
 	}
 
-	database.NewTestDatabase(tb)
+	db := database.NewTestDatabase(tb)
 
 	go SetEnvAndRunServer(ctx)
 
-	//TODO: Make a better test.
 	time.Sleep(10 * time.Second)
 
-	return nil
+	return db, nil
 
 }
