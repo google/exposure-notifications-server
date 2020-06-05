@@ -116,8 +116,8 @@ variable "service_environment" {
 
 terraform {
   required_providers {
-    google      = "~> 3.20"
-    google-beta = "~> 3.20"
+    google      = "~> 3.24"
+    google-beta = "~> 3.24"
     null        = "~> 2.1"
     random      = "~> 2.2"
   }
