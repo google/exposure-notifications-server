@@ -106,7 +106,10 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 
 		// Enable caching, if a TTL was provided.
 		if ttl := smConfig.SecretCacheTTL; ttl > 0 {
-			sm = secrets.WrapCacher(ctx, sm, ttl)
+			sm, err = secrets.WrapCacher(ctx, sm, ttl)
+			if err != nil {
+				return nil, fmt.Errorf("unable to create secret manager cache: %w", err)
+			}
 		}
 
 		// Update the mutators to process secrets.

@@ -54,13 +54,18 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 	logger.Infof("max interval start age: %v", config.MaxIntervalAge)
 	logger.Infof("truncate window: %v", config.TruncateWindow)
 
+	verifier, err := verification.New(verifydb.New(env.Database()), &config.Verification)
+	if err != nil {
+		return nil, fmt.Errorf("verification.New: %w", err)
+	}
+
 	return &publishHandler{
 		serverenv:             env,
 		transformer:           transformer,
 		config:                config,
 		database:              database.New(env.Database()),
 		authorizedAppProvider: env.AuthorizedAppProvider(),
-		verifier:              verification.New(verifydb.New(env.Database())),
+		verifier:              verifier,
 	}, nil
 }
 
