@@ -1,3 +1,7 @@
+---
+layout: default
+classes: wide
+---
 # Google Exposure Notification Server
 
 ## Functional requirements

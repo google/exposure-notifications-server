@@ -1,0 +1,21 @@
+# documentation links
+docs:
+    - title: Home
+      url: /
+
+    - title: Getting Started
+      children:
+        - title: How to Deploy
+          url: /deploying
+
+    - title: Design
+      children:
+        - title: Server Deployment Options
+          url: /server_deployment_options   
+        - title: Server Functional Requirements
+          url: /server_functional_requirements   
+        - title: "Verification Protocol Design"
+          url: /design/verification_protocol
+
+   
+    

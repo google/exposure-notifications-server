@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # Google Exposure Notification Server
 
 ## Server deployment options
