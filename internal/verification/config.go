@@ -19,5 +19,5 @@ import "time"
 // Config represents the available configuration for the public health authority
 // verification piece.
 type Config struct {
-	CacheDuration time.Duration `env:"HEALTH_AUTHORITY_CACHE_DURATION, default=5m"`
+	CacheDuration time.Duration `env:"VERIFICATION_CACHE_DURATION, default=5m"`
 }
