@@ -33,6 +33,8 @@ func KeyManagerFor(ctx context.Context, typ KeyManagerType) (KeyManager, error) 
 	switch typ {
 	case KeyManagerTypeAWSKMS:
 		return NewAWSKMS(ctx)
+	case KeyManagerTypeAzureKeyVault:
+		return NewAzureKeyVault(ctx)
 	case KeyManagerTypeGoogleCloudKMS:
 		return NewGoogleCloudKMS(ctx)
 	case KeyManagerTypeHashiCorpVault:
