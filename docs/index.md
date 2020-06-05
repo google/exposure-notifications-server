@@ -23,7 +23,7 @@ The Exposure Notification Server is responsible for the following functions:
 * Accepting the temporary exposure keys of affected users from mobile devices.
 
 * Validating the temporary exposure keys using a [configurable third-party
-  verification service](docs/design/verification_protocol.md).
+  verification service](design/verification_protocol.md).
 
 * Storing the temporary exposure keys in a database.
 
