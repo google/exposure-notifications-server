@@ -38,14 +38,18 @@ func checkSize(t *testing.T, c *Cache, want int) {
 }
 
 func TestCache(t *testing.T) {
-	cache := New()
+	duration := time.Millisecond * 500
+	cache, err := New(duration)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	checkSize(t, cache, 0)
 
-	if err := cache.Set("foo", &order{2, 1}, time.Millisecond); err != nil {
+	if err := cache.Set("foo", &order{2, 1}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	time.Sleep(time.Millisecond)
+	time.Sleep(duration)
 	if got, hit := cache.Lookup("foo"); got != nil || hit {
 		t.Fatalf("key did not expire as expected")
 	}
@@ -55,7 +59,7 @@ func TestCache(t *testing.T) {
 	}
 
 	want := &order{42, 37}
-	if err := cache.Set("foo", want, time.Second*2); err != nil {
+	if err := cache.Set("foo", want); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if got, hit := cache.Lookup("foo"); got == nil || !hit {
@@ -65,17 +69,20 @@ func TestCache(t *testing.T) {
 			t.Fatalf("mismatch (-want, +got):\n%s", diff)
 		}
 	}
-	time.Sleep(time.Second * 2)
+	time.Sleep(duration * 2)
 	if got, hit := cache.Lookup("foo"); got != nil || hit {
 		t.Fatalf("expected key to expire, but still available")
 	}
 	// potential race, yeild CPU so that the purge go routine has a chance to run.
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(duration)
 	checkSize(t, cache, 0)
 }
 
 func TestWriteThruCache(t *testing.T) {
-	cache := New()
+	cache, err := New(time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	lookupCount := 0
 	want := &order{12, 34}
@@ -85,7 +92,7 @@ func TestWriteThruCache(t *testing.T) {
 	}
 
 	for i := 0; i < 2; i++ {
-		got, err := cache.WriteThruLookup("foo", lookerUpper, time.Second)
+		got, err := cache.WriteThruLookup("foo", lookerUpper)
 		if err != nil {
 			t.Fatalf("unexpected error on WriteThruLookup: %v", err)
 		}
@@ -100,13 +107,16 @@ func TestWriteThruCache(t *testing.T) {
 }
 
 func TestWriteThruError(t *testing.T) {
-	cache := New()
+	cache, err := New(time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	lookerUpper := func() (interface{}, error) {
 		return nil, fmt.Errorf("nope")
 	}
 
-	got, err := cache.WriteThruLookup("foo", lookerUpper, time.Second)
+	got, err := cache.WriteThruLookup("foo", lookerUpper)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -119,11 +129,51 @@ func TestWriteThruError(t *testing.T) {
 }
 
 func TestInvalidDuration(t *testing.T) {
-	cache := New()
-
-	if err := cache.Set("foo", &order{0, 0}, -1*time.Second); err == nil {
+	if _, err := New(-1 * time.Second); err == nil {
 		t.Fatal("expecterd error, got nil")
 	} else if strings.Contains(err.Error(), "duration cannot be nagative") {
 		t.Fatalf("wrong error: want: `duration cannot be negative` got: %v", err.Error())
+	}
+}
+
+func TestConcurrentReaders(t *testing.T) {
+	cache, err := New(time.Second * 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lookupCount := 0
+	want := &order{12, 34}
+	lookerUpper := func() (interface{}, error) {
+		lookupCount++
+		return want, nil
+	}
+
+	done := make(chan bool, 10)
+	for i := 0; i < 10; i++ {
+		ver := i
+		go func() {
+			got, err := cache.WriteThruLookup("foo", lookerUpper)
+			if err != nil {
+				t.Errorf("routine: %v got unexpected error: %v", ver, err)
+			}
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Fatalf("routine: %v mismatch (-want, +got):\n%s", ver, diff)
+			}
+			done <- true
+		}()
+	}
+
+	for i := 0; i < 10; i++ {
+		select {
+		case <-done:
+			continue
+		case <-time.After(1 * time.Second):
+			t.Fatal("gorountines didn't termine fast enough")
+		}
+	}
+
+	if lookupCount != 1 {
+		t.Errorf("unexpected lookupCount, want: 1, got: %v", lookupCount)
 	}
 }

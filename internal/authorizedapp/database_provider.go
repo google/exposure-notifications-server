@@ -59,7 +59,7 @@ func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, o
 	provider := &DatabaseProvider{
 		database:      db,
 		cacheDuration: config.CacheDuration,
-		cache:         cache.New(),
+		cache:         cache.New(config.CacheDuration),
 	}
 
 	// Apply options.
@@ -87,7 +87,7 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 		logger.Infof("authorizedapp: loaded %v, caching for %s", name, p.cacheDuration)
 		return config, nil
 	}
-	cached, err := p.cache.WriteThruLookup(name, lookup, p.cacheDuration)
+	cached, err := p.cache.WriteThruLookup(name, lookup)
 
 	// Indicates an error on the write thru lookup.
 	if err != nil {

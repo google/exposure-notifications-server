@@ -23,11 +23,12 @@ import (
 
 var ErrInvalidDuration = errors.New("expireAfter duration cannot be negative")
 
-type WriteThru func() (interface{}, error)
+type Func func() (interface{}, error)
 
 type Cache struct {
-	data map[string]item
-	mu   sync.RWMutex
+	data        map[string]item
+	expireAfter time.Duration
+	mu          sync.RWMutex
 }
 
 type item struct {
@@ -40,17 +41,24 @@ func (i *item) expired() bool {
 }
 
 // New creates a new in memory cache.
-func New() *Cache {
-	return &Cache{
-		data: make(map[string]item),
+func New(expireAfter time.Duration) (*Cache, error) {
+	if expireAfter < 0 {
+		return nil, ErrInvalidDuration
 	}
+
+	return &Cache{
+		data:        make(map[string]item),
+		expireAfter: expireAfter,
+	}, nil
 }
 
-func (c *Cache) purgeExpired(name string, exp int64) {
+// Removes an item by name and expiry time when the purge was scheduled.
+// If there is a race, and the item has been refreshed, it will not be purged.
+func (c *Cache) purgeExpired(name string, expectedExpiryTime int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if item, ok := c.data[name]; ok && item.expiresAt == exp {
+	if item, ok := c.data[name]; ok && item.expiresAt == expectedExpiryTime {
 		// found, and the expiry time is still the same as when the purge was requested.
 		delete(c.data, name)
 	}
@@ -63,11 +71,10 @@ func (c *Cache) Size() int {
 	return len(c.data)
 }
 
-func (c *Cache) WriteThruLookup(name string, funk WriteThru, expireAfter time.Duration) (interface{}, error) {
-	if expireAfter < 0 {
-		return nil, ErrInvalidDuration
-	}
-
+// WriteThruLookup checks the cache for the value associated with name,
+// and if not found or expired, invokes the provided primaryLookup function
+// to local the value.
+func (c *Cache) WriteThruLookup(name string, primaryLookup Func) (interface{}, error) {
 	// This call takes a read lock.
 	val, hit := c.Lookup(name)
 	if hit {
@@ -84,7 +91,7 @@ func (c *Cache) WriteThruLookup(name string, funk WriteThru, expireAfter time.Du
 	// Either a miss, or hit w/ expired value.
 
 	// Value does indeed need to be refreshed. Used the provided fucntion.
-	newData, err := funk()
+	newData, err := primaryLookup()
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +99,7 @@ func (c *Cache) WriteThruLookup(name string, funk WriteThru, expireAfter time.Du
 	// save the newData in the cache. newData may be nil, if that's what the WriteThruFunction provided.
 	c.data[name] = item{
 		object:    newData,
-		expiresAt: time.Now().Add(expireAfter).UnixNano(),
+		expiresAt: time.Now().Add(c.expireAfter).UnixNano(),
 	}
 	return newData, nil
 
@@ -121,17 +128,13 @@ func (c *Cache) Lookup(name string) (interface{}, bool) {
 
 // Set saves the current value of an object in the cache, with the supplied
 // durintion until the object expires.
-func (c *Cache) Set(name string, object interface{}, expireAfter time.Duration) error {
-	if expireAfter < 0 {
-		return ErrInvalidDuration
-	}
-
+func (c *Cache) Set(name string, object interface{}) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.data[name] = item{
 		object:    object,
-		expiresAt: time.Now().Add(expireAfter).UnixNano(),
+		expiresAt: time.Now().Add(c.expireAfter).UnixNano(),
 	}
 
 	return nil
