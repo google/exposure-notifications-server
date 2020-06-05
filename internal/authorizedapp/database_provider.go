@@ -17,12 +17,13 @@ package authorizedapp
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
-	"sync"
 	"time"
 
 	authorizedappdb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	"github.com/google/exposure-notifications-server/internal/cache"
 	"github.com/google/exposure-notifications-server/internal/database"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
@@ -39,13 +40,7 @@ type DatabaseProvider struct {
 	secretManager secrets.SecretManager
 	cacheDuration time.Duration
 
-	cache     map[string]*cacheItem
-	cacheLock sync.RWMutex
-}
-
-type cacheItem struct {
-	value    *model.AuthorizedApp
-	cachedAt time.Time
+	cache *cache.Cache
 }
 
 // DatabaseProviderOption is used as input to the database provider.
@@ -64,7 +59,7 @@ func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, o
 	provider := &DatabaseProvider{
 		database:      db,
 		cacheDuration: config.CacheDuration,
-		cache:         make(map[string]*cacheItem),
+		cache:         cache.New(),
 	}
 
 	// Apply options.
@@ -75,25 +70,6 @@ func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, o
 	return provider, nil
 }
 
-// checkCache checks the local cache within a read lock.
-// The bool on return is true if there was a hit (And an error is a valid hit)
-// or false if there was a miss (or expiry) and the data source should be queried again.
-func (p *DatabaseProvider) checkCache(name string) (*model.AuthorizedApp, bool, error) {
-	// Acquire a read lock first, which allows concurrent readers, to check if
-	// there's an item in the cache.
-	p.cacheLock.RLock()
-	defer p.cacheLock.RUnlock()
-
-	item, ok := p.cache[name]
-	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
-		if item.value == nil {
-			return nil, true, ErrAppNotFound
-		}
-		return item.value, true, nil
-	}
-	return nil, false, nil
-}
-
 // AppConfig returns the config for the given app package name.
 func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error) {
 	logger := logging.FromContext(ctx)
@@ -102,41 +78,29 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 	// cacher does not. To maximize cache hits, convert to lowercase.
 	name = strings.ToLower(name)
 
-	data, cacheHit, error := p.checkCache(name)
-	if cacheHit {
-		return data, error
-	}
-
-	// Acquire a more aggressive lock now because we're about to mutate. However,
-	// it's possible that a concurrent routine has already mutated between our
-	// read and write locks, so we have to check again.
-	p.cacheLock.Lock()
-	defer p.cacheLock.Unlock()
-	item, ok := p.cache[name]
-	if ok && time.Since(item.cachedAt) <= p.cacheDuration {
-		if item.value == nil {
-			return nil, ErrAppNotFound
+	lookup := func() (interface{}, error) {
+		// Load config.
+		config, err := p.loadAuthorizedAppFromDatabase(ctx, name)
+		if err != nil {
+			return nil, fmt.Errorf("authorizedapp: %w", err)
 		}
-		return item.value, nil
+		logger.Infof("authorizedapp: loaded %v, caching for %s", name, p.cacheDuration)
+		return config, nil
 	}
+	cached, err := p.cache.WriteThruLookup(name, lookup, p.cacheDuration)
 
-	// Load config.
-	config, err := p.loadAuthorizedAppFromDatabase(ctx, name)
+	// Indicates an error on the write thru lookup.
 	if err != nil {
-		return nil, fmt.Errorf("authorizedapp: %w", err)
-	}
-
-	// Cache configs.
-	logger.Infof("authorizedapp: loaded %v, caching for %s", name, p.cacheDuration)
-	p.cache[name] = &cacheItem{
-		value:    config,
-		cachedAt: time.Now(),
+		return nil, err
 	}
 
 	// Handle not found.
+	config := cached.(*model.AuthorizedApp)
 	if config == nil {
 		return nil, ErrAppNotFound
 	}
+
+	log.Printf("AppConfig: %+v %v", config, err)
 
 	// Returned config.
 	return config, nil
