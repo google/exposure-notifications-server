@@ -39,9 +39,9 @@ import (
 	// imported to register the "postgres" database driver for migrate
 )
 
-// NewTestDatabase creates a new database suitable for use in testing. This
-// should not be used outside of testing, but it is exposed in the main package
-// so it can be shared with other packages.
+// NewTestDatabaseWithConfig creates a new database suitable for use in testing.
+// This should not be used outside of testing, but it is exposed in the main
+// package so it can be shared with other packages.
 //
 // All database tests can be skipped by running `go test -short` or by setting
 // the `SKIP_DATABASE_TESTS` environment variable.
@@ -104,6 +104,10 @@ func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
 	q := connURL.Query()
 	q.Add("sslmode", "disable")
 	connURL.RawQuery = q.Encode()
+
+	// Wait for the container to start - we'll retry connections in a loop below,
+	// but there's no point in trying immediately.
+	time.Sleep(1 * time.Second)
 
 	// Establish a connection to the database. Use a Fibonacci backoff instead of
 	// exponential so wait times scale appropriately.
