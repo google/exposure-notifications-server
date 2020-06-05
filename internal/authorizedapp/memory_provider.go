@@ -33,7 +33,7 @@ type MemoryProvider struct {
 	data map[string]*model.AuthorizedApp
 }
 
-// NewMemoryProvider creates a new Provider that reads from a database.
+// NewMemoryProvider creates a new Provider that is in memory.
 func NewMemoryProvider(_ context.Context, _ *Config) (Provider, error) {
 	provider := &MemoryProvider{
 		data: make(map[string]*model.AuthorizedApp),
