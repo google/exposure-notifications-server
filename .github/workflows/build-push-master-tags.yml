@@ -1,0 +1,39 @@
+name: Docker
+
+on:
+  push:
+    # Publish `master` as Docker `latest` image.
+    branches:
+      - master
+
+    # Publish `v1.2.3` tags as releases.
+    tags:
+      - v*
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+        steps:
+        - name: 'Checkout GitHub Action'
+          uses: actions/checkout@master
+          
+        - name: 'Login via Azure CLI'
+          uses: azure/login@v1
+          with:
+            creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+        - name: 'Build and push image'
+          uses: azure/docker-login@v1
+          with:
+            login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+            username: ${{ secrets.REGISTRY_USERNAME }}
+            password: ${{ secrets.REGISTRY_PASSWORD }}
+        - run: |
+            for i in "cleanup-export" "cleanup-exposure" "export" "exposure" "federationin" "federationout" "generate"; do
+            echo "Building" $i
+            docker build . --build-arg SERVICE=$i --tag ${{ secrets.REGISTRY_LOGIN_SERVER }}/$i:${{ github.sha }}
+            docker tag ${{ secrets.REGISTRY_LOGIN_SERVER }}/$i:${{ github.sha }} ${{ secrets.REGISTRY_LOGIN_SERVER }}/$i:latest
+            echo "Pushing" $i
+            docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/$i:${{ github.sha }}
+            docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/$i:latest
+            done
+
