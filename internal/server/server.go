@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
@@ -31,11 +32,14 @@ import (
 // Server provides a gracefully-stoppable http server implementation. It is safe
 // for concurrent use in goroutines.
 type Server struct {
+	ip       string
+	port     string
 	listener net.Listener
 }
 
 // New creates a new server listening on the provided address that responds to
-// the http.Handler. It starts the listener, but does not start the server.
+// the http.Handler. It starts the listener, but does not start the server. If
+// an empty port is given, the server randombly chooses one.
 func New(port string) (*Server, error) {
 	// Create the net listener first, so the connection ready when we return. This
 	// guarantees that it can accept requests.
@@ -46,6 +50,8 @@ func New(port string) (*Server, error) {
 	}
 
 	return &Server{
+		ip:       listener.Addr().(*net.TCPAddr).IP.String(),
+		port:     strconv.Itoa(listener.Addr().(*net.TCPAddr).Port),
 		listener: listener,
 	}, nil
 }
@@ -137,4 +143,19 @@ func (s *Server) ServeGRPC(ctx context.Context, srv *grpc.Server) error {
 	default:
 		return nil
 	}
+}
+
+// Addr returns the server's listening address (ip + port).
+func (s *Server) Addr() string {
+	return net.JoinHostPort(s.ip, s.port)
+}
+
+// IP returns the server's listening IP.
+func (s *Server) IP() string {
+	return s.ip
+}
+
+// Port returns the server's listening port.
+func (s *Server) Port() string {
+	return s.port
 }

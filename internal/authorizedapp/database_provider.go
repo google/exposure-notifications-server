@@ -122,3 +122,8 @@ func (p *DatabaseProvider) loadAuthorizedAppFromDatabase(ctx context.Context, na
 	}
 	return config, nil
 }
+
+// Add adds a new authorized app to the system.
+func (p *DatabaseProvider) Add(ctx context.Context, app *model.AuthorizedApp) error {
+	return authorizedappdb.New(p.database).InsertAuthorizedApp(ctx, app)
+}

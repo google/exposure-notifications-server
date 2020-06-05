@@ -41,6 +41,8 @@ func BlobstoreFor(ctx context.Context, typ BlobstoreType) (Blobstore, error) {
 		return NewGoogleCloudStorage(ctx)
 	case BlobstoreTypeFilesystem:
 		return NewFilesystemStorage(ctx)
+	case BlobstoreTypeMemory:
+		return NewMemory(ctx)
 	case BlobstoreTypeNoop:
 		return NewNoop(ctx)
 	default:

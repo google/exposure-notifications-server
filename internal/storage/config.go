@@ -20,8 +20,9 @@ type BlobstoreType string
 const (
 	BlobstoreTypeAWSS3              BlobstoreType = "AWS_S3"
 	BlobstoreTypeAzureBlobStorage   BlobstoreType = "AZURE_BLOB_STORAGE"
-	BlobstoreTypeGoogleCloudStorage BlobstoreType = "GOOGLE_CLOUD_STORAGE"
 	BlobstoreTypeFilesystem         BlobstoreType = "FILESYSTEM"
+	BlobstoreTypeGoogleCloudStorage BlobstoreType = "GOOGLE_CLOUD_STORAGE"
+	BlobstoreTypeMemory             BlobstoreType = "MEMORY"
 	BlobstoreTypeNoop               BlobstoreType = "NOOP"
 )
 

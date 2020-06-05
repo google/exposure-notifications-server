@@ -33,5 +33,8 @@ type Provider interface {
 	//
 	// The name field is case-insensitive. Implementers should adjust accordingly
 	// to handle mixed case. com.MyApp is the same as com.myapp.
-	AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error)
+	AppConfig(context.Context, string) (*model.AuthorizedApp, error)
+
+	// Add inserts a model into the provider.
+	Add(context.Context, *model.AuthorizedApp) error
 }
