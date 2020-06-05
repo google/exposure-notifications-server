@@ -31,13 +31,13 @@ var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 // Config represents the configuration and associated environment variables for
 // the cleanup components.
 type Config struct {
-	Storage       storage.Config
 	Database      database.Config
 	SecretManager secrets.Config
+	Storage       storage.Config
 
-	Port    string        `envconfig:"PORT" default:"8080"`
-	Timeout time.Duration `envconfig:"CLEANUP_TIMEOUT" default:"10m"`
-	TTL     time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
+	Port    string        `env:"PORT, default=8080"`
+	Timeout time.Duration `env:"CLEANUP_TIMEOUT, default=10m"`
+	TTL     time.Duration `env:"CLEANUP_TTL, default=336h"`
 }
 
 func (c *Config) BlobstoreConfig() *storage.Config {

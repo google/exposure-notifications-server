@@ -20,22 +20,6 @@ import (
 	"fmt"
 )
 
-// BlobstoreType defines a specific blobstore.
-type BlobstoreType string
-
-const (
-	BlobstoreTypeAWSS3              BlobstoreType = "AWS_S3"
-	BlobstoreTypeAzureBlobStorage   BlobstoreType = "AZURE_BLOB_STORAGE"
-	BlobstoreTypeGoogleCloudStorage BlobstoreType = "GOOGLE_CLOUD_STORAGE"
-	BlobstoreTypeFilesystem         BlobstoreType = "FILESYSTEM"
-	BlobstoreTypeNoop               BlobstoreType = "NOOP"
-)
-
-// Config defines the configuration for a blobstore.
-type Config struct {
-	BlobstoreType BlobstoreType `envconfig:"BLOBSTORE" default:"GOOGLE_CLOUD_STORAGE"`
-}
-
 // Blobstore defines the minimum interface for a blob storage system.
 type Blobstore interface {
 	// CreateObject creates or overwrites an object in the storage system.

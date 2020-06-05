@@ -16,7 +16,6 @@ package secrets
 
 import (
 	"context"
-	"fmt"
 )
 
 // Compile-time check to verify implements interface.
@@ -31,5 +30,5 @@ func NewNoop(ctx context.Context) (SecretManager, error) {
 
 // GetSecretValue implements secrets.
 func (n *Noop) GetSecretValue(_ context.Context, _ string) (string, error) {
-	return "", fmt.Errorf("noop cannot resolve secrets")
+	return "noop-secret", nil
 }

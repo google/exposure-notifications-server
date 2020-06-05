@@ -33,13 +33,13 @@ type Config struct {
 	Database      database.Config
 	SecretManager secrets.Config
 
-	Port             string        `envconfig:"PORT" default:"8080"`
-	NumExposures     int           `envconfig:"NUM_EXPOSURES_GENERATED" default:"10"`
-	KeysPerExposure  int           `envconfig:"KEYS_PER_EXPOSURE" default:"14"`
-	MaxKeysOnPublish int           `envconfig:"MAX_KEYS_ON_PUBLISH" default:"15"`
-	MaxIntervalAge   time.Duration `envconfig:"MAX_INTERVAL_AGE_ON_PUBLISH" default:"360h"`
-	TruncateWindow   time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
-	DefaultRegion    string        `envconfig:"DEFAULT_REGOIN" default:"US"`
+	Port             string        `env:"PORT, default=8080"`
+	NumExposures     int           `env:"NUM_EXPOSURES_GENERATED, default=10"`
+	KeysPerExposure  int           `env:"KEYS_PER_EXPOSURE, default=14"`
+	MaxKeysOnPublish int           `env:"MAX_KEYS_ON_PUBLISH, default=15"`
+	MaxIntervalAge   time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
+	TruncateWindow   time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
+	DefaultRegion    string        `env:"DEFAULT_REGOIN, default=US"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {

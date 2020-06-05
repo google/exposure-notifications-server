@@ -36,15 +36,15 @@ type Config struct {
 	Database      database.Config
 	SecretManager secrets.Config
 
-	Port               string        `envconfig:"PORT" default:"8080"`
-	MinRequestDuration time.Duration `envconfig:"TARGET_REQUEST_DURATION" default:"5s"`
-	MaxKeysOnPublish   int           `envconfig:"MAX_KEYS_ON_PUBLISH" default:"15"`
-	MaxIntervalAge     time.Duration `envconfig:"MAX_INTERVAL_AGE_ON_PUBLISH" default:"360h"`
-	TruncateWindow     time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
+	Port               string        `env:"PORT, default=8080"`
+	MinRequestDuration time.Duration `env:"TARGET_REQUEST_DURATION, default=5s"`
+	MaxKeysOnPublish   int           `env:"MAX_KEYS_ON_PUBLISH, default=15"`
+	MaxIntervalAge     time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
+	TruncateWindow     time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
 	// Flags for local development and testing.
-	DebugAPIResponses       bool `envconfig:"DEBUG_API_RESPONSES"`
-	DebugReleaseSameDayKeys bool `envconfig:"DEBUG_RELEASE_SAME_DAY_KEYS"`
+	DebugAPIResponses       bool `env:"DEBUG_API_RESPONSES"`
+	DebugReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
 }
 
 func (c *Config) AuthorizedAppConfig() *authorizedapp.Config {

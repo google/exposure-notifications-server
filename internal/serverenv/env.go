@@ -148,3 +148,15 @@ func (s *ServerEnv) MetricsExporter(ctx context.Context) metrics.Exporter {
 	}
 	return s.exporter(ctx)
 }
+
+// Close shuts down the server env, closing database connections, etc.
+func (s *ServerEnv) Close(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+
+	if s.database != nil {
+		s.database.Close(ctx)
+	}
+	return nil
+}

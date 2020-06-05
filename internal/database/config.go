@@ -19,23 +19,23 @@ import (
 )
 
 type Config struct {
-	Name               string        `envconfig:"DB_NAME"`
-	User               string        `envconfig:"DB_USER"`
-	Host               string        `envconfig:"DB_HOST" default:"localhost"`
-	Port               string        `envconfig:"DB_PORT" default:"5432"`
-	SSLMode            string        `envconfig:"DB_SSLMODE" default:"require"`
-	ConnectionTimeout  int           `envconfig:"DB_CONNECT_TIMEOUT"`
-	Password           string        `envconfig:"DB_PASSWORD"`
-	SSLCertPath        string        `envconfig:"DB_SSLCERT"`
-	SSLKeyPath         string        `envconfig:"DB_SSLKEY"`
-	SSLRootCertPath    string        `envconfig:"DB_SSLROOTCERT"`
-	PoolMinConnections string        `envconfig:"DB_POOL_MIN_CONNS"`
-	PoolMaxConnections string        `envconfig:"DB_POOL_MAX_CONNS"`
-	PoolMaxConnLife    time.Duration `envconfig:"DB_POOL_MAX_CONN_LIFETIME"`
-	PoolMaxConnIdle    time.Duration `envconfig:"DB_POOL_MAX_CONN_IDLE_TIME"`
-	PoolHealthCheck    time.Duration `envconfig:"DB_POOL_HEALTH_CHECK_PERIOD"`
+	Name               string        `env:"DB_NAME"`
+	User               string        `env:"DB_USER"`
+	Host               string        `env:"DB_HOST, default=localhost"`
+	Port               string        `env:"DB_PORT, default=5432"`
+	SSLMode            string        `env:"DB_SSLMODE, default=require"`
+	ConnectionTimeout  int           `env:"DB_CONNECT_TIMEOUT"`
+	Password           string        `env:"DB_PASSWORD"`
+	SSLCertPath        string        `env:"DB_SSLCERT"`
+	SSLKeyPath         string        `env:"DB_SSLKEY"`
+	SSLRootCertPath    string        `env:"DB_SSLROOTCERT"`
+	PoolMinConnections string        `env:"DB_POOL_MIN_CONNS"`
+	PoolMaxConnections string        `env:"DB_POOL_MAX_CONNS"`
+	PoolMaxConnLife    time.Duration `env:"DB_POOL_MAX_CONN_LIFETIME"`
+	PoolMaxConnIdle    time.Duration `env:"DB_POOL_MAX_CONN_IDLE_TIME"`
+	PoolHealthCheck    time.Duration `env:"DB_POOL_HEALTH_CHECK_PERIOD"`
 }
 
-func (c *Config) DB() *Config {
+func (c *Config) DatabaseConfig() *Config {
 	return c
 }

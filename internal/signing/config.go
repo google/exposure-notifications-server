@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package authorizedapp
+package signing
 
-import (
-	"time"
+// KeyManagerType defines a specific key manager.
+type KeyManagerType string
+
+const (
+	KeyManagerTypeAWSKMS         KeyManagerType = "AWS_KMS"
+	KeyManagerTypeGoogleCloudKMS KeyManagerType = "GOOGLE_CLOUD_KMS"
+	KeyManagerTypeHashiCorpVault KeyManagerType = "HASHICORP_VAULT"
+	KeyManagerTypeNoop           KeyManagerType = "NOOP"
 )
 
+// Config defines configuration.
 type Config struct {
-	// CacheDuration is the amount of time AuthorizedApp should be cached before
-	// being re-read from their provider.
-	CacheDuration time.Duration `env:"AUTHORIZED_APP_CACHE_DURATION,default=5m"`
-}
-
-// AuthorizedApp implements an interface for setup.
-func (c *Config) AuthorizedApp() *Config {
-	return c
+	KeyManagerType KeyManagerType `env:"KEY_MANAGER,default=GOOGLE_CLOUD_KMS"`
 }

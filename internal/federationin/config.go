@@ -44,20 +44,23 @@ type Config struct {
 	Database      database.Config
 	SecretManager secrets.Config
 
-	Port           string        `envconfig:"PORT" default:"8080"`
-	Timeout        time.Duration `envconfig:"RPC_TIMEOUT" default:"10m"`
-	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
+	Port           string        `env:"PORT, default=8080"`
+	Timeout        time.Duration `env:"RPC_TIMEOUT, default=10m"`
+	TruncateWindow time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
-	// TLSSkipVerify, if set to true, causes the server certificate to not be verified.
-	// This is typically used when testing locally with self-signed certificates.
-	TLSSkipVerify bool `envconfig:"TLS_SKIP_VERIFY" default:"false"`
+	// TLSSkipVerify, if set to true, causes the server certificate to not be
+	// verified. This is typically used when testing locally with self-signed
+	// certificates.
+	TLSSkipVerify bool `env:"TLS_SKIP_VERIFY"`
 
-	// TLSCertFile points to an optional cert file that will be appended to the system certificates.
-	TLSCertFile string `envconfig:"TLS_CERT_FILE"`
+	// TLSCertFile points to an optional cert file that will be appended to the
+	// system certificates.
+	TLSCertFile string `env:"TLS_CERT_FILE"`
 
-	// CredentialsFile points to a JSON credentials file. If running on Managed Cloud Run,
-	// or if using $GOOGLE_APPLICATION_CREDENTIALS, leave this value empty.
-	CredentialsFile string `envconfig:"CREDENTIALS_FILE"`
+	// CredentialsFile points to a JSON credentials file. If running on Managed
+	// Cloud Run, or if using $GOOGLE_APPLICATION_CREDENTIALS, leave this value
+	// empty.
+	CredentialsFile string `env:"CREDENTIALS_FILE"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {

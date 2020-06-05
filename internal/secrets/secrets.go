@@ -19,25 +19,7 @@ package secrets
 import (
 	"context"
 	"fmt"
-	"time"
 )
-
-// SecretManagerType represents a type of secret manager.
-type SecretManagerType string
-
-const (
-	SecretManagerTypeAWSSecretsManager    SecretManagerType = "AWS_SECRETS_MANAGER"
-	SecretManagerTypeAzureKeyVault        SecretManagerType = "AZURE_KEY_VAULT"
-	SecretManagerTypeGoogleSecretManager  SecretManagerType = "GOOGLE_SECRET_MANAGER"
-	SecretManagerTypeGoogleHashiCorpVault SecretManagerType = "HASHICORP_VAULT"
-	SecretManagerTypeNoop                 SecretManagerType = "NOOP"
-)
-
-// Config represents the config for a secret manager.
-type Config struct {
-	SecretManagerType SecretManagerType `envconfig:"SECRET_MANAGER" default:"GOOGLE_SECRET_MANAGER"`
-	SecretCacheTTL    time.Duration     `envconfig:"SECRET_CACHE_TTL" default:"5m"`
-}
 
 // SecretManager defines the minimum shared functionality for a secret manager
 // used by this application.

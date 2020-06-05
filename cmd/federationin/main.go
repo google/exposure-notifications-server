@@ -34,11 +34,11 @@ func main() {
 	logger := logging.FromContext(ctx)
 
 	var config federationin.Config
-	env, closer, err := setup.Setup(ctx, &config)
+	env, err := setup.Setup(ctx, &config)
 	if err != nil {
 		logger.Fatalf("setup.Setup: %v", err)
 	}
-	defer closer()
+	defer env.Close(ctx)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", federationin.NewHandler(env, &config))

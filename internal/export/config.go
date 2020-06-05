@@ -33,20 +33,20 @@ var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 // Config represents the configuration and associated environment variables for
 // the export components.
 type Config struct {
-	Storage       storage.Config
 	Database      database.Config
 	KeyManager    signing.Config
 	SecretManager secrets.Config
+	Storage       storage.Config
 
-	Port           string        `envconfig:"PORT" default:"8080"`
-	CreateTimeout  time.Duration `envconfig:"CREATE_BATCHES_TIMEOUT" default:"5m"`
-	WorkerTimeout  time.Duration `envconfig:"WORKER_TIMEOUT" default:"5m"`
-	MinRecords     int           `envconfig:"EXPORT_FILE_MIN_RECORDS" default:"1000"`
-	PaddingRange   int           `envconfig:"EXPORT_FILE_PADDING_RANGE" default:"100"`
-	MaxRecords     int           `envconfig:"EXPORT_FILE_MAX_RECORDS" default:"30000"`
-	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
-	MinWindowAge   time.Duration `envconfig:"MIN_WINDOW_AGE" default:"2h"`
-	TTL            time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
+	Port           string        `env:"PORT, default=8080"`
+	CreateTimeout  time.Duration `env:"CREATE_BATCHES_TIMEOUT, default=5m"`
+	WorkerTimeout  time.Duration `env:"WORKER_TIMEOUT, default=5m"`
+	MinRecords     int           `env:"EXPORT_FILE_MIN_RECORDS, default=1000"`
+	PaddingRange   int           `env:"EXPORT_FILE_PADDING_RANGE, default=100"`
+	MaxRecords     int           `env:"EXPORT_FILE_MAX_RECORDS, default=30000"`
+	TruncateWindow time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
+	MinWindowAge   time.Duration `env:"MIN_WINDOW_AGE, default=2h"`
+	TTL            time.Duration `env:"CLEANUP_TTL, default=336h"`
 }
 
 func (c *Config) BlobstoreConfig() *storage.Config {

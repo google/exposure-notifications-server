@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package authorizedapp
+package storage
 
-import (
-	"time"
+// BlobstoreType defines a specific blobstore.
+type BlobstoreType string
+
+const (
+	BlobstoreTypeAWSS3              BlobstoreType = "AWS_S3"
+	BlobstoreTypeAzureBlobStorage   BlobstoreType = "AZURE_BLOB_STORAGE"
+	BlobstoreTypeGoogleCloudStorage BlobstoreType = "GOOGLE_CLOUD_STORAGE"
+	BlobstoreTypeFilesystem         BlobstoreType = "FILESYSTEM"
+	BlobstoreTypeNoop               BlobstoreType = "NOOP"
 )
 
+// Config defines the configuration for a blobstore.
 type Config struct {
-	// CacheDuration is the amount of time AuthorizedApp should be cached before
-	// being re-read from their provider.
-	CacheDuration time.Duration `env:"AUTHORIZED_APP_CACHE_DURATION,default=5m"`
-}
-
-// AuthorizedApp implements an interface for setup.
-func (c *Config) AuthorizedApp() *Config {
-	return c
+	BlobstoreType BlobstoreType `env:"BLOBSTORE,default=GOOGLE_CLOUD_STORAGE"`
 }

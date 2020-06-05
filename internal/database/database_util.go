@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 	"os"
@@ -113,7 +112,7 @@ func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
 		var err error
 		dbpool, err = pgxpool.Connect(ctx, connURL.String())
 		if err != nil {
-			log.Printf("connector: %d: %s\n\n", time.Now().Unix(), err)
+			tb.Logf("retrying error: %v", err)
 			return retry.RetryableError(err)
 		}
 		return nil

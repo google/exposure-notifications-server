@@ -12,38 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This tool provides a small admin UI. Requires connection to the database
-// and permissions to access whatever else you might need to access.
-package admin
+package monolith
 
 import (
-	"fmt"
-	"html/template"
-	"log"
-	"net/http"
-
+	"github.com/google/exposure-notifications-server/internal/authorizedapp"
+	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export"
+	"github.com/google/exposure-notifications-server/internal/federationin"
+	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
+var _ setup.AuthorizedAppConfigProvider = (*Config)(nil)
 var _ setup.BlobstoreConfigProvider = (*Config)(nil)
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
 var _ setup.KeyManagerConfigProvider = (*Config)(nil)
 var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 
 type Config struct {
-	Database      database.Config
-	KeyManager    signing.Config
-	SecretManager secrets.Config
+	AuthorizedApp authorizedapp.Config
 	Storage       storage.Config
+	Cleanup       cleanup.Config
+	Database      database.Config
+	Export        export.Config
+	FederationIn  federationin.Config
+	KeyManager    signing.Config
+	Publish       publish.Config
+	SecretManager secrets.Config
 
-	Port         string `env:"PORT, default=8080"`
-	TemplatePath string `env:"TEMPLATE_DIR, default=./tools/admin-console/templates"`
-	TopFile      string `env:"TOP_FILE, default=top"`
-	BotFile      string `env:"BOTTOM_FILE, default=bottom"`
+	Port string `env:"PORT, default=8080"`
+}
+
+func (c *Config) AuthorizedAppConfig() *authorizedapp.Config {
+	return &c.AuthorizedApp
+}
+
+func (c *Config) BlobstoreConfig() *storage.Config {
+	return &c.Storage
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
@@ -56,33 +65,4 @@ func (c *Config) KeyManagerConfig() *signing.Config {
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
 	return &c.SecretManager
-}
-
-func (c *Config) BlobstoreConfig() *storage.Config {
-	return &c.Storage
-}
-
-func (c *Config) RenderTemplate(w http.ResponseWriter, tmpl string, p TemplateMap) error {
-	files := []string{
-		fmt.Sprintf("%s/%s.html", c.TemplatePath, c.TopFile),
-		fmt.Sprintf("%s/%s.html", c.TemplatePath, tmpl),
-		fmt.Sprintf("%s/%s.html", c.TemplatePath, c.BotFile),
-	}
-
-	t, err := template.ParseFiles(files...)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, err)
-		log.Printf("ERROR: %v", err)
-		return err
-	}
-	if err := t.ExecuteTemplate(w, tmpl, p); err != nil {
-		message := fmt.Sprintf("error rendering template: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, message)
-		log.Printf("ERROR: %v", err)
-		return fmt.Errorf("error rendering template: %w", err)
-	}
-
-	return nil
 }
