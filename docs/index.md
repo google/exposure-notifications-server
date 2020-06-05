@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # Exposure Notification Reference Server
 
 [COVID‑19 Exposure Notifications API](https://www.google.com/covid19/exposurenotifications/)

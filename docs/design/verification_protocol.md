@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # Public Health Authority Diagnosis Verification Protocol
 
 This design covers the exposure notifications server's ability to verify
