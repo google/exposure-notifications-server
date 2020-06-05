@@ -17,35 +17,50 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"net/http"
 
-	"go.opencensus.io/plugin/ochttp"
-
 	"github.com/google/exposure-notifications-server/internal/cleanup"
+	"github.com/google/exposure-notifications-server/internal/interrupt"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	_ "github.com/google/exposure-notifications-server/internal/observability"
+	"github.com/google/exposure-notifications-server/internal/server"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, done := interrupt.Context()
+	defer done()
+
+	if err := realMain(ctx); err != nil {
+		logger := logging.FromContext(ctx)
+		logger.Fatal(err)
+	}
+}
+
+func realMain(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
 	var config cleanup.Config
 	env, err := setup.Setup(ctx, &config)
 	if err != nil {
-		logger.Fatalf("setup.Setup: %v", err)
+		return fmt.Errorf("setup.Setup: %w", err)
 	}
 	defer env.Close(ctx)
 
 	handler, err := cleanup.NewExposureHandler(&config, env)
 	if err != nil {
-		logger.Fatalf("cleanup.NewExposureHandler: %v", err)
+		return fmt.Errorf("cleanup.NewExposureHandler: %w", err)
 	}
+
 	mux := http.NewServeMux()
 	mux.Handle("/", handler)
-	logger.Infof("starting cleanup server on :%s", config.Port)
-	instrumentedHandler := &ochttp.Handler{Handler: mux}
-	log.Fatal(http.ListenAndServe(":"+config.Port, instrumentedHandler))
+
+	srv, err := server.New(config.Port)
+	if err != nil {
+		return fmt.Errorf("server.New: %w", err)
+	}
+	logger.Infof("listening on :%s", config.Port)
+
+	return srv.ServeHTTPHandler(ctx, mux)
 }

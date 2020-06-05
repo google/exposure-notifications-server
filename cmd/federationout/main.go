@@ -17,8 +17,7 @@ package main
 
 import (
 	"context"
-	"log"
-	"net"
+	"fmt"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -26,47 +25,58 @@ import (
 	"go.opencensus.io/plugin/ocgrpc"
 
 	"github.com/google/exposure-notifications-server/internal/federationout"
+	"github.com/google/exposure-notifications-server/internal/interrupt"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	_ "github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/server"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, done := interrupt.Context()
+	defer done()
+
+	if err := realMain(ctx); err != nil {
+		logger := logging.FromContext(ctx)
+		logger.Fatal(err)
+	}
+}
+
+func realMain(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
 	var config federationout.Config
 	env, err := setup.Setup(ctx, &config)
 	if err != nil {
-		logger.Fatalf("setup.Setup: %v", err)
+		return fmt.Errorf("setup.Setup: %w", err)
 	}
 	defer env.Close(ctx)
 
-	server := federationout.NewServer(env, &config)
+	federationServer := federationout.NewServer(env, &config)
 
 	var sopts []grpc.ServerOption
 	if config.TLSCertFile != "" && config.TLSKeyFile != "" {
 		creds, err := credentials.NewServerTLSFromFile(config.TLSCertFile, config.TLSKeyFile)
 		if err != nil {
-			log.Fatalf("Failed to generate credentials: %v", err)
+			return fmt.Errorf("failed to create credentials: %w", err)
 		}
 		sopts = append(sopts, grpc.Creds(creds))
 	}
 
 	if !config.AllowAnyClient {
-		sopts = append(sopts, grpc.UnaryInterceptor(server.(*federationout.Server).AuthInterceptor))
+		sopts = append(sopts, grpc.UnaryInterceptor(federationServer.(*federationout.Server).AuthInterceptor))
 	}
 
 	sopts = append(sopts, grpc.StatsHandler(&ocgrpc.ServerHandler{}))
 	grpcServer := grpc.NewServer(sopts...)
-	pb.RegisterFederationServer(grpcServer, server)
+	pb.RegisterFederationServer(grpcServer, federationServer)
 
-	grpcEndpoint := ":" + config.Port
-	listen, err := net.Listen("tcp", grpcEndpoint)
+	srv, err := server.New(config.Port)
 	if err != nil {
-		logger.Fatalf("Failed to start server: %v", err)
+		return fmt.Errorf("server.New: %w", err)
 	}
-	logger.Infof("Starting federationout gRPC listener [%s]", grpcEndpoint)
-	log.Fatal(grpcServer.Serve(listen))
+	logger.Infof("listening on :%s", config.Port)
+
+	return srv.ServeGRPC(ctx, grpcServer)
 }

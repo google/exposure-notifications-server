@@ -16,8 +16,7 @@
 package main
 
 import (
-	"context"
-
+	"github.com/google/exposure-notifications-server/internal/interrupt"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/monolith"
 
@@ -26,10 +25,11 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
-	logger := logging.FromContext(ctx)
+	ctx, done := interrupt.Context()
+	defer done()
 
-	if _, err := monolith.RunServer(ctx); err != nil {
+	if err := monolith.RunServer(ctx); err != nil {
+		logger := logging.FromContext(ctx)
 		logger.Fatal(err)
 	}
 }
