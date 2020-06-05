@@ -28,35 +28,3 @@ type Config struct {
 func (c *Config) AuthorizedApp() *Config {
 	return c
 }
-
-// TestConfigDefaults returns a configuration populated with the default values.
-// It should only be used for testing.
-func TestConfigDefaults() *Config {
-	return &Config{
-		CacheDuration: 5 * time.Minute,
-	}
-}
-
-// TestConfigValued returns a configuration populated with values that match
-// TestConfigValues() It should only be used for testing.
-func TestConfigValued() *Config {
-	return &Config{
-		CacheDuration: 10 * time.Minute,
-	}
-}
-
-// TestConfigValues returns a list of configuration that corresponds to
-// TestConfigValued. It should only be used for testing.
-func TestConfigValues() map[string]string {
-	return map[string]string{
-		"AUTHORIZED_APP_CACHE_DURATION": "10m",
-	}
-}
-
-// TestConfigOverridden returns a configuration with non-default values set. It
-// should only be used for testing.
-func TestConfigOverridden() *Config {
-	return &Config{
-		CacheDuration: 30 * time.Minute,
-	}
-}

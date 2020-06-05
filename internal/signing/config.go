@@ -28,35 +28,3 @@ const (
 type Config struct {
 	KeyManagerType KeyManagerType `env:"KEY_MANAGER,default=GOOGLE_CLOUD_KMS"`
 }
-
-// TestConfigDefaults returns a configuration populated with the default values.
-// It should only be used for testing.
-func TestConfigDefaults() *Config {
-	return &Config{
-		KeyManagerType: KeyManagerType("GOOGLE_CLOUD_KMS"),
-	}
-}
-
-// TestConfigValued returns a configuration populated with values that match
-// TestConfigValues() It should only be used for testing.
-func TestConfigValued() *Config {
-	return &Config{
-		KeyManagerType: KeyManagerType("HASHICORP_VAULT"),
-	}
-}
-
-// TestConfigValues returns a list of configuration that corresponds to
-// TestConfigValued. It should only be used for testing.
-func TestConfigValues() map[string]string {
-	return map[string]string{
-		"KEY_MANAGER": "HASHICORP_VAULT",
-	}
-}
-
-// TestConfigOverridden returns a configuration with non-default values set. It
-// should only be used for testing.
-func TestConfigOverridden() *Config {
-	return &Config{
-		KeyManagerType: KeyManagerType("NOOP"),
-	}
-}

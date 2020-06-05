@@ -20,13 +20,13 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/sethvargo/go-envconfig/pkg/envconfig"
 )
 
 // BlobstoreConfigProvider provides the information about current storage

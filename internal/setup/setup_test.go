@@ -21,11 +21,11 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/sethvargo/go-envconfig/pkg/envconfig"
 )
 
 var _ setup.AuthorizedAppConfigProvider = (*testConfig)(nil)

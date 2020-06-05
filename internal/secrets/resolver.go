@@ -23,8 +23,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/exposure-notifications-server/internal/envconfig"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/sethvargo/go-envconfig/pkg/envconfig"
 )
 
 const (
