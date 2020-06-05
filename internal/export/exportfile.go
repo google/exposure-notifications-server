@@ -180,12 +180,6 @@ func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, 
 
 func createSignatureInfo(si *model.SignatureInfo) *export.SignatureInfo {
 	sigInfo := &export.SignatureInfo{SignatureAlgorithm: proto.String(algorithm)}
-	if si.AppPackageName != "" {
-		sigInfo.AndroidPackage = proto.String(si.AppPackageName)
-	}
-	if si.BundleID != "" {
-		sigInfo.AppBundleId = proto.String(si.BundleID)
-	}
 	if si.SigningKeyVersion != "" {
 		sigInfo.VerificationKeyVersion = proto.String(si.SigningKeyVersion)
 	}
