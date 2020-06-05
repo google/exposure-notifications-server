@@ -47,8 +47,6 @@ type Config struct {
 	TruncateWindow time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 	MinWindowAge   time.Duration `envconfig:"MIN_WINDOW_AGE" default:"2h"`
 	TTL            time.Duration `envconfig:"CLEANUP_TTL" default:"336h"`
-	// The worker considers export batches closed before the now() minus BatchCloseTimeShift minutes ago.
-	BatchCloseTimeShift time.Duration `envconfig:"BATCH_CLOSE_TIME_SHIFT" default:"5m"`
 }
 
 func (c *Config) BlobstoreConfig() *storage.Config {
