@@ -56,10 +56,14 @@ func WithSecretManager(sm secrets.SecretManager) DatabaseProviderOption {
 
 // NewDatabaseProvider creates a new Provider that reads from a database.
 func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, opts ...DatabaseProviderOption) (Provider, error) {
+	cache, err := cache.New(config.CacheDuration)
+	if err != nil {
+		return nil, fmt.Errorf("cache.New: %w", err)
+	}
 	provider := &DatabaseProvider{
 		database:      db,
 		cacheDuration: config.CacheDuration,
-		cache:         cache.New(config.CacheDuration),
+		cache:         cache,
 	}
 
 	// Apply options.
