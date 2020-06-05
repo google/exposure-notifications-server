@@ -16,15 +16,29 @@ package integration
 
 import (
 	"context"
+	"io/ioutil"
+	"net/http"
 	"testing"
 )
 
 // This tests that the integration util can bring up the Monolith.
 // It should eventually be swapped out for a smoke test that ensures
 // the server is listening at all the relevant addresses.
-func TestIntegrationUtil(t *testing.T) {
+func TestIntegrationUtilSmoke(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
 	StartSystemUnderTest(t, ctx)
+	resp, err := http.Get("http://localhost:8080/health")
+	if err != nil {
+		t.Errorf("Health check generated error: %v", err)
+	}
+	ok, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		t.Errorf("Couldn't read health check response: %v", err)
+	}
+	if string(ok) != "OK" {
+		t.Errorf("Health check did not generate response \"OK\". Actual: %v", ok)
+	}
 }

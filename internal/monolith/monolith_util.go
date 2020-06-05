@@ -126,6 +126,10 @@ func RunServer(ctx context.Context) (*MonoConfig, error) {
 	}
 	mux.HandleFunc("/publish", handlers.WithMinimumLatency(config.Publish.MinRequestDuration, publishServer))
 
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "OK")
+	})
+
 	s := http.Server{Addr: ":" + config.Port}
 	mux.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
 		s.Shutdown(context.Background())

@@ -21,6 +21,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/monolith"
@@ -73,6 +74,7 @@ func StartSystemUnderTest(tb testing.TB, ctx context.Context) (*database.DB, *mo
 	})
 
 	go SetEnvAndRunServer(tb, ctx, dbconfig)
+	time.Sleep(1 * time.Second)
 
 	return db, nil
 
