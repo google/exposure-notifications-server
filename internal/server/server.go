@@ -21,10 +21,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"go.opencensus.io/plugin/ochttp"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -34,75 +35,110 @@ var (
 // Server provides a gracefully-stoppable http server implementation. It is safe
 // for concurrent use in goroutines.
 type Server struct {
-	addr    string
-	handler http.Handler
-
-	runLock sync.Mutex
-	running bool
-	srv     *http.Server
+	listener net.Listener
 }
 
-// New creates a new server listening on the provided port that responds to the
-// http.Handler. It does not spawn or start the server.
-func New(port string, handler http.Handler) *Server {
-	return &Server{
-		addr:    fmt.Sprintf(":%s", port),
-		handler: handler,
-	}
-}
-
-// Start starts the server. If no error is returned, the server is guaranteed to
-// be listening when the function returns. Starting a running server is an
-// error.
-func (s *Server) Start(ctx context.Context) error {
-	s.runLock.Lock()
-	defer s.runLock.Unlock()
-
-	if s.running {
-		return ErrAlreadyRunning
-	}
-
+// New creates a new server listening on the provided address that responds to
+// the http.Handler. It starts the listener, but does not start the server.
+func New(port string) (*Server, error) {
 	// Create the net listener first, so the connection ready when we return. This
 	// guarantees that it can accept requests.
-	listener, err := net.Listen("tcp", s.addr)
+	addr := fmt.Sprintf(":" + port)
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("failed to listen on %s: %w", s.addr, err)
+		return nil, fmt.Errorf("failed to create listener on %s: %w", addr, err)
 	}
 
-	// Create the server.
-	s.srv = &http.Server{
-		Handler: &ochttp.Handler{
-			Handler: s.handler,
-		},
-	}
-
-	// Start the server in the background. If there are any errors serving, log
-	// them. Since this runs in a goroutine, there's no easy push these up.
-	go func(ctx context.Context) {
-		if err := s.srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger := logging.FromContext(ctx)
-			logger.Errorf("http serving error: %v", err)
-		}
-	}(ctx)
-
-	s.running = true
-	return nil
+	return &Server{
+		listener: listener,
+	}, nil
 }
 
-// Stop terminates the server. The provided context can be given a timeout to
-// limit the amount of time to wait for the server to start.
-func (s *Server) Stop(ctx context.Context) error {
-	s.runLock.Lock()
-	defer s.runLock.Unlock()
+// ServeHTTP starts the server and blocks until the provided context is closed.
+// When the provided context is closed, the server is gracefully stopped with a
+// timeout of 5 seconds.
+//
+// Once a server has been stopped, it is NOT safe for reuse.
+func (s *Server) ServeHTTP(ctx context.Context, srv *http.Server) error {
+	logger := logging.FromContext(ctx)
 
-	if !s.running {
+	// Spawn a goroutine that listens for context closure. When the context is
+	// closed, the server is stopped.
+	errCh := make(chan error, 1)
+	go func() {
+		<-ctx.Done()
+
+		logger.Debugf("server.Serve: context closed")
+		shutdownCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
+		defer done()
+
+		logger.Debugf("server.Serve: shutting down")
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			select {
+			case errCh <- err:
+			default:
+			}
+		}
+	}()
+
+	// Run the server. This will block until the provided context is closed.
+	if err := srv.Serve(s.listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("failed to serve: %w", err)
+	}
+
+	logger.Debugf("server.Serve: serving stopped")
+
+	// Return any errors that happened during shutdown.
+	select {
+	case err := <-errCh:
+		return fmt.Errorf("failed to shutdown: %w", err)
+	default:
 		return nil
 	}
+}
 
-	if err := s.srv.Shutdown(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("failed to shutdown: %w", err)
+// ServeHTTPHandler is a convenience wrapper around ServeHTTP. It creates an
+// HTTP server using the provided handler, wrapped in OpenCensus for
+// observability.
+func (s *Server) ServeHTTPHandler(ctx context.Context, handler http.Handler) error {
+	return s.ServeHTTP(ctx, &http.Server{
+		Handler: &ochttp.Handler{
+			Handler: handler,
+		},
+	})
+}
+
+// ServeGRPC starts the server and blocks until the provided context is closed.
+// When the provided context is closed, the server is gracefully stopped with a
+// timeout of 5 seconds.
+//
+// Once a server has been stopped, it is NOT safe for reuse.
+func (s *Server) ServeGRPC(ctx context.Context, srv *grpc.Server) error {
+	logger := logging.FromContext(ctx)
+
+	// Spawn a goroutine that listens for context closure. When the context is
+	// closed, the server is stopped.
+	errCh := make(chan error, 1)
+	go func() {
+		<-ctx.Done()
+
+		logger.Debugf("server.Serve: context closed")
+		logger.Debugf("server.Serve: shutting down")
+		srv.GracefulStop()
+	}()
+
+	// Run the server. This will block until the provided context is closed.
+	if err := srv.Serve(s.listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+		return fmt.Errorf("failed to serve: %w", err)
 	}
 
-	s.running = false
-	return nil
+	logger.Debugf("server.Serve: serving stopped")
+
+	// Return any errors that happened during shutdown.
+	select {
+	case err := <-errCh:
+		return fmt.Errorf("failed to shutdown: %w", err)
+	default:
+		return nil
+	}
 }

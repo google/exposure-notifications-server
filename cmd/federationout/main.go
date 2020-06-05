@@ -17,9 +17,7 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -31,6 +29,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/logging"
 	_ "github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/server"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
 
@@ -54,7 +53,7 @@ func realMain(ctx context.Context) error {
 	}
 	defer env.Close(ctx)
 
-	server := federationout.NewServer(env, &config)
+	federationServer := federationout.NewServer(env, &config)
 
 	var sopts []grpc.ServerOption
 	if config.TLSCertFile != "" && config.TLSKeyFile != "" {
@@ -66,35 +65,18 @@ func realMain(ctx context.Context) error {
 	}
 
 	if !config.AllowAnyClient {
-		sopts = append(sopts, grpc.UnaryInterceptor(server.(*federationout.Server).AuthInterceptor))
+		sopts = append(sopts, grpc.UnaryInterceptor(federationServer.(*federationout.Server).AuthInterceptor))
 	}
 
 	sopts = append(sopts, grpc.StatsHandler(&ocgrpc.ServerHandler{}))
 	grpcServer := grpc.NewServer(sopts...)
-	pb.RegisterFederationServer(grpcServer, server)
+	pb.RegisterFederationServer(grpcServer, federationServer)
 
-	addr := fmt.Sprintf(":%s", config.Port)
-	listener, err := net.Listen("tcp", addr)
+	srv, err := server.New(config.Port)
 	if err != nil {
-		return fmt.Errorf("failed to listen on %s: %w", addr, err)
+		return fmt.Errorf("server.New: %w", err)
 	}
-
-	go func(ctx context.Context) {
-		if err := grpcServer.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			logger := logging.FromContext(ctx)
-			logger.Errorf("grpc serving error: %v", err)
-		}
-	}(ctx)
 	logger.Infof("listening on :%s", config.Port)
 
-	// Wait for cancel or interrupt
-	<-ctx.Done()
-
-	// Shutdown
-	logger.Info("received shutdown")
-	grpcServer.GracefulStop()
-
-	logger.Info("shutdown complete")
-	return nil
-
+	return srv.ServeGRPC(ctx, grpcServer)
 }

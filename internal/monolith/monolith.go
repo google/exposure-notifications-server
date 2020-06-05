@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/export"
@@ -81,24 +80,11 @@ func RunServer(ctx context.Context) error {
 	}
 	mux.HandleFunc("/publish", handlers.WithMinimumLatency(config.Publish.MinRequestDuration, publishServer))
 
-	server := server.New(config.Port, mux)
-	if err := server.Start(ctx); err != nil {
-		return fmt.Errorf("server.Start: %w", err)
+	server, err := server.New(config.Port)
+	if err != nil {
+		return fmt.Errorf("server.New: %w", err)
 	}
 	logger.Infof("listening on :%s", config.Port)
 
-	// Wait for cancel or interrupt
-	<-ctx.Done()
-
-	// Shutdown
-	logger.Info("received shutdown")
-	shutdownCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
-	defer done()
-
-	if err := server.Stop(shutdownCtx); err != nil {
-		return fmt.Errorf("server.Stop: %w", err)
-	}
-
-	logger.Info("shutdown complete")
-	return nil
+	return server.ServeHTTPHandler(ctx, mux)
 }

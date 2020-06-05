@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/google/exposure-notifications-server/internal/handlers"
 	"github.com/google/exposure-notifications-server/internal/interrupt"
@@ -58,24 +57,11 @@ func realMain(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.Handle("/", handlers.WithMinimumLatency(config.MinRequestDuration, handler))
 
-	server := server.New(config.Port, mux)
-	if err := server.Start(ctx); err != nil {
-		return fmt.Errorf("server.Start: %w", err)
+	srv, err := server.New(config.Port)
+	if err != nil {
+		return fmt.Errorf("server.New: %w", err)
 	}
 	logger.Infof("listening on :%s", config.Port)
 
-	// Wait for cancel or interrupt
-	<-ctx.Done()
-
-	// Shutdown
-	logger.Info("received shutdown")
-	shutdownCtx, done := context.WithTimeout(context.Background(), 5*time.Second)
-	defer done()
-
-	if err := server.Stop(shutdownCtx); err != nil {
-		return fmt.Errorf("server.Stop: %w", err)
-	}
-
-	logger.Info("shutdown complete")
-	return nil
+	return srv.ServeHTTPHandler(ctx, mux)
 }
