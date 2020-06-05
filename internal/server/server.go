@@ -28,10 +28,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-var (
-	ErrAlreadyRunning = fmt.Errorf("already running")
-)
-
 // Server provides a gracefully-stoppable http server implementation. It is safe
 // for concurrent use in goroutines.
 type Server struct {
