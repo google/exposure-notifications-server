@@ -153,9 +153,13 @@ func TestConcurrentReaders(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		ver := i
 		go func() {
-			got, err := cache.WriteThruLookup("foo", lookerUpper)
+			gotCache, err := cache.WriteThruLookup("foo", lookerUpper)
 			if err != nil {
-				t.Errorf("routine: %v got unexpected error: %v", ver, err)
+				t.Fatalf("routine: %v got unexpected error: %v", ver, err)
+			}
+			got, ok := gotCache.(*order)
+			if !ok {
+				t.Fatalf("cache item of wrong type")
 			}
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Fatalf("routine: %v mismatch (-want, +got):\n%s", ver, diff)
