@@ -87,7 +87,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			AppPackageName: "generated.data",
 		}
 
-		exposures, err := h.transformer.TransformPublish(&publish, batchTime)
+		exposures, err := h.transformer.TransformPublish(ctx, &publish, batchTime)
 		if err != nil {
 			message := fmt.Sprintf("Error transofmring generated exposures: %v", err)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})

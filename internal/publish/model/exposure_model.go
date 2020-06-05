@@ -15,12 +15,14 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/base64util"
+	"github.com/google/exposure-notifications-server/internal/logging"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
@@ -92,18 +94,24 @@ func TruncateWindow(t time.Time, d time.Duration) time.Time {
 	return t.Truncate(d)
 }
 
+// TimeForIntervalNumber returns the time at which a specific interval starts.
+// The interval number * 600 (10m = 600s) is the corresponding unix timestamp.
+func TimeForIntervalNumber(interval int32) time.Time {
+	return time.Unix(int64(verifyapi.IntervalLength.Seconds())*int64(interval), 0)
+}
+
 // Transformer represents a configured Publish -> Exposure[] transformer.
 type Transformer struct {
 	maxExposureKeys     int
 	maxIntervalStartAge time.Duration // How many intervals old does this server accept?
 	truncateWindow      time.Duration
-	debugAllowRestOfDay bool // raises end time of keys to the end of day, but doesn't embargo. For e2e testing only.
+	debugReleaseSameDay bool // If true, still valid keys are not embargoed.
 }
 
 // NewTransformer creates a transformer for turning publish API requests into
 // records for insertion into the database. On the call to TransformPublish
 // all data is validated according to the transformer that is used.
-func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration, allowRestOfDay bool) (*Transformer, error) {
+func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration, releaseSameDayKeys bool) (*Transformer, error) {
 	if maxExposureKeys < 0 || maxExposureKeys > verifyapi.MaxKeysPerPublish {
 		return nil, fmt.Errorf("maxExposureKeys must be > 0 and <= %v, got %v", verifyapi.MaxKeysPerPublish, maxExposureKeys)
 	}
@@ -111,8 +119,17 @@ func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, trun
 		maxExposureKeys:     maxExposureKeys,
 		maxIntervalStartAge: maxIntervalStartAge,
 		truncateWindow:      truncateWindow,
-		debugAllowRestOfDay: allowRestOfDay,
+		debugReleaseSameDay: releaseSameDayKeys,
 	}, nil
+}
+
+type KeyTransform struct {
+	MinStartInterval      int32
+	MaxStartInterval      int32
+	MaxEndInteral         int32
+	CreatedAt             time.Time
+	ReleaseStillValidKeys bool
+	BatchWindow           time.Duration
 }
 
 // TransformExposureKey converts individual key data to an exposure entity.
@@ -122,7 +139,7 @@ func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, trun
 // * minInterval <= interval number <= maxInterval
 // * MinIntervalCount <= interval count <= MaxIntervalCount
 //
-func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName string, upcaseRegions []string, createdAt time.Time, minIntervalNumber, maxIntervalNumber int32) (*Exposure, error) {
+func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName string, upcaseRegions []string, settings *KeyTransform) (*Exposure, error) {
 	binKey, err := base64util.DecodeString(exposureKey.Key)
 	if err != nil {
 		return nil, err
@@ -137,17 +154,20 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 	}
 
 	// Validate the IntervalNumber.
-	if exposureKey.IntervalNumber < minIntervalNumber {
-		return nil, fmt.Errorf("interval number %v is too old, must be >= %v", exposureKey.IntervalNumber, minIntervalNumber)
+	if exposureKey.IntervalNumber < settings.MinStartInterval {
+		return nil, fmt.Errorf("interval number %v is too old, must be >= %v", exposureKey.IntervalNumber, settings.MinStartInterval)
 	}
-	if exposureKey.IntervalNumber >= maxIntervalNumber {
-		return nil, fmt.Errorf("interval number %v is in the future, must be < %v", exposureKey.IntervalNumber, maxIntervalNumber)
+	if exposureKey.IntervalNumber > settings.MaxStartInterval {
+		return nil, fmt.Errorf("interval number %v is in the future, must be <= %v", exposureKey.IntervalNumber, settings.MaxStartInterval)
 	}
 
-	// Validate that the key is no longer effective.
-	if exposureKey.IntervalNumber+exposureKey.IntervalCount > maxIntervalNumber {
-		return nil, fmt.Errorf("interval number %v + interval count %v represents a key that is still valid, must end <= %v",
-			exposureKey.IntervalNumber, exposureKey.IntervalCount, maxIntervalNumber)
+	createdAt := settings.CreatedAt
+	// If the key is valid beyond the current interval number. Adjust the createdAt time for the key.
+	if exposureKey.IntervalNumber+exposureKey.IntervalCount > settings.MaxStartInterval {
+		// key is still valid. The created At for this key needs to be adjusted unless debuggin is enabled.
+		if !settings.ReleaseStillValidKeys {
+			createdAt = TimeForIntervalNumber(exposureKey.IntervalNumber + exposureKey.IntervalCount).Truncate(settings.BatchWindow)
+		}
 	}
 
 	if tr := exposureKey.TransmissionRisk; tr < verifyapi.MinTransmissionRisk || tr > verifyapi.MaxTransmissionRisk {
@@ -172,7 +192,11 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 // * 0 exposure Keys in the requests
 // * > Transformer.maxExposureKeys in the request
 //
-func (t *Transformer) TransformPublish(inData *verifyapi.Publish, batchTime time.Time) ([]*Exposure, error) {
+func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, batchTime time.Time) ([]*Exposure, error) {
+	if t.debugReleaseSameDay {
+		logging.FromContext(ctx).Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
+	}
+
 	// Validate the number of keys that want to be published.
 	if len(inData.Keys) == 0 {
 		return nil, fmt.Errorf("no exposure keys in publish request")
@@ -181,18 +205,19 @@ func (t *Transformer) TransformPublish(inData *verifyapi.Publish, batchTime time
 		return nil, fmt.Errorf("too many exposure keys in publish: %v, max of %v is allowed", len(inData.Keys), t.maxExposureKeys)
 	}
 
-	createdAt := TruncateWindow(batchTime, t.truncateWindow)
+	defaultCreatedAt := TruncateWindow(batchTime, t.truncateWindow)
 	entities := make([]*Exposure, 0, len(inData.Keys))
 
-	// An exposure key must have an interval >= minInterval (max configured age)
-	minIntervalNumber := IntervalNumber(batchTime.Add(-1 * t.maxIntervalStartAge))
-	// And have an interval <= maxInterval (configured allowed clock skew)
-	maxIntervalNumber := IntervalNumber(batchTime)
-
-	// If, for testing, we are accepting keys that are valid the rest of the day:
-	// adjust the maxIntervalNumber to be the end of the UTC day.
-	if t.debugAllowRestOfDay {
-		maxIntervalNumber = IntervalNumber(batchTime.Add(24 * time.Hour).Truncate(24 * time.Hour))
+	settings := KeyTransform{
+		// An exposure key must have an interval >= minInterval (max configured age)
+		MinStartInterval: IntervalNumber(batchTime.Add(-1 * t.maxIntervalStartAge)),
+		// A key must have been issued on the device in the current interval or earlier.
+		MaxStartInterval: IntervalNumber(batchTime),
+		// And the max valid interval is the maxStartInterval + 144
+		MaxEndInteral:         IntervalNumber(batchTime) + verifyapi.MaxIntervalCount,
+		CreatedAt:             defaultCreatedAt,
+		ReleaseStillValidKeys: t.debugReleaseSameDay,
+		BatchWindow:           t.truncateWindow,
 	}
 
 	// Regions are a multi-value property, uppercase them for storage.
@@ -205,7 +230,7 @@ func (t *Transformer) TransformPublish(inData *verifyapi.Publish, batchTime time
 	}
 
 	for _, exposureKey := range inData.Keys {
-		exposure, err := TransformExposureKey(exposureKey, inData.AppPackageName, upcaseRegions, createdAt, minIntervalNumber, maxIntervalNumber)
+		exposure, err := TransformExposureKey(exposureKey, inData.AppPackageName, upcaseRegions, &settings)
 		if err != nil {
 			return nil, fmt.Errorf("invalid publish data: %v", err)
 		}

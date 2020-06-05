@@ -46,7 +46,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("missing AuthorizedApp provider in server environment")
 	}
 
-	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow, config.DebugAllowRestOfDay)
+	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow, config.DebugReleaseSameDayKeys)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
@@ -160,7 +160,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	}
 
 	batchTime := time.Now()
-	exposures, err := h.transformer.TransformPublish(&data, batchTime)
+	exposures, err := h.transformer.TransformPublish(ctx, &data, batchTime)
 	if err != nil {
 		message := fmt.Sprintf("unable to read request data: %v", err)
 		logger.Error(message)
