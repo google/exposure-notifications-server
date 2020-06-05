@@ -1,0 +1,129 @@
+{{define "healthauthority"}}
+{{template "top" .}}
+
+{{if .new}}
+<h2>Create New Health Authority</h2>
+{{else}}
+<h2>Edit Health Authority '{{.ha.Issuer}}'</h2>
+
+<div class="alert alert-warning" role="alert">
+<p>Health authority configurations cannot be deleted. Instead, if there
+are no valid keys configured, then verification will always fail from this
+health authority.</p>
+
+<p>Key rotation should be managed by configuring a new public key.</p>
+</div>
+
+{{end}}
+
+<form method="POST" action="/healthauthority/{{.ha.ID}}" class="form-horizontal">
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="Issuer">Issuer:</label>
+    <div class="col-sm-6">
+      <input type="text" id="Issuer" name="Issuer" size="50" value="{{.ha.Issuer}}">
+      <small id="IssuerHelpBlock" class="form-text text-muted">The issuer can be any string,
+        but is often reverse DNS, for example 'gov.mystate.doh'. This is what will
+        be in the 'iss' field of the certificate JWT. <strong>Once set, this field
+        should not be edited.</strong></small>
+    </div>
+  </div>
+
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="Audience">Audience:</label>
+    <div class="col-sm-6">
+      <input type="text" id="Audience" name="Audience" size="50" value="{{.ha.Audience}}">
+      <small id="AudienceHelpBlock" class="form-text text-muted">The audience that will
+        be present, specific to this server if the verifying authority is working
+        with multiple backends. This is the 'aud' field of the certificate JWT.
+        <strong>Once set, this field should not be edited.</strong></small>
+    </div>
+  </div>
+
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="Name">Name:</label>
+    <div class="col-sm-6">
+      <input type="text" id="Name" name="Name" size="50" value="{{.ha.Name}}">
+      <small id="NameHelpBlock" class="form-text text-muted">The name of the
+      Health Authority. <strong>Once set, this field should not be edited.</strong></small>
+    </div>
+  </div>
+
+  <hr/>
+  <button type="submit" class="btn btn-outline-primary" name="TODO" value="save">Save Changes</button>
+  <a href="/" class="btn btn-outline-secondary">Cancel</a>
+</form>
+<hr/>
+
+{{if .ha.Keys}}
+
+<ul>
+  {{range .ha.Keys}}
+    <li>{{if .IsValid}}<span class="badge badge-success">CURRENT</span>{{else if .IsFuture}}<span class="badge badge-info">Future</span>{{else}}<span class="badge badge-warning">Not Active</span>{{end}} {{.Version}} | Start: {{.FormattedFromTime}} | End: {{if not .Thru.IsZero}}{{.FormattedThruTime}}{{end}}
+      <ul><li><pre>{{.PublicKeyPEM}}</pre>
+        {{if .IsFuture}}
+          <form method="POST" action="/healthauthoritykey/{{$.ha.ID}}/activate/{{.Version}}"><button type="submit" class="btn btn-outline-primary">Activate</button></form>
+        {{else if .Thru.IsZero}}
+          <form method="POST" action="/healthauthoritykey/{{$.ha.ID}}/revoke/{{.Version}}"><button type="submit" class="btn btn-outline-danger">Revoke</button></form>
+        {{else}}
+          <form method="POST" action="/healthauthoritykey/{{$.ha.ID}}/reinstate/{{.Version}}"><button type="submit" class="btn btn-outline-warning">Clear Expiry Time</button></form>
+        {{end}}
+      </li></ul>
+    </li>
+  {{end}}
+</ul>
+
+
+{{else}}
+<div class="alert alert-warning" role="alert">
+No keys currently configured.
+</div>
+{{end}}
+
+<h4>Create new Key for <em>{{.ha.Issuer}}</em></h4>
+<form method="POST" action="/healthauthoritykey/{{.ha.ID}}/create/new" class="form-horizontal">
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="Version">Version:</label>
+    <div class="col-sm-6">
+      <input type="text" id="Version" name="Version" size="50" value="{{.hak.Version}}">
+      <small id="VersionHelpBlock" class="form-text text-muted">Shared opaque string
+      between health authority server and this server.</small>
+    </div>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="PublicKeyPEM">Public Key PEM Format:</label>
+    <div class="col-sm-6">
+      <textarea class="form-control" name="PublicKeyPEM" id="PublicKeyPEM" rows="4" size="80">{{.hak.PublicKeyPEM}}</textarea>
+      <small id="RegionsHelpBlock" class="form-text text-muted">ECDSA p256 Public Key in
+        <a href="https://en.wikipedia.org/wiki/Privacy-Enhanced_Mail" target="_blank">PEM</a> format.</small>
+    </div>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="enddate">Start Date/Time:</label>
+    <div class="col-sm-6">
+      <input type="date" id="FromDate" name="FromDate" value="{{.hak.FromHTMLDate}}" min="2020-05-01" max="2029-12-21-" />
+      <input type="time" id="FromTime" name="FromTime" value="{{.hak.FromHTMLTime}}" />
+      <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_blank">UTC</a>
+
+      <small id="enddateHelpBlock" class="form-text text-muted">Adjust if future
+        effective time is needed.</small>
+    </div>
+  </div>
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="enddate">End Date/Time:</label>
+    <div class="col-sm-6">
+      <input type="date" id="ThruDate" name="ThruDate" value="{{.hak.ThruHTMLDate}}" min="2020-05-01" max="2029-12-21-" />
+      <input type="time" id="ThruTime" name="ThruTime" value="{{.hak.ThruHTMLTime}}" />
+      <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_blank">UTC</a>
+
+      <small id="enddateHelpBlock" class="form-text text-muted">Leave blank
+      if this is the current key version.</small>
+    </div>
+  </div>
+  <hr/>
+  <button type="submit" class="btn btn-outline-primary" name="TODO" value="save">Create Key</button>
+</form>
+<hr/>
+
+
+{{template "bottom" .}}
+{{end}}

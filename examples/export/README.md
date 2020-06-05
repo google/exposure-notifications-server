@@ -57,7 +57,7 @@ the serialized proto. It can be decoded at the commandline by skipping the
 header with `tail`:
 
 ```
-$ tail +17c < export.bin | protoc --decode TemporaryExposureKeyExport export.proto | head -n 10
+$ tail +17c < export.bin | protoc --decode TemporaryExposureKeyExport --proto_path ../../internal/pb/export/ export.proto | head -n 10
 start_timestamp: 1588345200
 end_timestamp: 1588431600
 region: "US"

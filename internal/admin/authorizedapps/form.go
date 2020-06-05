@@ -24,11 +24,13 @@ import (
 type formData struct {
 	// Top Level
 	FormKey string `form:"Key"`
-	Action  string `form:"TODO"`
+	Action  string `form:"Action"`
 
 	// Authorized App Data
-	AppPackageName string `form:"AppPackageName"`
-	AllowedRegions string `form:"Regions"`
+	AppPackageName                    string  `form:"AppPackageName"`
+	AllowedRegions                    string  `form:"Regions"`
+	BypassHealthAuthorityVerification bool    `form:"BypassHealthAuthorityVerification"`
+	HealthAuthorityIDs                []int64 `form:"Healthauthorities"`
 }
 
 func (f *formData) PriorKey() string {
@@ -46,7 +48,15 @@ func (f *formData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
 	a.AppPackageName = f.AppPackageName
 	a.AllowedRegions = make(map[string]struct{})
 	for _, region := range strings.Split(f.AllowedRegions, "\n") {
-		a.AllowedRegions[strings.TrimSpace(region)] = struct{}{}
+		region = strings.TrimSpace(region)
+		if region != "" {
+			a.AllowedRegions[strings.TrimSpace(region)] = struct{}{}
+		}
 	}
+	a.AllowedHealthAuthorityIDs = make(map[int64]struct{})
+	for _, haID := range f.HealthAuthorityIDs {
+		a.AllowedHealthAuthorityIDs[haID] = struct{}{}
+	}
+	a.BypassHealthAuthorityVerification = f.BypassHealthAuthorityVerification
 	return nil
 }

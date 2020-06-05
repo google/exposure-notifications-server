@@ -24,6 +24,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/admin"
 	"github.com/google/exposure-notifications-server/internal/admin/authorizedapps"
 	"github.com/google/exposure-notifications-server/internal/admin/exports"
+	"github.com/google/exposure-notifications-server/internal/admin/healthauthority"
 	"github.com/google/exposure-notifications-server/internal/admin/index"
 	"github.com/google/exposure-notifications-server/internal/admin/siginfo"
 	"github.com/google/exposure-notifications-server/internal/setup"
@@ -51,6 +52,14 @@ func main() {
 	router.GET("/app", authAppController.Execute)
 	saveAppController := authorizedapps.NewSave(&config, env)
 	router.POST("/app", saveAppController.Execute)
+
+	// HealthAuthority[Key] Handling.
+	healthAppController := healthauthority.NewView(&config, env)
+	router.GET("/healthauthority/:id", healthAppController.Execute)
+	saveHAController := healthauthority.NewSave(&config, env)
+	router.POST("/healthauthority/:id", saveHAController.Execute)
+	healthAuthorityKeyController := healthauthority.NewKeyController(&config, env)
+	router.POST("/healthauthoritykey/:id/:action/:version", healthAuthorityKeyController.Execute)
 
 	// Export Config Handling.
 	exportConfigController := exports.NewView(&config, env)

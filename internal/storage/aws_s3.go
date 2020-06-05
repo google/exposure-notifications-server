@@ -28,12 +28,12 @@ import (
 var _ Blobstore = (*AWSS3)(nil)
 
 // AWSS3 implements the Blob interface and provides the ability
-// write files to Google Cloud Storage.
+// write files to AWS S3.
 type AWSS3 struct {
 	svc *s3.S3
 }
 
-// NewAWSS3 creates a Google Cloud Storage Client, suitable
+// NewAWSS3 creates a AWS S3 Service, suitable
 // for use with serverenv.ServerEnv.
 func NewAWSS3(ctx context.Context) (Blobstore, error) {
 	sess, err := session.NewSession()
@@ -66,7 +66,7 @@ func (s *AWSS3) CreateObject(ctx context.Context, bucket, key string, contents [
 	return nil
 }
 
-// DeleteObject deletes an S3 object, returns nil if the object was successfully
+// DeleteObject deletes a S3 object, returns nil if the object was successfully
 // deleted, or of the object doesn't exist.
 func (s *AWSS3) DeleteObject(ctx context.Context, bucket, key string) error {
 	if _, err := s.svc.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{

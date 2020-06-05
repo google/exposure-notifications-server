@@ -24,7 +24,6 @@ import (
 
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/base64util"
-	pubmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
@@ -46,7 +45,7 @@ func New(db *database.HealthAuthorityDB) *Verifier {
 // VerifyDiagnosisCertificate accepts a publish request (from which is extracts the JWT),
 // fully verifies the JWT and signture against what the passed in authorrized app is allowed
 // to use. Returns any transmission risk overrides if they are present.
-func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamodel.AuthorizedApp, publish *pubmodel.Publish) (verifyapi.TransmissionRiskVector, error) {
+func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamodel.AuthorizedApp, publish *verifyapi.Publish) (verifyapi.TransmissionRiskVector, error) {
 	// These get assigned during the ParseWithClaims closure.
 	var healthAuthorityID int64
 	var claims *verifyapi.VerificationClaims

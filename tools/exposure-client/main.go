@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/util"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/testing/enclient"
 )
 
@@ -84,7 +84,7 @@ func main() {
 		log.Printf("could not get random padding: %v", err)
 	}
 
-	data := model.Publish{
+	data := verifyapi.Publish{
 		Keys:                exposureKeys,
 		Regions:             region,
 		AppPackageName:      *appPackage,

@@ -28,6 +28,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/util"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
 func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
@@ -80,13 +81,13 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			tr = 0
 		}
-		publish := model.Publish{
+		publish := verifyapi.Publish{
 			Keys:           util.GenerateExposureKeys(h.config.KeysPerExposure, tr, false),
 			Regions:        regions,
 			AppPackageName: "generated.data",
 		}
 
-		exposures, err := h.transformer.TransformPublish(&publish, batchTime)
+		exposures, err := h.transformer.TransformPublish(ctx, &publish, batchTime)
 		if err != nil {
 			message := fmt.Sprintf("Error transofmring generated exposures: %v", err)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})

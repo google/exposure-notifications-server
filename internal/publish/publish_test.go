@@ -84,7 +84,7 @@ func newSigningKey(t *testing.T) *signingKey {
 type jwtConfig struct {
 	HealthAuthority    *vermodel.HealthAuthority
 	HealthAuthorityKey *vermodel.HealthAuthorityKey
-	Publish            *model.Publish
+	Publish            *verifyapi.Publish
 	Key                *ecdsa.PrivateKey
 	JWTWarp            time.Duration
 	Overrides          verifyapi.TransmissionRiskVector
@@ -134,7 +134,7 @@ func TestPublishWithBypass(t *testing.T) {
 		HealthAuthority    *vermodel.HealthAuthority    // Automatically linked to keys.
 		HealthAuthorityKey *vermodel.HealthAuthorityKey // Automatically linked to SigningKey
 		AuthorizedApp      *aamodel.AuthorizedApp       // Automatically linked to health authorities.
-		Publish            model.Publish
+		Publish            verifyapi.Publish
 		JWTTiming          time.Duration
 		Overrides          verifyapi.TransmissionRiskVector
 		WantTRAdjustment   []int
@@ -150,7 +150,7 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp.AllowedRegions["US"] = struct{}{}
 				return authApp
 			}(),
-			Publish: model.Publish{
+			Publish: verifyapi.Publish{
 				Keys:           util.GenerateExposureKeys(2, 5, false),
 				Regions:        []string{"US"},
 				AppPackageName: "com.example.health",
@@ -172,7 +172,7 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp.AllowedRegions["US"] = struct{}{}
 				return authApp
 			}(),
-			Publish: model.Publish{
+			Publish: verifyapi.Publish{
 				Keys:           util.GenerateExposureKeys(2, 5, false),
 				Regions:        []string{"US"},
 				AppPackageName: "com.example.health.WRONG",
@@ -189,7 +189,7 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp.AllowedRegions["US"] = struct{}{}
 				return authApp
 			}(),
-			Publish: model.Publish{
+			Publish: verifyapi.Publish{
 				Keys:           util.GenerateExposureKeys(2, 5, false),
 				Regions:        []string{"CA"},
 				AppPackageName: "com.example.health",
@@ -205,7 +205,7 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp.AllowedRegions["US"] = struct{}{}
 				return authApp
 			}(),
-			Publish: model.Publish{
+			Publish: verifyapi.Publish{
 				Keys:                util.GenerateExposureKeys(2, 5, false),
 				Regions:             []string{"US"},
 				AppPackageName:      "com.example.health",
@@ -232,7 +232,7 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp.AllowedRegions["US"] = struct{}{}
 				return authApp
 			}(),
-			Publish: model.Publish{
+			Publish: verifyapi.Publish{
 				Keys:                util.GenerateExposureKeys(2, 5, false),
 				Regions:             []string{"US"},
 				AppPackageName:      "com.example.health",
@@ -258,7 +258,7 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp.AllowedRegions["US"] = struct{}{}
 				return authApp
 			}(),
-			Publish: model.Publish{
+			Publish: verifyapi.Publish{
 				Keys:                util.GenerateExposureKeys(2, 5, false),
 				Regions:             []string{"US"},
 				AppPackageName:      "com.example.health",
@@ -291,7 +291,7 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp.AllowedRegions["US"] = struct{}{}
 				return authApp
 			}(),
-			Publish: model.Publish{
+			Publish: verifyapi.Publish{
 				Keys:                util.GenerateExposureKeys(2, 5, false),
 				Regions:             []string{"US"},
 				AppPackageName:      "com.example.health",
@@ -319,7 +319,7 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp.AllowedRegions["US"] = struct{}{}
 				return authApp
 			}(),
-			Publish: model.Publish{
+			Publish: verifyapi.Publish{
 				Keys:                util.GenerateExposureKeys(2, 5, false),
 				Regions:             []string{"US"},
 				AppPackageName:      "com.example.health",

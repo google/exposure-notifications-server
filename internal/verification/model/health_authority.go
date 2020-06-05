@@ -64,6 +64,10 @@ func (k *HealthAuthorityKey) Validate() error {
 	return nil
 }
 
+func (k *HealthAuthorityKey) IsFuture() bool {
+	return k.From.After(time.Now())
+}
+
 // IsValid returns true if the key is valid based on the current time.
 func (k *HealthAuthorityKey) IsValid() bool {
 	return k.IsValidAt(time.Now())
@@ -92,4 +96,42 @@ func (k *HealthAuthorityKey) PublicKey() (*ecdsa.PublicKey, error) {
 	default:
 		return nil, fmt.Errorf("unsupported public key type: %T", typ)
 	}
+}
+
+func (k *HealthAuthorityKey) FormattedFromTime() string {
+	return k.From.Format(time.UnixDate)
+}
+
+func (k *HealthAuthorityKey) FormattedThruTime() string {
+	return k.Thru.Format(time.UnixDate)
+}
+
+func (k *HealthAuthorityKey) FromHTMLDate() string {
+	return toHTMLDate(k.From)
+}
+
+func (k *HealthAuthorityKey) FromHTMLTime() string {
+	return toHTMLTime(k.From)
+}
+
+func (k *HealthAuthorityKey) ThruHTMLDate() string {
+	return toHTMLDate(k.Thru)
+}
+
+func (k *HealthAuthorityKey) ThruHTMLTime() string {
+	return toHTMLTime(k.Thru)
+}
+
+func toHTMLDate(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format("2006-01-02")
+}
+
+func toHTMLTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format("15:04")
 }

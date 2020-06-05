@@ -43,8 +43,8 @@ type Config struct {
 	TruncateWindow     time.Duration `envconfig:"TRUNCATE_WINDOW" default:"1h"`
 
 	// Flags for local development and testing.
-	DebugAPIResponses   bool `envconfig:"DEBUG_API_RESPONSES"`
-	DebugAllowRestOfDay bool `envconfig:"DEBUG_ALLOW_REST_OF_DAY"`
+	DebugAPIResponses       bool `envconfig:"DEBUG_API_RESPONSES"`
+	DebugReleaseSameDayKeys bool `envconfig:"DEBUG_RELEASE_SAME_DAY_KEYS"`
 }
 
 func (c *Config) AuthorizedAppConfig() *authorizedapp.Config {

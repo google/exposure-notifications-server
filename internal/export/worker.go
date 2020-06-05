@@ -34,6 +34,8 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/util"
+
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
 const (
@@ -317,7 +319,7 @@ func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, mi
 		// Pieces needed are
 		// (1) exposure key, (2) interval number, (3) transmission risk
 		// Exposure key is 16 random bytes.
-		eKey := make([]byte, publishmodel.KeyLength)
+		eKey := make([]byte, verifyapi.KeyLength)
 		_, err := rand.Read(eKey)
 		if err != nil {
 			return nil, fmt.Errorf("rand.Read: %w", err)

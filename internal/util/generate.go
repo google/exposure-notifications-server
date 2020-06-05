@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/publish/model"
+	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/testing/enclient"
 )
 
@@ -58,7 +58,7 @@ func RandomIntWithMin(min, max int) (int, error) {
 }
 
 func RandomTransmissionRisk() (int, error) {
-	n, err := RandomInt(model.MaxTransmissionRisk)
+	n, err := RandomInt(v1alpha1.MaxTransmissionRisk)
 	return n + 1, err
 }
 
@@ -70,7 +70,7 @@ func RandomArrValue(arr []string) (string, error) {
 	return arr[n], nil
 }
 
-func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []model.ExposureKey {
+func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1alpha1.ExposureKey {
 	// When publishing multiple keys - they'll be on different days.
 	var err error
 	intervalCount := int32(144)
@@ -83,7 +83,7 @@ func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []model.Exposure
 	// Keys will normally align to UTC day boundries.
 	utcDay := time.Now().UTC().Truncate(24 * time.Hour)
 	intervalNumber := int32(utcDay.Unix()/600) - intervalCount
-	exposureKeys := make([]model.ExposureKey, numKeys)
+	exposureKeys := make([]v1alpha1.ExposureKey, numKeys)
 	for i := 0; i < numKeys; i++ {
 		transmissionRisk := tr
 		if transmissionRisk < 0 {
@@ -110,12 +110,12 @@ func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []model.Exposure
 }
 
 // Creates a random exposure key.
-func RandomExposureKey(intervalNumber enclient.Interval, intervalCount int32, transmissionRisk int) (model.ExposureKey, error) {
+func RandomExposureKey(intervalNumber enclient.Interval, intervalCount int32, transmissionRisk int) (v1alpha1.ExposureKey, error) {
 	key, err := GenerateKey()
 	if err != nil {
-		return model.ExposureKey{}, err
+		return v1alpha1.ExposureKey{}, err
 	}
-	return model.ExposureKey{
+	return v1alpha1.ExposureKey{
 		Key:              key,
 		IntervalNumber:   int32(intervalNumber),
 		IntervalCount:    intervalCount,

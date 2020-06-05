@@ -23,6 +23,7 @@ import (
 	aadb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	exdb "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 )
 
 type indexHandler struct {
@@ -46,6 +47,15 @@ func (h *indexHandler) Execute(c *gin.Context) {
 		return
 	}
 	m["apps"] = apps
+
+	// Load health authorities.
+	haDB := hadb.New(h.env.Database())
+	has, err := haDB.ListAllHealthAuthoritiesWithoutKeys(ctx)
+	if err != nil {
+		admin.ErrorPage(c, err.Error())
+		return
+	}
+	m["healthauthorities"] = has
 
 	// Load export configurations.
 	exportDB := exdb.New(h.env.Database())

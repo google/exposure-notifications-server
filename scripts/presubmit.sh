@@ -77,12 +77,20 @@ set -e
 # being part of the commit.
 echo "🌌 Go mod tidy"
 set +e
-go mod tidy;
+OUT="$(go mod tidy 2>&1)"
+if [ $? -ne 0 ]; then
+   echo "✋ Error running go mod tidy, output below"
+   echo ${OUT}
+   echo
+   exit 1
+fi
+
 git diff go.mod | tee /dev/stderr | (! read)
 if [ $? -ne 0 ]; then
    echo "✋ Found uncommited go.mod changes after go mod tidy."
    exit 1
 fi
+
 git diff go.sum | tee /dev/stderr | (! read)
 if [ $? -ne 0 ]; then
    echo "✋ Found uncommited go.sum changes after go mod tidy."
@@ -90,20 +98,14 @@ if [ $? -ne 0 ]; then
 fi
 set -e
 
-echo "🚨 Running 'go vet'..."
-go vet ./...
-
-
-echo "🚧 Compile"
-go build ./...
-
 
 echo "🧪 Test"
 go test ./... \
   -coverprofile=coverage.out \
   -count=1 \
   -parallel=20 \
-  -timeout=5m
+  -timeout=5m \
+  -vet="asmdecl,assign,atomic,bools,buildtag,cgocall,composites,copylocks,errorsas,httpresponse,loopclosure,lostcancel,nilfunc,printf,shift,stdmethods,structtag,tests,unmarshal,unreachable,unsafeptr,unusedresult"
 
 
 echo "🧑‍🔬 Test Coverage"

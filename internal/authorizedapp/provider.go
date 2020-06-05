@@ -30,5 +30,8 @@ type Provider interface {
 	// AppConfig returns the application-specific configuration for the given
 	// name. An error is returned if the configuration fails to load. An error is
 	// returned if no app with the given name is registered in the system.
+	//
+	// The name field is case-insensitive. Implementers should adjust accordingly
+	// to handle mixed case. com.MyApp is the same as com.myapp.
 	AppConfig(ctx context.Context, name string) (*model.AuthorizedApp, error)
 }

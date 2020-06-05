@@ -24,6 +24,8 @@ import (
 type BlobstoreType string
 
 const (
+	BlobstoreTypeAWSS3              BlobstoreType = "AWS_S3"
+	BlobstoreTypeAzureBlobStorage   BlobstoreType = "AZURE_BLOB_STORAGE"
 	BlobstoreTypeGoogleCloudStorage BlobstoreType = "GOOGLE_CLOUD_STORAGE"
 	BlobstoreTypeFilesystem         BlobstoreType = "FILESYSTEM"
 	BlobstoreTypeNoop               BlobstoreType = "NOOP"
@@ -47,6 +49,10 @@ type Blobstore interface {
 // does not exist.
 func BlobstoreFor(ctx context.Context, typ BlobstoreType) (Blobstore, error) {
 	switch typ {
+	case BlobstoreTypeAWSS3:
+		return NewAWSS3(ctx)
+	case BlobstoreTypeAzureBlobStorage:
+		return NewAzureBlobstore(ctx)
 	case BlobstoreTypeGoogleCloudStorage:
 		return NewGoogleCloudStorage(ctx)
 	case BlobstoreTypeFilesystem:

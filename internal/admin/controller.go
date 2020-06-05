@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -13,5 +14,6 @@ type Controller interface {
 }
 
 func ErrorPage(c *gin.Context, messages ...string) {
+	log.Printf("error: %v", messages)
 	c.HTML(http.StatusOK, "error", gin.H{"error": messages})
 }

@@ -209,7 +209,7 @@ func (db *ExportDB) AddSignatureInfo(ctx context.Context, si *model.SignatureInf
  				SignatureInfo
 				(signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp)
 			VALUES
-				($1, $2, $3, $4, $5, $6)
+				($1, LOWER($2), LOWER($3), $4, $5, $6)
 			RETURNING id
 			`, si.SigningKey, si.AppPackageName, si.BundleID, si.SigningKeyVersion, si.SigningKeyID, thru)
 
@@ -229,7 +229,7 @@ func (db *ExportDB) UpdateSignatureInfo(ctx context.Context, si *model.Signature
 		result, err := tx.Exec(ctx, `
 			UPDATE SignatureInfo
 			SET
-				signing_key = $1, app_package_name = $2, bundle_id = $3,
+				signing_key = $1, app_package_name = LOWER($2), bundle_id = LOWER($3),
 				signing_key_version = $4, signing_key_id = $5, thru_timestamp = $6
 			WHERE
 				id = $7
@@ -253,10 +253,10 @@ func (db *ExportDB) ListAllSigntureInfos(ctx context.Context) ([]*model.Signatur
 
 	rows, err := conn.Query(ctx, `
     SELECT
-      id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
+      id, signing_key, LOWER(app_package_name), LOWER(bundle_id), signing_key_version, signing_key_id, thru_timestamp
     FROM
       SignatureInfo
-    ORDER BY signing_key_id ASC, signing_key_version ASC, thru_timestamp DESC, app_package_name ASC, bundle_id ASC
+    ORDER BY signing_key_id ASC, signing_key_version ASC, thru_timestamp DESC, LOWER(app_package_name) ASC, LOWER(bundle_id) ASC
   `)
 	if err != nil {
 		return nil, err
@@ -286,7 +286,7 @@ func (db *ExportDB) LookupSignatureInfos(ctx context.Context, ids []int64, valid
 
 	rows, err := conn.Query(ctx, `
     SELECT
-      id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
+      id, signing_key, LOWER(app_package_name), LOWER(bundle_id), signing_key_version, signing_key_id, thru_timestamp
     FROM
       SignatureInfo
     WHERE
@@ -321,7 +321,7 @@ func (db *ExportDB) GetSignatureInfo(ctx context.Context, id int64) (*model.Sign
 
 	row := conn.QueryRow(ctx, `
 		SELECT
-			id, signing_key, app_package_name, bundle_id, signing_key_version, signing_key_id, thru_timestamp
+			id, signing_key, LOWER(app_package_name), LOWER(bundle_id), signing_key_version, signing_key_id, thru_timestamp
 		FROM
 			SignatureInfo
 		WHERE

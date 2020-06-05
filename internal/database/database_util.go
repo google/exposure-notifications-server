@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/url"
 	"os"
@@ -25,8 +26,10 @@ import (
 	"runtime"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/google/exposure-notifications-server/internal/retry"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/ory/dockertest"
 
@@ -53,6 +56,9 @@ func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
 	if skip, _ := strconv.ParseBool(os.Getenv("SKIP_DATABASE_TESTS")); skip {
 		tb.Skipf("🚧 Skipping database tests (SKIP_DATABASE_TESTS is set)!")
 	}
+
+	// Context.
+	ctx := context.Background()
 
 	// Create the pool (docker instance).
 	pool, err := dockertest.NewPool("")
@@ -100,13 +106,15 @@ func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
 	q.Add("sslmode", "disable")
 	connURL.RawQuery = q.Encode()
 
-	// Establish a connection to the database.
+	// Establish a connection to the database. Use a Fibonacci backoff instead of
+	// exponential so wait times scale appropriately.
 	var dbpool *pgxpool.Pool
-	if err := pool.Retry(func() error {
+	if err := retry.RetryFib(ctx, 500*time.Millisecond, 10, func() error {
 		var err error
-		dbpool, err = pgxpool.Connect(context.Background(), connURL.String())
+		dbpool, err = pgxpool.Connect(ctx, connURL.String())
 		if err != nil {
-			return fmt.Errorf("failed to connect to database: %w", err)
+			log.Printf("connector: %d: %s\n\n", time.Now().Unix(), err)
+			return retry.RetryableError(err)
 		}
 		return nil
 	}); err != nil {

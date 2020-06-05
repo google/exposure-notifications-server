@@ -32,6 +32,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifydb "github.com/google/exposure-notifications-server/internal/verification/database"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
@@ -45,7 +46,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("missing AuthorizedApp provider in server environment")
 	}
 
-	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow, config.DebugAllowRestOfDay)
+	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow, config.DebugReleaseSameDayKeys)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
@@ -87,7 +88,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	logger := logging.FromContext(ctx)
 	metrics := h.serverenv.MetricsExporter(ctx)
 
-	var data model.Publish
+	var data verifyapi.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
@@ -155,11 +156,11 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 
 	// Apply overrides
 	if len(overrides) > 0 {
-		data.ApplyTransmissionRiskOverrides(overrides)
+		model.ApplyTransmissionRiskOverrides(&data, overrides)
 	}
 
 	batchTime := time.Now()
-	exposures, err := h.transformer.TransformPublish(&data, batchTime)
+	exposures, err := h.transformer.TransformPublish(ctx, &data, batchTime)
 	if err != nil {
 		message := fmt.Sprintf("unable to read request data: %v", err)
 		logger.Error(message)
