@@ -7,7 +7,10 @@ docs:
       children:
         - title: How to Deploy
           url: /deploying
-
+        - title: How to Publish Keys
+          url: /getting-started/publishing-keys
+        - title: How to Retrieve Keys
+          url: /getting-started/retrieving-keys
     - title: Design
       children:
         - title: Server Deployment Options
