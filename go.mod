@@ -8,6 +8,7 @@ require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.1
 	github.com/Azure/azure-sdk-for-go v42.3.0+incompatible
+	github.com/Azure/azure-service-operator v0.0.0-20200605190347-d0294e15530d // indirect
 	github.com/Azure/azure-storage-blob-go v0.8.0
 	github.com/Azure/go-autorest/autorest v0.10.2 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.8.3 // indirect
@@ -42,7 +43,6 @@ require (
 	github.com/jefferai/jsonx v1.0.1 // indirect
 	github.com/keybase/go-crypto v0.0.0-20200123153347-de78d2cb44f4 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/lib/pq v1.5.2 // indirect
 	github.com/lstoll/awskms v0.0.0-20191202211033-9042d2a6f52c
 	github.com/mitchellh/cli v1.1.1 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
@@ -61,7 +61,6 @@ require (
 	github.com/sethvargo/go-gcpkms v0.0.0-20200417004547-e50d0c7083d9
 	github.com/shirou/gopsutil v2.20.4+incompatible // indirect
 	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
-	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/tv42/httpunix v0.0.0-20191220191345-2ba4b9c3382c // indirect
 	go.opencensus.io v0.22.3
 	go.uber.org/zap v1.14.1
