@@ -27,8 +27,6 @@ type formData struct {
 	EndTime           string `form:"endtime"`
 	SigningKeyID      string `form:"SigningKeyID"`
 	SigningKeyVersion string `form:"SigningKeyVersion"`
-	AppPackageName    string `form:"AppPackageName"`
-	BundleID          string `form:"BundleID"`
 }
 
 func (f *formData) EndTimestamp() (time.Time, error) {
@@ -42,8 +40,6 @@ func (f *formData) PopulateSigInfo(si *model.SignatureInfo) error {
 	}
 
 	si.SigningKey = f.SigningKey
-	si.AppPackageName = f.AppPackageName
-	si.BundleID = f.BundleID
 	si.SigningKeyVersion = f.SigningKeyVersion
 	si.SigningKeyID = f.SigningKeyID
 	si.EndTimestamp = ts

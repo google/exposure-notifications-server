@@ -58,8 +58,6 @@ func TestPublish(t *testing.T) {
 	// Create a signature info.
 	si := &exportmodel.SignatureInfo{
 		SigningKey:        "signer",
-		AppPackageName:    "",
-		BundleID:          "",
 		SigningKeyVersion: "v1",
 		SigningKeyID:      "US",
 	}
