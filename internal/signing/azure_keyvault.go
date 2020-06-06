@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/v7.0/keyvault"
+	"github.com/Azure/azure-service-operator/pkg/resourcemanager/config"
 	"github.com/Azure/azure-service-operator/pkg/resourcemanager/iam"
 	"github.com/google/exposure-notifications-server/internal/base64util"
 )
@@ -43,6 +44,11 @@ type AzureKeyVault struct {
 
 // NewAzureKeyVault creates a new KeyVault key manager instance.
 func NewAzureKeyVault(ctx context.Context) (KeyManager, error) {
+	err := config.ParseEnvironment()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse env for config: err: %w", err)
+	}
+
 	authorizer, err := iam.GetKeyvaultAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("secrets.NewAzureKeyVault: auth: %w", err)
