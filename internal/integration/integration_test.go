@@ -25,7 +25,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/federationin"
-	"github.com/google/exposure-notifications-server/internal/handlers"
 	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/server"
@@ -141,7 +140,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	mux.HandleFunc("/publish", handlers.WithMinimumLatency(publishConfig.MinRequestDuration, publishHandler))
+	mux.Handle("/publish", publishHandler)
 
 	srv, err := server.New("")
 	if err != nil {
