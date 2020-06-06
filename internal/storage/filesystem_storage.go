@@ -55,3 +55,17 @@ func (s *FilesystemStorage) DeleteObject(ctx context.Context, folder, filename s
 	}
 	return nil
 }
+
+// GetObject returns the contents for the given object. If the object does not
+// exist, it returns ErrNotFound.
+func (s *FilesystemStorage) GetObject(ctx context.Context, folder, filename string) ([]byte, error) {
+	pth := filepath.Join(folder, filename)
+	b, err := ioutil.ReadFile(pth)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	return b, nil
+}

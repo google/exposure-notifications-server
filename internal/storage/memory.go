@@ -57,3 +57,17 @@ func (s *Memory) DeleteObject(_ context.Context, folder, filename string) error 
 	delete(s.data, pth)
 	return nil
 }
+
+// GetObject returns the contents for the given object. If the object does not
+// exist, it returns ErrNotFound.
+func (s *Memory) GetObject(_ context.Context, folder, filename string) ([]byte, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	pth := path.Join(folder, filename)
+	v, ok := s.data[pth]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return v, nil
+}
