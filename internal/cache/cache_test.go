@@ -145,17 +145,25 @@ func TestConcurrentReaders(t *testing.T) {
 	lookupCount := 0
 	want := &order{12, 34}
 	lookerUpper := func() (interface{}, error) {
+		// The sleep here, reliably triggers a race condition on multiple entrants attempting
+		// to lookup the cache miss to primary storage. Only one will win!
+		time.Sleep(250 * time.Millisecond)
 		lookupCount++
 		return want, nil
 	}
 
-	done := make(chan bool, 10)
-	for i := 0; i < 10; i++ {
+	parallel := 10
+	done := make(chan bool, parallel)
+	for i := 0; i < parallel; i++ {
 		ver := i
 		go func() {
-			got, err := cache.WriteThruLookup("foo", lookerUpper)
+			gotCache, err := cache.WriteThruLookup("foo", lookerUpper)
 			if err != nil {
-				t.Errorf("routine: %v got unexpected error: %v", ver, err)
+				t.Fatalf("routine: %v got unexpected error: %v", ver, err)
+			}
+			got, ok := gotCache.(*order)
+			if !ok {
+				t.Fatalf("cache item of wrong type")
 			}
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Fatalf("routine: %v mismatch (-want, +got):\n%s", ver, diff)
@@ -164,11 +172,11 @@ func TestConcurrentReaders(t *testing.T) {
 		}()
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < parallel; i++ {
 		select {
 		case <-done:
 			continue
-		case <-time.After(1 * time.Second):
+		case <-time.After(2 * time.Second):
 			t.Fatal("gorountines didn't termine fast enough")
 		}
 	}

@@ -22,6 +22,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	"github.com/google/exposure-notifications-server/internal/verification"
 )
 
 // Compile-time check to assert this config matches requirements.
@@ -35,6 +36,7 @@ type Config struct {
 	AuthorizedApp authorizedapp.Config
 	Database      database.Config
 	SecretManager secrets.Config
+	Verification  verification.Config
 
 	Port               string        `env:"PORT, default=8080"`
 	MinRequestDuration time.Duration `env:"TARGET_REQUEST_DURATION, default=5s"`

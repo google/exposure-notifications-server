@@ -17,10 +17,9 @@ package secrets
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/cache"
 )
 
 // Compile-time check to verify implements interface.
@@ -29,11 +28,8 @@ var _ SecretManager = (*Cacher)(nil)
 // Cacher is a secret manager implementation that wraps another secret manager
 // and caches secret values.
 type Cacher struct {
-	sm  SecretManager
-	ttl time.Duration
-
-	cache      map[string]*cachedItem
-	cacheMutex sync.Mutex
+	sm    SecretManager
+	cache *cache.Cache
 }
 
 type cachedItem struct {
@@ -48,44 +44,38 @@ func NewCacher(ctx context.Context, f SecretManagerFunc, ttl time.Duration) (Sec
 		return nil, fmt.Errorf("cacher: %w", err)
 	}
 
-	return WrapCacher(ctx, sm, ttl), nil
+	return WrapCacher(ctx, sm, ttl)
 }
 
 // WrapCacher wraps an existing SecretManager with caching.
-func WrapCacher(ctx context.Context, sm SecretManager, ttl time.Duration) SecretManager {
+func WrapCacher(ctx context.Context, sm SecretManager, ttl time.Duration) (SecretManager, error) {
+	cache, err := cache.New(ttl)
+	if err != nil {
+		return nil, err
+	}
 	return &Cacher{
 		sm:    sm,
-		ttl:   ttl,
-		cache: make(map[string]*cachedItem),
-	}
+		cache: cache,
+	}, nil
 }
 
 // GetSecretValue implements the SecretManager interface, but caches values and
 // retrieves them from the cache.
 func (sm *Cacher) GetSecretValue(ctx context.Context, name string) (string, error) {
-	logger := logging.FromContext(ctx)
-
-	// Lock
-	sm.cacheMutex.Lock()
-	defer sm.cacheMutex.Unlock()
-
-	// Lookup in cache
-	if i, ok := sm.cache[name]; ok && time.Since(i.cachedAt) < sm.ttl {
-		logger.Debugf("loaded secret %v from cache", name)
-		return i.value, nil
+	lookup := func() (interface{}, error) {
+		// Delegate lookup to parent sm.
+		plaintext, err := sm.sm.GetSecretValue(ctx, name)
+		if err != nil {
+			return "", err
+		}
+		return plaintext, nil
 	}
 
-	// Delegate lookup to parent sm.
-	plaintext, err := sm.sm.GetSecretValue(ctx, name)
+	cacheVal, err := sm.cache.WriteThruLookup(name, lookup)
 	if err != nil {
-		return "", err
+		return "", nil
 	}
 
-	// Cache value
-	sm.cache[name] = &cachedItem{
-		value:    plaintext,
-		cachedAt: time.Now(),
-	}
-
-	return plaintext, nil
+	plaintext := cacheVal.(string)
+	return plaintext, err
 }

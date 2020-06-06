@@ -86,7 +86,7 @@ func (c *Cache) WriteThruLookup(name string, primaryLookup Func) (interface{}, e
 	defer c.mu.Unlock()
 	// double check that the value hasn't been set by another goroutine.
 	if val, hit := c.data[name]; hit && !val.expired() {
-		return val, nil
+		return val.object, nil
 	}
 	// Either a miss, or hit w/ expired value.
 

@@ -24,7 +24,9 @@ import (
 
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/base64util"
+	"github.com/google/exposure-notifications-server/internal/cache"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
+	"github.com/google/exposure-notifications-server/internal/verification/model"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"
@@ -34,12 +36,17 @@ import (
 
 // Verifier can be used to verify public health authority diagnosis verification certificates.
 type Verifier struct {
-	db *database.HealthAuthorityDB
+	db      *database.HealthAuthorityDB
+	haCache *cache.Cache
 }
 
 // New creates a new verifier, based on this DB handle.
-func New(db *database.HealthAuthorityDB) *Verifier {
-	return &Verifier{db}
+func New(db *database.HealthAuthorityDB, config *Config) (*Verifier, error) {
+	cache, err := cache.New(config.CacheDuration)
+	if err != nil {
+		return nil, err
+	}
+	return &Verifier{db, cache}, nil
 }
 
 // VerifyDiagnosisCertificate accepts a publish request (from which is extracts the JWT),
@@ -62,11 +69,20 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 			return nil, fmt.Errorf("does not contain expected claim set")
 		}
 
-		// Based on issuer, load the key versions.
-		ha, err := v.db.GetHealthAuthority(ctx, claims.Issuer)
-		if err != nil {
-			return nil, fmt.Errorf("error looking up issuer: %v : %w", claims.Issuer, err)
+		lookup := func() (interface{}, error) {
+			// Based on issuer, load the key versions.
+			ha, err := v.db.GetHealthAuthority(ctx, claims.Issuer)
+			if err != nil {
+				return nil, fmt.Errorf("error looking up issuer: %v : %w", claims.Issuer, err)
+			}
+			return ha, nil
 		}
+		cacheVal, err := v.haCache.WriteThruLookup(claims.Issuer, lookup)
+		if err != nil {
+			return nil, err
+		}
+
+		ha := cacheVal.(*model.HealthAuthority)
 
 		// Find a key version.
 		for _, hak := range ha.Keys {
