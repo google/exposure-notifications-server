@@ -24,17 +24,32 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"net/url"
+	"os"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/v7.0/keyvault"
-	"github.com/Azure/azure-service-operator/pkg/resourcemanager/config"
-	"github.com/Azure/azure-service-operator/pkg/resourcemanager/iam"
+	"github.com/Azure/go-autorest/autorest"
+	"github.com/Azure/go-autorest/autorest/adal"
+	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/google/exposure-notifications-server/internal/base64util"
 )
 
 // Compile-time check to verify implements interface.
 var _ KeyManager = (*AzureKeyVault)(nil)
 var _ crypto.Signer = (*AzureKeyVaultSigner)(nil)
+var keyvaultAuthorizer autorest.Authorizer
+
+type OAuthGrantType int
+
+const (
+	// OAuthGrantTypeServicePrincipal for client credentials flow
+	OAuthGrantTypeServicePrincipal OAuthGrantType = iota
+	// OAuthGrantTypeDeviceFlow for device flow
+	OAuthGrantTypeDeviceFlow
+	// OAuthGrantTypeMI for aad-pod-identity
+	OAuthGrantTypeMI
+)
 
 // AzureKeyVault implements the signing.KeyManager interface and can be used to
 // sign export files.
@@ -44,12 +59,7 @@ type AzureKeyVault struct {
 
 // NewAzureKeyVault creates a new KeyVault key manager instance.
 func NewAzureKeyVault(ctx context.Context) (KeyManager, error) {
-	err := config.ParseEnvironment()
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse env for config: err: %w", err)
-	}
-
-	authorizer, err := iam.GetKeyvaultAuthorizer()
+	authorizer, err := GetKeyvaultAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("secrets.NewAzureKeyVault: auth: %w", err)
 	}
@@ -232,4 +242,46 @@ func convert1363ToAsn1(b []byte) ([]byte, error) {
 	}
 
 	return asn1.Marshal(rs)
+}
+
+func GetKeyvaultAuthorizer() (autorest.Authorizer, error) {
+	if keyvaultAuthorizer != nil {
+		return keyvaultAuthorizer, nil
+	}
+
+	azureEnv, _ := azure.EnvironmentFromName("AzurePublicCloud")
+	vaultEndpoint := azureEnv.KeyVaultEndpoint
+	tenant := os.Getenv("AZURE_TENANT_ID")
+	clientID := os.Getenv("AZURE_CLIENT_ID")
+	clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
+
+	alternateEndpoint, _ := url.Parse(
+		"https://login.windows.net/" + tenant + "/oauth2/token",
+	)
+
+	var a autorest.Authorizer
+	var err error
+
+	oauthconfig, err := adal.NewOAuthConfig(
+		azureEnv.ActiveDirectoryEndpoint, tenant)
+	if err != nil {
+		return a, err
+	}
+	oauthconfig.AuthorizeEndpoint = *alternateEndpoint
+
+	token, err := adal.NewServicePrincipalToken(
+		*oauthconfig, clientID, clientSecret, vaultEndpoint)
+	if err != nil {
+		return a, err
+	}
+
+	a = autorest.NewBearerAuthorizer(token)
+
+	if err == nil {
+		keyvaultAuthorizer = a
+	} else {
+		keyvaultAuthorizer = nil
+	}
+
+	return keyvaultAuthorizer, err
 }

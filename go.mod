@@ -10,8 +10,8 @@ require (
 	github.com/Azure/azure-sdk-for-go v42.3.0+incompatible
 	github.com/Azure/azure-service-operator v0.0.0-20200605190347-d0294e15530d
 	github.com/Azure/azure-storage-blob-go v0.8.0
-	github.com/Azure/go-autorest/autorest v0.10.2 // indirect
-	github.com/Azure/go-autorest/autorest/adal v0.8.3 // indirect
+	github.com/Azure/go-autorest/autorest v0.10.2
+	github.com/Azure/go-autorest/autorest/adal v0.8.3
 	github.com/Azure/go-autorest/autorest/azure/auth v0.4.2
 	github.com/DataDog/datadog-go v3.7.1+incompatible // indirect
 	github.com/Jeffail/gabs/v2 v2.5.0 // indirect
@@ -24,6 +24,7 @@ require (
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-test/deep v1.0.6 // indirect
+	github.com/gobuffalo/envy v1.7.0
 	github.com/golang-migrate/migrate/v4 v4.10.0
 	github.com/golang/protobuf v1.4.2
 	github.com/google/go-cmp v0.4.1
