@@ -134,6 +134,11 @@ func TestPublish(t *testing.T) {
 	defer resp.Body.Close()
 
 	// TODO: verify export has the correct file
+	b, err := env.Blobstore().GetObject(ctx, "my-bucket", "index.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = b
 
 	// TODO: verify signature
 }

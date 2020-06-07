@@ -26,10 +26,14 @@ func NewNoop(ctx context.Context) (Blobstore, error) {
 	return &Noop{}, nil
 }
 
-func (s *Noop) CreateObject(ctx context.Context, folder, filename string, contents []byte, cacheable bool) error {
+func (s *Noop) CreateObject(_ context.Context, _, _ string, _ []byte, _ bool) error {
 	return nil
 }
 
-func (s *Noop) DeleteObject(ctx context.Context, folder, filename string) error {
+func (s *Noop) DeleteObject(_ context.Context, _, _ string) error {
 	return nil
+}
+
+func (s *Noop) GetObject(_ context.Context, _, _ string) ([]byte, error) {
+	return nil, nil
 }

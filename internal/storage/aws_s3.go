@@ -18,8 +18,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
@@ -76,4 +78,28 @@ func (s *AWSS3) DeleteObject(ctx context.Context, bucket, key string) error {
 		return fmt.Errorf("storage.DeleteObject: %w", err)
 	}
 	return nil
+}
+
+// GetObject returns the contents for the given object. If the object does not
+// exist, it returns ErrNotFound.
+func (s *AWSS3) GetObject(ctx context.Context, bucket, key string) ([]byte, error) {
+	o, err := s.svc.GetObjectWithContext(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok &&
+			aerr.Code() == s3.ErrCodeNoSuchBucket || aerr.Code() == s3.ErrCodeNoSuchKey {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get object: %w", err)
+	}
+	defer o.Body.Close()
+
+	b, err := ioutil.ReadAll(o.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read object: %w", err)
+	}
+
+	return b, nil
 }

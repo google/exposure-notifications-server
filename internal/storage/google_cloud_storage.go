@@ -15,9 +15,11 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	"cloud.google.com/go/storage"
 )
@@ -42,13 +44,13 @@ func NewGoogleCloudStorage(ctx context.Context) (Blobstore, error) {
 }
 
 // CreateObject creates a new cloud storage object or overwrites an existing one.
-func (gcs *GoogleCloudStorage) CreateObject(ctx context.Context, bucket, objectName string, contents []byte, cacheable bool) error {
+func (s *GoogleCloudStorage) CreateObject(ctx context.Context, bucket, objectName string, contents []byte, cacheable bool) error {
 	cacheControl := "public, max-age=86400"
 	if !cacheable {
 		cacheControl = "no-cache, max-age=0"
 	}
 
-	wc := gcs.client.Bucket(bucket).Object(objectName).NewWriter(ctx)
+	wc := s.client.Bucket(bucket).Object(objectName).NewWriter(ctx)
 	wc.Metadata = map[string]string{
 		"Cache-Control": cacheControl,
 	}
@@ -63,8 +65,8 @@ func (gcs *GoogleCloudStorage) CreateObject(ctx context.Context, bucket, objectN
 
 // DeleteObject deletes a cloud storage object, returns nil if the object was
 // successfully deleted, or of the object doesn't exist.
-func (gcs *GoogleCloudStorage) DeleteObject(ctx context.Context, bucket, objectName string) error {
-	if err := gcs.client.Bucket(bucket).Object(objectName).Delete(ctx); err != nil {
+func (s *GoogleCloudStorage) DeleteObject(ctx context.Context, bucket, objectName string) error {
+	if err := s.client.Bucket(bucket).Object(objectName).Delete(ctx); err != nil {
 		if errors.Is(err, storage.ErrObjectNotExist) {
 			// Object doesn't exist; presumably already deleted.
 			return nil
@@ -72,4 +74,23 @@ func (gcs *GoogleCloudStorage) DeleteObject(ctx context.Context, bucket, objectN
 		return fmt.Errorf("storage.DeleteObject: %w", err)
 	}
 	return nil
+}
+
+// GetObject returns the contents for the given object. If the object does not
+// exist, it returns ErrNotFound.
+func (s *GoogleCloudStorage) GetObject(ctx context.Context, bucket, object string) ([]byte, error) {
+	r, err := s.client.Bucket(bucket).Object(object).NewReader(ctx)
+	if err != nil {
+		if errors.Is(err, storage.ErrObjectNotExist) {
+			return nil, ErrNotFound
+		}
+	}
+	defer r.Close()
+
+	var b bytes.Buffer
+	if _, err := io.Copy(&b, r); err != nil {
+		return nil, fmt.Errorf("failed to download bytes: %w", err)
+	}
+
+	return b.Bytes(), nil
 }
