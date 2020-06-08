@@ -90,7 +90,7 @@ func (c *Cache) WriteThruLookup(name string, primaryLookup Func) (interface{}, e
 	}
 	// Either a miss, or hit w/ expired value.
 
-	// Value does indeed need to be refreshed. Used the provided fucntion.
+	// Value does indeed need to be refreshed. Used the provided function.
 	newData, err := primaryLookup()
 	if err != nil {
 		return nil, err
