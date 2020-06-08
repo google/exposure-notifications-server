@@ -32,15 +32,15 @@ const (
 )
 
 type ExportConfig struct {
-	ConfigID         int64         `db:"config_id"`
-	BucketName       string        `db:"bucket_name"`
-	FilenameRoot     string        `db:"filename_root"`
-	Period           time.Duration `db:"period_seconds"`
-	OutputRegion     string        `db:"output_region"`
-	InputRegions     []string      `db:"input_regions"`
-	From             time.Time     `db:"from_timestamp"`
-	Thru             time.Time     `db:"thru_timestamp"`
-	SignatureInfoIDs []int64       `db:"signature_info_ids"`
+	ConfigID         int64
+	BucketName       string
+	FilenameRoot     string
+	Period           time.Duration
+	OutputRegion     string
+	InputRegions     []string
+	From             time.Time
+	Thru             time.Time
+	SignatureInfoIDs []int64
 }
 
 // EffectiveInputRegions either returns `InputRegions` or if that array is
@@ -94,17 +94,17 @@ func (ec *ExportConfig) ThruHTMLTime() string {
 }
 
 type ExportBatch struct {
-	BatchID          int64     `db:"batch_id" json:"batchID"`
-	ConfigID         int64     `db:"config_id" json:"configID"`
-	BucketName       string    `db:"bucket_name" json:"bucketName"`
-	FilenameRoot     string    `db:"filename_root" json:"filenameRoot"`
-	StartTimestamp   time.Time `db:"start_timestamp" json:"startTimestamp"`
-	EndTimestamp     time.Time `db:"end_timestamp" json:"endTimestamp"`
-	OutputRegion     string    `db:"region" json:"output_region"`
-	InputRegions     []string  `db:"input_regions" json:"inputRegions"`
-	Status           string    `db:"status" json:"status"`
-	LeaseExpires     time.Time `db:"lease_expires" json:"leaseExpires"`
-	SignatureInfoIDs []int64   `db:"signature_info_ids"`
+	BatchID          int64
+	ConfigID         int64
+	BucketName       string
+	FilenameRoot     string
+	StartTimestamp   time.Time
+	EndTimestamp     time.Time
+	OutputRegion     string
+	InputRegions     []string
+	Status           string
+	LeaseExpires     time.Time
+	SignatureInfoIDs []int64
 }
 
 // EffectiveInputRegions either returns `InputRegions` or if that array is
@@ -114,14 +114,14 @@ func (eb *ExportBatch) EffectiveInputRegions() []string {
 }
 
 type ExportFile struct {
-	BucketName   string   `db:"bucket_name"`
-	Filename     string   `db:"filename"`
-	BatchID      int64    `db:"batch_id"`
-	OutputRegion string   `db:"output_region"`
-	InputRegions []string `db:"input_regions" json:"inputRegions"`
-	BatchNum     int      `db:"batch_num"`
-	BatchSize    int      `db:"batch_size"`
-	Status       string   `db:"status"`
+	BucketName   string
+	Filename     string
+	BatchID      int64
+	OutputRegion string
+	InputRegions []string
+	BatchNum     int
+	BatchSize    int
+	Status       string
 }
 
 // EffectiveInputRegions either returns `InputRegions` or if that array is
@@ -131,11 +131,11 @@ func (ef *ExportFile) EffectiveInputRegions() []string {
 }
 
 type SignatureInfo struct {
-	ID                int64     `db:"id"`
-	SigningKey        string    `db:"signing_key"`
-	SigningKeyVersion string    `db:"signing_key_version"`
-	SigningKeyID      string    `db:"signing_key_id"`
-	EndTimestamp      time.Time `db:"thru_timestamp"`
+	ID                int64
+	SigningKey        string
+	SigningKeyVersion string
+	SigningKeyID      string
+	EndTimestamp      time.Time
 }
 
 // FormattedEndTimestamp returns the end date for display in the admin console.
