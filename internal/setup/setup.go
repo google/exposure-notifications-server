@@ -120,7 +120,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		// Update serverEnv setup.
 		serverEnvOpts = append(serverEnvOpts, serverenv.WithSecretManager(sm))
 
-		logger.Infof("secret manager configuration: %+v", smConfig)
+		logger.Infow("secret manager", "config", smConfig)
 	}
 
 	// Load the key manager.
@@ -142,14 +142,14 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		// Update serverEnv setup.
 		serverEnvOpts = append(serverEnvOpts, serverenv.WithKeyManager(km))
 
-		logger.Infof("key manager configuration: %+v", kmConfig)
+		logger.Infow("key manager", "config", kmConfig)
 	}
 
 	// Process first round of environment variables.
 	if err := envconfig.ProcessWith(ctx, config, l, mutatorFuncs...); err != nil {
 		return nil, fmt.Errorf("error loading environment variables: %w", err)
 	}
-	logger.Infof("effective configuration: %+v", config)
+	logger.Infow("provided", "config", config)
 
 	// Configure blob storage.
 	if provider, ok := config.(BlobstoreConfigProvider); ok {
@@ -165,7 +165,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		// Update serverEnv setup.
 		serverEnvOpts = append(serverEnvOpts, blobStorage)
 
-		logger.Infof("blobstore configuration: %+v", bsConfig)
+		logger.Infow("blobstore", "config", bsConfig)
 	}
 
 	// Setup the database connection.
@@ -181,12 +181,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		// Update serverEnv setup.
 		serverEnvOpts = append(serverEnvOpts, serverenv.WithDatabase(db))
 
-		{
-			// Log the database config, but omit the password field.
-			redactedDB := dbConfig
-			redactedDB.Password = "<hidden>"
-			logger.Infof("database configuration: %+v", redactedDB)
-		}
+		logger.Infow("database", "config", dbConfig)
 
 		// AuthorizedApp must come after database setup due to the dependency.
 		if provider, ok := config.(AuthorizedAppConfigProvider); ok {
@@ -203,7 +198,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 			// Update serverEnv setup.
 			serverEnvOpts = append(serverEnvOpts, serverenv.WithAuthorizedAppProvider(aa))
 
-			logger.Infof("authorizedapp configuration: %+v", aaConfig)
+			logger.Infow("authorizedapp", "config", aaConfig)
 		}
 	}
 
