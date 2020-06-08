@@ -30,6 +30,11 @@ In order for your application to publish keys to the server, the server
 requires the addition of the Application Name (for Android) and the Bundle ID
 (for iOS). This can be done via the admin interface.
 
+To add these entries, follow the instructions for
+[configuring the server](/getting-started/deploying#configuring-the-server).
+Via the admin-console, you can add the App Package Name and App Bundle ID to
+be allowed to publish exposure keys.
+
 While not required, if a verification server is required, additional
 configuration will be required. Please see the design for a
 [configurable third-party verification service](design/verification_protocol.md)

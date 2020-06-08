@@ -22,4 +22,13 @@ For instance, your app may not request any of the following permissions:
   * ACCESS_BACKGROUND_LOCATION
   * BLUETOOTH_ADMIN
 
-  ## Retrieving Keys
+## Retrieving Keys
+
+In order to retrieve keys from the exposure notifications server, the first
+step is to configure exports from the server.
+
+To add these entries, follow the instructions for
+[configuring the server](/getting-started/deploying#configuring-the-server).
+Via the admin-console, you can add the App Package Name and App Bundle ID to
+be allowed to publish exposure keys.
+
