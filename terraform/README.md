@@ -58,7 +58,7 @@ For full instructions on deploying, view the [deployment docs](../docs/deploying
     system.
 
     ```text
-    $ echo "create_generate_service = true" >> ./terraform.tfvars
+    $ echo 'generate_cron_schedule = "*/15 * * * *"' >> ./terraform.tfvars
     ```
 
 1.  (Optional, but recommended) Create a Cloud Storage bucket for storing remote
