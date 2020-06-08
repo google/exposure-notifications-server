@@ -73,7 +73,7 @@ func TestCache(t *testing.T) {
 	if got, hit := cache.Lookup("foo"); got != nil || hit {
 		t.Fatalf("expected key to expire, but still available")
 	}
-	// potential race, yeild CPU so that the purge go routine has a chance to run.
+	// potential race, yield CPU so that the purge go routine has a chance to run.
 	time.Sleep(duration)
 	checkSize(t, cache, 0)
 }
