@@ -34,14 +34,14 @@ if [ -z "${SERVICES:-}" ]; then
   exit 1
 fi
 
+if [ -z "${TAG:-}" ]; then
+  echo "✋ Missing TAG!" >&2
+  exit 1
+fi
+
 if [ "${SERVICES}" == "all" ]; then
   SERVICES="${ALL_SERVICES}"
   echo "🚧 Building all services! (${SERVICES})" >&2
-fi
-
-if [ -z "${TAG:-}" ]; then
-  TAG="$(date '+%Y%m%d%H%M%S')"
-  echo "🚧 Using generated tag! (${TAG})" >&2
 fi
 
 IFS=',' read -ra SERVICES_ARR <<< "${SERVICES}"

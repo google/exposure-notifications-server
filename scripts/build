@@ -19,6 +19,11 @@ set -eEuo pipefail
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 ALL_SERVICES="cleanup-export,cleanup-exposure,export,exposure,federationin,federationout,generate"
 
+if [ -n "$(git status --porcelain)" ]; then
+  echo "✋ Uncommitted local changes!" >&2
+  exit 1
+fi
+
 if [ -z "${PROJECT_ID:-}" ]; then
   echo "✋ Missing PROJECT_ID!" >&2
   exit 1
@@ -35,7 +40,7 @@ if [ "${SERVICES}" == "all" ]; then
 fi
 
 if [ -z "${TAG:-}" ]; then
-  TAG="$(date '+%Y%m%d%H%M%S')"
+  TAG="$(git rev-parse --short HEAD)"
   echo "🚧 Using generated tag! (${TAG})" >&2
 fi
 
