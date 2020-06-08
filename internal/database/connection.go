@@ -18,7 +18,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -65,14 +64,6 @@ func dbConnectionString(config *Config) string {
 		p = append(p, fmt.Sprintf("%s=%s", k, v))
 	}
 	return strings.Join(p, " ")
-}
-
-// dbURI builds a Postgres URI suitable for the lib/pq driver, which is used by
-// github.com/golang-migrate/migrate.
-func DbURI(config *Config) string {
-	return fmt.Sprintf("postgres://%s/%s?sslmode=disable&user=%s&password=%s&port=%s",
-		config.Host, config.Name, config.User,
-		url.QueryEscape(config.Password), url.QueryEscape(config.Port))
 }
 
 func setIfNotEmpty(m map[string]string, key, val string) {

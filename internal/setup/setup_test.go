@@ -16,6 +16,9 @@ package setup_test
 
 import (
 	"context"
+	"io/ioutil"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,8 +38,9 @@ var _ setup.KeyManagerConfigProvider = (*testConfig)(nil)
 var _ setup.SecretManagerConfigProvider = (*testConfig)(nil)
 
 type testConfig struct {
-	Database *database.Config
-	Secret   string `env:"MY_SECRET"`
+	Database   *database.Config
+	Secret     string `env:"MY_SECRET"`
+	SecretFile string `env:"MY_SECRET_FILE"`
 }
 
 func (t *testConfig) AuthorizedAppConfig() *authorizedapp.Config {
@@ -72,8 +76,16 @@ func (t *testConfig) SecretManagerConfig() *secrets.Config {
 func TestSetupWith(t *testing.T) {
 	t.Parallel()
 
+	tmp, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
 	lookuper := envconfig.MapLookuper(map[string]string{
-		"MY_SECRET": "secret://foo",
+		"SECRETS_DIR":    tmp,
+		"MY_SECRET":      "secret://foo",
+		"MY_SECRET_FILE": "secret://foo?target=file",
 	})
 
 	ctx := context.Background()
@@ -187,6 +199,14 @@ func TestSetupWith(t *testing.T) {
 
 		if _, ok := sm.(*secrets.Cacher); !ok {
 			t.Errorf("expected %T to be Cacher", sm)
+		}
+
+		if got, want := config.Secret, "noop-secret"; got != want {
+			t.Errorf("expected %v to be %v", got, want)
+		}
+
+		if got, want := config.SecretFile, tmp; !strings.Contains(got, want) {
+			t.Errorf("expected %v to contain %v", got, want)
 		}
 	})
 }

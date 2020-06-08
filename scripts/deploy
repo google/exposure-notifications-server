@@ -41,7 +41,7 @@ fi
 
 if [ "${SERVICES}" == "all" ]; then
   SERVICES="${ALL_SERVICES}"
-  echo "🚧 Building all services! (${SERVICES})" >&2
+  echo "🚧 Deploying all services! (${SERVICES})" >&2
 fi
 
 IFS=',' read -ra SERVICES_ARR <<< "${SERVICES}"
