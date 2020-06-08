@@ -6,7 +6,7 @@ docs:
     - title: Getting Started
       children:
         - title: How to Deploy
-          url: /deploying
+          url: /getting-started/deploying
         - title: How to Publish Keys
           url: /getting-started/publishing-keys
         - title: How to Retrieve Keys

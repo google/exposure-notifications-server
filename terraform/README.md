@@ -21,7 +21,7 @@ continuous deployment.
 
 ## Instructions
 
-For full instructions on deploying, view the [deployment docs](../docs/deploying.md)
+For full instructions on deploying, view the [deployment docs](../docs/getting-started/deploying.md)
 
 1.  Create a GCP project.
     [Instructions](https://cloud.google.com/resource-manager/docs/creating-managing-projects).
