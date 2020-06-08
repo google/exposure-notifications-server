@@ -1073,8 +1073,8 @@ github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 h1:nn5Wsu0esKSJiIVhscUt
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529/go.mod h1:DxrIzT+xaE7yg65j358z/aeFdxmN0P9QXhEzd20vsDc=
 github.com/securego/gosec v0.0.0-20191002120514-e680875ea14d h1:BzRvVq1EHuIjxpijCEKpAxzKUUMurOQ4sknehIATRh8=
 github.com/securego/gosec v0.0.0-20191002120514-e680875ea14d/go.mod h1:w5+eXa0mYznDkHaMCXA4XYffjlH+cy1oyKbfzJXa2Do=
-github.com/sethvargo/go-envconfig v0.1.0 h1:Mu2lgEHe12szerlqm4n58KsP5iJljo+o3jALYKjc4Dc=
-github.com/sethvargo/go-envconfig v0.1.0/go.mod h1:XZ2JRR7vhlBEO5zMmOpLgUhgYltqYqq4d4tKagtPUv0=
+github.com/sethvargo/go-envconfig v0.1.1 h1:zgzMUhULxZxMc4t7rPPNjAEKYb/mjbNs/23wWHH6IeU=
+github.com/sethvargo/go-envconfig v0.1.1/go.mod h1:XZ2JRR7vhlBEO5zMmOpLgUhgYltqYqq4d4tKagtPUv0=
 github.com/sethvargo/go-gcpkms v0.0.0-20200417004547-e50d0c7083d9 h1:RhVXqKbTmy4akECFXjhvw+5E/h6woQXzTaj0Yt2mzjM=
 github.com/sethvargo/go-gcpkms v0.0.0-20200417004547-e50d0c7083d9/go.mod h1:C7JiMBZbJnohGWYmx0vi6mQNGgLxhQX/SWxe0wYxf18=
 github.com/shirou/gopsutil v0.0.0-20190901111213-e4ec7b275ada/go.mod h1:WWnYX4lzhCH5h/3YBfyVA3VbLYjlMZZAQcW9ojMexNc=
