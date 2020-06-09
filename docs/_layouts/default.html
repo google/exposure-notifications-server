@@ -19,13 +19,13 @@
         <!-- Render Navigation -->
         {% for item in site.data.navigation.docs %}
             {% if item.url %}
-            <h4><a href="{{ item.url }}">{{ item.title }}</a></h4>
+            <h4><a href="{{ item.url | relative_url }} ">{{ item.title }}</a></h4>
             {% else %}
             <h4>{{ item.title }}</h4>
             {% endif %}
 
             {% for child in item.children %}
-                <h5>&nbsp;&nbsp;&nbsp;&nbsp;<a href="{{ child.url }}">{{ child.title }}</a></h5>
+                <h5>&nbsp;&nbsp;&nbsp;&nbsp;<a href="{{ child.url | relative_url}}">{{ child.title }}</a></h5>
             {% endfor %}
         {% endfor %}
       </header>
