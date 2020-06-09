@@ -69,7 +69,7 @@ Docker is installed and available in your `$PATH`.
     $ eval $(./scripts/dev init)
     ```
 
-    **If you close your terminal tab or session, you will need to re-run this
+    **If you close your terminal tab or session, you need to re-run this
     command.**
 
 1.  Create the local development database:

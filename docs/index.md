@@ -43,7 +43,7 @@ The Exposure Notification Server is responsible for the following functions:
 You can read tutorials on deploying and using the reference Exposure Notification
 Server here:
 
-* [Deployment guide](deploying.md)
+* [Deployment guide](getting-started/deploying.md)
 * [Contributor guide](https://github.com/google/exposure-notifications-server/blob/master/CONTRIBUTING.md)
 * [Server Functional Requirements](server_functional_requirements.md)
 * [Server Deployment Options](server_deployment_options.md)
