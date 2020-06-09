@@ -10,7 +10,7 @@ docs:
         - title: How to Publish Keys
           url: /getting-started/publishing-temporary-exposure-keys
         - title: How to Retrieve Keys
-          url: /getting-started/retrieving-export-batches-keys
+          url: /getting-started/downloading-export-batches-keys
     - title: Design
       children:
         - title: Server Deployment Options
