@@ -1631,6 +1631,8 @@ honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWh
 honnef.co/go/tools v0.0.1-2019.2.3/go.mod h1:a3bituU0lyd329TUQxRnasdCoJDkEUEAqEt0JzvZhAg=
 honnef.co/go/tools v0.0.1-2020.1.3 h1:sXmLre5bzIR6ypkjXCDI3jHPssRhc8KD/Ome589sc3U=
 honnef.co/go/tools v0.0.1-2020.1.3/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9vFzvIQ3k=
+honnef.co/go/tools v0.0.1-2020.1.4 h1:UoveltGrhghAA7ePc+e+QYDHXrBps2PqFZiHkGR/xK8=
+honnef.co/go/tools v0.0.1-2020.1.4/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9vFzvIQ3k=
 k8s.io/api v0.0.0-20190409092523-d687e77c8ae9 h1:c9UEl5z8gk1DGh/g3snETZ+a52YeR9VdbX/3BQ4PHas=
 k8s.io/api v0.0.0-20190409092523-d687e77c8ae9/go.mod h1:FQEUn50aaytlU65qqBn/w+5ugllHwrBzKm7DzbnXdzE=
 k8s.io/apimachinery v0.0.0-20190409092423-760d1845f48b h1:fVkKJL9FIpA8LSJyHVM00MP45q1WJ7+af77vcxmQP4g=

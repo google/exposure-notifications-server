@@ -19,6 +19,7 @@ require (
 	github.com/armon/go-proxyproto v0.0.0-20200108142055-f0b8253b1507 // indirect
 	github.com/aws/aws-sdk-go v1.31.4
 	github.com/circonus-labs/circonusllhist v0.1.4 // indirect
+	github.com/client9/misspell v0.3.4
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-ole/go-ole v1.2.4 // indirect
@@ -66,7 +67,7 @@ require (
 	go.opencensus.io v0.22.3
 	go.uber.org/zap v1.14.1
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
-	golang.org/x/tools v0.0.0-20200513154647-78b527d18275 // indirect
+	golang.org/x/tools v0.0.0-20200513154647-78b527d18275
 	google.golang.org/api v0.25.0
 	google.golang.org/genproto v0.0.0-20200527145253-8367513e4ece
 	google.golang.org/grpc v1.29.1
@@ -74,4 +75,5 @@ require (
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/ini.v1 v1.56.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
+	honnef.co/go/tools v0.0.1-2020.1.4
 )
