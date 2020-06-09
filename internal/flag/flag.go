@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package flag includes custom flag parsing logic.
 package flag
 
 import (

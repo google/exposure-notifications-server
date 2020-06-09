@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This tool provides a small admin UI. Requires connection to the database
+// Package admin provides a small admin UI. Requires connection to the database
 // and permissions to access whatever else you might need to access.
 package admin
 

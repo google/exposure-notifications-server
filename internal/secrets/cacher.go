@@ -32,11 +32,6 @@ type Cacher struct {
 	cache *cache.Cache
 }
 
-type cachedItem struct {
-	value    string
-	cachedAt time.Time
-}
-
 // NewCacher creates a new secret manager that caches results for the given ttl.
 func NewCacher(ctx context.Context, f SecretManagerFunc, ttl time.Duration) (SecretManager, error) {
 	sm, err := f(ctx)

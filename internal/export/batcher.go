@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package export defines the handlers for managing exposure key exporting.
 package export
 
 import (

@@ -48,7 +48,7 @@ func (a TransmissionRiskVector) Len() int {
 	return len(a)
 }
 
-// This sorts the TransmissionRiskVector vector with the largest SinceRollingPeriod
+// Less sorts the TransmissionRiskVector vector with the largest SinceRollingPeriod
 // value first. Descending sort.
 func (a TransmissionRiskVector) Less(i, j int) bool {
 	return a[i].SinceRollingPeriod > a[j].SinceRollingPeriod

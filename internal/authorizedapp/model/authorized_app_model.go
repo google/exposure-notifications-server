@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package model is a model abstraction of authorized apps.
 package model
 
 import (
