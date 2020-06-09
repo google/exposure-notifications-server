@@ -26,7 +26,7 @@ For instance, your app may not request any of the following permissions:
 ## Publishing Keys
 
 In order for your application to publish keys to the server, the server
-requires the addition of the Application Name (for Android) and the Bundle ID
+requires the registration of the Application Name (for Android) or the Bundle ID
 (for iOS). This can be done via the admin interface.
 
 To add these entries, we can use the Admin Console Application. For
