@@ -67,7 +67,7 @@ See [Deploying with Terraform](https://github.com/google/exposure-notifications-
 
 While Terraform does an initial deployment of the services, it does not manage
 the Cloud Run services beyond their initial creation. If you make changes to the
-code, you will need to build, deploy, and promote new services. The general
+code, you need to build, deploy, and promote new services. The general
 order of operations is:
 
 1.  **Build** - this is the phase where the code is bundled into a container
