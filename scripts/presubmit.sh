@@ -21,6 +21,7 @@ SOURCE_DIRS="cmd internal tools"
 
 
 echo "🌳 Set up environment variables"
+export GOMAXPROCS=7
 # TODO(sethvargo): configure more
 
 
