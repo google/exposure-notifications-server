@@ -5,12 +5,19 @@ layout: default
 # Temporary Exposure Key (TEK) Publishing Guide
 
 This page explains how to configure the server and application to allow
-publishing keys.
+publishing keys from mobile applications to the server.
 
 ## Prerequisites
 
 {% include getting-started-prerequisites.md %}
 
+## What is a Temporary Exposure Key?
+Temporary Exposure Keys, or TEKs, are anonymous keys shared between mobile
+devices to determine if two devices were sufficiently nearby to be considered
+"exposed" to one another. When an application user confirms they have been
+exposed, their keys are shared to the server in order for applications to
+download and determine if other users interacted with any of the now exposed
+keys.
 
 ## Publishing Keys
 
