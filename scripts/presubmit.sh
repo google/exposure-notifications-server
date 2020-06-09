@@ -30,8 +30,7 @@ ${ROOT}/scripts/dev protoc
 
 echo "🧹 Verify formatting"
 make fmtcheck || {
-  echo "✋ Found uncommited changes after goimports."
-  echo "✋ Commit these changes before merging."
+  echo "✋ Found formatting errors."
   exit 1
 }
 
