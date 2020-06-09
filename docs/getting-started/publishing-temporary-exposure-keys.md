@@ -16,8 +16,8 @@ Temporary Exposure Keys, or TEKs, are anonymous keys shared between mobile
 devices to determine if two devices were sufficiently nearby to be considered
 "exposed" to one another. When an application user confirms they have been
 exposed, their keys are shared to the server in order for applications to
-download and determine if other users interacted with any of the now exposed
-keys.
+download and [determine if other users interacted with any of the now exposed
+keys](https://blog.google/documents/69/Exposure_Notification_-_Cryptography_Specification_v1.2.1.pdf).
 
 ## Publishing Keys
 

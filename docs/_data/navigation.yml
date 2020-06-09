@@ -9,7 +9,7 @@ docs:
           url: /getting-started/deploying
         - title: How to Publish Keys
           url: /getting-started/publishing-temporary-exposure-keys
-        - title: How to Retrieve Keys
+        - title: How to Download Keys
           url: /getting-started/downloading-export-batches-keys
     - title: Design
       children:
