@@ -88,11 +88,11 @@ func TestSetupWith(t *testing.T) {
 		"MY_SECRET_FILE": "secret://foo?target=file",
 	})
 
-	ctx := context.Background()
-	_, dbconfig := database.NewTestDatabaseWithConfig(t)
-
 	t.Run("default", func(t *testing.T) {
 		t.Parallel()
+
+		ctx := context.Background()
+		_, dbconfig := database.NewTestDatabaseWithConfig(t)
 
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
@@ -109,6 +109,9 @@ func TestSetupWith(t *testing.T) {
 	t.Run("database", func(t *testing.T) {
 		t.Parallel()
 
+		ctx := context.Background()
+		_, dbconfig := database.NewTestDatabaseWithConfig(t)
+
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
 		if err != nil {
@@ -124,6 +127,9 @@ func TestSetupWith(t *testing.T) {
 
 	t.Run("authorizedapp", func(t *testing.T) {
 		t.Parallel()
+
+		ctx := context.Background()
+		_, dbconfig := database.NewTestDatabaseWithConfig(t)
 
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
@@ -145,6 +151,9 @@ func TestSetupWith(t *testing.T) {
 	t.Run("blobstore", func(t *testing.T) {
 		t.Parallel()
 
+		ctx := context.Background()
+		_, dbconfig := database.NewTestDatabaseWithConfig(t)
+
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
 		if err != nil {
@@ -165,6 +174,9 @@ func TestSetupWith(t *testing.T) {
 	t.Run("key_manager", func(t *testing.T) {
 		t.Parallel()
 
+		ctx := context.Background()
+		_, dbconfig := database.NewTestDatabaseWithConfig(t)
+
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
 		if err != nil {
@@ -184,6 +196,9 @@ func TestSetupWith(t *testing.T) {
 
 	t.Run("secret_manager", func(t *testing.T) {
 		t.Parallel()
+
+		ctx := context.Background()
+		_, dbconfig := database.NewTestDatabaseWithConfig(t)
 
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
