@@ -29,7 +29,7 @@ ${ROOT}/scripts/dev protoc
 
 
 echo "📚 Fetch dependencies"
-OUT="$(go get -t ./...)"
+OUT="$(go get -t ./... 2>&1)"
 if [ $? -ne 0 ]; then
   echo "✋ Error fetching dependencies"
   echo "\n\n${OUT}\n\n"
@@ -63,7 +63,7 @@ go build ./...
 
 
 echo "🌌 Verify and tidy module"
-OUT="$(go mod verify && go mod tidy)"
+OUT="$(go mod verify 2>&1 && go mod tidy 2>&1)"
 if [ $? -ne 0 ]; then
   echo "✋ Error validating module"
   echo "\n\n${OUT}\n\n"
