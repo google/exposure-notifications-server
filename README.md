@@ -2,6 +2,8 @@
 
 [COVID‑19 Exposure Notifications API](https://www.google.com/covid19/exposurenotifications/)
 
+[Exposure Notification Reference Server Documentation](https://google.github.io/exposure-notifications-server/) 
+
 In our continued effort to help governments and health authorities during the
 COVID-19 pandemic, we have authored an open source reference implementation of
 an Exposure Notifications server.
@@ -40,11 +42,11 @@ The server is responsible for the following functions:
 You can read tutorials on deploying and using the reference Exposure Notification
 Server here:
 
-* [Overview](docs/index.md)
-* [Deployment Guide](docs/deploying.md)
+* [Overview](https://google.github.io/exposure-notifications-server/)
+* [Deployment Guide](https://google.github.io/exposure-notifications-server/getting-started/deploying)
 * [Reference Documentation](https://pkg.go.dev/mod/github.com/google/exposure-notifications-server)
-* [Server Functional Requirements](docs/server_functional_requirements.md)
-* [Server Deployment Options](docs/server_deployment_options.md)
+* [Server Functional Requirements](https://google.github.io/exposure-notifications-server/server_functional_requirements)
+* [Server Deployment Options](https://google.github.io/exposure-notifications-server/server_deployment_options)
 
 ## Issues and Questions
 
