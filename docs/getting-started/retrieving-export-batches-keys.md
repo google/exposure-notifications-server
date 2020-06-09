@@ -37,8 +37,8 @@ defined schedule. These will be available for download via the configured
 storage and/or CDN and downloadable by devices. CDN configuration is external
 to this server. Most Cloud Providers have a CDN solution that you can leverage.
 
-It is also required that you create a key that can be used to sign these
-batches. This helps to ensure that the batches devices are receiving are
+It is also required that you create a signing key that will be used to sign
+these batches. This ensures that the batches devices are receiving are
 originating from the server and not an unauthorized, potentially malicious,
 third-party. The signing key must be an asymmetric ECDSA P-256 key, and the
 public portion must be shared with Google and Apple. If the

@@ -8,7 +8,7 @@ docs:
         - title: How to Deploy
           url: /getting-started/deploying
         - title: How to Publish Keys
-          url: /getting-started/publishing-temporary-exposure-keys.md
+          url: /getting-started/publishing-temporary-exposure-keys
         - title: How to Retrieve Keys
           url: /getting-started/retrieving-export-batches-keys
     - title: Design
