@@ -25,7 +25,7 @@ type Config struct {
 	Port               string        `env:"DB_PORT, default=5432"`
 	SSLMode            string        `env:"DB_SSLMODE, default=require"`
 	ConnectionTimeout  int           `env:"DB_CONNECT_TIMEOUT"`
-	Password           string        `env:"DB_PASSWORD"`
+	Password           string        `env:"DB_PASSWORD" json:"-"` // ignored by zap's JSON formatter
 	SSLCertPath        string        `env:"DB_SSLCERT"`
 	SSLKeyPath         string        `env:"DB_SSLKEY"`
 	SSLRootCertPath    string        `env:"DB_SSLROOTCERT"`
