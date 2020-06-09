@@ -28,6 +28,15 @@ echo "🚒 Verify Protobufs are up to date"
 ${ROOT}/scripts/dev protoc
 
 
+echo "📚 Fetch dependencies"
+OUT="$(go get -t ./...)"
+if [ $? -ne 0 ]; then
+  echo "✋ Error fetching dependencies"
+  echo "\n\n${OUT}\n\n"
+  exit 1
+fi
+
+
 echo "🧹 Verify formatting"
 make fmtcheck || {
   echo "✋ Found formatting errors."
@@ -47,15 +56,6 @@ make spellcheck || {
   echo "✋ Found spelling errors."
   exit 1
 }
-
-
-echo "📚 Fetch dependencies"
-OUT="$(go get -t ./...)"
-if [ $? -ne 0 ]; then
-  echo "✋ Error fetching dependencies"
-  echo "\n\n${OUT}\n\n"
-  exit 1
-fi
 
 
 echo "🔨 Building"
