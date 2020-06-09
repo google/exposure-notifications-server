@@ -72,15 +72,15 @@ func ApplyTransmissionRiskOverrides(p *verifyapi.Publish, overrides verifyapi.Tr
 // from direct access.
 // Mark records as writable/nowritable - is exposure key encrypted.
 type Exposure struct {
-	ExposureKey      []byte    `db:"exposure_key"`
-	TransmissionRisk int       `db:"transmission_risk"`
-	AppPackageName   string    `db:"app_package_name"`
-	Regions          []string  `db:"regions"`
-	IntervalNumber   int32     `db:"interval_number"`
-	IntervalCount    int32     `db:"interval_count"`
-	CreatedAt        time.Time `db:"created_at"`
-	LocalProvenance  bool      `db:"local_provenance"`
-	FederationSyncID int64     `db:"sync_id"`
+	ExposureKey      []byte
+	TransmissionRisk int
+	AppPackageName   string
+	Regions          []string
+	IntervalNumber   int32
+	IntervalCount    int32
+	CreatedAt        time.Time
+	LocalProvenance  bool
+	FederationSyncID int64
 }
 
 // IntervalNumber calculates the exposure notification system interval
