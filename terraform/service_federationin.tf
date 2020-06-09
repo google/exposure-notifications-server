@@ -22,6 +22,12 @@ resource "google_service_account" "federationin" {
   display_name = "Exposure Notification Federation (In)"
 }
 
+resource "google_project_iam_member" "federationin-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.federationin.email}"
+}
+
 resource "google_service_account_iam_member" "cloudbuild-deploy-federationin" {
   service_account_id = google_service_account.federationin.id
   role               = "roles/iam.serviceAccountUser"

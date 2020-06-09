@@ -22,6 +22,12 @@ resource "google_service_account" "exposure" {
   display_name = "Exposure Notification Exposure"
 }
 
+resource "google_project_iam_member" "exposure-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.exposure.email}"
+}
+
 resource "google_service_account_iam_member" "cloudbuild-deploy-exposure" {
   service_account_id = google_service_account.exposure.id
   role               = "roles/iam.serviceAccountUser"

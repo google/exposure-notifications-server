@@ -22,6 +22,12 @@ resource "google_service_account" "gcr-cleaner" {
   display_name = "Container Registry Cleaner"
 }
 
+resource "google_project_iam_member" "gcr-cleaner-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.gcr-cleaner.email}"
+}
+
 resource "google_service_account_iam_member" "cloudbuild-deploy-gcr-cleaner" {
   service_account_id = google_service_account.gcr-cleaner.id
   role               = "roles/iam.serviceAccountUser"

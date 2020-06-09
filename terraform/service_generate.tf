@@ -22,6 +22,12 @@ resource "google_service_account" "generate" {
   display_name = "Exposure Notification Generate"
 }
 
+resource "google_project_iam_member" "generate-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.generate.email}"
+}
+
 resource "google_service_account_iam_member" "cloudbuild-deploy-generate" {
   service_account_id = google_service_account.generate.id
   role               = "roles/iam.serviceAccountUser"

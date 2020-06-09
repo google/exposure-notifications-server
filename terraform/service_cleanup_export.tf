@@ -22,6 +22,12 @@ resource "google_service_account" "cleanup-export" {
   display_name = "Exposure Notification Cleanup Export"
 }
 
+resource "google_project_iam_member" "cleanup-export-cloudsql" {
+  project = data.google_project.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.export.email}"
+}
+
 resource "google_service_account_iam_member" "cloudbuild-deploy-cleanup-export" {
   service_account_id = google_service_account.cleanup-export.id
   role               = "roles/iam.serviceAccountUser"
