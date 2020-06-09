@@ -90,7 +90,7 @@ following values:
     build, or "all" to build all. See the list of services in the table above.
 
 -   `TAG` (optional) - tag to use for the images. If not specified, it uses a
-    datetime-based tag of the format YYYYMMDDhhmmss.
+    git-sha-based short tag.
 
 ```text
 PROJECT_ID="my-project" \
@@ -113,7 +113,7 @@ specifying the following values:
     deploy, or "all" to deploy all. Note, if you specify multiple services, they
     must use the same tag.
 
--   `TAG` (required) - tag of the deployed image (e.g. YYYYMMDDhhmmss).
+-   `TAG` (required) - tag of the deployed image (e.g. abcd1234).
 
 ```text
 PROJECT_ID="my-project" \
