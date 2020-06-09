@@ -19,9 +19,12 @@ set -eEuo pipefail
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 SOURCE_DIRS="cmd internal tools"
 
+echo $SHELL
+$SHELL --version
+
 
 echo "🌳 Set up environment variables"
-eval $(${ROOT}/scripts/dev init)
+# TODO(sethvargo): configure more
 
 
 echo "🚒 Verify Protobufs are up to date"
@@ -56,6 +59,10 @@ if [ $? -ne 0 ]; then
   echo "\n\n${OUT}\n\n"
   exit 1
 fi
+
+
+echo "🔨 Building"
+go build ./...
 
 
 echo "🌌 Verify and tidy module"
