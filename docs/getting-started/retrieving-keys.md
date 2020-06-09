@@ -27,7 +27,7 @@ For instance, your app may not request any of the following permissions:
 In order to retrieve keys from the exposure notifications server, the first
 step is to configure exports from the server.
 
-To add these entries, we can use the admin-console. For instructions on how to
+To add these entries, we can use the Admin Console. For instructions on how to
 launch the console, you can view the
 [deployment documentation](/getting-started/deploying#configuring-the-server).
 
@@ -39,8 +39,12 @@ Select "Create new Export Config"
 
 ![](../images/admin_console_create_new_export_config.png)
 
-Creating an export config will generate batches that are produced on a schedule. These will be available for download via the CDN.
+Creating an export config will generate batches that are produced on a
+defined schedule. These will be available for download via the CDN by devices.
 
-It is also recommended that you create a key that can be used to sign these batches. This helps to ensure that the batches devices are receiving are originating from the server.
+It is also recommended that you create a key that can be used to sign these
+batches. This helps to ensure that the batches devices are receiving are
+originating from the server and not an unauthorized, potentially malicious,
+third-party.
 
 ![](../images/admin_console_create_new_signature_info.png)
