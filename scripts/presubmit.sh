@@ -19,9 +19,6 @@ set -eEuo pipefail
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 SOURCE_DIRS="cmd internal tools"
 
-echo $SHELL
-$SHELL --version
-
 
 echo "🌳 Set up environment variables"
 # TODO(sethvargo): configure more

@@ -97,7 +97,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		// Log the unparsable JSON, but return success to the client.
-		message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
+		message := fmt.Sprintf("error unmarshaling API call, code: %v: %v", code, err)
 		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{status: http.StatusBadRequest, message: message, metric: "publish-bad-json", count: 1}
@@ -221,6 +221,6 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Normal production behaviour. Success it up.
+	// Normal production behavior. Success it up.
 	w.WriteHeader(http.StatusOK)
 }

@@ -42,7 +42,7 @@ func main() {
 
 	keyExport, err := export.UnmarshalExportFile(blob)
 	if err != nil {
-		log.Fatalf("error unmarshalling export file: %v", err)
+		log.Fatalf("error unmarshaling export file: %v", err)
 	}
 
 	prettyJSON, err := json.MarshalIndent(keyExport, "", "  ")
