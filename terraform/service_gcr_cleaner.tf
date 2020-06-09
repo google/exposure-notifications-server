@@ -39,6 +39,9 @@ resource "google_storage_bucket_iam_member" "gcr-cleaner-objectadmin" {
 
   depends_on = [
     google_project_service.services["containerregistry.googleapis.com"],
+    google_project_service.services["storage-api.googleapis.com"],
+    google_project_service.services["storage-component.googleapis.com"],
+    null_resource.build,
   ]
 }
 

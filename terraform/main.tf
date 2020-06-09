@@ -45,6 +45,7 @@ resource "google_project_service" "services" {
     "sql-component.googleapis.com",
     "sqladmin.googleapis.com",
     "storage-api.googleapis.com",
+    "storage-component.googleapis.com",
     "vpcaccess.googleapis.com",
   ])
   service            = each.value
