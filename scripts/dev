@@ -217,6 +217,10 @@ function protoc() {
       --go_out=plugins=grpc,paths=source_relative:. \
       ${ROOT}/internal/pb/*.proto ${ROOT}/internal/pb/export/*.proto
 
+  # protoc and goimports argue about formatting.
+  # in our main repo, we have formatting robot overloads, so put this back.
+  goimports -w internal/pb
+
   echo "Protos regenerated (OK)"
 }
 
