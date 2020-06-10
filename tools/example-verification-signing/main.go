@@ -108,7 +108,6 @@ func main() {
 		claims.PHAClaims["testkit"] = "55-HH-A7"
 		// optionally add transmission risks
 		claims.SignedMAC = request.HMAC
-		claims.KeyVersion = cfg.KeyVersion
 		// Add in the standard claims.
 		claims.StandardClaims.Audience = cfg.Audience
 		claims.StandardClaims.Issuer = cfg.Issuer
@@ -117,6 +116,9 @@ func main() {
 		claims.StandardClaims.NotBefore = now.Add(-1 * time.Second).Unix()
 
 		token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+		// The key version goes in the JWT header, not the claims.
+		token.Header[v1alpha1.KeyIDHeader] = cfg.KeyVersion
+
 		signingString, err := token.SigningString()
 		if err != nil {
 			response.Error = err.Error()
