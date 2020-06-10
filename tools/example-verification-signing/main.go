@@ -97,11 +97,14 @@ func main() {
 		// Normally - you would verify the verificationCode against a database and optionally
 		// assign transmission risk overrides.
 
-		// Here - we simply sign the claims and assum the verificationCode is valid.
+		// Here - we simply sign the claims and assume the verificationCode is valid.
 
 		// Build a JWT that contains the Standard and Extended claims as defined in
 		// pkg/api/v1alpha1/verification_types.go
 		claims := v1alpha1.NewVerificationClaims()
+		// PHAClaims is a key-value map that can be used to send information from the verification
+		// server to the app and/or the key server.
+		// The reference key server ignores anything in PHAClaims.
 		claims.PHAClaims["testkit"] = "55-HH-A7"
 		// optionally add transmission risks
 		claims.SignedMAC = request.HMAC
