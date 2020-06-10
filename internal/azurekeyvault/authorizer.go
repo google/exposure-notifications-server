@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"sync"
 
@@ -56,11 +57,10 @@ func GetKeyVaultAuthorizer() (autorest.Authorizer, error) {
 	clientID := os.Getenv("AZURE_CLIENT_ID")
 	clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
 
-	alternateEndpoint, err := url.Parse(
-		"https://login.windows.net/" + tenant + "/oauth2/token",
-	)
-	if err != nil {
-		return a, fmt.Errorf("failed parsing Azure Key Vault endpoint: %v", err)
+	alternateEndpoint := &url.URL{
+		Scheme: "https",
+		Host:   "login.windows.net",
+		Path:   path.Join(tenant, "oauth2/token"),
 	}
 
 	oauthconfig, err := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, tenant)
