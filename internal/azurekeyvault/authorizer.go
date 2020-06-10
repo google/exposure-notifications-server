@@ -47,11 +47,11 @@ func GetKeyVaultAuthorizer() (autorest.Authorizer, error) {
 		return keyvaultAuthorizer.auth, nil
 	}
 
-	var a autorest.Authorizer
 	azureEnv, err := azure.EnvironmentFromName("AzurePublicCloud")
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect Azure environment: %w", err)
 	}
+
 	vaultEndpoint := strings.TrimSuffix(azureEnv.KeyVaultEndpoint, "/")
 	tenant := os.Getenv("AZURE_TENANT_ID")
 	clientID := os.Getenv("AZURE_CLIENT_ID")
@@ -65,7 +65,7 @@ func GetKeyVaultAuthorizer() (autorest.Authorizer, error) {
 
 	oauthconfig, err := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, tenant)
 	if err != nil {
-		return a, fmt.Errorf("failed creating OAuth config for Azure Key Vault: %v", err)
+		return nil, fmt.Errorf("failed creating OAuth config for Azure Key Vault: %v", err)
 	}
 	oauthconfig.AuthorizeEndpoint = *alternateEndpoint
 
@@ -76,7 +76,7 @@ func GetKeyVaultAuthorizer() (autorest.Authorizer, error) {
 		vaultEndpoint,
 	)
 	if err != nil {
-		return a, fmt.Errorf("failed requesting access token for Azure Key Vault: %v", err)
+		return nil, fmt.Errorf("failed requesting access token for Azure Key Vault: %v", err)
 	}
 
 	keyvaultAuthorizer.auth = autorest.NewBearerAuthorizer(token)
