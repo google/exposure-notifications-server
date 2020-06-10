@@ -24,7 +24,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/testing/enclient"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -110,11 +109,6 @@ func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1alpha1.Expos
 	return exposureKeys
 }
 
-func CurrentIntervalNumber() int32 {
-	utcDay := time.Now().UTC().Truncate(24 * time.Hour)
-	return int32(utcDay.Unix() / 600)
-}
-
 // Creates a random exposure key.
 func RandomExposureKey(intervalNumber enclient.Interval, intervalCount int32, transmissionRisk int) (v1alpha1.ExposureKey, error) {
 	key, err := GenerateKey()
@@ -144,15 +138,6 @@ func GenerateKey() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return ToBase64(b), nil
-}
-
-func KeyFromString(source string) (string, error) {
-	if len(source) < dkLen {
-		return "", errors.Errorf("source '%v' should be at least %v len", source, dkLen)
-	}
-
-	b := []byte(source[:16])
 	return ToBase64(b), nil
 }
 
