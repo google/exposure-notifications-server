@@ -29,22 +29,20 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 )
 
-// Authorizer provides a mutex for working with the Key Vault auhtorizer
-type Authorizer struct {
-	lock sync.Mutex
+// Authorizer only needs to be initialied once per server, treat as singleton
+// guarded by a mutex.
+var (
+	mu   sync.Mutex
 	auth autorest.Authorizer
-}
-
-// keyvaultAuthorizer is a cached authorizer.
-var keyvaultAuthorizer *Authorizer
+)
 
 // GetKeyVaultAuthorizer prepares a specifc authorizer for keyvault use
 func GetKeyVaultAuthorizer() (autorest.Authorizer, error) {
-	keyvaultAuthorizer.lock.Lock()
-	defer keyvaultAuthorizer.lock.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 
-	if keyvaultAuthorizer.auth != nil {
-		return keyvaultAuthorizer.auth, nil
+	if auth != nil {
+		return auth, nil
 	}
 
 	azureEnv, err := azure.EnvironmentFromName("AzurePublicCloud")
@@ -79,7 +77,7 @@ func GetKeyVaultAuthorizer() (autorest.Authorizer, error) {
 		return nil, fmt.Errorf("failed requesting access token for Azure Key Vault: %v", err)
 	}
 
-	keyvaultAuthorizer.auth = autorest.NewBearerAuthorizer(token)
+	auth = autorest.NewBearerAuthorizer(token)
 
-	return keyvaultAuthorizer.auth, err
+	return auth, nil
 }
