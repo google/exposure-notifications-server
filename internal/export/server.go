@@ -15,11 +15,9 @@
 package export
 
 import (
+	"context"
 	"fmt"
-
-	coredb "github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/export/database"
-	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
@@ -30,6 +28,9 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	if env.Blobstore() == nil {
 		return nil, fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv")
 	}
+	if env.Database() == nil {
+		return nil, fmt.Errorf("export.NewBatchServer requires Database present in the ServerEnv")
+	}
 	if env.KeyManager() == nil {
 		return nil, fmt.Errorf("export.NewBatchServer requires KeyManager present in the ServerEnv")
 	}
@@ -38,19 +39,23 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	}
 
 	return &Server{
-		db:        env.Database(),
-		exportdb:  database.New(env.Database()),
-		publishdb: publishdb.New(env.Database()),
-		config:    config,
-		env:       env,
+		config: config,
+		env:    env,
 	}, nil
 }
 
 // Server hosts end points to manage export batches.
 type Server struct {
-	db        *coredb.DB
-	exportdb  *database.ExportDB
-	publishdb *publishdb.PublishDB
-	config    *Config
-	env       *serverenv.ServerEnv
+	config *Config
+	env    *serverenv.ServerEnv
+}
+
+// Routes defines and returns the routes for this server.
+func (s *Server) Routes(ctx context.Context) *http.ServeMux {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/create-batches", s.handleCreateBatches(ctx))
+	mux.HandleFunc("/do-work", s.handleDoWork(ctx))
+
+	return mux
 }
