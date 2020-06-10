@@ -7,7 +7,8 @@ This design covers the exposure notifications server's ability to verify
 diagnosis certifications from public health authorities.
 
 The actual process of issuing these certificates is not covered in this
-document, but will be at a later date.
+document, but will be at a later date. A simple example of certificate signing
+is available in [tools/example-verification-signing](https://github.com/google/exposure-notifications-server/tree/master/tools/example-verification-signing) 
 
 ## Motivation
 
