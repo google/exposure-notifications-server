@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"sync"
 
@@ -34,6 +35,7 @@ type Authorizer struct {
 	auth autorest.Authorizer
 }
 
+// keyvaultAuthorizer is a cached authorizer.
 var keyvaultAuthorizer *Authorizer
 
 // GetKeyVaultAuthorizer prepares a specifc authorizer for keyvault use
@@ -45,23 +47,25 @@ func GetKeyVaultAuthorizer() (autorest.Authorizer, error) {
 		return keyvaultAuthorizer.auth, nil
 	}
 
-	var a autorest.Authorizer
-	azureEnv, _ := azure.EnvironmentFromName("AzurePublicCloud")
+	azureEnv, err := azure.EnvironmentFromName("AzurePublicCloud")
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect Azure environment: %w", err)
+	}
+
 	vaultEndpoint := strings.TrimSuffix(azureEnv.KeyVaultEndpoint, "/")
 	tenant := os.Getenv("AZURE_TENANT_ID")
 	clientID := os.Getenv("AZURE_CLIENT_ID")
 	clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
 
-	alternateEndpoint, err := url.Parse(
-		"https://login.windows.net/" + tenant + "/oauth2/token",
-	)
-	if err != nil {
-		return a, fmt.Errorf("failed parsing Azure Key Vault endpoint: %v", err)
+	alternateEndpoint := &url.URL{
+		Scheme: "https",
+		Host:   "login.windows.net",
+		Path:   path.Join(tenant, "oauth2/token"),
 	}
 
 	oauthconfig, err := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, tenant)
 	if err != nil {
-		return a, fmt.Errorf("failed creating OAuth config for Azure Key Vault: %v", err)
+		return nil, fmt.Errorf("failed creating OAuth config for Azure Key Vault: %v", err)
 	}
 	oauthconfig.AuthorizeEndpoint = *alternateEndpoint
 
@@ -72,7 +76,7 @@ func GetKeyVaultAuthorizer() (autorest.Authorizer, error) {
 		vaultEndpoint,
 	)
 	if err != nil {
-		return a, fmt.Errorf("failed requesting access token for Azure Key Vault: %v", err)
+		return nil, fmt.Errorf("failed requesting access token for Azure Key Vault: %v", err)
 	}
 
 	keyvaultAuthorizer.auth = autorest.NewBearerAuthorizer(token)
