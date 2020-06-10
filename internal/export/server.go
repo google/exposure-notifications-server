@@ -15,11 +15,9 @@
 package export
 
 import (
+	"context"
 	"fmt"
-
-	coredb "github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/export/database"
-	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
@@ -51,4 +49,18 @@ type Server struct {
 	config *Config
 	env    *serverenv.ServerEnv
 }
+
+// Routes defines and returns the routes for this server.
+func (s *Server) Routes(ctx context.Context) *http.ServeMux {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/create-batches", s.handleCreateBatches(ctx))
+	mux.HandleFunc("/do-work", s.handleDoWork(ctx))
+
+	// Enable debug endpoint if configured.
+	if s.config.DebugEndpoint {
+		mux.HandleFunc("/debug", s.handleDebug(ctx))
+	}
+
+	return mux
 }

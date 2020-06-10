@@ -48,6 +48,12 @@ type Config struct {
 	TruncateWindow time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 	MinWindowAge   time.Duration `env:"MIN_WINDOW_AGE, default=2h"`
 	TTL            time.Duration `env:"CLEANUP_TTL, default=336h"`
+
+	// Debugging flags follow. These should not be enabled in production
+	// environments.
+
+	// DebugEndpointEnabled controls whether the debug endpoint is enabled.
+	DebugEndpoint bool `env:"DEBUG_ENDPOINT"`
 }
 
 func (c *Config) BlobstoreConfig() *storage.Config {
