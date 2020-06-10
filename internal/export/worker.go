@@ -287,7 +287,7 @@ func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObje
 }
 
 func exportFilename(eb *model.ExportBatch, batchNum int) string {
-	return fmt.Sprintf("%s/%d-%05d%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), batchNum, filenameSuffix)
+	return fmt.Sprintf("%s/%d-%d-%05d%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), eb.EndTimestamp.Unix(), batchNum, filenameSuffix)
 }
 
 func exportIndexFilename(eb *model.ExportBatch) string {
