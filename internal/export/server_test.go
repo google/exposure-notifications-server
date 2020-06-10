@@ -43,14 +43,28 @@ func TestNewServer(t *testing.T) {
 			err:  fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv"),
 		},
 		{
+			name: "nil Database",
+			env: serverenv.New(ctx,
+				serverenv.WithBlobStorage(emptyStorage),
+			),
+			err: fmt.Errorf("export.NewBatchServer requires Database present in the ServerEnv"),
+		},
+		{
 			name: "nil KeyManager",
-			env:  serverenv.New(ctx, serverenv.WithBlobStorage(emptyStorage)),
-			err:  fmt.Errorf("export.NewBatchServer requires KeyManager present in the ServerEnv"),
+			env: serverenv.New(ctx,
+				serverenv.WithBlobStorage(emptyStorage),
+				serverenv.WithDatabase(emptyDB),
+			),
+			err: fmt.Errorf("export.NewBatchServer requires KeyManager present in the ServerEnv"),
 		},
 		{
 			name: "Fully Specified",
-			env:  serverenv.New(ctx, serverenv.WithBlobStorage(emptyStorage), serverenv.WithKeyManager(emptyKMS), serverenv.WithDatabase(emptyDB)),
-			err:  nil,
+			env: serverenv.New(ctx,
+				serverenv.WithBlobStorage(emptyStorage),
+				serverenv.WithDatabase(emptyDB),
+				serverenv.WithKeyManager(emptyKMS),
+			),
+			err: nil,
 		},
 	}
 
