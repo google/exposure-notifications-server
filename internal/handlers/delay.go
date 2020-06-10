@@ -34,7 +34,7 @@ func WithMinimumLatency(target time.Duration, h http.Handler) http.HandlerFunc {
 			select {
 			case <-time.After(wait):
 			case <-r.Context().Done():
-				logging.FromContext(r.Context()).Errorf("context cancelled before response could be sent")
+				logging.FromContext(r.Context()).Errorf("context canceled before response could be sent")
 				return
 			}
 		}

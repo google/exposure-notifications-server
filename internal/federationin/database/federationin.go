@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package database is a database interface to federation in.
 package database
 
 import (
@@ -60,8 +61,8 @@ func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRow
 		SELECT
 			query_id, server_addr, oidc_audience, include_regions, exclude_regions, last_timestamp
 		FROM
-			FederationInQuery 
-		WHERE 
+			FederationInQuery
+		WHERE
 			query_id=$1
 		`, queryID)
 

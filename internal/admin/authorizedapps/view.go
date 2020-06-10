@@ -41,7 +41,7 @@ func addHealthAuthorityInfo(ctx context.Context, haDB *verdb.HealthAuthorityDB, 
 	// Load the health authorities.
 	healthAuthorities, err := haDB.ListAllHealthAuthoritiesWithoutKeys(ctx)
 	if err != nil {
-		return fmt.Errorf("Error loading health authorities: %w", err)
+		return fmt.Errorf("error loading health authorities: %w", err)
 	}
 
 	usedAuthorities := make(map[int64]bool)

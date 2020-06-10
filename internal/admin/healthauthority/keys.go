@@ -43,13 +43,12 @@ func (h *keyController) Execute(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	haDB := database.New(h.env.Database())
-	healthAuthority := &model.HealthAuthority{}
 	haID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		admin.ErrorPage(c, "Unable to parse `id` param")
 		return
 	}
-	healthAuthority, err = haDB.GetHealthAuthorityByID(ctx, haID)
+	healthAuthority, err := haDB.GetHealthAuthorityByID(ctx, haID)
 	if err != nil {
 		admin.ErrorPage(c, fmt.Sprintf("error processing health authority: %v", err))
 		return

@@ -64,6 +64,8 @@ RUN curl -sfLo "/bin/runner.sh" "https://raw.githubusercontent.com/kubernetes/te
 #
 
 # Install goimports
+RUN go get -u github.com/client9/misspell/cmd/misspell
 RUN go get -u golang.org/x/tools/cmd/goimports
+RUN go get -u honnef.co/go/tools/cmd/staticcheck
 
 ENTRYPOINT ["/bin/runner.sh"]

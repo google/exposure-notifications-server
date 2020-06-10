@@ -58,7 +58,7 @@ resource "google_sql_database_instance" "db-inst" {
   }
 
   lifecycle {
-    # This prevents accidential deletion of the database.
+    # This prevents accidental deletion of the database.
     prevent_destroy = true
 
     # Earlier versions of the database had a different name, and its not

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is a CLI tool for generating test exposure key data.
+// Package util is a CLI tool for generating test exposure key data.
 package util
 
 import (
@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/testing/enclient"
 )
@@ -32,6 +33,7 @@ const (
 	maxIntervalCount = 144
 )
 
+// RandomIntervalCount produces a random interval.
 func RandomIntervalCount() (int32, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(maxIntervalCount))
 	if err != nil {
@@ -40,6 +42,7 @@ func RandomIntervalCount() (int32, error) {
 	return int32(n.Int64() + 1), nil // valid values start at 1
 }
 
+// RandomInt produces a random integer up to but not including maxValue.
 func RandomInt(maxValue int) (int, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(maxValue)))
 	if err != nil {
@@ -57,11 +60,13 @@ func RandomIntWithMin(min, max int) (int, error) {
 	return int(n.Int64()) + min, nil
 }
 
+// RandomTransmissionRisk produces a random transmission risk score.
 func RandomTransmissionRisk() (int, error) {
 	n, err := RandomInt(v1alpha1.MaxTransmissionRisk)
 	return n + 1, err
 }
 
+// RandomArrValue chooses a random element from the array.
 func RandomArrValue(arr []string) (string, error) {
 	n, err := RandomInt(len(arr))
 	if err != nil {
@@ -70,6 +75,7 @@ func RandomArrValue(arr []string) (string, error) {
 	return arr[n], nil
 }
 
+// GenerateExposureKeys creates the given number of exposure keys.
 func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1alpha1.ExposureKey {
 	// When publishing multiple keys - they'll be on different days.
 	var err error
@@ -109,7 +115,7 @@ func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1alpha1.Expos
 	return exposureKeys
 }
 
-// Creates a random exposure key.
+// RandomExposureKey creates a random exposure key.
 func RandomExposureKey(intervalNumber enclient.Interval, intervalCount int32, transmissionRisk int) (v1alpha1.ExposureKey, error) {
 	key, err := GenerateKey()
 	if err != nil {
@@ -123,7 +129,7 @@ func RandomExposureKey(intervalNumber enclient.Interval, intervalCount int32, tr
 	}, nil
 }
 
-// Generates the random byte sequence.
+// RandomBytes generates a random byte sequence.
 func RandomBytes(arrLen int) ([]byte, error) {
 	padding := make([]byte, arrLen)
 	_, err := rand.Read(padding)
@@ -133,6 +139,7 @@ func RandomBytes(arrLen int) ([]byte, error) {
 	return padding, nil
 }
 
+// GenerateKey generates a key.
 func GenerateKey() (string, error) {
 	b, err := RandomBytes(dkLen)
 	if err != nil {
@@ -141,14 +148,14 @@ func GenerateKey() (string, error) {
 	return ToBase64(b), nil
 }
 
-// Encodes bytes array to base64.
+// ToBase64 encodes bytes array to base64.
 func ToBase64(key []byte) string {
 	return base64.StdEncoding.EncodeToString(key)
 }
 
-// Decodes base64 string to []byte.
+// DecodeKey decodes base64 string to []byte.
 func DecodeKey(b64key string) []byte {
-	k, err := base64.StdEncoding.DecodeString(b64key)
+	k, err := base64util.DecodeString(b64key)
 	if err != nil {
 		log.Fatalf("unable to decode key: %v", err)
 	}
