@@ -12,20 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package authorizedapp handles allowed applications.
-package authorizedapp
+// +build tools
+
+// Package tools includes the list of tools used in the project.
+package tools
 
 import (
-	"time"
+	_ "github.com/client9/misspell/cmd/misspell"
+	_ "golang.org/x/tools/cmd/goimports"
+	_ "honnef.co/go/tools/cmd/staticcheck"
 )
-
-type Config struct {
-	// CacheDuration is the amount of time AuthorizedApp should be cached before
-	// being re-read from their provider.
-	CacheDuration time.Duration `env:"AUTHORIZED_APP_CACHE_DURATION,default=5m"`
-}
-
-// AuthorizedApp implements an interface for setup.
-func (c *Config) AuthorizedApp() *Config {
-	return c
-}

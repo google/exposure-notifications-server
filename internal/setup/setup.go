@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package setup provides common logic for configuring the various services.
 package setup
 
 import (

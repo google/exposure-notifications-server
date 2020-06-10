@@ -36,7 +36,7 @@ type Config struct {
 	TruncateWindow time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
 	// AllowAnyClient, if true, removes authentication requirements on the
-	// federation endpoint. In practise, this is only useful in local testing.
+	// federation endpoint. In practice, this is only useful in local testing.
 	AllowAnyClient bool `env:"ALLOW_ANY_CLIENT"`
 
 	// TLSCertFile is the certificate file to use if TLS encryption is enabled on

@@ -59,12 +59,12 @@ func NewAWSSecretsManager(ctx context.Context) (SecretManager, error) {
 // Secrets are expected to be string plaintext values (not JSON, YAML,
 // key-value, etc).
 func (sm *AWSSecretsManager) GetSecretValue(ctx context.Context, name string) (string, error) {
-	var secretId, versionId, versionStage string
+	var secretID, versionID, versionStage string
 
-	current := &secretId
+	current := &secretID
 	for _, ch := range name {
 		if ch == '@' {
-			current = &versionId
+			current = &versionID
 			continue
 		}
 
@@ -77,11 +77,11 @@ func (sm *AWSSecretsManager) GetSecretValue(ctx context.Context, name string) (s
 	}
 
 	req := &secretsmanager.GetSecretValueInput{
-		SecretId: aws.String(secretId),
+		SecretId: aws.String(secretID),
 	}
 
-	if versionId != "" {
-		req.VersionId = aws.String(versionId)
+	if versionID != "" {
+		req.VersionId = aws.String(versionID)
 	}
 
 	if versionStage != "" {

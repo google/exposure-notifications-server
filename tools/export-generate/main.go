@@ -181,7 +181,7 @@ func writeFile(eb *model.ExportBatch, currentBatch []*publishmodel.Exposure, b, 
 	}
 	data, err := export.MarshalExportFile(eb, currentBatch, b, numBatches, []*export.Signer{signer})
 	if err != nil {
-		log.Fatalf("error marshalling export file: %v", err)
+		log.Fatalf("error marshaling export file: %v", err)
 	}
 	fileName := fmt.Sprintf(eb.FilenameRoot+"%d-records-%d-of-%d"+filenameSuffix, numRecords, b, numBatches)
 	log.Printf("Creating %v", fileName)
@@ -196,7 +196,8 @@ func getSigningKey(fileName string) (*ecdsa.PrivateKey, error) {
 	return ParseECPrivateKeyFromPEM(keyBytes)
 }
 
-// Parse PEM encoded Elliptic Curve Private Key Structure.
+// ParseECPrivateKeyFromPEM parses PEM encoded Elliptic Curve Private Key
+// structure.
 func ParseECPrivateKeyFromPEM(key []byte) (*ecdsa.PrivateKey, error) {
 	ErrNotECPrivateKey := errors.New("key is not a valid ECDSA private key")
 	ErrKeyMustBePEMEncoded := errors.New("invalid Key: Key must be PEM encoded PKCS1 or PKCS8 private key")

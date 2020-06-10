@@ -1,3 +1,19 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package enclient is a client for making requests against the exposure
+// notification server.
 package enclient
 
 import (
@@ -19,8 +35,8 @@ const (
 
 type Interval int32
 
-// Posts requests to the specified url.
-// This methods attempts to serialize data argument as a json.
+// PostRequest requests to the specified url. This methods attempts to serialize
+// data argument as a json.
 func PostRequest(url string, data interface{}) (*http.Response, error) {
 	request := bytes.NewBuffer(JSONRequest(data))
 	r, err := http.NewRequest("POST", url, request)
@@ -47,7 +63,7 @@ func PostRequest(url string, data interface{}) (*http.Response, error) {
 	return resp, nil
 }
 
-// Serializes the given argument to json.
+// JSONRequest serializes the given argument to json.
 func JSONRequest(data interface{}) []byte {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -56,17 +72,17 @@ func JSONRequest(data interface{}) []byte {
 	return jsonData
 }
 
-// Returns the Interval for the current moment of tme.
+// NowInterval returns the Interval for the current moment of tme.
 func NowInterval() Interval {
 	return NewInterval(time.Now().Unix())
 }
 
-// Creates a new interval for the UNIX epoch given.
+// NewInterval creates a new interval for the UNIX epoch given.
 func NewInterval(time int64) Interval {
 	return Interval(int32(time / 600))
 }
 
-// Creates an exposure key.
+// ExposureKey creates an exposure key.
 func ExposureKey(key string, intervalNumber Interval, intervalCount int32, transmissionRisk int) verifyapi.ExposureKey {
 	return verifyapi.ExposureKey{
 		Key:              key,

@@ -21,13 +21,13 @@ import (
 	"syscall"
 )
 
-// Context returns a context that is cancelled on SIGINT and SIGTERM.
+// Context returns a context that is canceled on SIGINT and SIGTERM.
 func Context() (context.Context, func()) {
 	return WrappedContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 }
 
 // WrappedContext returns a new context wrapping the provided context and
-// cancelling it on the provided signals.
+// canceling it on the provided signals.
 func WrappedContext(ctx context.Context, signals ...os.Signal) (context.Context, func()) {
 	ctx, closer := context.WithCancel(ctx)
 

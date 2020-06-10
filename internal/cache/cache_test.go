@@ -153,29 +153,33 @@ func TestConcurrentReaders(t *testing.T) {
 	}
 
 	parallel := 10
-	done := make(chan bool, parallel)
+	done := make(chan error, parallel)
 	for i := 0; i < parallel; i++ {
 		ver := i
 		go func() {
 			gotCache, err := cache.WriteThruLookup("foo", lookerUpper)
 			if err != nil {
-				t.Fatalf("routine: %v got unexpected error: %v", ver, err)
+				done <- fmt.Errorf("routine: %v got unexpected error: %v", ver, err)
+				return
 			}
 			got, ok := gotCache.(*order)
 			if !ok {
-				t.Fatalf("cache item of wrong type")
+				done <- fmt.Errorf("routine: %v cache item of wrong type", ver)
+				return
 			}
 			if diff := cmp.Diff(want, got); diff != "" {
-				t.Fatalf("routine: %v mismatch (-want, +got):\n%s", ver, diff)
+				done <- fmt.Errorf("routine: %v mismatch (-want, +got):\n%s", ver, diff)
 			}
-			done <- true
+			done <- nil
 		}()
 	}
 
 	for i := 0; i < parallel; i++ {
 		select {
-		case <-done:
-			continue
+		case err := <-done:
+			if err != nil {
+				t.Fatal(err)
+			}
 		case <-time.After(2 * time.Second):
 			t.Fatal("gorountines didn't termine fast enough")
 		}

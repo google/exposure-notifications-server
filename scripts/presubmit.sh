@@ -20,93 +20,69 @@ ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 SOURCE_DIRS="cmd internal tools"
 
 
+# Note: other environment variables may be set by the test infrastructure. See:
+# https://github.com/GoogleCloudPlatform/oss-test-infra/tree/master/prow/prowjobs/google/exposure-notifications-server.
 echo "🌳 Set up environment variables"
-eval $(${ROOT}/scripts/dev init)
+export GOMAXPROCS=7
+# TODO(sethvargo): configure more
 
 
 echo "🚒 Verify Protobufs are up to date"
 ${ROOT}/scripts/dev protoc
-# Don't verify generated pb files here as they are tidied later.
 
 
-echo "🧽 Verify goimports formattting"
-set +e
-which goimports >/dev/null 2>&1
+echo "📚 Fetch dependencies"
+OUT="$(go get -t ./... 2>&1)"
 if [ $? -ne 0 ]; then
-   echo "✋ No 'goimports' found. Please use"
-   echo "✋   go get golang.org/x/tools/cmd/goimports"
-   echo "✋ to enable import cleanup. Import cleanup skipped."
-else
-   echo "🧽 Format with goimports"
-   goimports -w $(echo $SOURCE_DIRS)
-   # Check if there were uncommited changes.
-   # Ignore comment line changes as sometimes proto gen just updates versions
-   # of the generator
-   git diff -G'(^\s+[^/])' *.go | tee /dev/stderr | (! read)
-   if [ $? -ne 0 ]; then
-      echo "✋ Found uncommited changes after goimports."
-      echo "✋ Commit these changes before merging."
-      exit 1
-   fi
-fi
-set -e
-
-
-echo "🧹 Verify gofmt format"
-set +e
-diff -u <(echo -n) <(gofmt -d -s .)
-git diff -G'(^\s+[^/])' *.go | tee /dev/stderr | (! read)
-if [ $? -ne 0 ]; then
-   echo "✋ Found uncommited changes after gofmt."
-   echo "✋ Commit these changes before merging."
-   exit 1
-fi
-set -e
-
-
-echo "🌌 Go mod verify"
-set +e
-go mod verify
-if [ $? -ne 0 ]; then
-   echo "✋ go mod verify failed."
-   exit 1
-fi
-set -e
-
-# Fail if a dependency was added without the necessary go.mod/go.sum change
-# being part of the commit.
-echo "🌌 Go mod tidy"
-set +e
-OUT="$(go mod tidy 2>&1)"
-if [ $? -ne 0 ]; then
-   echo "✋ Error running go mod tidy, output below"
-   echo ${OUT}
-   echo
-   exit 1
+  echo "✋ Error fetching dependencies"
+  echo "\n\n${OUT}\n\n"
+  exit 1
 fi
 
-git diff go.mod | tee /dev/stderr | (! read)
-if [ $? -ne 0 ]; then
-   echo "✋ Found uncommited go.mod changes after go mod tidy."
-   exit 1
-fi
 
-git diff go.sum | tee /dev/stderr | (! read)
+echo "🧹 Verify formatting"
+make fmtcheck || {
+  echo "✋ Found formatting errors."
+  exit 1
+}
+
+
+echo "🐝 Lint"
+make staticcheck || {
+  echo "✋ Found linter errors."
+  exit 1
+}
+
+
+echo "🐝 Verify spelling"
+make spellcheck || {
+  echo "✋ Found spelling errors."
+  exit 1
+}
+
+
+echo "🔨 Building"
+go build ./...
+
+
+echo "🌌 Verify and tidy module"
+OUT="$(go mod verify 2>&1 && go mod tidy 2>&1)"
 if [ $? -ne 0 ]; then
-   echo "✋ Found uncommited go.sum changes after go mod tidy."
-   exit 1
+  echo "✋ Error validating module"
+  echo "\n\n${OUT}\n\n"
+  exit 1
 fi
-set -e
+OUT="$(git diff go.mod)"
+if [ -n "${OUT}" ]; then
+  echo "✋ go.mod is out of sync - run 'go mod tidy'."
+  exit 1
+fi
+OUT="$(git diff go.sum)"
+if [ -n "${OUT}" ]; then
+  echo "✋ go.sum is out of sync - run 'go mod tidy'."
+  exit 1
+fi
 
 
 echo "🧪 Test"
-go test ./... \
-  -coverprofile=coverage.out \
-  -count=1 \
-  -parallel=20 \
-  -timeout=5m \
-  -vet="asmdecl,assign,atomic,bools,buildtag,cgocall,composites,copylocks,errorsas,httpresponse,loopclosure,lostcancel,nilfunc,printf,shift,stdmethods,structtag,tests,unmarshal,unreachable,unsafeptr,unusedresult"
-
-
-echo "🧑‍🔬 Test Coverage"
-go tool cover -func coverage.out | grep total | awk '{print $NF}'
+make test-acc

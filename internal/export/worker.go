@@ -201,7 +201,7 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 	// Generate exposure key export file.
 	data, err := MarshalExportFile(cfi.exportBatch, cfi.exposures, cfi.batchNum, cfi.batchSize, signers)
 	if err != nil {
-		return "", fmt.Errorf("marshalling export file: %w", err)
+		return "", fmt.Errorf("marshaling export file: %w", err)
 	}
 
 	objectName := exportFilename(cfi.exportBatch, cfi.batchNum)

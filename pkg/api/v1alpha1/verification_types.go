@@ -27,7 +27,7 @@ const (
 	ExposureKeyHMACClaim          = "tekmac"
 	HealthAuthorityDataClaim      = "phadata"
 	TransmissionRiskOverrideClaim = "trisk"
-	KeyVersionClaim               = "keyVersion"
+	KeyIDHeader                   = "kid"
 )
 
 // TransmissionRiskVector is an additional set of claims that can be
@@ -48,7 +48,7 @@ func (a TransmissionRiskVector) Len() int {
 	return len(a)
 }
 
-// This sorts the TransmissionRiskVector vector with the largest SinceRollingPeriod
+// Less sorts the TransmissionRiskVector vector with the largest SinceRollingPeriod
 // value first. Descending sort.
 func (a TransmissionRiskVector) Less(i, j int) bool {
 	return a[i].SinceRollingPeriod > a[j].SinceRollingPeriod
@@ -62,7 +62,6 @@ type VerificationClaims struct {
 	PHAClaims         map[string]string      `json:"phadata"`
 	TransmissionRisks TransmissionRiskVector `json:"trisk"`
 	SignedMAC         string                 `json:"tekmac"`
-	KeyVersion        string                 `json:"keyVersion"`
 	jwt.StandardClaims
 }
 
