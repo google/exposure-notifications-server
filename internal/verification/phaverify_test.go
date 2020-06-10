@@ -166,10 +166,10 @@ func TestVerifyCertificate(t *testing.T) {
 			claims.IssuedAt = time.Now().Add(tc.Warp).Unix()
 			claims.ExpiresAt = time.Now().Add(tc.Warp).Add(5 * time.Minute).Unix()
 			claims.SignedMAC = tc.MacAdjustment + base64.StdEncoding.EncodeToString(hmac) // would be generated on the client and passed through.
-			claims.KeyVersion = "v1"                                                      // matches the key configured above.
 			// leaves PHAClaims and transmission risk overrides out of it.
 
 			token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+			token.Header["kid"] = "v1" // matches the key configured above.
 			jwtText, err := token.SignedString(privateKey)
 			if err != nil {
 				t.Fatal(err)

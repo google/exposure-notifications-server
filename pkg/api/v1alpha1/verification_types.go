@@ -27,7 +27,7 @@ const (
 	ExposureKeyHMACClaim          = "tekmac"
 	HealthAuthorityDataClaim      = "phadata"
 	TransmissionRiskOverrideClaim = "trisk"
-	KeyVersionClaim               = "keyVersion"
+	KeyIDHeader                   = "kid"
 )
 
 // TransmissionRiskVector is an additional set of claims that can be
@@ -62,7 +62,6 @@ type VerificationClaims struct {
 	PHAClaims         map[string]string      `json:"phadata"`
 	TransmissionRisks TransmissionRiskVector `json:"trisk"`
 	SignedMAC         string                 `json:"tekmac"`
-	KeyVersion        string                 `json:"keyVersion"`
 	jwt.StandardClaims
 }
 

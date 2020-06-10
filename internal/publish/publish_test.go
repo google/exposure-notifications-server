@@ -113,10 +113,10 @@ func issueJWT(t *testing.T, cfg jwtConfig) (jwtText, hmacKey string) {
 	claims.IssuedAt = time.Now().Add(cfg.JWTWarp).Unix()
 	claims.ExpiresAt = time.Now().Add(cfg.JWTWarp).Add(5 * time.Minute).Unix()
 	claims.SignedMAC = hmac
-	claims.KeyVersion = cfg.HealthAuthorityKey.Version
 	claims.TransmissionRisks = cfg.Overrides
 
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	token.Header[verifyapi.KeyIDHeader] = cfg.HealthAuthorityKey.Version
 	jwtText, err = token.SignedString(cfg.Key)
 	if err != nil {
 		t.Fatal(err)

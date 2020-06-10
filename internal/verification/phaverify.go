@@ -64,6 +64,11 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 		}
 
 		var ok bool
+		kid, ok := token.Header[verifyapi.KeyIDHeader]
+		if !ok {
+			return nil, fmt.Errorf("missing required header field, 'kid' indicating key id")
+		}
+
 		claims, ok = token.Claims.(*verifyapi.VerificationClaims)
 		if !ok {
 			return nil, fmt.Errorf("does not contain expected claim set")
@@ -87,13 +92,13 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 		// Find a key version.
 		for _, hak := range ha.Keys {
 			// Key version matches and the key is valid based on the current time.
-			if hak.Version == claims.KeyVersion && hak.IsValid() {
+			if hak.Version == kid && hak.IsValid() {
 				healthAuthorityID = ha.ID
 				// Extract the public key from the PEM block.
 				return hak.PublicKey()
 			}
 		}
-		return nil, fmt.Errorf("key not found: iss: %v version: %v", claims.Issuer, claims.KeyVersion)
+		return nil, fmt.Errorf("key not found: iss: %v kid: %v", claims.Issuer, kid)
 	})
 	if err != nil {
 		return nil, err
