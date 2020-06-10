@@ -30,6 +30,9 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	if env.Blobstore() == nil {
 		return nil, fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv")
 	}
+	if env.Database() == nil {
+		return nil, fmt.Errorf("export.NewBatchServer requires Database present in the ServerEnv")
+	}
 	if env.KeyManager() == nil {
 		return nil, fmt.Errorf("export.NewBatchServer requires KeyManager present in the ServerEnv")
 	}
@@ -38,19 +41,14 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	}
 
 	return &Server{
-		db:        env.Database(),
-		exportdb:  database.New(env.Database()),
-		publishdb: publishdb.New(env.Database()),
-		config:    config,
-		env:       env,
+		config: config,
+		env:    env,
 	}, nil
 }
 
 // Server hosts end points to manage export batches.
 type Server struct {
-	db        *coredb.DB
-	exportdb  *database.ExportDB
-	publishdb *publishdb.PublishDB
-	config    *Config
-	env       *serverenv.ServerEnv
+	config *Config
+	env    *serverenv.ServerEnv
+}
 }

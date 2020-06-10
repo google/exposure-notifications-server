@@ -18,7 +18,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/interrupt"
@@ -53,15 +52,11 @@ func realMain(ctx context.Context) error {
 		return fmt.Errorf("export.NewServer: %w", err)
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/create-batches", batchServer.CreateBatchesHandler)
-	mux.HandleFunc("/do-work", batchServer.WorkerHandler)
-
 	srv, err := server.New(config.Port)
 	if err != nil {
 		return fmt.Errorf("server.New: %w", err)
 	}
 	logger.Infof("listening on :%s", config.Port)
 
-	return srv.ServeHTTPHandler(ctx, mux)
+	return srv.ServeHTTPHandler(ctx, batchServer.Routes(ctx))
 }
