@@ -33,7 +33,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
-func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
+func testServer(tb testing.TB, exportConfig *export.Config) (*serverenv.ServerEnv, *http.Client) {
 	tb.Helper()
 
 	ctx := context.Background()
@@ -96,18 +96,6 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	}
 	mux.Handle("/cleanup-exposure", cleanupExposureHandler)
 
-	// Export
-	exportConfig := &export.Config{
-		CreateTimeout:  10 * time.Second,
-		WorkerTimeout:  10 * time.Second,
-		MinRecords:     1,
-		PaddingRange:   1,
-		MaxRecords:     10000,
-		TruncateWindow: 1 * time.Second,
-		MinWindowAge:   1 * time.Second,
-		TTL:            336 * time.Hour,
-	}
-
 	exportServer, err := export.NewServer(exportConfig, env)
 	if err != nil {
 		tb.Fatal(err)
@@ -131,7 +119,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		MinRequestDuration:      50 * time.Millisecond,
 		MaxKeysOnPublish:        15,
 		MaxIntervalAge:          360 * time.Hour,
-		TruncateWindow:          1 * time.Hour,
+		TruncateWindow:          1 * time.Second,
 		DebugAPIResponses:       true,
 		DebugReleaseSameDayKeys: true,
 	}

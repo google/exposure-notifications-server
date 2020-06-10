@@ -15,9 +15,12 @@
 package integration
 
 import (
-	"context"
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -25,12 +28,9 @@ import (
 	"testing"
 
 	exportapi "github.com/google/exposure-notifications-server/internal/export"
-	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/monolith"
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 	"github.com/google/exposure-notifications-server/internal/util"
-	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
-	"github.com/google/exposure-notifications-server/testing/enclient"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
 const appPackageName = "com.example.android.test"
@@ -51,6 +51,46 @@ func collectExportResults(t *testing.T, exportDir string) *export.TemporaryExpos
 	}
 
 	return keyExport
+}
+
+type EnServerClient struct {
+	client *http.Client
+}
+
+// Posts requests to the specified url.
+// This methods attempts to serialize data argument as a json.
+func (server EnServerClient) postRequest(url string, data interface{}) (*http.Response, error) {
+	request := bytes.NewBuffer(JSONRequest(data))
+	r, err := http.NewRequest("POST", url, request)
+	if err != nil {
+		return nil, err
+	}
+	r.Header.Set("Content-Type", "application/json")
+	resp, err := server.client.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// Return error upstream.
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to copy error body (%d): %w", resp.StatusCode, err)
+		}
+		return resp, fmt.Errorf("post request failed with status: %v\n%v", resp.StatusCode, body)
+	}
+
+	return resp, nil
+}
+
+// Serializes the given argument to json.
+func JSONRequest(data interface{}) []byte {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Fatalf("unable to marshal json payload")
+	}
+	return jsonData
 }
 
 func getExportFile(exportDir string, t *testing.T) string {
@@ -77,21 +117,19 @@ func getExportFile(exportDir string, t *testing.T) string {
 	return filepath.Join(exportDir, exportFile.Name())
 }
 
-func publishKeys(t *testing.T, request v1alpha1.Publish) {
-	requestUrl := "http://localhost:8080/publish"
-
-	resp, err := enclient.PostRequest(requestUrl, request)
+func (enServer EnServerClient) PublishKeys(t *testing.T, request verifyapi.Publish) {
+	resp, err := enServer.postRequest("/publish", request)
 	if err != nil {
 		t.Fatalf("request failed: %v, %v", err, resp)
 	}
 	log.Printf("response: %v", resp.Status)
-	t.Logf("Publish request is sent to %v", requestUrl)
+	t.Logf("Publish request is sent to %v", "/publish")
 }
 
-func exportBatches(t *testing.T) {
+func (enServer EnServerClient) ExportBatches(t *testing.T) {
 	var bts []byte
-	requestUrl := "http://localhost:8080/export/create-batches"
-	resp, err := enclient.PostRequest(requestUrl, bts)
+	requestUrl := "/export/create-batches"
+	resp, err := enServer.postRequest(requestUrl, bts)
 	if err != nil {
 		t.Fatalf("request failed: %v, %v", err, resp)
 	}
@@ -99,10 +137,10 @@ func exportBatches(t *testing.T) {
 	t.Logf("Create batches request is sent to %v", requestUrl)
 }
 
-func startExportWorkers(t *testing.T) {
+func (enServer EnServerClient) StartExportWorkers(t *testing.T) {
 	var bts []byte
-	requestUrl := "http://localhost:8080/export/do-work"
-	resp, err := enclient.PostRequest(requestUrl, bts)
+	requestUrl := "/export/do-work"
+	resp, err := enServer.postRequest(requestUrl, bts)
 	if err != nil {
 		t.Fatalf("request failed: %v, %v", err, resp)
 	}
@@ -110,25 +148,13 @@ func startExportWorkers(t *testing.T) {
 	t.Logf("Export worker request is sent to %v", requestUrl)
 }
 
-func publishRequest(keys []v1alpha1.ExposureKey, regions []string) v1alpha1.Publish {
+func publishRequest(keys []verifyapi.ExposureKey, regions []string) verifyapi.Publish {
 	padding, _ := util.RandomBytes(1000)
-	return v1alpha1.Publish{
+	return verifyapi.Publish{
 		Keys:                keys,
 		Regions:             regions,
 		AppPackageName:      appPackageName,
 		VerificationPayload: "Test Authority",
 		Padding:             util.ToBase64(padding),
 	}
-}
-
-func startServer() *monolith.MonoConfig {
-	ctx := context.Background()
-	logger := logging.FromContext(ctx)
-
-	config, err := monolith.RunServer(ctx)
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	return config
 }
