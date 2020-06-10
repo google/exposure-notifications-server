@@ -125,7 +125,7 @@ func (db *ExportDB) GetAllExportConfigs(ctx context.Context) ([]*model.ExportCon
 	}
 	defer rows.Close()
 
-	results := []*model.ExportConfig{}
+	var results []*model.ExportConfig
 	for rows.Next() {
 		ec, err := scanOneExportConfig(rows)
 		if err != nil {
