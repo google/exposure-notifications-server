@@ -34,6 +34,7 @@ type Authorizer struct {
 	auth autorest.Authorizer
 }
 
+// keyvaultAuthorizer is a cached authorizer.
 var keyvaultAuthorizer *Authorizer
 
 // GetKeyVaultAuthorizer prepares a specifc authorizer for keyvault use
