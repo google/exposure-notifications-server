@@ -47,7 +47,10 @@ func GetKeyVaultAuthorizer() (autorest.Authorizer, error) {
 	}
 
 	var a autorest.Authorizer
-	azureEnv, _ := azure.EnvironmentFromName("AzurePublicCloud")
+	azureEnv, err := azure.EnvironmentFromName("AzurePublicCloud")
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect Azure environment: %w", err)
+	}
 	vaultEndpoint := strings.TrimSuffix(azureEnv.KeyVaultEndpoint, "/")
 	tenant := os.Getenv("AZURE_TENANT_ID")
 	clientID := os.Getenv("AZURE_CLIENT_ID")
