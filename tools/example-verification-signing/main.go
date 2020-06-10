@@ -134,7 +134,16 @@ func main() {
 
 		// Unpack the ASN1 signature. ECDSA signers are supposed to return this format
 		// https://golang.org/pkg/crypto/#Signer
+		// All suporrted signers in thise codebase are verified to return ASN1.
 		var parsedSig struct{ R, S *big.Int }
+		// ASN1 is not the expected format for an ES256 JWT signature.
+		// The output format is specified here, https://tools.ietf.org/html/rfc7518#section-3.4
+		// Reproduced here for reference.
+		//    The ECDSA P-256 SHA-256 digital signature is generated as follows:
+		//
+		// 1 .  Generate a digital signature of the JWS Signing Input using ECDSA
+		//      P-256 SHA-256 with the desired private key.  The output will be
+		//      the pair (R, S), where R and S are 256-bit unsigned integers.
 		_, err = asn1.Unmarshal(sig, &parsedSig)
 		if err != nil {
 			response.Error = fmt.Sprintf("unable to parse JWT signature: %v", err)
@@ -147,6 +156,10 @@ func main() {
 			keyBytes++
 		}
 
+		// 2. Turn R and S into octet sequences in big-endian order, with each
+		// 		array being be 32 octets long.  The octet sequence
+		// 		representations MUST NOT be shortened to omit any leading zero
+		// 		octets contained in the values.
 		rBytes := parsedSig.R.Bytes()
 		rBytesPadded := make([]byte, keyBytes)
 		copy(rBytesPadded[keyBytes-len(rBytes):], rBytes)
@@ -155,8 +168,12 @@ func main() {
 		sBytesPadded := make([]byte, keyBytes)
 		copy(sBytesPadded[keyBytes-len(sBytes):], sBytes)
 
+		// 3. Concatenate the two octet sequences in the order R and then S.
+		//	 	(Note that many ECDSA implementations will directly produce this
+		//	 	concatenation as their output.)
 		sig = append(rBytesPadded, sBytesPadded...)
 
+		// 4.  The resulting 64-octet sequence is the JWS Signature value.
 		response.VerificationCertificate = strings.Join([]string{signingString, jwt.EncodeSegment(sig)}, ".")
 		c.JSON(http.StatusOK, response)
 	})
