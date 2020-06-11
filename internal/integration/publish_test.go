@@ -117,6 +117,7 @@ func TestPublish(t *testing.T) {
 
 	var exposures []*publishmodel.Exposure
 	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
+		t.Logf("NEW EXPOSURE: %v", m)
 		exposures = append(exposures, m)
 		return nil
 	}); err != nil {
@@ -143,43 +144,37 @@ func TestPublish(t *testing.T) {
 
 	got := keyExport
 
-	wantedKeysMap := make(map[string]export.TemporaryExposureKey)
+	wantedKeysMap := make(map[string]*export.TemporaryExposureKey)
 	for _, key := range payload.Keys {
-		wantedKeysMap[key.Key] = export.TemporaryExposureKey{
+		wantedKeysMap[key.Key] = &export.TemporaryExposureKey{
 			KeyData:                    util.DecodeKey(key.Key),
 			TransmissionRiskLevel:      proto.Int32(int32(key.TransmissionRisk)),
 			RollingStartIntervalNumber: proto.Int32(key.IntervalNumber),
 		}
 	}
 
-	want := export.TemporaryExposureKeyExport{
-		StartTimestamp: nil,
-		EndTimestamp:   nil,
-		Region:         proto.String("TEST"),
-		BatchNum:       proto.Int32(1),
-		BatchSize:      proto.Int32(1),
-		SignatureInfos: nil,
-		Keys:           nil,
+	want := &export.TemporaryExposureKeyExport{
+		Region:    proto.String("TEST"),
+		BatchNum:  proto.Int32(1),
+		BatchSize: proto.Int32(1),
 	}
 
-	options := []cmp.Option{
-		cmpopts.IgnoreFields(want, "StartTimestamp"),
-		cmpopts.IgnoreFields(want, "EndTimestamp"),
-		cmpopts.IgnoreFields(want, "SignatureInfos"),
-		cmpopts.IgnoreFields(want, "Keys"),
-		cmpopts.IgnoreUnexported(want),
+	if !cmp.Equal(want.BatchSize, got.BatchSize) {
+		t.Errorf("Invalid BatchSize: want: %v, got: %v", want.BatchSize, got.BatchSize)
 	}
 
-	diff := cmp.Diff(got, &want, options...)
-	if diff != "" {
-		t.Errorf("%v", diff)
+	if !cmp.Equal(want.BatchNum, got.BatchNum) {
+		t.Errorf("Invalid BatchNum: want: %v, got: %v", want.BatchNum, got.BatchNum)
+	}
+
+	if !cmp.Equal(want.Region, got.Region) {
+		t.Errorf("Invalid Region: want: %v, got: %v", want.BatchSize, got.BatchSize)
 	}
 
 	for _, key := range got.Keys {
 		s := util.ToBase64(key.KeyData)
 		wantedKey := wantedKeysMap[s]
-		gotKey := *key
-		diff := cmp.Diff(wantedKey, gotKey, cmpopts.IgnoreUnexported(gotKey))
+		diff := cmp.Diff(wantedKey, key, cmpopts.IgnoreUnexported(export.TemporaryExposureKey{}))
 		if diff != "" {
 			t.Errorf("invalid key value: %v:%v", s, diff)
 		}

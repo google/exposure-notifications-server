@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package integration contains EN Server integration tests.
 package integration
 
 import (
@@ -26,7 +27,7 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
-// Contains Exposure Notifications API client to support integration testing.
+// EnServerClient provides Exposure Notifications API client to support integration testing.
 type EnServerClient struct {
 	client *http.Client
 }
