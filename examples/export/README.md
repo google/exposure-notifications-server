@@ -1,7 +1,8 @@
 # Working with Export Files
 
 This demonstrates some utilities and commands to help understand the format documented in
-the [Exposure Key File Format documentation](https://www.google.com/covid19/exposurenotifications/pdfs/Exposure-Key-File-Format-and-Verification.pdf)
+the [Exposure Key File Format documentation](https://developers.google.com/android/exposure-notifications/exposure-key-file-format)
+and using the [export protobuf](https://github.com/google/exposure-notifications-server/blob/master/internal/pb/export/export.proto).
 
 ## Generating signing keys
 

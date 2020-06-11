@@ -162,7 +162,8 @@ generate the files in a single operation rather than on-demand, and distribute
 the files using a CDN.
 
 For information on the format of the batch file, see
-[Exposure Key Export File Format and Verification](https://www.google.com/covid19/exposurenotifications/pdfs/Exposure-Key-File-Format-and-Verification.pdf).
+[Exposure Key Export File Format and Verification](https://developers.google.com/android/exposure-notifications/exposure-key-file-format)
+and [Working with Export Files](https://github.com/google/exposure-notifications-server/tree/master/examples/export).
 
 The batch file generation should be per-region, incremental feeds of new data.
 While additional data can be included in the downloads, there is a minimum set
