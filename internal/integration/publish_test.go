@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	exportapi "github.com/google/exposure-notifications-server/internal/export"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
@@ -35,6 +34,7 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestPublish(t *testing.T) {
@@ -195,7 +195,7 @@ func TestPublish(t *testing.T) {
 }
 
 func getKeysFromLatestBatch(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv, memory *storage.Memory) *export.TemporaryExposureKeyExport {
-	exportFile := getLatestFile(t, memory, ctx, exportDir)
+	exportFile := getLatestFile(memory, ctx, exportDir)
 	if exportFile == "" {
 		t.Fatalf("Can't find export files in blobstore: %v", exportDir)
 	}
@@ -215,7 +215,7 @@ func getKeysFromLatestBatch(t *testing.T, exportDir string, ctx context.Context,
 	return keyExport
 }
 
-func getLatestFile(t *testing.T, blobstore *storage.Memory, ctx context.Context, exportDir string) string {
+func getLatestFile(blobstore *storage.Memory, ctx context.Context, exportDir string) string {
 	files := blobstore.ListObjects(ctx, exportDir)
 
 	latestFileName := ""

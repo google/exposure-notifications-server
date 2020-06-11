@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Contains Exposure Notifications API client to support integration testing.
 package integration
 
 import (
@@ -72,22 +73,20 @@ func (server EnServerClient) PublishKeys(t *testing.T, request verifyapi.Publish
 
 func (server EnServerClient) ExportBatches(t *testing.T) {
 	var bts []byte
-	requestUrl := "/export/create-batches"
-	resp, err := server.postRequest(requestUrl, bts)
+	resp, err := server.postRequest("/export/create-batches", bts)
 	if err != nil {
 		t.Fatalf("request failed: %v, %v", err, resp)
 	}
 	log.Printf("response: %v", resp.Status)
-	t.Logf("Create batches request is sent to %v", requestUrl)
+	t.Logf("Create batches request is sent to %v", "/export/create-batches")
 }
 
 func (server EnServerClient) StartExportWorkers(t *testing.T) {
 	var bts []byte
-	requestUrl := "/export/do-work"
-	resp, err := server.postRequest(requestUrl, bts)
+	resp, err := server.postRequest("/export/do-work", bts)
 	if err != nil {
 		t.Fatalf("request failed: %v, %v", err, resp)
 	}
 	log.Printf("response: %v", resp.Status)
-	t.Logf("Export worker request is sent to %v", requestUrl)
+	t.Logf("Export worker request is sent to %v", "/export/do-work")
 }
