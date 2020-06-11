@@ -48,6 +48,6 @@ steps:
 
     echo "==> Running migrations"
     /usr/local/bin/migrate \
-      -database postgres://${_DB_USER}:$$(cat ./dbpass)@localhost:${_DB_PORT}/${_DB_NAME}?sslmode=${_DB_SSLMODE} \
+      -database postgres://${_DB_USER}:$$(cat ./dbpass | urlencode)@localhost:${_DB_PORT}/${_DB_NAME}?sslmode=${_DB_SSLMODE} \
       -path migrations \
       ${_COMMAND}

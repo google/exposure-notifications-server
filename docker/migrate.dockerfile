@@ -27,10 +27,13 @@ RUN chmod +x /bin/cloud_sql_proxy
 RUN go get -tags 'postgres' -u github.com/golang-migrate/migrate/cmd/migrate
 
 FROM alpine
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache bash ca-certificates
 
 COPY --from=builder /bin/cloud_sql_proxy /bin/cloud_sql_proxy
 COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
 
+# Install urlencode - see https://github.com/golang-migrate/migrate/issues/396.
+ADD urlencode /bin/urlencode
+RUN chmod +x /bin/urlencode
 
 ENTRYPOINT ["/usr/local/bin/migrate"]
