@@ -128,8 +128,8 @@ func TestPublish(t *testing.T) {
 		t.Errorf("expected %v to be %v: %#v", got, want, exposures)
 	}
 
-	t.Logf("Waiting %v before export batches", exportPeriod+500*time.Millisecond)
-	time.Sleep(exportPeriod + 500*time.Millisecond)
+	t.Logf("Waiting %v before export batches", exportPeriod+1*time.Second)
+	time.Sleep(exportPeriod + 1*time.Second)
 	enClient.ExportBatches(t)
 
 	t.Logf("Waiting %v before starting workers", 500*time.Millisecond)
