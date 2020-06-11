@@ -42,19 +42,7 @@ func TestPublish(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Export
-	exportConfig := &exportapi.Config{
-		CreateTimeout:  10 * time.Second,
-		WorkerTimeout:  10 * time.Second,
-		MinRecords:     1,
-		PaddingRange:   1,
-		MaxRecords:     10000,
-		TruncateWindow: 1 * time.Millisecond,
-		MinWindowAge:   1 * time.Second,
-		TTL:            336 * time.Hour,
-	}
-
-	env, client := testServer(t, exportConfig)
+	env, client := testServer(t)
 	db := env.Database()
 	enClient := &EnServerClient{client: client}
 
@@ -117,7 +105,6 @@ func TestPublish(t *testing.T) {
 
 	var exposures []*publishmodel.Exposure
 	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
-		t.Logf("NEW EXPOSURE: %v", m)
 		exposures = append(exposures, m)
 		return nil
 	}); err != nil {
