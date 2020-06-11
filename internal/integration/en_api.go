@@ -21,37 +21,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
 	"testing"
 
-	exportapi "github.com/google/exposure-notifications-server/internal/export"
-	"github.com/google/exposure-notifications-server/internal/pb/export"
-	"github.com/google/exposure-notifications-server/internal/util"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
-
-const appPackageName = "com.example.android.test"
-
-func collectExportResults(t *testing.T, exportDir string) *export.TemporaryExposureKeyExport {
-	exportFile := getExportFile(exportDir, t)
-
-	t.Logf("Reading keys data from: %v", exportFile)
-
-	blob, err := ioutil.ReadFile(exportFile)
-	if err != nil {
-		t.Fatalf("can't read export file: %v", err)
-	}
-
-	keyExport, err := exportapi.UnmarshalExportFile(blob)
-	if err != nil {
-		t.Fatalf("can't extract export data: %v", err)
-	}
-
-	return keyExport
-}
 
 type EnServerClient struct {
 	client *http.Client
@@ -60,7 +33,11 @@ type EnServerClient struct {
 // Posts requests to the specified url.
 // This methods attempts to serialize data argument as a json.
 func (server EnServerClient) postRequest(url string, data interface{}) (*http.Response, error) {
-	request := bytes.NewBuffer(JSONRequest(data))
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal json payload")
+	}
+	request := bytes.NewBuffer(jsonData)
 	r, err := http.NewRequest("POST", url, request)
 	if err != nil {
 		return nil, err
@@ -84,41 +61,8 @@ func (server EnServerClient) postRequest(url string, data interface{}) (*http.Re
 	return resp, nil
 }
 
-// Serializes the given argument to json.
-func JSONRequest(data interface{}) []byte {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		log.Fatalf("unable to marshal json payload")
-	}
-	return jsonData
-}
-
-func getExportFile(exportDir string, t *testing.T) string {
-	files, err := ioutil.ReadDir(exportDir)
-	if err != nil {
-		t.Fatalf("Can't read export directory: %v", err)
-	}
-
-	archiveFiles := make([]os.FileInfo, 0)
-	for _, f := range files {
-		if strings.HasSuffix(f.Name(), "zip") {
-			archiveFiles = append(archiveFiles, f)
-		}
-	}
-
-	if len(archiveFiles) < 1 {
-		t.Fatalf("can't find export archives in %v", exportDir)
-	}
-
-	sort.SliceStable(archiveFiles, func(i, j int) bool {
-		return files[i].Name() > files[j].Name()
-	})
-	exportFile := archiveFiles[0]
-	return filepath.Join(exportDir, exportFile.Name())
-}
-
-func (enServer EnServerClient) PublishKeys(t *testing.T, request verifyapi.Publish) {
-	resp, err := enServer.postRequest("/publish", request)
+func (server EnServerClient) PublishKeys(t *testing.T, request verifyapi.Publish) {
+	resp, err := server.postRequest("/publish", request)
 	if err != nil {
 		t.Fatalf("request failed: %v, %v", err, resp)
 	}
@@ -126,10 +70,10 @@ func (enServer EnServerClient) PublishKeys(t *testing.T, request verifyapi.Publi
 	t.Logf("Publish request is sent to %v", "/publish")
 }
 
-func (enServer EnServerClient) ExportBatches(t *testing.T) {
+func (server EnServerClient) ExportBatches(t *testing.T) {
 	var bts []byte
 	requestUrl := "/export/create-batches"
-	resp, err := enServer.postRequest(requestUrl, bts)
+	resp, err := server.postRequest(requestUrl, bts)
 	if err != nil {
 		t.Fatalf("request failed: %v, %v", err, resp)
 	}
@@ -137,24 +81,13 @@ func (enServer EnServerClient) ExportBatches(t *testing.T) {
 	t.Logf("Create batches request is sent to %v", requestUrl)
 }
 
-func (enServer EnServerClient) StartExportWorkers(t *testing.T) {
+func (server EnServerClient) StartExportWorkers(t *testing.T) {
 	var bts []byte
 	requestUrl := "/export/do-work"
-	resp, err := enServer.postRequest(requestUrl, bts)
+	resp, err := server.postRequest(requestUrl, bts)
 	if err != nil {
 		t.Fatalf("request failed: %v, %v", err, resp)
 	}
 	log.Printf("response: %v", resp.Status)
 	t.Logf("Export worker request is sent to %v", requestUrl)
-}
-
-func publishRequest(keys []verifyapi.ExposureKey, regions []string) verifyapi.Publish {
-	padding, _ := util.RandomBytes(1000)
-	return verifyapi.Publish{
-		Keys:                keys,
-		Regions:             regions,
-		AppPackageName:      appPackageName,
-		VerificationPayload: "Test Authority",
-		Padding:             util.ToBase64(padding),
-	}
 }

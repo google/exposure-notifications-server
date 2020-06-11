@@ -30,7 +30,7 @@ import (
 
 const (
 	// httpTimeout is the maximum amount of time to wait for a response.
-	httpTimeout = 5 * time.Minute
+	httpTimeout = 30 * time.Second
 )
 
 type Interval int32

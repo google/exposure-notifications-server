@@ -73,8 +73,7 @@ func (s *Memory) GetObject(_ context.Context, folder, filename string) ([]byte, 
 	return v, nil
 }
 
-// GetObject returns the contents for the given object. If the object does not
-// exist, it returns ErrNotFound.
+// ListObjects returns the list of files in memory storage.
 func (s *Memory) ListObjects(_ context.Context, folder string) map[string][]byte {
 	s.lock.Lock()
 	defer s.lock.Unlock()

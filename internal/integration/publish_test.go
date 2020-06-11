@@ -17,7 +17,6 @@ package integration
 import (
 	"context"
 	"encoding/json"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -57,7 +56,7 @@ func TestPublish(t *testing.T) {
 
 	env, client := testServer(t, exportConfig)
 	db := env.Database()
-	server := &EnServerClient{client: client}
+	enClient := &EnServerClient{client: client}
 
 	// Create an authorized app.
 	aa := env.AuthorizedAppProvider()
@@ -109,7 +108,7 @@ func TestPublish(t *testing.T) {
 		VerificationPayload: "TODO",
 	}
 
-	server.PublishKeys(t, payload)
+	enClient.PublishKeys(t, payload)
 
 	// Look up the exposures in the database.
 	criteria := publishdb.IterateExposuresCriteria{
@@ -118,7 +117,6 @@ func TestPublish(t *testing.T) {
 
 	var exposures []*publishmodel.Exposure
 	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
-		t.Logf("NEW EXPOSURE: %v", m)
 		exposures = append(exposures, m)
 		return nil
 	}); err != nil {
@@ -129,11 +127,13 @@ func TestPublish(t *testing.T) {
 		t.Errorf("expected %v to be %v: %#v", got, want, exposures)
 	}
 
-	wait(t, exportPeriod+500*time.Millisecond, "Waiting before export batches")
-	server.ExportBatches(t)
+	t.Logf("Waiting %v before export batches", exportPeriod+500*time.Millisecond)
+	time.Sleep(exportPeriod + 500*time.Millisecond)
+	enClient.ExportBatches(t)
 
-	wait(t, 500*time.Millisecond, "Waiting before staring workers")
-	server.StartExportWorkers(t)
+	t.Logf("Waiting %v before starting workers", 500*time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
+	enClient.StartExportWorkers(t)
 
 	memory, ok := env.Blobstore().(*storage.Memory)
 	if !ok {
@@ -181,10 +181,6 @@ func TestPublish(t *testing.T) {
 		gotKey := *key
 		diff := cmp.Diff(wantedKey, gotKey, cmpopts.IgnoreUnexported(gotKey))
 		if diff != "" {
-
-			t.Logf("WANT: %v", proto.MarshalTextString(&wantedKey))
-			t.Logf(" GOT: %v", proto.MarshalTextString(&gotKey))
-
 			t.Errorf("invalid key value: %v:%v", s, diff)
 		}
 	}
@@ -200,6 +196,9 @@ func TestPublish(t *testing.T) {
 
 func getKeysFromLatestBatch(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv, memory *storage.Memory) *export.TemporaryExposureKeyExport {
 	exportFile := getLatestFile(t, memory, ctx, exportDir)
+	if exportFile == "" {
+		t.Fatalf("Can't find export files in blobstore: %v", exportDir)
+	}
 
 	t.Logf("Reading keys data from: %v", exportFile)
 
@@ -219,25 +218,18 @@ func getKeysFromLatestBatch(t *testing.T, exportDir string, ctx context.Context,
 func getLatestFile(t *testing.T, blobstore *storage.Memory, ctx context.Context, exportDir string) string {
 	files := blobstore.ListObjects(ctx, exportDir)
 
-	archiveFiles := make([]string, 0)
+	latestFileName := ""
 	for fileName := range files {
 		if strings.HasSuffix(fileName, "zip") {
-			archiveFiles = append(archiveFiles, fileName)
+			if latestFileName == "" {
+				latestFileName = fileName
+			} else {
+				if fileName > latestFileName {
+					latestFileName = fileName
+				}
+			}
 		}
 	}
 
-	if len(archiveFiles) < 1 {
-		t.Fatalf("can't find export archives in %v", exportDir)
-	}
-
-	sort.SliceStable(archiveFiles, func(i, j int) bool {
-		return archiveFiles[i] > archiveFiles[j]
-	})
-	exportFile := archiveFiles[0]
-	return exportFile
-}
-
-func wait(t *testing.T, duration time.Duration, message string) {
-	t.Logf("%s - waiting for %v", message, duration)
-	time.Sleep(duration)
+	return latestFileName
 }
