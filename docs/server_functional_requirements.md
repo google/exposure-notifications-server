@@ -99,11 +99,11 @@ Minimum required fields, followed by a JSON example:
   * Description: Name of the application being used to send the request. This
     is used to determine what app is uploading keys and if it is an allowed
     region for that app. (BundleID on iOS)
-* `verificationPayload` (**REQUIRED**)
+* `verificationPayload` (**REQUIRED FOR VERIFICATION PROTOCOL**)
   * Type: String
   * Description: verificationPayload is a signed certificate from a public
     health authority, indicating a confirmed diagnosis
-* `hmackey` (**REQUIRED**)
+* `hmackey` (**REQUIRED FOR VERIFICATION PROTOCOL**)
   * Type: String
   * Description: The device generated, random key that was used to create the
   HMAC for the data sent to the diagnosis verification server. The actual
