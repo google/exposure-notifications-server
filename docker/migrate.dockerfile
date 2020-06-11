@@ -33,7 +33,7 @@ COPY --from=builder /bin/cloud_sql_proxy /bin/cloud_sql_proxy
 COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
 
 # Install urlencode - see https://github.com/golang-migrate/migrate/issues/396.
-ADD urlencode /bin/urlencode
+ADD docker/urlencode /bin/urlencode
 RUN chmod +x /bin/urlencode
 
 ENTRYPOINT ["/usr/local/bin/migrate"]
