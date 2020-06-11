@@ -62,7 +62,9 @@ First, using the standard claims.
 * `iss` : The issuer will be used to determine which public key(s) are valid for
 verification. This is to allow for key rotation.
 * `aud` : The audience must be as configured for this installation of the
-exposure notifications server.
+exposure notifications server. The operator of the exposure notifications server
+is the one to define this value and should be shared to all participating health
+authorities.
 * `iat` : The unix timestamp at which the token was issued.
 * `exp` : The unix timestamp at which the token will expire.
 * `nbf` : If present, the "not before" timestamp will be honored.

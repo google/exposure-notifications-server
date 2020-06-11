@@ -32,9 +32,10 @@ health authority.</p>
     <label class="control-label col-sm-3" for="Audience">Audience:</label>
     <div class="col-sm-6">
       <input type="text" id="Audience" name="Audience" size="50" value="{{.ha.Audience}}">
-      <small id="AudienceHelpBlock" class="form-text text-muted">The audience that will
-        be present, specific to this server if the verifying authority is working
-        with multiple backends. This is the 'aud' field of the certificate JWT.
+      <small id="AudienceHelpBlock" class="form-text text-muted">
+        The valud for audience is defined by the operator of this server. It should be
+        communicated to the health authority for inclusion in the verification
+        certificates. This is the 'aud' field of the certificate JWT.
         <strong>Once set, this field should not be edited.</strong></small>
     </div>
   </div>
