@@ -276,13 +276,19 @@ func TestFederationPull(t *testing.T) {
 				fetchBatchSize = tc.batchSize
 				defer func() { fetchBatchSize = oldBatchSize }()
 			}
-			deps := pullDependencies{
-				fetch:               remote.fetch,
-				insertExposures:     idb.insertExposures,
-				startFederationSync: sdb.startFederationSync,
+
+			opts := pullOptions{
+				deps: pullDependencies{
+					fetch:               remote.fetch,
+					insertExposures:     idb.insertExposures,
+					startFederationSync: sdb.startFederationSync,
+				},
+				query:          query,
+				batchStart:     batchStart,
+				truncateWindow: time.Hour,
 			}
 
-			err := pull(ctx, metrics.NewLogsBasedFromContext(ctx), deps, query, batchStart, time.Hour)
+			err := pull(ctx, metrics.NewLogsBasedFromContext(ctx), &opts)
 			if err != nil {
 				t.Fatalf("pull returned err=%v, want err=nil", err)
 			}
