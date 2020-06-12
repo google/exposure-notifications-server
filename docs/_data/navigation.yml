@@ -17,8 +17,8 @@ docs:
           url: /server_deployment_options   
         - title: Server Functional Requirements
           url: /server_functional_requirements   
-        - title: "Verification Protocol Design"
+        - title: Verification Protocol Design
           url: /design/verification_protocol
-
-   
-    
+        - title: API Definitions
+          url: https://github.com/google/exposure-notifications-server/tree/master/pkg/api/v1alpha1
+  
