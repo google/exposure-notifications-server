@@ -228,12 +228,12 @@ func cloudRunEnv(ctx context.Context, name string) (map[string]string, error) {
 	}
 
 	var r cloudRunRevision
-	if err := json.NewDecoder(revisionResp.Body).Decode(&s); err != nil {
+	if err := json.NewDecoder(revisionResp.Body).Decode(&r); err != nil {
 		return nil, fmt.Errorf("failed to parse revision as json: %w", err)
 	}
 
 	if len(r.Spec.Containers) == 0 {
-		return nil, fmt.Errorf("no containers")
+		return nil, fmt.Errorf("no containers: %#v", r)
 	}
 	container := r.Spec.Containers[0]
 
