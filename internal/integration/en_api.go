@@ -32,6 +32,15 @@ type EnServerClient struct {
 	client *http.Client
 }
 
+func (server EnServerClient) getRequest(url string) (*http.Response, error) {
+	resp, err := server.client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return unwrapResponse(resp)
+}
+
 // Posts requests to the specified url.
 // This methods attempts to serialize data argument as a json.
 func (server EnServerClient) postRequest(url string, data interface{}) (*http.Response, error) {
@@ -50,17 +59,7 @@ func (server EnServerClient) postRequest(url string, data interface{}) (*http.Re
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		// Return error upstream.
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to copy error body (%d): %w", resp.StatusCode, err)
-		}
-		return resp, fmt.Errorf("post request failed with status: %v\n%v", resp.StatusCode, body)
-	}
-
-	return resp, nil
+	return unwrapResponse(resp)
 }
 
 func (server EnServerClient) PublishKeys(t *testing.T, request verifyapi.Publish) {
@@ -73,21 +72,29 @@ func (server EnServerClient) PublishKeys(t *testing.T, request verifyapi.Publish
 }
 
 func (server EnServerClient) ExportBatches(t *testing.T) {
-	var bts []byte
-	resp, err := server.postRequest("/export/create-batches", bts)
+	resp, err := server.getRequest("/export/create-batches")
 	if err != nil {
 		t.Fatalf("request failed: %v, %v", err, resp)
 	}
-	log.Printf("response: %v", resp.Status)
 	t.Logf("Create batches request is sent to %v", "/export/create-batches")
 }
 
 func (server EnServerClient) StartExportWorkers(t *testing.T) {
-	var bts []byte
-	resp, err := server.postRequest("/export/do-work", bts)
+	resp, err := server.getRequest("/export/do-work")
 	if err != nil {
 		t.Fatalf("request failed: %v, %v", err, resp)
 	}
-	log.Printf("response: %v", resp.Status)
 	t.Logf("Export worker request is sent to %v", "/export/do-work")
+}
+
+func unwrapResponse(resp *http.Response) (*http.Response, error) {
+	if resp.StatusCode != http.StatusOK {
+		// Return error upstream.
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to copy error body (%d): %w", resp.StatusCode, err)
+		}
+		return resp, fmt.Errorf("request failed with status: %v\n%v", resp.StatusCode, body)
+	}
+	return resp, nil
 }
