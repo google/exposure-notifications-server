@@ -68,7 +68,11 @@ func (s *Server) handleDebug(ctx context.Context) http.HandlerFunc {
 
 		var wg sync.WaitGroup
 		var ml sync.Mutex
-		var resp response
+
+		resp := &response{
+			ServiceEnvironment: make(map[string]map[string]string),
+			ExportBatchEnds:    make(map[int64]*time.Time),
+		}
 
 		for _, service := range services {
 			queue(&wg, errCh, func() error {
