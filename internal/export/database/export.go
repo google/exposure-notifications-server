@@ -387,11 +387,11 @@ func (db *ExportDB) ListLatestExportBatchEnds(ctx context.Context) (map[int64]*t
 	defer conn.Release()
 
 	rows, err := conn.Query(ctx, `
-    SELECT
+		SELECT
 			config_id, MAX(end_timestamp)
-    FROM
-      ExportBatch
-    GROUP BY config_id
+		FROM
+			ExportBatch
+		GROUP BY config_id
 	`)
 	if err != nil {
 		return nil, err
