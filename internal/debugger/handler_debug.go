@@ -75,6 +75,8 @@ func (s *Server) handleDebug(ctx context.Context) http.HandlerFunc {
 		}
 
 		for _, service := range services {
+			service := service
+
 			queue(&wg, errCh, func() error {
 				env, err := cloudRunEnv(ctx, service)
 				if err != nil {
