@@ -353,7 +353,7 @@ func TestPublishWithBypass(t *testing.T) {
 				serverenv.WithDatabase(testDB),
 				serverenv.WithAuthorizedAppProvider(aaProvider))
 			// Some config overrides for test.
-			handler, err := NewHandler(ctx, &config, env)
+			publishServer, err := NewServer(&config, env)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -410,7 +410,7 @@ func TestPublishWithBypass(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			server := httptest.NewServer(handler)
+			server := httptest.NewServer(publishServer.Routes(ctx))
 			defer server.Close()
 
 			// make the request

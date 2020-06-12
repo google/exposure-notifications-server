@@ -136,11 +136,11 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		DebugReleaseSameDayKeys: true,
 	}
 
-	publishHandler, err := publish.NewHandler(ctx, publishConfig, env)
+	publishServer, err := publish.NewServer(publishConfig, env)
 	if err != nil {
 		tb.Fatal(err)
 	}
-	mux.Handle("/publish", publishHandler)
+	mux.Handle("/publish/", http.StripPrefix("/publish", publishServer.Routes(ctx)))
 
 	srv, err := server.New("")
 	if err != nil {

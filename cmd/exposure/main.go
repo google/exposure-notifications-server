@@ -18,9 +18,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 
-	"github.com/google/exposure-notifications-server/internal/handlers"
 	"github.com/google/exposure-notifications-server/internal/interrupt"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	_ "github.com/google/exposure-notifications-server/internal/observability"
@@ -49,13 +47,10 @@ func realMain(ctx context.Context) error {
 	}
 	defer env.Close(ctx)
 
-	handler, err := publish.NewHandler(ctx, &config, env)
+	publishServer, err := publish.NewServer(&config, env)
 	if err != nil {
 		return fmt.Errorf("publish.NewHandler: %w", err)
 	}
-
-	mux := http.NewServeMux()
-	mux.Handle("/", handlers.WithMinimumLatency(config.MinRequestDuration, handler))
 
 	srv, err := server.New(config.Port)
 	if err != nil {
@@ -63,5 +58,5 @@ func realMain(ctx context.Context) error {
 	}
 	logger.Infof("listening on :%s", config.Port)
 
-	return srv.ServeHTTPHandler(ctx, mux)
+	return srv.ServeHTTPHandler(ctx, publishServer.Routes(ctx))
 }
