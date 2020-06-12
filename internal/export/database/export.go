@@ -377,6 +377,43 @@ func (db *ExportDB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportCo
 	return latestEnd, nil
 }
 
+// ListLatestExportBatchEnds returns a map of export config IDs to their latest
+// batch end times.
+func (db *ExportDB) ListLatestExportBatchEnds(ctx context.Context) (map[int64]*time.Time, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	rows, err := conn.Query(ctx, `
+    SELECT
+			config_id, MAX(end_timestamp)
+    FROM
+      ExportBatch
+    GROUP BY config_id
+	`)
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[int64]*time.Time)
+	for rows.Next() {
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+
+		var configID int64
+		var ts time.Time
+		if err := rows.Scan(&configID, &ts); err != nil {
+			return nil, err
+		}
+		m[configID] = &ts
+	}
+
+	return m, nil
+}
+
 // AddExportBatches inserts new export batches.
 func (db *ExportDB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch) error {
 	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
