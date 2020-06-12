@@ -119,7 +119,8 @@ func (db *ExportDB) GetAllExportConfigs(ctx context.Context) ([]*model.ExportCon
 		SELECT
 			config_id, bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp, signature_info_ids, input_regions
 		FROM
-			ExportConfig`)
+			ExportConfig
+		ORDER BY config_id`)
 	if err != nil {
 		return nil, err
 	}
@@ -358,13 +359,11 @@ func (db *ExportDB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportCo
 
 	row := conn.QueryRow(ctx, `
 		SELECT
-			end_timestamp
+			MAX(end_timestamp)
 		FROM
 			ExportBatch
 		WHERE
-		    config_id = $1
-		ORDER BY
-		    end_timestamp DESC
+			config_id = $1
 		LIMIT 1
 		`, ec.ConfigID)
 
