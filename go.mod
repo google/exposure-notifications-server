@@ -38,6 +38,7 @@ require (
 	github.com/hashicorp/vault/api v1.0.5-0.20200522144850-6f72d4ff250f
 	github.com/hashicorp/vault/sdk v0.1.14-0.20200519221838-e0cfd64bc267
 	github.com/hashicorp/yamux v0.0.0-20190923154419-df201c70410d // indirect
+	github.com/jackc/pgtype v1.3.0
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/jefferai/jsonx v1.0.1 // indirect
 	github.com/kelseyhightower/run v0.0.16

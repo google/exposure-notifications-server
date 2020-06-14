@@ -17,6 +17,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/rand"
 	"time"
@@ -183,16 +184,23 @@ func (db *ExportDB) IterateExportConfigs(ctx context.Context, t time.Time, f fun
 func scanOneExportConfig(row pgx.Row) (*model.ExportConfig, error) {
 	var (
 		m             model.ExportConfig
+		outputRegion  sql.NullString
 		periodSeconds int
 		thru          *time.Time
 	)
-	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &m.OutputRegion, &m.From, &thru, &m.SignatureInfoIDs, &m.InputRegions); err != nil {
+	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, outputRegion, &m.From, &thru, &m.SignatureInfoIDs, &m.InputRegions); err != nil {
 		return nil, err
 	}
+
 	m.Period = time.Duration(periodSeconds) * time.Second
 	if thru != nil {
 		m.Thru = *thru
 	}
+
+	if outputRegion.Valid {
+		m.OutputRegion = outputRegion.String
+	}
+
 	return &m, nil
 }
 
