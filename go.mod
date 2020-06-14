@@ -40,6 +40,7 @@ require (
 	github.com/hashicorp/yamux v0.0.0-20190923154419-df201c70410d // indirect
 	github.com/jackc/pgx/v4 v4.6.0
 	github.com/jefferai/jsonx v1.0.1 // indirect
+	github.com/kelseyhightower/run v0.0.16
 	github.com/keybase/go-crypto v0.0.0-20200123153347-de78d2cb44f4 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.5.2 // indirect
@@ -65,6 +66,7 @@ require (
 	github.com/tv42/httpunix v0.0.0-20191220191345-2ba4b9c3382c // indirect
 	go.opencensus.io v0.22.3
 	go.uber.org/zap v1.14.1
+	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
 	golang.org/x/tools v0.0.0-20200513154647-78b527d18275
 	google.golang.org/api v0.25.0
