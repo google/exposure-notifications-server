@@ -13,6 +13,10 @@
 // limitations under the License.
 
 // Package cache implements an inmemory cache for any interface{} object.
+//
+// Although exported, this package is non intended for general consumption.
+// It is a shared dependency between multiple exposure notifications projects.
+// We cannot guarantee that there won't be breaking changes in the future.
 package cache
 
 import (

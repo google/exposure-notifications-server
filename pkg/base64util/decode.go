@@ -14,6 +14,10 @@
 
 // Package base64util extracts base64 encoding/decoding logic into a single API
 // that is tolerant of various paddings.
+//
+// Although exported, this package is non intended for general consumption.
+// It is a shared dependency between multiple exposure notifications projects.
+// We cannot guarantee that there won't be breaking changes in the future.
 package base64util
 
 import (
