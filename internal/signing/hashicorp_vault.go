@@ -25,7 +25,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/google/exposure-notifications-server/internal/base64util"
+	"github.com/google/exposure-notifications-server/pkg/base64util"
+
 	vaultapi "github.com/hashicorp/vault/api"
 )
 

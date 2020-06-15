@@ -23,8 +23,8 @@ import (
 
 	authorizedappdb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
-	"github.com/google/exposure-notifications-server/internal/cache"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/pkg/cache"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/secrets"
