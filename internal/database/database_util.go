@@ -27,8 +27,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/pkg/retry"
+
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/google/exposure-notifications-server/internal/retry"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/ory/dockertest"
 
