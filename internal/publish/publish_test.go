@@ -35,7 +35,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	aadb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
-	"github.com/google/exposure-notifications-server/internal/base64util"
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	pubdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
@@ -43,6 +42,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/util"
 	verdb "github.com/google/exposure-notifications-server/internal/verification/database"
 	vermodel "github.com/google/exposure-notifications-server/internal/verification/model"
+	"github.com/google/exposure-notifications-server/pkg/base64util"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"

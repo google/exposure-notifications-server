@@ -23,12 +23,11 @@ import (
 	"fmt"
 
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
-	"github.com/google/exposure-notifications-server/internal/base64util"
-	"github.com/google/exposure-notifications-server/internal/cache"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
-
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/google/exposure-notifications-server/pkg/cache"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"
 
 	"github.com/dgrijalva/jwt-go"

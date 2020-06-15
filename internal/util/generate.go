@@ -22,8 +22,8 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/testing/enclient"
 )
 
