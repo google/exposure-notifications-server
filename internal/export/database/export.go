@@ -188,7 +188,7 @@ func scanOneExportConfig(row pgx.Row) (*model.ExportConfig, error) {
 		periodSeconds int
 		thru          *time.Time
 	)
-	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, outputRegion, &m.From, &thru, &m.SignatureInfoIDs, &m.InputRegions); err != nil {
+	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &outputRegion, &m.From, &thru, &m.SignatureInfoIDs, &m.InputRegions); err != nil {
 		return nil, err
 	}
 
