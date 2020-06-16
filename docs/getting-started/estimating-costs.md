@@ -26,8 +26,6 @@ direct access to Cloud Storage.
 
 # Calculating the overall cost
 There are a number of variables that need to be figured out to determine cost.
-That said, the vast majority of that cost is going to be from the network
-egress. The next largest cost is likely for hosting of containers.
 
 Let's assume that we are calculating the cost of operating for an area with:
 
