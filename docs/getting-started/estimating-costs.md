@@ -34,13 +34,13 @@ Let's assume that we are calculating the cost of operating for an area with:
 * A population of 10 Million (10,000,000) people.  
 * An exposure window of 14 days
 * 50% adoption of an exposure notifications system
-* 1,250 new cases daily (approxmately .01% new cases per day)
+* 1,250 new cases daily (approximately .01% new cases per day)
 
 From which we can derive:
 * Each new set of keys is 280 bytes (14 days * 20 bytes)
 * Each daily batch is 1,250 * 280 bytes = .35 MB
-* That file is downloaded 5 Million times per day (1.75 GB/day download) for
-  a total monthly egress of 52.5 GB.
+* That file is downloaded 5 Million times per day (1.75 GB/day downloaded),
+  52.5 GB monthly.
 
 # Cloud Components and Pricing
 
@@ -87,14 +87,12 @@ is a small amount of data storage.
 **Projected Monthly Cost: $0 - $20.00**
 
 ### Network Usage Cost
-Each day every user will need to download a batch. This means that roughly
-5M * 3.5MB
-$0.12 per GB (egress)
+Each user will download one of the daily batch files.
 
-**Projected Monthly Cost: ($0.12 / GB) * (1.75GB/day * 30 days) = $6.30**
+**Projected Monthly Cost: $5 - $20**
 
 ### Operations Cost
-There are two tiers of operations with different billing.
+There are two tiers of operations.
 
 #### Class A
 $0.05 per 10,000 operations
