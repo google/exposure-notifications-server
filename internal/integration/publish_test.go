@@ -29,7 +29,6 @@ import (
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/internal/util"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/go-cmp/cmp"
@@ -123,11 +122,7 @@ func TestPublish(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	enClient.StartExportWorkers(t)
 
-	memory, ok := env.Blobstore().(*storage.Memory)
-	if !ok {
-		t.Fatalf("can't use %t blobstore for verification", env.Blobstore())
-	}
-	keyExport := getKeysFromLatestBatch(t, "my-bucket", ctx, env, memory)
+	keyExport := getKeysFromLatestBatch(t, "my-bucket", ctx, env)
 
 	got := keyExport
 
@@ -146,16 +141,16 @@ func TestPublish(t *testing.T) {
 		BatchSize: proto.Int32(1),
 	}
 
-	if !cmp.Equal(want.BatchSize, got.BatchSize) {
-		t.Errorf("Invalid BatchSize: want: %v, got: %v", want.BatchSize, got.BatchSize)
+	if *want.BatchSize != *got.BatchSize {
+		t.Errorf("Invalid BatchSize: want: %v, got: %v", *want.BatchSize, *got.BatchSize)
 	}
 
-	if !cmp.Equal(want.BatchNum, got.BatchNum) {
-		t.Errorf("Invalid BatchNum: want: %v, got: %v", want.BatchNum, got.BatchNum)
+	if *want.BatchNum != *got.BatchNum {
+		t.Errorf("Invalid BatchNum: want: %v, got: %v", *want.BatchNum, *got.BatchNum)
 	}
 
-	if !cmp.Equal(want.Region, got.Region) {
-		t.Errorf("Invalid Region: want: %v, got: %v", want.BatchSize, got.BatchSize)
+	if *want.Region != *got.Region {
+		t.Errorf("Invalid Region: want: %v, got: %v", *want.BatchSize, *got.BatchSize)
 	}
 
 	for _, key := range got.Keys {
@@ -176,15 +171,20 @@ func TestPublish(t *testing.T) {
 	// TODO: verify signature
 }
 
-func getKeysFromLatestBatch(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv, memory *storage.Memory) *export.TemporaryExposureKeyExport {
-	exportFile := getLatestFile(memory, ctx, exportDir)
+func getKeysFromLatestBatch(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv) *export.TemporaryExposureKeyExport {
+	readmeBlob, err := env.Blobstore().GetObject(ctx, exportDir, "index.txt")
+	if err != nil {
+		t.Fatalf("Can't file index.txt in blobstore: %v", err)
+	}
+
+	exportFile := getLatestFile(readmeBlob)
 	if exportFile == "" {
 		t.Fatalf("Can't find export files in blobstore: %v", exportDir)
 	}
 
 	t.Logf("Reading keys data from: %v", exportFile)
 
-	blob, err := env.Blobstore().GetObject(ctx, "", exportFile)
+	blob, err := env.Blobstore().GetObject(ctx, exportDir, exportFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,11 +197,11 @@ func getKeysFromLatestBatch(t *testing.T, exportDir string, ctx context.Context,
 	return keyExport
 }
 
-func getLatestFile(blobstore *storage.Memory, ctx context.Context, exportDir string) string {
-	files := blobstore.ListObjects(ctx, exportDir)
+func getLatestFile(indexBlob []byte) string {
+	files := strings.Split(string(indexBlob), "\n")
 
 	latestFileName := ""
-	for fileName := range files {
+	for _, fileName := range files {
 		if strings.HasSuffix(fileName, "zip") {
 			if latestFileName == "" {
 				latestFileName = fileName

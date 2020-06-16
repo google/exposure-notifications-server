@@ -17,7 +17,6 @@ package storage
 import (
 	"context"
 	"path"
-	"strings"
 	"sync"
 )
 
@@ -71,18 +70,4 @@ func (s *Memory) GetObject(_ context.Context, folder, filename string) ([]byte, 
 		return nil, ErrNotFound
 	}
 	return v, nil
-}
-
-// ListObjects returns the list of files in memory storage.
-func (s *Memory) ListObjects(_ context.Context, folder string) map[string][]byte {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	result := make(map[string][]byte)
-	for k, v := range s.data {
-		if strings.HasPrefix(k, folder+"/") {
-			result[k] = v
-		}
-	}
-	return result
 }
