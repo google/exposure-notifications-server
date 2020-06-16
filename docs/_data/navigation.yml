@@ -11,6 +11,8 @@ docs:
           url: /getting-started/publishing-temporary-exposure-keys
         - title: How to Download Keys
           url: /getting-started/downloading-export-batches-keys
+        - title: Estimating the Cost of Deployment
+          url: /getting-started/estimating-costs
     - title: Design
       children:
         - title: Server Deployment Options
