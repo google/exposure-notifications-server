@@ -81,6 +81,10 @@ The cost of this component can vary greatly on the scale is configured to.
 Depending on the needed scale of your deployment this could require a different
 configuration.
 
+For instance, while the default is `db-custom-8-30720`, the documentation
+mentions that a `db-custom-1-3840` instance is likely sufficeint for local
+development work. This instance should cost around an eighth of the amount.
+
 **Project Monthly Cost: $1000 - $1250**
 
 ## Storage Costs
@@ -93,8 +97,11 @@ is a small amount of data storage. 14 days of batches should be around 8 MB.
 **Projected Monthly Cost: $0 - $10**
 
 ### Network Usage Cost
-Each user will download one of the daily batch files. This is likely one of the
-more variable costs.
+Each user will download one of the daily batch files. This is a highly variable
+cost based on adoption. With sufficient users this could easily be in the tens
+of thousands of dollars. Also, network egress varies depending on the region.
+Please see the [pricing](https://cloud.google.com/storage/pricing#network-egress)
+for network usage to determine a more accurate estimate for your use case.
 
 Copied from above:
 * Each new set of keys is 448 bytes (14 days * 32 bytes)
