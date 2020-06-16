@@ -32,16 +32,18 @@ health authority in the jurisdiction.
 
 1. App user is diagnosed with Covid-19. PHA issues a PIN code to the user.
 2. The user enters the PIN code on their App
-3. The app creates a HMAC value that combines the TEKs from the device along
+3. The App exchange the PIN for a claim check token and walks the user through
+   some health related questions (i.e. symptom onset date).
+4. The app creates a HMAC value that combines the TEKs from the device along
    with calculated transmission risk value, rolling period start and rolling
 	 period count values (the key data + metadata).
-	 These values are sent to the PHA server that issued the PIN.
-4. If the PIN is valid, the PHA issues a JWT that is signed using ECDSA over
+	 These values are sent to the PHA server along with the token from step 3.
+5. If the token is valid, the PHA issues a JWT that is signed using ECDSA over
    the P-256 elliptic curve with SHA-256 as a hash function. The JWT includes
    additional claims about the data (see below).
-5. The app on the user's device sends this signed JWT to the exposure
+6. The app on the user's device sends this signed JWT to the exposure
    notifications server (this project).
-6. If the JWT is valid and signed by a trusted PHA (verified because the public
+7. If the JWT is valid and signed by a trusted PHA (verified because the public
 	 key has been previously shared with the server), then the keys are imported
 	 into the server for distribution to other devices in the geography. Because
    we are using pre-shared public keys, this verification can be done with
@@ -62,7 +64,9 @@ First, using the standard claims.
 * `iss` : The issuer will be used to determine which public key(s) are valid for
 verification. This is to allow for key rotation.
 * `aud` : The audience must be as configured for this installation of the
-exposure notifications server.
+exposure notifications server. The operator of the exposure notifications server
+is the one to define this value and should be shared to all participating health
+authorities.
 * `iat` : The unix timestamp at which the token was issued.
 * `exp` : The unix timestamp at which the token will expire.
 * `nbf` : If present, the "not before" timestamp will be honored.

@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is the service that publishes infected keys; it is intended to be invoked over HTTP by Cloud Scheduler.
+// Package main runs the debugger service.
 package main
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/google/exposure-notifications-server/internal/export"
+	"github.com/google/exposure-notifications-server/internal/debugger"
 	"github.com/google/exposure-notifications-server/internal/interrupt"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	_ "github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/server"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
@@ -40,14 +39,14 @@ func main() {
 func realMain(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
-	var config export.Config
+	var config debugger.Config
 	env, err := setup.Setup(ctx, &config)
 	if err != nil {
 		return fmt.Errorf("setup.Setup: %w", err)
 	}
 	defer env.Close(ctx)
 
-	batchServer, err := export.NewServer(&config, env)
+	debuggerServer, err := debugger.NewServer(&config, env)
 	if err != nil {
 		return fmt.Errorf("export.NewServer: %w", err)
 	}
@@ -58,5 +57,5 @@ func realMain(ctx context.Context) error {
 	}
 	logger.Infof("listening on :%s", config.Port)
 
-	return srv.ServeHTTPHandler(ctx, batchServer.Routes(ctx))
+	return srv.ServeHTTPHandler(ctx, debuggerServer.Routes(ctx))
 }

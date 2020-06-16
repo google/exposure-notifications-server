@@ -17,6 +17,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/rand"
 	"time"
@@ -119,13 +120,14 @@ func (db *ExportDB) GetAllExportConfigs(ctx context.Context) ([]*model.ExportCon
 		SELECT
 			config_id, bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp, signature_info_ids, input_regions
 		FROM
-			ExportConfig`)
+			ExportConfig
+		ORDER BY config_id`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	results := []*model.ExportConfig{}
+	var results []*model.ExportConfig
 	for rows.Next() {
 		ec, err := scanOneExportConfig(rows)
 		if err != nil {
@@ -182,16 +184,23 @@ func (db *ExportDB) IterateExportConfigs(ctx context.Context, t time.Time, f fun
 func scanOneExportConfig(row pgx.Row) (*model.ExportConfig, error) {
 	var (
 		m             model.ExportConfig
+		outputRegion  sql.NullString
 		periodSeconds int
 		thru          *time.Time
 	)
-	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &m.OutputRegion, &m.From, &thru, &m.SignatureInfoIDs, &m.InputRegions); err != nil {
+	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &outputRegion, &m.From, &thru, &m.SignatureInfoIDs, &m.InputRegions); err != nil {
 		return nil, err
 	}
+
 	m.Period = time.Duration(periodSeconds) * time.Second
 	if thru != nil {
 		m.Thru = *thru
 	}
+
+	if outputRegion.Valid {
+		m.OutputRegion = outputRegion.String
+	}
+
 	return &m, nil
 }
 
@@ -358,13 +367,11 @@ func (db *ExportDB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportCo
 
 	row := conn.QueryRow(ctx, `
 		SELECT
-			end_timestamp
+			MAX(end_timestamp)
 		FROM
 			ExportBatch
 		WHERE
-		    config_id = $1
-		ORDER BY
-		    end_timestamp DESC
+			config_id = $1
 		LIMIT 1
 		`, ec.ConfigID)
 
@@ -376,6 +383,43 @@ func (db *ExportDB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportCo
 		return time.Time{}, fmt.Errorf("scanning result: %w", err)
 	}
 	return latestEnd, nil
+}
+
+// ListLatestExportBatchEnds returns a map of export config IDs to their latest
+// batch end times.
+func (db *ExportDB) ListLatestExportBatchEnds(ctx context.Context) (map[int64]*time.Time, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+
+	rows, err := conn.Query(ctx, `
+		SELECT
+			config_id, MAX(end_timestamp)
+		FROM
+			ExportBatch
+		GROUP BY config_id
+	`)
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[int64]*time.Time)
+	for rows.Next() {
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+
+		var configID int64
+		var ts time.Time
+		if err := rows.Scan(&configID, &ts); err != nil {
+			return nil, err
+		}
+		m[configID] = &ts
+	}
+
+	return m, nil
 }
 
 // AddExportBatches inserts new export batches.

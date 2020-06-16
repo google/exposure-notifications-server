@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package export
+package debugger
 
 import (
 	"context"
@@ -22,20 +22,28 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
-// NewServer makes a Server.
+// Server is the debugger server.
+type Server struct {
+	config *Config
+	env    *serverenv.ServerEnv
+}
+
+// NewServer makes a new debugger server.
 func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
-	// Validate config.
+	if env.AuthorizedAppProvider() == nil {
+		return nil, fmt.Errorf("missing AuthorizedAppProvider in server env")
+	}
 	if env.Blobstore() == nil {
-		return nil, fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv")
+		return nil, fmt.Errorf("missing Blobstore in server env")
 	}
 	if env.Database() == nil {
-		return nil, fmt.Errorf("export.NewBatchServer requires Database present in the ServerEnv")
+		return nil, fmt.Errorf("missing Database in server env")
 	}
 	if env.KeyManager() == nil {
-		return nil, fmt.Errorf("export.NewBatchServer requires KeyManager present in the ServerEnv")
+		return nil, fmt.Errorf("missing KeyManager in server env")
 	}
-	if config.MinWindowAge < 0 {
-		return nil, fmt.Errorf("MIN_WINDOW_AGE must be a duration of >= 0")
+	if env.SecretManager() == nil {
+		return nil, fmt.Errorf("missing SecretManager in server env")
 	}
 
 	return &Server{
@@ -44,18 +52,8 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	}, nil
 }
 
-// Server hosts end points to manage export batches.
-type Server struct {
-	config *Config
-	env    *serverenv.ServerEnv
-}
-
-// Routes defines and returns the routes for this server.
 func (s *Server) Routes(ctx context.Context) *http.ServeMux {
 	mux := http.NewServeMux()
-
-	mux.HandleFunc("/create-batches", s.handleCreateBatches(ctx))
-	mux.HandleFunc("/do-work", s.handleDoWork(ctx))
-
+	mux.HandleFunc("/", s.handleDebug(ctx))
 	return mux
 }

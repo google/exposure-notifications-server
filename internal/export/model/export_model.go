@@ -58,8 +58,8 @@ func (ec *ExportConfig) Validate() error {
 	if ec.Period > oneDay {
 		return errors.New("maximum period is 24h")
 	}
-	if ec.Period == 0 {
-		return errors.New("period must be non-zero")
+	if ec.Period < 1*time.Second {
+		return errors.New("period must be at least 1 second")
 	}
 	if int64(oneDay.Seconds())%int64(ec.Period.Seconds()) != 0 {
 		return errors.New("period must divide equally into 24 hours (e.g., 2h, 4h, 12h, 15m, 30m)")

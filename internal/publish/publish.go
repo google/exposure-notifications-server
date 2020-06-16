@@ -118,6 +118,8 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		// A higher-level configuration error occurred, likely while trying to read
 		// from the database. This is retryable, although won't succeed if the error
 		// isn't transient.
+		// This message (and logging) will only contain the AppPkgName from the request
+		// and no other data from the request.
 		msg := fmt.Sprintf("no AuthorizedApp, dropping data: %v", err)
 		logger.Error(msg)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: msg})

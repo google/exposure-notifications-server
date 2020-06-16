@@ -99,11 +99,11 @@ Minimum required fields, followed by a JSON example:
   * Description: Name of the application being used to send the request. This
     is used to determine what app is uploading keys and if it is an allowed
     region for that app. (BundleID on iOS)
-* `verificationPayload` (**REQUIRED**)
+* `verificationPayload` (**REQUIRED FOR VERIFICATION PROTOCOL**)
   * Type: String
   * Description: verificationPayload is a signed certificate from a public
     health authority, indicating a confirmed diagnosis
-* `hmackey` (**REQUIRED**)
+* `hmackey` (**REQUIRED FOR VERIFICATION PROTOCOL**)
   * Type: String
   * Description: The device generated, random key that was used to create the
   HMAC for the data sent to the diagnosis verification server. The actual
@@ -162,7 +162,8 @@ generate the files in a single operation rather than on-demand, and distribute
 the files using a CDN.
 
 For information on the format of the batch file, see
-[Exposure Key Export File Format and Verification](https://www.google.com/covid19/exposurenotifications/pdfs/Exposure-Key-File-Format-and-Verification.pdf).
+[Exposure Key Export File Format and Verification](https://developers.google.com/android/exposure-notifications/exposure-key-file-format)
+and [Working with Export Files](https://github.com/google/exposure-notifications-server/tree/master/examples/export).
 
 The batch file generation should be per-region, incremental feeds of new data.
 While additional data can be included in the downloads, there is a minimum set

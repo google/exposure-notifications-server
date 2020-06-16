@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/base64util"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/pkg/base64util"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )

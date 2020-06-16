@@ -48,6 +48,7 @@ Server here:
 * [Server Functional Requirements](server_functional_requirements.md)
 * [Server Deployment Options](server_deployment_options.md)
 * [Reference documentation](https://pkg.go.dev/mod/github.com/google/exposure-notifications-server)
+* [API Definitions](https://github.com/google/exposure-notifications-server/tree/master/pkg/api/v1alpha1)
 
 ## Issues and Questions
 

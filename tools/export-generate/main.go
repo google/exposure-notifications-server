@@ -160,30 +160,55 @@ func main() {
 		currentBatch = append(currentBatch, &exposureKeys[i])
 		if len(currentBatch) == *batchSize {
 			b++
-			writeFile(eb, currentBatch, b, numBatches, actualNumKeys, privateKey)
+			w := exportFileWriter{
+				exportBatch: eb,
+				exposures:   currentBatch,
+				curBatch:    b,
+				numBatches:  numBatches,
+				totalKeys:   actualNumKeys,
+				privateKey:  privateKey,
+			}
+			w.writeFile()
 			currentBatch = []*publishmodel.Exposure{}
 		}
 	}
 	if len(currentBatch) > 0 {
 		b++
-		writeFile(eb, currentBatch, b, numBatches, actualNumKeys, privateKey)
+		w := exportFileWriter{
+			exportBatch: eb,
+			exposures:   currentBatch,
+			curBatch:    b,
+			numBatches:  numBatches,
+			totalKeys:   actualNumKeys,
+			privateKey:  privateKey,
+		}
+		w.writeFile()
 	}
 }
 
-func writeFile(eb *model.ExportBatch, currentBatch []*publishmodel.Exposure, b, numBatches, numRecords int, privateKey *ecdsa.PrivateKey) {
+type exportFileWriter struct {
+	exportBatch *model.ExportBatch
+	exposures   []*publishmodel.Exposure
+	curBatch    int
+	numBatches  int
+	totalKeys   int
+	privateKey  *ecdsa.PrivateKey
+}
+
+func (e *exportFileWriter) writeFile() {
 	signatureInfo := &model.SignatureInfo{
 		SigningKeyID:      *keyID,
 		SigningKeyVersion: *keyVersion,
 	}
 	signer := &export.Signer{
 		SignatureInfo: signatureInfo,
-		Signer:        privateKey,
+		Signer:        e.privateKey,
 	}
-	data, err := export.MarshalExportFile(eb, currentBatch, b, numBatches, []*export.Signer{signer})
+	data, err := export.MarshalExportFile(e.exportBatch, e.exposures, e.curBatch, e.numBatches, []*export.Signer{signer})
 	if err != nil {
 		log.Fatalf("error marshaling export file: %v", err)
 	}
-	fileName := fmt.Sprintf(eb.FilenameRoot+"%d-records-%d-of-%d"+filenameSuffix, numRecords, b, numBatches)
+	fileName := fmt.Sprintf(e.exportBatch.FilenameRoot+"%d-records-%d-of-%d"+filenameSuffix, e.totalKeys, e.curBatch, e.numBatches)
 	log.Printf("Creating %v", fileName)
 	err = ioutil.WriteFile(fileName, data, 0666)
 	if err != nil {

@@ -26,9 +26,10 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/services/keyvault/v7.0/keyvault"
 	"github.com/google/exposure-notifications-server/internal/azurekeyvault"
-	"github.com/google/exposure-notifications-server/internal/base64util"
+	"github.com/google/exposure-notifications-server/pkg/base64util"
+
+	"github.com/Azure/azure-sdk-for-go/services/keyvault/v7.0/keyvault"
 )
 
 // Compile-time check to verify implements interface.

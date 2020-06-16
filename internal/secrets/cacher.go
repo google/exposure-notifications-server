@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/cache"
+	"github.com/google/exposure-notifications-server/pkg/cache"
 )
 
 // Compile-time check to verify implements interface.

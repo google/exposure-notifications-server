@@ -22,84 +22,89 @@ import (
 	"time"
 
 	coredb "github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/export/database"
+	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
 )
 
-// CreateBatchesHandler is a handler to iterate the rows of ExportConfig and
+// handleCreateBatches is a handler to iterate the rows of ExportConfig and
 // create entries in ExportBatchJob as appropriate.
-func (s *Server) CreateBatchesHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), s.config.CreateTimeout)
-	defer cancel()
+func (s *Server) handleCreateBatches(ctx context.Context) http.HandlerFunc {
 	logger := logging.FromContext(ctx)
 	metrics := s.env.MetricsExporter(ctx)
+	db := s.env.Database()
 
-	// Obtain lock to make sure there are no other processes working to create batches.
-	lock := "create_batches"
-	unlockFn, err := s.db.Lock(ctx, lock, s.config.CreateTimeout)
-	if err != nil {
-		if errors.Is(err, coredb.ErrAlreadyLocked) {
-			metrics.WriteInt("export-batcher-lock-contention", true, 1)
-			msg := fmt.Sprintf("Lock %s already in use, no work will be performed", lock)
-			logger.Infof(msg)
-			fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), s.config.CreateTimeout)
+		defer cancel()
+
+		// Obtain lock to make sure there are no other processes working to create batches.
+		lock := "create_batches"
+		unlockFn, err := db.Lock(ctx, lock, s.config.CreateTimeout)
+		if err != nil {
+			if errors.Is(err, coredb.ErrAlreadyLocked) {
+				metrics.WriteInt("export-batcher-lock-contention", true, 1)
+				msg := fmt.Sprintf("Lock %s already in use, no work will be performed", lock)
+				logger.Infof(msg)
+				fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
+				return
+			}
+			logger.Errorf("Could not acquire lock %s: %v", lock, err)
+			http.Error(w, fmt.Sprintf("Could not acquire lock %s, check logs.", lock), http.StatusInternalServerError)
 			return
 		}
-		logger.Errorf("Could not acquire lock %s: %v", lock, err)
-		http.Error(w, fmt.Sprintf("Could not acquire lock %s, check logs.", lock), http.StatusInternalServerError)
-		return
-	}
-	defer func() {
-		if err := unlockFn(); err != nil {
-			logger.Errorf("failed to unlock: %v", err)
-		}
-	}()
-
-	totalConfigs := 0
-	totalBatches := 0
-	totalConfigsWithBatches := 0
-	defer func() {
-		logger.Infof("Processed %d configs creating %d batches across %d configs", totalConfigs, totalBatches, totalConfigsWithBatches)
-	}()
-
-	effectiveTime := time.Now().Add(-1 * s.config.MinWindowAge)
-	err = database.New(s.db).IterateExportConfigs(ctx, effectiveTime, func(ec *model.ExportConfig) error {
-		totalConfigs++
-		if batchesCreated, err := s.maybeCreateBatches(ctx, ec, effectiveTime); err != nil {
-			logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
-		} else {
-			totalBatches += batchesCreated
-			if batchesCreated > 0 {
-				totalConfigsWithBatches++
+		defer func() {
+			if err := unlockFn(); err != nil {
+				logger.Errorf("failed to unlock: %v", err)
 			}
+		}()
+
+		totalConfigs := 0
+		totalBatches := 0
+		totalConfigsWithBatches := 0
+		defer func() {
+			logger.Infof("Processed %d configs creating %d batches across %d configs", totalConfigs, totalBatches, totalConfigsWithBatches)
+		}()
+
+		effectiveTime := time.Now().Add(-1 * s.config.MinWindowAge)
+		err = exportdatabase.New(db).IterateExportConfigs(ctx, effectiveTime, func(ec *model.ExportConfig) error {
+			totalConfigs++
+			if batchesCreated, err := s.maybeCreateBatches(ctx, ec, effectiveTime); err != nil {
+				logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
+			} else {
+				totalBatches += batchesCreated
+				if batchesCreated > 0 {
+					totalConfigsWithBatches++
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			// some specific error handling below, but just need one metric.
+			metrics.WriteInt("export-batcher-failed", true, 1)
 		}
-		return nil
-	})
-	if err != nil {
-		// some specific error handling below, but just need one metric.
-		metrics.WriteInt("export-batcher-failed", true, 1)
-	}
-	switch {
-	case err == nil:
-		return
-	case errors.Is(err, context.DeadlineExceeded):
-		logger.Infof("Timed out creating batches, batch creation will continue on next invocation")
-	case errors.Is(err, context.Canceled):
-		logger.Infof("Canceled while creating batches, batch creation will continue on next invocation")
-	default:
-		logger.Errorf("creating batches: %v", err)
-		http.Error(w, "Failed to create batches, check logs.", http.StatusInternalServerError)
+		switch {
+		case err == nil:
+			return
+		case errors.Is(err, context.DeadlineExceeded):
+			logger.Infof("Timed out creating batches, batch creation will continue on next invocation")
+		case errors.Is(err, context.Canceled):
+			logger.Infof("Canceled while creating batches, batch creation will continue on next invocation")
+		default:
+			logger.Errorf("creating batches: %v", err)
+			http.Error(w, "Failed to create batches, check logs.", http.StatusInternalServerError)
+		}
 	}
 }
 
 func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig, now time.Time) (int, error) {
 	logger := logging.FromContext(ctx)
 	metrics := s.env.MetricsExporter(ctx)
+	db := s.env.Database()
 
-	latestEnd, err := database.New(s.db).LatestExportBatchEnd(ctx, ec)
+	latestEnd, err := exportdatabase.New(db).LatestExportBatchEnd(ctx, ec)
 	if err != nil {
 		return 0, fmt.Errorf("fetching most recent batch for config %d: %w", ec.ConfigID, err)
 	}
@@ -128,7 +133,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 		})
 	}
 
-	if err := database.New(s.db).AddExportBatches(ctx, batches); err != nil {
+	if err := exportdatabase.New(db).AddExportBatches(ctx, batches); err != nil {
 		return 0, fmt.Errorf("creating export batches for config %d: %w", ec.ConfigID, err)
 	}
 

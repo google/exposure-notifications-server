@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/base64util"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/go-cmp/cmp"
 )
 
