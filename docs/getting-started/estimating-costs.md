@@ -84,7 +84,7 @@ https://cloud.google.com/storage/pricing
 The last 14 days of batches are stored with older batches being deleted. This
 is a small amount of data storage.
 
-**Projected Monthly Cost: $0 - $20.00**
+**Projected Monthly Cost: $0 - $20**
 
 ### Network Usage Cost
 Each user will download one of the daily batch files.
@@ -101,7 +101,7 @@ Relevant operations from this include `INSERT`, `UPDATE`, and `LIST`. These
 will occur as part of batching of exposure keys. These operations will likely
 remain under 10,000 for storage as creation of files is batched.
 
-**Projected Monthly Cost: $0 - $20.00**
+**Projected Monthly Cost: $0 - $20**
 
 #### Class B
 $0.004 per 10,000 operations
