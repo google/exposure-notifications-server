@@ -4,9 +4,9 @@ layout: default
 # Estimating costs of hosting the Exposure Notifications Server
 
     NOTE: This is for informational purposes only. This doesn't account for all
-    costs of operating. This document
-    should be used to assist in understanding how to calculate the cost of
-    deploying this service, not to make budgetary decisions.
+    costs of operating. This document should be used to assist in understanding
+    how to calculate the cost of deploying this service, not to make
+    budgetary decisions.
 
 This page outlines how you might estimate the cost of deploying the reference
 server for your application. Cost estimates assume the use of Google Cloud,
@@ -104,10 +104,9 @@ Copied from above:
 
 **Projected Monthly Cost: $10,000+**
 
-    NOTE: Using the [Google Cloud CDN](https://cloud.google.com/cdn/pricing)
-    is likely less expensive. Serving costs when using
-    [Google Cloud Storage](https://cloud.google.com/storage/pricing) directly
-    are higher, often by more than 30%, than Google Cloud CDN.
+    NOTE: Using the Google Cloud CDN is likely less expensive. Serving costs 
+    when using Google Cloud Storage directly are higher, often by more than
+    30%, than Google Cloud CDN.
 
 ### Operations Cost
 There are two tiers of operations.
