@@ -3,26 +3,19 @@ layout: default
 ---
 # Estimating costs of hosting the Exposure Notifications Server
 
+    NOTE: This is for informational purposes only. This doesn't account for all
+    costs of operating. This document
+    should be used to assist in understanding how to calculate the cost of
+    deploying this service, not to make budgetary decisions.
 
-NOTE: This is for informational purposes only. This doesn't account for all
-costs of operating. It gives an approximate sizing of the cost. This document
-should be used to assist in understanding how to calculate the cost of
-deploying this service.
-
-This page explains how you might estimate the cost to deploy servers within the
-Exposure Notification Reference implementation. Cost estimates assume the use
-of Google Cloud and use
-[published pricing rates](https://cloud.google.com/pricing), but similar
-calculations could be done for other cloud providers as well as self-hosted
-machines.
-
-Much of this is simplified. It doesn't
-fully account for free-tier exceptions, or tiered pricing. This is meant
-to assist in having an approximate idea of cost to operate. This also assumes
-the defaults at the time of authoring in [vars.tf](https://github.com/google/exposure-notifications-server/blob/master/terraform/vars.tf).
-
-These estimates also don't include CDN costs. For simplicity they assume
-direct access to Cloud Storage.
+This page outlines how you might estimate the cost of deploying the reference
+server for your application. Cost estimates assume the use of Google Cloud,
+deployment and use within the US, and uses the
+[published pricing rates](https://cloud.google.com/pricing) to arrivea at the
+estimation. This could be repeated for other regions as well as for other
+cloud providers. Please note that for much of this simplifications have been
+made. Due to a majority of the expected costs to be incurred due to storage
+serving. 
 
 # Calculating the overall cost
 There are a number of variables that need to be figured out to determine cost.
@@ -35,12 +28,25 @@ Let's assume that we are calculating the cost of operating for an area with:
 * 1,250 new cases daily (approximately .01% new cases per day)
 
 From which we can derive:
-* Each new set of keys is 280 bytes (14 days * 20 bytes)
-* Each daily batch is 1,250 * 280 bytes = .35 MB
-* That file is downloaded 5 Million times per day (1.75 GB/day downloaded),
-  52.5 GB monthly.
+* Each new set of keys is 448 bytes (14 days * 32 bytes)
+* Each daily batch is 1,250 * 448 bytes = .56 MB
+* That file is downloaded 5 Million times per day, for (2.8 TB/day downloaded),
+  84 TB monthly.
 
 # Cloud Components and Pricing
+Due to pricing varying by region, and much of this being scalable, we avoid
+speaking about exact pricing for most of it, instead trying to quantify the
+magnitude.
+
+To have an idea of the deployment size, this document assumes the defaults
+configured for Terraform in
+[vars.tf](https://github.com/google/exposure-notifications-server/blob/master/terraform/vars.tf).
+
+The largest cost is likely to be in Network Egress. In this calculation we
+assume that [Google Cloud CDN](https://cloud.google.com/cdn) is not used but
+instead a [Google Cloud Storage](https://cloud.google.com/storage) bucket is
+read directly. Please note that using Google Cloud CDN will likely result in
+lower cost.
 
 ## Cloud Run Costs
 https://cloud.google.com/run/pricing
@@ -49,17 +55,19 @@ There are multiple containers needed for a complete deployment:
 
 * Export Cleanup
 * Exposure Cleanup
-* Export
+* Export 
 * Exposure
 * Federation In
 * Federation Out
 
-Let's assume we run ~4 containers constantly as much of the operation is batch
-and won't account for constant use. Also, we can reflect on the default
+Most of the services run periodically, not constantly. For this reason it is
+likely no higher than 6 containers at this scale. Likely, estimating as if 3-4
+of these containers would get a reasonable upper limit. The resource limits of
+a container are specified in the
 [terraform resource limits](https://github.com/google/exposure-notifications-server/blob/master/terraform/service_federationin.tf#L63)
-of 2 CPU and 1G memory per container.
+as 2 CPU and 1G memory per container.
 
-**Projected Monthly Cost: $500 - 1000**
+**Projected Monthly Cost: $500 - $750**
 
 ## SQL Database Costs
 https://cloud.google.com/sql/pricing
@@ -80,14 +88,26 @@ https://cloud.google.com/storage/pricing
 
 ### Data Storage Cost
 The last 14 days of batches are stored with older batches being deleted. This
-is a small amount of data storage.
+is a small amount of data storage. 14 days of batches should be around 8 MB.
 
-**Projected Monthly Cost: $0 - $20**
+**Projected Monthly Cost: $0 - $10**
 
 ### Network Usage Cost
-Each user will download one of the daily batch files.
+Each user will download one of the daily batch files. This is likely one of the
+more variable costs.
 
-**Projected Monthly Cost: $5 - $20**
+Copied from above:
+* Each new set of keys is 448 bytes (14 days * 32 bytes)
+* Each daily batch is 1,250 * 448 bytes = .56 MB
+* That file is downloaded 5 Million times per day, for (2.8 TB/day downloaded),
+  84 TB monthly.
+
+**Projected Monthly Cost: $10,000+**
+
+    NOTE: Using the [Google Cloud CDN](https://cloud.google.com/cdn/pricing)
+    is likely less expensive. Serving costs when using
+    [Google Cloud Storage](https://cloud.google.com/storage/pricing) directly
+    are higher, often by more than 30%, than Google Cloud CDN.
 
 ### Operations Cost
 There are two tiers of operations.
