@@ -78,7 +78,7 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
 	defer cancel()
 
-	count, err := h.database.DeleteExposures(timeoutCtx, cutoff)
+	count, err := h.database.DeleteExposuresBefore(timeoutCtx, cutoff)
 	if err != nil {
 		message := fmt.Sprintf("Failed deleting exposures: %v", err)
 		logger.Error(message)

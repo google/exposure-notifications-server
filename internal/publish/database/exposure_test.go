@@ -126,20 +126,20 @@ func TestExposures(t *testing.T) {
 	}
 
 	// Delete some exposures.
-	gotN, err := testPublishDB.DeleteExposures(ctx, exposures[2].CreatedAt)
+	gotN, err := testPublishDB.DeleteExposuresBefore(ctx, exposures[2].CreatedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantN := int64(2) // The DeleteExposures time is exclusive, so we expect only the first two were deleted.
+	wantN := int64(2) // The DeleteExposuresBefore time is exclusive, so we expect only the first two were deleted.
 	if gotN != wantN {
-		t.Errorf("DeleteExposures: deleted %d, want %d", gotN, wantN)
+		t.Errorf("DeleteExposuresBefore: deleted %d, want %d", gotN, wantN)
 	}
 	got, err := listExposures(ctx, testPublishDB, IterateExposuresCriteria{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if diff := cmp.Diff(exposures[2:], got); diff != "" {
-		t.Errorf("DeleteExposures: mismatch (-want, +got):\n%s", diff)
+		t.Errorf("DeleteExposuresBefore: mismatch (-want, +got):\n%s", diff)
 	}
 }
 
