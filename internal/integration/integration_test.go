@@ -103,7 +103,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		MinRecords:     1,
 		PaddingRange:   1,
 		MaxRecords:     10000,
-		TruncateWindow: 1 * time.Second,
+		TruncateWindow: 1 * time.Millisecond,
 		MinWindowAge:   1 * time.Second,
 		TTL:            336 * time.Hour,
 	}
@@ -130,7 +130,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		MinRequestDuration:      50 * time.Millisecond,
 		MaxKeysOnPublish:        15,
 		MaxIntervalAge:          360 * time.Hour,
-		TruncateWindow:          1 * time.Hour,
+		TruncateWindow:          1 * time.Second,
 		DebugAPIResponses:       true,
 		DebugReleaseSameDayKeys: true,
 	}

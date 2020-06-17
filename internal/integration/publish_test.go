@@ -15,35 +15,42 @@
 package integration
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	exportapi "github.com/google/exposure-notifications-server/internal/export"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
+	"github.com/google/exposure-notifications-server/internal/pb/export"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
+	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/util"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestPublish(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
+
 	env, client := testServer(t)
 	db := env.Database()
+	enClient := &EnServerClient{client: client}
 
 	// Create an authorized app.
 	aa := env.AuthorizedAppProvider()
 	if err := aa.Add(ctx, &authorizedappmodel.AuthorizedApp{
 		AppPackageName: "com.example.app",
 		AllowedRegions: map[string]struct{}{
-			"US": {},
+			"TEST": {},
 		},
 		AllowedHealthAuthorityIDs: map[int64]struct{}{
 			12345: {},
@@ -66,42 +73,29 @@ func TestPublish(t *testing.T) {
 	}
 
 	// Create an export config.
+	exportPeriod := 2 * time.Second
 	ec := &exportmodel.ExportConfig{
 		BucketName:       "my-bucket",
-		Period:           1 * time.Second,
-		OutputRegion:     "US",
+		Period:           exportPeriod,
+		OutputRegion:     "TEST",
 		From:             time.Now().Add(-2 * time.Second),
 		Thru:             time.Now().Add(1 * time.Hour),
-		SignatureInfoIDs: []int64{si.ID},
+		SignatureInfoIDs: []int64{},
 	}
 	if err := exportdatabase.New(db).AddExportConfig(ctx, ec); err != nil {
 		t.Fatal(err)
 	}
 
-	payload := &verifyapi.Publish{
+	payload := verifyapi.Publish{
 		Keys:           util.GenerateExposureKeys(3, -1, false),
-		Regions:        []string{"US"},
+		Regions:        []string{"TEST"},
 		AppPackageName: "com.example.app",
 
 		// TODO: hook up verification
 		VerificationPayload: "TODO",
 	}
 
-	var body bytes.Buffer
-	if err := json.NewEncoder(&body).Encode(payload); err != nil {
-		t.Fatal(err)
-	}
-
-	resp, err := client.Post("/publish", "application/json", &body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	// Ensure we get a successful response code.
-	if got, want := resp.StatusCode, http.StatusOK; got != want {
-		t.Errorf("expected %v to be %v", got, want)
-	}
+	enClient.PublishKeys(t, payload)
 
 	// Look up the exposures in the database.
 	criteria := publishdb.IterateExposuresCriteria{
@@ -120,25 +114,104 @@ func TestPublish(t *testing.T) {
 		t.Errorf("expected %v to be %v: %#v", got, want, exposures)
 	}
 
-	// Create an export.
-	resp, err = client.Get("/export/create-batches")
-	if err != nil {
-		t.Fatal(err)
+	t.Logf("Waiting %v before export batches", exportPeriod+1*time.Second)
+	time.Sleep(exportPeriod + 1*time.Second)
+	enClient.ExportBatches(t)
+
+	t.Logf("Waiting %v before starting workers", 500*time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
+	enClient.StartExportWorkers(t)
+
+	keyExport := getKeysFromLatestBatch(t, "my-bucket", ctx, env)
+
+	got := keyExport
+
+	wantedKeysMap := make(map[string]*export.TemporaryExposureKey)
+	for _, key := range payload.Keys {
+		wantedKeysMap[key.Key] = &export.TemporaryExposureKey{
+			KeyData:                    util.DecodeKey(key.Key),
+			TransmissionRiskLevel:      proto.Int32(int32(key.TransmissionRisk)),
+			RollingStartIntervalNumber: proto.Int32(key.IntervalNumber),
+		}
 	}
-	defer resp.Body.Close()
 
-	resp, err = client.Get("/export/do-work")
-	if err != nil {
-		t.Fatal(err)
+	want := &export.TemporaryExposureKeyExport{
+		Region:    proto.String("TEST"),
+		BatchNum:  proto.Int32(1),
+		BatchSize: proto.Int32(1),
 	}
-	defer resp.Body.Close()
 
-	// TODO: verify export has the correct file
-	// b, err := env.Blobstore().GetObject(ctx, "my-bucket", "index.txt")
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// _ = b
+	if *want.BatchSize != *got.BatchSize {
+		t.Errorf("Invalid BatchSize: want: %v, got: %v", *want.BatchSize, *got.BatchSize)
+	}
 
+	if *want.BatchNum != *got.BatchNum {
+		t.Errorf("Invalid BatchNum: want: %v, got: %v", *want.BatchNum, *got.BatchNum)
+	}
+
+	if *want.Region != *got.Region {
+		t.Errorf("Invalid Region: want: %v, got: %v", *want.BatchSize, *got.BatchSize)
+	}
+
+	for _, key := range got.Keys {
+		s := util.ToBase64(key.KeyData)
+		wantedKey := wantedKeysMap[s]
+		diff := cmp.Diff(wantedKey, key, cmpopts.IgnoreUnexported(export.TemporaryExposureKey{}))
+		if diff != "" {
+			t.Errorf("invalid key value: %v:%v", s, diff)
+		}
+	}
+
+	bytes, err := json.MarshalIndent(got, "", "")
+	if err != nil {
+		t.Fatalf("can't marshal json results: %v", err)
+	}
+
+	t.Logf("%v", string(bytes))
 	// TODO: verify signature
+}
+
+func getKeysFromLatestBatch(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv) *export.TemporaryExposureKeyExport {
+	readmeBlob, err := env.Blobstore().GetObject(ctx, exportDir, "index.txt")
+	if err != nil {
+		t.Fatalf("Can't file index.txt in blobstore: %v", err)
+	}
+
+	exportFile := getLatestFile(readmeBlob)
+	if exportFile == "" {
+		t.Fatalf("Can't find export files in blobstore: %v", exportDir)
+	}
+
+	t.Logf("Reading keys data from: %v", exportFile)
+
+	blob, err := env.Blobstore().GetObject(ctx, exportDir, exportFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	keyExport, err := exportapi.UnmarshalExportFile(blob)
+	if err != nil {
+		t.Fatalf("can't extract export data: %v", err)
+	}
+
+	return keyExport
+}
+
+func getLatestFile(indexBlob []byte) string {
+	files := strings.Split(string(indexBlob), "\n")
+
+	latestFileName := ""
+	for _, fileName := range files {
+		if strings.HasSuffix(fileName, "zip") {
+			if latestFileName == "" {
+				latestFileName = fileName
+			} else {
+				if fileName > latestFileName {
+					latestFileName = fileName
+				}
+			}
+		}
+	}
+
+	return latestFileName
 }
