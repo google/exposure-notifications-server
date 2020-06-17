@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/verification"
@@ -29,14 +30,16 @@ import (
 var _ setup.AuthorizedAppConfigProvider = (*Config)(nil)
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
 var _ setup.SecretManagerConfigProvider = (*Config)(nil)
+var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.
 type Config struct {
-	AuthorizedApp authorizedapp.Config
-	Database      database.Config
-	SecretManager secrets.Config
-	Verification  verification.Config
+	AuthorizedApp         authorizedapp.Config
+	Database              database.Config
+	SecretManager         secrets.Config
+	Verification          verification.Config
+	ObservabilityExporter observability.Config
 
 	Port               string        `env:"PORT, default=8080"`
 	MinRequestDuration time.Duration `env:"TARGET_REQUEST_DURATION, default=5s"`
@@ -59,4 +62,8 @@ func (c *Config) DatabaseConfig() *database.Config {
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
 	return &c.SecretManager
+}
+
+func (c *Config) ObservabilityExporterConfig() *observability.Config {
+	return &c.ObservabilityExporter
 }

@@ -23,12 +23,19 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/sethvargo/go-envconfig/pkg/envconfig"
 )
+
+// AuthorizedAppConfigProvider signals that the config provided knows how to
+// configure authorized apps.
+type AuthorizedAppConfigProvider interface {
+	AuthorizedAppConfig() *authorizedapp.Config
+}
 
 // BlobstoreConfigProvider provides the information about current storage
 // configuration.
@@ -42,16 +49,16 @@ type DatabaseConfigProvider interface {
 	DatabaseConfig() *database.Config
 }
 
-// AuthorizedAppConfigProvider signals that the config provided knows how to
-// configure authorized apps.
-type AuthorizedAppConfigProvider interface {
-	AuthorizedAppConfig() *authorizedapp.Config
-}
-
 // KeyManagerConfigProvider is a marker interface indicating the key manager
 // should be installed.
 type KeyManagerConfigProvider interface {
 	KeyManagerConfig() *signing.Config
+}
+
+// ObservabilityExporterConfigProvider signals that the config knows how to configure an
+// observability exporter.
+type ObservabilityExporterConfigProvider interface {
+	ObservabilityExporterConfig() *observability.Config
 }
 
 // SecretManagerConfigProvider signals that the config knows how to configure a
@@ -151,6 +158,21 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		return nil, fmt.Errorf("error loading environment variables: %w", err)
 	}
 	logger.Infow("provided", "config", config)
+
+	// Configure and initialize the observability exporter.
+	if provider, ok := config.(ObservabilityExporterConfigProvider); ok {
+		logger.Info("configuring observability exporter")
+		oeConfig := provider.ObservabilityExporterConfig()
+		oe, err := observability.NewFromEnv(ctx, oeConfig)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create ObservabilityExporter provider: %v", err)
+		}
+		oe.InitExportOnce()
+
+		serverEnvOpts = append(serverEnvOpts, serverenv.WithObservabilityExporter(oe))
+
+		logger.Infow("observability exporter", "config", oeConfig)
+	}
 
 	// Configure blob storage.
 	if provider, ok := config.(BlobstoreConfigProvider); ok {
