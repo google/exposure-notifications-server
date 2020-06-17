@@ -375,14 +375,18 @@ func (db *ExportDB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportCo
 		LIMIT 1
 		`, ec.ConfigID)
 
-	var latestEnd time.Time
+	var latestEnd sql.NullTime
 	if err := row.Scan(&latestEnd); err != nil {
 		if err == pgx.ErrNoRows {
 			return time.Time{}, nil
 		}
 		return time.Time{}, fmt.Errorf("scanning result: %w", err)
 	}
-	return latestEnd, nil
+
+	if !latestEnd.Valid {
+		return time.Time{}, nil
+	}
+	return latestEnd.Time, nil
 }
 
 // ListLatestExportBatchEnds returns a map of export config IDs to their latest
