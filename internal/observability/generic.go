@@ -16,6 +16,7 @@
 package observability
 
 import (
+	"fmt"
 	"sync"
 
 	"go.opencensus.io/plugin/ocgrpc"
@@ -41,13 +42,17 @@ type GenericExporter struct {
 	sampleRate float64
 }
 
-func (g *GenericExporter) InitExportOnce() {
-	initExporterOnce.Do(g.initExporter)
+func (g *GenericExporter) InitExportOnce() error {
+	var err error
+	initExporterOnce.Do(func() {
+		err = g.initExporter()
+	})
+	return err
 }
 
-func (g *GenericExporter) initExporter() {
+func (g *GenericExporter) initExporter() error {
 	if g.exporter == nil {
-		return
+		return nil
 	}
 	trace.ApplyConfig(trace.Config{
 		DefaultSampler: trace.ProbabilitySampler(g.sampleRate),
@@ -58,11 +63,12 @@ func (g *GenericExporter) initExporter() {
 	// Record the various HTTP view to collect metrics.
 	httpViews := append(ochttp.DefaultServerViews, ochttp.DefaultClientViews...)
 	if err := view.Register(httpViews...); err != nil {
-		panic(err)
+		return fmt.Errorf("failed to register http views for observability exporter: %v", err)
 	}
 	// Register the various gRPC views to collect metrics.
 	gRPCViews := append(ocgrpc.DefaultServerViews, ocgrpc.DefaultClientViews...)
 	if err := view.Register(gRPCViews...); err != nil {
-		panic(err)
+		return fmt.Errorf("failed to register grpc views for observability exporter: %v", err)
 	}
+	return nil
 }

@@ -21,4 +21,6 @@ var _ Exporter = (*NoopExporter)(nil)
 // NoopExporter is an observability exporter that does nothing.
 type NoopExporter struct{}
 
-func (g *NoopExporter) InitExportOnce() {}
+func (g *NoopExporter) InitExportOnce() error {
+	return nil
+}

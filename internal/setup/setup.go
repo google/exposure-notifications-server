@@ -167,7 +167,9 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		if err != nil {
 			return nil, fmt.Errorf("unable to create ObservabilityExporter provider: %v", err)
 		}
-		oe.InitExportOnce()
+		if err := oe.InitExportOnce(); err != nil {
+			return nil, fmt.Errorf("error initializing observability exporter: %v", err)
+		}
 
 		serverEnvOpts = append(serverEnvOpts, serverenv.WithObservabilityExporter(oe))
 

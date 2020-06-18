@@ -26,7 +26,7 @@ import (
 // Exporter defines the minimum shared functionality for an observability exporter
 // used by this application.
 type Exporter interface {
-	InitExportOnce()
+	InitExportOnce() error
 }
 
 // NewFromEnv returns the observability exporter given the provided configuration, or an error
