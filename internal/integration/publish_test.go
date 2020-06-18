@@ -36,7 +36,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func TestCleanup(t *testing.T) {
@@ -62,9 +61,9 @@ func TestCleanup(t *testing.T) {
 	firstPayload := newPayloads(3)
 	enClient.PublishKeys(t, firstPayload)
 	assertExposures(t, ctx, db, 3)
-	firstBatchKeys := sets.NewString()
+	firstBatchKeys := make(map[string]bool)
 	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
-		firstBatchKeys.Insert(string(m.ExposureKey))
+		firstBatchKeys[string(m.ExposureKey)] = true
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -77,7 +76,7 @@ func TestCleanup(t *testing.T) {
 	// Move the tick of first batch, and make them old
 	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
 		keyStr := string(m.ExposureKey)
-		if !firstBatchKeys.Has(keyStr) {
+		if _, ok := firstBatchKeys[keyStr]; !ok {
 			return nil
 		}
 		if _, err := publishdb.New(db).DeleteExposure(ctx, m.ExposureKey); err != nil {
@@ -205,7 +204,6 @@ func createSignatureInfo(ctx context.Context, db *database.DB, exportPeriod time
 	}
 
 	// Create an export config.
-	exportPeriod := 2 * time.Second
 	ec := &exportmodel.ExportConfig{
 		BucketName:       "my-bucket",
 		Period:           exportPeriod,
