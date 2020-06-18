@@ -13,11 +13,11 @@
 // limitations under the License.
 
 // Package secrets defines a minimum abstract interface for a secret manager.
-// Allows for a different implementation to be bound within the servernv.ServeEnv
+// Allows for a different implementation to be bound within the ServeEnv.
 //
-// Although exported, this package is non intended for general consumption.
-// It is a shared dependency between multiple exposure notifications projects.
-// We cannot guarantee that there won't be breaking changes in the future.
+// Although exported, this package is non intended for general consumption. It
+// is a shared dependency between multiple exposure notifications projects. We
+// cannot guarantee that there won't be breaking changes in the future.
 package secrets
 
 import (
