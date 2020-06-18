@@ -23,7 +23,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/secrets"
+	"github.com/google/exposure-notifications-server/pkg/secrets"
 	pgx "github.com/jackc/pgx/v4"
 )
 

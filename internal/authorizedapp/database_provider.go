@@ -27,7 +27,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/cache"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/secrets"
+	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
 // Compile-time check to assert implementation.
