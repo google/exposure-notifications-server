@@ -32,8 +32,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/setup"
-	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
@@ -52,7 +52,7 @@ type VerifyResponse struct {
 }
 
 type config struct {
-	KeyManager signing.Config
+	KeyManager keys.Config
 
 	SigningKey string `env:"SIGNING_KEY,required"`
 	KeyVersion string `env:"KEY_VERSION, default=1"`
@@ -63,7 +63,7 @@ type config struct {
 	ValidDuration time.Duration `env:"VALID_DURATION, default=5m"`
 }
 
-func (c *config) KeyManagerConfig() *signing.Config {
+func (c *config) KeyManagerConfig() *keys.Config {
 	return &c.KeyManager
 }
 

@@ -26,8 +26,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/setup"
-	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/sethvargo/go-envconfig/pkg/envconfig"
 )
@@ -62,9 +62,9 @@ func (t *testConfig) DatabaseConfig() *database.Config {
 	return t.Database
 }
 
-func (t *testConfig) KeyManagerConfig() *signing.Config {
-	return &signing.Config{
-		KeyManagerType: signing.KeyManagerType("NOOP"),
+func (t *testConfig) KeyManagerConfig() *keys.Config {
+	return &keys.Config{
+		KeyManagerType: keys.KeyManagerType("NOOP"),
 	}
 }
 
@@ -197,7 +197,7 @@ func TestSetupWith(t *testing.T) {
 			t.Errorf("expected key manager to exist")
 		}
 
-		if _, ok := km.(*signing.Noop); !ok {
+		if _, ok := km.(*keys.Noop); !ok {
 			t.Errorf("expected %T to be Noop", km)
 		}
 	})

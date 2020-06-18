@@ -27,7 +27,7 @@ import (
 // Compile-time check to verify implements interface.
 var _ KeyManager = (*AWSKMS)(nil)
 
-// AWSKMS implements the signing.KeyManager interface and can be used to sign
+// AWSKMS implements the keys.KeyManager interface and can be used to sign
 // export files using AWS KMS.
 type AWSKMS struct {
 	svc *kms.KMS

@@ -25,8 +25,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/sethvargo/go-envconfig/pkg/envconfig"
 )
@@ -52,7 +52,7 @@ type DatabaseConfigProvider interface {
 // KeyManagerConfigProvider is a marker interface indicating the key manager
 // should be installed.
 type KeyManagerConfigProvider interface {
-	KeyManagerConfig() *signing.Config
+	KeyManagerConfig() *keys.Config
 }
 
 // ObservabilityExporterConfigProvider signals that the config knows how to configure an
@@ -132,7 +132,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 	}
 
 	// Load the key manager.
-	var km signing.KeyManager
+	var km keys.KeyManager
 	if provider, ok := config.(KeyManagerConfigProvider); ok {
 		logger.Info("configuring key manager")
 
@@ -142,7 +142,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		}
 
 		var err error
-		km, err = signing.KeyManagerFor(ctx, kmConfig.KeyManagerType)
+		km, err = keys.KeyManagerFor(ctx, kmConfig.KeyManagerType)
 		if err != nil {
 			return nil, fmt.Errorf("unable to connect to key manager: %w", err)
 		}
