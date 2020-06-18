@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/signing"
@@ -30,14 +31,16 @@ var _ setup.BlobstoreConfigProvider = (*Config)(nil)
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
 var _ setup.KeyManagerConfigProvider = (*Config)(nil)
 var _ setup.SecretManagerConfigProvider = (*Config)(nil)
+var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the export components.
 type Config struct {
-	Database      database.Config
-	KeyManager    signing.Config
-	SecretManager secrets.Config
-	Storage       storage.Config
+	Database              database.Config
+	KeyManager            signing.Config
+	SecretManager         secrets.Config
+	Storage               storage.Config
+	ObservabilityExporter observability.Config
 
 	Port           string        `env:"PORT, default=8080"`
 	CreateTimeout  time.Duration `env:"CREATE_BATCHES_TIMEOUT, default=5m"`
@@ -64,4 +67,8 @@ func (c *Config) KeyManagerConfig() *signing.Config {
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
 	return &c.SecretManager
+}
+
+func (c *Config) ObservabilityExporterConfig() *observability.Config {
+	return &c.ObservabilityExporter
 }

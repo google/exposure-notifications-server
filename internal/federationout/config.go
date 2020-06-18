@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
@@ -25,11 +26,13 @@ import (
 // Compile-time check to assert this config matches requirements.
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
 var _ setup.SecretManagerConfigProvider = (*Config)(nil)
+var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
 
 // Config is the configuration for the federation components (data sent to other servers).
 type Config struct {
-	Database      database.Config
-	SecretManager secrets.Config
+	Database              database.Config
+	SecretManager         secrets.Config
+	ObservabilityExporter observability.Config
 
 	Port           string        `env:"PORT, default=8080"`
 	Timeout        time.Duration `env:"RPC_TIMEOUT, default=5m"`
@@ -53,4 +56,8 @@ func (c *Config) DatabaseConfig() *database.Config {
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
 	return &c.SecretManager
+}
+
+func (c *Config) ObservabilityExporterConfig() *observability.Config {
+	return &c.ObservabilityExporter
 }

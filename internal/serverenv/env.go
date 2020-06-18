@@ -23,6 +23,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
@@ -39,6 +40,7 @@ type ServerEnv struct {
 	exporter              metrics.ExporterFromContext
 	keyManager            signing.KeyManager
 	secretManager         secrets.SecretManager
+	observabilityExporter observability.Exporter
 }
 
 // Option defines function types to modify the ServerEnv on creation.
@@ -108,6 +110,14 @@ func WithBlobStorage(sto storage.Blobstore) Option {
 	}
 }
 
+// WithObservabilityExporter creates an Option to install a specific observability exporter system.
+func WithObservabilityExporter(oe observability.Exporter) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.observabilityExporter = oe
+		return s
+	}
+}
+
 func (s *ServerEnv) SecretManager() secrets.SecretManager {
 	return s.secretManager
 }
@@ -126,6 +136,10 @@ func (s *ServerEnv) AuthorizedAppProvider() authorizedapp.Provider {
 
 func (s *ServerEnv) Database() *database.DB {
 	return s.database
+}
+
+func (s *ServerEnv) ObservabilityExporter() observability.Exporter {
+	return s.observabilityExporter
 }
 
 // GetSignerForKey returns the crypto.Singer implementation to use based on the installed KeyManager.

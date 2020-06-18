@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/signing"
@@ -36,6 +37,7 @@ var _ setup.BlobstoreConfigProvider = (*testConfig)(nil)
 var _ setup.DatabaseConfigProvider = (*testConfig)(nil)
 var _ setup.KeyManagerConfigProvider = (*testConfig)(nil)
 var _ setup.SecretManagerConfigProvider = (*testConfig)(nil)
+var _ setup.ObservabilityExporterConfigProvider = (*testConfig)(nil)
 
 type testConfig struct {
 	Database   *database.Config
@@ -70,6 +72,12 @@ func (t *testConfig) SecretManagerConfig() *secrets.Config {
 	return &secrets.Config{
 		SecretManagerType: secrets.SecretManagerType("NOOP"),
 		SecretCacheTTL:    10 * time.Minute,
+	}
+}
+
+func (t *testConfig) ObservabilityExporterConfig() *observability.Config {
+	return &observability.Config{
+		ExporterType: observability.ExporterType("NOOP"),
 	}
 }
 
@@ -222,6 +230,29 @@ func TestSetupWith(t *testing.T) {
 
 		if got, want := config.SecretFile, tmp; !strings.Contains(got, want) {
 			t.Errorf("expected %v to contain %v", got, want)
+		}
+	})
+
+	t.Run("observability_exporter", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := context.Background()
+		_, dbconfig := database.NewTestDatabaseWithConfig(t)
+
+		config := &testConfig{Database: dbconfig}
+		env, err := setup.SetupWith(ctx, config, lookuper)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer env.Close(ctx)
+
+		oe := env.ObservabilityExporter()
+		if oe == nil {
+			t.Errorf("expected observability exporter to exist")
+		}
+
+		if _, ok := oe.(*observability.NoopExporter); !ok {
+			t.Errorf("expected %T to be GenericExporter", oe)
 		}
 	})
 }
