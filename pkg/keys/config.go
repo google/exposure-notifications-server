@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package signing
+package keys
 
 // KeyManagerType defines a specific key manager.
 type KeyManagerType string

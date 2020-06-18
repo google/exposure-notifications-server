@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package signing defines the interface to and implementation of signing
-package signing
+// package keys defines the interface to and implementation of signing
+package keys
 
 import (
 	"context"
