@@ -114,6 +114,13 @@ variable "service_environment" {
   description = "Per-service environment overrides."
 }
 
+variable "vpc_access_connector_max_throughput" {
+  type    = number
+  default = 1000
+
+  description = "Maximum provisioned traffic throughput in Mbps"
+}
+
 terraform {
   required_providers {
     google      = "~> 3.24"

@@ -75,11 +75,12 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 }
 
 resource "google_vpc_access_connector" "connector" {
-  project       = data.google_project.project.project_id
-  name          = "serverless-vpc-connector"
-  region        = var.network_location
-  network       = "default"
-  ip_cidr_range = "10.8.0.0/28"
+  project        = data.google_project.project.project_id
+  name           = "serverless-vpc-connector"
+  region         = var.network_location
+  network        = "default"
+  ip_cidr_range  = "10.8.0.0/28"
+  max_throughput = var.vpc_access_connector_max_throughput
 
   depends_on = [
     google_project_service.services["compute.googleapis.com"],
