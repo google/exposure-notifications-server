@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package signing
+package keys
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 // Compile-time check to verify implements interface.
 var _ KeyManager = (*GoogleCloudKMS)(nil)
 
-// GoogleCloudKMS implements the signing.KeyManager interface and can be used to sign
+// GoogleCloudKMS implements the keys.KeyManager interface and can be used to sign
 // export files.
 type GoogleCloudKMS struct {
 	client *kms.KeyManagementClient

@@ -21,14 +21,14 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 )
 
 // TestNewServer tests NewServer().
 func TestNewServer(t *testing.T) {
 	emptyStorage := &storage.GoogleCloudStorage{}
-	emptyKMS := &signing.GoogleCloudKMS{}
+	emptyKMS := &keys.GoogleCloudKMS{}
 	emptyDB := &database.DB{}
 	ctx := context.Background()
 

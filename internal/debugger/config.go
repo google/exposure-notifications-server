@@ -17,10 +17,10 @@ package debugger
 import (
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/setup"
-	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/keys"
+	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
 // Compile-time check to assert this config matches requirements.
@@ -34,7 +34,7 @@ var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 type Config struct {
 	AuthorizedApp authorizedapp.Config
 	Database      database.Config
-	KeyManager    signing.Config
+	KeyManager    keys.Config
 	SecretManager secrets.Config
 	Storage       storage.Config
 
@@ -53,7 +53,7 @@ func (c *Config) DatabaseConfig() *database.Config {
 	return &c.Database
 }
 
-func (c *Config) KeyManagerConfig() *signing.Config {
+func (c *Config) KeyManagerConfig() *keys.Config {
 	return &c.KeyManager
 }
 

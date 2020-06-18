@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package signing
+package keys
 
 import (
 	"context"
@@ -36,7 +36,7 @@ import (
 var _ KeyManager = (*AzureKeyVault)(nil)
 var _ crypto.Signer = (*AzureKeyVaultSigner)(nil)
 
-// AzureKeyVault implements the signing.KeyManager interface and can be used to
+// AzureKeyVault implements the keys.KeyManager interface and can be used to
 // sign export files.
 type AzureKeyVault struct {
 	client *keyvault.BaseClient

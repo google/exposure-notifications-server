@@ -26,11 +26,11 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	"github.com/google/exposure-notifications-server/internal/publish"
-	"github.com/google/exposure-notifications-server/internal/secrets"
 	"github.com/google/exposure-notifications-server/internal/server"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/google/exposure-notifications-server/internal/signing"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/keys"
+	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
 func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
@@ -50,7 +50,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 
 	db := database.NewTestDatabase(tb)
 
-	km, err := signing.NewNoop(ctx)
+	km, err := keys.NewNoop(ctx)
 	if err != nil {
 		tb.Fatal(err)
 	}

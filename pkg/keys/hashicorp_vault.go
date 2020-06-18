@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package signing
+package keys
 
 import (
 	"context"
@@ -34,7 +34,7 @@ import (
 var _ KeyManager = (*HashiCorpVault)(nil)
 var _ crypto.Signer = (*HashiCorpVaultSigner)(nil)
 
-// HashiCorpVault implements the signing.KeyManager interface and can be used to
+// HashiCorpVault implements the keys.KeyManager interface and can be used to
 // sign export files.
 type HashiCorpVault struct {
 	client *vaultapi.Client
