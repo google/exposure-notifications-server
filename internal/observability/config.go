@@ -41,7 +41,7 @@ type OpenCensusConfig struct {
 
 // StackdriverConfig holds the configuration options for the stackdriver exporter
 type StackdriverConfig struct {
-	ProjectID string `env:"PROJECT_ID, default:$GOOGLE_CLOUD_PROJECT"`
+	ProjectID string `env:"PROJECT_ID, default=$GOOGLE_CLOUD_PROJECT"`
 }
 
 // OCAgentConfig holds the configuration options for the default opencensus exporter
