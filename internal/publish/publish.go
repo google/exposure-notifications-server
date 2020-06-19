@@ -120,8 +120,8 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		message := fmt.Sprintf("no AuthorizedApp, dropping data: %v", err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{
-			status:      http.StatusInternalServerError,
-			message:     http.StatusText(http.StatusInternalServerError),
+			status:      http.StatusUnauthorized,
+			message:     message,
 			metric:      "publish-error-loading-authorizedapp",
 			count:       1,
 			errorInProd: true,
