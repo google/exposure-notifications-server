@@ -75,8 +75,7 @@ func TestCleanup(t *testing.T) {
 
 	// Move the tick of first batch, and make them old
 	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
-		keyStr := string(m.ExposureKey)
-		if _, ok := firstBatchKeys[keyStr]; !ok {
+		if _, ok := firstBatchKeys[string(m.ExposureKey)]; !ok {
 			return nil
 		}
 		if _, err := publishdb.New(db).DeleteExposure(ctx, m.ExposureKey); err != nil {
@@ -246,18 +245,6 @@ func assertExposures(t *testing.T, ctx context.Context, db *database.DB, want in
 	if want != got {
 		t.Errorf("Want: %d, got: %d", want, got)
 	}
-}
-
-func getKeysFromAllBatches(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv) []*export.TemporaryExposureKeyExport {
-	var res []*export.TemporaryExposureKeyExport
-	exportFiles := getAllBatchesFiles(t, exportDir, ctx, env)
-	t.Log("all files:", exportFiles)
-
-	for _, exportFile := range exportFiles {
-		e := readKeyExportFromBlob(t, exportDir, exportFile, ctx, env)
-		res = append(res, e)
-	}
-	return res
 }
 
 func getKeysFromLatestBatch(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv) *export.TemporaryExposureKeyExport {
