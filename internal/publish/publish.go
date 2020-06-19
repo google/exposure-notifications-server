@@ -96,9 +96,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	var data verifyapi.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
-		// Log the unparsable JSON, but return success to the client.
 		message := fmt.Sprintf("error unmarshaling API call, code: %v: %v", code, err)
-		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{status: http.StatusBadRequest, message: message, metric: "publish-bad-json", count: 1}
 	}
@@ -110,7 +108,6 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		// refreshed.
 		if errors.Is(err, authorizedapp.ErrAppNotFound) {
 			message := fmt.Sprintf("unauthorized app: %v", data.AppPackageName)
-			logger.Error(message)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-app-not-authorized", count: 1}
 		}
@@ -120,12 +117,11 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		// isn't transient.
 		// This message (and logging) will only contain the AppPkgName from the request
 		// and no other data from the request.
-		msg := fmt.Sprintf("no AuthorizedApp, dropping data: %v", err)
-		logger.Error(msg)
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: msg})
+		message := fmt.Sprintf("no AuthorizedApp, dropping data: %v", err)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{
-			status:      http.StatusInternalServerError,
-			message:     http.StatusText(http.StatusInternalServerError),
+			status:      http.StatusUnauthorized,
+			message:     message,
 			metric:      "publish-error-loading-authorizedapp",
 			count:       1,
 			errorInProd: true,
@@ -155,7 +151,6 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 			metrics.WriteInt("publish-health-authority-verification-bypassed", true, 1)
 		} else {
 			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
-			logger.Error(message)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
 			return response{status: http.StatusUnauthorized, message: message, metric: "publish-bad-verification", count: 1}
 		}
@@ -170,7 +165,6 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	exposures, err := h.transformer.TransformPublish(ctx, &data, batchTime)
 	if err != nil {
 		message := fmt.Sprintf("unable to read request data: %v", err)
-		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
 		return response{status: http.StatusBadRequest, message: message, metric: "publish-transform-fail", count: 1}
 	}
@@ -178,7 +172,6 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	err = h.database.InsertExposures(ctx, exposures)
 	if err != nil {
 		message := fmt.Sprintf("error writing exposure record: %v", err)
-		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{status: http.StatusInternalServerError, message: http.StatusText(http.StatusInternalServerError), metric: "publish-db-write-error", count: 1}
 	}
@@ -205,24 +198,6 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		metrics.WriteInt(response.metric, true, response.count)
 	}
 
-	// Handle success. If debug enabled, write the message in the response.
-	if response.status == http.StatusOK {
-		if h.config.DebugAPIResponses {
-			fmt.Fprint(w, response.message)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
-		return
-	}
-
-	// If this error is written in non-debug times or if debug is enabled, write
-	// out the error and status.
-	if h.config.DebugAPIResponses || response.errorInProd {
-		w.WriteHeader(response.status)
-		fmt.Fprint(w, response.message)
-		return
-	}
-
-	// Normal production behavior. Success it up.
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(response.status)
+	fmt.Fprint(w, response.message)
 }

@@ -127,11 +127,9 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 
 	// Publish
 	publishConfig := &publish.Config{
-		MinRequestDuration:      50 * time.Millisecond,
 		MaxKeysOnPublish:        15,
 		MaxIntervalAge:          360 * time.Hour,
 		TruncateWindow:          1 * time.Second,
-		DebugAPIResponses:       true,
 		DebugReleaseSameDayKeys: true,
 	}
 

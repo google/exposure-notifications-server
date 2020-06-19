@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/exposure-notifications-server/internal/handlers"
 	"github.com/google/exposure-notifications-server/internal/interrupt"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	_ "github.com/google/exposure-notifications-server/internal/observability"
@@ -55,7 +54,7 @@ func realMain(ctx context.Context) error {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/", handlers.WithMinimumLatency(config.MinRequestDuration, handler))
+	mux.Handle("/", handler)
 
 	srv, err := server.New(config.Port)
 	if err != nil {

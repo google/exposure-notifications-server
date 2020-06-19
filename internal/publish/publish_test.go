@@ -339,10 +339,8 @@ func TestPublishWithBypass(t *testing.T) {
 
 			// And set up publish handler up front.
 			config := Config{}
-			config.MinRequestDuration = time.Millisecond
 			config.AuthorizedApp.CacheDuration = time.Nanosecond
 			config.TruncateWindow = time.Second
-			config.DebugAPIResponses = true
 			config.MaxKeysOnPublish = 14
 			config.MaxIntervalAge = 14 * 24 * time.Hour
 			aaProvider, err := authorizedapp.NewDatabaseProvider(ctx, testDB, config.AuthorizedAppConfig())
