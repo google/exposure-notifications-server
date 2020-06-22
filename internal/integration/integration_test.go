@@ -33,6 +33,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
+// testServer sets up mocked local servers for running tests
 func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	tb.Helper()
 

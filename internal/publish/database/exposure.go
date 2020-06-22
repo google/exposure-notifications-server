@@ -222,8 +222,31 @@ func (db *PublishDB) InsertExposures(ctx context.Context, exposures []*model.Exp
 	})
 }
 
-// DeleteExposures deletes exposures created before "before" date. Returns the number of records deleted.
-func (db *PublishDB) DeleteExposures(ctx context.Context, before time.Time) (int64, error) {
+// DeleteExposure deletes exposure
+func (db *PublishDB) DeleteExposure(ctx context.Context, exposureKey []byte) (int64, error) {
+	var count int64
+	// ReadCommitted is sufficient here because we are dealing with historical, immutable rows.
+	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			DELETE FROM
+				Exposure
+			WHERE
+				exposure_key = $1
+			`, encodeExposureKey(exposureKey))
+		if err != nil {
+			return fmt.Errorf("deleting exposures: %v", err)
+		}
+		count = result.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// DeleteExposuresBefore deletes exposures created before "before" date. Returns the number of records deleted.
+func (db *PublishDB) DeleteExposuresBefore(ctx context.Context, before time.Time) (int64, error) {
 	var count int64
 	// ReadCommitted is sufficient here because we are dealing with historical, immutable rows.
 	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {

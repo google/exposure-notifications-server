@@ -71,6 +71,22 @@ func (server EnServerClient) PublishKeys(t *testing.T, request verifyapi.Publish
 	t.Logf("Publish request is sent to %v", "/publish")
 }
 
+func (server EnServerClient) CleanupExposures(t *testing.T) {
+	resp, err := server.getRequest("/cleanup-exposure")
+	if err != nil {
+		t.Fatalf("request failed: %v, %v", err, resp)
+	}
+	t.Logf("Cleanup exposures request is sent to /cleanup-exposure")
+}
+
+func (server EnServerClient) CleanupExports(t *testing.T) {
+	resp, err := server.getRequest("/cleanup-export")
+	if err != nil {
+		t.Fatalf("request failed: %v, %v", err, resp)
+	}
+	t.Logf("Cleanup exports request is sent to /cleanup-export")
+}
+
 func (server EnServerClient) ExportBatches(t *testing.T) {
 	resp, err := server.getRequest("/export/create-batches")
 	if err != nil {
@@ -94,7 +110,7 @@ func unwrapResponse(resp *http.Response) (*http.Response, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to copy error body (%d): %w", resp.StatusCode, err)
 		}
-		return resp, fmt.Errorf("request failed with status: %v\n%v", resp.StatusCode, body)
+		return resp, fmt.Errorf("request failed with status: %v\n%v", resp.StatusCode, string(body))
 	}
 	return resp, nil
 }
