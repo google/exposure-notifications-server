@@ -33,12 +33,13 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/util"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
 )
 
-func TestCleanup(t *testing.T) {
+func TestCleanupExposure(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -59,38 +60,59 @@ func TestCleanup(t *testing.T) {
 	createSignatureInfo(ctx, db, exportPeriod, t)
 
 	firstPayload := newPayloads(3)
+	firstBatchKeys := keysTransformation(t, firstPayload.Keys)
+
 	enClient.PublishKeys(t, firstPayload)
+	// This is one time check to ensure the logic of `keysTransformation` is
+	// consistent with business logic in the server
+	assertKeysTransformation(t, ctx, db, criteria, firstBatchKeys)
+
 	assertExposures(t, ctx, db, 3)
-	firstBatchKeys := make(map[string]bool)
-	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
-		firstBatchKeys[string(m.ExposureKey)] = true
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
 
 	secondPayload := newPayloads(3)
 	enClient.PublishKeys(t, secondPayload)
 	assertExposures(t, ctx, db, 6)
 
-	// Move the tick of first batch, and make them old
-	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
-		if _, ok := firstBatchKeys[string(m.ExposureKey)]; !ok {
-			return nil
-		}
-		if _, err := publishdb.New(db).DeleteExposure(ctx, m.ExposureKey); err != nil {
-			return fmt.Errorf("failed deleting exposure %v: %v", m.ExposureKey, err)
-		}
-		m.CreatedAt = m.CreatedAt.Add(-366 * time.Hour)
-		if err := publishdb.New(db).InsertExposures(ctx, []*publishmodel.Exposure{m}); err != nil {
-			return fmt.Errorf("failed inserting exposure %v with updated creation time: %v",
-				m.ExposureKey, err)
-		}
-		return nil
-	}); err != nil {
-		t.Fatal(err)
+	alterExposureCreatedAt(t, ctx, db, criteria, firstBatchKeys, -366*time.Hour)
+	enClient.CleanupExposures(t)
+	assertExposures(t, ctx, db, 3)
+}
+
+func TestCleanupExport(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	env, client := testServer(t)
+	db := env.Database()
+	enClient := &EnServerClient{client: client}
+
+	exportPeriod := 2 * time.Second
+	criteria := publishdb.IterateExposuresCriteria{
+		OnlyLocalProvenance: false,
 	}
 
+	// Create an authorized app.
+	startAuthorizedApp(ctx, env, t)
+
+	// Create a signature info.
+	createSignatureInfo(ctx, db, exportPeriod, t)
+
+	firstPayload := newPayloads(3)
+	firstBatchKeys := keysTransformation(t, firstPayload.Keys)
+
+	enClient.PublishKeys(t, firstPayload)
+	// This is one time check to ensure the logic of `keysTransformation` is
+	// consistent with business logic in the server
+	assertKeysTransformation(t, ctx, db, criteria, firstBatchKeys)
+
+	assertExposures(t, ctx, db, 3)
+
+	secondPayload := newPayloads(3)
+	enClient.PublishKeys(t, secondPayload)
+	assertExposures(t, ctx, db, 6)
+
+	alterExposureCreatedAt(t, ctx, db, criteria, firstBatchKeys, -366*time.Hour)
 	enClient.CleanupExposures(t)
 	assertExposures(t, ctx, db, 3)
 }
@@ -128,32 +150,76 @@ func TestPublish(t *testing.T) {
 	keyExport := getKeysFromLatestBatch(t, "my-bucket", ctx, env)
 
 	got := keyExport
+	wantedKeysMap, wantedExport := wantFromKeys(payload.Keys, 1, 1)
+	assertExports(t, wantedKeysMap, wantedExport, got)
+	bytes, err := json.MarshalIndent(got, "", "")
+	if err != nil {
+		t.Fatalf("can't marshal json results: %v", err)
+	}
 
-	wantedKeysMap := make(map[string]*export.TemporaryExposureKey)
-	for _, key := range payload.Keys {
-		wantedKeysMap[key.Key] = &export.TemporaryExposureKey{
-			KeyData:                    util.DecodeKey(key.Key),
-			TransmissionRiskLevel:      proto.Int32(int32(key.TransmissionRisk)),
-			RollingStartIntervalNumber: proto.Int32(key.IntervalNumber),
+	t.Logf("%v", string(bytes))
+	// TODO: verify signature
+}
+
+// keysTransformation transforms []verifyapi.ExposureKey to string keys, this
+// function assumes that server saves keys with the same method. This can be
+// verified by `assertKeysTransformation` function below
+func keysTransformation(t *testing.T, keys []verifyapi.ExposureKey) map[string]bool {
+	res := make(map[string]bool)
+	for _, p := range keys {
+		dec, err := base64util.DecodeString(p.Key)
+		if err != nil {
+			t.Fatalf("Failed to decode key %q: %v", p.Key, err)
 		}
+		res[string(dec)] = true
+	}
+	return res
+}
+
+func assertKeysTransformation(t *testing.T, ctx context.Context, db *database.DB, criteria publishdb.IterateExposuresCriteria, generatedKeys map[string]bool) {
+	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
+		if _, ok := generatedKeys[string(m.ExposureKey)]; ok {
+			generatedKeys[string(m.ExposureKey)] = false
+		} else {
+			return fmt.Errorf("key %q doesn't belong to generated keys: %v", string(m.ExposureKey), generatedKeys)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func alterExposureCreatedAt(t *testing.T, ctx context.Context, db *database.DB, criteria publishdb.IterateExposuresCriteria, keys map[string]bool, timeDelta time.Duration) {
+	// Move the tick of first batch, and make them old
+	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
+		if _, ok := keys[string(m.ExposureKey)]; !ok {
+			return nil
+		}
+		if _, err := publishdb.New(db).DeleteExposure(ctx, m.ExposureKey); err != nil {
+			return fmt.Errorf("failed deleting exposure %v: %v", m.ExposureKey, err)
+		}
+		m.CreatedAt = m.CreatedAt.Add(timeDelta)
+		if err := publishdb.New(db).InsertExposures(ctx, []*publishmodel.Exposure{m}); err != nil {
+			return fmt.Errorf("failed inserting exposure %v with updated creation time: %v",
+				m.ExposureKey, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func assertExports(t *testing.T, wantedKeysMap map[string]*export.TemporaryExposureKey, wantExport *export.TemporaryExposureKeyExport, got *export.TemporaryExposureKeyExport) {
+	if *wantExport.BatchSize != *got.BatchSize {
+		t.Errorf("Invalid BatchSize: want: %v, got: %v", *wantExport.BatchSize, *got.BatchSize)
 	}
 
-	want := &export.TemporaryExposureKeyExport{
-		Region:    proto.String("TEST"),
-		BatchNum:  proto.Int32(1),
-		BatchSize: proto.Int32(1),
+	if *wantExport.BatchNum != *got.BatchNum {
+		t.Errorf("Invalid BatchNum: want: %v, got: %v", *wantExport.BatchNum, *got.BatchNum)
 	}
 
-	if *want.BatchSize != *got.BatchSize {
-		t.Errorf("Invalid BatchSize: want: %v, got: %v", *want.BatchSize, *got.BatchSize)
-	}
-
-	if *want.BatchNum != *got.BatchNum {
-		t.Errorf("Invalid BatchNum: want: %v, got: %v", *want.BatchNum, *got.BatchNum)
-	}
-
-	if *want.Region != *got.Region {
-		t.Errorf("Invalid Region: want: %v, got: %v", *want.BatchSize, *got.BatchSize)
+	if *wantExport.Region != *got.Region {
+		t.Errorf("Invalid Region: want: %v, got: %v", *wantExport.BatchSize, *got.BatchSize)
 	}
 
 	for _, key := range got.Keys {
@@ -164,14 +230,25 @@ func TestPublish(t *testing.T) {
 			t.Errorf("invalid key value: %v:%v", s, diff)
 		}
 	}
+}
 
-	bytes, err := json.MarshalIndent(got, "", "")
-	if err != nil {
-		t.Fatalf("can't marshal json results: %v", err)
+func wantFromKeys(keys []verifyapi.ExposureKey, batchNum, batchSize int32) (map[string]*export.TemporaryExposureKey, *export.TemporaryExposureKeyExport) {
+	wantedKeysMap := make(map[string]*export.TemporaryExposureKey)
+	for _, key := range keys {
+		wantedKeysMap[key.Key] = &export.TemporaryExposureKey{
+			KeyData:                    util.DecodeKey(key.Key),
+			TransmissionRiskLevel:      proto.Int32(int32(key.TransmissionRisk)),
+			RollingStartIntervalNumber: proto.Int32(key.IntervalNumber),
+		}
 	}
 
-	t.Logf("%v", string(bytes))
-	// TODO: verify signature
+	wantExport := &export.TemporaryExposureKeyExport{
+		Region:    proto.String("TEST"),
+		BatchNum:  proto.Int32(batchNum),
+		BatchSize: proto.Int32(batchSize),
+	}
+
+	return wantedKeysMap, wantExport
 }
 
 func startAuthorizedApp(ctx context.Context, env *serverenv.ServerEnv, t *testing.T) {
@@ -245,6 +322,18 @@ func assertExposures(t *testing.T, ctx context.Context, db *database.DB, want in
 	if want != got {
 		t.Errorf("Want: %d, got: %d", want, got)
 	}
+}
+
+func getKeysFromAllBatches(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv) []*export.TemporaryExposureKeyExport {
+	var res []*export.TemporaryExposureKeyExport
+	exportFiles := getAllBatchesFiles(t, exportDir, ctx, env)
+	t.Log("all files:", exportFiles)
+
+	for _, exportFile := range exportFiles {
+		e := readKeyExportFromBlob(t, exportDir, exportFile, ctx, env)
+		res = append(res, e)
+	}
+	return res
 }
 
 func getKeysFromLatestBatch(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv) *export.TemporaryExposureKeyExport {
