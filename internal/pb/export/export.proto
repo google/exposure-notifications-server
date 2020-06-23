@@ -41,8 +41,15 @@ message TemporaryExposureKeyExport {
   // Information about signatures
   repeated SignatureInfo signature_infos = 6;
 
-  // The TemporaryExposureKeys themselves
+  // The TemporaryExposureKeys for initial release of keys.
+  // Keys should be included in this list for initial release,
+  // whereas revised or revoked keys should go in revised_keys.
   repeated TemporaryExposureKey keys = 7;
+
+  // TemporaryExposureKeys that have changed status.
+  // Keys should be included in this list if they have changed status
+  // or have been revoked.
+  repeated TemporaryExposureKey revised_keys = 8;
 }
 
 message SignatureInfo {
@@ -55,7 +62,8 @@ message SignatureInfo {
   optional string verification_key_version = 3;
   // Alias with which to identify public key to be used for verification
   // Must be in character class [a-zA-Z0-9_]
-  // For cross-compatibility with Apple, use MCC (https://en.wikipedia.org/wiki/Mobile_country_code)
+  // For cross-compatibility with Apple, use MCC
+  // (https://en.wikipedia.org/wiki/Mobile_country_code).
   optional string verification_key_id = 4;
   // ASN.1 OID for Algorithm Identifier. Supported algorithms are
   // either 1.2.840.10045.4.3.2 or 1.2.840.10045.4.3.4
@@ -67,14 +75,31 @@ message TemporaryExposureKey {
   optional bytes key_data = 1;
 
   // Varying risks associated with exposure depending on type of verification
-  optional int32 transmission_risk_level = 2;
+  // Ignored by the v1.5 client API when report_type is set.
+  optional int32 transmission_risk_level = 2 [deprecated = true];
 
   // The interval number since epoch for which a key starts
   optional int32 rolling_start_interval_number = 3;
 
   // Increments of 10 minutes describing how long a key is valid
-  optional int32 rolling_period = 4
-      [default = 144];  // defaults to 24 hours
+  optional int32 rolling_period = 4 [default = 144];  // defaults to 24 hours
+
+  // Data type representing why this key was published.
+  enum ReportType {
+    UNKNOWN = 0;  // Never returned by the client API.
+    CONFIRMED_TEST = 1;
+    CONFIRMED_CLINICAL_DIAGNOSIS = 2;
+    SELF_REPORT = 3;
+    RECURSIVE = 4;
+    REVOKED = 5;  // Used to revoke a key, never returned by client API.
+  }
+
+  // Type of diagnosis associated with a key.
+  optional ReportType report_type = 5;
+
+  // Number of days elapsed between symptom onset and the TEK being used.
+  // E.g. 2 means TEK is 2 days after onset of symptoms.
+  optional sint32 days_since_onset_of_symptoms = 6;
 }
 
 message TEKSignatureList {
@@ -82,7 +107,7 @@ message TEKSignatureList {
 }
 
 message TEKSignature {
-  // Info about the signing key, version, algorithm, etc
+  // Info about the signing key, version, algorithm, etc.
   optional SignatureInfo signature_info = 1;
   // E.g., Batch 2 of 10
   optional int32 batch_num = 2;
