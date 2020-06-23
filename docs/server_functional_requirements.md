@@ -2,7 +2,7 @@
 layout: default
 classes: wide
 ---
-# Google Exposure Notification Server
+# Google Exposure Notification Key Server
 
 ## Functional requirements
 
@@ -11,10 +11,10 @@ notification system. For deployment strategies, see [Server Deployment Options](
 
 ### System Components
 
-The Exposure Notification Server's architecture has been split into components.
+The Exposure Notification Key Server's architecture has been split into components.
 The following diagram shows the relationship between the different components:
 
-![A diagram showing the Exposure Notification Server components and their relationship](images/functional_diagram.svg "Server Requirements Diagram")
+![A diagram showing the Exposure Notification Key Server components and their relationship](images/functional_diagram.svg "Server Requirements Diagram")
 
 The server components are responsible for the following functions:
 
@@ -45,11 +45,11 @@ users to mobile devices.
 
 ### Publishing temporary exposure keys
 
-Before reporting temporary exposure keys to the exposure notifications server,
+Before reporting temporary exposure keys to the exposure notifications key server,
 a diagnosis must first verified by a _diagnosis verification server_. The
 diagnosis verification server is intentionally separate from the exposure
 notifications server. The verification server is run by a local government or
-public health authority. The exposure notifications server is responsible for
+public health authority. The exposure notification key server is responsible for
 [validating these certificates](design/verification_protocol.md).
 
 When a user reports a diagnosis, it is reported using the publish API server.

@@ -3,7 +3,7 @@ layout: default
 ---
 # Public Health Authority Diagnosis Verification Protocol
 
-This design covers the exposure notifications server's ability to verify
+This design covers the exposure notification key server's ability to verify
 diagnosis certifications from public health authorities.
 
 The actual process of issuing these certificates is not covered in this
@@ -51,7 +51,7 @@ health authority in the jurisdiction.
 
 ## JWT Verification + Accepted Claims
 
-The exposure notifications server will accept this JWT in the current
+The exposure notification key server will accept this JWT in the current
 `verificationPayload` field in the exposure reporting API. When this is present,
 device attestations should be disabled. In addition, the exposure publishing
 API will also accept a new field `hmackey` to be used as the key for
@@ -64,7 +64,7 @@ First, using the standard claims.
 * `iss` : The issuer will be used to determine which public key(s) are valid for
 verification. This is to allow for key rotation.
 * `aud` : The audience must be as configured for this installation of the
-exposure notifications server. The operator of the exposure notifications server
+exposure notification key server. The operator of the exposure notification key server
 is the one to define this value and should be shared to all participating health
 authorities.
 * `iat` : The unix timestamp at which the token was issued.
@@ -72,13 +72,13 @@ authorities.
 * `nbf` : If present, the "not before" timestamp will be honored.
 
 We also prescribe a set of private claims to transmit data from the PHA
-verification server to the exposure notifications server.
+verification server to the exposure notification key server.
 
 * `tekhmac` : The HMAC of the TEKs that was presented to the PHA verification
 server. This must be calculated in a specific way (see below).
 * `phadata` : Contains a map of claims for the PHA to communicate back
-to the mobile app and/or the exposure notifications server. This specific
-implementation of the exposure notifications server will disregard and never
+to the mobile app and/or the exposure notification key server. This specific
+implementation of the exposure notification key server will disregard and never
 save the `phadata`
 * `trisk` : Contains an array of transmission risk overrides to enact when
 importing the associated keys. If data is present in this field, it will

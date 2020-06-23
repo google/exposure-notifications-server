@@ -17,7 +17,7 @@ configurable. We recommend batches are configured to be generated at most every
 
 ## Downloading TEKs
 
-In order to download the exposure keys from the exposure notifications server, the first
+In order to download the exposure keys from the exposure notification key server, the first
 step is to configure exports from the server.
 
 To add these entries, we can use the Admin Console. For instructions on how to

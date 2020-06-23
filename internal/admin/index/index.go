@@ -74,7 +74,7 @@ func (h *indexHandler) Execute(c *gin.Context) {
 	}
 	m["siginfos"] = sigInfos
 
-	m.AddTitle("Exposure Notifications Server - Admin Console")
-	m.AddJumbotron("Exposure Notification Server", "Admin Console")
+	m.AddTitle("Exposure Notification Key Server - Admin Console")
+	m.AddJumbotron("Exposure Notification Key Server", "Admin Console")
 	c.HTML(http.StatusOK, "index", m)
 }

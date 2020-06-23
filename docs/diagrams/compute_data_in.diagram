@@ -13,8 +13,8 @@ elements {
     # Compute Components
     ########################################
 	card cloud_run as tracing_key_ingestion {
-    	name "Tracing Key Ingestion"
-        description "Intake of Tracing Keys"
+    	name "Exposure Key Ingestion"
+        description "Intake of Exposure Keys"
     }
 
 	card cloud_run as federated_ingestion {
@@ -24,7 +24,7 @@ elements {
 
     card cloud_run as data_deletion {
     	name "Data Deletion"
-        description "Periodically delete old tracing keys"
+        description "Periodically delete old exposure keys"
     }
 
 	card cloud_run as federation_api {
@@ -32,14 +32,14 @@ elements {
         description ""
     }
     card cloud_run as batch_keys {
-    	name "Batch Tracing Keys"
+    	name "Batch Exposure Keys"
         description ""
     }
     
 	card cdn
     # Likely needed instead of CDN for non-gcp
     # card cloud_run as cdn {
-    #    name "Tracing Key Batch Server"
+    #    name "Exposure Key Batch Server"
     #}
    
     ########################################
@@ -55,12 +55,12 @@ elements {
     # Storage Components
     ########################################
     card gke_onprem as sql {
-    	name "Tracing Key Database"
+    	name "Exposure Key Database"
 		description ""
 	}
 
     card gke_onprem as storage {
-    	name "Tracing Key Batches"
+    	name "Exposure Key Batches"
 		description ""
 	} 
     

@@ -1,7 +1,7 @@
 ---
 layout: default
 ---
-# Estimating costs of hosting the Exposure Notifications Server
+# Estimating costs of hosting the Exposure Notification Key Server
 
     NOTE: This is for informational purposes only. This does
     not account for all costs of operating. This document
