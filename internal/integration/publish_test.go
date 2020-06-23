@@ -172,6 +172,7 @@ func TestPublish(t *testing.T) {
 
 	t.Logf("%v", string(bytes))
 	// TODO: verify signature
+	// no op comment
 }
 
 func startAuthorizedApp(ctx context.Context, env *serverenv.ServerEnv, t *testing.T) {
