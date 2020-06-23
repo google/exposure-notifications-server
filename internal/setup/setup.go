@@ -122,6 +122,14 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 			}
 		}
 
+		// Enable secret expansion, if enabled.
+		if smConfig.SecretExpansion {
+			sm, err = secrets.WrapJSONExpander(ctx, sm)
+			if err != nil {
+				return nil, fmt.Errorf("unable to create json expander secret manager: %w", err)
+			}
+		}
+
 		// Update the mutators to process secrets.
 		mutatorFuncs = append(mutatorFuncs, secrets.Resolver(sm, smConfig))
 
