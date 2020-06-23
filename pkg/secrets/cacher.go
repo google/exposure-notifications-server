@@ -68,9 +68,9 @@ func (sm *Cacher) GetSecretValue(ctx context.Context, name string) (string, erro
 
 	cacheVal, err := sm.cache.WriteThruLookup(name, lookup)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	plaintext := cacheVal.(string)
-	return plaintext, err
+	return plaintext, nil
 }
