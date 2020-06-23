@@ -1,5 +1,5 @@
 meta {
-  title "Exposure Notification Server"
+  title "Exposure Notification Key Server"
 }
 
 elements {
@@ -19,8 +19,8 @@ elements {
     # Compute Components
     ########################################
 	card gke_onprem as tracing_key_ingestion {
-    	name "Tracing Key Ingestion"
-        description "Intake of Tracing Keys"
+    	name "Exposure Key Ingestion"
+        description "Intake of Exposure Keys"
     }
 
 	card gke_onprem as federated_ingestion {
@@ -38,7 +38,7 @@ elements {
         description ""
     }
     card gke_onprem as batch_keys {
-    	name "Batch Tracing Keys"
+    	name "Batch Exposure Keys"
         description ""
     }
 
@@ -62,7 +62,7 @@ elements {
     #card cdn
     # Likely needed instead of CDN
     card gke_onprem as cdn {
-        name "Tracing Key Batch Server"
+        name "Exposure Key Batch Server"
     }
 
     ########################################

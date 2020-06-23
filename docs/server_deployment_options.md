@@ -1,15 +1,15 @@
 ---
 layout: default
 ---
-# Google Exposure Notification Server
+# Google Exposure Notification Key Server
 
 ## Server deployment options
 
 This document describes possible strategies for building and hosting the
-Exposure Notification Server components. You should use this information
+Exposure Notification Key Server components. You should use this information
 explore and compare trade-offs when making hosting decisions.
 
-The Exposure Notifications Server can be deployed in the following
+The Exposure Notification Key Server can be deployed in the following
 environments:
 
 * Fully self-hosted or on-premises
@@ -21,22 +21,22 @@ component, see the [Server Functional Requirements](server_functional_requiremen
 
 ## Server architecture
 
-The Exposure Notification Server has multiple components which can be
+The Exposure Notification Key Server has multiple components which can be
 categorized as compute and data. To understand deployment scenarios, you should
 look at the architecture of the server and data flow between servers and
 devices.
 
-![Exposure Notification Server data ingress flow](images/data-ingress.svg "Exposure Notification Server data ingres flow")
+![Exposure Notification Key Server data ingress flow](images/data-ingress.svg "Exposure Notification Key Server data ingres flow")
 
-![Exposure Notification Server data egress flow](images/data-retrieval.svg "Exposure Notification Server data egress flow")
+![Exposure Notification Key Server data egress flow](images/data-retrieval.svg "Exposure Notification Key Server data egress flow")
 
-The Exposure Notification Server compute components have been designed to be stateless,
+The Exposure Notification Key Server compute components have been designed to be stateless,
 scalable, and rely on data stored in a shared databased. This makes the compute
 components suited to deployment on
 [serverless compute platforms](https://en.wikipedia.org/wiki/Serverless_computing).
 
 Serverless platforms can scale down to zero during times of zero usage, which is
-likely if the Exposure Notification Server deployment covers a single or small
+likely if the Exposure Notification Key Server deployment covers a single or small
 number of countries. During times of high demand, serverless platforms can
 scale to meet demand.
 
@@ -61,7 +61,7 @@ scale to meet demand.
     </td>
   </tr>
   <tr>
-   <td><strong>Tracing key database</strong>
+   <td><strong>Exposure key database</strong>
    </td>
    <td>Stores anonymized exposure keys from devices identified as exposed
    </td>
@@ -73,9 +73,9 @@ scale to meet demand.
    </td>
   </tr>
   <tr>
-   <td><strong>Tracing key batches storage</strong>
+   <td><strong>Exposure key batches storage</strong>
    </td>
-   <td>Storing batches of tracing keys that will be sent to devices.
+   <td>Storing batches of exposure keys that will be sent to devices.
    </td>
    <td><a href="https://cloud.google.com/storage/">Google Cloud Storage</a>
    </td>
@@ -102,7 +102,7 @@ scale to meet demand.
     </td>
   </tr>
   <tr>
-   <td><strong>Tracing key ingestion server</strong>
+   <td><strong>Exposure key ingestion server</strong>
    </td>
    <td>Ingestion of exposure keys from client devices.
    </td>
@@ -138,7 +138,7 @@ scale to meet demand.
    </td>
   </tr>
   <tr>
-   <td><strong>Batch tracing keys</strong>
+   <td><strong>Batch exposure keys</strong>
    </td>
    <td>Periodic DB queries to batch data for client consumption.
        Signing payloads for verification on device.
@@ -209,9 +209,9 @@ scale to meet demand.
 
 ### Data and compute hosted on premises
 
-You can host all components of the Exposure Notification Server on-premises.
+You can host all components of the Exposure Notification Key Server on-premises.
 
-![A diagram of the Exposure Notification Server deployed on-premises](images/on_prem.png "Exposure Notification Server on-premises deployment")
+![A diagram of the Exposure Notification Key Server deployed on-premises](images/on_prem.png "Exposure Notification Key Server on-premises deployment")
 
 Deploying compute and data components on-premises allows you to have complete
 control of all components and deploy them in any location by using an
@@ -219,18 +219,18 @@ on-premises Google Kubernetes Engine cluster. However, an on-premises
 deployment will require you to configure and maintain the underlying
 infrastructure, and ensure it is able to meet usage demands.
 
-When the Exposure Notification Server is deployed on-premises, we recommend you
+When the Exposure Notification Key Server is deployed on-premises, we recommend you
 deploy audit and access logging to the data and API endpoints. This is
 automatically available in the fully managed, and hybrid deployment scenarios.
 
 ### Storing data on-premises and using Google-managed compute
 
-The Exposure Notification Server supports either compute or data components to
+The Exposure Notification Key Server supports either compute or data components to
 be hosted on-premises or on Google Cloud.
 
-![A diagram of data ingress with the Exposure Notification Server that has compute components on Google Cloud and data on-premises](images/hybrid_in.png "image_tooltip")
+![A diagram of data ingress with the Exposure Notification Key Server that has compute components on Google Cloud and data on-premises](images/hybrid_in.png "image_tooltip")
 
-![A diagram of data egress with the Exposure Notification Server that has compute components on Google Cloud and data on-premises](images/hybrid_out.png "image_tooltip")
+![A diagram of data egress with the Exposure Notification Key Server that has compute components on Google Cloud and data on-premises](images/hybrid_out.png "image_tooltip")
 
 This example deployment has compute components running on Google Cloud
 Serverless products, with databases hosted on-premises. Alternatively, you
@@ -242,7 +242,7 @@ Cloud as a fully managed service.
 
 This example deployment hosts all components of the system on Google Cloud.
 
-![A diagram of the Exposure Notification Server deployed on Google Cloud](images/google_cloud_run.png "Exposure Notification Server deployed on Google Cloud")
+![A diagram of the Exposure Notification Key Server deployed on Google Cloud](images/google_cloud_run.png "Exposure Notification Key Server deployed on Google Cloud")
 
 By using fully hosted components most of the service’s operation can be
 delegated to Google Cloud, which will provide audit and access logging of the

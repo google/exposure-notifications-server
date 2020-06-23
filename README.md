@@ -1,12 +1,12 @@
-# Exposure Notification Reference Server
+# Exposure Notification Reference Key Server
 
 [COVID‑19 Exposure Notifications API](https://www.google.com/covid19/exposurenotifications/)
 
-[Exposure Notification Reference Server Documentation](https://google.github.io/exposure-notifications-server/) 
+[Exposure Notification Reference Key Server Documentation](https://google.github.io/exposure-notifications-server/) 
 
 In our continued effort to help governments and health authorities during the
 COVID-19 pandemic, we have authored an open source reference implementation of
-an Exposure Notifications server.
+an Exposure Notification Key Server.
 
 The server reference in this repository implements the Exposure Notifications
 API and provides reference code for working with Android and iOS apps that
@@ -40,7 +40,7 @@ The server is responsible for the following functions:
 ## Tutorials and reference documentation
 
 You can read tutorials on deploying and using the reference Exposure Notification
-Server here:
+Key Server here:
 
 * [Overview](https://google.github.io/exposure-notifications-server/)
 * [Deployment Guide](https://google.github.io/exposure-notifications-server/getting-started/deploying)

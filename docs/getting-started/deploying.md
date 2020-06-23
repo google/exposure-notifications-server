@@ -46,7 +46,7 @@ options. Configuration options are specified via environment variables.
 
 ## Before you begin
 
-To build and deploy the Exposure Notification server services, you need to
+To build and deploy the Exposure Notification Key Server services, you need to
 install and configure the following:
 
 1. Download and install the [Google Cloud SDK](https://cloud.google.com/sdk/install).

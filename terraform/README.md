@@ -1,7 +1,7 @@
-# Starting the exposure notifications server
+# Starting the exposure notification key server
 
 This is a set of Terraform configurations which create the required
-infrastructure for an exposure notifications server on Google Cloud. Please note
+infrastructure for an exposure notification key server on Google Cloud. Please note
 that **Terraform is only used for the initial deployment and provisioning of
 underlying infrastructure!** It is not used for continuous delivery or
 continuous deployment.
