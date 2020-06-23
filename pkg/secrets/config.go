@@ -34,4 +34,5 @@ type Config struct {
 	SecretManagerType SecretManagerType `env:"SECRET_MANAGER, default=GOOGLE_SECRET_MANAGER"`
 	SecretsDir        string            `env:"SECRETS_DIR, default=/var/run/secrets"`
 	SecretCacheTTL    time.Duration     `env:"SECRET_CACHE_TTL, default=5m"`
+	SecretExpansion   bool              `env:"SECRET_EXPANSION, default=false"`
 }
