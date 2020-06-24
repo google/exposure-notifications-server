@@ -116,7 +116,7 @@ func TestGoogleCloudStorage_CreateObject(t *testing.T) {
 		{
 			name:     "default",
 			bucket:   bucket,
-			object:   "myfile",
+			object:   testName(t),
 			contents: []byte("contents"),
 		},
 		{
@@ -129,7 +129,7 @@ func TestGoogleCloudStorage_CreateObject(t *testing.T) {
 		{
 			name:   "bad_bucket",
 			bucket: "totally-like-not-a-real-bucket",
-			object: "myfile",
+			object: testName(t),
 			err:    true,
 		},
 	}
