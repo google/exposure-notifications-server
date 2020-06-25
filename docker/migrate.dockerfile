@@ -14,26 +14,42 @@
 
 # migrate is a base container with migrate and the Cloud SQL proxy installed.
 
-FROM golang:1.14-alpine AS builder
+FROM golang:1.14 AS builder
 
 # Install deps
-RUN apk add --no-cache git
+RUN apt-get -qq update && apt-get -yqq install upx
 
 # Install proxy
 RUN wget -q https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O /bin/cloud_sql_proxy
 RUN chmod +x /bin/cloud_sql_proxy
 
-# Install migrate
+# Install go-migrate
 RUN go get -tags 'postgres' -u github.com/golang-migrate/migrate/cmd/migrate
+
+ENV GO111MODULE=on \
+  CGO_ENABLED=0 \
+  GOOS=linux \
+  GOARCH=amd64
+
+WORKDIR /src
+COPY . .
+
+RUN go build \
+  -trimpath \
+  -ldflags "-s -w -extldflags '-static'" \
+  -installsuffix cgo \
+  -tags netgo \
+  -o /bin/migrate \
+  ./cmd/migrate
+
+RUN strip /bin/migrate
+RUN upx -q -9 /bin/migrate
 
 FROM alpine
 RUN apk add --no-cache bash ca-certificates
 
 COPY --from=builder /bin/cloud_sql_proxy /bin/cloud_sql_proxy
-COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
+COPY --from=builder /go/bin/migrate /bin/gomigrate
+COPY --from=builder /bin/migrate /bin/migrate
 
-# Install urlencode - see https://github.com/golang-migrate/migrate/issues/396.
-ADD docker/urlencode /bin/urlencode
-RUN chmod +x /bin/urlencode
-
-ENTRYPOINT ["/usr/local/bin/migrate"]
+ENTRYPOINT ["/bin/migrate"]

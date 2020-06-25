@@ -43,7 +43,7 @@ func TestDBValues(t *testing.T) {
 			},
 			want: map[string]string{
 				"dbname":                   "myDatabase",
-				"password":                 "notAG00DP@ssword",
+				"password":                 "notAG00DP%40ssword",
 				"port":                     "1234",
 				"user":                     "superuser",
 				"connect_timeout":          "5",

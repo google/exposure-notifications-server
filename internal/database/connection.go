@@ -18,6 +18,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -38,7 +39,7 @@ func NewFromEnv(ctx context.Context, config *Config) (*DB, error) {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Creating connection pool.")
 
-	connStr := dbConnectionString(config)
+	connStr := ConnectionString(config)
 
 	pool, err := pgxpool.Connect(ctx, connStr)
 	if err != nil {
@@ -55,9 +56,9 @@ func (db *DB) Close(ctx context.Context) {
 	db.Pool.Close()
 }
 
-// dbConnectionString builds a connection string suitable for the pgx Postgres driver, using the
+// ConnectionString builds a connection string suitable for the pgx Postgres driver, using the
 // values of vars.
-func dbConnectionString(config *Config) string {
+func ConnectionString(config *Config) string {
 	vals := dbValues(config)
 	var p []string
 	for k, v := range vals {
@@ -92,7 +93,7 @@ func dbValues(config *Config) map[string]string {
 	setIfNotEmpty(p, "port", config.Port)
 	setIfNotEmpty(p, "sslmode", config.SSLMode)
 	setIfPositive(p, "connect_timeout", config.ConnectionTimeout)
-	setIfNotEmpty(p, "password", config.Password)
+	setIfNotEmpty(p, "password", url.QueryEscape(config.Password))
 	setIfNotEmpty(p, "sslcert", config.SSLCertPath)
 	setIfNotEmpty(p, "sslkey", config.SSLKeyPath)
 	setIfNotEmpty(p, "sslrootcert", config.SSLRootCertPath)
