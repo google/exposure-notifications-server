@@ -249,7 +249,8 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	nextInterval := entities[0].IntervalNumber
 	for _, ex := range entities {
 		if ex.IntervalNumber < nextInterval {
-			return nil, fmt.Errorf("exposure keys have overlapping intervals")
+			logging.FromContext(ctx).Errorf("Server detected keys with overlapping intervals")
+			break
 		}
 		nextInterval = ex.IntervalNumber + ex.IntervalCount
 	}
