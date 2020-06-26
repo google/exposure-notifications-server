@@ -19,9 +19,6 @@ import "time"
 // The following constants are generally useful in implementations of this API
 // and for clients as well..
 const (
-	// 15 Days worth of keys is the maximum per publish request (inclusive)
-	MaxKeysPerPublish = 15
-
 	// only valid exposure key keyLength
 	KeyLength = 16
 

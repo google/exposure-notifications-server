@@ -113,8 +113,8 @@ type Transformer struct {
 // records for insertion into the database. On the call to TransformPublish
 // all data is validated according to the transformer that is used.
 func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration, releaseSameDayKeys bool) (*Transformer, error) {
-	if maxExposureKeys < 0 || maxExposureKeys > verifyapi.MaxKeysPerPublish {
-		return nil, fmt.Errorf("maxExposureKeys must be > 0 and <= %v, got %v", verifyapi.MaxKeysPerPublish, maxExposureKeys)
+	if maxExposureKeys <= 0 {
+		return nil, fmt.Errorf("maxExposureKeys must be > 0, got %v", maxExposureKeys)
 	}
 	return &Transformer{
 		maxExposureKeys:     maxExposureKeys,

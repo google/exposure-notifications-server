@@ -44,12 +44,12 @@ const _ = proto.ProtoPackageIsVersion4
 type TemporaryExposureKey_ReportType int32
 
 const (
-	TemporaryExposureKey_UNKNOWN                      TemporaryExposureKey_ReportType = 0 // Never returned by the API.
+	TemporaryExposureKey_UNKNOWN                      TemporaryExposureKey_ReportType = 0 // Never returned by the client API.
 	TemporaryExposureKey_CONFIRMED_TEST               TemporaryExposureKey_ReportType = 1
 	TemporaryExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS TemporaryExposureKey_ReportType = 2
 	TemporaryExposureKey_SELF_REPORT                  TemporaryExposureKey_ReportType = 3
 	TemporaryExposureKey_RECURSIVE                    TemporaryExposureKey_ReportType = 4
-	TemporaryExposureKey_REVOKED                      TemporaryExposureKey_ReportType = 5 // Used to revoke a key, never returned by API.
+	TemporaryExposureKey_REVOKED                      TemporaryExposureKey_ReportType = 5 // Used to revoke a key, never returned by client API.
 )
 
 // Enum value maps for TemporaryExposureKey_ReportType.
@@ -311,7 +311,7 @@ type TemporaryExposureKey struct {
 	// Key of infected user
 	KeyData []byte `protobuf:"bytes,1,opt,name=key_data,json=keyData" json:"key_data,omitempty"`
 	// Varying risks associated with exposure depending on type of verification
-	// Ignored by the v1.5 API when report_type is set.
+	// Ignored by the v1.5 client API when report_type is set.
 	//
 	// Deprecated: Do not use.
 	TransmissionRiskLevel *int32 `protobuf:"varint,2,opt,name=transmission_risk_level,json=transmissionRiskLevel" json:"transmission_risk_level,omitempty"`
@@ -458,12 +458,9 @@ type TEKSignature struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Info about the signing key, version, algorithm, etc. Only the
-	// verification_key_id, verification_key_version, and
-	// signature_algorithm fields within signature_info are read.
+	// Info about the signing key, version, algorithm, etc.
 	SignatureInfo *SignatureInfo `protobuf:"bytes,1,opt,name=signature_info,json=signatureInfo" json:"signature_info,omitempty"`
-	// E.g., Batch 2 of 10 - these fields are ignored on android in favor of the
-	// batch fields within TemporaryExposureKeyExport
+	// E.g., Batch 2 of 10
 	BatchNum  *int32 `protobuf:"varint,2,opt,name=batch_num,json=batchNum" json:"batch_num,omitempty"`
 	BatchSize *int32 `protobuf:"varint,3,opt,name=batch_size,json=batchSize" json:"batch_size,omitempty"`
 	// Signature in X9.62 format (ASN.1 SEQUENCE of two INTEGER fields)
