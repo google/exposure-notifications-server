@@ -42,7 +42,7 @@ func TestIntervalNumber(t *testing.T) {
 }
 
 func TestInvalidNew(t *testing.T) {
-	errMsg := fmt.Sprintf("maxExposureKeys must be > 0 and <= %v", verifyapi.MaxKeysPerPublish)
+	errMsg := "maxExposureKeys must be > 0"
 	cases := []struct {
 		maxKeys int
 		message string
@@ -50,9 +50,6 @@ func TestInvalidNew(t *testing.T) {
 		{0, errMsg},
 		{1, ""},
 		{5, ""},
-		{verifyapi.MaxKeysPerPublish - 1, ""},
-		{verifyapi.MaxKeysPerPublish, ""},
-		{verifyapi.MaxKeysPerPublish + 1, errMsg},
 	}
 
 	for i, c := range cases {
