@@ -47,6 +47,7 @@ func TestInvalidNew(t *testing.T) {
 		maxKeys int
 		message string
 	}{
+		{-1, errMsg},
 		{0, errMsg},
 		{1, ""},
 		{5, ""},
