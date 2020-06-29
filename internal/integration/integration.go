@@ -31,7 +31,29 @@ import (
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
+
+	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
+	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
 )
+
+const (
+	exportDir = "my-bucket"
+)
+
+func TestServer(tb testing.TB, ctx context.Context, exportPeriod time.Duration) (*serverenv.ServerEnv, *EnServerClient, *database.DB) {
+	env, client := testServer(tb)
+	db := env.Database()
+	enClient := &EnServerClient{client: client}
+
+	// Create an authorized app.
+	startAuthorizedApp(ctx, env, tb)
+
+	// Create a signature info.
+	createSignatureInfo(ctx, db, exportPeriod, tb)
+
+	return env, enClient, db
+}
 
 // testServer sets up mocked local servers for running tests
 func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
@@ -188,5 +210,47 @@ func testClient(tb testing.TB, srv *server.Server) *http.Client {
 	return &http.Client{
 		Timeout:   5 * time.Second,
 		Transport: prt,
+	}
+}
+
+func startAuthorizedApp(ctx context.Context, env *serverenv.ServerEnv, tb testing.TB) {
+	aa := env.AuthorizedAppProvider()
+	if err := aa.Add(ctx, &authorizedappmodel.AuthorizedApp{
+		AppPackageName: "com.example.app",
+		AllowedRegions: map[string]struct{}{
+			"TEST": {},
+		},
+		AllowedHealthAuthorityIDs: map[int64]struct{}{
+			12345: {},
+		},
+
+		// TODO: hook up verification, and disable
+		BypassHealthAuthorityVerification: true,
+	}); err != nil {
+		tb.Fatal(err)
+	}
+}
+
+func createSignatureInfo(ctx context.Context, db *database.DB, exportPeriod time.Duration, tb testing.TB) {
+	si := &exportmodel.SignatureInfo{
+		SigningKey:        "signer",
+		SigningKeyVersion: "v1",
+		SigningKeyID:      "US",
+	}
+	if err := exportdatabase.New(db).AddSignatureInfo(ctx, si); err != nil {
+		tb.Fatal(err)
+	}
+
+	// Create an export config.
+	ec := &exportmodel.ExportConfig{
+		BucketName:       exportDir,
+		Period:           exportPeriod,
+		OutputRegion:     "TEST",
+		From:             time.Now().Add(-2 * time.Second),
+		Thru:             time.Now().Add(1 * time.Hour),
+		SignatureInfoIDs: []int64{},
+	}
+	if err := exportdatabase.New(db).AddExportConfig(ctx, ec); err != nil {
+		tb.Fatal(err)
 	}
 }
