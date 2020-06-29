@@ -213,7 +213,7 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 	logger.Infof("Created file %v, signed with %v keys", objectName, len(signers))
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
-	if err := s.env.Blobstore().CreateObject(ctx, cfi.exportBatch.BucketName, objectName, data, false); err != nil {
+	if err := s.env.Blobstore().CreateObject(ctx, cfi.exportBatch.BucketName, objectName, data, true); err != nil {
 		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, cfi.exportBatch.BucketName, err)
 	}
 	return objectName, nil
