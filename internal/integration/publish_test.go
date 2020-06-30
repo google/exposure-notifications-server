@@ -52,7 +52,7 @@ func TestCleanupExposure(t *testing.T) {
 		}
 	)
 
-	_, enClient, db := TestServer(t, ctx, exportPeriod)
+	_, enClient, db := NewTestServer(t, ctx, exportPeriod)
 
 	firstPayload := newPayloads(3)
 	firstBatchKeys := keysTransformation(t, firstPayload.Keys)
@@ -81,7 +81,7 @@ func TestCleanupExport(t *testing.T) {
 		exportPeriod = 2 * time.Second
 	)
 
-	env, enClient, db := TestServer(t, ctx, exportPeriod)
+	env, enClient, db := NewTestServer(t, ctx, exportPeriod)
 
 	firstPayload := newPayloads(3)
 	enClient.PublishKeys(t, firstPayload)
@@ -163,7 +163,7 @@ func TestPublish(t *testing.T) {
 		exportPeriod = 2 * time.Second
 	)
 
-	env, enClient, db := TestServer(t, ctx, exportPeriod)
+	env, enClient, db := NewTestServer(t, ctx, exportPeriod)
 
 	payload := newPayloads(3)
 

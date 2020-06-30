@@ -41,7 +41,8 @@ const (
 	exportDir = "my-bucket"
 )
 
-func TestServer(tb testing.TB, ctx context.Context, exportPeriod time.Duration) (*serverenv.ServerEnv, *EnServerClient, *database.DB) {
+// NewTestServer sets up clients used for integration tests
+func NewTestServer(tb testing.TB, ctx context.Context, exportPeriod time.Duration) (*serverenv.ServerEnv, *EnServerClient, *database.DB) {
 	env, client := testServer(tb)
 	db := env.Database()
 	enClient := &EnServerClient{client: client}
