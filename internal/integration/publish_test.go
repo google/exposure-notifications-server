@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/database"
 	exportapi "github.com/google/exposure-notifications-server/internal/export"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
@@ -43,29 +42,17 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-const (
-	exportDir = "my-bucket"
-)
-
 func TestCleanupExposure(t *testing.T) {
 	t.Parallel()
+	var (
+		ctx          = context.Background()
+		exportPeriod = 2 * time.Second
+		criteria     = publishdb.IterateExposuresCriteria{
+			OnlyLocalProvenance: false,
+		}
+	)
 
-	ctx := context.Background()
-
-	env, client := testServer(t)
-	db := env.Database()
-	enClient := &EnServerClient{client: client}
-
-	exportPeriod := 2 * time.Second
-	criteria := publishdb.IterateExposuresCriteria{
-		OnlyLocalProvenance: false,
-	}
-
-	// Create an authorized app.
-	startAuthorizedApp(ctx, env, t)
-
-	// Create a signature info.
-	createSignatureInfo(ctx, db, exportPeriod, t)
+	_, enClient, db := NewTestServer(t, ctx, exportPeriod)
 
 	firstPayload := newPayloads(3)
 	firstBatchKeys := keysTransformation(t, firstPayload.Keys)
@@ -89,19 +76,12 @@ func TestCleanupExposure(t *testing.T) {
 func TestCleanupExport(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	var (
+		ctx          = context.Background()
+		exportPeriod = 2 * time.Second
+	)
 
-	env, client := testServer(t)
-	db := env.Database()
-	enClient := &EnServerClient{client: client}
-
-	exportPeriod := 2 * time.Second
-
-	// Create an authorized app.
-	startAuthorizedApp(ctx, env, t)
-
-	// Create a signature info.
-	createSignatureInfo(ctx, db, exportPeriod, t)
+	env, enClient, db := NewTestServer(t, ctx, exportPeriod)
 
 	firstPayload := newPayloads(3)
 	enClient.PublishKeys(t, firstPayload)
@@ -178,19 +158,12 @@ func TestCleanupExport(t *testing.T) {
 func TestPublish(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	var (
+		ctx          = context.Background()
+		exportPeriod = 2 * time.Second
+	)
 
-	env, client := testServer(t)
-	db := env.Database()
-	enClient := &EnServerClient{client: client}
-
-	exportPeriod := 2 * time.Second
-
-	// Create an authorized app.
-	startAuthorizedApp(ctx, env, t)
-
-	// Create a signature info.
-	createSignatureInfo(ctx, db, exportPeriod, t)
+	env, enClient, db := NewTestServer(t, ctx, exportPeriod)
 
 	payload := newPayloads(3)
 
@@ -336,48 +309,6 @@ func wantFromKeys(keys []verifyapi.ExposureKey, batchNum, batchSize int32) (map[
 	}
 
 	return wantedKeysMap, wantExport
-}
-
-func startAuthorizedApp(ctx context.Context, env *serverenv.ServerEnv, t *testing.T) {
-	aa := env.AuthorizedAppProvider()
-	if err := aa.Add(ctx, &authorizedappmodel.AuthorizedApp{
-		AppPackageName: "com.example.app",
-		AllowedRegions: map[string]struct{}{
-			"TEST": {},
-		},
-		AllowedHealthAuthorityIDs: map[int64]struct{}{
-			12345: {},
-		},
-
-		// TODO: hook up verification, and disable
-		BypassHealthAuthorityVerification: true,
-	}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func createSignatureInfo(ctx context.Context, db *database.DB, exportPeriod time.Duration, t *testing.T) {
-	si := &exportmodel.SignatureInfo{
-		SigningKey:        "signer",
-		SigningKeyVersion: "v1",
-		SigningKeyID:      "US",
-	}
-	if err := exportdatabase.New(db).AddSignatureInfo(ctx, si); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create an export config.
-	ec := &exportmodel.ExportConfig{
-		BucketName:       exportDir,
-		Period:           exportPeriod,
-		OutputRegion:     "TEST",
-		From:             time.Now().Add(-2 * time.Second),
-		Thru:             time.Now().Add(1 * time.Hour),
-		SignatureInfoIDs: []int64{},
-	}
-	if err := exportdatabase.New(db).AddExportConfig(ctx, ec); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func newPayloads(n int) verifyapi.Publish {
