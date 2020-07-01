@@ -62,7 +62,7 @@ information to be shared. The information described in this section is the
 minimum required set in order to validate the uploads and to generate the
 necessary client batches for ingestion into the device for key matching.
 
-We have provides a sample API in [exposure_types.go](https://github.com/google/exposure-notifications-server/blob/master/pkg/api/v1alpha1/exposure_types.go).
+We have provides a sample API in [exposure_types.go](https://github.com/google/exposure-notifications-server/blob/main/pkg/api/v1alpha1/exposure_types.go).
 
 Minimum required fields, followed by a JSON example:
 
@@ -163,7 +163,7 @@ the files using a CDN.
 
 For information on the format of the batch file, see
 [Exposure Key Export File Format and Verification](https://developers.google.com/android/exposure-notifications/exposure-key-file-format)
-and [Working with Export Files](https://github.com/google/exposure-notifications-server/tree/master/examples/export).
+and [Working with Export Files](https://github.com/google/exposure-notifications-server/tree/main/examples/export).
 
 The batch file generation should be per-region, incremental feeds of new data.
 While additional data can be included in the downloads, there is a minimum set

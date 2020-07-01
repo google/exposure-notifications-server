@@ -16,11 +16,10 @@ docs:
     - title: Design
       children:
         - title: Server Deployment Options
-          url: /server_deployment_options   
+          url: /server_deployment_options
         - title: Server Functional Requirements
-          url: /server_functional_requirements   
+          url: /server_functional_requirements
         - title: Verification Protocol Design
           url: /design/verification_protocol
         - title: API Definitions
-          url: https://github.com/google/exposure-notifications-server/tree/master/pkg/api/v1alpha1
-  
+          url: https://github.com/google/exposure-notifications-server/tree/main/pkg/api/v1alpha1

@@ -61,7 +61,7 @@ infrastructure, database, service accounts, and first deployment of the services
 on Cloud Run. **Terraform does not manage the Cloud Run services after their
 initial creation!**
 
-See [Deploying with Terraform](https://github.com/google/exposure-notifications-server/blob/master/terraform) for more information.
+See [Deploying with Terraform](https://github.com/google/exposure-notifications-server/blob/main/terraform) for more information.
 
 ## Running services
 
@@ -202,7 +202,7 @@ you are running your own Postgres server,
 1.  Download and install the
     [`migrate`](https://github.com/golang-migrate/migrate) tool.
 
-1.  Construct the [database URL](https://github.com/golang-migrate/migrate/tree/master/database/postgres) for your database. This is usually of the format:
+1.  Construct the [database URL](https://github.com/golang-migrate/migrate/tree/main/database/postgres) for your database. This is usually of the format:
 
     ```text
     postgres://DB_USER:DB_PASSWORD@DB_HOST:DB_PORT/DB_NAME?sslmode=require

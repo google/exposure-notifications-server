@@ -2,7 +2,7 @@
 
 This demonstrates some utilities and commands to help understand the format documented in
 the [Exposure Key File Format documentation](https://developers.google.com/android/exposure-notifications/exposure-key-file-format)
-and using the [export protobuf](https://github.com/google/exposure-notifications-server/blob/master/internal/pb/export/export.proto).
+and using the [export protobuf](https://github.com/google/exposure-notifications-server/blob/main/internal/pb/export/export.proto).
 
 ## Generating signing keys
 
@@ -84,4 +84,3 @@ $ go run ./tools/unwrap-signature/ --in=export.sig --out=sigRaw
 $ openssl dgst -sha256 -verify public.pem -signature sigRaw export.bin
 Verified OK
 ```
-
