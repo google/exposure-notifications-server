@@ -16,7 +16,7 @@ deployment and use within the US, and uses the
 estimation. This could be repeated for other regions as well as for other
 cloud providers. Please note that for much of this simplifications have been
 made. Due to a majority of the expected costs to be incurred due to storage
-serving. 
+serving.
 
 # Calculating the overall cost
 There are a number of variables that need to be figured out to determine cost.
@@ -41,7 +41,7 @@ magnitude.
 
 To have an idea of the deployment size, this document assumes the defaults
 configured for Terraform in
-[vars.tf](https://github.com/google/exposure-notifications-server/blob/master/terraform/vars.tf).
+[vars.tf](https://github.com/google/exposure-notifications-server/blob/main/terraform/vars.tf).
 
 The largest cost is likely to be in Network Egress. In this calculation we
 assume that [Google Cloud CDN](https://cloud.google.com/cdn) is not used but
@@ -52,11 +52,11 @@ lower cost.
 ## Cloud Run Costs
 https://cloud.google.com/run/pricing
 
-There are multiple containers needed for a complete deployment: 
+There are multiple containers needed for a complete deployment:
 
 * Export Cleanup
 * Exposure Cleanup
-* Export 
+* Export
 * Exposure
 * Federation In
 * Federation Out
@@ -65,7 +65,7 @@ Most of the services run periodically, not constantly. For this reason it is
 likely no higher than 6 containers at this scale. Likely, estimating as if 3-4
 of these containers would get a reasonable upper limit. The resource limits of
 a container are specified in the
-[terraform resource limits](https://github.com/google/exposure-notifications-server/blob/master/terraform/service_federationin.tf#L63)
+[terraform resource limits](https://github.com/google/exposure-notifications-server/blob/main/terraform/service_federationin.tf#L63)
 as 2 CPU and 1G memory per container.
 
 **Projected Monthly Cost: $500 - $750**
@@ -136,4 +136,3 @@ Relevant operations from this include `GET` requests for key batches.
 For each user, there will be a minimum of one `GET` operation per day.
 
 **Projected Monthly Cost: $50 - $100**
-

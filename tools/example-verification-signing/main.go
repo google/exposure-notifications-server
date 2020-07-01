@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // This package implements a sample server that implements the public health authority
-// verification protocol: https://github.com/google/exposure-notifications-server/blob/master/docs/design/verification_protocol.md
+// verification protocol: https://github.com/google/exposure-notifications-server/blob/main/docs/design/verification_protocol.md
 //
 // To call this server using curl:
 // curl -d '{"verificationCode":"fakeCode","tekhmac":"replace w/ tek hmac"}' -H "Content-Type: application/json" -X POST http://localhost:8080/
