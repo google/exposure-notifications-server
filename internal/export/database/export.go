@@ -645,7 +645,7 @@ func (db *ExportDB) LookupExportFiles(ctx context.Context, configId int64, ttl t
 		INNER JOIN
 			ExportBatch eb ON (eb.batch_id = ef.batch_id)
 		WHERE
-		  eb.config_id = $1
+			eb.config_id = $1
 		AND
 			eb.start_timestamp > $2
 		AND
