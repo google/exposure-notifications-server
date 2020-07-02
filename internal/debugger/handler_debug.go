@@ -56,7 +56,7 @@ func (s *Server) handleDebug(ctx context.Context) http.HandlerFunc {
 
 		ExportConfigs    []*exportmodel.ExportConfig
 		ExportBatchEnds  map[int64]*time.Time
-		ExportBatchFiles []string
+		ExportBatchFiles map[int64][]string
 
 		SignatureInfos []*exportmodel.SignatureInfo
 	}
@@ -72,6 +72,7 @@ func (s *Server) handleDebug(ctx context.Context) http.HandlerFunc {
 		resp := &response{
 			ServiceEnvironment: make(map[string]map[string]string),
 			ExportBatchEnds:    make(map[int64]*time.Time),
+			ExportBatchFiles:   make(map[int64][]string),
 		}
 
 		for _, service := range services {
@@ -104,6 +105,17 @@ func (s *Server) handleDebug(ctx context.Context) http.HandlerFunc {
 				return fmt.Errorf("failed to get all export configs: %w", err)
 			}
 			resp.ExportConfigs = exportConfigs
+
+			queue(&wg, errCh, func() error {
+				for _, ec := range exportConfigs {
+					exportBatchFiles, err := exportDB.LookupExportFiles(ctx, ec.ConfigID, 4*time.Hour)
+					if err != nil {
+						return fmt.Errorf("failed to lookup export files: %w", err)
+					}
+					resp.ExportBatchFiles[ec.ConfigID] = exportBatchFiles
+				}
+				return nil
+			})
 			return nil
 		})
 
@@ -113,15 +125,6 @@ func (s *Server) handleDebug(ctx context.Context) http.HandlerFunc {
 				return fmt.Errorf("failed to get latest export batch ends: %w", err)
 			}
 			resp.ExportBatchEnds = exportBatchEnds
-			return nil
-		})
-
-		queue(&wg, errCh, func() error {
-			exportBatchFiles, err := exportDB.LookupExportFiles(ctx, 4*time.Hour)
-			if err != nil {
-				return fmt.Errorf("failed to lookup export files: %w", err)
-			}
-			resp.ExportBatchFiles = exportBatchFiles
 			return nil
 		})
 
