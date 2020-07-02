@@ -629,7 +629,7 @@ func (db *ExportDB) FinalizeBatch(ctx context.Context, eb *model.ExportBatch, fi
 }
 
 // LookupExportFiles returns a list of completed and unexpired export files for a specific config.
-func (db *ExportDB) LookupExportFiles(ctx context.Context, configId int64, ttl time.Duration) ([]string, error) {
+func (db *ExportDB) LookupExportFiles(ctx context.Context, configID int64, ttl time.Duration) ([]string, error) {
 	conn, err := db.db.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring connection: %w", err)
@@ -652,7 +652,7 @@ func (db *ExportDB) LookupExportFiles(ctx context.Context, configId int64, ttl t
 			eb.status = $3
 		ORDER BY
 			ef.filename
-		`, configId, minTime, model.ExportBatchComplete)
+		`, configID, minTime, model.ExportBatchComplete)
 	if err != nil {
 		return nil, err
 	}

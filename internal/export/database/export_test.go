@@ -402,7 +402,7 @@ func TestFinalizeBatch(t *testing.T) {
 
 	// Check that files were written.
 	ttl, _ := time.ParseDuration("20h")
-	gotFiles, err := exportDB.LookupExportFiles(ctx, ttl)
+	gotFiles, err := exportDB.LookupExportFiles(ctx, eb.ConfigID, ttl)
 	if err != nil {
 		t.Fatal(err)
 	}
