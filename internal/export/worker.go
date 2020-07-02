@@ -53,7 +53,7 @@ func (s *Server) handleDoWork(ctx context.Context) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), s.config.WorkerTimeout)
 		defer cancel()
 
-		emitIndexForEmptyBatch := true
+		indexWrittenForConfig := make(map[int64]struct{})
 		for {
 			if ctx.Err() != nil {
 				msg := "Timed out processing batches. Will continue on next invocation."
@@ -75,15 +75,22 @@ func (s *Server) handleDoWork(ctx context.Context) http.HandlerFunc {
 				return
 			}
 
+			// We re-write the index file for empty batches for self-healing so that the
+			// index file reflects the ExportFile table in database. However, if a
+			// single worker processes a number of empty batches quickly, we want to
+			// avoid writing the same file repeatedly and hitting a rate limit. This
+			// ensures that we write the index file for an empty batch at most once
+			// per processed config each round.
+			emitIndexForEmptyBatch := false
+			if _, ok := indexWrittenForConfig[batch.ConfigID]; !ok {
+				emitIndexForEmptyBatch = true
+				indexWrittenForConfig[batch.ConfigID] = struct{}{}
+			}
+
 			if err = s.exportBatch(ctx, batch, emitIndexForEmptyBatch); err != nil {
 				logger.Errorf("Failed to create files for batch: %v.", err)
 				continue
 			}
-			// We re-write the index file for empty batches for self-healing so that the
-			// index file reflects the ExportFile table in database. However, if a
-			// single worker processes a number of empty batches quickly, we want to
-			// avoid writing the same file repeatedly and hitting a rate limit.
-			emitIndexForEmptyBatch = false
 
 			fmt.Fprintf(w, "Batch %d marked completed. \n", batch.BatchID)
 		}
@@ -226,11 +233,13 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 	logger := logging.FromContext(ctx)
 	db := s.env.Database()
 
-	lockID := fmt.Sprintf("export-batch-%d", eb.BatchID)
+	// Lock at the export config level, if there are multiple batches in parallel for the same
+	// config, they should serially update the index.
+	lockID := fmt.Sprintf("export-config-%d", eb.ConfigID)
 	sleep := 10 * time.Second
 	for {
 		if ctx.Err() != nil {
-			logger.Infof("Timed out acquiring index file lock for batch %s, the entire batch will be retried once the batch lease expires on %v", eb.BatchID, eb.LeaseExpires)
+			logger.Infof("Timed out acquiring index file lock for config %s, the entire batch will be retried once the batch lease expires on %v", eb.BatchID, eb.LeaseExpires)
 			return nil
 		}
 
@@ -263,7 +272,7 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObjectNames []string) (string, int, error) {
 	db := s.env.Database()
 
-	objects, err := exportdatabase.New(db).LookupExportFiles(ctx, s.config.TTL)
+	objects, err := exportdatabase.New(db).LookupExportFiles(ctx, eb.ConfigID, s.config.TTL)
 	if err != nil {
 		return "", 0, fmt.Errorf("lookup available export files: %w", err)
 	}
