@@ -1,0 +1,25 @@
+# documentation links
+docs:
+    - title: View on GitHub
+      url: https://github.com/google/exposure-notifications-server
+
+    - title: Getting Started
+      children:
+        - title: How to Deploy
+          url: /getting-started/deploying
+        - title: How to Publish Keys
+          url: /getting-started/publishing-temporary-exposure-keys
+        - title: How to Download Keys
+          url: /getting-started/downloading-export-batches-keys
+        - title: Estimating the Cost of Deployment
+          url: /getting-started/estimating-costs
+    - title: Design
+      children:
+        - title: Server Deployment Options
+          url: /server_deployment_options
+        - title: Server Functional Requirements
+          url: /server_functional_requirements
+        - title: Verification Protocol Design
+          url: /design/verification_protocol
+        - title: API Definitions
+          url: https://github.com/google/exposure-notifications-server/tree/main/pkg/api/v1alpha1

@@ -1,0 +1,97 @@
+meta {
+  title "Data Retrieval Flow"
+}
+
+elements {
+  ########################################
+  # Clients and Partners
+  ########################################
+  # card smartphone as client
+  # card server as federated_ingestion_server
+  group Compute {
+    ########################################
+    # Compute Components
+    ########################################
+	card cloud_run as tracing_key_ingestion {
+    	name "Exposure Key Ingestion"
+        description "Intake of Exposure Keys"
+    }
+
+	card cloud_run as federated_ingestion {
+    	name "Federated Ingestion"
+        description "Federated Ingestion"
+    }
+
+    card cloud_run as data_deletion {
+    	name "Data Deletion"
+        description "Periodically delete old exposure keys"
+    }
+
+	card cloud_run as federation_api {
+    	name "Federated Access"
+        description ""
+    }
+    card cloud_run as batch_keys {
+    	name "Batch Exposure Keys"
+        description ""
+    }
+    
+	card cdn
+    # Likely needed instead of CDN for non-gcp
+    # card cloud_run as cdn {
+    #    name "Exposure Key Batch Server"
+    #}
+   
+    ########################################
+    #
+    ########################################
+    card cloud_scheduler {
+        name "Periodically run Data Deletion, Batching"
+    }
+  }
+  
+  group Data {
+ 	########################################
+    # Storage Components
+    ########################################
+    card gke_onprem as sql {
+    	name "Exposure Key Database"
+		description ""
+	}
+
+    card gke_onprem as storage {
+    	name "Exposure Key Batches"
+		description ""
+	} 
+    
+    card generic as secret_manager {
+        name "Secret Manager"
+    }
+  }
+
+  card server as federated_partner
+  card smartphone as out_client
+}
+
+
+paths {
+  #federated_ingestion_server --> federated_ingestion
+  #client --> tracing_key_ingestion
+
+  # batch_keys --> storage
+  storage --> cdn
+  federation_api --> federated_partner
+  cdn --> out_client
+  
+  sql --> batch_keys
+  sql --> federation_api
+
+ 
+  # tracing_key_ingestion --> sql
+  # federated_ingestion --> sql
+  # data_deletion --> sql
+
+  # Don't render connections as it clutters diagram
+  # cloud_scheduler ..> data_deletion
+  # cloud_scheduler ..> batch_keys
+}

@@ -1,0 +1,97 @@
+meta {
+  title "Exposure Notification Key Server"
+}
+
+elements {
+  ########################################
+  # Clients and Partners
+  ########################################
+  # In
+  card smartphone as client
+  card server as federated_ingestion_server
+  # Out
+  card smartphone as out_client
+  card server as federated_partner
+
+
+  group OnPrem {
+    ########################################
+    # Compute Components
+    ########################################
+	card gke_onprem as tracing_key_ingestion {
+    	name "Exposure Key Ingestion"
+        description "Intake of Exposure Keys"
+    }
+
+	card gke_onprem as federated_ingestion {
+    	name "Federated Ingestion"
+        description "Federated Ingestion"
+    }
+
+    card gke_onprem as data_deletion {
+    	name "Data Deletion"
+        description "Periodically delete old exposure keys"
+    }
+
+	card gke_onprem as federation_api {
+    	name "Federated Access"
+        description ""
+    }
+    card gke_onprem as batch_keys {
+    	name "Batch Exposure Keys"
+        description ""
+    }
+
+    ########################################
+    # Storage Components
+    ########################################
+    card server as sql {
+    	name "Database"
+	}
+
+    card server as storage {
+    	name "Batches"
+		description ""
+	}
+
+    card gke_onprem as secret_manager {
+        name "Secret Manager"
+    }
+
+
+    #card cdn
+    # Likely needed instead of CDN
+    card gke_onprem as cdn {
+        name "Exposure Key Batch Server"
+    }
+
+    ########################################
+    #
+    ########################################
+    card gke_onprem as cloud_scheduler {
+        name "Periodically run Data Deletion, Batching"
+    }
+  }
+}
+
+paths {
+  federated_ingestion_server --> federated_ingestion
+  client --> tracing_key_ingestion
+
+  tracing_key_ingestion --> sql
+  federated_ingestion --> sql
+  data_deletion ..> sql
+
+  sql --> batch_keys
+  sql --> federation_api
+
+ 
+  batch_keys --> storage
+  storage --> cdn
+  federation_api --> federated_partner
+  cdn --> out_client
+
+  # Don't render connections as it clutters diagram
+  # cloud_scheduler ..> data_deletion
+  # cloud_scheduler ..> batch_keys
+}
