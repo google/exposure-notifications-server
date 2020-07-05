@@ -1090,6 +1090,8 @@ github.com/sethvargo/go-envconfig v0.1.1 h1:zgzMUhULxZxMc4t7rPPNjAEKYb/mjbNs/23w
 github.com/sethvargo/go-envconfig v0.1.1/go.mod h1:XZ2JRR7vhlBEO5zMmOpLgUhgYltqYqq4d4tKagtPUv0=
 github.com/sethvargo/go-gcpkms v0.0.0-20200417004547-e50d0c7083d9 h1:RhVXqKbTmy4akECFXjhvw+5E/h6woQXzTaj0Yt2mzjM=
 github.com/sethvargo/go-gcpkms v0.0.0-20200417004547-e50d0c7083d9/go.mod h1:C7JiMBZbJnohGWYmx0vi6mQNGgLxhQX/SWxe0wYxf18=
+github.com/sethvargo/go-retry v0.1.0 h1:8sPqlWannzcReEcYjHSNw9becsiYudcwTD7CasGjQaI=
+github.com/sethvargo/go-retry v0.1.0/go.mod h1:JzIOdZqQDNpPkQDmcqgtteAcxFLtYpNF/zJCM1ysDg8=
 github.com/shirou/gopsutil v0.0.0-20190901111213-e4ec7b275ada/go.mod h1:WWnYX4lzhCH5h/3YBfyVA3VbLYjlMZZAQcW9ojMexNc=
 github.com/shirou/gopsutil v2.19.9+incompatible h1:IrPVlK4nfwW10DF7pW+7YJKws9NkgNzWozwwWv9FsgY=
 github.com/shirou/gopsutil v2.19.9+incompatible/go.mod h1:5b4v6he4MtMOwMlS0TUMTu2PcXUg8+E1lC7eC3UO/RA=

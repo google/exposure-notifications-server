@@ -27,11 +27,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/pkg/retry"
-
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/ory/dockertest"
+	"github.com/sethvargo/go-retry"
 
 	// imported to register the postgres migration driver
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -110,10 +109,17 @@ func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
 	// but there's no point in trying immediately.
 	time.Sleep(1 * time.Second)
 
+	b, err := retry.NewFibonacci(500 * time.Millisecond)
+	if err != nil {
+		tb.Fatalf("failed to configure backoff: %v", err)
+	}
+	b = retry.WithMaxRetries(10, b)
+	b = retry.WithCappedDuration(10*time.Second, b)
+
 	// Establish a connection to the database. Use a Fibonacci backoff instead of
 	// exponential so wait times scale appropriately.
 	var dbpool *pgxpool.Pool
-	if err := retry.RetryFib(ctx, 500*time.Millisecond, 10, func() error {
+	if err := retry.Do(ctx, b, func(ctx context.Context) error {
 		var err error
 		dbpool, err = pgxpool.Connect(ctx, connURL.String())
 		if err != nil {
