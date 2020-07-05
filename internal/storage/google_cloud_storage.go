@@ -52,7 +52,7 @@ func (s *GoogleCloudStorage) CreateObject(ctx context.Context, bucket, objectNam
 
 	wc := s.client.Bucket(bucket).Object(objectName).NewWriter(ctx)
 	wc.CacheControl = cacheControl
-    
+
 	if _, err := wc.Write(contents); err != nil {
 		return fmt.Errorf("storage.Writer.Write: %w", err)
 	}
