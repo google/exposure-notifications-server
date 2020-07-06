@@ -1,0 +1,21 @@
+name: 'Publish GitHub Pages'
+
+on:
+  push:
+    branches:
+      - gh-pages  # default branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      # - run: somebuild
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
+          enable_jekyll: true
