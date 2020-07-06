@@ -71,7 +71,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		regionStr = regionParams[0]
 	}
 	regions := strings.Split(regionStr, ",")
-	logger.Infof("Rquest to generate data for regions: %v", regions)
+	logger.Infof("Request to generate data for regions: %v", regions)
 
 	batchTime := time.Now()
 	for i := 0; i < h.config.NumExposures; i++ {
