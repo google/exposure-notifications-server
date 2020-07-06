@@ -89,7 +89,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		exposures, err := h.transformer.TransformPublish(ctx, &publish, batchTime)
 		if err != nil {
-			message := fmt.Sprintf("Error transofmring generated exposures: %v", err)
+			message := fmt.Sprintf("Error transforming generated exposures: %v", err)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, message)
