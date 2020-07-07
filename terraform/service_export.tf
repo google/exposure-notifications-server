@@ -154,7 +154,7 @@ resource "google_cloud_scheduler_job" "export-worker" {
   name             = "export-worker"
   region           = var.cloudscheduler_location
   schedule         = "* * * * *"
-  time_zone        = "Etc/UTC"
+  time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 
   retry_config {
@@ -181,7 +181,7 @@ resource "google_cloud_scheduler_job" "export-create-batches" {
   name             = "export-create-batches"
   region           = var.cloudscheduler_location
   schedule         = "*/5 * * * *"
-  time_zone        = "Etc/UTC"
+  time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 
   retry_config {

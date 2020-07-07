@@ -143,7 +143,7 @@ locals {
 resource "google_cloud_scheduler_job" "generate-worker" {
   name             = "generate-worker"
   schedule         = var.generate_cron_schedule
-  time_zone        = "Etc/UTC"
+  time_zone        = "America/Los_Angeles"
   attempt_deadline = "60s"
 
   retry_config {
