@@ -127,7 +127,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		MinRecords:     1,
 		PaddingRange:   1,
 		MaxRecords:     10000,
-		TruncateWindow: 1 * time.Millisecond,
+		TruncateWindow: 1 * time.Second,
 		MinWindowAge:   1 * time.Second,
 		TTL:            336 * time.Hour,
 	}
