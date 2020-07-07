@@ -100,6 +100,13 @@ variable "generate_cron_schedule" {
   description = "Schedule to execute the generation service."
 }
 
+variable "generate_regions" {
+  type    = list(string)
+  default = []
+
+  description = "List of regions for which to generate data."
+}
+
 variable "deploy_debugger" {
   type    = bool
   default = false

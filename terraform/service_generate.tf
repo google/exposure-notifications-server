@@ -136,6 +136,10 @@ resource "google_cloud_run_service_iam_member" "generate-invoker" {
   member   = "serviceAccount:${google_service_account.generate-invoker.email}"
 }
 
+locals {
+  generate_uri = length(var.generate_regions) > 0 ? "${google_cloud_run_service.generate.status.0.url}/?region=${join(",", var.generate_regions)}" : "${google_cloud_run_service.generate.status.0.url}/"
+}
+
 resource "google_cloud_scheduler_job" "generate-worker" {
   name             = "generate-worker"
   schedule         = var.generate_cron_schedule
@@ -148,7 +152,7 @@ resource "google_cloud_scheduler_job" "generate-worker" {
 
   http_target {
     http_method = "GET"
-    uri         = "${google_cloud_run_service.generate.status.0.url}/"
+    uri         = local.generate_uri
     oidc_token {
       audience              = google_cloud_run_service.generate.status.0.url
       service_account_email = google_service_account.generate-invoker.email
