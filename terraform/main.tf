@@ -121,6 +121,10 @@ resource "google_project_iam_member" "cloudbuild-deploy" {
 locals {
   common_cloudrun_env_vars = [
     {
+      name  = "PROJECT_ID"
+      value = var.project
+    },
+    {
       name  = "DB_POOL_MIN_CONNS"
       value = "2"
     },
