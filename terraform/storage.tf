@@ -24,6 +24,20 @@ resource "google_storage_bucket" "export" {
   location           = var.storage_location
   name               = "exposure-notification-export-${random_string.bucket-name.result}"
   bucket_policy_only = true
+
+  versioning {
+    enabled = true
+  }
+
+  lifecycle_rule {
+    condition {
+      num_newer_versions = "3"
+    }
+
+    action {
+      type = "Delete"
+    }
+  }
 }
 
 resource "google_storage_bucket_iam_member" "public" {
