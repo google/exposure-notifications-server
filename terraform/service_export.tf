@@ -59,6 +59,19 @@ resource "google_kms_key_ring_iam_member" "export-signerverifier" {
   member      = "serviceAccount:${google_service_account.export.email}"
 }
 
+resource "google_project_iam_member" "export-observability" {
+  for_each = toset([
+    "roles/cloudtrace.agent",
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+    "roles/stackdriver.resourceMetadata.writer",
+  ])
+
+  project = var.project
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.export.email}"
+}
+
 resource "google_cloud_run_service" "export" {
   name     = "export"
   location = var.cloudrun_location

@@ -101,7 +101,7 @@ variable "generate_cron_schedule" {
 }
 
 variable "deploy_debugger" {
-  type = bool
+  type    = bool
   default = false
 
   description = "Deploy the service debugger. Use only in testing."

@@ -48,9 +48,22 @@ resource "google_secret_manager_secret_iam_member" "debugger-db" {
 }
 
 resource "google_project_iam_member" "debugger-run-viewer" {
-  project  = google_cloud_run_service.generate.project
-  role     = "roles/run.viewer"
-  member   = "serviceAccount:${google_service_account.debugger.email}"
+  project = google_cloud_run_service.generate.project
+  role    = "roles/run.viewer"
+  member  = "serviceAccount:${google_service_account.debugger.email}"
+}
+
+resource "google_project_iam_member" "debugger-observability" {
+  for_each = toset([
+    "roles/cloudtrace.agent",
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+    "roles/stackdriver.resourceMetadata.writer",
+  ])
+
+  project = var.project
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.debugger.email}"
 }
 
 resource "google_cloud_run_service" "debugger" {
