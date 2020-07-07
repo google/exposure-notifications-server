@@ -112,7 +112,6 @@ func main() {
 		// Here, we show an example of a confirmed lab test, conducted yesterday (-1 day),
 		// with symptom onset occurring 2 days before the test (-3 days from now).
 		claims.ReportType = v1alpha1.ReportTypeConfirmed
-		claims.TestDateInterval = uint32(model.IntervalNumber(now.Add(-1 * oneDay).Truncate(oneDay)))
 		claims.SymptomOnsetInterval = uint32(model.IntervalNumber(now.Add(-3 * oneDay).Truncate(oneDay)))
 
 		// optionally add transmission risks
