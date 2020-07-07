@@ -27,7 +27,7 @@ requires the registration of the Application Name (for Android) or the Bundle ID
 
 To add these entries, we can use the Admin Console Application. For
 instructions on how to launch the console, you can view the
-[deployment documentation](/getting-started/deploying#configuring-the-server).
+[deployment documentation](deploying#configuring-the-server).
 
 Once the Admin Console is launched, you will see a few choices presented.
 
