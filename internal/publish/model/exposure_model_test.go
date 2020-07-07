@@ -578,16 +578,16 @@ func TestApplyOverrides(t *testing.T) {
 			},
 			Overrides: []verifyapi.TransmissionRiskOverride{
 				{
-					SinceRollingPeriod: 5,
-					TranismissionRisk:  5,
+					SinceRollingInterval: 5,
+					TranismissionRisk:    5,
 				},
 				{
-					SinceRollingPeriod: 3,
-					TranismissionRisk:  3,
+					SinceRollingInterval: 3,
+					TranismissionRisk:    3,
 				},
 				{
-					SinceRollingPeriod: 0,
-					TranismissionRisk:  0,
+					SinceRollingInterval: 0,
+					TranismissionRisk:    0,
 				},
 			},
 			Want: []verifyapi.ExposureKey{
@@ -637,12 +637,12 @@ func TestApplyOverrides(t *testing.T) {
 			},
 			Overrides: []verifyapi.TransmissionRiskOverride{
 				{
-					SinceRollingPeriod: 4,
-					TranismissionRisk:  5, // anything effective at time >= 4 gets TR 5.
+					SinceRollingInterval: 4,
+					TranismissionRisk:    5, // anything effective at time >= 4 gets TR 5.
 				},
 				{
-					SinceRollingPeriod: 0,
-					TranismissionRisk:  2, // 2 since beginning of time.
+					SinceRollingInterval: 0,
+					TranismissionRisk:    2, // 2 since beginning of time.
 				},
 			},
 			Want: []verifyapi.ExposureKey{
@@ -680,8 +680,8 @@ func TestApplyOverrides(t *testing.T) {
 			},
 			Overrides: []verifyapi.TransmissionRiskOverride{
 				{
-					SinceRollingPeriod: 4,
-					TranismissionRisk:  5, // anything effective at time >= 4 gets TR 5.
+					SinceRollingInterval: 4,
+					TranismissionRisk:    5, // anything effective at time >= 4 gets TR 5.
 				},
 			},
 			Want: []verifyapi.ExposureKey{

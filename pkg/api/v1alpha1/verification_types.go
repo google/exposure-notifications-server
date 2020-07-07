@@ -24,10 +24,27 @@ import (
 )
 
 const (
-	ExposureKeyHMACClaim          = "tekmac"
-	HealthAuthorityDataClaim      = "phadata"
+	// ExposureKeyHMACClaim is the JWT claim key for the HMAC of the TEKs
+	ExposureKeyHMACClaim = "tekmac"
+	// TransmissionRiskOverrideClaim is the JWT Claim key for transmission risk overrides
 	TransmissionRiskOverrideClaim = "trisk"
-	KeyIDHeader                   = "kid"
+	// ReportTypeClaim is the JWT claim for the report type (confirmed|likely|negative)
+	ReportTypeClaim = "reportType"
+	// SymptomOnsetIntervalClaim is the JWT claim for the interval representing the symptom onset.
+	SymptomOnsetIntervalClaim = "symptomOnsetInterval"
+	// TestDateIntervalClaim is the JWT claim for the interval representing the test date
+	TestDateIntervalClaim = "testDateInterval"
+	// KeyIDHeader is the standard JWT key ID header name.
+	KeyIDHeader = "kid"
+
+	// ReportType strings that correspond to what is defined in internal/pb/export/export.proto
+
+	// ReportTypeConfirmed indicates to set ReportType.CONFIRMED_TEST
+	ReportTypeConfirmed = "confirmed"
+	// ReportTypeClinical indicates to set ReportType.CONFIRMED_CLINICAL_DIAGNOSIS
+	ReportTypeClinical = "likely"
+	// ReportTypeNegative is allowed by the verification flow. These keys are not saved in the system.
+	ReportTypeNegative = "negative"
 )
 
 // TransmissionRiskVector is an additional set of claims that can be
@@ -40,8 +57,8 @@ var _ sort.Interface = TransmissionRiskVector{}
 
 // TransmissionRiskOverride is an indvidual transmission risk override.
 type TransmissionRiskOverride struct {
-	TranismissionRisk  int   `json:"tr"`
-	SinceRollingPeriod int32 `json:"sinceRollingPeriod"`
+	TranismissionRisk    int   `json:"tr"`
+	SinceRollingInterval int32 `json:"sinceRollingInterval"`
 }
 
 func (a TransmissionRiskVector) Len() int {
@@ -51,23 +68,38 @@ func (a TransmissionRiskVector) Len() int {
 // Less sorts the TransmissionRiskVector vector with the largest SinceRollingPeriod
 // value first. Descending sort.
 func (a TransmissionRiskVector) Less(i, j int) bool {
-	return a[i].SinceRollingPeriod > a[j].SinceRollingPeriod
+	return a[i].SinceRollingInterval > a[j].SinceRollingInterval
 }
 
 func (a TransmissionRiskVector) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+// VerificationClaims represents the accepted Claims portion of the verification certificate JWT.
+// This data is used to set data on the uploaded TEKs and will be reflected on export. See the export file format:
+// https://github.com/google/exposure-notifications-server/blob/main/internal/pb/export/export.proto#L73
 type VerificationClaims struct {
-	PHAClaims         map[string]string      `json:"phadata"`
+	ReportType string `json:"reportType"`
+	// SymptomOnsetInterval uses the same 10 minute interval timing as TEKs use. If an interval is provided that isn not the
+	// start of a UTC day, then it will be rounded down to the beginning of that UTC day. And from there the days +/- symptom
+	// onset will be calculated.
+	SymptomOnsetInterval uint32 `json:"symptomOnsetInterval"`
+	// TestDateInterval also uses the 10 mninute intervals and has the same rounding
+	// rules as SymptomOnsetInterval
+	TestDateInterval uint32 `json:"testDateInterval"`
+
+	// Deprecated, but not scheduled for removal.
+	// TransmissionRisks will continue to be supported. On newer versions of the device software,
+	// the ReportType and days +/- symptom onset will be used.
 	TransmissionRisks TransmissionRiskVector `json:"trisk"`
-	SignedMAC         string                 `json:"tekmac"`
+
+	SignedMAC string `json:"tekmac"`
 	jwt.StandardClaims
 }
 
+// NewVerificationClaims initializes a new VerificationClaims struct.
 func NewVerificationClaims() *VerificationClaims {
 	return &VerificationClaims{
-		PHAClaims:         make(map[string]string),
 		TransmissionRisks: []TransmissionRiskOverride{},
 	}
 }
