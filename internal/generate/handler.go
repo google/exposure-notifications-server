@@ -71,7 +71,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		regionStr = regionParams[0]
 	}
 	regions := strings.Split(regionStr, ",")
-	logger.Infof("Rquest to generate data for regions: %v", regions)
+	logger.Infof("Request to generate data for regions: %v", regions)
 
 	batchTime := time.Now()
 	for i := 0; i < h.config.NumExposures; i++ {
@@ -89,7 +89,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		exposures, err := h.transformer.TransformPublish(ctx, &publish, batchTime)
 		if err != nil {
-			message := fmt.Sprintf("Error transofmring generated exposures: %v", err)
+			message := fmt.Sprintf("Error transforming generated exposures: %v", err)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, message)
