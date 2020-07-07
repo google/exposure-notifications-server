@@ -47,6 +47,19 @@ resource "google_secret_manager_secret_iam_member" "federationout-db" {
   member    = "serviceAccount:${google_service_account.federationout.email}"
 }
 
+resource "google_project_iam_member" "federationout-observability" {
+  for_each = toset([
+    "roles/cloudtrace.agent",
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+    "roles/stackdriver.resourceMetadata.writer",
+  ])
+
+  project = var.project
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.federationout.email}"
+}
+
 resource "google_cloud_run_service" "federationout" {
   name     = "federationout"
   location = var.cloudrun_location

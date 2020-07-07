@@ -59,6 +59,19 @@ resource "google_kms_key_ring_iam_member" "export-signerverifier" {
   member      = "serviceAccount:${google_service_account.export.email}"
 }
 
+resource "google_project_iam_member" "export-observability" {
+  for_each = toset([
+    "roles/cloudtrace.agent",
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+    "roles/stackdriver.resourceMetadata.writer",
+  ])
+
+  project = var.project
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.export.email}"
+}
+
 resource "google_cloud_run_service" "export" {
   name     = "export"
   location = var.cloudrun_location
@@ -141,7 +154,7 @@ resource "google_cloud_scheduler_job" "export-worker" {
   name             = "export-worker"
   region           = var.cloudscheduler_location
   schedule         = "* * * * *"
-  time_zone        = "Etc/UTC"
+  time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 
   retry_config {
@@ -168,7 +181,7 @@ resource "google_cloud_scheduler_job" "export-create-batches" {
   name             = "export-create-batches"
   region           = var.cloudscheduler_location
   schedule         = "*/5 * * * *"
-  time_zone        = "Etc/UTC"
+  time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 
   retry_config {

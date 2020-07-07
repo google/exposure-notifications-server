@@ -53,6 +53,19 @@ resource "google_storage_bucket_iam_member" "cleanup-export-objectadmin" {
   member = "serviceAccount:${google_service_account.cleanup-export.email}"
 }
 
+resource "google_project_iam_member" "cleanup-export-observability" {
+  for_each = toset([
+    "roles/cloudtrace.agent",
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+    "roles/stackdriver.resourceMetadata.writer",
+  ])
+
+  project = var.project
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.cleanup-export.email}"
+}
+
 resource "google_cloud_run_service" "cleanup-export" {
   name     = "cleanup-export"
   location = var.cloudrun_location
@@ -133,7 +146,7 @@ resource "google_cloud_scheduler_job" "cleanup-export-worker" {
   name             = "cleanup-export-worker"
   region           = var.cloudscheduler_location
   schedule         = "0 */6 * * *"
-  time_zone        = "Etc/UTC"
+  time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 
   retry_config {
