@@ -22,7 +22,7 @@ step is to configure exports from the server.
 
 To add these entries, we can use the Admin Console. For instructions on how to
 launch the console, you can view the
-[deployment documentation](/getting-started/deploying#configuring-the-server).
+[deployment documentation](deploying#configuring-the-server).
 
 Once the admin console is launched, you will see a few choices presented.
 
