@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package implements a sample server that implements the public health authority
+// This package implements a sample server that implements a piece of the public health authority
 // verification protocol: https://github.com/google/exposure-notifications-server/blob/main/docs/design/verification_protocol.md
 //
 // To call this server using curl:
 // curl -d '{"verificationCode":"fakeCode","tekhmac":"replace w/ tek hmac"}' -H "Content-Type: application/json" -X POST http://localhost:8080/
+//
+// The FULL protocol is implemented by
+// https://github.com/google/exposure-notifications-verification-server/
 package main
 
 import (
@@ -31,6 +34,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/keys"
@@ -40,6 +44,7 @@ import (
 )
 
 // VerifyRequest is the JSON structure the server accepts in order to issue a certificate.
+// This is a simplified example and doesn't represent the full capabilities.
 type VerifyRequest struct {
 	VerificationCode string `json:"verificationCode"`
 	HMAC             string `json:"tekhmac"`
@@ -68,6 +73,8 @@ func (c *config) KeyManagerConfig() *keys.Config {
 }
 
 func main() {
+	oneDay := 24 * time.Hour
+
 	ctx := context.Background()
 	var cfg config
 	env, err := setup.Setup(ctx, &cfg)
@@ -94,18 +101,20 @@ func main() {
 
 		now := time.Now().UTC()
 
-		// Normally - you would verify the verificationCode against a database and optionally
-		// assign transmission risk overrides.
-
-		// Here - we simply sign the claims and assume the verificationCode is valid.
+		// Here - we simply sign the claims and do not to any code or token verification.
+		// The full verification flow reference implementation is available at:
+		// https://github.com/google/exposure-notifications-verification-server/
 
 		// Build a JWT that contains the Standard and Extended claims as defined in
 		// pkg/api/v1alpha1/verification_types.go
 		claims := v1alpha1.NewVerificationClaims()
-		// PHAClaims is a key-value map that can be used to send information from the verification
-		// server to the app and/or the key server.
-		// The reference key server ignores anything in PHAClaims.
-		claims.PHAClaims["testkit"] = "55-HH-A7"
+
+		// Here, we show an example of a confirmed lab test, conducted yesterday (-1 day),
+		// with symptom onset occurring 2 days before the test (-3 days from now).
+		claims.ReportType = v1alpha1.ReportTypeConfirmed
+		claims.TestDateInterval = uint32(model.IntervalNumber(now.Add(-1 * oneDay).Truncate(oneDay)))
+		claims.SymptomOnsetInterval = uint32(model.IntervalNumber(now.Add(-3 * oneDay).Truncate(oneDay)))
+
 		// optionally add transmission risks
 		claims.SignedMAC = request.HMAC
 		// Add in the standard claims.

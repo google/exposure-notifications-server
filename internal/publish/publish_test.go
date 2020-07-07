@@ -266,8 +266,8 @@ func TestPublishWithBypass(t *testing.T) {
 			},
 			Overrides: []verifyapi.TransmissionRiskOverride{
 				{
-					TranismissionRisk:  8,
-					SinceRollingPeriod: 0,
+					TranismissionRisk:    8,
+					SinceRollingInterval: 0,
 				},
 			},
 			WantTRAdjustment: []int{8, 8}, // 2 entries, both override to 8

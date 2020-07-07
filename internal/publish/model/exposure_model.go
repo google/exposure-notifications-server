@@ -48,7 +48,7 @@ func ApplyTransmissionRiskOverrides(p *verifyapi.Publish, overrides verifyapi.Tr
 		// Advance the overrideIdx until the current key is covered or we exhaust the
 		// override index.
 		for overrideIdx < len(overrides) &&
-			eKey.IntervalNumber+eKey.IntervalCount <= overrides[overrideIdx].SinceRollingPeriod {
+			eKey.IntervalNumber+eKey.IntervalCount <= overrides[overrideIdx].SinceRollingInterval {
 			overrideIdx++
 		}
 
@@ -59,7 +59,7 @@ func ApplyTransmissionRiskOverrides(p *verifyapi.Publish, overrides verifyapi.Tr
 
 		// Check to see if this key is in the current override.
 		// If the key was EVERY valid during the SinceRollingPeriod then the override applies.
-		if eKey.IntervalNumber+eKey.IntervalCount >= overrides[overrideIdx].SinceRollingPeriod {
+		if eKey.IntervalNumber+eKey.IntervalCount >= overrides[overrideIdx].SinceRollingInterval {
 			p.Keys[i].TransmissionRisk = overrides[overrideIdx].TranismissionRisk
 			// don't advance overrideIdx, there might be additional keys in this override.
 		}
