@@ -168,7 +168,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, got, approxTime); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 }
