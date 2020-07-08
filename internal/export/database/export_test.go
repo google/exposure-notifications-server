@@ -26,7 +26,12 @@ import (
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	pgx "github.com/jackc/pgx/v4"
+)
+
+var (
+	approxTime = cmp.Options{cmpopts.EquateApproxTime(time.Millisecond * 250)}
 )
 
 func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
@@ -57,7 +62,6 @@ func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
 
 	// Update, set expiry timestamp.
 	want.EndTimestamp = time.Now().UTC().Add(24 * time.Hour)
-	want.EndTimestamp = want.EndTimestamp.Truncate(time.Second)
 	if err := exDB.UpdateSignatureInfo(ctx, want); err != nil {
 		t.Fatal(err)
 	}
@@ -67,8 +71,7 @@ func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got.EndTimestamp = got.EndTimestamp.Truncate(time.Second)
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, got, approxTime); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -85,13 +88,13 @@ func TestLookupSignatureInfos(t *testing.T) {
 			SigningKey:        "/kms/project/key/version/1",
 			SigningKeyVersion: "1",
 			SigningKeyID:      "310",
-			EndTimestamp:      testTime.Add(-1 * time.Hour).Truncate(time.Microsecond),
+			EndTimestamp:      testTime.Add(-1 * time.Hour),
 		},
 		{
 			SigningKey:        "/kms/project/key/version/2",
 			SigningKeyVersion: "2",
 			SigningKeyID:      "310",
-			EndTimestamp:      testTime.Add(24 * time.Hour).Truncate(time.Microsecond),
+			EndTimestamp:      testTime.Add(24 * time.Hour),
 		},
 		{
 			SigningKey:        "/kms/project/key/version/3",
@@ -114,7 +117,7 @@ func TestLookupSignatureInfos(t *testing.T) {
 	// The first entry (want[0]) is expired and won't be returned.
 	want = want[1:]
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, got, approxTime); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%v", diff)
 	}
 }
@@ -147,9 +150,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want.From = want.From.Truncate(time.Microsecond)
-	want.Thru = want.Thru.Truncate(time.Microsecond)
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, got, approxTime); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 
