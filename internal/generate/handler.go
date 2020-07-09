@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -38,7 +39,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("missing database in server environment")
 	}
 
-	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow, false)
+	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxSameStartIntervalKeys, config.MaxIntervalAge, config.TruncateWindow, false)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
@@ -85,6 +86,19 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Keys:           util.GenerateExposureKeys(h.config.KeysPerExposure, tr, false),
 			Regions:        regions,
 			AppPackageName: "generated.data",
+		}
+		if h.config.SimulateSameDayRelease {
+			sort.Slice(publish.Keys, func(i int, j int) bool {
+				return publish.Keys[i].IntervalNumber < publish.Keys[j].IntervalNumber
+			})
+			lastKey := &publish.Keys[len(publish.Keys)-1]
+			newLastDayKey, err := util.RandomExposureKey(lastKey.IntervalNumber, 144, lastKey.TransmissionRisk)
+			if err != nil {
+				logger.Errorf("unable to simulate same day key release: %v", err)
+			} else {
+				lastKey.IntervalCount = lastKey.IntervalCount / 2
+				publish.Keys = append(publish.Keys, newLastDayKey)
+			}
 		}
 
 		exposures, err := h.transformer.TransformPublish(ctx, &publish, batchTime)
