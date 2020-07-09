@@ -46,13 +46,17 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("missing AuthorizedApp provider in server environment")
 	}
 
-	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxIntervalAge, config.TruncateWindow, config.DebugReleaseSameDayKeys)
+	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxSameStartIntervalKeys, config.MaxIntervalAge, config.TruncateWindow, config.DebugReleaseSameDayKeys)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
 	logger.Infof("max keys per upload: %v", config.MaxKeysOnPublish)
+	logger.Infof("max same start interval keys: %v", config.MaxSameStartIntervalKeys)
 	logger.Infof("max interval start age: %v", config.MaxIntervalAge)
 	logger.Infof("truncate window: %v", config.TruncateWindow)
+	if config.DebugReleaseSameDayKeys {
+		logger.Warnf("SERVER IS IN DEBUG MODE. KEYS MAY BE RELEASED EARLY.")
+	}
 
 	verifier, err := verification.New(verifydb.New(env.Database()), &config.Verification)
 	if err != nil {

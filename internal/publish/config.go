@@ -41,12 +41,16 @@ type Config struct {
 	Verification          verification.Config
 	ObservabilityExporter observability.Config
 
-	Port             string        `env:"PORT, default=8080"`
-	MaxKeysOnPublish int           `env:"MAX_KEYS_ON_PUBLISH, default=15"`
-	MaxIntervalAge   time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
-	TruncateWindow   time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
+	Port             string `env:"PORT, default=8080"`
+	MaxKeysOnPublish int    `env:"MAX_KEYS_ON_PUBLISH, default=20"`
+	// Provides compatibility w/ 1.5 release.
+	MaxSameStartIntervalKeys int           `env:"MAX_SAME_START_INTERVAL_KEYS, default=3"`
+	MaxIntervalAge           time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
+	TruncateWindow           time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
-	// Flags for local development and testing.
+	// Flags for local development and testing. This will cause still valid keys
+	// to not be embargoed.
+	// Normallly "still valid" keys can be accepted, but are embargoed.
 	DebugReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
 }
 

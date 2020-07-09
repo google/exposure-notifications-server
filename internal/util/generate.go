@@ -24,7 +24,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
-	"github.com/google/exposure-notifications-server/testing/enclient"
 )
 
 const (
@@ -98,7 +97,7 @@ func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1alpha1.Expos
 				log.Fatalf("problem with transmission risk: %v", err)
 			}
 		}
-		exposureKeys[i], err = RandomExposureKey(enclient.Interval(intervalNumber), intervalCount, transmissionRisk)
+		exposureKeys[i], err = RandomExposureKey(intervalNumber, intervalCount, transmissionRisk)
 		if err != nil {
 			log.Fatalf("problem creating random exposure key: %v", err)
 		}
@@ -116,7 +115,7 @@ func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1alpha1.Expos
 }
 
 // RandomExposureKey creates a random exposure key.
-func RandomExposureKey(intervalNumber enclient.Interval, intervalCount int32, transmissionRisk int) (v1alpha1.ExposureKey, error) {
+func RandomExposureKey(intervalNumber int32, intervalCount int32, transmissionRisk int) (v1alpha1.ExposureKey, error) {
 	key, err := GenerateKey()
 	if err != nil {
 		return v1alpha1.ExposureKey{}, err

@@ -341,7 +341,8 @@ func TestPublishWithBypass(t *testing.T) {
 			config := Config{}
 			config.AuthorizedApp.CacheDuration = time.Nanosecond
 			config.TruncateWindow = time.Second
-			config.MaxKeysOnPublish = 14
+			config.MaxKeysOnPublish = 20
+			config.MaxSameStartIntervalKeys = 2
 			config.MaxIntervalAge = 14 * 24 * time.Hour
 			aaProvider, err := authorizedapp.NewDatabaseProvider(ctx, testDB, config.AuthorizedAppConfig())
 			if err != nil {

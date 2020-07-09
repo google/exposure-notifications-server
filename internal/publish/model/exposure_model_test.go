@@ -44,17 +44,19 @@ func TestIntervalNumber(t *testing.T) {
 func TestInvalidNew(t *testing.T) {
 	errMsg := "maxExposureKeys must be > 0"
 	cases := []struct {
-		maxKeys int
-		message string
+		maxKeys        int
+		maxSameDayKeys int
+		message        string
 	}{
-		{-1, errMsg},
-		{0, errMsg},
-		{1, ""},
-		{5, ""},
+		{-1, 3, "maxExposureKeys must be > 0"},
+		{0, 3, "maxExposureKeys must be > 0"},
+		{1, 3, ""},
+		{5, 1, ""},
+		{5, 0, "maxSameDayKeys must be >= 1, got"},
 	}
 
 	for i, c := range cases {
-		_, err := NewTransformer(c.maxKeys, time.Hour, time.Hour, false)
+		_, err := NewTransformer(c.maxKeys, c.maxSameDayKeys, time.Hour, time.Hour, false)
 		if err != nil && errMsg == "" {
 			t.Errorf("%v unexpected error: %v", i, err)
 		} else if err != nil && !strings.Contains(err.Error(), c.message) {
@@ -65,7 +67,7 @@ func TestInvalidNew(t *testing.T) {
 
 func TestInvalidBase64(t *testing.T) {
 	ctx := context.Background()
-	transformer, err := NewTransformer(1, time.Hour*24, time.Hour, false)
+	transformer, err := NewTransformer(1, 1, time.Hour*24, time.Hour, false)
 	if err != nil {
 		t.Fatalf("error creating transformer: %v", err)
 	}
@@ -251,7 +253,7 @@ func TestPublishValidation(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
-			tf, err := NewTransformer(2, maxAge, time.Hour, c.sameDay)
+			tf, err := NewTransformer(2, 1, maxAge, time.Hour, c.sameDay)
 			if err != nil {
 				t.Fatalf("unepected error: %v", err)
 			}
@@ -338,7 +340,7 @@ func TestStillValidKey(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			allowedAge := 2 * 24 * time.Hour
-			transformer, err := NewTransformer(10, allowedAge, time.Minute, tc.releaseSameDayKeys)
+			transformer, err := NewTransformer(10, 1, allowedAge, time.Minute, tc.releaseSameDayKeys)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -438,7 +440,7 @@ func TestTransform(t *testing.T) {
 	}
 
 	allowedAge := 14 * 24 * time.Hour
-	transformer, err := NewTransformer(10, allowedAge, time.Hour, false)
+	transformer, err := NewTransformer(10, 1, allowedAge, time.Hour, false)
 	if err != nil {
 		t.Fatalf("NewTransformer returned unexpected error: %v", err)
 	}
@@ -456,68 +458,154 @@ func TestTransform(t *testing.T) {
 }
 
 func TestTransformOverlapping(t *testing.T) {
-	captureStartTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
-	intervalNumber := IntervalNumber(captureStartTime)
+	now := time.Now()
+	allowedAge := 3 * 24 * time.Hour
+	twoDaysAgoInterval := IntervalNumber(now) - 1 - 288
+	oneDayAgoInterval := IntervalNumber(now) - 1 - 144
 
 	cases := []struct {
-		name   string
-		source verifyapi.Publish
+		name                string
+		source              verifyapi.Publish
+		maxSameIntervalKeys int
+		error               string
 	}{
 		{
-			name: "overlap",
+			name: "invalid_overlap_in_order",
 			source: verifyapi.Publish{
 				Keys: []verifyapi.ExposureKey{
 					{
 						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: intervalNumber,
+						IntervalNumber: twoDaysAgoInterval,
 						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 					{
 						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: intervalNumber + verifyapi.MaxIntervalCount - 2,
+						IntervalNumber: twoDaysAgoInterval + verifyapi.MaxIntervalCount - 2,
 						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 				},
 				Regions:        []string{"us", "cA", "Mx"}, // will be upcased
 				AppPackageName: "com.google",
 			},
+			maxSameIntervalKeys: 3,
+			error:               "exposure keys have non aligned overlapping intervals",
 		},
 		{
-			name: "overlap 2",
+			name: "invalid_overlap_out_of_order",
 			source: verifyapi.Publish{
 				Keys: []verifyapi.ExposureKey{
 					{
 						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: intervalNumber,
+						IntervalNumber: twoDaysAgoInterval,
 						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 					{
 						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: intervalNumber - verifyapi.MaxIntervalCount + 1,
+						IntervalNumber: twoDaysAgoInterval - verifyapi.MaxIntervalCount + 1,
 						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 				},
 				Regions:        []string{"us", "cA", "Mx"}, // will be upcased
 				AppPackageName: "com.google",
 			},
+			maxSameIntervalKeys: 3,
+			error:               "exposure keys have non aligned overlapping intervals",
+		},
+		{
+			name: "allowed_number_of_same_day_keys",
+			source: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   twoDaysAgoInterval,
+						IntervalCount:    44,
+						TransmissionRisk: 1,
+					},
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   twoDaysAgoInterval,
+						IntervalCount:    88,
+						TransmissionRisk: 1,
+					},
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   twoDaysAgoInterval,
+						IntervalCount:    144,
+						TransmissionRisk: 1,
+					},
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   oneDayAgoInterval,
+						IntervalCount:    44,
+						TransmissionRisk: 1,
+					},
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   oneDayAgoInterval,
+						IntervalCount:    88,
+						TransmissionRisk: 1,
+					},
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   oneDayAgoInterval,
+						IntervalCount:    144,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			maxSameIntervalKeys: 3,
+			error:               "",
+		},
+		{
+			name: "too_many_same_day_keys",
+			source: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   twoDaysAgoInterval,
+						IntervalCount:    44,
+						TransmissionRisk: 1,
+					},
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   twoDaysAgoInterval,
+						IntervalCount:    88,
+						TransmissionRisk: 1,
+					},
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   twoDaysAgoInterval,
+						IntervalCount:    144,
+						TransmissionRisk: 1,
+					},
+					{
+						// Out of order - these will be sorted.
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   twoDaysAgoInterval,
+						IntervalCount:    88,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			maxSameIntervalKeys: 3,
+			error:               fmt.Sprintf("too many overlapping keys for start interval: %v want: <= 3, got: 4", twoDaysAgoInterval),
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			batchTime := captureStartTime.Add(time.Hour * 24 * 7)
-			allowedAge := 14 * 24 * time.Hour
-			transformer, err := NewTransformer(10, allowedAge, time.Hour, false)
+			transformer, err := NewTransformer(10, tc.maxSameIntervalKeys, allowedAge, time.Hour, false)
 			if err != nil {
 				t.Fatalf("NewTransformer returned unexpected error: %v", err)
 			}
-			_, err = transformer.TransformPublish(ctx, &c.source, batchTime)
-			if err == nil {
-				t.Fatalf("Expected error, got nil")
-			}
-			if err.Error() != "exposure keys have overlapping intervals" {
-				t.Errorf("Wrong error, want '%v', got '%v'", "exposure key intervals are not consecutive", err)
+			_, err = transformer.TransformPublish(ctx, &tc.source, now)
+			if err != nil && tc.error == "" {
+				t.Fatalf("unexpected error, want: nil, got: %v", err)
+			} else if err != nil && !strings.Contains(err.Error(), tc.error) {
+				t.Fatalf("wrong error: want '%v', got: %v", tc.error, err.Error())
+			} else if err == nil && tc.error != "" {
+				t.Fatalf("missing error: want '%v', got: nil", tc.error)
 			}
 		})
 	}

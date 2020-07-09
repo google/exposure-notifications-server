@@ -103,7 +103,8 @@ func TimeForIntervalNumber(interval int32) time.Time {
 
 // Transformer represents a configured Publish -> Exposure[] transformer.
 type Transformer struct {
-	maxExposureKeys     int
+	maxExposureKeys     int           // Overall maximum number of keys.
+	maxSameDayKeys      int           // Number of keys that are allowed to have the same start interval.
 	maxIntervalStartAge time.Duration // How many intervals old does this server accept?
 	truncateWindow      time.Duration
 	debugReleaseSameDay bool // If true, still valid keys are not embargoed.
@@ -112,18 +113,23 @@ type Transformer struct {
 // NewTransformer creates a transformer for turning publish API requests into
 // records for insertion into the database. On the call to TransformPublish
 // all data is validated according to the transformer that is used.
-func NewTransformer(maxExposureKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration, releaseSameDayKeys bool) (*Transformer, error) {
+func NewTransformer(maxExposureKeys int, maxSameDayKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration, releaseSameDayKeys bool) (*Transformer, error) {
 	if maxExposureKeys <= 0 {
 		return nil, fmt.Errorf("maxExposureKeys must be > 0, got %v", maxExposureKeys)
 	}
+	if maxSameDayKeys < 1 {
+		return nil, fmt.Errorf("maxSameDayKeys must be >= 1, got %v", maxSameDayKeys)
+	}
 	return &Transformer{
 		maxExposureKeys:     maxExposureKeys,
+		maxSameDayKeys:      maxSameDayKeys,
 		maxIntervalStartAge: maxIntervalStartAge,
 		truncateWindow:      truncateWindow,
 		debugReleaseSameDay: releaseSameDayKeys,
 	}, nil
 }
 
+// KeyTransform represents the settings to apply when transforming an individual key on a publish request.
 type KeyTransform struct {
 	MinStartInterval      int32
 	MaxStartInterval      int32
@@ -165,7 +171,7 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 	createdAt := settings.CreatedAt
 	// If the key is valid beyond the current interval number. Adjust the createdAt time for the key.
 	if exposureKey.IntervalNumber+exposureKey.IntervalCount > settings.MaxStartInterval {
-		// key is still valid. The created At for this key needs to be adjusted unless debuggin is enabled.
+		// key is still valid. The created At for this key needs to be adjusted unless debugging is enabled.
 		if !settings.ReleaseStillValidKeys {
 			createdAt = TimeForIntervalNumber(exposureKey.IntervalNumber + exposureKey.IntervalCount).Truncate(settings.BatchWindow)
 		}
@@ -238,24 +244,50 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		entities = append(entities, exposure)
 	}
 
-	// Ensure that the uploaded keys are for a consecutive time period. No
-	// overlaps and no gaps.
-	// 1) Sort by interval number.
+	// Validate the uploaded data meets configuration parameters.
+	// In v1.5+, it is possible to have multiple keys that overlap. They
+	// take the form of the same start interval with variable rolling period numbers.
+	// Sort by interval number to make necessary checks easier.
 	sort.Slice(entities, func(i int, j int) bool {
+		if entities[i].IntervalNumber == entities[j].IntervalNumber {
+			return entities[i].IntervalCount == entities[j].IntervalCount
+		}
 		return entities[i].IntervalNumber < entities[j].IntervalNumber
 	})
-	// 2) Walk the slice and verify no gaps/overlaps.
-	// We know the slice isn't empty, seed w/ the first interval.
-	nextInterval := entities[0].IntervalNumber
+	// Check that any overlapping keys meet configuration.
+	// Overlapping keys must have the same start interval. And there is a max number
+	// of "same day" keys that are allowed.
+	// We do not enforce that keys have UTC midnight aligned start intervals.
+
+	// Running count of start intervals.
+	startIntervals := make(map[int32]int)
+	lastInterval := entities[0].IntervalNumber
+	nextInterval := entities[0].IntervalNumber + entities[0].IntervalCount
+
 	for _, ex := range entities {
-		if ex.IntervalNumber < nextInterval {
-			if t.debugReleaseSameDay {
-				logging.FromContext(ctx).Errorf("exposure keys have overlapping intervals")
-				break
-			}
-			return nil, fmt.Errorf("exposure keys have overlapping intervals")
+		// Relies on the default value of 0 for the map value type.
+		startIntervals[ex.IntervalNumber] = startIntervals[ex.IntervalNumber] + 1
+
+		if ex.IntervalNumber == lastInterval {
+			// OK, overlaps by start interval. But move out the nextInterval
+			nextInterval = ex.IntervalNumber + ex.IntervalCount
+			continue
 		}
+
+		if ex.IntervalNumber < nextInterval {
+			msg := fmt.Sprintf("exposure keys have non aligned overlapping intervals. %v overlaps with previous key that is good from %v to %v.", ex.IntervalNumber, lastInterval, nextInterval)
+			logging.FromContext(ctx).Errorf(msg)
+			return nil, fmt.Errorf(msg)
+		}
+		// OK, current key starts at or after the end of the previous one. Advance both variables.
+		lastInterval = ex.IntervalNumber
 		nextInterval = ex.IntervalNumber + ex.IntervalCount
+	}
+
+	for k, v := range startIntervals {
+		if v > t.maxSameDayKeys {
+			return nil, fmt.Errorf("too many overlapping keys for start interval: %v want: <= %v, got: %v", k, t.maxSameDayKeys, v)
+		}
 	}
 
 	return entities, nil
