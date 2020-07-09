@@ -250,7 +250,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	// Sort by interval number to make necessary checks easier.
 	sort.Slice(entities, func(i int, j int) bool {
 		if entities[i].IntervalNumber == entities[j].IntervalNumber {
-			return entities[i].IntervalCount == entities[j].IntervalCount
+			return entities[i].IntervalCount < entities[j].IntervalCount
 		}
 		return entities[i].IntervalNumber < entities[j].IntervalNumber
 	})
