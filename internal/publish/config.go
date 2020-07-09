@@ -50,7 +50,7 @@ type Config struct {
 
 	// Flags for local development and testing. This will cause still valid keys
 	// to not be embargoed.
-	// Normallly "still valid" keys can be accepted, but are embargoed.
+	// Normally "still valid" keys can be accepted, but are embargoed.
 	DebugReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
 }
 
