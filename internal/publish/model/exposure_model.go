@@ -200,16 +200,21 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 // * > Transformer.maxExposureKeys in the request
 //
 func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, batchTime time.Time) ([]*Exposure, error) {
+	logger := logging.FromContext(ctx)
 	if t.debugReleaseSameDay {
-		logging.FromContext(ctx).Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
+		logger.Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
 	}
 
 	// Validate the number of keys that want to be published.
 	if len(inData.Keys) == 0 {
-		return nil, fmt.Errorf("no exposure keys in publish request")
+		msg := "no exposure keys in publish request"
+		logger.Debugf(msg)
+		return nil, fmt.Errorf(msg)
 	}
 	if len(inData.Keys) > t.maxExposureKeys {
-		return nil, fmt.Errorf("too many exposure keys in publish: %v, max of %v is allowed", len(inData.Keys), t.maxExposureKeys)
+		msg := fmt.Sprintf("too many exposure keys in publish: %v, max of %v is allowed", len(inData.Keys), t.maxExposureKeys)
+		logger.Debugf(msg)
+		return nil, fmt.Errorf(msg)
 	}
 
 	defaultCreatedAt := TruncateWindow(batchTime, t.truncateWindow)
@@ -239,6 +244,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	for _, exposureKey := range inData.Keys {
 		exposure, err := TransformExposureKey(exposureKey, inData.AppPackageName, upcaseRegions, &settings)
 		if err != nil {
+			logger.Debugf("individual key transform failed: %v", err)
 			return nil, fmt.Errorf("invalid publish data: %v", err)
 		}
 		entities = append(entities, exposure)
@@ -276,7 +282,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 
 		if ex.IntervalNumber < nextInterval {
 			msg := fmt.Sprintf("exposure keys have non aligned overlapping intervals. %v overlaps with previous key that is good from %v to %v.", ex.IntervalNumber, lastInterval, nextInterval)
-			logging.FromContext(ctx).Errorf(msg)
+			logger.Debugf(msg)
 			return nil, fmt.Errorf(msg)
 		}
 		// OK, current key starts at or after the end of the previous one. Advance both variables.
@@ -286,7 +292,9 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 
 	for k, v := range startIntervals {
 		if v > t.maxSameDayKeys {
-			return nil, fmt.Errorf("too many overlapping keys for start interval: %v want: <= %v, got: %v", k, t.maxSameDayKeys, v)
+			msg := fmt.Sprintf("too many overlapping keys for start interval: %v want: <= %v, got: %v", k, t.maxSameDayKeys, v)
+			logger.Debugf(msg)
+			return nil, fmt.Errorf(msg)
 		}
 	}
 

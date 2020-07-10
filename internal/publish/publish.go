@@ -169,6 +169,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	exposures, err := h.transformer.TransformPublish(ctx, &data, batchTime)
 	if err != nil {
 		message := fmt.Sprintf("unable to read request data: %v", err)
+		logger.Errorf(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
 		return response{status: http.StatusBadRequest, message: message, metric: "publish-transform-fail", count: 1}
 	}
