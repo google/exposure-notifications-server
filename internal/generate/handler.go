@@ -40,7 +40,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("missing database in server environment")
 	}
 
-	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxSameStartIntervalKeys, config.MaxIntervalAge, config.TruncateWindow, config.MaxSymptomOnsetDays, false)
+	transformer, err := model.NewTransformer(config)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
@@ -98,8 +98,17 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		reportType, err := util.RandomReportType()
+		if err != nil {
+			message := fmt.Sprintf("error generating report type: %v", err)
+			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, message)
+			return
+		}
+
 		claims := verification.VerifiedClaims{
-			ReportType:           util.RandomReportType(),
+			ReportType:           reportType,
 			SymptomOnsetInterval: uint32(publish.Keys[0].IntervalNumber),
 		}
 

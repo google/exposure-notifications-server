@@ -32,11 +32,6 @@ import (
 )
 
 // Exposure represents the record as stored in the database
-// TODO(mikehelmick) - refactor this so that there is a public
-// Exposure struct that doesn't have public fields and an
-// internal struct that does. Separate out the database model
-// from direct access.
-// Mark records as writable/nowritable - is exposure key encrypted.
 type Exposure struct {
 	ExposureKey      []byte
 	TransmissionRisk int
@@ -145,7 +140,7 @@ func TimeForIntervalNumber(interval int32) time.Time {
 }
 
 // DaysFromSymptomOnset calculates the number of days between two start intervals.
-// Partaisl days are rounded up/down to the closest day.
+// Partial days are rounded up/down to the closest day.
 // If the checkInterval is before the onsetInterval, number of days will be negative.
 func DaysFromSymptomOnset(onsetInterval int32, checkInterval int32) int32 {
 	distance := checkInterval - onsetInterval
@@ -166,6 +161,15 @@ func DaysFromSymptomOnset(onsetInterval int32, checkInterval int32) int32 {
 	return days
 }
 
+type TransformerConfig interface {
+	MaxExposureKeys() uint
+	MaxSameDayKeys() uint
+	MaxIntervalStartAge() time.Duration
+	TruncateWindow() time.Duration
+	MaxSymptomOnsetDays() uint
+	DebugReleaseSameDayKeys() bool
+}
+
 // Transformer represents a configured Publish -> Exposure[] transformer.
 type Transformer struct {
 	maxExposureKeys     int           // Overall maximum number of keys.
@@ -179,20 +183,20 @@ type Transformer struct {
 // NewTransformer creates a transformer for turning publish API requests into
 // records for insertion into the database. On the call to TransformPublish
 // all data is validated according to the transformer that is used.
-func NewTransformer(maxExposureKeys int, maxSameDayKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration, maxSymptomOnsetDays int, releaseSameDayKeys bool) (*Transformer, error) {
-	if maxExposureKeys <= 0 {
-		return nil, fmt.Errorf("maxExposureKeys must be > 0, got %v", maxExposureKeys)
+func NewTransformer(config TransformerConfig) (*Transformer, error) {
+	if config.MaxExposureKeys() <= 0 {
+		return nil, fmt.Errorf("maxExposureKeys must be > 0, got %v", config.MaxExposureKeys())
 	}
-	if maxSameDayKeys < 1 {
-		return nil, fmt.Errorf("maxSameDayKeys must be >= 1, got %v", maxSameDayKeys)
+	if config.MaxSameDayKeys() < 1 {
+		return nil, fmt.Errorf("maxSameDayKeys must be >= 1, got %v", config.MaxSameDayKeys())
 	}
 	return &Transformer{
-		maxExposureKeys:     maxExposureKeys,
-		maxSameDayKeys:      maxSameDayKeys,
-		maxIntervalStartAge: maxIntervalStartAge,
-		truncateWindow:      truncateWindow,
-		maxSymptomOnsetDays: float64(maxSymptomOnsetDays),
-		debugReleaseSameDay: releaseSameDayKeys,
+		maxExposureKeys:     int(config.MaxExposureKeys()),
+		maxSameDayKeys:      int(config.MaxSameDayKeys()),
+		maxIntervalStartAge: config.MaxIntervalStartAge(),
+		truncateWindow:      config.TruncateWindow(),
+		maxSymptomOnsetDays: float64(config.MaxSymptomOnsetDays()),
+		debugReleaseSameDay: config.DebugReleaseSameDayKeys(),
 	}, nil
 }
 

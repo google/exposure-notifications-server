@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/observability"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
@@ -28,6 +29,7 @@ import (
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
 var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
+var _ model.TransformerConfig = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.
@@ -36,16 +38,40 @@ type Config struct {
 	SecretManager         secrets.Config
 	ObservabilityExporter observability.Config
 
-	Port                     string        `env:"PORT, default=8080"`
-	NumExposures             int           `env:"NUM_EXPOSURES_GENERATED, default=10"`
-	KeysPerExposure          int           `env:"KEYS_PER_EXPOSURE, default=14"`
-	MaxKeysOnPublish         int           `env:"MAX_KEYS_ON_PUBLISH, default=15"`
-	MaxSameStartIntervalKeys int           `env:"MAX_SAME_START_INTERVAL_KEYS, default=2"`
-	SimulateSameDayRelease   bool          `env:"SIMULATE_SAME_DAY_RELEASE, default=false"`
-	MaxIntervalAge           time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
-	MaxSymptomOnsetDays      int           `env:"MAX_SYMPTOM_ONSET_DAYS, default=21"`
-	TruncateWindow           time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
-	DefaultRegion            string        `env:"DEFAULT_REGOIN, default=US"`
+	Port                         string        `env:"PORT, default=8080"`
+	NumExposures                 int           `env:"NUM_EXPOSURES_GENERATED, default=10"`
+	KeysPerExposure              int           `env:"KEYS_PER_EXPOSURE, default=14"`
+	MaxKeysOnPublish             uint          `env:"MAX_KEYS_ON_PUBLISH, default=15"`
+	MaxSameStartIntervalKeys     uint          `env:"MAX_SAME_START_INTERVAL_KEYS, default=2"`
+	SimulateSameDayRelease       bool          `env:"SIMULATE_SAME_DAY_RELEASE, default=false"`
+	MaxIntervalAge               time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
+	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=21"`
+	CreatedAtTruncateWindow      time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
+	DefaultRegion                string        `env:"DEFAULT_REGOIN, default=US"`
+}
+
+func (c *Config) MaxExposureKeys() uint {
+	return c.MaxKeysOnPublish
+}
+
+func (c *Config) MaxSameDayKeys() uint {
+	return c.MaxSameStartIntervalKeys
+}
+
+func (c *Config) MaxIntervalStartAge() time.Duration {
+	return c.MaxIntervalAge
+}
+
+func (c *Config) TruncateWindow() time.Duration {
+	return c.CreatedAtTruncateWindow
+}
+
+func (c *Config) MaxSymptomOnsetDays() uint {
+	return c.MaxMagnitudeSymptomOnsetDays
+}
+
+func (c *Config) DebugReleaseSameDayKeys() bool {
+	return false
 }
 
 func (c *Config) DatabaseConfig() *database.Config {

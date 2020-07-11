@@ -59,17 +59,20 @@ func RandomIntWithMin(min, max int) (int, error) {
 	return int(n.Int64()) + min, nil
 }
 
-func RandomReportType() string {
-	n, _ := RandomInt(3)
+func RandomReportType() (string, error) {
+	n, err := RandomInt(3)
+	if err != nil {
+		return "", err
+	}
 	switch n {
 	case 0:
-		return v1alpha1.ReportTypeConfirmed
+		return v1alpha1.ReportTypeConfirmed, nil
 	case 1:
-		return v1alpha1.ReportTypeClinical
+		return v1alpha1.ReportTypeClinical, nil
 	case 2:
-		return v1alpha1.ReportTypeNegative
+		return v1alpha1.ReportTypeNegative, nil
 	}
-	return v1alpha1.ReportTypeConfirmed
+	return v1alpha1.ReportTypeConfirmed, nil
 }
 
 // RandomTransmissionRisk produces a random transmission risk score.

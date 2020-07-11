@@ -35,6 +35,39 @@ const (
 	maxSymptomOnsetDays = 21
 )
 
+type testConfig struct {
+	maxExposureKeys     uint
+	maxSameDayKeys      uint
+	maxIntervalStartAge time.Duration
+	truncateWindow      time.Duration
+	maxSymptomOnsetDays uint
+	debugReleaseSameDay bool
+}
+
+func (c *testConfig) MaxExposureKeys() uint {
+	return c.maxExposureKeys
+}
+
+func (c *testConfig) MaxSameDayKeys() uint {
+	return c.maxSameDayKeys
+}
+
+func (c *testConfig) MaxIntervalStartAge() time.Duration {
+	return c.maxIntervalStartAge
+}
+
+func (c *testConfig) TruncateWindow() time.Duration {
+	return c.truncateWindow
+}
+
+func (c *testConfig) MaxSymptomOnsetDays() uint {
+	return c.maxSymptomOnsetDays
+}
+
+func (c *testConfig) DebugReleaseSameDayKeys() bool {
+	return c.debugReleaseSameDay
+}
+
 func TestIntervalNumber(t *testing.T) {
 	// Since time to interval is lossy, truncate down to the beginnging of a window.
 	now := time.Now().Truncate(verifyapi.IntervalLength)
@@ -50,11 +83,10 @@ func TestIntervalNumber(t *testing.T) {
 func TestInvalidNew(t *testing.T) {
 	errMsg := "maxExposureKeys must be > 0"
 	cases := []struct {
-		maxKeys        int
-		maxSameDayKeys int
+		maxKeys        uint
+		maxSameDayKeys uint
 		message        string
 	}{
-		{-1, 3, "maxExposureKeys must be > 0"},
 		{0, 3, "maxExposureKeys must be > 0"},
 		{1, 3, ""},
 		{5, 1, ""},
@@ -62,7 +94,7 @@ func TestInvalidNew(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		_, err := NewTransformer(c.maxKeys, c.maxSameDayKeys, time.Hour, time.Hour, maxSymptomOnsetDays, false)
+		_, err := NewTransformer(&testConfig{c.maxKeys, c.maxSameDayKeys, time.Hour, time.Hour, maxSymptomOnsetDays, false})
 		if err != nil && errMsg == "" {
 			t.Errorf("%v unexpected error: %v", i, err)
 		} else if err != nil && !strings.Contains(err.Error(), c.message) {
@@ -73,7 +105,7 @@ func TestInvalidNew(t *testing.T) {
 
 func TestInvalidBase64(t *testing.T) {
 	ctx := context.Background()
-	transformer, err := NewTransformer(1, 1, time.Hour*24, time.Hour, maxSymptomOnsetDays, false)
+	transformer, err := NewTransformer(&testConfig{1, 1, time.Hour * 24, time.Hour, maxSymptomOnsetDays, false})
 	if err != nil {
 		t.Fatalf("error creating transformer: %v", err)
 	}
@@ -259,7 +291,7 @@ func TestPublishValidation(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
-			tf, err := NewTransformer(2, 1, maxAge, time.Hour, maxSymptomOnsetDays, c.sameDay)
+			tf, err := NewTransformer(&testConfig{2, 1, maxAge, time.Hour, maxSymptomOnsetDays, c.sameDay})
 			if err != nil {
 				t.Fatalf("unepected error: %v", err)
 			}
@@ -338,7 +370,7 @@ func TestStillValidKey(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			allowedAge := 2 * 24 * time.Hour
-			transformer, err := NewTransformer(10, 1, allowedAge, time.Minute, maxSymptomOnsetDays, tc.releaseSameDayKeys)
+			transformer, err := NewTransformer(&testConfig{10, 1, allowedAge, time.Minute, maxSymptomOnsetDays, tc.releaseSameDayKeys})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -676,7 +708,7 @@ func TestTransform(t *testing.T) {
 	}
 
 	allowedAge := 14 * 24 * time.Hour
-	transformer, err := NewTransformer(10, 1, allowedAge, time.Hour, maxSymptomOnsetDays, false)
+	transformer, err := NewTransformer(&testConfig{10, 1, allowedAge, time.Hour, maxSymptomOnsetDays, false})
 	if err != nil {
 		t.Fatalf("NewTransformer returned unexpected error: %v", err)
 	}
@@ -705,7 +737,7 @@ func TestTransformOverlapping(t *testing.T) {
 	cases := []struct {
 		name                string
 		source              verifyapi.Publish
-		maxSameIntervalKeys int
+		maxSameIntervalKeys uint
 		error               string
 	}{
 		{
@@ -834,7 +866,7 @@ func TestTransformOverlapping(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			transformer, err := NewTransformer(10, tc.maxSameIntervalKeys, allowedAge, time.Hour, maxSymptomOnsetDays, false)
+			transformer, err := NewTransformer(&testConfig{10, tc.maxSameIntervalKeys, allowedAge, time.Hour, maxSymptomOnsetDays, false})
 			if err != nil {
 				t.Fatalf("NewTransformer returned unexpected error: %v", err)
 			}

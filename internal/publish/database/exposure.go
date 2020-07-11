@@ -159,8 +159,10 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 		q += fmt.Sprintf(" AND NOT (regions && $%d)", len(args)) // Operation "&&" means "array overlaps / intersects"
 	}
 
+	timeField := "created_at"
 	if criteria.RevisedKeys {
 		q += " AND revised_at IS NOT NULL"
+		timeField = "revised_at"
 	}
 
 	// It is important for StartTimestamp to be inclusive (as opposed to exclusive). When the exposure keys are
@@ -170,20 +172,12 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	// (in the case where the publish window and the export period align).
 	if !criteria.SinceTimestamp.IsZero() {
 		args = append(args, criteria.SinceTimestamp)
-		if criteria.RevisedKeys {
-			q += fmt.Sprintf(" AND revised_at >= $%d", len(args))
-		} else {
-			q += fmt.Sprintf(" AND created_at >= $%d", len(args))
-		}
+		q += fmt.Sprintf(" AND %s >= $%d", timeField, len(args))
 	}
 
 	if !criteria.UntilTimestamp.IsZero() {
 		args = append(args, criteria.UntilTimestamp)
-		if criteria.RevisedKeys {
-			q += fmt.Sprintf(" AND revised_at < $%d", len(args))
-		} else {
-			q += fmt.Sprintf(" AND created_at < $%d", len(args))
-		}
+		q += fmt.Sprintf(" AND %s < $%d", timeField, len(args))
 	}
 
 	if criteria.OnlyLocalProvenance {

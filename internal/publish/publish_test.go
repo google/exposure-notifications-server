@@ -340,7 +340,7 @@ func TestPublishWithBypass(t *testing.T) {
 			// And set up publish handler up front.
 			config := Config{}
 			config.AuthorizedApp.CacheDuration = time.Nanosecond
-			config.TruncateWindow = time.Second
+			config.CreatedAtTruncateWindow = time.Second
 			config.MaxKeysOnPublish = 20
 			config.MaxSameStartIntervalKeys = 2
 			config.MaxIntervalAge = 14 * 24 * time.Hour
