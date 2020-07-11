@@ -1134,7 +1134,7 @@ func TestDaysFromSymptomOnset(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := DaysFromSymptomOnset(tc.onset, tc.check)
 			if tc.want != got {
-				t.Fatalf("wrong day instance between %v and %v, want: %v got: %v", tc.onset, tc.check, tc.want, got)
+				t.Fatalf("wrong day instance between %v and %v, got: %v want: %v", tc.onset, tc.check, got, tc.want)
 			}
 		})
 	}
