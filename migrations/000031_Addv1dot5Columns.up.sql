@@ -16,12 +16,12 @@ BEGIN;
 
 -- health_authority_id is nullable to preserve backwards compatibility.
 ALTER TABLE exposure
-  ADD COLUMN health_authority_id INT REFERENCES HealthAuthority(id),
+	ADD COLUMN health_authority_id INT REFERENCES HealthAuthority(id),
 	ADD COLUMN report_type VARCHAR(20) DEFAULT '' NOT NULL,
 	ADD COLUMN days_since_symptom_onset INT,
 	ADD COLUMN revised_report_type VARCHAR(20),
 	ADD COLUMN revised_at TIMESTAMPTZ,
-  ADD COLUMN revised_days_since_symptom_onset INT;
+	ADD COLUMN revised_days_since_symptom_onset INT;
 
 CREATE INDEX exposure_revised_at_idx ON exposure USING BRIN(revised_at);
 
