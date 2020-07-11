@@ -17,6 +17,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"strconv"
@@ -53,6 +54,7 @@ type IterateExposuresCriteria struct {
 	SinceTimestamp time.Time
 	UntilTimestamp time.Time
 	LastCursor     string
+	RevisedKeys    bool // If true, only revised keys that match will be selected.
 
 	// OnlyLocalProvenance indicates that only exposures with LocalProvenance=true will be returned.
 	OnlyLocalProvenance bool
@@ -112,7 +114,8 @@ func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExpos
 			syncID     *int64
 		)
 		if err := rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
-			&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &syncID); err != nil {
+			&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &syncID, &m.HealthAuthorityID, &m.ReportType,
+			&m.DaysSinceSymptomOnset, &m.RevisedReportType, &m.RevisedAt, &m.RevisedDaysSinceSymptomOnset); err != nil {
 			return cursor(), err
 		}
 		var err error
@@ -139,7 +142,8 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	q := `
 		SELECT
 			exposure_key, transmission_risk, LOWER(app_package_name), regions, interval_number, interval_count,
-			created_at, local_provenance, sync_id
+			created_at, local_provenance, sync_id, health_authority_id, report_type,
+			days_since_symptom_onset, revised_report_type, revised_at, revised_days_since_symptom_onset
 		FROM
 			Exposure
 		WHERE 1=1
@@ -155,6 +159,10 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 		q += fmt.Sprintf(" AND NOT (regions && $%d)", len(args)) // Operation "&&" means "array overlaps / intersects"
 	}
 
+	if criteria.RevisedKeys {
+		q += " AND revised_at IS NOT NULL"
+	}
+
 	// It is important for StartTimestamp to be inclusive (as opposed to exclusive). When the exposure keys are
 	// published, they are truncated to a time boundary (e.g., time.Hour). Even though the exposure keys might arrive
 	// during a current open export batch window, the exposure keys are truncated to the start of that window,
@@ -162,12 +170,20 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	// (in the case where the publish window and the export period align).
 	if !criteria.SinceTimestamp.IsZero() {
 		args = append(args, criteria.SinceTimestamp)
-		q += fmt.Sprintf(" AND created_at >= $%d", len(args))
+		if criteria.RevisedKeys {
+			q += fmt.Sprintf(" AND revised_at >= $%d", len(args))
+		} else {
+			q += fmt.Sprintf(" AND created_at >= $%d", len(args))
+		}
 	}
 
 	if !criteria.UntilTimestamp.IsZero() {
 		args = append(args, criteria.UntilTimestamp)
-		q += fmt.Sprintf(" AND created_at < $%d", len(args))
+		if criteria.RevisedKeys {
+			q += fmt.Sprintf(" AND revised_at < $%d", len(args))
+		} else {
+			q += fmt.Sprintf(" AND created_at < $%d", len(args))
+		}
 	}
 
 	if criteria.OnlyLocalProvenance {
@@ -190,6 +206,73 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	return q, args, nil
 }
 
+// ReadExposures will read an existing set of exposures from the database.
+// This is necessary in case a key needs to be revised.
+// In the return map, the key is the base64 of the ExposureKey.
+func (db *PublishDB) ReadExposures(ctx context.Context, b64keys []string) (map[string]*model.Exposure, error) {
+	conn, err := db.db.Pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring connection: %v", err)
+	}
+	defer conn.Release()
+
+	query := `
+		SELECT
+			exposure_key, transmission_risk, app_package_name, regions,
+			interval_number, interval_count, created_at, local_provenance, sync_id,
+			health_authority_id, report_type, days_since_symptom_onset,
+			revised_report_type, revised_at, revised_days_since_symptom_onset
+		FROM
+			Exposure
+		WHERE exposure_key = ANY($1)`
+	rows, err := conn.Query(ctx, query, b64keys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]*model.Exposure)
+	for rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("iterating rows: %w", err)
+		}
+
+		var encodedKey string
+		var syncID sql.NullInt64
+
+		var exposure model.Exposure
+		if err := rows.Scan(
+			&encodedKey, &exposure.TransmissionRisk, &exposure.AppPackageName,
+			&exposure.Regions, &exposure.IntervalNumber, &exposure.IntervalCount,
+			&exposure.CreatedAt, &exposure.LocalProvenance, &syncID,
+			&exposure.HealthAuthorityID, &exposure.ReportType, &exposure.DaysSinceSymptomOnset,
+			&exposure.RevisedReportType, &exposure.RevisedAt, &exposure.RevisedDaysSinceSymptomOnset,
+		); err != nil {
+			return nil, err
+		}
+
+		// Base64 decode the exposure key
+		exposure.ExposureKey, err = decodeExposureKey(encodedKey)
+		if err != nil {
+			return nil, err
+		}
+		// Optionally set all of the nullable columns.
+		if syncID.Valid {
+			exposure.FederationSyncID = syncID.Int64
+		}
+
+		result[exposure.ExposureKeyBase64()] = &exposure
+	}
+
+	return result, nil
+}
+
+// ReviseExposures transactionally revises and inserts a set of keys as necessary.
+func (db *PublishDB) ReviseExposures(ctx context.Context, exposures []*model.Exposure) error {
+	// TODO(mikehelmick): implement revise exposures functionality.
+	return fmt.Errorf("REVISE EXPOSURES NOT YET IMPLEMENTED")
+}
+
 // InsertExposures inserts a set of exposures.
 func (db *PublishDB) InsertExposures(ctx context.Context, exposures []*model.Exposure) error {
 	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
@@ -198,9 +281,9 @@ func (db *PublishDB) InsertExposures(ctx context.Context, exposures []*model.Exp
 			INSERT INTO
 				Exposure
 			    (exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
-			     created_at, local_provenance, sync_id)
+			     created_at, local_provenance, sync_id, health_authority_id, report_type, days_since_symptom_onset)
 			VALUES
-			  ($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9)
+			  ($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12)
 			ON CONFLICT (exposure_key) DO NOTHING
 		`)
 		if err != nil {
@@ -212,8 +295,10 @@ func (db *PublishDB) InsertExposures(ctx context.Context, exposures []*model.Exp
 			if inf.FederationSyncID != 0 {
 				syncID = &inf.FederationSyncID
 			}
-			_, err := tx.Exec(ctx, stmtName, encodeExposureKey(inf.ExposureKey), inf.TransmissionRisk, inf.AppPackageName, inf.Regions, inf.IntervalNumber, inf.IntervalCount,
-				inf.CreatedAt, inf.LocalProvenance, syncID)
+			_, err := tx.Exec(ctx, stmtName, encodeExposureKey(inf.ExposureKey), inf.TransmissionRisk,
+				inf.AppPackageName, inf.Regions, inf.IntervalNumber, inf.IntervalCount,
+				inf.CreatedAt, inf.LocalProvenance, syncID,
+				inf.HealthAuthorityID, inf.ReportType, inf.DaysSinceSymptomOnset)
 			if err != nil {
 				return fmt.Errorf("inserting exposure: %v", err)
 			}

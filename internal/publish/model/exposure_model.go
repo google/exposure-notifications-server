@@ -17,16 +17,77 @@ package model
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/verification"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
+
+// Exposure represents the record as stored in the database
+// TODO(mikehelmick) - refactor this so that there is a public
+// Exposure struct that doesn't have public fields and an
+// internal struct that does. Separate out the database model
+// from direct access.
+// Mark records as writable/nowritable - is exposure key encrypted.
+type Exposure struct {
+	ExposureKey      []byte
+	TransmissionRisk int
+	AppPackageName   string
+	Regions          []string
+	IntervalNumber   int32
+	IntervalCount    int32
+	CreatedAt        time.Time
+	LocalProvenance  bool
+	FederationSyncID int64
+
+	// These fileds are nullable to maintain backwards compatibility with
+	// older versions that predate their existence.
+	HealthAuthorityID            *int64
+	ReportType                   string
+	DaysSinceSymptomOnset        *int32
+	RevisedReportType            *string
+	RevisedAt                    *time.Time
+	RevisedDaysSinceSymptomOnset *int
+}
+
+// HasDaysSinceSymptomOnset returns true if the this key has the days since
+// symptom onset field is et.
+func (e *Exposure) HasDaysSinceSymptomOnset() bool {
+	return e.DaysSinceSymptomOnset != nil
+}
+
+// SetDaysSinceSymptomOnset sets the days since sympton onset field, possibly
+// allocating a new pointer.
+func (e *Exposure) SetDaysSinceSymptomOnset(d int32) {
+	if e.DaysSinceSymptomOnset == nil {
+		e.DaysSinceSymptomOnset = new(int32)
+	}
+	*e.DaysSinceSymptomOnset = d
+}
+
+func (e *Exposure) HasHealthAuthorityID() bool {
+	return e.HealthAuthorityID != nil
+}
+
+func (e *Exposure) SetHealthAuthorityID(haID int64) {
+	if e.HealthAuthorityID == nil {
+		e.HealthAuthorityID = new(int64)
+	}
+	*e.HealthAuthorityID = haID
+}
+
+// ExposureKeyBase64 returns the ExposuerKey property base64 encoded.
+func (e *Exposure) ExposureKeyBase64() string {
+	return base64.StdEncoding.EncodeToString(e.ExposureKey)
+}
 
 // ApplyTransmissionRiskOverrides modifies the transmission risk values in the publish request
 // based on the provided TransmissionRiskVector.
@@ -60,28 +121,10 @@ func ApplyTransmissionRiskOverrides(p *verifyapi.Publish, overrides verifyapi.Tr
 		// Check to see if this key is in the current override.
 		// If the key was EVERY valid during the SinceRollingPeriod then the override applies.
 		if eKey.IntervalNumber+eKey.IntervalCount >= overrides[overrideIdx].SinceRollingInterval {
-			p.Keys[i].TransmissionRisk = overrides[overrideIdx].TranismissionRisk
+			p.Keys[i].TransmissionRisk = overrides[overrideIdx].TransmissionRisk
 			// don't advance overrideIdx, there might be additional keys in this override.
 		}
 	}
-}
-
-// Exposure represents the record as stored in the database
-// TODO(mikehelmick) - refactor this so that there is a public
-// Exposure struct that doesn't have public fields and an
-// internal struct that does. Separate out the database model
-// from direct access.
-// Mark records as writable/nowritable - is exposure key encrypted.
-type Exposure struct {
-	ExposureKey      []byte
-	TransmissionRisk int
-	AppPackageName   string
-	Regions          []string
-	IntervalNumber   int32
-	IntervalCount    int32
-	CreatedAt        time.Time
-	LocalProvenance  bool
-	FederationSyncID int64
 }
 
 // IntervalNumber calculates the exposure notification system interval
@@ -101,19 +144,42 @@ func TimeForIntervalNumber(interval int32) time.Time {
 	return time.Unix(int64(verifyapi.IntervalLength.Seconds())*int64(interval), 0)
 }
 
+// DaysFromSymptomOnset calculates the number of days between two start intervals.
+// Partaisl days are rounded up/down to the closest day.
+// If the checkInterval is before the onsetInterval, number of days will be negative.
+func DaysFromSymptomOnset(onsetInterval int32, checkInterval int32) int32 {
+	distance := checkInterval - onsetInterval
+	days := distance / verifyapi.MaxIntervalCount
+	// if the days don't divide evenly, round (up or down) to the closest even day.
+	if rem := distance % verifyapi.MaxIntervalCount; rem != 0 {
+		// remainder of negative number is negative in go. So if the ABS is more than
+		// half a day, adjust the day count.
+		if math.Abs(float64(rem)) > verifyapi.MaxIntervalCount/2 {
+			// Account for the fact that if day is 0 and rem is > half a day, sign of rem matters.
+			if days < 0 || rem < 0 {
+				days--
+			} else {
+				days++
+			}
+		}
+	}
+	return days
+}
+
 // Transformer represents a configured Publish -> Exposure[] transformer.
 type Transformer struct {
 	maxExposureKeys     int           // Overall maximum number of keys.
 	maxSameDayKeys      int           // Number of keys that are allowed to have the same start interval.
 	maxIntervalStartAge time.Duration // How many intervals old does this server accept?
 	truncateWindow      time.Duration
-	debugReleaseSameDay bool // If true, still valid keys are not embargoed.
+	maxSymptomOnsetDays float64 // to avoid casting in comparisons
+	debugReleaseSameDay bool    // If true, still valid keys are not embargoed.
 }
 
 // NewTransformer creates a transformer for turning publish API requests into
 // records for insertion into the database. On the call to TransformPublish
 // all data is validated according to the transformer that is used.
-func NewTransformer(maxExposureKeys int, maxSameDayKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration, releaseSameDayKeys bool) (*Transformer, error) {
+func NewTransformer(maxExposureKeys int, maxSameDayKeys int, maxIntervalStartAge time.Duration, truncateWindow time.Duration, maxSymptomOnsetDays int, releaseSameDayKeys bool) (*Transformer, error) {
 	if maxExposureKeys <= 0 {
 		return nil, fmt.Errorf("maxExposureKeys must be > 0, got %v", maxExposureKeys)
 	}
@@ -125,6 +191,7 @@ func NewTransformer(maxExposureKeys int, maxSameDayKeys int, maxIntervalStartAge
 		maxSameDayKeys:      maxSameDayKeys,
 		maxIntervalStartAge: maxIntervalStartAge,
 		truncateWindow:      truncateWindow,
+		maxSymptomOnsetDays: float64(maxSymptomOnsetDays),
 		debugReleaseSameDay: releaseSameDayKeys,
 	}, nil
 }
@@ -193,13 +260,37 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 	}, nil
 }
 
+func (t *Transformer) ReviseKeys(ctx context.Context, existing map[string]*Exposure, incoming []*Exposure) ([]*Exposure, error) {
+	// TODO(mikehelmick): Implement revise keys functionality.
+	// output := make([]*Exposure, 0, len(incoming))
+
+	return nil, fmt.Errorf("KEY REVISION NOT YET IMPLEMENTED")
+}
+
+func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
+	// If the client provided a transmission risk, we'll use that.
+	if providedTR != 0 {
+		return providedTR
+	}
+	// Otherwise this value needs to be backfilled for v1.0 clients.
+	switch reportType {
+	case verifyapi.ReportTypeConfirmed:
+		return verifyapi.TransmissionRiskConfirmedStandard
+	case verifyapi.ReportTypeClinical:
+		return verifyapi.TransmissionRiskClinical
+	case verifyapi.ReportTypeNegative:
+		return verifyapi.TransmissionRiskNegative
+	}
+	return verifyapi.TransmissionRiskUnknown
+}
+
 // TransformPublish converts incoming key data to a list of exposure entities.
 // The data in the request is validated during the transform, including:
 //
 // * 0 exposure Keys in the requests
 // * > Transformer.maxExposureKeys in the request
 //
-func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, batchTime time.Time) ([]*Exposure, error) {
+func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, error) {
 	logger := logging.FromContext(ctx)
 	if t.debugReleaseSameDay {
 		logger.Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
@@ -215,6 +306,15 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		msg := fmt.Sprintf("too many exposure keys in publish: %v, max of %v is allowed", len(inData.Keys), t.maxExposureKeys)
 		logger.Debugf(msg)
 		return nil, fmt.Errorf(msg)
+	}
+
+	if claims != nil {
+		ApplyTransmissionRiskOverrides(inData, claims.TransmissionRisks)
+	}
+
+	onsetInterval := inData.SymptomOnsetInterval
+	if claims != nil && claims.SymptomOnsetInterval > 0 {
+		onsetInterval = int32(claims.SymptomOnsetInterval)
 	}
 
 	defaultCreatedAt := TruncateWindow(batchTime, t.truncateWindow)
@@ -246,6 +346,23 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		if err != nil {
 			logger.Debugf("individual key transform failed: %v", err)
 			return nil, fmt.Errorf("invalid publish data: %v", err)
+		}
+		// If there are verified claims, apply to this key.
+		if claims != nil {
+			if claims.ReportType != "" {
+				exposure.ReportType = claims.ReportType
+			}
+			exposure.TransmissionRisk = ReportTypeTransmissionRisk(claims.ReportType, exposure.TransmissionRisk)
+			if claims.HealthAuthorityID > 0 {
+				exposure.SetHealthAuthorityID(claims.HealthAuthorityID)
+			}
+		}
+		// Set days since onset, either from the API or from the verified claims (see above).
+		if onsetInterval > 0 {
+			daysSince := DaysFromSymptomOnset(onsetInterval, exposure.IntervalNumber)
+			if math.Abs(float64(daysSince)) < t.maxSymptomOnsetDays {
+				exposure.SetDaysSinceSymptomOnset(daysSince)
+			}
 		}
 		entities = append(entities, exposure)
 	}

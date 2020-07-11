@@ -18,6 +18,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,7 +27,70 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+var (
+	approxTime = cmp.Options{cmpopts.EquateApproxTime(time.Second)}
+)
+
+func TestReadExposures(t *testing.T) {
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
+	testPublishDB := New(testDB)
+	ctx := context.Background()
+
+	// Insert some Exposures.
+	createdAt := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC).Truncate(time.Microsecond)
+	exposures := []*model.Exposure{
+		{
+			ExposureKey:     []byte("ABC123"),
+			Regions:         []string{"US"},
+			IntervalNumber:  100,
+			IntervalCount:   144,
+			CreatedAt:       createdAt,
+			LocalProvenance: true,
+		},
+		{
+			ExposureKey:     []byte("DEF456"),
+			Regions:         []string{"US"},
+			IntervalNumber:  244,
+			IntervalCount:   144,
+			CreatedAt:       createdAt,
+			LocalProvenance: true,
+		},
+	}
+	if err := testPublishDB.InsertExposures(ctx, exposures); err != nil {
+		t.Fatal(err)
+	}
+
+	keys := make([]string, 0, len(exposures))
+	for _, e := range exposures {
+		keys = append(keys, e.ExposureKeyBase64())
+	}
+
+	readBack, err := testPublishDB.ReadExposures(ctx, keys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]*model.Exposure, 0, len(exposures))
+	for _, v := range readBack {
+		got = append(got, v)
+	}
+
+	sorter := cmp.Transformer("Sort", func(in []*model.Exposure) []*model.Exposure {
+		out := append([]*model.Exposure(nil), in...) // Copy input to avoid mutating it
+		sort.Slice(out, func(i int, j int) bool {
+			return strings.Compare(out[i].ExposureKeyBase64(), out[j].ExposureKeyBase64()) <= 0
+		})
+		return out
+	})
+
+	if diff := cmp.Diff(exposures, got, approxTime, sorter); diff != "" {
+		t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
+	}
+}
 
 func TestExposures(t *testing.T) {
 	t.Parallel()

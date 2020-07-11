@@ -29,6 +29,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/util"
+	"github.com/google/exposure-notifications-server/internal/verification"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
@@ -39,7 +40,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("missing database in server environment")
 	}
 
-	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxSameStartIntervalKeys, config.MaxIntervalAge, config.TruncateWindow, false)
+	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxSameStartIntervalKeys, config.MaxIntervalAge, config.TruncateWindow, config.MaxSymptomOnsetDays, false)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
@@ -78,12 +79,8 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for i := 0; i < h.config.NumExposures; i++ {
 		logger.Infof("Generating exposure %v of %v", i+1, h.config.NumExposures)
 
-		tr, err := util.RandomTransmissionRisk()
-		if err != nil {
-			tr = 0
-		}
 		publish := verifyapi.Publish{
-			Keys:           util.GenerateExposureKeys(h.config.KeysPerExposure, tr, false),
+			Keys:           util.GenerateExposureKeys(h.config.KeysPerExposure, 0, false),
 			Regions:        regions,
 			AppPackageName: "generated.data",
 		}
@@ -101,7 +98,12 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		exposures, err := h.transformer.TransformPublish(ctx, &publish, batchTime)
+		claims := verification.VerifiedClaims{
+			ReportType:           util.RandomReportType(),
+			SymptomOnsetInterval: uint32(publish.Keys[0].IntervalNumber),
+		}
+
+		exposures, err := h.transformer.TransformPublish(ctx, &publish, &claims, batchTime)
 		if err != nil {
 			message := fmt.Sprintf("Error transforming generated exposures: %v", err)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})

@@ -48,10 +48,19 @@ func New(db *database.HealthAuthorityDB, config *Config) (*Verifier, error) {
 	return &Verifier{db, cache}, nil
 }
 
+// VerifiedClaims represents the relevant claims extracted from a verified
+// certificate that may need to be applied.
+type VerifiedClaims struct {
+	HealthAuthorityID    int64
+	ReportType           string // blank indicates no report type was present.
+	SymptomOnsetInterval uint32 // 0 indicates no symptom onset interval present. This should be checked for "reasonable" value before application.
+	TransmissionRisks    verifyapi.TransmissionRiskVector
+}
+
 // VerifyDiagnosisCertificate accepts a publish request (from which is extracts the JWT),
 // fully verifies the JWT and signture against what the passed in authorrized app is allowed
 // to use. Returns any transmission risk overrides if they are present.
-func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamodel.AuthorizedApp, publish *verifyapi.Publish) (verifyapi.TransmissionRiskVector, error) {
+func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamodel.AuthorizedApp, publish *verifyapi.Publish) (*VerifiedClaims, error) {
 	// These get assigned during the ParseWithClaims closure.
 	var healthAuthorityID int64
 	var claims *verifyapi.VerificationClaims
@@ -134,6 +143,11 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 		return nil, fmt.Errorf("HMAC mismatch, publish request does not match disgnosis verification certificate")
 	}
 
-	// Everything looks good. Return the transmission override vector.
-	return claims.TransmissionRisks, nil
+	// Everything looks good. Return the relevant verified claims.
+	return &VerifiedClaims{
+		HealthAuthorityID:    healthAuthorityID,
+		ReportType:           claims.ReportType,
+		SymptomOnsetInterval: claims.SymptomOnsetInterval,
+		TransmissionRisks:    claims.TransmissionRisks,
+	}, nil
 }

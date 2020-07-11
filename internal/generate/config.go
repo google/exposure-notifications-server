@@ -43,6 +43,7 @@ type Config struct {
 	MaxSameStartIntervalKeys int           `env:"MAX_SAME_START_INTERVAL_KEYS, default=2"`
 	SimulateSameDayRelease   bool          `env:"SIMULATE_SAME_DAY_RELEASE, default=false"`
 	MaxIntervalAge           time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
+	MaxSymptomOnsetDays      int           `env:"MAX_SYMPTOM_ONSET_DAYS, default=21"`
 	TruncateWindow           time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 	DefaultRegion            string        `env:"DEFAULT_REGOIN, default=US"`
 }

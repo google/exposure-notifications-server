@@ -46,7 +46,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("missing AuthorizedApp provider in server environment")
 	}
 
-	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxSameStartIntervalKeys, config.MaxIntervalAge, config.TruncateWindow, config.DebugReleaseSameDayKeys)
+	transformer, err := model.NewTransformer(config.MaxKeysOnPublish, config.MaxSameStartIntervalKeys, config.MaxIntervalAge, config.TruncateWindow, config.MaxSymptomOnsetDays, config.DebugReleaseSameDayKeys)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
@@ -148,7 +148,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	}
 
 	// Perform health authority certificat verification.
-	overrides, err := h.verifier.VerifyDiagnosisCertificate(ctx, appConfig, &data)
+	verifiedClaims, err := h.verifier.VerifyDiagnosisCertificate(ctx, appConfig, &data)
 	if err != nil {
 		if appConfig.BypassHealthAuthorityVerification {
 			logger.Warnf("bypassing health authority certificate verification for app: %v", appConfig.AppPackageName)
@@ -160,13 +160,8 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		}
 	}
 
-	// Apply overrides
-	if len(overrides) > 0 {
-		model.ApplyTransmissionRiskOverrides(&data, overrides)
-	}
-
 	batchTime := time.Now()
-	exposures, err := h.transformer.TransformPublish(ctx, &data, batchTime)
+	exposures, err := h.transformer.TransformPublish(ctx, &data, verifiedClaims, batchTime)
 	if err != nil {
 		message := fmt.Sprintf("unable to read request data: %v", err)
 		logger.Errorf(message)
@@ -174,9 +169,35 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		return response{status: http.StatusBadRequest, message: message, metric: "publish-transform-fail", count: 1}
 	}
 
-	err = h.database.InsertExposures(ctx, exposures)
+	// Before insert, load any existing keys that may be revised.
+	b64keys := make([]string, 0, len(exposures))
+	for _, e := range exposures {
+		b64keys = append(b64keys, e.ExposureKeyBase64())
+	}
+	existingExposures, err := h.database.ReadExposures(ctx, b64keys)
 	if err != nil {
+		message := fmt.Sprintf("unable to read any existing key state: %v", err)
+		logger.Errorf(message)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+		return response{status: http.StatusInternalServerError, message: http.StatusText(http.StatusInternalServerError), metric: "publish-db-read-error", count: 1}
+	}
+
+	var writeFn func() error
+	if len(existingExposures) == 0 {
+		writeFn = func() error { return h.database.InsertExposures(ctx, exposures) }
+	} else {
+		revised, err := h.transformer.ReviseKeys(ctx, existingExposures, exposures)
+		if err != nil {
+			message := fmt.Sprintf("unable to revise keys: %v", err)
+			logger.Errorf(message)
+			span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
+			return response{status: http.StatusBadRequest, message: message, metric: "publish-revision-failure", count: 1}
+		}
+		writeFn = func() error { return h.database.ReviseExposures(ctx, revised) }
+	}
+	if err := writeFn(); err != nil {
 		message := fmt.Sprintf("error writing exposure record: %v", err)
+		logger.Errorf(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{status: http.StatusInternalServerError, message: http.StatusText(http.StatusInternalServerError), metric: "publish-db-write-error", count: 1}
 	}

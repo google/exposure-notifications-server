@@ -46,6 +46,7 @@ type Config struct {
 	// Provides compatibility w/ 1.5 release.
 	MaxSameStartIntervalKeys int           `env:"MAX_SAME_START_INTERVAL_KEYS, default=3"`
 	MaxIntervalAge           time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
+	MaxSymptomOnsetDays      int           `env:"MAX_SYMPTOM_ONSET_DAYS, default=21"`
 	TruncateWindow           time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
 	// Flags for local development and testing. This will cause still valid keys
