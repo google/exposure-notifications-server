@@ -159,7 +159,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 func cutoffDate(ctx context.Context, d time.Duration, overrideMinTTL bool) (time.Time, error) {
 	if d < minTTL {
 		if overrideMinTTL {
-			logging.FromContext(ctx).Warnf("Cleanup safety minimuim TTL is being overriden by the DEBUG_OVERRIDE_CLEANUP_MIN_DURATION=true environment variable")
+			logging.FromContext(ctx).Warnf("Cleanup safety minimuim TTL is being overridden by the DEBUG_OVERRIDE_CLEANUP_MIN_DURATION=true environment variable")
 		} else {
 			return time.Time{}, fmt.Errorf("cleanup ttl is less than configured minimum ttl")
 		}
