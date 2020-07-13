@@ -72,13 +72,13 @@ For full instructions on deploying, view the [deployment docs](../docs/getting-s
     Configure Terraform to store state in the bucket:
 
     ```text
-    $ cat <<EOF > ./state.tf
-    terraform {
-      backend "gcs" {
-        bucket = "${PROJECT_ID}-tf-state"
-      }
+    $ cat <<EOF>> ./state.tf
+terraform {
+    backend "gcs" {
+    bucket = "${PROJECT_ID}-tf-state"
     }
-    EOF
+}
+EOF
     ```
 
 1.  Run `terraform init`. Terraform will automatically download the plugins
