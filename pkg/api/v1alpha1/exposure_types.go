@@ -44,24 +44,32 @@ const (
 // AppPackageName: The identifier for the mobile application.
 //  - Android: The App Package AppPackageName
 //  - iOS: The BundleID
-// TransmissionRisk: An integer from 0-8 (inclusive) that represents
-//  the transmission risk for this publish.
-// Verification: The attestation payload for this request. (iOS or Android specific)
-//   Base64 encoded.
-// VerificationAuthorityName: a string that should be verified against the code provider.
-//  Note: This project doesn't directly include a diagnosis code verification System
-//        but does provide the ability to configure one in `serverevn.ServerEnv`
+// VerifcationPayload: The Verification Certificate from a verification server.
+// HMACKey: the device generated secret that is used to recalcualte the HMAC value
+//  that is present in the verification payload.
+//
+// SymptomOnsetInterval: An interval number that aligns with the symptom onset date.
+//  - Uses the same interval system as TEK timing.
+//  - Will be rounded down to the start of the UTC day provided.
+//  - Will be used to calculate the days +/- symptom onset for provided keys.
+//  - MUST be no more than 14 days ago.
+//  - Does not have to be within range of any of the provided keys (i.e. future
+//    key uploads)
+//
+// Padding: random base64 encoded data to obscure the request size.
 //
 // The following fields are deprecated, but accepted for backwards-compatibility:
 // DeviceVerificationPayload: (attestation)
 // Platform: "ios" or "android"
 type Publish struct {
-	Keys                []ExposureKey `json:"temporaryExposureKeys"`
-	Regions             []string      `json:"regions"`
-	AppPackageName      string        `json:"appPackageName"`
-	VerificationPayload string        `json:"verificationPayload"`
-	HMACKey             string        `json:"hmackey"`
-	Padding             string        `json:"padding"`
+	Keys                 []ExposureKey `json:"temporaryExposureKeys"`
+	Regions              []string      `json:"regions"`
+	AppPackageName       string        `json:"appPackageName"`
+	VerificationPayload  string        `json:"verificationPayload"`
+	HMACKey              string        `json:"hmackey"`
+	SymptomOnsetInterval int32         `json:"symptomOnsetInterval"`
+
+	Padding string `json:"padding"`
 
 	Platform                  string `json:"platform"`                  // DEPRECATED
 	DeviceVerificationPayload string `json:"deviceVerificationPayload"` // DEPRECATED
@@ -80,11 +88,19 @@ type Publish struct {
 // IntervalCount must >= `minIntervalCount` and <= `maxIntervalCount`
 //   1 - 144 inclusive.
 // transmissionRisk must be >= 0 and <= 8.
+//   Transmission risk is depercated, but should still be populated for compatibility
+//   with olrder clients. If it is omitted, and there is a valid report type,
+//   then transmissionRisk will be set to 0.
+//   IF there is a report type from the verification certificate AND tranismission risk
+//    is not set, then a report type of
+//     CONFIRMED will lead to TR 2
+//     LIKELY will lead to TR 4
+//     NEGATIVE will lead to TR 6
 type ExposureKey struct {
 	Key              string `json:"key"`
 	IntervalNumber   int32  `json:"rollingStartNumber"`
 	IntervalCount    int32  `json:"rollingPeriod"`
-	TransmissionRisk int    `json:"transmissionRisk"`
+	TransmissionRisk int    `json:"transmissionRisk"` // DEPRECATED
 }
 
 // ExposureKeys represents a set of ExposureKey objects as input to

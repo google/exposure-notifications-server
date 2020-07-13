@@ -215,7 +215,7 @@ func TestPublishWithBypass(t *testing.T) {
 			Error: "unable to validate diagnosis verification: token contains an invalid number of segments",
 		},
 		{
-			Name:       "valid HA certificate",
+			Name:       "valid_HA_certificate",
 			SigningKey: newSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   "doh.my.gov",
@@ -241,7 +241,7 @@ func TestPublishWithBypass(t *testing.T) {
 			Code: http.StatusOK,
 		},
 		{
-			Name:       "valid HA certificate with overrides",
+			Name:       "valid_HA_certificate_with_overrides",
 			SigningKey: newSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   "doh.my.gov",
@@ -266,7 +266,7 @@ func TestPublishWithBypass(t *testing.T) {
 			},
 			Overrides: []verifyapi.TransmissionRiskOverride{
 				{
-					TranismissionRisk:    8,
+					TransmissionRisk:     8,
 					SinceRollingInterval: 0,
 				},
 			},
@@ -340,7 +340,7 @@ func TestPublishWithBypass(t *testing.T) {
 			// And set up publish handler up front.
 			config := Config{}
 			config.AuthorizedApp.CacheDuration = time.Nanosecond
-			config.TruncateWindow = time.Second
+			config.CreatedAtTruncateWindow = time.Second
 			config.MaxKeysOnPublish = 20
 			config.MaxSameStartIntervalKeys = 2
 			config.MaxIntervalAge = 14 * 24 * time.Hour
@@ -454,17 +454,21 @@ func TestPublishWithBypass(t *testing.T) {
 					if key, err := base64util.DecodeString(k.Key); err != nil {
 						t.Fatal(err)
 					} else {
-						want = append(want,
-							&model.Exposure{
-								ExposureKey:      key,
-								AppPackageName:   tc.Publish.AppPackageName,
-								TransmissionRisk: k.TransmissionRisk,
-								IntervalNumber:   k.IntervalNumber,
-								IntervalCount:    k.IntervalCount,
-								Regions:          tc.Publish.Regions,
-								LocalProvenance:  true,
-								FederationSyncID: 0,
-							})
+						next := model.Exposure{
+							ExposureKey:      key,
+							AppPackageName:   tc.Publish.AppPackageName,
+							TransmissionRisk: k.TransmissionRisk,
+							IntervalNumber:   k.IntervalNumber,
+							IntervalCount:    k.IntervalCount,
+							Regions:          tc.Publish.Regions,
+							LocalProvenance:  true,
+							FederationSyncID: 0,
+						}
+						if tc.HealthAuthority != nil {
+							next.SetHealthAuthorityID(tc.HealthAuthority.ID)
+						}
+
+						want = append(want, &next)
 					}
 				}
 

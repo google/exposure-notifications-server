@@ -154,8 +154,8 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		MaxKeysOnPublish:         15,
 		MaxSameStartIntervalKeys: 2,
 		MaxIntervalAge:           360 * time.Hour,
-		TruncateWindow:           1 * time.Second,
-		DebugReleaseSameDayKeys:  true,
+		CreatedAtTruncateWindow:  1 * time.Second,
+		ReleaseSameDayKeys:       true,
 	}
 
 	publishHandler, err := publish.NewHandler(ctx, publishConfig, env)

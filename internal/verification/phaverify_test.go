@@ -184,7 +184,7 @@ func TestVerifyCertificate(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			overrides, err := verifier.VerifyDiagnosisCertificate(ctx, authApp, &publish)
+			verifiedClaims, err := verifier.VerifyDiagnosisCertificate(ctx, authApp, &publish)
 			if err != nil {
 				if !strings.Contains(err.Error(), tc.Error) {
 					t.Fatalf("wanted error '%v', got error '%v'", tc.Error, err.Error())
@@ -192,8 +192,10 @@ func TestVerifyCertificate(t *testing.T) {
 			} else if tc.Error != "" {
 				t.Fatalf("wanted error '%v', but got nil", tc.Error)
 			}
-			if len(overrides) != 0 {
-				t.Errorf("wanted no overrides, got %v", overrides)
+			if verifiedClaims != nil {
+				if len(verifiedClaims.TransmissionRisks) != 0 {
+					t.Errorf("wanted no overrides, got %v", verifiedClaims.TransmissionRisks)
+				}
 			}
 		})
 	}

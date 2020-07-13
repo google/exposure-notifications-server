@@ -45,6 +45,11 @@ const (
 	ReportTypeClinical = "likely"
 	// ReportTypeNegative is allowed by the verification flow. These keys are not saved in the system.
 	ReportTypeNegative = "negative"
+
+	TransmissionRiskUnknown           = 0
+	TransmissionRiskConfirmedStandard = 2
+	TransmissionRiskClinical          = 4
+	TransmissionRiskNegative          = 6
 )
 
 // TransmissionRiskVector is an additional set of claims that can be
@@ -52,12 +57,12 @@ const (
 // from a trusted public health authority.
 type TransmissionRiskVector []TransmissionRiskOverride
 
-// Compile time check that TranismissionRiskVector implements the sort interface.
+// Compile time check that TransmissionRiskVector implements the sort interface.
 var _ sort.Interface = TransmissionRiskVector{}
 
 // TransmissionRiskOverride is an indvidual transmission risk override.
 type TransmissionRiskOverride struct {
-	TranismissionRisk    int   `json:"tr"`
+	TransmissionRisk     int   `json:"tr"`
 	SinceRollingInterval int32 `json:"sinceRollingInterval"`
 }
 

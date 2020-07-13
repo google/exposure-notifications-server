@@ -21,6 +21,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/observability"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
@@ -31,6 +32,7 @@ var _ setup.AuthorizedAppConfigProvider = (*Config)(nil)
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
 var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
+var _ model.TransformerConfig = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.
@@ -42,16 +44,41 @@ type Config struct {
 	ObservabilityExporter observability.Config
 
 	Port             string `env:"PORT, default=8080"`
-	MaxKeysOnPublish int    `env:"MAX_KEYS_ON_PUBLISH, default=20"`
+	MaxKeysOnPublish uint   `env:"MAX_KEYS_ON_PUBLISH, default=20"`
 	// Provides compatibility w/ 1.5 release.
-	MaxSameStartIntervalKeys int           `env:"MAX_SAME_START_INTERVAL_KEYS, default=3"`
-	MaxIntervalAge           time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
-	TruncateWindow           time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
+	MaxSameStartIntervalKeys     uint          `env:"MAX_SAME_START_INTERVAL_KEYS, default=3"`
+	MaxIntervalAge               time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
+	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=21"`
+	CreatedAtTruncateWindow      time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
 	// Flags for local development and testing. This will cause still valid keys
 	// to not be embargoed.
 	// Normally "still valid" keys can be accepted, but are embargoed.
-	DebugReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
+	ReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
+}
+
+func (c *Config) MaxExposureKeys() uint {
+	return c.MaxKeysOnPublish
+}
+
+func (c *Config) MaxSameDayKeys() uint {
+	return c.MaxSameStartIntervalKeys
+}
+
+func (c *Config) MaxIntervalStartAge() time.Duration {
+	return c.MaxIntervalAge
+}
+
+func (c *Config) TruncateWindow() time.Duration {
+	return c.CreatedAtTruncateWindow
+}
+
+func (c *Config) MaxSymptomOnsetDays() uint {
+	return c.MaxMagnitudeSymptomOnsetDays
+}
+
+func (c *Config) DebugReleaseSameDayKeys() bool {
+	return c.ReleaseSameDayKeys
 }
 
 func (c *Config) AuthorizedAppConfig() *authorizedapp.Config {
