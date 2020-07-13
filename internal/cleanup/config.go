@@ -41,6 +41,8 @@ type Config struct {
 	Port    string        `env:"PORT, default=8080"`
 	Timeout time.Duration `env:"CLEANUP_TIMEOUT, default=10m"`
 	TTL     time.Duration `env:"CLEANUP_TTL, default=336h"`
+
+	DebugOverrideCleanupMinDuration bool `env:"DEBUG_OVERRIDE_CLEANUP_MIN_DURATION, default=false"`
 }
 
 func (c *Config) BlobstoreConfig() *storage.Config {
