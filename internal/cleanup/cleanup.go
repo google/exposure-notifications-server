@@ -62,7 +62,7 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)
 
-	cutoff, err := cutoffDate(h.config.TTL)
+	cutoff, err := cutoffDate(ctx, h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
 	if err != nil {
 		message := fmt.Sprintf("error processing cutoff time: %v", err)
 		logger.Error(message)
@@ -125,7 +125,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)
 
-	cutoff, err := cutoffDate(h.config.TTL)
+	cutoff, err := cutoffDate(ctx, h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
 	if err != nil {
 		message := fmt.Sprintf("error calculating cutoff time: %v", err)
 		metrics.WriteInt("cleanup-exports-setup-failed", true, 1)
@@ -156,9 +156,13 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 }
 
-func cutoffDate(d time.Duration) (time.Time, error) {
+func cutoffDate(ctx context.Context, d time.Duration, overrideMinTTL bool) (time.Time, error) {
 	if d < minTTL {
-		return time.Time{}, fmt.Errorf("cleanup ttl is less than configured minimum ttl")
+		if overrideMinTTL {
+			logging.FromContext(ctx).Warnf("Cleanup safety minimuim TTL is being overriden by the DEBUG_OVERRIDE_CLEANUP_MIN_DURATION=true environment variable")
+		} else {
+			return time.Time{}, fmt.Errorf("cleanup ttl is less than configured minimum ttl")
+		}
 	}
 	return time.Now().Add(-d), nil
 }
