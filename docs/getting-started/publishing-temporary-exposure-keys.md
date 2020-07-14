@@ -32,17 +32,13 @@ Here, we point out some non-obvious validation that is applied to the keys.
 
 * All keys must be valid! If there are any validation errors, the entire batch
   is rejected.
-* Max keys per publish: Default is `20` and can be adjusted with the
-  `MAX_KEYS_ON_PUBLISH` environment variable.
-* Max overlapping keys with same start interval: Default is `3` and can be
-  adjusted with the `MAX_SAME_START_INTERVAL_KEYS` environment variable.
-	In practical terms, this means that if you are obtaining TEK history on a
-	mobile device with >= v1.5 of the device API, it will stop the validity
-	of the current day's TEK and issue a new now. Both keys will have the same
-	start iterval.
-* Max age: How old keys can be. The default is `360h` (15 days) and can be
-  adjusted with the `MAX_INTERVAL_AGE_ON_PUBLISH`. All provided keys must have
-	a `rollingStartNumber` that is >= to the max age.
+* The following are configurable variables around validation:
+	| Environment Variable         | Description          | Default |
+	|------------------------------|----------------------|---------|
+	| MAX_KEYS_ON_PUBLISH          | Max keys per publish | 20      |
+	| MAX_SAME_START_INTERVAL_KEYS | Max overlapping keys with same start interval. In practical terms, this means that if you are obtaining TEK history on a mobile device with >= v1.5 of the device API, it will stop the validity of the current day's TEK and issue a new now. Both keys will have the same start interval. |  3  |
+	| MAX_INTERVAL_AGE_ON_PUBLISH  | Max age. How old keys can be. All provided keys must have a `rollingStartNumber` that is >= to the max age. | 360h (15 days)   |
+
 * Keys with a future start time (`rollingStartNumber` indicates time > now),
   are rejected.
 * Keys that are "sill valid" are accepted by the server, but they are embargoed
