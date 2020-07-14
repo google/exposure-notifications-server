@@ -186,7 +186,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	if len(existingExposures) == 0 {
 		writeFn = func() error { return h.database.InsertExposures(ctx, exposures) }
 	} else {
-		revised, err := h.transformer.ReviseKeys(ctx, existingExposures, exposures)
+		revised, err := model.ReviseKeys(ctx, existingExposures, exposures)
 		if err != nil {
 			message := fmt.Sprintf("unable to revise keys: %v", err)
 			logger.Errorf(message)

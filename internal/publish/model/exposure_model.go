@@ -18,6 +18,7 @@ package model
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -29,6 +30,13 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+)
+
+var (
+	ErrorExposureKeyMismatch     = errors.New("attempted to revise a key with a different key")
+	ErrorHealthAuthorityMismatch = errors.New("key revisition attempted by different health authority")
+	ErrorNonLocalProvenance      = errors.New("key not origionally uploaded to this server, cannot revise")
+	ErrorKeyAlreadyRevised       = errors.New("key has already been revised and cannot be revised again")
 )
 
 // Exposure represents the record as stored in the database
@@ -45,12 +53,64 @@ type Exposure struct {
 
 	// These fileds are nullable to maintain backwards compatibility with
 	// older versions that predate their existence.
-	HealthAuthorityID            *int64
-	ReportType                   string
-	DaysSinceSymptomOnset        *int32
+	HealthAuthorityID     *int64
+	ReportType            string
+	DaysSinceSymptomOnset *int32
+
+	// Fields to support key revision.
 	RevisedReportType            *string
 	RevisedAt                    *time.Time
-	RevisedDaysSinceSymptomOnset *int
+	RevisedDaysSinceSymptomOnset *int32
+	RevisedTransmissionRisk      *int
+}
+
+// Revise updates the Revised fields of a key
+func (e *Exposure) Revise(in *Exposure) (bool, error) {
+	if e.ExposureKeyBase64() != in.ExposureKeyBase64() {
+		return false, ErrorExposureKeyMismatch
+	}
+	// key doesn't need to be revised if there is no change.
+	if e.ReportType == in.ReportType {
+		return false, nil
+	}
+	if !e.LocalProvenance {
+		return false, ErrorNonLocalProvenance
+	}
+	// make sure key hasn't been revised already.
+	if e.RevisedAt != nil {
+		return false, ErrorKeyAlreadyRevised
+	}
+
+	// Check to see if this is a valid transition.
+	if !(e.ReportType == verifyapi.ReportTypeClinical && (in.ReportType == verifyapi.ReportTypeConfirmed || in.ReportType == verifyapi.ReportTypeNegative)) {
+		return false, fmt.Errorf("invalid report type transition, cannot transition from '%v' to '%v'", e.ReportType, in.ReportType)
+	}
+
+	// Update fields.
+	// Key is potentially revised by a different health authority.
+	e.HealthAuthorityID = in.HealthAuthorityID
+	// If there are new regions in the incoming version, add them to the previous on.
+	// Regions are not removed however.
+	e.AddMissingRegions(in.Regions)
+	e.RevisedReportType = &in.ReportType
+	e.RevisedAt = &in.CreatedAt
+	e.RevisedDaysSinceSymptomOnset = in.DaysSinceSymptomOnset
+	e.RevisedTransmissionRisk = &in.TransmissionRisk
+
+	return true, nil
+}
+
+func (e *Exposure) AddMissingRegions(regions []string) {
+	m := make(map[string]struct{})
+	for _, r := range e.Regions {
+		m[r] = struct{}{}
+	}
+	for _, r := range regions {
+		if _, ok := m[r]; !ok {
+			m[r] = struct{}{}
+			e.Regions = append(e.Regions, r)
+		}
+	}
 }
 
 // HasDaysSinceSymptomOnset returns true if the this key has the days since
@@ -62,10 +122,7 @@ func (e *Exposure) HasDaysSinceSymptomOnset() bool {
 // SetDaysSinceSymptomOnset sets the days since sympton onset field, possibly
 // allocating a new pointer.
 func (e *Exposure) SetDaysSinceSymptomOnset(d int32) {
-	if e.DaysSinceSymptomOnset == nil {
-		e.DaysSinceSymptomOnset = new(int32)
-	}
-	*e.DaysSinceSymptomOnset = d
+	e.DaysSinceSymptomOnset = &d
 }
 
 func (e *Exposure) HasHealthAuthorityID() bool {
@@ -73,10 +130,31 @@ func (e *Exposure) HasHealthAuthorityID() bool {
 }
 
 func (e *Exposure) SetHealthAuthorityID(haID int64) {
-	if e.HealthAuthorityID == nil {
-		e.HealthAuthorityID = new(int64)
+	e.HealthAuthorityID = &haID
+}
+
+func (e *Exposure) HasBeenRevised() bool {
+	return e.RevisedAt != nil
+}
+
+func (e *Exposure) SetRevisedAt(t time.Time) error {
+	if e.RevisedAt != nil {
+		return fmt.Errorf("exposure key has already been revised and cannot be revised again")
 	}
-	*e.HealthAuthorityID = haID
+	e.RevisedAt = &t
+	return nil
+}
+
+func (e *Exposure) SetRevisedReportType(rt string) {
+	e.RevisedReportType = &rt
+}
+
+func (e *Exposure) SetRevisedDaysSinceSymptomOnset(d int32) {
+	e.RevisedDaysSinceSymptomOnset = &d
+}
+
+func (e *Exposure) SetRevisedTransmissionRisk(tr int) {
+	e.RevisedTransmissionRisk = &tr
 }
 
 // ExposureKeyBase64 returns the ExposuerKey property base64 encoded.
@@ -264,11 +342,39 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 	}, nil
 }
 
-func (t *Transformer) ReviseKeys(ctx context.Context, existing map[string]*Exposure, incoming []*Exposure) ([]*Exposure, error) {
-	// TODO(mikehelmick): Implement revise keys functionality.
-	// output := make([]*Exposure, 0, len(incoming))
+// ReviseKeys takes a set of existing keys, and a list of keys currently being uploaded.
+// Only keys that need to be revsised or are being created fir the first time
+// are returned in the output set.
+func ReviseKeys(ctx context.Context, existing map[string]*Exposure, incoming []*Exposure) ([]*Exposure, error) {
+	//logger := logging.FromContext(ctx)
+	output := make([]*Exposure, 0, len(incoming))
 
-	return nil, fmt.Errorf("KEY REVISION NOT YET IMPLEMENTED")
+	// Iterate over incoming keys.
+	// If the key already exists
+	//  - determine if it needs to be revised, revise it, put in output.
+	//  - if it doesn't need to be revised (nochange), don't put in putput
+	// New keys, throw it in the output list. Party on.
+	for _, inExposure := range incoming {
+		prevExposure, ok := existing[inExposure.ExposureKeyBase64()]
+		if !ok {
+			output = append(output, inExposure)
+			continue
+		}
+
+		// Attempt to revise this key.
+		keyRevised, err := prevExposure.Revise(inExposure)
+		if err != nil {
+			return nil, err
+		}
+		if !keyRevised {
+			// key hasn't changed, carry on.
+			continue
+		}
+		// Revision worked, add the revised key to the output list.
+		output = append(output, prevExposure)
+	}
+
+	return output, nil
 }
 
 func ReportTypeTransmissionRisk(reportType string, providedTR int) int {

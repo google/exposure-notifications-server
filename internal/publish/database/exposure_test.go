@@ -24,8 +24,9 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -217,6 +218,81 @@ func listExposures(ctx context.Context, db *PublishDB, c IterateExposuresCriteri
 		return nil, fmt.Errorf("failed to list exposures: %w", err)
 	}
 	return exps, nil
+}
+
+func TestReviseExposures(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	testDB := database.NewTestDatabase(t)
+	pubDB := New(testDB)
+
+	createdAt := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Hour)
+	revisedAt := time.Now().UTC().Truncate(time.Hour)
+
+	existingExp := &model.Exposure{
+		ExposureKey:      []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4},
+		TransmissionRisk: verifyapi.TransmissionRiskClinical,
+		AppPackageName:   "foo.bar",
+		Regions:          []string{"US", "CA", "MX"},
+		IntervalNumber:   100,
+		IntervalCount:    144,
+		CreatedAt:        createdAt,
+		LocalProvenance:  true,
+		ReportType:       verifyapi.ReportTypeClinical,
+	}
+	existingExp.SetDaysSinceSymptomOnset(0)
+	if err := pubDB.InsertExposures(ctx, []*model.Exposure{existingExp}); err != nil {
+		t.Fatalf("error inserting exposures: %v", err)
+	}
+
+	// Modify the existing on in place.
+	existingExp.SetRevisedReportType(verifyapi.ReportTypeConfirmed)
+	existingExp.RevisedAt = &revisedAt
+	existingExp.SetRevisedDaysSinceSymptomOnset(0)
+	existingExp.SetRevisedTransmissionRisk(verifyapi.TransmissionRiskConfirmedStandard)
+	// Add a new TEK to insert.
+	newExp := &model.Exposure{
+		ExposureKey:      []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5},
+		TransmissionRisk: verifyapi.TransmissionRiskClinical,
+		AppPackageName:   "foo.bar",
+		Regions:          []string{"US", "CA", "MX"},
+		IntervalNumber:   244,
+		IntervalCount:    144,
+		CreatedAt:        revisedAt,
+		LocalProvenance:  true,
+		ReportType:       verifyapi.ReportTypeConfirmed,
+	}
+	newExp.SetDaysSinceSymptomOnset(1)
+
+	revisions := []*model.Exposure{existingExp, newExp}
+	if err := pubDB.ReviseExposures(ctx, revisions); err != nil {
+		t.Fatalf("error revising exposures: %v", err)
+	}
+
+	// Read back and compare.
+	expectedKeys := []string{existingExp.ExposureKeyBase64(), newExp.ExposureKeyBase64()}
+	got, err := pubDB.ReadExposures(ctx, expectedKeys)
+	if err != nil {
+		t.Fatalf("error reading exposures: %v", err)
+	}
+
+	if l := len(got); l != 2 {
+		t.Fatalf("didn't read back both exposures, got: %v", l)
+	}
+
+	for _, want := range revisions {
+		if diff := cmp.Diff(want, got[want.ExposureKeyBase64()]); diff != "" {
+			t.Errorf("mismatch (-want, +got):\n%s", diff)
+		}
+	}
+
+	// Attempt to revise the already revised key.
+	if err := pubDB.ReviseExposures(ctx, []*model.Exposure{existingExp}); err == nil {
+		t.Fatalf("expected error on revising already revised key, got nil")
+	} else if !strings.Contains(err.Error(), "invalid key revision request") {
+		t.Fatalf("wrong error, want 'invalid key revision request', got: %v", err)
+	}
 }
 
 func TestIterateExposuresCursor(t *testing.T) {
