@@ -228,7 +228,7 @@ func alterExposureCreatedAt(t *testing.T, ctx context.Context, db *database.DB,
 			return fmt.Errorf("failed deleting exposure %v: %v", m.ExposureKey, err)
 		}
 		m.CreatedAt = m.CreatedAt.Add(timeDelta)
-		if err := publishdb.New(db).InsertExposures(ctx, []*publishmodel.Exposure{m}); err != nil {
+		if _, err := publishdb.New(db).InsertAndReviseExposures(ctx, []*publishmodel.Exposure{m}); err != nil {
 			return fmt.Errorf("failed inserting exposure %v with updated creation time: %v",
 				m.ExposureKey, err)
 		}

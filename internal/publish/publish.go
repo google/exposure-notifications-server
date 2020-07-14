@@ -169,41 +169,16 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		return response{status: http.StatusBadRequest, message: message, metric: "publish-transform-fail", count: 1}
 	}
 
-	// Before insert, load any existing keys that may be revised.
-	b64keys := make([]string, 0, len(exposures))
-	for _, e := range exposures {
-		b64keys = append(b64keys, e.ExposureKeyBase64())
-	}
-	existingExposures, err := h.database.ReadExposures(ctx, b64keys)
+	n, err := h.database.InsertAndReviseExposures(ctx, exposures)
 	if err != nil {
-		message := fmt.Sprintf("unable to read any existing key state: %v", err)
-		logger.Errorf(message)
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		return response{status: http.StatusInternalServerError, message: http.StatusText(http.StatusInternalServerError), metric: "publish-db-read-error", count: 1}
-	}
-
-	var writeFn func() error
-	if len(existingExposures) == 0 {
-		writeFn = func() error { return h.database.InsertExposures(ctx, exposures) }
-	} else {
-		revised, err := model.ReviseKeys(ctx, existingExposures, exposures)
-		if err != nil {
-			message := fmt.Sprintf("unable to revise keys: %v", err)
-			logger.Errorf(message)
-			span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
-			return response{status: http.StatusBadRequest, message: message, metric: "publish-revision-failure", count: 1}
-		}
-		writeFn = func() error { return h.database.ReviseExposures(ctx, revised) }
-	}
-	if err := writeFn(); err != nil {
 		message := fmt.Sprintf("error writing exposure record: %v", err)
 		logger.Errorf(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{status: http.StatusInternalServerError, message: http.StatusText(http.StatusInternalServerError), metric: "publish-db-write-error", count: 1}
 	}
 
-	message := fmt.Sprintf("Inserted %d exposures.", len(exposures))
-	span.AddAttributes(trace.Int64Attribute("inserted_exposures", int64(len(exposures))))
+	message := fmt.Sprintf("Inserted %d exposures.", n)
+	span.AddAttributes(trace.Int64Attribute("inserted_exposures", int64(n)))
 	logger.Info(message)
 	return response{
 		status:  http.StatusOK,

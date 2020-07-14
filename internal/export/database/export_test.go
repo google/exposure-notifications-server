@@ -482,7 +482,7 @@ func TestKeysInBatch(t *testing.T) {
 	}
 
 	// Add the keys to the database.
-	if err := publishdb.New(testDB).InsertExposures(ctx, []*publishmodel.Exposure{sek, eek}); err != nil {
+	if _, err := publishdb.New(testDB).InsertAndReviseExposures(ctx, []*publishmodel.Exposure{sek, eek}); err != nil {
 		t.Fatal(err)
 	}
 

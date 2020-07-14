@@ -486,7 +486,7 @@ func TestPublishWithBypass(t *testing.T) {
 				})
 				ignoreCreatedAt := cmpopts.IgnoreFields(*want[0], "CreatedAt")
 
-				if diff := cmp.Diff(want, got, sorter, ignoreCreatedAt); diff != "" {
+				if diff := cmp.Diff(want, got, sorter, ignoreCreatedAt, cmpopts.IgnoreUnexported(model.Exposure{})); diff != "" {
 					t.Errorf("mismatch (-want, +got):\n%s", diff)
 				}
 			} else {

@@ -29,6 +29,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 const (
@@ -723,7 +724,7 @@ func TestTransform(t *testing.T) {
 				t.Fatalf("TransformPublish returned unexpected error: %v", err)
 			}
 
-			if diff := cmp.Diff(tc.Want, got); diff != "" {
+			if diff := cmp.Diff(tc.Want, got, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
 				t.Errorf("TransformPublish mismatch (-want +got):\n%v", diff)
 			}
 		})
@@ -1230,7 +1231,7 @@ func TestReviseKeys(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -1348,7 +1349,7 @@ func TestExposureReview(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(tc.want, tc.previous); diff != "" {
+			if diff := cmp.Diff(tc.want, tc.previous, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})

@@ -18,7 +18,6 @@ package model
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -33,10 +32,10 @@ import (
 )
 
 var (
-	ErrorExposureKeyMismatch     = errors.New("attempted to revise a key with a different key")
-	ErrorHealthAuthorityMismatch = errors.New("key revisition attempted by different health authority")
-	ErrorNonLocalProvenance      = errors.New("key not origionally uploaded to this server, cannot revise")
-	ErrorKeyAlreadyRevised       = errors.New("key has already been revised and cannot be revised again")
+	ErrorExposureKeyMismatch     = fmt.Errorf("attempted to revise a key with a different key")
+	ErrorHealthAuthorityMismatch = fmt.Errorf("key revisition attempted by different health authority")
+	ErrorNonLocalProvenance      = fmt.Errorf("key not origionally uploaded to this server, cannot revise")
+	ErrorKeyAlreadyRevised       = fmt.Errorf("key has already been revised and cannot be revised again")
 )
 
 // Exposure represents the record as stored in the database
@@ -62,6 +61,9 @@ type Exposure struct {
 	RevisedAt                    *time.Time
 	RevisedDaysSinceSymptomOnset *int32
 	RevisedTransmissionRisk      *int
+
+	// b64 key
+	base64Key string
 }
 
 // Revise updates the Revised fields of a key
@@ -159,7 +161,10 @@ func (e *Exposure) SetRevisedTransmissionRisk(tr int) {
 
 // ExposureKeyBase64 returns the ExposuerKey property base64 encoded.
 func (e *Exposure) ExposureKeyBase64() string {
-	return base64.StdEncoding.EncodeToString(e.ExposureKey)
+	if e.base64Key == "" {
+		e.base64Key = base64.StdEncoding.EncodeToString(e.ExposureKey)
+	}
+	return e.base64Key
 }
 
 // ApplyTransmissionRiskOverrides modifies the transmission risk values in the publish request

@@ -204,13 +204,8 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 // ReadExposures will read an existing set of exposures from the database.
 // This is necessary in case a key needs to be revised.
 // In the return map, the key is the base64 of the ExposureKey.
-func (db *PublishDB) ReadExposures(ctx context.Context, b64keys []string) (map[string]*model.Exposure, error) {
-	conn, err := db.db.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %v", err)
-	}
-	defer conn.Release()
-
+// The keys are read for update in a provided transaction.
+func (db *PublishDB) ReadExposures(ctx context.Context, tx pgx.Tx, b64keys []string) (map[string]*model.Exposure, error) {
 	query := `
 		SELECT
 			exposure_key, transmission_risk, app_package_name, regions,
@@ -220,8 +215,9 @@ func (db *PublishDB) ReadExposures(ctx context.Context, b64keys []string) (map[s
 			revised_transmission_risk
 		FROM
 			Exposure
-		WHERE exposure_key = ANY($1)`
-	rows, err := conn.Query(ctx, query, b64keys)
+		WHERE exposure_key = ANY($1)
+		FOR UPDATE`
+	rows, err := tx.Query(ctx, query, b64keys)
 	if err != nil {
 		return nil, err
 	}
@@ -321,14 +317,31 @@ func executeReviseExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 	return nil
 }
 
-// ReviseExposures transactionally revises and inserts a set of keys as necessary.
-func (db *PublishDB) ReviseExposures(ctx context.Context, exposures []*model.Exposure) error {
-	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+// InsertAndReviseExposures transactionally revises and inserts a set of keys as necessary.
+func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*model.Exposure) (int, error) {
+	updated := 0
+	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		// Read any existing TEKs FOR UPDATE in this transaction.
+		b64keys := make([]string, len(incoming))
+		for i, e := range incoming {
+			b64keys[i] = e.ExposureKeyBase64()
+		}
+		existing, err := db.ReadExposures(ctx, tx, b64keys)
+		if err != nil {
+			return fmt.Errorf("unable to check for existing records")
+		}
+
+		// Run through the merge logic.
+		exposures, err := model.ReviseKeys(ctx, existing, incoming)
+		if err != nil {
+			return fmt.Errorf("unable to revise keys: %w", err)
+		}
+
+		// Prepare the insert and update statements.
 		insertStmt, err := prepareInsertExposure(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("preparing insert statement: %v", err)
 		}
-
 		updateStmt, err := prepareReviseExposure(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("preparing update statement: %v", err)
@@ -346,28 +359,10 @@ func (db *PublishDB) ReviseExposures(ctx context.Context, exposures []*model.Exp
 			}
 		}
 
+		updated = len(exposures)
 		return nil
 	})
-}
-
-// InsertExposures inserts a set of exposures.
-func (db *PublishDB) InsertExposures(ctx context.Context, exposures []*model.Exposure) error {
-	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		stmtName, err := prepareInsertExposure(ctx, tx)
-		if err != nil {
-			return fmt.Errorf("preparing insert statement: %v", err)
-		}
-
-		for _, exp := range exposures {
-			if exp.ReportType == verifyapi.ReportTypeNegative {
-				continue
-			}
-			if err := executeInsertExposure(ctx, tx, stmtName, exp); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	return updated, err
 }
 
 // DeleteExposure deletes exposure
