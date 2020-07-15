@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 
@@ -51,9 +52,9 @@ type Signer struct {
 }
 
 // MarshalExportFile converts the inputs into an encoded byte array.
-func MarshalExportFile(eb *model.ExportBatch, exposures []*publishmodel.Exposure, batchNum, batchSize int, signers []*Signer) ([]byte, error) {
+func MarshalExportFile(eb *model.ExportBatch, exposures, revisedExposures []*publishmodel.Exposure, batchNum, batchSize int, signers []*Signer) ([]byte, error) {
 	// create main exposure key export binary
-	expContents, err := marshalContents(eb, exposures, int32(batchNum), int32(batchSize), signers)
+	expContents, err := marshalContents(eb, exposures, revisedExposures, int32(batchNum), int32(batchSize), signers)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal exposure keys: %w", err)
 	}
@@ -131,7 +132,41 @@ func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, error
 	return message, nil
 }
 
-func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, batchNum int32, batchSize int32, signers []*Signer) ([]byte, error) {
+func sortExposures(exposures []*publishmodel.Exposure) {
+	sort.Slice(exposures, func(i, j int) bool {
+		return bytes.Compare(exposures[i].ExposureKey, exposures[j].ExposureKey) < 0
+	})
+}
+
+func makeTEK(exp *publishmodel.Exposure) *export.TemporaryExposureKey {
+	pbek := export.TemporaryExposureKey{
+		KeyData:               exp.ExposureKey,
+		TransmissionRiskLevel: proto.Int32(int32(exp.TransmissionRisk)),
+	}
+	if exp.IntervalNumber != 0 {
+		pbek.RollingStartIntervalNumber = proto.Int32(exp.IntervalNumber)
+	}
+	if exp.IntervalCount != defaultIntervalCount {
+		pbek.RollingPeriod = proto.Int32(exp.IntervalCount)
+	}
+	return &pbek
+}
+
+func assignReportType(reportType *string, pbek *export.TemporaryExposureKey) {
+	if reportType == nil {
+		return
+	}
+	switch *reportType {
+	case verifyapi.ReportTypeConfirmed:
+		pbek.ReportType = export.TemporaryExposureKey_CONFIRMED_TEST.Enum()
+	case verifyapi.ReportTypeClinical:
+		pbek.ReportType = export.TemporaryExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS.Enum()
+	case verifyapi.ReportTypeNegative:
+		pbek.ReportType = export.TemporaryExposureKey_REVOKED.Enum()
+	}
+}
+
+func marshalContents(eb *model.ExportBatch, exposures, revisedExposures []*publishmodel.Exposure, batchNum int32, batchSize int32, signers []*Signer) ([]byte, error) {
 	exportBytes := fixedHeader
 	if len(exportBytes) != fixedHeaderWidth {
 		return nil, fmt.Errorf("incorrect header length: %d", len(exportBytes))
@@ -139,22 +174,24 @@ func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, 
 	// We want to scramble keys to ensure no associations, so arbitrarily sort them.
 	// This could be done at the db layer but doing it here makes it explicit that its
 	// important to the serialization
-	sort.Slice(exposures, func(i, j int) bool {
-		return bytes.Compare(exposures[i].ExposureKey, exposures[j].ExposureKey) < 0
-	})
+	sortExposures(exposures)
 	var pbeks []*export.TemporaryExposureKey
 	for _, exp := range exposures {
-		pbek := export.TemporaryExposureKey{
-			KeyData:               exp.ExposureKey,
-			TransmissionRiskLevel: proto.Int32(int32(exp.TransmissionRisk)),
+		pbek := makeTEK(exp)
+		assignReportType(&exp.ReportType, pbek)
+		if exp.HasDaysSinceSymptomOnset() {
+			pbek.DaysSinceOnsetOfSymptoms = proto.Int32(*exp.DaysSinceSymptomOnset)
 		}
-		if exp.IntervalNumber != 0 {
-			pbek.RollingStartIntervalNumber = proto.Int32(exp.IntervalNumber)
-		}
-		if exp.IntervalCount != defaultIntervalCount {
-			pbek.RollingPeriod = proto.Int32(exp.IntervalCount)
-		}
-		pbeks = append(pbeks, &pbek)
+		pbeks = append(pbeks, pbek)
+	}
+
+	sortExposures(revisedExposures)
+	var pbRevisedKeys []*export.TemporaryExposureKey
+	for _, exp := range revisedExposures {
+		pbek := makeTEK(exp)
+		assignReportType(exp.RevisedReportType, pbek)
+		pbek.DaysSinceOnsetOfSymptoms = exp.RevisedDaysSinceSymptomOnset
+		pbRevisedKeys = append(pbRevisedKeys, pbek)
 	}
 
 	var exportSigInfos []*export.SignatureInfo
@@ -169,6 +206,7 @@ func marshalContents(eb *model.ExportBatch, exposures []*publishmodel.Exposure, 
 		BatchNum:       proto.Int32(batchNum),
 		BatchSize:      proto.Int32(batchSize),
 		Keys:           pbeks,
+		RevisedKeys:    pbRevisedKeys,
 		SignatureInfos: exportSigInfos,
 	}
 	protoBytes, err := proto.Marshal(&pbeke)

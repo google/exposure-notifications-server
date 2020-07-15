@@ -33,7 +33,6 @@ import (
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/util"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
@@ -97,48 +96,82 @@ func (s *Server) handleDoWork(ctx context.Context) http.HandlerFunc {
 	}
 }
 
+type group struct {
+	exposures []*publishmodel.Exposure
+	revised   []*publishmodel.Exposure
+}
+
+func (g *group) Length() int {
+	return len(g.exposures) + len(g.revised)
+}
+
 func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitIndexForEmptyBatch bool) error {
 	logger := logging.FromContext(ctx)
 	db := s.env.Database()
 
 	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d", eb.BatchID, eb.FilenameRoot, eb.OutputRegion, s.config.MaxRecords)
 
+	// Criteria starts w/ non-revised keys.
+	// Will be changed later to grab the revised keys.
 	criteria := publishdatabase.IterateExposuresCriteria{
 		SinceTimestamp:      eb.StartTimestamp,
 		UntilTimestamp:      eb.EndTimestamp,
 		IncludeRegions:      eb.EffectiveInputRegions(),
 		OnlyLocalProvenance: false, // include federated ids
+		RevisedKeys:         false,
 	}
 
 	// Build up groups of exposures in memory. We need to use memory so we can
 	// determine the total number of groups (which is embedded in each export
 	// file). This technique avoids SELECT COUNT which would lock the database
 	// slowing new uploads.
-	var groups [][]*publishmodel.Exposure
-	var exposures []*publishmodel.Exposure
+	groups := []*group{}
+	nextGroup := group{}
+	totalNewKeys, totalRevisedKeys := 0, 0
 
 	_, err := publishdatabase.New(db).IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
-		exposures = append(exposures, exp)
-		if len(exposures) == s.config.MaxRecords {
-			groups = append(groups, exposures)
-			exposures = nil
+		nextGroup.exposures = append(nextGroup.exposures, exp)
+		totalNewKeys++
+		if nextGroup.Length() == s.config.MaxRecords {
+			groups = append(groups, &nextGroup)
+			nextGroup = group{}
 		}
 		return nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("iterating exposures: %w", err)
 	}
-	// Create a group for any remaining keys.
-	if len(exposures) > 0 {
-		groups = append(groups, exposures)
+
+	// go get the revised keys.
+	criteria.RevisedKeys = true
+	_, err = publishdatabase.New(db).IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
+		nextGroup.revised = append(nextGroup.revised, exp)
+		totalRevisedKeys++
+		if nextGroup.Length() == s.config.MaxRecords {
+			groups = append(groups, &nextGroup)
+			nextGroup = group{}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("iterating revised exposures: %w", err)
+	}
+
+	// If the last group has anything, add it to the list.
+	if nextGroup.Length() > 0 {
+		groups = append(groups, &nextGroup)
 	}
 
 	if len(groups) == 0 {
 		logger.Infof("No records for export batch %d", eb.BatchID)
 	}
 
-	exposures, err = ensureMinNumExposures(exposures, eb.OutputRegion, s.config.MinRecords, s.config.PaddingRange)
+	lastGroup := groups[len(groups)-1]
+	lastGroup.exposures, err = ensureMinNumExposures(lastGroup.exposures, eb.OutputRegion, s.config.MinRecords, s.config.PaddingRange)
+	if err != nil {
+		return fmt.Errorf("ensureMinNumExposures: %w", err)
+	}
+	lastGroup.revised, err = ensureMinNumExposures(lastGroup.revised, eb.OutputRegion, s.config.MinRecords, s.config.PaddingRange)
 	if err != nil {
 		return fmt.Errorf("ensureMinNumExposures: %w", err)
 	}
@@ -152,7 +185,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	// Create the export files.
 	batchSize := len(groups)
 	var objectNames []string
-	for i, exposures := range groups {
+	for i, group := range groups {
 		if ctx.Err() != nil {
 			logger.Infof("Timed out writing export files for batch %s, the entire batch will be retried once the batch lease expires on %v", eb.BatchID, eb.LeaseExpires)
 			return nil
@@ -162,11 +195,12 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		// use of network.
 		objectName, err := s.createFile(ctx,
 			createFileInfo{
-				exposures:      exposures,
-				exportBatch:    eb,
-				signatureInfos: sigInfos,
-				batchNum:       i + 1,
-				batchSize:      batchSize,
+				exposures:        group.exposures,
+				revisedExposures: group.revised,
+				exportBatch:      eb,
+				signatureInfos:   sigInfos,
+				batchNum:         i + 1,
+				batchSize:        batchSize,
 			})
 		if err != nil {
 			return fmt.Errorf("creating export file %d for batch %d: %w", i+1, eb.BatchID, err)
@@ -191,11 +225,12 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 }
 
 type createFileInfo struct {
-	exposures      []*publishmodel.Exposure
-	exportBatch    *model.ExportBatch
-	signatureInfos []*model.SignatureInfo
-	batchNum       int
-	batchSize      int
+	exposures        []*publishmodel.Exposure
+	revisedExposures []*publishmodel.Exposure
+	exportBatch      *model.ExportBatch
+	signatureInfos   []*model.SignatureInfo
+	batchNum         int
+	batchSize        int
 }
 
 func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, error) {
@@ -211,7 +246,7 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 	}
 
 	// Generate exposure key export file.
-	data, err := MarshalExportFile(cfi.exportBatch, cfi.exposures, cfi.batchNum, cfi.batchSize, signers)
+	data, err := MarshalExportFile(cfi.exportBatch, cfi.exposures, cfi.revisedExposures, cfi.batchNum, cfi.batchSize, signers)
 	if err != nil {
 		return "", fmt.Errorf("marshaling export file: %w", err)
 	}
@@ -326,6 +361,7 @@ func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, mi
 
 	extra, _ := randomInt(0, jitter)
 	target := minLength + extra
+	sourceLen := len(exposures) - 1
 
 	for len(exposures) < target {
 		// Pieces needed are
@@ -337,34 +373,23 @@ func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, mi
 			return nil, fmt.Errorf("rand.Read: %w", err)
 		}
 
-		// Transmission risk is within the bounds.
-		transmissionRisk, err := util.RandomTransmissionRisk()
+		// Copy timing and report data from a key.
+		fromIdx, err := randomInt(0, sourceLen)
 		if err != nil {
 			return nil, fmt.Errorf("randomInt: %w", err)
 		}
-
-		// The interval number is pulled from an existing one in the batch
-		// at random.
-		fromIdx, err := randomInt(0, len(exposures)-1)
-		if err != nil {
-			return nil, fmt.Errorf("randomInt: %w", err)
-		}
-		intervalNumber := exposures[fromIdx].IntervalNumber
-		// Same with the interval count.
-		fromIdx, err = randomInt(0, len(exposures)-1)
-		if err != nil {
-			return nil, fmt.Errorf("randomInt: %w", err)
-		}
-		intervalCount := exposures[fromIdx].IntervalCount
 
 		ek := &publishmodel.Exposure{
-			ExposureKey:      eKey,
-			TransmissionRisk: transmissionRisk,
-			Regions:          []string{region},
-			IntervalNumber:   intervalNumber,
-			IntervalCount:    intervalCount,
-			// The rest of the publishmodel.Exposure fields are not used in the export
-			// file.
+			ExposureKey:                  eKey,
+			TransmissionRisk:             exposures[fromIdx].TransmissionRisk,
+			Regions:                      []string{region},
+			IntervalNumber:               exposures[fromIdx].IntervalNumber,
+			IntervalCount:                exposures[fromIdx].IntervalCount,
+			ReportType:                   exposures[fromIdx].ReportType,
+			DaysSinceSymptomOnset:        exposures[fromIdx].DaysSinceSymptomOnset,
+			RevisedReportType:            exposures[fromIdx].RevisedReportType,
+			RevisedDaysSinceSymptomOnset: exposures[fromIdx].RevisedDaysSinceSymptomOnset,
+			// The rest of the publishmodel.Exposure fields are not used in the export file.
 		}
 		exposures = append(exposures, ek)
 	}
