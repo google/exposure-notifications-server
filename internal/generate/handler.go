@@ -101,6 +101,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		val, err := util.RandomInt(100)
 		if err != nil {
 			message := fmt.Sprintf("error deciding on revised key status: %v", err)
+			logger.Errorf(message)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, message)
@@ -113,6 +114,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			reportType, err = util.RandomReportType()
 			if err != nil {
 				message := fmt.Sprintf("error generating report type: %v", err)
+				logger.Errorf(message)
 				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprint(w, message)
@@ -120,9 +122,10 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		intervalIdx, err := util.RandomInt(len(publish.Keys))
+		intervalIdx, err := util.RandomInt(len(publish.Keys) - 1)
 		if err != nil {
 			message := fmt.Sprintf("error generating symptom onset interval: %v", err)
+			logger.Errorf(message)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, message)
@@ -137,6 +140,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		exposures, err := h.transformer.TransformPublish(ctx, &publish, &claims, batchTime)
 		if err != nil {
 			message := fmt.Sprintf("Error transforming generated exposures: %v", err)
+			logger.Errorf(message)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, message)
@@ -146,6 +150,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		n, err := h.database.InsertAndReviseExposures(ctx, exposures)
 		if err != nil {
 			message := fmt.Sprintf("error writing exposure record: %v", err)
+			logger.Errorf(message)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, message)
@@ -157,6 +162,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			revisedReportType, err := util.RandomRevisedReportType()
 			if err != nil {
 				message := fmt.Sprintf("error generating revised report type: %v", err)
+				logger.Errorf(message)
 				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprint(w, message)
@@ -169,6 +175,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			exposures, err := h.transformer.TransformPublish(ctx, &publish, &claims, batchTime)
 			if err != nil {
 				message := fmt.Sprintf("Error transforming generated exposures: %v", err)
+				logger.Errorf(message)
 				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprint(w, message)
@@ -178,6 +185,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			n, err := h.database.InsertAndReviseExposures(ctx, exposures)
 			if err != nil {
 				message := fmt.Sprintf("error writing exposure record: %v", err)
+				logger.Errorf(message)
 				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprint(w, message)
