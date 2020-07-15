@@ -122,7 +122,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		intervalIdx, err := util.RandomInt(len(publish.Keys))
+		intervalIdx, err := util.RandomInt(len(publish.Keys) - 1)
 		if err != nil {
 			message := fmt.Sprintf("error generating symptom onset interval: %v", err)
 			logger.Errorf(message)
