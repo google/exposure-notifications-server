@@ -29,6 +29,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 const (
@@ -417,9 +418,11 @@ func TestReportTypeToTransmissionRisk(t *testing.T) {
 	}
 }
 
-func int32Ptr(v int32) *int32 { return &v }
-
-func int64Ptr(v int64) *int64 { return &v }
+func intPtr(v int) *int              { return &v }
+func int32Ptr(v int32) *int32        { return &v }
+func int64Ptr(v int64) *int64        { return &v }
+func timePtr(t time.Time) *time.Time { return &t }
+func stringPtr(s string) *string     { return &s }
 
 func TestTransform(t *testing.T) {
 	captureStartTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
@@ -721,7 +724,7 @@ func TestTransform(t *testing.T) {
 				t.Fatalf("TransformPublish returned unexpected error: %v", err)
 			}
 
-			if diff := cmp.Diff(tc.Want, got); diff != "" {
+			if diff := cmp.Diff(tc.Want, got, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
 				t.Errorf("TransformPublish mismatch (-want +got):\n%v", diff)
 			}
 		})
@@ -1135,6 +1138,219 @@ func TestDaysFromSymptomOnset(t *testing.T) {
 			got := DaysFromSymptomOnset(tc.onset, tc.check)
 			if tc.want != got {
 				t.Fatalf("wrong day instance between %v and %v, got: %v want: %v", tc.onset, tc.check, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestReviseKeys(t *testing.T) {
+	createdAt := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Hour)
+	revisedAt := time.Now().UTC().Truncate(time.Hour)
+
+	allExposures := make([]*Exposure, 4)
+	// The "existing" key that isn't in the revision set.
+	allExposures[0] = &Exposure{
+		ExposureKey: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+	}
+	// Existing key that is in the revision set
+	allExposures[1] = &Exposure{
+		ExposureKey:       []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		TransmissionRisk:  0,
+		Regions:           []string{"US"},
+		IntervalNumber:    7,
+		IntervalCount:     144,
+		CreatedAt:         createdAt,
+		LocalProvenance:   true,
+		HealthAuthorityID: int64Ptr(2),
+		ReportType:        verifyapi.ReportTypeClinical,
+	}
+	// New version of existing key
+	allExposures[2] = &Exposure{
+		ExposureKey:       []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		TransmissionRisk:  2,
+		Regions:           []string{"US"},
+		IntervalNumber:    7,
+		IntervalCount:     144,
+		CreatedAt:         revisedAt,
+		LocalProvenance:   true,
+		HealthAuthorityID: int64Ptr(2),
+		ReportType:        verifyapi.ReportTypeConfirmed,
+	}
+	// New key not in existing set.
+	allExposures[3] = &Exposure{
+		ExposureKey:       []byte{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+		TransmissionRisk:  0,
+		Regions:           []string{"US"},
+		IntervalNumber:    8,
+		IntervalCount:     144,
+		CreatedAt:         createdAt,
+		LocalProvenance:   true,
+		HealthAuthorityID: int64Ptr(2),
+		ReportType:        verifyapi.ReportTypeConfirmed,
+	}
+
+	ctx := context.Background()
+	existing := make(map[string]*Exposure)
+	existing[allExposures[0].ExposureKeyBase64()] = allExposures[0]
+	existing[allExposures[1].ExposureKeyBase64()] = allExposures[1]
+
+	incoming := make([]*Exposure, 2)
+	incoming[0] = allExposures[2]
+	incoming[1] = allExposures[3]
+
+	got, err := ReviseKeys(ctx, existing, incoming)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := []*Exposure{
+		{
+			ExposureKey:             []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+			TransmissionRisk:        0,
+			Regions:                 []string{"US"},
+			IntervalNumber:          7,
+			IntervalCount:           144,
+			CreatedAt:               createdAt,
+			LocalProvenance:         true,
+			HealthAuthorityID:       int64Ptr(2),
+			ReportType:              verifyapi.ReportTypeClinical,
+			RevisedAt:               &revisedAt,
+			RevisedReportType:       stringPtr(verifyapi.ReportTypeConfirmed),
+			RevisedTransmissionRisk: intPtr(2),
+		},
+		{
+			ExposureKey:       []byte{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+			TransmissionRisk:  0,
+			Regions:           []string{"US"},
+			IntervalNumber:    8,
+			IntervalCount:     144,
+			CreatedAt:         createdAt,
+			LocalProvenance:   true,
+			HealthAuthorityID: int64Ptr(2),
+			ReportType:        verifyapi.ReportTypeConfirmed,
+		},
+	}
+
+	if diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
+		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+}
+
+func TestExposureReview(t *testing.T) {
+	createdAt := time.Now().UTC().Add(-1 * time.Hour).Truncate(time.Hour)
+	revisedAt := time.Now().UTC().Add(time.Hour).Truncate(time.Hour)
+
+	cases := []struct {
+		name          string
+		previous      *Exposure
+		incoming      *Exposure
+		want          *Exposure
+		needsRevision bool
+		err           string
+	}{
+		{
+			name: "matching_report_type",
+			previous: &Exposure{
+				ReportType: verifyapi.ReportTypeConfirmed,
+			},
+			incoming: &Exposure{
+				ReportType: verifyapi.ReportTypeConfirmed,
+			},
+			needsRevision: false,
+			err:           "",
+		},
+		{
+			name: "invalid_provenance",
+			previous: &Exposure{
+				ReportType: verifyapi.ReportTypeClinical,
+			},
+			incoming: &Exposure{
+				ReportType: verifyapi.ReportTypeConfirmed,
+			},
+			needsRevision: false,
+			err:           ErrorNonLocalProvenance.Error(),
+		},
+		{
+			name: "already_revised",
+			previous: &Exposure{
+				ReportType:      verifyapi.ReportTypeClinical,
+				LocalProvenance: true,
+				RevisedAt:       timePtr(time.Now().UTC()),
+			},
+			incoming: &Exposure{
+				ReportType: verifyapi.ReportTypeConfirmed,
+			},
+			needsRevision: false,
+			err:           ErrorKeyAlreadyRevised.Error(),
+		},
+		{
+			name: "invalid_transition_confirmed_to_clinical",
+			previous: &Exposure{
+				ReportType:      verifyapi.ReportTypeConfirmed,
+				LocalProvenance: true,
+			},
+			incoming: &Exposure{
+				ReportType: verifyapi.ReportTypeClinical,
+			},
+			needsRevision: false,
+			err:           "invalid report type transition, cannot transition from 'confirmed' to 'likely'",
+		},
+		{
+			name: "revise_key",
+			previous: &Exposure{
+				ReportType:            verifyapi.ReportTypeClinical,
+				LocalProvenance:       true,
+				HealthAuthorityID:     int64Ptr(2),
+				Regions:               []string{"US", "CA"},
+				TransmissionRisk:      4,
+				CreatedAt:             createdAt,
+				DaysSinceSymptomOnset: int32Ptr(-1),
+			},
+			incoming: &Exposure{
+				ReportType:            verifyapi.ReportTypeConfirmed,
+				HealthAuthorityID:     int64Ptr(3),
+				Regions:               []string{"MX"},
+				TransmissionRisk:      5,
+				CreatedAt:             revisedAt,
+				DaysSinceSymptomOnset: int32Ptr(0),
+			},
+			want: &Exposure{
+				ReportType:                   verifyapi.ReportTypeClinical,
+				LocalProvenance:              true,
+				HealthAuthorityID:            int64Ptr(3),
+				Regions:                      []string{"US", "CA", "MX"},
+				TransmissionRisk:             4,
+				CreatedAt:                    createdAt,
+				DaysSinceSymptomOnset:        int32Ptr(-1),
+				RevisedReportType:            stringPtr(verifyapi.ReportTypeConfirmed),
+				RevisedAt:                    &revisedAt,
+				RevisedDaysSinceSymptomOnset: int32Ptr(0),
+				RevisedTransmissionRisk:      intPtr(5),
+			},
+			needsRevision: true,
+			err:           "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := tc.previous.Revise(tc.incoming)
+			if result != tc.needsRevision {
+				t.Errorf("revision decision mismatch: want: %v got: %v", tc.needsRevision, result)
+			}
+			if err != nil && tc.err == "" {
+				t.Fatalf("unexpected error: %v", err)
+			} else if err != nil && !strings.Contains(err.Error(), tc.err) {
+				t.Fatalf("wrong error: want '%v', got: '%v'", tc.err, err)
+			} else if err == nil && tc.err != "" {
+				t.Fatalf("expected error: want '%v', got: nil", tc.err)
+			}
+			if tc.err != "" || !tc.needsRevision {
+				return
+			}
+
+			if diff := cmp.Diff(tc.want, tc.previous, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})
 	}

@@ -57,7 +57,7 @@ var (
 
 type (
 	fetchFn               func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
-	insertExposuresFn     func(context.Context, []*publishmodel.Exposure) error
+	insertExposuresFn     func(context.Context, []*publishmodel.Exposure) (int, error)
 	startFederationSyncFn func(context.Context, *model.FederationInQuery, time.Time) (int64, database.FinalizeSyncFn, error)
 )
 
@@ -192,7 +192,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	opts := pullOptions{
 		deps: pullDependencies{
 			fetch:               client.Fetch,
-			insertExposures:     h.publishdb.InsertExposures,
+			insertExposures:     h.publishdb.InsertAndReviseExposures,
 			startFederationSync: h.db.StartFederationInSync,
 		},
 		query:          query,
@@ -292,22 +292,24 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 					})
 
 					if len(exposures) == fetchBatchSize {
-						if err := opts.deps.insertExposures(ctx, exposures); err != nil {
+						n := 0
+						if n, err = opts.deps.insertExposures(ctx, exposures); err != nil {
 							metrics.WriteInt("federation-pull-inserts", false, len(exposures))
 							return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 						}
-						total += len(exposures)
+						total += n
 						exposures = nil // Start a new batch.
 					}
 				}
 			}
 		}
 		if len(exposures) > 0 {
-			if err := opts.deps.insertExposures(ctx, exposures); err != nil {
+			n := 0
+			if n, err = opts.deps.insertExposures(ctx, exposures); err != nil {
 				metrics.WriteInt("federation-pull-inserts", false, len(exposures))
 				return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 			}
-			total += len(exposures)
+			total += n
 		}
 
 		partial = response.PartialResponse

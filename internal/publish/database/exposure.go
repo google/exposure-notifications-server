@@ -27,6 +27,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 
 	pgx "github.com/jackc/pgx/v4"
@@ -203,23 +204,20 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 // ReadExposures will read an existing set of exposures from the database.
 // This is necessary in case a key needs to be revised.
 // In the return map, the key is the base64 of the ExposureKey.
-func (db *PublishDB) ReadExposures(ctx context.Context, b64keys []string) (map[string]*model.Exposure, error) {
-	conn, err := db.db.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %v", err)
-	}
-	defer conn.Release()
-
+// The keys are read for update in a provided transaction.
+func (db *PublishDB) ReadExposures(ctx context.Context, tx pgx.Tx, b64keys []string) (map[string]*model.Exposure, error) {
 	query := `
 		SELECT
 			exposure_key, transmission_risk, app_package_name, regions,
 			interval_number, interval_count, created_at, local_provenance, sync_id,
 			health_authority_id, report_type, days_since_symptom_onset,
-			revised_report_type, revised_at, revised_days_since_symptom_onset
+			revised_report_type, revised_at, revised_days_since_symptom_onset,
+			revised_transmission_risk
 		FROM
 			Exposure
-		WHERE exposure_key = ANY($1)`
-	rows, err := conn.Query(ctx, query, b64keys)
+		WHERE exposure_key = ANY($1)
+		FOR UPDATE`
+	rows, err := tx.Query(ctx, query, b64keys)
 	if err != nil {
 		return nil, err
 	}
@@ -241,6 +239,7 @@ func (db *PublishDB) ReadExposures(ctx context.Context, b64keys []string) (map[s
 			&exposure.CreatedAt, &exposure.LocalProvenance, &syncID,
 			&exposure.HealthAuthorityID, &exposure.ReportType, &exposure.DaysSinceSymptomOnset,
 			&exposure.RevisedReportType, &exposure.RevisedAt, &exposure.RevisedDaysSinceSymptomOnset,
+			&exposure.RevisedTransmissionRisk,
 		); err != nil {
 			return nil, err
 		}
@@ -261,44 +260,109 @@ func (db *PublishDB) ReadExposures(ctx context.Context, b64keys []string) (map[s
 	return result, nil
 }
 
-// ReviseExposures transactionally revises and inserts a set of keys as necessary.
-func (db *PublishDB) ReviseExposures(ctx context.Context, exposures []*model.Exposure) error {
-	// TODO(mikehelmick): implement revise exposures functionality.
-	return fmt.Errorf("REVISE EXPOSURES NOT YET IMPLEMENTED")
+func prepareInsertExposure(ctx context.Context, tx pgx.Tx) (string, error) {
+	const stmtName = "insert exposures"
+	_, err := tx.Prepare(ctx, stmtName, `
+		INSERT INTO
+			Exposure
+				(exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
+				 created_at, local_provenance, sync_id, health_authority_id, report_type, days_since_symptom_onset)
+		VALUES
+			($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		ON CONFLICT (exposure_key) DO NOTHING
+	`)
+	return stmtName, err
 }
 
-// InsertExposures inserts a set of exposures.
-func (db *PublishDB) InsertExposures(ctx context.Context, exposures []*model.Exposure) error {
-	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		const stmtName = "insert exposures"
-		_, err := tx.Prepare(ctx, stmtName, `
-			INSERT INTO
-				Exposure
-			    (exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
-			     created_at, local_provenance, sync_id, health_authority_id, report_type, days_since_symptom_onset)
-			VALUES
-			  ($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12)
-			ON CONFLICT (exposure_key) DO NOTHING
+func executeInsertExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp *model.Exposure) error {
+	var syncID *int64
+	if exp.FederationSyncID != 0 {
+		syncID = &exp.FederationSyncID
+	}
+	_, err := tx.Exec(ctx, stmtName, encodeExposureKey(exp.ExposureKey), exp.TransmissionRisk,
+		exp.AppPackageName, exp.Regions, exp.IntervalNumber, exp.IntervalCount,
+		exp.CreatedAt, exp.LocalProvenance, syncID,
+		exp.HealthAuthorityID, exp.ReportType, exp.DaysSinceSymptomOnset)
+	if err != nil {
+		return fmt.Errorf("inserting exposure: %v", err)
+	}
+	return nil
+}
+
+func prepareReviseExposure(ctx context.Context, tx pgx.Tx) (string, error) {
+	const stmtName = "update exposures"
+	_, err := tx.Prepare(ctx, stmtName, `
+		UPDATE
+			Exposure
+		SET
+			health_authority_id = $1, revised_report_type = $2, revised_at = $3,
+			revised_days_since_symptom_onset = $4, revised_transmission_risk = $5
+		WHERE
+			exposure_key = $6 AND revised_at IS NULL
 		`)
+	return stmtName, err
+}
+
+func executeReviseExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp *model.Exposure) error {
+	result, err := tx.Exec(ctx, stmtName,
+		exp.HealthAuthorityID, exp.RevisedReportType, exp.RevisedAt,
+		exp.RevisedDaysSinceSymptomOnset, exp.RevisedTransmissionRisk,
+		encodeExposureKey(exp.ExposureKey))
+	if err != nil {
+		return fmt.Errorf("revising exposure: %v", err)
+	}
+	if result.RowsAffected() != 1 {
+		return fmt.Errorf("invalid key revision request")
+	}
+	return nil
+}
+
+// InsertAndReviseExposures transactionally revises and inserts a set of keys as necessary.
+func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*model.Exposure) (int, error) {
+	updated := 0
+	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		// Read any existing TEKs FOR UPDATE in this transaction.
+		b64keys := make([]string, len(incoming))
+		for i, e := range incoming {
+			b64keys[i] = e.ExposureKeyBase64()
+		}
+		existing, err := db.ReadExposures(ctx, tx, b64keys)
+		if err != nil {
+			return fmt.Errorf("unable to check for existing records")
+		}
+
+		// Run through the merge logic.
+		exposures, err := model.ReviseKeys(ctx, existing, incoming)
+		if err != nil {
+			return fmt.Errorf("unable to revise keys: %w", err)
+		}
+
+		// Prepare the insert and update statements.
+		insertStmt, err := prepareInsertExposure(ctx, tx)
 		if err != nil {
 			return fmt.Errorf("preparing insert statement: %v", err)
 		}
+		updateStmt, err := prepareReviseExposure(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("preparing update statement: %v", err)
+		}
 
-		for _, inf := range exposures {
-			var syncID *int64
-			if inf.FederationSyncID != 0 {
-				syncID = &inf.FederationSyncID
-			}
-			_, err := tx.Exec(ctx, stmtName, encodeExposureKey(inf.ExposureKey), inf.TransmissionRisk,
-				inf.AppPackageName, inf.Regions, inf.IntervalNumber, inf.IntervalCount,
-				inf.CreatedAt, inf.LocalProvenance, syncID,
-				inf.HealthAuthorityID, inf.ReportType, inf.DaysSinceSymptomOnset)
-			if err != nil {
-				return fmt.Errorf("inserting exposure: %v", err)
+		for _, exp := range exposures {
+			if exp.RevisedAt == nil && exp.ReportType != verifyapi.ReportTypeNegative {
+				if err := executeInsertExposure(ctx, tx, insertStmt, exp); err != nil {
+					return err
+				}
+			} else {
+				if err := executeReviseExposure(ctx, tx, updateStmt, exp); err != nil {
+					return err
+				}
 			}
 		}
+
+		updated = len(exposures)
 		return nil
 	})
+	return updated, err
 }
 
 // DeleteExposure deletes exposure

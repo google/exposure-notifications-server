@@ -70,9 +70,9 @@ type publishDB struct {
 	exposures []*publishmodel.Exposure
 }
 
-func (idb *publishDB) insertExposures(ctx context.Context, exposures []*publishmodel.Exposure) error {
+func (idb *publishDB) insertExposures(ctx context.Context, exposures []*publishmodel.Exposure) (int, error) {
 	idb.exposures = append(idb.exposures, exposures...)
-	return nil
+	return len(exposures), nil
 }
 
 // syncDB mocks the database, recording start and complete invocations for a sync record.
@@ -293,7 +293,7 @@ func TestFederationPull(t *testing.T) {
 				t.Fatalf("pull returned err=%v, want err=nil", err)
 			}
 
-			if diff := cmp.Diff(tc.wantExposures, idb.exposures, cmpopts.IgnoreFields(publishmodel.Exposure{}, "CreatedAt")); diff != "" {
+			if diff := cmp.Diff(tc.wantExposures, idb.exposures, cmpopts.IgnoreFields(publishmodel.Exposure{}, "CreatedAt"), cmpopts.IgnoreUnexported(publishmodel.Exposure{})); diff != "" {
 				t.Errorf("exposures mismatch (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.wantTokens, remote.gotTokens); diff != "" {

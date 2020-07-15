@@ -121,7 +121,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = h.database.InsertExposures(ctx, exposures)
+		n, err := h.database.InsertAndReviseExposures(ctx, exposures)
 		if err != nil {
 			message := fmt.Sprintf("error writing exposure record: %v", err)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
@@ -129,7 +129,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, message)
 			return
 		}
-		logger.Infof("Generated %v exposures", len(exposures))
+		logger.Infof("Generated %v exposures", n)
 	}
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, "Generated exposure keys.")

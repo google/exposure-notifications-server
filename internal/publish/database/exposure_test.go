@@ -24,14 +24,17 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	pgx "github.com/jackc/pgx/v4"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 var (
-	approxTime = cmp.Options{cmpopts.EquateApproxTime(time.Second)}
+	approxTime               = cmp.Options{cmpopts.EquateApproxTime(time.Second)}
+	ignoreUnexportedExposure = cmpopts.IgnoreUnexported(model.Exposure{})
 )
 
 func TestReadExposures(t *testing.T) {
@@ -61,7 +64,7 @@ func TestReadExposures(t *testing.T) {
 			LocalProvenance: true,
 		},
 	}
-	if err := testPublishDB.InsertExposures(ctx, exposures); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures); err != nil {
 		t.Fatal(err)
 	}
 
@@ -70,7 +73,12 @@ func TestReadExposures(t *testing.T) {
 		keys = append(keys, e.ExposureKeyBase64())
 	}
 
-	readBack, err := testPublishDB.ReadExposures(ctx, keys)
+	var readBack map[string]*model.Exposure
+	err := testDB.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		var err error
+		readBack, err = testPublishDB.ReadExposures(ctx, tx, keys)
+		return err
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +95,7 @@ func TestReadExposures(t *testing.T) {
 		return out
 	})
 
-	if diff := cmp.Diff(exposures, got, approxTime, sorter); diff != "" {
+	if diff := cmp.Diff(exposures, got, approxTime, sorter, ignoreUnexportedExposure); diff != "" {
 		t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -135,7 +143,7 @@ func TestExposures(t *testing.T) {
 			LocalProvenance: false,
 		},
 	}
-	if err := testPublishDB.InsertExposures(ctx, exposures); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures); err != nil {
 		t.Fatal(err)
 	}
 
@@ -185,7 +193,7 @@ func TestExposures(t *testing.T) {
 		for _, i := range test.want {
 			want = append(want, exposures[i])
 		}
-		if diff := cmp.Diff(want, got); diff != "" {
+		if diff := cmp.Diff(want, got, ignoreUnexportedExposure); diff != "" {
 			t.Errorf("%+v: mismatch (-want, +got):\n%s", test.criteria, diff)
 		}
 	}
@@ -203,7 +211,7 @@ func TestExposures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(exposures[2:], got); diff != "" {
+	if diff := cmp.Diff(exposures[2:], got, ignoreUnexportedExposure); diff != "" {
 		t.Errorf("DeleteExposuresBefore: mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -217,6 +225,103 @@ func listExposures(ctx context.Context, db *PublishDB, c IterateExposuresCriteri
 		return nil, fmt.Errorf("failed to list exposures: %w", err)
 	}
 	return exps, nil
+}
+
+func TestReviseExposures(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	testDB := database.NewTestDatabase(t)
+	pubDB := New(testDB)
+
+	createdAt := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Hour)
+	revisedAt := time.Now().UTC().Truncate(time.Hour)
+
+	existingExp := &model.Exposure{
+		ExposureKey:      []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4},
+		TransmissionRisk: verifyapi.TransmissionRiskClinical,
+		AppPackageName:   "foo.bar",
+		Regions:          []string{"US", "CA", "MX"},
+		IntervalNumber:   100,
+		IntervalCount:    144,
+		CreatedAt:        createdAt,
+		LocalProvenance:  true,
+		ReportType:       verifyapi.ReportTypeClinical,
+	}
+	existingExp.SetDaysSinceSymptomOnset(0)
+	if n, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{existingExp}); err != nil {
+		t.Fatalf("error inserting exposures: %v", err)
+	} else if n != 1 {
+		t.Fatalf("wrong number of changed exposures, want: 1, got: %v", n)
+	}
+
+	// Modify the existing on in place.
+	revisedExp := &model.Exposure{
+		ExposureKey:      []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4},
+		TransmissionRisk: verifyapi.TransmissionRiskConfirmedStandard,
+		AppPackageName:   "foo.bar",
+		Regions:          []string{"US", "CA", "MX"},
+		IntervalNumber:   100,
+		IntervalCount:    144,
+		CreatedAt:        revisedAt,
+		LocalProvenance:  true,
+		ReportType:       verifyapi.ReportTypeConfirmed,
+	}
+	// Add a new TEK to insert.
+	newExp := &model.Exposure{
+		ExposureKey:      []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5},
+		TransmissionRisk: verifyapi.TransmissionRiskClinical,
+		AppPackageName:   "foo.bar",
+		Regions:          []string{"US", "CA", "MX"},
+		IntervalNumber:   244,
+		IntervalCount:    144,
+		CreatedAt:        revisedAt,
+		LocalProvenance:  true,
+		ReportType:       verifyapi.ReportTypeConfirmed,
+	}
+	newExp.SetDaysSinceSymptomOnset(1)
+
+	revisions := []*model.Exposure{revisedExp, newExp}
+	if n, err := pubDB.InsertAndReviseExposures(ctx, revisions); err != nil {
+		t.Fatalf("error revising exposures: %v", err)
+	} else if n != 2 {
+		t.Fatalf("wrong number of changed exposures, want: 2, got: %v", n)
+	}
+
+	// Read back and compare.
+	expectedKeys := []string{existingExp.ExposureKeyBase64(), newExp.ExposureKeyBase64()}
+	var got map[string]*model.Exposure
+	err := testDB.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		var err error
+		got, err = pubDB.ReadExposures(ctx, tx, expectedKeys)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("error reading exposures: %v", err)
+	}
+
+	if l := len(got); l != 2 {
+		t.Fatalf("didn't read back both exposures, got: %v", l)
+	}
+
+	want := []*model.Exposure{existingExp, newExp}
+	// need to modify the exitingExp to match what we expect to get back.
+	existingExp.SetRevisedTransmissionRisk(verifyapi.TransmissionRiskConfirmedStandard)
+	existingExp.SetRevisedAt(revisedAt)
+	existingExp.SetRevisedReportType(verifyapi.ReportTypeConfirmed)
+
+	for i := 0; i <= 1; i++ {
+		if diff := cmp.Diff(want[i], got[want[i].ExposureKeyBase64()], ignoreUnexportedExposure); diff != "" {
+			t.Errorf("mismatch (-want, +got):\n%s", diff)
+		}
+	}
+
+	// Attempt to revise the already revised key.
+	if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}); err == nil {
+		t.Fatalf("expected error on revising already revised key, got nil")
+	} else if !strings.Contains(err.Error(), "key has already been revised ") {
+		t.Fatalf("wrong error, want 'invalid key revision request', got: %v", err)
+	}
 }
 
 func TestIterateExposuresCursor(t *testing.T) {
@@ -244,7 +349,7 @@ func TestIterateExposuresCursor(t *testing.T) {
 			Regions:        []string{"MX", "CA"},
 		},
 	}
-	if err := testPublishDB.InsertExposures(ctx, exposures); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures); err != nil {
 		t.Fatal(err)
 	}
 	// Iterate over them, canceling the context in the middle.
@@ -259,7 +364,7 @@ func TestIterateExposuresCursor(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("got %v, wanted context.Canceled", err)
 	}
-	if diff := cmp.Diff(exposures[:2], seen); diff != "" {
+	if diff := cmp.Diff(exposures[:2], seen, ignoreUnexportedExposure); diff != "" {
 		t.Fatalf("exposures mismatch (-want, +got):\n%s", diff)
 	}
 	if want := encodeCursor("2"); cursor != want {
@@ -273,7 +378,7 @@ func TestIterateExposuresCursor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(exposures[2:], seen); diff != "" {
+	if diff := cmp.Diff(exposures[2:], seen, ignoreUnexportedExposure); diff != "" {
 		t.Fatalf("exposures mismatch (-want, +got):\n%s", diff)
 	}
 	if cursor != "" {
