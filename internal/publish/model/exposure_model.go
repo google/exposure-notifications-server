@@ -32,10 +32,12 @@ import (
 )
 
 var (
-	ErrorExposureKeyMismatch     = fmt.Errorf("attempted to revise a key with a different key")
-	ErrorHealthAuthorityMismatch = fmt.Errorf("key revisition attempted by different health authority")
-	ErrorNonLocalProvenance      = fmt.Errorf("key not origionally uploaded to this server, cannot revise")
-	ErrorKeyAlreadyRevised       = fmt.Errorf("key has already been revised and cannot be revised again")
+	// ErrorExposureKeyMismatch - internal coding error, tried to revise key A by passing in key B
+	ErrorExposureKeyMismatch = fmt.Errorf("attempted to revise a key with a different key")
+	// ErrorNonLocalProvenance - key revesion attempted on federated key, which is not allowed
+	ErrorNonLocalProvenance = fmt.Errorf("key not origionally uploaded to this server, cannot revise")
+	// ErrorKeyAlreadyRevised - attempt to revise a key that has already been revised.
+	ErrorKeyAlreadyRevised = fmt.Errorf("key has already been revised and cannot be revised again")
 )
 
 // Exposure represents the record as stored in the database

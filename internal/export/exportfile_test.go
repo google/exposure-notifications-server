@@ -23,6 +23,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
@@ -47,22 +49,39 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 
 	exposures := []*publishmodel.Exposure{
 		{
-			ExposureKey:      []byte("ABC"),
-			Regions:          []string{"US"},
-			IntervalNumber:   18,
-			IntervalCount:    0,
-			CreatedAt:        batchStartTime,
-			LocalProvenance:  true,
-			TransmissionRisk: 8,
+			ExposureKey:           []byte("ABC"),
+			Regions:               []string{"US"},
+			IntervalNumber:        18,
+			IntervalCount:         0,
+			CreatedAt:             batchStartTime,
+			LocalProvenance:       true,
+			TransmissionRisk:      8,
+			DaysSinceSymptomOnset: proto.Int32(0),
+			ReportType:            verifyapi.ReportTypeClinical,
 		},
 		{
-			ExposureKey:      []byte("DEF"),
-			Regions:          []string{"CA"},
-			IntervalNumber:   118,
-			IntervalCount:    1,
-			CreatedAt:        batchEndTime,
-			LocalProvenance:  true,
-			TransmissionRisk: 1,
+			ExposureKey:           []byte("DEF"),
+			Regions:               []string{"CA"},
+			IntervalNumber:        118,
+			IntervalCount:         1,
+			CreatedAt:             batchEndTime,
+			LocalProvenance:       true,
+			TransmissionRisk:      1,
+			DaysSinceSymptomOnset: proto.Int32(-1),
+			ReportType:            verifyapi.ReportTypeConfirmed,
+		},
+	}
+	revisedExposures := []*publishmodel.Exposure{
+		{
+			ExposureKey:           []byte("123"),
+			Regions:               []string{"US"},
+			IntervalNumber:        100,
+			IntervalCount:         144,
+			CreatedAt:             batchStartTime,
+			LocalProvenance:       true,
+			TransmissionRisk:      4,
+			DaysSinceSymptomOnset: proto.Int32(2),
+			RevisedReportType:     proto.String(verifyapi.ReportTypeNegative),
 		},
 	}
 
@@ -75,7 +94,7 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 
 	signer := &customTestSigner{}
 
-	blob, err := MarshalExportFile(batch, exposures, 1, 1, []*Signer{
+	blob, err := MarshalExportFile(batch, exposures, revisedExposures, 1, 1, []*Signer{
 		{SignatureInfo: signatureInfo, Signer: signer},
 	})
 	if err != nil {
@@ -101,12 +120,24 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 			TransmissionRiskLevel:      proto.Int32(8),
 			RollingStartIntervalNumber: proto.Int32(18),
 			RollingPeriod:              proto.Int32(0),
+			ReportType:                 export.TemporaryExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS.Enum(),
+			DaysSinceOnsetOfSymptoms:   proto.Int32(0),
 		},
 		{
 			KeyData:                    []byte("DEF"),
 			TransmissionRiskLevel:      proto.Int32(1),
 			RollingStartIntervalNumber: proto.Int32(118),
 			RollingPeriod:              proto.Int32(1),
+			ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
+			DaysSinceOnsetOfSymptoms:   proto.Int32(-1),
+		},
+	}
+	revisedKeys := []*export.TemporaryExposureKey{
+		{
+			KeyData:                    []byte("123"),
+			TransmissionRiskLevel:      proto.Int32(4),
+			RollingStartIntervalNumber: proto.Int32(100),
+			ReportType:                 export.TemporaryExposureKey_REVOKED.Enum(),
 		},
 	}
 
@@ -118,6 +149,7 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 		BatchSize:      proto.Int32(1),
 		SignatureInfos: infos,
 		Keys:           keys,
+		RevisedKeys:    revisedKeys,
 	}
 
 	ignoredTemporaryExposureKeyExportFields := cmpopts.IgnoreUnexported(export.TemporaryExposureKeyExport{})
