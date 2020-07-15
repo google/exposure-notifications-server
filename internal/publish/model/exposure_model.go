@@ -50,7 +50,7 @@ type Exposure struct {
 	DaysSinceSymptomOnset        *int32
 	RevisedReportType            *string
 	RevisedAt                    *time.Time
-	RevisedDaysSinceSymptomOnset *int
+	RevisedDaysSinceSymptomOnset *int32
 }
 
 // HasDaysSinceSymptomOnset returns true if the this key has the days since

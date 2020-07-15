@@ -15,12 +15,11 @@
 package export
 
 import (
-	"crypto/rand"
-	"fmt"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestRandomInt(t *testing.T) {
@@ -57,39 +56,41 @@ func TestDoNotPadZeroLength(t *testing.T) {
 	}
 }
 
-func addExposure(t *testing.T, exposures []*model.Exposure, interval, count int32, risk int) []*model.Exposure {
-	key := make([]byte, verifyapi.KeyLength)
-	_, err := rand.Read(key)
-	if err != nil {
-		t.Fatalf("error getting random data: %v", err)
-	}
-	return append(exposures,
-		&model.Exposure{
-			ExposureKey:      key,
-			TransmissionRisk: risk,
-			IntervalNumber:   interval,
-			IntervalCount:    count,
-		})
-}
-
 func TestEnsureMinExposures(t *testing.T) {
-	expectedTR := make(map[int]bool)
-	for i := verifyapi.MinTransmissionRisk; i <= verifyapi.MaxTransmissionRisk; i++ {
-		expectedTR[i] = true
-	}
 	// Insert a few exposures - that will be used to base the interval information off of.
-	exposures := make([]*model.Exposure, 0)
-	exposures = addExposure(t, exposures, 123456, 144, 0)
-	exposures = addExposure(t, exposures, 789101, 88, 0)
-	// all of these combinations are expected
-	eIntervals := make(map[string]bool)
-	eIntervals["123456.144"] = true // covered by input
-	eIntervals["123456.88"] = false
-	eIntervals["789101.144"] = false
-	eIntervals["789101.88"] = true
+	exposures := []*model.Exposure{
+		{
+			ExposureKey:           []byte{1},
+			TransmissionRisk:      verifyapi.TransmissionRiskConfirmedStandard,
+			IntervalNumber:        123456,
+			IntervalCount:         144,
+			DaysSinceSymptomOnset: proto.Int32(0),
+			ReportType:            verifyapi.ReportTypeConfirmed,
+		},
+		{
+			ExposureKey:           []byte{2},
+			TransmissionRisk:      verifyapi.TransmissionRiskConfirmedStandard,
+			IntervalNumber:        123456 + 144,
+			IntervalCount:         144,
+			DaysSinceSymptomOnset: proto.Int32(1),
+			ReportType:            verifyapi.ReportTypeConfirmed,
+		},
+		{
+			ExposureKey:           []byte{3},
+			TransmissionRisk:      verifyapi.TransmissionRiskConfirmedStandard,
+			IntervalNumber:        123456 - 144,
+			IntervalCount:         144,
+			DaysSinceSymptomOnset: proto.Int32(-1),
+			ReportType:            verifyapi.ReportTypeConfirmed,
+		},
+	}
 
-	numKeys := 4000
-	variance := 100
+	numKeys := 100
+	variance := 10
+	m := make(map[int32]int)
+	m[123456-144] = 1
+	m[123456] = 1
+	m[123456+144] = 1
 
 	// pad the download.
 	exposures, err := ensureMinNumExposures(exposures, "US", numKeys, variance)
@@ -101,18 +102,11 @@ func TestEnsureMinExposures(t *testing.T) {
 	}
 
 	for _, e := range exposures {
-		delete(expectedTR, e.TransmissionRisk)
-		eIntervals[fmt.Sprintf("%v.%v", e.IntervalNumber, e.IntervalCount)] = true
+		m[e.IntervalNumber] = m[e.IntervalNumber] + 1
 	}
-	if len(expectedTR) != 0 {
-		t.Errorf("Didn't cover all expected transmission risks in batch of 1000: %v", expectedTR)
-	}
-	if got, want := len(eIntervals), 4; got != want {
-		t.Errorf("Unexpected number of intervalNum/count combinations, got %d, want %d", got, want)
-	}
-	for k, v := range eIntervals {
-		if !v {
-			t.Errorf("interval %v was not found in output", k)
+	for k, v := range m {
+		if v < 20 {
+			t.Errorf("distribution not random, expected >= 30 keys with start interval %v, got %v", k, v)
 		}
 	}
 }
