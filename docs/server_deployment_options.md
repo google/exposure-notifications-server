@@ -31,7 +31,7 @@ devices.
 ![Exposure Notification Key Server data egress flow](images/data-retrieval.svg "Exposure Notification Key Server data egress flow")
 
 The Exposure Notification Key Server compute components have been designed to be stateless,
-scalable, and rely on data stored in a shared databased. This makes the compute
+scalable, and rely on data stored in a shared database. This makes the compute
 components suited to deployment on
 [serverless compute platforms](https://en.wikipedia.org/wiki/Serverless_computing).
 
