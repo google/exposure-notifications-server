@@ -164,16 +164,17 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 
 	if len(groups) == 0 {
 		logger.Infof("No records for export batch %d", eb.BatchID)
-	}
+	} else {
 
-	lastGroup := groups[len(groups)-1]
-	lastGroup.exposures, err = ensureMinNumExposures(lastGroup.exposures, eb.OutputRegion, s.config.MinRecords, s.config.PaddingRange)
-	if err != nil {
-		return fmt.Errorf("ensureMinNumExposures: %w", err)
-	}
-	lastGroup.revised, err = ensureMinNumExposures(lastGroup.revised, eb.OutputRegion, s.config.MinRecords, s.config.PaddingRange)
-	if err != nil {
-		return fmt.Errorf("ensureMinNumExposures: %w", err)
+		lastGroup := groups[len(groups)-1]
+		lastGroup.exposures, err = ensureMinNumExposures(lastGroup.exposures, eb.OutputRegion, s.config.MinRecords, s.config.PaddingRange)
+		if err != nil {
+			return fmt.Errorf("ensureMinNumExposures: %w", err)
+		}
+		lastGroup.revised, err = ensureMinNumExposures(lastGroup.revised, eb.OutputRegion, s.config.MinRecords, s.config.PaddingRange)
+		if err != nil {
+			return fmt.Errorf("ensureMinNumExposures: %w", err)
+		}
 	}
 
 	// Load the non-expired signature infos associated with this export batch.
