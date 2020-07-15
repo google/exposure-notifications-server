@@ -348,20 +348,26 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 		}
 
 		for _, exp := range exposures {
-			if exp.RevisedAt == nil && exp.ReportType != verifyapi.ReportTypeNegative {
+			if exp.RevisedAt == nil {
+				if exp.ReportType == verifyapi.ReportTypeNegative {
+					continue
+				}
 				if err := executeInsertExposure(ctx, tx, insertStmt, exp); err != nil {
 					return err
 				}
+				updated++
 			} else {
 				if err := executeReviseExposure(ctx, tx, updateStmt, exp); err != nil {
 					return err
 				}
+				updated++
 			}
 		}
-
-		updated = len(exposures)
 		return nil
 	})
+	if err != nil {
+		updated = 0
+	}
 	return updated, err
 }
 
