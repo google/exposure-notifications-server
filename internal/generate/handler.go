@@ -75,7 +75,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	regions := strings.Split(regionStr, ",")
 	logger.Infof("Request to generate data for regions: %v", regions)
 
-	batchTime := time.Now()
+	batchTime := time.Now().UTC()
 	for i := 0; i < h.config.NumExposures; i++ {
 		logger.Infof("Generating exposure %v of %v", i+1, h.config.NumExposures)
 
@@ -98,9 +98,31 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		reportType, err := util.RandomReportType()
+		val, err := util.RandomInt(100)
 		if err != nil {
-			message := fmt.Sprintf("error generating report type: %v", err)
+			message := fmt.Sprintf("error deciding on revised key status: %v", err)
+			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, message)
+			return
+		}
+		generateRevisedKeys := val <= h.config.ChanceOfKeyRevision
+
+		reportType := verifyapi.ReportTypeClinical
+		if !generateRevisedKeys {
+			reportType, err = util.RandomReportType()
+			if err != nil {
+				message := fmt.Sprintf("error generating report type: %v", err)
+				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprint(w, message)
+				return
+			}
+		}
+
+		intervalIdx, err := util.RandomInt(len(publish.Keys))
+		if err != nil {
+			message := fmt.Sprintf("error generating symptom onset interval: %v", err)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, message)
@@ -109,7 +131,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		claims := verification.VerifiedClaims{
 			ReportType:           reportType,
-			SymptomOnsetInterval: uint32(publish.Keys[0].IntervalNumber),
+			SymptomOnsetInterval: uint32(publish.Keys[intervalIdx].IntervalNumber),
 		}
 
 		exposures, err := h.transformer.TransformPublish(ctx, &publish, &claims, batchTime)
@@ -130,6 +152,39 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		logger.Infof("Generated %v exposures", n)
+
+		if generateRevisedKeys {
+			revisedReportType, err := util.RandomRevisedReportType()
+			if err != nil {
+				message := fmt.Sprintf("error generating revised report type: %v", err)
+				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprint(w, message)
+				return
+			}
+
+			claims.ReportType = revisedReportType
+			batchTime = batchTime.Add(h.config.KeyRevisionDelay)
+
+			exposures, err := h.transformer.TransformPublish(ctx, &publish, &claims, batchTime)
+			if err != nil {
+				message := fmt.Sprintf("Error transforming generated exposures: %v", err)
+				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprint(w, message)
+				return
+			}
+
+			n, err := h.database.InsertAndReviseExposures(ctx, exposures)
+			if err != nil {
+				message := fmt.Sprintf("error writing exposure record: %v", err)
+				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprint(w, message)
+				return
+			}
+			logger.Infof("Revised %v exposures", n)
+		}
 	}
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, "Generated exposure keys.")

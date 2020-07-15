@@ -59,6 +59,20 @@ func RandomIntWithMin(min, max int) (int, error) {
 	return int(n.Int64()) + min, nil
 }
 
+func RandomRevisedReportType() (string, error) {
+	n, err := RandomInt(2)
+	if err != nil {
+		return "", err
+	}
+	switch n {
+	case 0:
+		return v1alpha1.ReportTypeConfirmed, nil
+	case 1:
+		return v1alpha1.ReportTypeNegative, nil
+	}
+	return v1alpha1.ReportTypeConfirmed, nil
+}
+
 func RandomReportType() (string, error) {
 	n, err := RandomInt(3)
 	if err != nil {
