@@ -20,7 +20,6 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -322,30 +321,21 @@ func executeReviseExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*model.Exposure) (int, error) {
 	updated := 0
 	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		log.Printf("\n\nincoming: %#v\n\n", incoming)
-
 		// Read any existing TEKs FOR UPDATE in this transaction.
 		b64keys := make([]string, len(incoming))
 		for i, e := range incoming {
 			b64keys[i] = e.ExposureKeyBase64()
 		}
-
-		log.Printf("\n\nb64keys: %#v\n\n", b64keys)
-
 		existing, err := db.ReadExposures(ctx, tx, b64keys)
 		if err != nil {
 			return fmt.Errorf("unable to check for existing records")
 		}
-
-		log.Printf("\n\nexisting: %#v\n\n", existing)
 
 		// Run through the merge logic.
 		exposures, err := model.ReviseKeys(ctx, existing, incoming)
 		if err != nil {
 			return fmt.Errorf("unable to revise keys: %w", err)
 		}
-
-		log.Printf("\n\nexposures: %#v\n\n", exposures)
 
 		// Prepare the insert and update statements.
 		insertStmt, err := prepareInsertExposure(ctx, tx)
@@ -357,12 +347,8 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 			return fmt.Errorf("preparing update statement: %v", err)
 		}
 
-		log.Printf("\n\ninsertStmt: %v\n\n", insertStmt)
-		log.Printf("\n\nupdateStmt: %v\n\n", updateStmt)
-
 		for _, exp := range exposures {
 			if exp.RevisedAt == nil {
-				log.Printf("\n\nrevistedAt nil\n\n")
 				if exp.ReportType == verifyapi.ReportTypeNegative {
 					continue
 				}
@@ -371,7 +357,6 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 				}
 				updated++
 			} else {
-				log.Printf("\n\nrevistedAt not nil\n\n")
 				if err := executeReviseExposure(ctx, tx, updateStmt, exp); err != nil {
 					return err
 				}
