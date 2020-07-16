@@ -20,97 +20,98 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"testing"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
-// EnServerClient provides Exposure Notifications API client to support integration testing.
+// EnServerClient provides Exposure Notifications API client to support
+// integration testing.
 type EnServerClient struct {
 	client *http.Client
 }
 
-func (server EnServerClient) getRequest(url string) (*http.Response, error) {
-	resp, err := server.client.Get(url)
+func (c *EnServerClient) PublishKeys(payload *verifyapi.Publish) error {
+	j, err := json.Marshal(payload)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to marshal json: %w", err)
 	}
-	defer resp.Body.Close()
-	return unwrapResponse(resp)
+
+	resp, err := c.client.Post("/publish", "application/json", bytes.NewReader(j))
+	if err != nil {
+		return fmt.Errorf("failed to POST /publish: %w", err)
+	}
+
+	body, err := checkResp(resp)
+	if err != nil {
+		return fmt.Errorf("failed to POST /publish: %w: %s", err, body)
+	}
+	return nil
 }
 
-// Posts requests to the specified url.
-// This methods attempts to serialize data argument as a json.
-func (server EnServerClient) postRequest(url string, data interface{}) (*http.Response, error) {
-	jsonData, err := json.Marshal(data)
+func (c *EnServerClient) CleanupExposures() error {
+	resp, err := c.client.Get("/cleanup-exposure")
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal json payload")
+		return fmt.Errorf("failed to GET /cleanup-exposure: %w", err)
 	}
-	request := bytes.NewBuffer(jsonData)
-	r, err := http.NewRequest("POST", url, request)
+
+	body, err := checkResp(resp)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to GET /cleanup-exposure: %w: %s", err, body)
 	}
-	r.Header.Set("Content-Type", "application/json")
-	resp, err := server.client.Do(r)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	return unwrapResponse(resp)
+	return nil
 }
 
-func (server EnServerClient) PublishKeys(t *testing.T, request verifyapi.Publish) {
-	resp, err := server.postRequest("/publish", request)
+func (c *EnServerClient) CleanupExports() error {
+	resp, err := c.client.Get("/cleanup-export")
 	if err != nil {
-		t.Fatalf("request failed: %v, %v", err, resp)
+		return fmt.Errorf("failed to GET /cleanup-export: %w", err)
 	}
-	log.Printf("response: %v", resp.Status)
-	t.Logf("Publish request is sent to %v", "/publish")
+
+	body, err := checkResp(resp)
+	if err != nil {
+		return fmt.Errorf("failed to GET /cleanup-export: %w: %s", err, body)
+	}
+	return nil
 }
 
-func (server EnServerClient) CleanupExposures(t *testing.T) {
-	resp, err := server.getRequest("/cleanup-exposure")
+func (c *EnServerClient) ExportBatches() error {
+	resp, err := c.client.Get("/export/create-batches")
 	if err != nil {
-		t.Fatalf("request failed: %v, %v", err, resp)
+		return fmt.Errorf("failed to GET /export/create-batches: %w", err)
 	}
-	t.Logf("Cleanup exposures request is sent to /cleanup-exposure")
+
+	body, err := checkResp(resp)
+	if err != nil {
+		return fmt.Errorf("failed to GET /export/create-batches: %w: %s", err, body)
+	}
+	return nil
 }
 
-func (server EnServerClient) CleanupExports(t *testing.T) {
-	resp, err := server.getRequest("/cleanup-export")
+func (c *EnServerClient) StartExportWorkers() error {
+	resp, err := c.client.Get("/export/do-work")
 	if err != nil {
-		t.Fatalf("request failed: %v, %v", err, resp)
+		return fmt.Errorf("failed to GET /export/do-work: %w", err)
 	}
-	t.Logf("Cleanup exports request is sent to /cleanup-export")
+
+	body, err := checkResp(resp)
+	if err != nil {
+		return fmt.Errorf("failed to GET /export/do-work: %w: %s", err, body)
+	}
+	return nil
 }
 
-func (server EnServerClient) ExportBatches(t *testing.T) {
-	resp, err := server.getRequest("/export/create-batches")
-	if err != nil {
-		t.Fatalf("request failed: %v, %v", err, resp)
-	}
-	t.Logf("Create batches request is sent to %v", "/export/create-batches")
-}
+func checkResp(r *http.Response) ([]byte, error) {
+	defer r.Body.Close()
 
-func (server EnServerClient) StartExportWorkers(t *testing.T) {
-	resp, err := server.getRequest("/export/do-work")
+	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		t.Fatalf("request failed: %v, %v", err, resp)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	t.Logf("Export worker request is sent to %v", "/export/do-work")
-}
 
-func unwrapResponse(resp *http.Response) (*http.Response, error) {
-	if resp.StatusCode != http.StatusOK {
-		// Return error upstream.
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to copy error body (%d): %w", resp.StatusCode, err)
-		}
-		return resp, fmt.Errorf("request failed with status: %v\n%v", resp.StatusCode, string(body))
+	if r.StatusCode != 200 {
+		return nil, fmt.Errorf("response was not 200 OK: %s", body)
 	}
-	return resp, nil
+
+	return body, nil
 }
