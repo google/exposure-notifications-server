@@ -25,6 +25,7 @@ import (
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/Azure/go-autorest/autorest/adal"
+	"github.com/prometheus/common/log"
 )
 
 // Compile-time check to verify implements interface.
@@ -55,17 +56,17 @@ func newMSITokenCredential(blobstoreURL string) (azblob.Credential, error) {
 		return nil, fmt.Errorf("failed to get service principal token from msi %v: %v", msiEndpoint, err)
 	}
 
-	var tokenRefresher azblob.TokenRefresher
-	tokenRefresher = func(credential azblob.TokenCredential) time.Duration {
+	tokenRefresher := func(credential azblob.TokenCredential) time.Duration {
 		err := spt.Refresh()
 		if err != nil {
-			panic(err)
+			log.Errorf("failed to refresh access token: %v", err)
+			return 0
 		}
 
 		token := spt.Token()
 		credential.SetToken(token.AccessToken)
 
-		exp := token.Expires().Sub(time.Now().Add(2 * time.Minute))
+		exp := token.Expires().UTC().Sub(time.Now().UTC().Add(2 * time.Minute))
 		return exp
 	}
 
