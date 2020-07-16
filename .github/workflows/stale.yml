@@ -22,7 +22,7 @@ jobs:
           no activity. It will automatically close after 7 more days of
           inactivity.
         stale-pr-label: 'kind/stale'
-        exempt-pr-labels: 'priority/important-soon,kind/bug,kind/privacy'
+        exempt-pr-labels: 'priority/important-soon,kind/bug,kind/privacy,kind/enhancement'
 
         days-before-stale: 14
         days-before-close: 7
