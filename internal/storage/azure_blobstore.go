@@ -21,8 +21,11 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
+	"github.com/Azure/go-autorest/autorest/adal"
+	"github.com/prometheus/common/log"
 )
 
 // Compile-time check to verify implements interface.
@@ -34,6 +37,42 @@ type AzureBlobstore struct {
 	serviceURL *azblob.ServiceURL
 }
 
+func newAccessTokenCredential(accountName string, accountKey string) (azblob.Credential, error) {
+	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
+	if err != nil {
+		return nil, fmt.Errorf("storage.newAccessTokenCredential: %w", err)
+	}
+	return credential, nil
+}
+
+func newMSITokenCredential(blobstoreURL string) (azblob.Credential, error) {
+	msiEndpoint, err := adal.GetMSIVMEndpoint()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MSI endpoint: %w", err)
+	}
+
+	spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, blobstoreURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service principal token from msi %v: %v", msiEndpoint, err)
+	}
+
+	tokenRefresher := func(credential azblob.TokenCredential) time.Duration {
+		err := spt.Refresh()
+		if err != nil {
+			log.Errorf("failed to refresh access token: %v", err)
+			return 0
+		}
+
+		token := spt.Token()
+		credential.SetToken(token.AccessToken)
+
+		exp := token.Expires().UTC().Sub(time.Now().UTC().Add(2 * time.Minute))
+		return exp
+	}
+
+	return azblob.NewTokenCredential("", tokenRefresher), nil
+}
+
 // NewAzureBlobstore creates a storage client, suitable for use with
 // serverenv.ServerEnv.
 func NewAzureBlobstore(ctx context.Context) (Blobstore, error) {
@@ -42,23 +81,29 @@ func NewAzureBlobstore(ctx context.Context) (Blobstore, error) {
 		return nil, fmt.Errorf("missing AZURE_STORAGE_ACCOUNT")
 	}
 
-	accountKey := os.Getenv("AZURE_STORAGE_ACCESS_KEY")
-	if accountKey == "" {
-		return nil, fmt.Errorf("missing AZURE_STORAGE_ACCESS_KEY")
-	}
-
 	primaryURLRaw := fmt.Sprintf("https://%s.blob.core.windows.net", accountName)
 	primaryURL, err := url.Parse(primaryURLRaw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse URL %v: %v", primaryURLRaw, err)
 	}
 
-	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
-	if err != nil {
-		return nil, fmt.Errorf("storage.NewAzureBlobstore: %w", err)
-	}
-	p := azblob.NewPipeline(credential, azblob.PipelineOptions{})
+	accountKey := os.Getenv("AZURE_STORAGE_ACCESS_KEY")
 
+	// use the storage account key if provided, otherwise use managed identity
+	var credential azblob.Credential
+	if accountKey != "" {
+		credential, err = newAccessTokenCredential(accountName, accountKey)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		credential, err = newMSITokenCredential(primaryURLRaw)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	p := azblob.NewPipeline(credential, azblob.PipelineOptions{})
 	serviceURL := azblob.NewServiceURL(*primaryURL, p)
 
 	return &AzureBlobstore{
