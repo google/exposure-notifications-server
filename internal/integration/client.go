@@ -25,13 +25,13 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
-// EnServerClient provides Exposure Notifications API client to support
+// Client provides Exposure Notifications API client to support
 // integration testing.
-type EnServerClient struct {
+type Client struct {
 	client *http.Client
 }
 
-func (c *EnServerClient) PublishKeys(payload *verifyapi.Publish) error {
+func (c *Client) PublishKeys(payload *verifyapi.Publish) error {
 	j, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal json: %w", err)
@@ -49,7 +49,7 @@ func (c *EnServerClient) PublishKeys(payload *verifyapi.Publish) error {
 	return nil
 }
 
-func (c *EnServerClient) CleanupExposures() error {
+func (c *Client) CleanupExposures() error {
 	resp, err := c.client.Get("/cleanup-exposure")
 	if err != nil {
 		return fmt.Errorf("failed to GET /cleanup-exposure: %w", err)
@@ -62,7 +62,7 @@ func (c *EnServerClient) CleanupExposures() error {
 	return nil
 }
 
-func (c *EnServerClient) CleanupExports() error {
+func (c *Client) CleanupExports() error {
 	resp, err := c.client.Get("/cleanup-export")
 	if err != nil {
 		return fmt.Errorf("failed to GET /cleanup-export: %w", err)
@@ -75,7 +75,7 @@ func (c *EnServerClient) CleanupExports() error {
 	return nil
 }
 
-func (c *EnServerClient) ExportBatches() error {
+func (c *Client) ExportBatches() error {
 	resp, err := c.client.Get("/export/create-batches")
 	if err != nil {
 		return fmt.Errorf("failed to GET /export/create-batches: %w", err)
@@ -88,7 +88,7 @@ func (c *EnServerClient) ExportBatches() error {
 	return nil
 }
 
-func (c *EnServerClient) StartExportWorkers() error {
+func (c *Client) StartExportWorkers() error {
 	resp, err := c.client.Get("/export/do-work")
 	if err != nil {
 		return fmt.Errorf("failed to GET /export/do-work: %w", err)
