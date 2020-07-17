@@ -16,7 +16,11 @@ package integration
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"fmt"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -37,8 +41,9 @@ import (
 	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
 )
 
-const (
-	exportDir = "my-bucket"
+var (
+	ExportDir    = "my-bucket"
+	FileNameRoot = "/"
 )
 
 // NewTestServer sets up clients used for integration tests
@@ -77,7 +82,8 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 
 	// Create an export config
 	ec := &exportmodel.ExportConfig{
-		BucketName:       exportDir,
+		BucketName:       ExportDir,
+		FilenameRoot:     FileNameRoot,
 		Period:           exportPeriod,
 		OutputRegion:     "TEST",
 		From:             time.Now().Add(-2 * time.Second),
@@ -102,7 +108,14 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		tb.Fatal(err)
 	}
 
+	if FileNameRoot, err = randomString(); err != nil {
+		tb.Fatal(err)
+	}
 	bs, err := storage.NewMemory(ctx)
+	if v := os.Getenv("GOOGLE_CLOUD_BUCKET"); v != "" && !testing.Short() {
+		ExportDir = os.Getenv("GOOGLE_CLOUD_BUCKET")
+		bs, err = storage.NewGoogleCloudStorage(ctx)
+	}
 	if err != nil {
 		tb.Fatal(err)
 	}
@@ -248,4 +261,13 @@ func testClient(tb testing.TB, srv *server.Server) *http.Client {
 		Timeout:   5 * time.Second,
 		Transport: prt,
 	}
+}
+
+func randomString() (string, error) {
+	var b [512]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("failed to generate random: %w", err)
+	}
+	digest := fmt.Sprintf("%x", sha256.Sum256(b[:]))
+	return digest[:32], nil
 }
