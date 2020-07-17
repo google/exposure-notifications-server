@@ -57,3 +57,13 @@ test-acc:
 		-vet="${VETTERS}" \
 		./...
 .PHONY: test-acc
+
+performance-test:
+	@go test \
+		-count=1 \
+		-timeout 10m \
+		-vet="${VETTERS}" \
+		-v \
+		-tags=performance \
+		./internal/performance
+.PHONY: performance-test

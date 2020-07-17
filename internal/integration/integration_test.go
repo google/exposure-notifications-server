@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path"
 	"sort"
 	"strings"
 	"testing"
@@ -79,7 +78,7 @@ func TestIntegration(t *testing.T) {
 
 	// Get the exported exposures
 	var exported *export.TemporaryExposureKeyExport
-	eventually(t, 30, func() error {
+	Eventually(t, 30, func() error {
 		// Trigger an export
 		if err := client.ExportBatches(); err != nil {
 			return err
@@ -91,7 +90,7 @@ func TestIntegration(t *testing.T) {
 		}
 
 		// Attempt to get the index
-		index, err := env.Blobstore().GetObject(ctx, ExportDir, path.Join(FileNameRoot, "index.txt"))
+		index, err := env.Blobstore().GetObject(ctx, ExportDir, IndexFilePath())
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return retry.RetryableError(fmt.Errorf("Can not find index file: %v", err))
@@ -223,7 +222,7 @@ func TestIntegration(t *testing.T) {
 
 	// Wait for the export to be created and get the list of files
 	var batchFiles []string
-	eventually(t, 30, func() error {
+	Eventually(t, 30, func() error {
 		// Trigger an export
 		if err := client.ExportBatches(); err != nil {
 			return err
@@ -235,7 +234,7 @@ func TestIntegration(t *testing.T) {
 		}
 
 		// Attempt to get the index
-		index, err := env.Blobstore().GetObject(ctx, ExportDir, path.Join(FileNameRoot, "index.txt"))
+		index, err := env.Blobstore().GetObject(ctx, ExportDir, IndexFilePath())
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return retry.RetryableError(err)
@@ -291,14 +290,14 @@ func TestIntegration(t *testing.T) {
 	}
 
 	// Ensure the export was deleted
-	eventually(t, 30, func() error {
+	Eventually(t, 30, func() error {
 		// Trigger cleanup
 		if err := client.CleanupExports(); err != nil {
 			return err
 		}
 
 		// Attempt to get the index
-		index, err := env.Blobstore().GetObject(ctx, ExportDir, path.Join(FileNameRoot, "index.txt"))
+		index, err := env.Blobstore().GetObject(ctx, ExportDir, IndexFilePath())
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return retry.RetryableError(err)
@@ -363,24 +362,6 @@ func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey) []*export.Tem
 
 	sortTEKs(s)
 	return s
-}
-
-// eventually retries the given function n times, sleeping 1s between each
-// invocation. To mark an error as retryable, wrap it in retry.RetryableError.
-// Non-retryable errors return immediately.
-func eventually(tb testing.TB, times uint64, f func() error) {
-	ctx := context.Background()
-	b, err := retry.NewConstant(1 * time.Second)
-	if err != nil {
-		tb.Fatalf("failed to create retry: %v", err)
-	}
-	b = retry.WithMaxRetries(times, b)
-
-	if err := retry.Do(ctx, b, func(ctx context.Context) error {
-		return f()
-	}); err != nil {
-		tb.Fatalf("did not return ok after %d retries: %v", times, err)
-	}
 }
 
 // sortTEKs sorts a collection of TEKs by their key data, useful in tests for
