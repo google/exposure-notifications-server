@@ -650,6 +650,8 @@ func (db *ExportDB) LookupExportFiles(ctx context.Context, configID int64, ttl t
 			eb.start_timestamp > $2
 		AND
 			eb.status = $3
+		AND
+			ef.status = $3
 		ORDER BY
 			ef.filename
 		`, configID, minTime, model.ExportBatchComplete)
