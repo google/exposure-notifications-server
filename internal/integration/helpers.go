@@ -42,16 +42,51 @@ const (
 )
 
 // NewTestServer sets up clients used for integration tests
-func NewTestServer(tb testing.TB, ctx context.Context, exportPeriod time.Duration) (*serverenv.ServerEnv, *EnServerClient, *database.DB) {
+func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.ServerEnv, *Client, *database.DB) {
+	ctx := context.Background()
 	env, client := testServer(tb)
 	db := env.Database()
-	enClient := &EnServerClient{client: client}
+	enClient := &Client{client: client}
 
-	// Create an authorized app.
-	startAuthorizedApp(ctx, env, tb)
+	// Create an authorized app
+	aa := env.AuthorizedAppProvider()
+	if err := aa.Add(ctx, &authorizedappmodel.AuthorizedApp{
+		AppPackageName: "com.example.app",
+		AllowedRegions: map[string]struct{}{
+			"TEST": {},
+		},
+		AllowedHealthAuthorityIDs: map[int64]struct{}{
+			12345: {},
+		},
 
-	// Create a signature info.
-	createSignatureInfo(ctx, db, exportPeriod, tb)
+		// TODO: hook up verification, and disable
+		BypassHealthAuthorityVerification: true,
+	}); err != nil {
+		tb.Fatal(err)
+	}
+
+	// Create a signature info
+	si := &exportmodel.SignatureInfo{
+		SigningKey:        "signer",
+		SigningKeyVersion: "v1",
+		SigningKeyID:      "US",
+	}
+	if err := exportdatabase.New(db).AddSignatureInfo(ctx, si); err != nil {
+		tb.Fatal(err)
+	}
+
+	// Create an export config
+	ec := &exportmodel.ExportConfig{
+		BucketName:       exportDir,
+		Period:           exportPeriod,
+		OutputRegion:     "TEST",
+		From:             time.Now().Add(-2 * time.Second),
+		Thru:             time.Now().Add(1 * time.Hour),
+		SignatureInfoIDs: []int64{},
+	}
+	if err := exportdatabase.New(db).AddExportConfig(ctx, ec); err != nil {
+		tb.Fatal(err)
+	}
 
 	return env, enClient, db
 }
@@ -212,47 +247,5 @@ func testClient(tb testing.TB, srv *server.Server) *http.Client {
 	return &http.Client{
 		Timeout:   5 * time.Second,
 		Transport: prt,
-	}
-}
-
-func startAuthorizedApp(ctx context.Context, env *serverenv.ServerEnv, tb testing.TB) {
-	aa := env.AuthorizedAppProvider()
-	if err := aa.Add(ctx, &authorizedappmodel.AuthorizedApp{
-		AppPackageName: "com.example.app",
-		AllowedRegions: map[string]struct{}{
-			"TEST": {},
-		},
-		AllowedHealthAuthorityIDs: map[int64]struct{}{
-			12345: {},
-		},
-
-		// TODO: hook up verification, and disable
-		BypassHealthAuthorityVerification: true,
-	}); err != nil {
-		tb.Fatal(err)
-	}
-}
-
-func createSignatureInfo(ctx context.Context, db *database.DB, exportPeriod time.Duration, tb testing.TB) {
-	si := &exportmodel.SignatureInfo{
-		SigningKey:        "signer",
-		SigningKeyVersion: "v1",
-		SigningKeyID:      "US",
-	}
-	if err := exportdatabase.New(db).AddSignatureInfo(ctx, si); err != nil {
-		tb.Fatal(err)
-	}
-
-	// Create an export config.
-	ec := &exportmodel.ExportConfig{
-		BucketName:       exportDir,
-		Period:           exportPeriod,
-		OutputRegion:     "TEST",
-		From:             time.Now().Add(-2 * time.Second),
-		Thru:             time.Now().Add(1 * time.Hour),
-		SignatureInfoIDs: []int64{},
-	}
-	if err := exportdatabase.New(db).AddExportConfig(ctx, ec); err != nil {
-		tb.Fatal(err)
 	}
 }
