@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -109,16 +108,13 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		tb.Fatal(err)
 	}
 
-	var bs storage.Blobstore
 	if FileNameRoot, err = randomString(); err != nil {
 		tb.Fatal(err)
 	}
-	skipGcsTest, _ := strconv.ParseBool(os.Getenv("SKIP_GOOGLE_CLOUD_STORAGE_TESTS"))
-	if skipGcsTest || testing.Short() || os.Getenv("GOOGLE_CLOUD_BUCKET") == "" {
-		bs, err = storage.NewMemory(ctx)
-	} else {
+	bs, err := storage.NewMemory(ctx)
+	if v := os.Getenv("GOOGLE_CLOUD_BUCKET"); v != "" && !testing.Short() {
 		ExportDir = os.Getenv("GOOGLE_CLOUD_BUCKET")
-		bs, err = storage.BlobstoreFor(ctx, storage.BlobstoreTypeGoogleCloudStorage)
+		bs, err = storage.NewGoogleCloudStorage(ctx)
 	}
 	if err != nil {
 		tb.Fatal(err)
