@@ -43,25 +43,9 @@ import (
 )
 
 var (
-	exportDir    = "my-bucket"
-	fileNameRoot = "/"
+	ExportDir    = "my-bucket"
+	FileNameRoot = "/"
 )
-
-func GetExportDir() string {
-	return exportDir
-}
-
-func SetExportDir(d string) {
-	exportDir = d
-}
-
-func GetFileNameRoot() string {
-	return fileNameRoot
-}
-
-func SetFileNameRoot(f string) {
-	fileNameRoot = f
-}
 
 // NewTestServer sets up clients used for integration tests
 func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.ServerEnv, *Client, *database.DB) {
@@ -99,8 +83,8 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 
 	// Create an export config
 	ec := &exportmodel.ExportConfig{
-		BucketName:       GetExportDir(),
-		FilenameRoot:     GetFileNameRoot(),
+		BucketName:       ExportDir,
+		FilenameRoot:     FileNameRoot,
 		Period:           exportPeriod,
 		OutputRegion:     "TEST",
 		From:             time.Now().Add(-2 * time.Second),
@@ -126,17 +110,14 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	}
 
 	var bs storage.Blobstore
-	var b [512]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		tb.Fatalf("Failed to generate random: %v", err)
+	if FileNameRoot, err = randomString(); err != nil {
+		tb.Fatal(err)
 	}
-	digest := fmt.Sprintf("%x", sha256.Sum256(b[:]))
-	SetFileNameRoot(digest[:32])
 	skipGcsTest, _ := strconv.ParseBool(os.Getenv("SKIP_GOOGLE_CLOUD_STORAGE_TESTS"))
 	if skipGcsTest || testing.Short() || os.Getenv("GOOGLE_CLOUD_BUCKET") == "" {
 		bs, err = storage.NewMemory(ctx)
 	} else {
-		SetExportDir(os.Getenv("GOOGLE_CLOUD_BUCKET"))
+		ExportDir = os.Getenv("GOOGLE_CLOUD_BUCKET")
 		bs, err = storage.BlobstoreFor(ctx, storage.BlobstoreTypeGoogleCloudStorage)
 	}
 	if err != nil {
@@ -284,4 +265,13 @@ func testClient(tb testing.TB, srv *server.Server) *http.Client {
 		Timeout:   5 * time.Second,
 		Transport: prt,
 	}
+}
+
+func randomString() (string, error) {
+	var b [512]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("failed to generate random: %w", err)
+	}
+	digest := fmt.Sprintf("%x", sha256.Sum256(b[:]))
+	return digest[:32], nil
 }

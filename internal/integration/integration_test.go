@@ -91,7 +91,7 @@ func TestIntegration(t *testing.T) {
 		}
 
 		// Attempt to get the index
-		index, err := env.Blobstore().GetObject(ctx, GetExportDir(), path.Join(GetFileNameRoot(), "index.txt"))
+		index, err := env.Blobstore().GetObject(ctx, ExportDir, path.Join(FileNameRoot, "index.txt"))
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return retry.RetryableError(fmt.Errorf("Can not find index file: %v", err))
@@ -118,9 +118,9 @@ func TestIntegration(t *testing.T) {
 		}
 
 		// Download the latest export file contents
-		data, err := env.Blobstore().GetObject(ctx, GetExportDir(), latest)
+		data, err := env.Blobstore().GetObject(ctx, ExportDir, latest)
 		if err != nil {
-			return fmt.Errorf("failed to open %s/%s: %w", GetExportDir(), latest, err)
+			return fmt.Errorf("failed to open %s/%s: %w", ExportDir, latest, err)
 		}
 
 		// Process contents as an export
@@ -235,7 +235,7 @@ func TestIntegration(t *testing.T) {
 		}
 
 		// Attempt to get the index
-		index, err := env.Blobstore().GetObject(ctx, GetExportDir(), path.Join(GetFileNameRoot(), "index.txt"))
+		index, err := env.Blobstore().GetObject(ctx, ExportDir, path.Join(FileNameRoot, "index.txt"))
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return retry.RetryableError(err)
@@ -298,7 +298,7 @@ func TestIntegration(t *testing.T) {
 		}
 
 		// Attempt to get the index
-		index, err := env.Blobstore().GetObject(ctx, GetExportDir(), path.Join(GetFileNameRoot(), "index.txt"))
+		index, err := env.Blobstore().GetObject(ctx, ExportDir, path.Join(FileNameRoot, "index.txt"))
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return retry.RetryableError(err)
@@ -314,7 +314,7 @@ func TestIntegration(t *testing.T) {
 			}
 
 			// Lookup the file, hope it's gone
-			if _, err := env.Blobstore().GetObject(ctx, GetExportDir(), f); err != nil {
+			if _, err := env.Blobstore().GetObject(ctx, ExportDir, f); err != nil {
 				if errors.Is(err, storage.ErrNotFound) {
 					return nil // expected
 				} else {
