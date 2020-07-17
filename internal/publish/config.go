@@ -44,7 +44,7 @@ type Config struct {
 	ObservabilityExporter observability.Config
 
 	Port             string `env:"PORT, default=8080"`
-	MaxKeysOnPublish uint   `env:"MAX_KEYS_ON_PUBLISH, default=20"`
+	MaxKeysOnPublish uint   `env:"MAX_KEYS_ON_PUBLISH, default=30"`
 	// Provides compatibility w/ 1.5 release.
 	MaxSameStartIntervalKeys     uint          `env:"MAX_SAME_START_INTERVAL_KEYS, default=3"`
 	MaxIntervalAge               time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
