@@ -49,3 +49,35 @@ func NewAWSKMS(ctx context.Context) (KeyManager, error) {
 func (s *AWSKMS) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
 	return awskms.NewSigner(ctx, s.svc, keyID)
 }
+
+func buildAAD(aad string) map[string]*string {
+	m := make(map[string]*string)
+	m["aad"] = &aad
+	return m
+}
+
+func (s *AWSKMS) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad string) ([]byte, error) {
+	input := kms.EncryptInput{
+		KeyId:             &keyID,
+		EncryptionContext: buildAAD(aad),
+		Plaintext:         plaintext,
+	}
+	output, err := s.svc.EncryptWithContext(ctx, &input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt: %w", err)
+	}
+	return output.CiphertextBlob, nil
+}
+
+func (s *AWSKMS) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad string) ([]byte, error) {
+	input := kms.DecryptInput{
+		KeyId:             &keyID,
+		EncryptionContext: buildAAD(aad),
+		CiphertextBlob:    ciphertext,
+	}
+	output, err := s.svc.DecryptWithContext(ctx, &input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt: %w", err)
+	}
+	return output.Plaintext, nil
+}

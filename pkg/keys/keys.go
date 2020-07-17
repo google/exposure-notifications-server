@@ -31,6 +31,9 @@ import (
 // KeyManager implementations must be able to return a crypto.Signer.
 type KeyManager interface {
 	NewSigner(ctx context.Context, keyID string) (crypto.Signer, error)
+
+	Encrypt(ctx context.Context, keyID string, plaintext []byte, aad string) ([]byte, error)
+	Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad string) ([]byte, error)
 }
 
 // KeyManagerFor returns the appropriate key manager for the given type.

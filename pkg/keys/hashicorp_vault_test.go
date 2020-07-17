@@ -71,6 +71,98 @@ func TestNewHashiCorpVaultSigner(t *testing.T) {
 	}
 }
 
+func TestHashiCorpVaultEncryptDecrypt(t *testing.T) {
+	setupFn := func(client *vaultapi.Client) error {
+		if _, err := client.Logical().Write("transit/keys/my-key", map[string]interface{}{
+			"type": "aes256-gcm96",
+		}); err != nil {
+			return fmt.Errorf("failed to create key: %w", err)
+		}
+		return nil
+	}
+	identityFn := func(b []byte) []byte {
+		return b
+	}
+
+	cases := []struct {
+		name  string
+		setup func(client *vaultapi.Client) error
+		keyID string
+
+		plaintext    string
+		aad          string
+		modifyCipher func(b []byte) []byte
+		modifyAAD    func(b []byte) []byte
+
+		err    bool
+		errMsg string
+	}{
+		{
+			name:         "correct",
+			setup:        setupFn,
+			keyID:        "my-key@1",
+			plaintext:    "this is where you put secret stuff",
+			aad:          "pizza",
+			modifyCipher: identityFn,
+			modifyAAD:    identityFn,
+			err:          false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a Vault server.
+			ctx := context.Background()
+			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
+				DisableMlock: true,
+				DisableCache: true,
+				Logger:       vaultlog.NewNullLogger(),
+				LogicalBackends: map[string]vaultlogical.Factory{
+					"transit": vaulttransit.Factory,
+				},
+			})
+			ln, addr := vaulthttp.TestServer(t, core)
+			defer ln.Close()
+
+			// Create the client.
+			client, err := vaultapi.NewClient(&vaultapi.Config{Address: addr})
+			if err != nil {
+				t.Fatal(err)
+			}
+			client.SetToken(token)
+
+			// Enable transit.
+			if _, err := client.Logical().Write("sys/mounts/transit", map[string]interface{}{
+				"type": "transit",
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			// Run setup.
+			if err := tc.setup(client); err != nil {
+				t.Fatal(err)
+			}
+
+			// Wrap client.
+			vault := &HashiCorpVault{client}
+
+			ciphertext, err := vault.Encrypt(ctx, tc.keyID, []byte(tc.plaintext), tc.aad)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			decrypted, err := vault.Decrypt(ctx, tc.keyID, ciphertext, tc.aad)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.plaintext != string(decrypted) {
+				t.Fatalf("encrypt/decrypt got different result: want: %v got: %v", tc.plaintext, string(decrypted))
+			}
+		})
+	}
+}
+
 func TestHashiCorpVaultSigner_Public(t *testing.T) {
 	cases := []struct {
 		name       string

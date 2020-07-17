@@ -33,3 +33,11 @@ func NewNoop(ctx context.Context) (KeyManager, error) {
 func (n *Noop) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
 	return nil, fmt.Errorf("noop cannot sign")
 }
+
+func (n *Noop) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad string) ([]byte, error) {
+	return plaintext, nil
+}
+
+func (n *Noop) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad string) ([]byte, error) {
+	return ciphertext, nil
+}
