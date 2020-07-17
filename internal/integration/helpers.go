@@ -16,7 +16,12 @@ package integration
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -37,9 +42,26 @@ import (
 	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
 )
 
-const (
-	exportDir = "my-bucket"
+var (
+	exportDir    = "my-bucket"
+	fileNameRoot = "/"
 )
+
+func GetExportDir() string {
+	return exportDir
+}
+
+func SetExportDir(d string) {
+	exportDir = d
+}
+
+func GetFileNameRoot() string {
+	return fileNameRoot
+}
+
+func SetFileNameRoot(f string) {
+	fileNameRoot = f
+}
 
 // NewTestServer sets up clients used for integration tests
 func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.ServerEnv, *Client, *database.DB) {
@@ -77,7 +99,8 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 
 	// Create an export config
 	ec := &exportmodel.ExportConfig{
-		BucketName:       exportDir,
+		BucketName:       GetExportDir(),
+		FilenameRoot:     GetFileNameRoot(),
 		Period:           exportPeriod,
 		OutputRegion:     "TEST",
 		From:             time.Now().Add(-2 * time.Second),
@@ -102,7 +125,20 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		tb.Fatal(err)
 	}
 
-	bs, err := storage.NewMemory(ctx)
+	var bs storage.Blobstore
+	var b [512]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		tb.Fatalf("Failed to generate random: %v", err)
+	}
+	digest := fmt.Sprintf("%x", sha256.Sum256(b[:]))
+	SetFileNameRoot(digest[:32])
+	skipGcsTest, _ := strconv.ParseBool(os.Getenv("SKIP_GOOGLE_CLOUD_STORAGE_TESTS"))
+	if skipGcsTest || testing.Short() || os.Getenv("GOOGLE_CLOUD_BUCKET") == "" {
+		bs, err = storage.NewMemory(ctx)
+	} else {
+		SetExportDir(os.Getenv("GOOGLE_CLOUD_BUCKET"))
+		bs, err = storage.BlobstoreFor(ctx, storage.BlobstoreTypeGoogleCloudStorage)
+	}
 	if err != nil {
 		tb.Fatal(err)
 	}
