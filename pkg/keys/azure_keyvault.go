@@ -77,7 +77,7 @@ func NewAzureKeyVault(ctx context.Context) (KeyManager, error) {
 	return sm, nil
 }
 
-func (v *AzureKeyVault) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad string) ([]byte, error) {
+func (v *AzureKeyVault) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad []byte) ([]byte, error) {
 	k, err := ParseAZKeyID(keyID)
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (v *AzureKeyVault) Encrypt(ctx context.Context, keyID string, plaintext []b
 	return resBytes, nil
 }
 
-func (v *AzureKeyVault) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad string) ([]byte, error) {
+func (v *AzureKeyVault) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad []byte) ([]byte, error) {
 	k, err := ParseAZKeyID(keyID)
 	if err != nil {
 		return nil, err

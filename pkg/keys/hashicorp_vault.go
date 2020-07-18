@@ -35,7 +35,10 @@ var _ KeyManager = (*HashiCorpVault)(nil)
 var _ crypto.Signer = (*HashiCorpVaultSigner)(nil)
 
 // HashiCorpVault implements the keys.KeyManager interface and can be used to
-// sign export files.
+// sign export files and encrypt/decrypt data.
+//
+// For encryption keys, when using valut, the keys must be created with
+//   `derived=true`
 type HashiCorpVault struct {
 	client *vaultapi.Client
 }
@@ -83,7 +86,7 @@ func (v *HashiCorpVault) NewSigner(ctx context.Context, keyID string) (crypto.Si
 	return NewHashiCorpVaultSigner(ctx, v.client, hvcKey.Name, hvcKey.Version)
 }
 
-func (v *HashiCorpVault) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad string) ([]byte, error) {
+func (v *HashiCorpVault) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad []byte) ([]byte, error) {
 	kid, err := NewHCValueKeyID(keyID)
 	if err != nil {
 		return nil, err
@@ -91,7 +94,7 @@ func (v *HashiCorpVault) Encrypt(ctx context.Context, keyID string, plaintext []
 	pth := fmt.Sprintf("transit/encrypt/%s", kid.Name)
 	params := map[string]interface{}{
 		"plaintext": base64.StdEncoding.EncodeToString(plaintext),
-		"context":   base64.StdEncoding.EncodeToString([]byte(aad)),
+		"context":   base64.StdEncoding.EncodeToString(aad),
 		"type":      "aes256-gcm96",
 	}
 
@@ -105,28 +108,18 @@ func (v *HashiCorpVault) Encrypt(ctx context.Context, keyID string, plaintext []
 		return nil, fmt.Errorf("encryption returned no ciphertext")
 	}
 
-	parts := strings.Split(ciphertext.(string), ":")
-	if len(parts) != 3 {
-		return nil, fmt.Errorf("invalid encryption result, incorrect format")
-	}
-
-	cipherbytes, err := base64util.DecodeString(parts[2])
-	if err != nil {
-		return nil, fmt.Errorf("unable to decode ciphertext: %w", err)
-	}
-
-	return cipherbytes, nil
+	return []byte(ciphertext.(string)), nil
 }
 
-func (v *HashiCorpVault) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad string) ([]byte, error) {
+func (v *HashiCorpVault) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad []byte) ([]byte, error) {
 	kid, err := NewHCValueKeyID(keyID)
 	if err != nil {
 		return nil, err
 	}
 	pth := fmt.Sprintf("transit/decrypt/%s", kid.Name)
 	params := map[string]interface{}{
-		"ciphertext": fmt.Sprintf("vault:v1:%s", base64.StdEncoding.EncodeToString(ciphertext)),
-		"context":    base64.StdEncoding.EncodeToString([]byte(aad)),
+		"ciphertext": string(ciphertext),
+		"context":    base64.StdEncoding.EncodeToString(aad),
 	}
 
 	result, err := v.client.Logical().Write(pth, params)

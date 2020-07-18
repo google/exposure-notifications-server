@@ -34,10 +34,10 @@ func (n *Noop) NewSigner(ctx context.Context, keyID string) (crypto.Signer, erro
 	return nil, fmt.Errorf("noop cannot sign")
 }
 
-func (n *Noop) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad string) ([]byte, error) {
+func (n *Noop) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-func (n *Noop) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad string) ([]byte, error) {
+func (n *Noop) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad []byte) ([]byte, error) {
 	return ciphertext, nil
 }

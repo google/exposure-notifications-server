@@ -90,7 +90,7 @@ func TestHashiCorpVaultEncryptDecrypt(t *testing.T) {
 		keyID string
 
 		plaintext    string
-		aad          string
+		aad          []byte
 		modifyCipher func(b []byte) []byte
 		modifyAAD    func(b []byte) []byte
 
@@ -102,7 +102,7 @@ func TestHashiCorpVaultEncryptDecrypt(t *testing.T) {
 			setup:        setupFn,
 			keyID:        "my-key@1",
 			plaintext:    "this is where you put secret stuff",
-			aad:          "pizza",
+			aad:          []byte("pizza"),
 			modifyCipher: identityFn,
 			modifyAAD:    identityFn,
 			err:          false,

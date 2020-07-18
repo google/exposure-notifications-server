@@ -32,8 +32,20 @@ import (
 type KeyManager interface {
 	NewSigner(ctx context.Context, keyID string) (crypto.Signer, error)
 
-	Encrypt(ctx context.Context, keyID string, plaintext []byte, aad string) ([]byte, error)
-	Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad string) ([]byte, error)
+	// Encrypt wile enctypt a byte array along with accompaning Additional Authenticated Data (AAD).
+	// The ability for AAD to be empty, depends on the implementation being used.
+	//
+	// Currently Google Cloud KMS, Hashicorp Vault and AWS KMS support AAD
+	// The Azure Key Vault implementation does not.
+	Encrypt(ctx context.Context, keyID string, plaintext []byte, aad []byte) ([]byte, error)
+
+	// Decrypt will descrypt a previously encrypted byte array along with accompaning Additional
+	// Authenticated Data (AAD).
+	// If AAD was passed in on the encryption, the same AAD must be passed in to decrypt.
+	//
+	// Currently Google Cloud KMS, Hashicorp Vault and AWS KMS support AAD
+	// The Azure Key Vault implementation does not.
+	Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad []byte) ([]byte, error)
 }
 
 // KeyManagerFor returns the appropriate key manager for the given type.

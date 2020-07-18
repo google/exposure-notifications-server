@@ -45,11 +45,11 @@ func (kms *GoogleCloudKMS) NewSigner(ctx context.Context, keyID string) (crypto.
 	return gcpkms.NewSigner(ctx, kms.client, keyID)
 }
 
-func (kms *GoogleCloudKMS) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad string) ([]byte, error) {
+func (kms *GoogleCloudKMS) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad []byte) ([]byte, error) {
 	req := kmspb.EncryptRequest{
 		Name:                        keyID,
 		Plaintext:                   plaintext,
-		AdditionalAuthenticatedData: []byte(aad),
+		AdditionalAuthenticatedData: aad,
 	}
 	result, err := kms.client.Encrypt(ctx, &req)
 	if err != nil {
@@ -58,11 +58,11 @@ func (kms *GoogleCloudKMS) Encrypt(ctx context.Context, keyID string, plaintext 
 	return result.Ciphertext, nil
 }
 
-func (kms *GoogleCloudKMS) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad string) ([]byte, error) {
+func (kms *GoogleCloudKMS) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad []byte) ([]byte, error) {
 	req := kmspb.DecryptRequest{
 		Name:                        keyID,
 		Ciphertext:                  ciphertext,
-		AdditionalAuthenticatedData: []byte(aad),
+		AdditionalAuthenticatedData: aad,
 	}
 	result, err := kms.client.Decrypt(ctx, &req)
 	if err != nil {
