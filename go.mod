@@ -3,8 +3,8 @@ module github.com/google/exposure-notifications-server
 go 1.14
 
 require (
-	cloud.google.com/go v0.57.0
-	cloud.google.com/go/storage v1.6.0
+	cloud.google.com/go v0.61.0
+	cloud.google.com/go/storage v1.10.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/prometheus v0.2.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.1
@@ -26,7 +26,7 @@ require (
 	github.com/go-test/deep v1.0.6 // indirect
 	github.com/golang-migrate/migrate/v4 v4.10.0
 	github.com/golang/protobuf v1.4.2
-	github.com/google/go-cmp v0.4.1
+	github.com/google/go-cmp v0.5.0
 	github.com/hashicorp/go-hclog v0.13.0
 	github.com/hashicorp/go-memdb v1.2.1 // indirect
 	github.com/hashicorp/go-msgpack v1.1.5 // indirect
@@ -60,21 +60,21 @@ require (
 	github.com/prometheus/client_golang v1.6.0 // indirect
 	github.com/prometheus/common v0.10.0
 	github.com/sethvargo/go-envconfig v0.1.1
-	github.com/sethvargo/go-gcpkms v0.0.0-20200417004547-e50d0c7083d9
+	github.com/sethvargo/go-gcpkms v0.1.0
 	github.com/sethvargo/go-retry v0.1.0
 	github.com/shirou/gopsutil v2.20.4+incompatible // indirect
 	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/tv42/httpunix v0.0.0-20191220191345-2ba4b9c3382c // indirect
-	go.opencensus.io v0.22.3
+	go.opencensus.io v0.22.4
 	go.uber.org/zap v1.14.1
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
 	golang.org/x/tools v0.0.0-20200715235423-130c9f19d3fe
-	google.golang.org/api v0.25.0
-	google.golang.org/genproto v0.0.0-20200527145253-8367513e4ece
-	google.golang.org/grpc v1.29.1
-	google.golang.org/protobuf v1.24.0
+	google.golang.org/api v0.29.0
+	google.golang.org/genproto v0.0.0-20200715011427-11fb19a81f2c
+	google.golang.org/grpc v1.30.0
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/ini.v1 v1.56.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
