@@ -22,8 +22,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/debugger"
 	"github.com/google/exposure-notifications-server/internal/interrupt"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/google/exposure-notifications-server/internal/server"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	"github.com/google/exposure-notifications-server/pkg/server"
 )
 
 func main() {
