@@ -35,7 +35,10 @@ var _ KeyManager = (*HashiCorpVault)(nil)
 var _ crypto.Signer = (*HashiCorpVaultSigner)(nil)
 
 // HashiCorpVault implements the keys.KeyManager interface and can be used to
-// sign export files.
+// sign export files and encrypt/decrypt data.
+//
+// For encryption keys, when using valut, the keys must be created with
+//   `derived=true`
 type HashiCorpVault struct {
 	client *vaultapi.Client
 }
@@ -54,6 +57,21 @@ func NewHashiCorpVault(ctx context.Context) (KeyManager, error) {
 	return sm, nil
 }
 
+type HCValueKeyID struct {
+	Name    string
+	Version string
+}
+
+func NewHCValueKeyID(keyID string) (*HCValueKeyID, error) {
+	parts := strings.SplitN(keyID, "@", 2)
+	switch len(parts) {
+	case 0, 1:
+		return nil, fmt.Errorf("missing version in: %v", keyID)
+	default:
+		return &HCValueKeyID{Name: parts[0], Version: parts[1]}, nil
+	}
+}
+
 // NewSigner creates a new signer that uses a key in HashiCorp Vault's transit
 // backend. The keyID is in the format:
 //
@@ -61,13 +79,65 @@ func NewHashiCorpVault(ctx context.Context) (KeyManager, error) {
 //
 // Both name and version are required.
 func (v *HashiCorpVault) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
-	parts := strings.SplitN(keyID, "@", 2)
-	switch len(parts) {
-	case 0, 1:
-		return nil, fmt.Errorf("missing version in: %v", keyID)
-	default:
-		return NewHashiCorpVaultSigner(ctx, v.client, parts[0], parts[1])
+	hvcKey, err := NewHCValueKeyID(keyID)
+	if err != nil {
+		return nil, err
 	}
+	return NewHashiCorpVaultSigner(ctx, v.client, hvcKey.Name, hvcKey.Version)
+}
+
+func (v *HashiCorpVault) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad []byte) ([]byte, error) {
+	kid, err := NewHCValueKeyID(keyID)
+	if err != nil {
+		return nil, err
+	}
+	pth := fmt.Sprintf("transit/encrypt/%s", kid.Name)
+	params := map[string]interface{}{
+		"plaintext": base64.StdEncoding.EncodeToString(plaintext),
+		"context":   base64.StdEncoding.EncodeToString(aad),
+		"type":      "aes256-gcm96",
+	}
+
+	result, err := v.client.Logical().Write(pth, params)
+	if err != nil {
+		return nil, fmt.Errorf("unable to encrypt: %w", err)
+	}
+
+	ciphertext, ok := result.Data["ciphertext"]
+	if !ok {
+		return nil, fmt.Errorf("encryption returned no ciphertext")
+	}
+
+	return []byte(ciphertext.(string)), nil
+}
+
+func (v *HashiCorpVault) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad []byte) ([]byte, error) {
+	kid, err := NewHCValueKeyID(keyID)
+	if err != nil {
+		return nil, err
+	}
+	pth := fmt.Sprintf("transit/decrypt/%s", kid.Name)
+	params := map[string]interface{}{
+		"ciphertext": string(ciphertext),
+		"context":    base64.StdEncoding.EncodeToString(aad),
+	}
+
+	result, err := v.client.Logical().Write(pth, params)
+	if err != nil {
+		return nil, fmt.Errorf("unable to encrypt: %w", err)
+	}
+
+	plaintext, ok := result.Data["plaintext"]
+	if !ok {
+		return nil, fmt.Errorf("dencryption returned no plaintext")
+	}
+
+	decoded, err := base64util.DecodeString(plaintext.(string))
+	if err != nil {
+		return nil, fmt.Errorf("unable to decode plaintext: %w", err)
+	}
+
+	return decoded, nil
 }
 
 type HashiCorpVaultSigner struct {

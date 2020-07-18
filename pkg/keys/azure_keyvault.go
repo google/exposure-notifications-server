@@ -42,6 +42,24 @@ type AzureKeyVault struct {
 	client *keyvault.BaseClient
 }
 
+type AZKeyID struct {
+	Vault   string
+	Key     string
+	Version string
+}
+
+func ParseAZKeyID(keyID string) (*AZKeyID, error) {
+	parts := strings.SplitN(keyID, "/", 3)
+	if len(parts) < 3 {
+		return nil, fmt.Errorf("key must include vaultName, keyName, and keyVersion: %v", keyID)
+	}
+
+	vault := fmt.Sprintf("https://%s.vault.azure.net", parts[0])
+	key, version := parts[1], parts[2]
+
+	return &AZKeyID{Vault: vault, Key: key, Version: version}, nil
+}
+
 // NewAzureKeyVault creates a new KeyVault key manager instance.
 func NewAzureKeyVault(ctx context.Context) (KeyManager, error) {
 	authorizer, err := azurekeyvault.GetKeyVaultAuthorizer()
@@ -59,6 +77,57 @@ func NewAzureKeyVault(ctx context.Context) (KeyManager, error) {
 	return sm, nil
 }
 
+func (v *AzureKeyVault) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad []byte) ([]byte, error) {
+	k, err := ParseAZKeyID(keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(mikehelmick) - neds AEAD
+	value := base64.URLEncoding.EncodeToString(plaintext)
+	parameters := keyvault.KeyOperationsParameters{
+		Algorithm: keyvault.RSAOAEP256,
+		Value:     &value,
+	}
+	res, err := v.client.Encrypt(ctx, k.Vault, k.Key, k.Version, parameters)
+	if err != nil {
+		return nil, fmt.Errorf("unable to encrypt: %w", err)
+	}
+
+	resBytes, err := base64.URLEncoding.DecodeString(*res.Result)
+	if err != nil {
+		return nil, fmt.Errorf("unable to decode encrypted data: %w", err)
+	}
+
+	return resBytes, nil
+}
+
+func (v *AzureKeyVault) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad []byte) ([]byte, error) {
+	k, err := ParseAZKeyID(keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(mikehelmick) - neds AEAD
+	value := base64.URLEncoding.EncodeToString(ciphertext)
+	parameters := keyvault.KeyOperationsParameters{
+		Algorithm: keyvault.RSAOAEP256,
+		Value:     &value,
+	}
+	res, err := v.client.Decrypt(ctx, k.Vault, k.Key, k.Version, parameters)
+	if err != nil {
+		return nil, fmt.Errorf("unable to decrypt: %w", err)
+	}
+
+	plaintext, err := base64.URLEncoding.DecodeString(*res.Result)
+	if err != nil {
+		return nil, fmt.Errorf("unable to decode decrypted data: %w", err)
+	}
+
+	return plaintext, nil
+
+}
+
 // NewSigner creates a new signer that uses a key in HashiCorp Vault's transit
 // backend. The keyID in the format:
 //
@@ -70,14 +139,11 @@ func NewAzureKeyVault(ctx context.Context) (KeyManager, error) {
 //
 // Both name and version are required.
 func (v *AzureKeyVault) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
-	parts := strings.SplitN(keyID, "/", 3)
-	if len(parts) < 3 {
-		return nil, fmt.Errorf("key must include vaultName, keyName, and keyVersion: %v", keyID)
+	k, err := ParseAZKeyID(keyID)
+	if err != nil {
+		return nil, err
 	}
-
-	vault := fmt.Sprintf("https://%s.vault.azure.net", parts[0])
-	key, version := parts[1], parts[2]
-	return NewAzureKeyVaultSigner(ctx, v.client, vault, key, version)
+	return NewAzureKeyVaultSigner(ctx, v.client, k.Vault, k.Key, k.Version)
 }
 
 type AzureKeyVaultSigner struct {

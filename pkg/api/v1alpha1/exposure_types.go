@@ -56,6 +56,10 @@ const (
 //  - Does not have to be within range of any of the provided keys (i.e. future
 //    key uploads)
 //
+// revisionToken: An opaque string that must be passed in-tact from on additional
+//   publish requests from the same device, there the same TEKs may be published
+//   again.
+//
 // Padding: random base64 encoded data to obscure the request size.
 //
 // The following fields are deprecated, but accepted for backwards-compatibility:
@@ -68,11 +72,22 @@ type Publish struct {
 	VerificationPayload  string        `json:"verificationPayload"`
 	HMACKey              string        `json:"hmackey"`
 	SymptomOnsetInterval int32         `json:"symptomOnsetInterval"`
+	RevisionToken        string        `json:"revisionToken"`
 
 	Padding string `json:"padding"`
 
 	Platform                  string `json:"platform"`                  // DEPRECATED
 	DeviceVerificationPayload string `json:"deviceVerificationPayload"` // DEPRECATED
+}
+
+// PublishResponse is sent back to the client on a publish request.
+// If successful, the revisionToken indicates an opaque string that must be
+// passed back if the same devices wishes to publish TEKs again.
+//
+// On error, the error field will contain the error details.
+type PublishResponse struct {
+	RevisionToken string `json:"revisionToken"`
+	Error         string `json:"error"`
 }
 
 // ExposureKey is the 16 byte key, the start time of the key and the
