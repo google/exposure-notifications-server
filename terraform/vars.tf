@@ -93,6 +93,13 @@ variable "cloudsql_disk_size_gb" {
   description = "Size of the Cloud SQL disk, in GB."
 }
 
+variable "cloudsql_max_connections" {
+  type    = number
+  default = 100000
+
+  description = "Maximum number of allowed connections. If you change to a smaller instance size, you must lower this number."
+}
+
 variable "generate_cron_schedule" {
   type    = string
   default = "0 0 1 1 0"

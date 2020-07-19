@@ -37,7 +37,7 @@ resource "google_sql_database_instance" "db-inst" {
 
     database_flags {
       name  = "max_connections"
-      value = "100000"
+      value = var.cloudsql_max_connections
     }
 
     backup_configuration {
