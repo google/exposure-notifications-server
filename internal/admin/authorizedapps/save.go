@@ -54,7 +54,7 @@ func (h *saveController) Execute(c *gin.Context) {
 		authApp := model.NewAuthorizedApp()
 		priorKey := form.PriorKey()
 		if priorKey != "" {
-			authApp, err = aadb.GetAuthorizedApp(ctx, h.env.SecretManager(), priorKey)
+			authApp, err = aadb.GetAuthorizedApp(ctx, priorKey)
 			if err != nil {
 				admin.ErrorPage(c, "Invalid request, app to edit not found.")
 				return

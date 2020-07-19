@@ -221,7 +221,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 			logger.Info("configuring authorizedapp")
 
 			aaConfig := provider.AuthorizedAppConfig()
-			aa, err := authorizedapp.NewDatabaseProvider(ctx, db, aaConfig, authorizedapp.WithSecretManager(sm))
+			aa, err := authorizedapp.NewDatabaseProvider(ctx, db, aaConfig)
 			if err != nil {
 				// Ensure the database is closed on an error.
 				defer db.Close(ctx)

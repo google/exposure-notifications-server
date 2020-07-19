@@ -67,7 +67,7 @@ func (h *viewController) Execute(c *gin.Context) {
 	} else {
 		aadb := database.New(h.env.Database())
 		var err error
-		authorizedApp, err = aadb.GetAuthorizedApp(ctx, h.env.SecretManager(), appID)
+		authorizedApp, err = aadb.GetAuthorizedApp(ctx, appID)
 		if err != nil {
 			admin.ErrorPage(c, err.Error())
 			return
