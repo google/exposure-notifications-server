@@ -27,11 +27,11 @@ import (
 
 	exportapi "github.com/google/exposure-notifications-server/internal/export"
 	exportdb "github.com/google/exposure-notifications-server/internal/export/database"
-	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/exposure-notifications-server/internal/integration"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/internal/util"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	pgx "github.com/jackc/pgx/v4"
 	"github.com/sethvargo/go-retry"
 )
 
@@ -41,7 +41,7 @@ func TestBatchCleanupBenchmark(t *testing.T) {
 		keysPerBatch = 3
 		// If consider batching every 10 seconds, 10000 batches is 100000
 		// seconds ~= 27 hours worth of exports
-		batchCount = 10000
+		batchCount = 100
 	)
 	var (
 		err          error
@@ -60,96 +60,136 @@ func TestBatchCleanupBenchmark(t *testing.T) {
 
 	// 1.1 Export first batch
 	env, client, db := integration.NewTestServer(t, exportPeriod)
-	payload := &verifyapi.Publish{
-		Keys:           util.GenerateExposureKeys(3, -1, false),
-		Regions:        []string{"TEST"},
-		AppPackageName: "com.example.app",
-
-		// TODO: hook up verification
-		VerificationPayload: "TODO",
-	}
-	if err = client.PublishKeys(payload); err != nil {
-		t.Fatal(err)
-	}
-
-	var firstBatchExportFile *exportmodel.ExportFile
-	integration.Eventually(t, 30, func() error {
-		time.Sleep(2 * time.Second)
-		// Trigger an export
-		if err := client.ExportBatches(); err != nil {
-			return err
-		}
-
-		// Start export workers
-		if err := client.StartExportWorkers(); err != nil {
-			return err
-		}
-
-		var firstBatchFiles []string
-		index, err := env.Blobstore().GetObject(ctx, integration.ExportDir,
-			path.Join(integration.FileNameRoot, "index.txt"))
-		if err != nil {
-			if errors.Is(err, storage.ErrNotFound) {
-				return retry.RetryableError(err)
-			}
-			return err
-		} else if c := strings.TrimSpace(string(index)); c == "" {
-			return retry.RetryableError(errors.New("index file is empty"))
-		}
-		// Find the latest file in the index
-		firstBatchFiles = strings.Split(string(index), "\n")
-		if l := len(firstBatchFiles); l != 1 {
-			return fmt.Errorf("exported batches. Want: %d, got: %d", 1, l)
-		}
-		firstBatchExportFile, err = exportdb.New(db).LookupExportFile(ctx, firstBatchFiles[0])
-		if err != nil {
-			return fmt.Errorf("failed to look up exportfile %q: %w", firstBatchFiles[0], err)
-		}
-		return nil
-	})
-
-	// 1.2 Proliferate exports based on first batch export
-	firstBatchExport, err := exportdb.New(db).LookupExportBatch(ctx, firstBatchExportFile.BatchID)
-	if err != nil {
-		t.Fatalf("Failed looking up the first export: %v", err)
-	}
-	exportContent, err := env.Blobstore().GetObject(ctx, integration.ExportDir, firstBatchExportFile.Filename)
-	if err != nil {
-		t.Fatalf("Failed reading exported file %s from %s: %v", firstBatchExportFile.Filename, integration.ExportDir, err)
-	}
-	createTime := firstBatchExport.StartTimestamp.Add(-366 * time.Hour)
-	endTime := firstBatchExport.EndTimestamp.Add(-366 * time.Hour)
 	for i := 0; i < batchCount; i++ {
-		// For all other batches, copying from first batch
-		createTime = createTime.Add(10 * time.Second)
-		endTime = endTime.Add(10 * time.Second)
-		firstBatchExport.BatchID = firstBatchExport.BatchID + 1
-		firstBatchExport.StartTimestamp = createTime
-		firstBatchExport.EndTimestamp = endTime
-		exportdb.New(db).AddExportBatches(ctx, []*exportmodel.ExportBatch{firstBatchExport})
+		payload := &verifyapi.Publish{
+			Keys:           util.GenerateExposureKeys(3, -1, false),
+			Regions:        []string{"TEST"},
+			AppPackageName: "com.example.app",
 
-		fn := fmt.Sprintf("%s/%d-%d.zip", firstBatchExport.FilenameRoot, createTime.Unix(), endTime.Unix())
-		// Note: all exported files have identical contents, as:
-		// Cleanup exports function works based on what's stored in
-		// database, and maps with exportd files only by filenames, so it
-		// doesn't really matter what's inside the  exported file.
-		if err := env.Blobstore().CreateObject(ctx, integration.ExportDir, fn, exportContent, true); err != nil {
-			t.Fatalf("creating file %s in bucket %s: %v", fn, integration.ExportDir, err)
+			// TODO: hook up verification
+			VerificationPayload: "TODO",
 		}
-		// Add index file
-		contents, err := env.Blobstore().GetObject(ctx, integration.ExportDir, integration.IndexFilePath())
+		if err = client.PublishKeys(payload); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+			result, err := tx.Exec(ctx, `
+				WITH cte AS (
+					SELECT exposure_key
+					FROM Exposure
+					LIMIT 1
+				)
+	
+				UPDATE
+					Exposure e
+				SET
+					created_at = $1
+				FROM cte
+				WHERE e.exposure_key = cte.exposure_key
+			`,
+				time.Now().Add(time.Duration(i-batchCount)*2*time.Second),
+			)
+			if err != nil {
+				return err
+			}
+			if got, want := result.RowsAffected(), int64(1); got != want {
+				return fmt.Errorf("expected %v to be %v", got, want)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		// var firstBatchExportFile *exportmodel.ExportFile
+		integration.Eventually(t, 30, func() error {
+			// Trigger an export
+			if err := client.ExportBatches(); err != nil {
+				return err
+			}
+
+			// Start export workers
+			if err := client.StartExportWorkers(); err != nil {
+				return err
+			}
+
+			// var firstBatchFiles []string
+			index, err := env.Blobstore().GetObject(ctx, integration.ExportDir,
+				path.Join(integration.FileNameRoot, "index.txt"))
+			if err != nil {
+				if errors.Is(err, storage.ErrNotFound) {
+					return retry.RetryableError(err)
+				}
+				return err
+			} else if c := strings.TrimSpace(string(index)); c == "" {
+				return retry.RetryableError(errors.New("index file is empty"))
+			}
+			return nil
+		})
+
+		var batchFiles []string
+		integration.Eventually(t, 30, func() error {
+			// Trigger an export
+			if err := client.ExportBatches(); err != nil {
+				return err
+			}
+
+			// Start export workers
+			if err := client.StartExportWorkers(); err != nil {
+				return err
+			}
+
+			// Attempt to get the index
+			index, err := env.Blobstore().GetObject(ctx, integration.ExportDir, integration.IndexFilePath())
+			if err != nil {
+				if errors.Is(err, storage.ErrNotFound) {
+					return retry.RetryableError(err)
+				}
+				return err
+			}
+
+			// Ensure the new export is created
+			batchFiles = strings.Split(string(index), "\n")
+			if len(batchFiles) != i+1 {
+				return retry.RetryableError(fmt.Errorf("next export does not exist yet"))
+			}
+			return nil
+		})
+
+		// Find the export file that contains the batch - we need this to modify the
+		// batch later to force it to cleanup.
+		exportFile, err := exportdb.New(db).LookupExportFile(ctx, batchFiles[0])
 		if err != nil {
-			t.Fatalf("Failed reading %s in bucket %s: %v", integration.ExportDir, integration.IndexFilePath(), err)
+			t.Fatal(err)
 		}
-		contents = []byte(string(contents) + "\n" + fn)
-		if err := env.Blobstore().CreateObject(ctx, integration.ExportDir, integration.IndexFilePath(), contents, false); err != nil {
-			t.Fatalf("creating file %s in bucket %s: %v", integration.IndexFilePath(), integration.ExportDir, err)
-		}
-		// FinalizeBatch helps with writing to database table `ExportFile`
-		if err := exportdb.New(db).FinalizeBatch(ctx, firstBatchExport, []string{fn}, 1); err != nil {
-			t.Fatalf("Failed finalizing new batch: %v", err)
+
+		// Mark the export in the past to force a cleanup
+		if err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+			result, err := tx.Exec(ctx, `
+			UPDATE
+				ExportBatch
+			SET
+				start_timestamp = $1,
+				end_timestamp = $2
+			WHERE
+				batch_id = $3
+		`,
+				time.Now().Add(time.Duration(i-batchCount)*2*time.Second),
+				time.Now().Add(time.Duration(i-batchCount)*2*time.Second),
+				exportFile.BatchID,
+			)
+			if err != nil {
+				return err
+			}
+			if got, want := result.RowsAffected(), int64(1); got != want {
+				return fmt.Errorf("expected %v to be %v", got, want)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
 		}
 	}
+	timeTracker = reportTime(t, timeTracker, "Create workload")
 
 	// 2. Ensure all keys are there
 	integration.Eventually(t, 30, func() error {
@@ -163,7 +203,7 @@ func TestBatchCleanupBenchmark(t *testing.T) {
 		}
 		// Find the latest file in the index
 		lines := strings.Split(string(index), "\n")
-		if len(lines) != batchCount+1 {
+		if len(lines) != batchCount {
 			return fmt.Errorf("exported batches. Want: %d, got: %d", batchCount, len(lines))
 		}
 		for _, f := range lines {
@@ -184,7 +224,7 @@ func TestBatchCleanupBenchmark(t *testing.T) {
 		return nil
 	})
 
-	timeTracker = reportTime(t, timeTracker, "Create workload")
+	timeTracker = reportTime(t, timeTracker, "Checking workload")
 
 	// [TODO]3. Set up mako
 
@@ -212,9 +252,6 @@ func TestBatchCleanupBenchmark(t *testing.T) {
 		return nil
 	})
 	for _, r := range remainings {
-		if r == firstBatchExportFile.Filename {
-			continue
-		}
 		_, err := env.Blobstore().GetObject(ctx, integration.ExportDir, r)
 		if err == nil {
 			t.Fatalf("Should have been cleaned up %q: %v", r, err)
