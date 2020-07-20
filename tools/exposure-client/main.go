@@ -16,17 +16,20 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
+	"fmt"
+	"io"
 	"io/ioutil"
-	"log"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/util"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
-	"github.com/google/exposure-notifications-server/testing/enclient"
 )
 
 var (
@@ -55,12 +58,20 @@ var (
 )
 
 func main() {
+	if err := realMain(); err != nil {
+		fmt.Printf("failed to create exposures: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("success!\n")
+}
+
+func realMain() error {
 	flag.Parse()
 
 	exposureKeys := util.GenerateExposureKeys(*numKeys, *transmissionRiskFlag, false)
 	regionIdx, err := util.RandomInt(len(defaultRegions))
 	if err != nil {
-		log.Printf("error getting random region: %v", err)
+		return fmt.Errorf("failed to get random region: %w", err)
 	}
 	region := defaultRegions[regionIdx]
 	if *regions != "" {
@@ -71,17 +82,18 @@ func main() {
 	if verificationAuthorityName == "" {
 		verificationAuthorityName, err = util.RandomArrValue(verificationAuthorityNames)
 		if err != nil {
-			log.Printf("could not get random verification authority: %v", err)
+			return fmt.Errorf("failed to get random verification authority: %w", err)
 		}
 	}
 
 	i, err := util.RandomInt(1000)
 	if err != nil {
-		log.Printf("error getting random int: %v", err)
+		return fmt.Errorf("failed to get random int: %w", err)
 	}
+
 	padding, err := util.RandomBytes(i + 1000)
 	if err != nil {
-		log.Printf("could not get random padding: %v", err)
+		return fmt.Errorf("failed to get random padding: %w", err)
 	}
 
 	data := verifyapi.Publish{
@@ -92,33 +104,48 @@ func main() {
 		Padding:             base64.RawStdEncoding.EncodeToString(padding),
 	}
 
-	prettyJSON, err := json.MarshalIndent(data, "", "  ")
+	body, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		log.Printf("Can't display JSON that was sent, error: %v", err)
-	} else {
-		log.Printf("SENDING: \n%v", string(prettyJSON))
+		return fmt.Errorf("failed to generate JSON: %w", err)
 	}
+	fmt.Printf("generated json: \n%s\n", body)
 
-	sendRequest(data)
+	if _, err := sendRequest(bytes.NewReader(body)); err != nil {
+		return fmt.Errorf("failed to send first request: %w", err)
+	}
 
 	if *twice {
 		time.Sleep(1 * time.Second)
-		log.Printf("sending the request again...")
-		sendRequest(data)
+		if _, err := sendRequest(bytes.NewReader(body)); err != nil {
+			return fmt.Errorf("failed to send second request: %w", err)
+		}
 	}
+
+	return nil
 }
 
-func sendRequest(data interface{}) {
-	resp, err := enclient.PostRequest(*url, data)
+func sendRequest(data io.Reader) ([]byte, error) {
+	req, err := http.NewRequest("POST", *url, data)
 	if err != nil {
-		log.Fatalf("request failed: %v, %v", err, resp)
-		return
+		return nil, fmt.Errorf("failed to build request: %w", err)
 	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("unable to read http response: %v", err)
-	} else {
-		log.Printf("response: %v", string(body))
+		return nil, fmt.Errorf("failed to read body: %w", err)
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("post request failed with status %v, body: %s", resp.StatusCode, body)
+	}
+
+	return body, nil
 }
