@@ -260,6 +260,8 @@ func testClient(tb testing.TB, srv *server.Server) *http.Client {
 	}
 
 	return &http.Client{
+		// Cleaning up 10000 multiple exports takes ~20 seconds, increasing this
+		// so that load test doesn't time out
 		Timeout:   50 * time.Second,
 		Transport: prt,
 	}
