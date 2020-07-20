@@ -237,7 +237,7 @@ func TestPublishValidation(t *testing.T) {
 			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", verifyapi.MinIntervalCount-1, verifyapi.MinIntervalCount, verifyapi.MaxIntervalCount),
 		},
 		{
-			name: "interval count too high",
+			name: "interval_count_too_high",
 			p: &verifyapi.Publish{
 				Keys: []verifyapi.ExposureKey{
 					{
@@ -249,7 +249,7 @@ func TestPublishValidation(t *testing.T) {
 			m: fmt.Sprintf("invalid interval count, %v, must be >= %v && <= %v", verifyapi.MaxIntervalCount+1, verifyapi.MinIntervalCount, verifyapi.MaxIntervalCount),
 		},
 		{
-			name: "interval number too low",
+			name: "interval_starts_too_old_but_still_valid_at_min",
 			p: &verifyapi.Publish{
 				Keys: []verifyapi.ExposureKey{
 					{
@@ -259,7 +259,23 @@ func TestPublishValidation(t *testing.T) {
 					},
 				},
 			},
-			m: fmt.Sprintf("interval number %v is too old, must be >= %v", minInterval-1, minInterval),
+		},
+		{
+			name: "key_expires_before_min",
+			p: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:            encodeKey(generateKey(t)),
+						IntervalNumber: minInterval - verifyapi.MaxIntervalCount - 1,
+						IntervalCount:  verifyapi.MaxIntervalCount,
+					},
+				},
+			},
+			m: fmt.Sprintf("key expires before minimum window; %v + %v = %v which is too old, must be >= %v",
+				minInterval-verifyapi.MaxIntervalCount-1,
+				verifyapi.MaxIntervalCount,
+				minInterval-verifyapi.MaxIntervalCount-1+verifyapi.MaxIntervalCount,
+				minInterval),
 		},
 		{
 			name: "interval number too high",
