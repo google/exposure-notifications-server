@@ -86,7 +86,11 @@ func (e *Exposure) Revise(in *Exposure) (bool, error) {
 	}
 
 	// Check to see if this is a valid transition.
-	if !(e.ReportType == verifyapi.ReportTypeClinical && (in.ReportType == verifyapi.ReportTypeConfirmed || in.ReportType == verifyapi.ReportTypeNegative)) {
+	eReportType := e.ReportType
+	if eReportType == "" {
+		eReportType = verifyapi.ReportTypeClinical
+	}
+	if !(eReportType == verifyapi.ReportTypeClinical && (in.ReportType == verifyapi.ReportTypeConfirmed || in.ReportType == verifyapi.ReportTypeNegative)) {
 		return false, fmt.Errorf("invalid report type transition, cannot transition from '%v' to '%v'", e.ReportType, in.ReportType)
 	}
 
@@ -99,7 +103,8 @@ func (e *Exposure) Revise(in *Exposure) (bool, error) {
 	e.RevisedReportType = &in.ReportType
 	e.RevisedAt = &in.CreatedAt
 	e.RevisedDaysSinceSymptomOnset = in.DaysSinceSymptomOnset
-	e.RevisedTransmissionRisk = &in.TransmissionRisk
+	tr := ReportTypeTransmissionRisk(in.ReportType, in.TransmissionRisk)
+	e.RevisedTransmissionRisk = &tr
 
 	return true, nil
 }

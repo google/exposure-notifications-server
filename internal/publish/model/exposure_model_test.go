@@ -1312,6 +1312,37 @@ func TestExposureReview(t *testing.T) {
 			err:           "invalid report type transition, cannot transition from 'confirmed' to 'likely'",
 		},
 		{
+			name: "invalid_transition_from_empty_report_type",
+			previous: &Exposure{
+				ReportType:      "",
+				LocalProvenance: true,
+			},
+			incoming: &Exposure{
+				ReportType: verifyapi.ReportTypeClinical,
+			},
+			needsRevision: false,
+			err:           "invalid report type transition, cannot transition from '' to 'likely'",
+		},
+		{
+			name: "valid_transition_from_empty_report_type",
+			previous: &Exposure{
+				ReportType:      "",
+				LocalProvenance: true,
+			},
+			incoming: &Exposure{
+				ReportType: verifyapi.ReportTypeConfirmed,
+				CreatedAt:  revisedAt,
+			},
+			want: &Exposure{
+				ReportType:              "",
+				LocalProvenance:         true,
+				RevisedReportType:       stringPtr(verifyapi.ReportTypeConfirmed),
+				RevisedAt:               &revisedAt,
+				RevisedTransmissionRisk: intPtr(verifyapi.TransmissionRiskConfirmedStandard),
+			},
+			needsRevision: true,
+		},
+		{
 			name: "revise_key",
 			previous: &Exposure{
 				ReportType:            verifyapi.ReportTypeClinical,
