@@ -47,13 +47,17 @@ func (db *FederationInDB) Lock(ctx context.Context, lockID string, ttl time.Dura
 
 // GetFederationInQuery returns a query for given queryID. If not found, ErrNotFound will be returned.
 func (db *FederationInDB) GetFederationInQuery(ctx context.Context, queryID string) (*model.FederationInQuery, error) {
-	conn, err := db.db.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %w", err)
-	}
-	defer conn.Release()
+	var query *model.FederationInQuery
 
-	return getFederationInQuery(ctx, queryID, conn.QueryRow)
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		var err error
+		query, err = getFederationInQuery(ctx, queryID, tx.QueryRow)
+		return err
+	}); err != nil {
+		return nil, fmt.Errorf("get federation in query: %w", err)
+	}
+
+	return query, nil
 }
 
 func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRowFn) (*model.FederationInQuery, error) {
@@ -101,13 +105,17 @@ func (db *FederationInDB) AddFederationInQuery(ctx context.Context, q *model.Fed
 
 // GetFederationInSync returns a federation sync record for given syncID. If not found, ErrNotFound will be returned.
 func (db *FederationInDB) GetFederationInSync(ctx context.Context, syncID int64) (*model.FederationInSync, error) {
-	conn, err := db.db.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %w", err)
-	}
-	defer conn.Release()
+	var sync *model.FederationInSync
 
-	return getFederationInSync(ctx, syncID, conn.QueryRow)
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		var err error
+		sync, err = getFederationInSync(ctx, syncID, tx.QueryRow)
+		return err
+	}); err != nil {
+		return nil, fmt.Errorf("get federation in sync: %w", err)
+	}
+
+	return sync, nil
 }
 
 func getFederationInSync(ctx context.Context, syncID int64, queryRowContext queryRowFn) (*model.FederationInSync, error) {

@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
@@ -71,20 +70,15 @@ type IterateExposuresCriteria struct {
 // the iteration at the failed row. If IterateExposures returns a nil error,
 // the first return value will be the empty string.
 func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*model.Exposure) error) (cur string, err error) {
-	conn, err := db.db.Pool.Acquire(ctx)
-	if err != nil {
-		return "", fmt.Errorf("acquiring connection: %v", err)
-	}
-	defer conn.Release()
 	offset := 0
 	if criteria.LastCursor != "" {
 		offsetStr, err := decodeCursor(criteria.LastCursor)
 		if err != nil {
-			return "", fmt.Errorf("decoding cursor: %v", err)
+			return "", fmt.Errorf("decoding cursor: %w", err)
 		}
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil {
-			return "", fmt.Errorf("decoding cursor %v", err)
+			return "", fmt.Errorf("decoding cursor %w", err)
 		}
 	}
 
@@ -92,49 +86,56 @@ func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExpos
 	if err != nil {
 		return "", fmt.Errorf("generating where: %v", err)
 	}
-	logging.FromContext(ctx).Debugf("Query: %s", query)
-	logging.FromContext(ctx).Debugf("Args: %v", args)
 
 	// TODO: this is a pretty weak cursor solution, but not too bad since we'll
 	// typically have queries ahead of the cleanup and before the current
 	// ingestion window, and those should be stable.
 	cursor := func() string { return encodeCursor(strconv.Itoa(offset)) }
 
-	rows, err := conn.Query(ctx, query, args...)
-	if err != nil {
-		return cursor(), err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		if err := ctx.Err(); err != nil {
-			return cursor(), err
-		}
-		var (
-			m          model.Exposure
-			encodedKey string
-			syncID     *int64
-		)
-		if err := rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
-			&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &syncID, &m.HealthAuthorityID, &m.ReportType,
-			&m.DaysSinceSymptomOnset, &m.RevisedReportType, &m.RevisedAt, &m.RevisedDaysSinceSymptomOnset); err != nil {
-			return cursor(), err
-		}
-		var err error
-		m.ExposureKey, err = decodeExposureKey(encodedKey)
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, query, args...)
 		if err != nil {
-			return cursor(), err
+			return fmt.Errorf("failed to list: %w", err)
 		}
-		if syncID != nil {
-			m.FederationSyncID = *syncID
+		defer rows.Close()
+
+		for rows.Next() {
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("failed to iterate: %w", err)
+			}
+
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+
+			var m model.Exposure
+			var encodedKey string
+			var syncID *int64
+			if err := rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
+				&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &syncID, &m.HealthAuthorityID, &m.ReportType,
+				&m.DaysSinceSymptomOnset, &m.RevisedReportType, &m.RevisedAt, &m.RevisedDaysSinceSymptomOnset); err != nil {
+				return fmt.Errorf("failed to parse: %w", err)
+			}
+
+			var err error
+			m.ExposureKey, err = decodeExposureKey(encodedKey)
+			if err != nil {
+				return fmt.Errorf("failed to decode key: %w", err)
+			}
+			if syncID != nil {
+				m.FederationSyncID = *syncID
+			}
+			if err := f(&m); err != nil {
+				return err
+			}
+			offset++
 		}
-		if err := f(&m); err != nil {
-			return cursor(), err
-		}
-		offset++
+
+		return nil
+	}); err != nil {
+		return cursor(), fmt.Errorf("iterate exposures: %w", err)
 	}
-	if err := rows.Err(); err != nil {
-		return cursor(), err
-	}
+
 	return "", nil
 }
 
@@ -206,58 +207,65 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 // In the return map, the key is the base64 of the ExposureKey.
 // The keys are read for update in a provided transaction.
 func (db *PublishDB) ReadExposures(ctx context.Context, tx pgx.Tx, b64keys []string) (map[string]*model.Exposure, error) {
-	query := `
-		SELECT
-			exposure_key, transmission_risk, app_package_name, regions,
-			interval_number, interval_count, created_at, local_provenance, sync_id,
-			health_authority_id, report_type, days_since_symptom_onset,
-			revised_report_type, revised_at, revised_days_since_symptom_onset,
-			revised_transmission_risk
-		FROM
-			Exposure
-		WHERE exposure_key = ANY($1)
-		FOR UPDATE`
-	rows, err := tx.Query(ctx, query, b64keys)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+	exposures := make(map[string]*model.Exposure)
 
-	result := make(map[string]*model.Exposure)
-	for rows.Next() {
-		if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("iterating rows: %w", err)
-		}
-
-		var encodedKey string
-		var syncID sql.NullInt64
-
-		var exposure model.Exposure
-		if err := rows.Scan(
-			&encodedKey, &exposure.TransmissionRisk, &exposure.AppPackageName,
-			&exposure.Regions, &exposure.IntervalNumber, &exposure.IntervalCount,
-			&exposure.CreatedAt, &exposure.LocalProvenance, &syncID,
-			&exposure.HealthAuthorityID, &exposure.ReportType, &exposure.DaysSinceSymptomOnset,
-			&exposure.RevisedReportType, &exposure.RevisedAt, &exposure.RevisedDaysSinceSymptomOnset,
-			&exposure.RevisedTransmissionRisk,
-		); err != nil {
-			return nil, err
-		}
-
-		// Base64 decode the exposure key
-		exposure.ExposureKey, err = decodeExposureKey(encodedKey)
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT
+				exposure_key, transmission_risk, app_package_name, regions,
+				interval_number, interval_count, created_at, local_provenance, sync_id,
+				health_authority_id, report_type, days_since_symptom_onset,
+				revised_report_type, revised_at, revised_days_since_symptom_onset,
+				revised_transmission_risk
+			FROM
+				Exposure
+			WHERE exposure_key = ANY($1)
+			FOR UPDATE
+		`, b64keys)
 		if err != nil {
-			return nil, err
+			return fmt.Errorf("failed to list: %w", err)
 		}
-		// Optionally set all of the nullable columns.
-		if syncID.Valid {
-			exposure.FederationSyncID = syncID.Int64
+		defer rows.Close()
+
+		for rows.Next() {
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("failed to iterate: %w", err)
+			}
+
+			var encodedKey string
+			var syncID sql.NullInt64
+
+			var exposure model.Exposure
+			if err := rows.Scan(
+				&encodedKey, &exposure.TransmissionRisk, &exposure.AppPackageName,
+				&exposure.Regions, &exposure.IntervalNumber, &exposure.IntervalCount,
+				&exposure.CreatedAt, &exposure.LocalProvenance, &syncID,
+				&exposure.HealthAuthorityID, &exposure.ReportType, &exposure.DaysSinceSymptomOnset,
+				&exposure.RevisedReportType, &exposure.RevisedAt, &exposure.RevisedDaysSinceSymptomOnset,
+				&exposure.RevisedTransmissionRisk,
+			); err != nil {
+				return fmt.Errorf("failed to parse: %w", err)
+			}
+
+			// Base64 decode the exposure key
+			exposure.ExposureKey, err = decodeExposureKey(encodedKey)
+			if err != nil {
+				return fmt.Errorf("failed to decode key: %w", err)
+			}
+			// Optionally set all of the nullable columns.
+			if syncID.Valid {
+				exposure.FederationSyncID = syncID.Int64
+			}
+
+			exposures[exposure.ExposureKeyBase64()] = &exposure
 		}
 
-		result[exposure.ExposureKeyBase64()] = &exposure
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("read exposures: %w", err)
 	}
 
-	return result, nil
+	return exposures, nil
 }
 
 func prepareInsertExposure(ctx context.Context, tx pgx.Tx) (string, error) {

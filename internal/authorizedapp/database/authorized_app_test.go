@@ -17,11 +17,6 @@ package database
 import (
 	"context"
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/x509"
-	"encoding/pem"
-	"fmt"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
@@ -30,27 +25,12 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-type testSecretManager struct {
-	values map[string]string
-}
-
-func (s *testSecretManager) GetSecretValue(ctx context.Context, name string) (string, error) {
-	v, ok := s.values[name]
-	if !ok {
-		return "", fmt.Errorf("missing %q", name)
-	}
-	return v, nil
-}
-
 func TestAuthorizedAppLifecycle(t *testing.T) {
 	t.Parallel()
 
 	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 	aadb := New(testDB)
-	sm := &testSecretManager{
-		values: map[string]string{},
-	}
 
 	source := &model.AuthorizedApp{
 		AppPackageName:            "myapp",
@@ -62,7 +42,7 @@ func TestAuthorizedAppLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	readBack, err := aadb.GetAuthorizedApp(ctx, sm, source.AppPackageName)
+	readBack, err := aadb.GetAuthorizedApp(ctx, source.AppPackageName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +55,7 @@ func TestAuthorizedAppLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	readBack, err = aadb.GetAuthorizedApp(ctx, sm, source.AppPackageName)
+	readBack, err = aadb.GetAuthorizedApp(ctx, source.AppPackageName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +67,7 @@ func TestAuthorizedAppLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	readBack, err = aadb.GetAuthorizedApp(ctx, sm, source.AppPackageName)
+	readBack, err = aadb.GetAuthorizedApp(ctx, source.AppPackageName)
 	if err != nil {
 		t.Errorf("unexpected error seen: %v", err)
 	}
@@ -100,26 +80,6 @@ func TestGetAuthorizedApp(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-
-	// Create private key for parsing later
-	p8PrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	derKey, err := x509.MarshalPKCS8PrivateKey(p8PrivateKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pemBytes := pem.EncodeToMemory(&pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: derKey,
-	})
-
-	sm := &testSecretManager{
-		values: map[string]string{
-			"private_key": string(pemBytes),
-		},
-	}
 
 	cases := []struct {
 		name string
@@ -182,7 +142,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			config, err := New(testDB).GetAuthorizedApp(ctx, sm, "myapp")
+			config, err := New(testDB).GetAuthorizedApp(ctx, "myapp")
 			if (err != nil) != c.err {
 				t.Fatal(err)
 			}

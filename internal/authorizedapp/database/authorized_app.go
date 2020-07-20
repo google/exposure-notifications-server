@@ -23,7 +23,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/pkg/secrets"
 	pgx "github.com/jackc/pgx/v4"
 )
 
@@ -110,64 +109,71 @@ func (aa *AuthorizedAppDB) DeleteAuthorizedApp(ctx context.Context, name string)
 }
 
 func (aa *AuthorizedAppDB) ListAuthorizedApps(ctx context.Context) ([]*model.AuthorizedApp, error) {
-	conn, err := aa.db.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %w", err)
-	}
-	defer conn.Release()
+	var apps []*model.AuthorizedApp
 
-	query := `
-		SELECT
-			LOWER(app_package_name), allowed_regions,
-			allowed_health_authority_ids, bypass_health_authority_verification
-		FROM
-			AuthorizedApp
-		ORDER BY LOWER(app_package_name) ASC`
-
-	rows, err := conn.Query(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var result []*model.AuthorizedApp
-	for rows.Next() {
-		if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("iterating rows: %w", err)
-		}
-
-		app, err := scanOneAuthorizedApp(ctx, rows)
+	if err := aa.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT
+				LOWER(app_package_name), allowed_regions,
+				allowed_health_authority_ids, bypass_health_authority_verification
+			FROM
+				AuthorizedApp
+			ORDER BY LOWER(app_package_name) ASC
+		`)
 		if err != nil {
-			return nil, fmt.Errorf("error reading authorized apps: %w", err)
+			return fmt.Errorf("failed to list: %w", err)
 		}
-		result = append(result, app)
+		defer rows.Close()
+
+		for rows.Next() {
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("failed to iterate: %w", err)
+			}
+
+			app, err := scanOneAuthorizedApp(rows)
+			if err != nil {
+				return fmt.Errorf("failed to parse: %w", err)
+			}
+			apps = append(apps, app)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("list authorized apps: %w", err)
 	}
-	return result, nil
+
+	return apps, nil
 }
 
 // GetAuthorizedApp loads a single AuthorizedApp for the given name. If no row
 // exists, this returns nil.
-func (aa *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, sm secrets.SecretManager, name string) (*model.AuthorizedApp, error) {
-	conn, err := aa.db.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %v", err)
+func (aa *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, name string) (*model.AuthorizedApp, error) {
+	var app *model.AuthorizedApp
+
+	if err := aa.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		row := tx.QueryRow(ctx, `
+			SELECT
+				LOWER(app_package_name), allowed_regions,
+				allowed_health_authority_ids, bypass_health_authority_verification
+			FROM
+				AuthorizedApp
+			WHERE LOWER(app_package_name) = LOWER($1)
+		`, name)
+
+		var err error
+		app, err = scanOneAuthorizedApp(row)
+		if err != nil {
+			return fmt.Errorf("failed to parse: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("get authorized app: %w", err)
 	}
-	defer conn.Release()
 
-	query := `
-		SELECT
-			LOWER(app_package_name), allowed_regions,
-			allowed_health_authority_ids, bypass_health_authority_verification
-		FROM
-			AuthorizedApp
-		WHERE LOWER(app_package_name) = LOWER($1)`
-
-	row := conn.QueryRow(ctx, query, name)
-
-	return scanOneAuthorizedApp(ctx, row)
+	return app, nil
 }
 
-func scanOneAuthorizedApp(ctx context.Context, row pgx.Row) (*model.AuthorizedApp, error) {
+func scanOneAuthorizedApp(row pgx.Row) (*model.AuthorizedApp, error) {
 	config := model.NewAuthorizedApp()
 	var allowedRegions []string
 	var allowedHealthAuthorityIDs []int64

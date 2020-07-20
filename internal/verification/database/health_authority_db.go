@@ -93,53 +93,59 @@ func (db *HealthAuthorityDB) UpdateHealthAuthority(ctx context.Context, ha *mode
 }
 
 func (db *HealthAuthorityDB) GetHealthAuthorityByID(ctx context.Context, id int64) (*model.HealthAuthority, error) {
-	conn, err := db.db.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %w", err)
+	var ha *model.HealthAuthority
+
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		row := tx.QueryRow(ctx, `
+			SELECT
+				id, iss, aud, name
+			FROM
+				HealthAuthority
+			WHERE
+				id = $1
+		`, id)
+
+		var err error
+		ha, err = scanOneHealthAuthority(row)
+		if err != nil {
+			return fmt.Errorf("failed to parse: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("get health authority by id: %w", err)
 	}
-	defer conn.Release()
 
-	row := conn.QueryRow(ctx, `
-		SELECT
-			id, iss, aud, name
-		FROM
-			HealthAuthority
-		WHERE
-			id = $1`, id)
-
-	var ha model.HealthAuthority
-	if err := row.Scan(&ha.ID, &ha.Issuer, &ha.Audience, &ha.Name); err != nil {
-		return nil, err
-	}
-
-	haks, err := db.GetHealthAuthorityKeys(ctx, &ha)
+	haks, err := db.GetHealthAuthorityKeys(ctx, ha)
 	if err != nil {
 		return nil, err
 	}
 	ha.Keys = haks
 
-	return &ha, nil
+	return ha, nil
 }
 
 // GetHealthAuthority retrieves a HealthAuthority record by the issuer name.
 func (db *HealthAuthorityDB) GetHealthAuthority(ctx context.Context, issuer string) (*model.HealthAuthority, error) {
-	conn, err := db.db.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %w", err)
-	}
-	defer conn.Release()
+	var ha *model.HealthAuthority
 
-	row := conn.QueryRow(ctx, `
-		SELECT
-			id, iss, aud, name
-		FROM
-			HealthAuthority
-		WHERE
-			iss = $1`, issuer)
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		row := tx.QueryRow(ctx, `
+			SELECT
+				id, iss, aud, name
+			FROM
+				HealthAuthority
+			WHERE
+				iss = $1
+		`, issuer)
 
-	ha, err := scanOneHealthAuthority(row)
-	if err != nil {
-		return nil, err
+		var err error
+		ha, err = scanOneHealthAuthority(row)
+		if err != nil {
+			return fmt.Errorf("failed to parse: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("get health authority: %w", err)
 	}
 
 	haks, err := db.GetHealthAuthorityKeys(ctx, ha)
@@ -152,32 +158,38 @@ func (db *HealthAuthorityDB) GetHealthAuthority(ctx context.Context, issuer stri
 }
 
 func (db *HealthAuthorityDB) ListAllHealthAuthoritiesWithoutKeys(ctx context.Context) ([]*model.HealthAuthority, error) {
-	conn, err := db.db.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %w", err)
-	}
-	defer conn.Release()
+	var has []*model.HealthAuthority
 
-	rows, err := conn.Query(ctx, `
-		SELECT
-			id, iss, aud, name
-	 	FROM
-			HealthAuthority
-		ORDER BY iss ASC`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	results := []*model.HealthAuthority{}
-	for rows.Next() {
-		if ha, err := scanOneHealthAuthority(rows); err != nil {
-			return nil, err
-		} else {
-			results = append(results, ha)
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT
+				id, iss, aud, name
+			FROM
+				HealthAuthority
+			ORDER BY iss ASC
+		`)
+		if err != nil {
+			return fmt.Errorf("failed to list: %w", err)
 		}
+		defer rows.Close()
+
+		for rows.Next() {
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("failed to iterate: %w", err)
+			}
+
+			ha, err := scanOneHealthAuthority(rows)
+			if err != nil {
+				return fmt.Errorf("failed to parse: %w", err)
+			}
+			has = append(has, ha)
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("list health authorities: %w", err)
 	}
-	return results, nil
+
+	return has, nil
 }
 
 func scanOneHealthAuthority(row pgx.Row) (*model.HealthAuthority, error) {
@@ -248,37 +260,42 @@ func (db *HealthAuthorityDB) UpdateHealthAuthorityKey(ctx context.Context, hak *
 }
 
 func (db *HealthAuthorityDB) GetHealthAuthorityKeys(ctx context.Context, ha *model.HealthAuthority) ([]*model.HealthAuthorityKey, error) {
-	conn, err := db.db.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %w", err)
-	}
-	defer conn.Release()
+	var keys []*model.HealthAuthorityKey
 
-	rows, err := conn.Query(ctx, `
-		SELECT
-			health_authority_id, version, from_timestamp, thru_timestamp, public_key
-		FROM
-			HealthAuthorityKey
-		WHERE
-			health_authority_id = $1`, ha.ID)
-	if err != nil {
-		return nil, err
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT
+				health_authority_id, version, from_timestamp, thru_timestamp, public_key
+			FROM
+				HealthAuthorityKey
+			WHERE
+				health_authority_id = $1
+		`, ha.ID)
+		if err != nil {
+			return fmt.Errorf("failed to list: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("failed to iterate: %w", err)
+			}
+
+			var key model.HealthAuthorityKey
+			var thru *time.Time
+			if err := rows.Scan(&key.AuthorityID, &key.Version, &key.From, &thru, &key.PublicKeyPEM); err != nil {
+				return fmt.Errorf("failed to parse: %w", err)
+			}
+			if thru != nil {
+				key.Thru = *thru
+			}
+			keys = append(keys, &key)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("get health authority keys: %w", err)
 	}
 
-	var haks []*model.HealthAuthorityKey
-	for rows.Next() {
-		if rows.Err() != nil {
-			return nil, rows.Err()
-		}
-		var hak model.HealthAuthorityKey
-		var thru *time.Time
-		if err := rows.Scan(&hak.AuthorityID, &hak.Version, &hak.From, &thru, &hak.PublicKeyPEM); err != nil {
-			return nil, err
-		}
-		if thru != nil {
-			hak.Thru = *thru
-		}
-		haks = append(haks, &hak)
-	}
-	return haks, nil
+	return keys, nil
 }

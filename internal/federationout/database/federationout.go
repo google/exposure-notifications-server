@@ -17,6 +17,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -58,29 +59,32 @@ func (db *FederationOutDB) AddFederationOutAuthorization(ctx context.Context, au
 
 // GetFederationOutAuthorization returns a FederationOutAuthorization record, or ErrNotFound if not found.
 func (db *FederationOutDB) GetFederationOutAuthorization(ctx context.Context, issuer, subject string) (*model.FederationOutAuthorization, error) {
-	conn, err := db.db.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring connection: %w", err)
-	}
-	defer conn.Release()
+	var auth model.FederationOutAuthorization
 
-	row := conn.QueryRow(ctx, `
-		SELECT
-			oidc_issuer, oidc_subject, oidc_audience, note, include_regions, exclude_regions
-		FROM
-			FederationOutAuthorization
-		WHERE
-			oidc_issuer = $1
-		AND
-			oidc_subject = $2
-		LIMIT 1
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		row := tx.QueryRow(ctx, `
+			SELECT
+				oidc_issuer, oidc_subject, oidc_audience, note, include_regions, exclude_regions
+			FROM
+				FederationOutAuthorization
+			WHERE
+				oidc_issuer = $1
+			AND
+				oidc_subject = $2
+			LIMIT 1
 		`, issuer, subject)
-	auth := model.FederationOutAuthorization{}
-	if err := row.Scan(&auth.Issuer, &auth.Subject, &auth.Audience, &auth.Note, &auth.IncludeRegions, &auth.ExcludeRegions); err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, database.ErrNotFound
+
+		if err := row.Scan(&auth.Issuer, &auth.Subject, &auth.Audience, &auth.Note, &auth.IncludeRegions, &auth.ExcludeRegions); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return database.ErrNotFound
+			}
+			return fmt.Errorf("failed to parse: %w", err)
 		}
-		return nil, fmt.Errorf("scanning results: %w", err)
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("get authorized app: %w", err)
 	}
+
 	return &auth, nil
+
 }

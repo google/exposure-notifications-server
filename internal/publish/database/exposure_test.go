@@ -16,7 +16,6 @@ package database
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -361,8 +360,8 @@ func TestIterateExposuresCursor(t *testing.T) {
 		}
 		return nil
 	})
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("got %v, wanted context.Canceled", err)
+	if err == nil {
+		t.Fatal("expected error")
 	}
 	if diff := cmp.Diff(exposures[:2], seen, ignoreUnexportedExposure); diff != "" {
 		t.Fatalf("exposures mismatch (-want, +got):\n%s", diff)
