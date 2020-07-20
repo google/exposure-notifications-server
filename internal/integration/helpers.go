@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -35,6 +36,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/google/exposure-notifications-server/pkg/server"
+	"github.com/sethvargo/go-retry"
 
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
@@ -258,7 +260,9 @@ func testClient(tb testing.TB, srv *server.Server) *http.Client {
 	}
 
 	return &http.Client{
-		Timeout:   5 * time.Second,
+		// Cleaning up 10000 multiple exports takes ~20 seconds, increasing this
+		// so that load test doesn't time out
+		Timeout:   50 * time.Second,
 		Transport: prt,
 	}
 }
@@ -270,4 +274,26 @@ func randomString() (string, error) {
 	}
 	digest := fmt.Sprintf("%x", sha256.Sum256(b[:]))
 	return digest[:32], nil
+}
+
+// Eventually retries the given function n times, sleeping 1s between each
+// invocation. To mark an error as retryable, wrap it in retry.RetryableError.
+// Non-retryable errors return immediately.
+func Eventually(tb testing.TB, times uint64, f func() error) {
+	ctx := context.Background()
+	b, err := retry.NewConstant(1 * time.Second)
+	if err != nil {
+		tb.Fatalf("failed to create retry: %v", err)
+	}
+	b = retry.WithMaxRetries(times, b)
+
+	if err := retry.Do(ctx, b, func(ctx context.Context) error {
+		return f()
+	}); err != nil {
+		tb.Fatalf("did not return ok after %d retries: %v", times, err)
+	}
+}
+
+func IndexFilePath() string {
+	return path.Join(FileNameRoot, "index.txt")
 }
