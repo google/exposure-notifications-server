@@ -104,6 +104,8 @@ func (e *Exposure) Revise(in *Exposure) (bool, error) {
 	return true, nil
 }
 
+// AddMissingRegions will merge the input regions into the regions already on the exposure.
+// Set union operation.
 func (e *Exposure) AddMissingRegions(regions []string) {
 	m := make(map[string]struct{})
 	for _, r := range e.Regions {
@@ -129,18 +131,24 @@ func (e *Exposure) SetDaysSinceSymptomOnset(d int32) {
 	e.DaysSinceSymptomOnset = &d
 }
 
+// HasHealthAuthorityID returns true if this Exposure has a health authority ID.
 func (e *Exposure) HasHealthAuthorityID() bool {
 	return e.HealthAuthorityID != nil
 }
 
+// SetHealthAuthorityID assigned a health authority ID. Typically done during transform.
 func (e *Exposure) SetHealthAuthorityID(haID int64) {
 	e.HealthAuthorityID = &haID
 }
 
+// HasBeenRevised returns true if this key has been revised. This is indicauted
+// by the RevisedAt time not being nil.
 func (e *Exposure) HasBeenRevised() bool {
 	return e.RevisedAt != nil
 }
 
+// SetRevisedAt will set the revision time on this Exposure. The RevisedAt timestamp
+// can only be set once. Attempting to set it again will result in an error.
 func (e *Exposure) SetRevisedAt(t time.Time) error {
 	if e.RevisedAt != nil {
 		return fmt.Errorf("exposure key has already been revised and cannot be revised again")
@@ -149,14 +157,17 @@ func (e *Exposure) SetRevisedAt(t time.Time) error {
 	return nil
 }
 
+// SetRevisedReportType will set the revised report type.
 func (e *Exposure) SetRevisedReportType(rt string) {
 	e.RevisedReportType = &rt
 }
 
+// SetRevisedDaysSinceSymptomOnset will set the revised days since symptom onset.
 func (e *Exposure) SetRevisedDaysSinceSymptomOnset(d int32) {
 	e.RevisedDaysSinceSymptomOnset = &d
 }
 
+// SetRevisedTransmissionRisk will set the revised transmission risk.
 func (e *Exposure) SetRevisedTransmissionRisk(tr int) {
 	e.RevisedTransmissionRisk = &tr
 }
@@ -246,6 +257,7 @@ func DaysFromSymptomOnset(onsetInterval int32, checkInterval int32) int32 {
 	return days
 }
 
+// TransformerConfig defines the interface that is needed to configure a `Transformer`
 type TransformerConfig interface {
 	MaxExposureKeys() uint
 	MaxSameDayKeys() uint
@@ -299,9 +311,8 @@ type KeyTransform struct {
 // Validations during the transform include:
 //
 // * exposure keys are exactly 16 bytes in length after base64 decoding
-// * minInterval <= interval number <= maxInterval
+// * minInterval <= interval number +intervalCount <= maxInterval
 // * MinIntervalCount <= interval count <= MaxIntervalCount
-//
 func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName string, upcaseRegions []string, settings *KeyTransform) (*Exposure, error) {
 	binKey, err := base64util.DecodeString(exposureKey.Key)
 	if err != nil {
@@ -316,9 +327,9 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 		return nil, fmt.Errorf("invalid interval count, %v, must be >= %v && <= %v", ic, verifyapi.MinIntervalCount, verifyapi.MaxIntervalCount)
 	}
 
-	// Validate the IntervalNumber.
-	if exposureKey.IntervalNumber < settings.MinStartInterval {
-		return nil, fmt.Errorf("interval number %v is too old, must be >= %v", exposureKey.IntervalNumber, settings.MinStartInterval)
+	// Validate the IntervalNumber, if the key was ever valid during this period, we'll accept it.
+	if validUntil := exposureKey.IntervalNumber + exposureKey.IntervalCount; validUntil <= settings.MinStartInterval {
+		return nil, fmt.Errorf("key expires before minimum window; %v + %v = %v which is too old, must be >= %v", exposureKey.IntervalNumber, exposureKey.IntervalCount, validUntil, settings.MinStartInterval)
 	}
 	if exposureKey.IntervalNumber > settings.MaxStartInterval {
 		return nil, fmt.Errorf("interval number %v is in the future, must be <= %v", exposureKey.IntervalNumber, settings.MaxStartInterval)
@@ -384,6 +395,14 @@ func ReviseKeys(ctx context.Context, existing map[string]*Exposure, incoming []*
 	return output, nil
 }
 
+// ReportTypeTransmissionRisk will calculate the backfill, default Transmission Risk.
+// If there is a provided transmission risk that is non-zero, that will be used, otherwise
+// this mapping is used:
+// * Confirmed Test -> 2
+// * Clinical Diagnosis -> 4
+// * Negative -> 6
+// See constants defined in
+// pkg/api/v1alpha1/verification_types.go
 func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 	// If the client provided a transmission risk, we'll use that.
 	if providedTR != 0 {
