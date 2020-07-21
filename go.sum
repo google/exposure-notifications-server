@@ -1103,6 +1103,8 @@ github.com/sethvargo/go-gcpkms v0.1.0 h1:pyjDLqLwpk9pMjDSTilPpaUjgP1AfSjX9WGzitZ
 github.com/sethvargo/go-gcpkms v0.1.0/go.mod h1:33BuvqUjsYk0bpMgn+WCclCYtMLOyaqtn5j0fCo4vvk=
 github.com/sethvargo/go-retry v0.1.0 h1:8sPqlWannzcReEcYjHSNw9becsiYudcwTD7CasGjQaI=
 github.com/sethvargo/go-retry v0.1.0/go.mod h1:JzIOdZqQDNpPkQDmcqgtteAcxFLtYpNF/zJCM1ysDg8=
+github.com/sethvargo/go-signalcontext v0.1.0 h1:3IU7HOlmRXF0PSDf85C4nJ/zjYDjF+DS+LufcKfLvyk=
+github.com/sethvargo/go-signalcontext v0.1.0/go.mod h1:PXu9UmR2f7mmp8kEwgkKmaDbxq/PbqixkiC66WIkkWE=
 github.com/shirou/gopsutil v0.0.0-20190901111213-e4ec7b275ada/go.mod h1:WWnYX4lzhCH5h/3YBfyVA3VbLYjlMZZAQcW9ojMexNc=
 github.com/shirou/gopsutil v2.19.9+incompatible h1:IrPVlK4nfwW10DF7pW+7YJKws9NkgNzWozwwWv9FsgY=
 github.com/shirou/gopsutil v2.19.9+incompatible/go.mod h1:5b4v6he4MtMOwMlS0TUMTu2PcXUg8+E1lC7eC3UO/RA=

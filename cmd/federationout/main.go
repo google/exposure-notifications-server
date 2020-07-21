@@ -25,16 +25,16 @@ import (
 	"go.opencensus.io/plugin/ocgrpc"
 
 	"github.com/google/exposure-notifications-server/internal/federationout"
-	"github.com/google/exposure-notifications-server/internal/interrupt"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	_ "github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/server"
+	"github.com/sethvargo/go-signalcontext"
 )
 
 func main() {
-	ctx, done := interrupt.Context()
+	ctx, done := signalcontext.OnInterrupt()
 	defer done()
 
 	if err := realMain(ctx); err != nil {
