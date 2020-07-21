@@ -15,7 +15,7 @@ jobs:
           This issue is stale because it has been open for 14 days with no
           activity. It will automatically close after 7 more days of inactivity.
         stale-issue-label: 'kind/stale'
-        exempt-issue-labels: 'priority/important-soon,kind/bug,kind/privacy'
+        exempt-issue-labels: 'priority/important-soon,kind/bug,kind/privacy,kind/enhancement'
 
         stale-pr-message: |-
           This Pull Request is stale because it has been open for 14 days with
