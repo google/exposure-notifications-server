@@ -46,7 +46,7 @@ func (f *formData) PriorKey() string {
 }
 
 func (f *formData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
-	a.AppPackageName = f.AppPackageName
+	a.AppPackageName = strings.TrimSpace(f.AppPackageName)
 	a.AllowedRegions = make(map[string]struct{})
 	for _, region := range strings.Split(f.AllowedRegions, "\n") {
 		region = strings.TrimSpace(region)

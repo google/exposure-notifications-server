@@ -16,6 +16,7 @@
 package siginfo
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/admin"
@@ -40,8 +41,8 @@ func (f *formData) PopulateSigInfo(si *model.SignatureInfo) error {
 		return err
 	}
 
-	si.SigningKey = f.SigningKey
-	si.SigningKeyVersion = f.SigningKeyVersion
+	si.SigningKey = strings.TrimSpace(f.SigningKey)
+	si.SigningKeyVersion = strings.TrimSpace(f.SigningKeyVersion)
 	si.SigningKeyID = f.SigningKeyID
 	si.EndTimestamp = ts
 	return nil

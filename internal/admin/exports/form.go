@@ -46,10 +46,10 @@ func (f *formData) PopulateExportConfig(ec *model.ExportConfig) error {
 		return err
 	}
 
-	ec.BucketName = f.BucketName
-	ec.FilenameRoot = f.FilenameRoot
+	ec.BucketName = strings.TrimSpace(f.BucketName)
+	ec.FilenameRoot = strings.TrimSpace(f.FilenameRoot)
 	ec.Period = f.Period
-	ec.OutputRegion = f.OutputRegion
+	ec.OutputRegion = strings.TrimSpace(f.OutputRegion)
 	ec.InputRegions = make([]string, 0)
 	for _, s := range strings.Split(f.InputRegions, "\n") {
 		s := strings.TrimSpace(s)
