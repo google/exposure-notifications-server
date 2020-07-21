@@ -16,6 +16,7 @@
 package healthauthority
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/admin"
@@ -60,10 +61,10 @@ func (f *keyFormData) PopulateHealthAuthorityKey(hak *model.HealthAuthorityKey) 
 	if err != nil {
 		return err
 	}
-	hak.Version = f.Version
+	hak.Version = strings.TrimSpace(f.Version)
 	hak.From = fTime
 	hak.Thru = tTime
-	hak.PublicKeyPEM = f.PEMBlock
+	hak.PublicKeyPEM = strings.TrimSpace(f.PEMBlock)
 
 	_, err = hak.PublicKey()
 	if err != nil {

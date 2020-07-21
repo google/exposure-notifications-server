@@ -14,7 +14,10 @@
 
 package admin
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // CombineDateAndTime takes values from date and time HTML inputs and combines
 // them to a single date time.
@@ -26,5 +29,5 @@ func CombineDateAndTime(dateS, timeS string) (time.Time, error) {
 	if timeS == "" {
 		timeS = "00:00"
 	}
-	return time.Parse("2006-01-02 15:04", dateS+" "+timeS)
+	return time.Parse("2006-01-02 15:04", strings.TrimSpace(dateS)+" "+strings.TrimSpace(timeS))
 }
