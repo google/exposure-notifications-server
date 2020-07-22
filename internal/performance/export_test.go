@@ -142,21 +142,6 @@ func TestExport(t *testing.T) {
 		}
 	}
 
-	// Ensure all keys published
-	integration.Eventually(t, 30, func() error {
-		var exposures []*publishmodel.Exposure
-		if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
-			exposures = append(exposures, m)
-			return nil
-		}); err != nil {
-			return err
-		}
-		if l := len(exposures); l != want {
-			return retry.RetryableError(fmt.Errorf("Want: %d, got %d", want, l))
-		}
-		return nil
-	})
-
 	// Start measurement
 	startTime := time.Now()
 	integration.Eventually(t, 30, func() error {
