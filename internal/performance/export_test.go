@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -204,7 +205,55 @@ func TestExport(t *testing.T) {
 		}
 		return nil
 	})
-	stopTime := time.Now()
+	t.Logf("Export finished in '%v'", time.Now().Sub(startTime))
 
-	t.Logf("Export finished in '%v'", stopTime.Sub(startTime))
+	// Next, measure cleanup performance
+
+	// Mark the export in the past to force a cleanup
+	if err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			UPDATE
+				ExportBatch
+			SET
+				start_timestamp = $1,
+				end_timestamp = $2
+		`,
+			time.Now().Add(-30*24*time.Hour),
+			time.Now().Add(-29*24*time.Hour),
+		)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// 4. Cleanup and capture metrics
+	startTime = time.Now()
+	if err = client.CleanupExports(); err != nil {
+		t.Fatal(err)
+	}
+
+	var remainings []string
+	integration.Eventually(t, 30, func() error {
+		index, err := env.Blobstore().GetObject(ctx, integration.ExportDir,
+			path.Join(integration.FileNameRoot, "index.txt"))
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				return retry.RetryableError(fmt.Errorf("Can not find index file: %v", err))
+			}
+			return err
+		}
+		// Find the latest file in the index
+		remainings = strings.Split(string(index), "\n")
+		return nil
+	})
+	for _, r := range remainings {
+		_, err := env.Blobstore().GetObject(ctx, integration.ExportDir, r)
+		if err == nil {
+			t.Fatalf("Should have been cleaned up %q: %v", r, err)
+		}
+		if !errors.Is(err, storage.ErrNotFound) {
+			t.Fatalf("Failed reading blob %q: %v", r, err)
+		}
+	}
+	t.Logf("Clean up finished in '%v'", time.Now().Sub(startTime))
 }
