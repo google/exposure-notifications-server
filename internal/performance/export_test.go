@@ -1,3 +1,5 @@
+// +build performance
+
 // Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,217 +18,55 @@ package performance
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	exportapi "github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/integration"
-	"github.com/google/exposure-notifications-server/internal/pb/export"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/internal/util"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"google.golang.org/protobuf/proto"
-)
-
-const (
-	exportDir = "my-bucket"
+	pgx "github.com/jackc/pgx/v4"
+	"github.com/sethvargo/go-retry"
 )
 
 func TestExport(t *testing.T) {
-	t.Parallel()
-
+	const (
+		keysPerPublish = 14
+		// Publishes in 24 hours
+		numPublishes = 100000
+		// Consider the above publishes are evenly distributed in 24 hours, and
+		// period is 10 minutes
+		exportPeriod  = 10 * time.Minute
+		totalBatches  = 24 * 6
+		roughPerBatch = numPublishes/totalBatches + 1
+	)
 	var (
-		ctx          = context.Background()
-		exportPeriod = 2 * time.Second
+		ctx      = context.Background()
+		criteria = publishdb.IterateExposuresCriteria{
+			OnlyLocalProvenance: false,
+		}
+		want           = keysPerPublish * numPublishes
+		batchStartTime = time.Now().Add(time.Duration(-totalBatches-10) * exportPeriod)
 	)
 
-	env, enClient, _ := integration.NewTestServer(t, ctx, exportPeriod)
+	env, client, db := integration.NewTestServer(t, exportPeriod)
+	payload := &verifyapi.Publish{
+		Keys:           util.GenerateExposureKeys(keysPerPublish, -1, false),
+		Regions:        []string{"TEST"},
+		AppPackageName: "com.example.app",
 
-	jobs := make(chan int, 1000)
-	for i := 0; i < 1000; i++ {
-		go sendPayloadWorker(t, enClient, jobs)
+		// TODO: hook up verification
+		VerificationPayload: "TODO: ",
 	}
-
-	for i := 0; i < 100000; i++ {
-		jobs <- i
-	}
-	close(jobs)
-
-	startTime := exportKeys(t, enClient, exportPeriod)
-	for {
-		files := getAllBatchesFiles(t, exportDir, ctx, env)
-		exportFile := getLatestFile(files)
-		if exportFile != "" {
-			break
-		}
-	}
-	stopTime := time.Now()
-	t.Fatal(stopTime.Sub(startTime) - 500*time.Millisecond)
-}
-
-func exportKeys(t *testing.T, enClient *integration.EnServerClient, exportPeriod time.Duration) time.Time {
-	t.Logf("Waiting %v before export batches", exportPeriod+1*time.Second)
-	time.Sleep(exportPeriod + 1*time.Second)
-	startTime := time.Now()
-	enClient.ExportBatches(t)
-
-	t.Logf("Waiting %v before starting workers", 500*time.Millisecond)
-	time.Sleep(500 * time.Millisecond)
-	enClient.StartExportWorkers(t)
-	return startTime
-}
-
-// keysTransformation transforms []verifyapi.ExposureKey to string keys, this
-// function assumes that server saves keys with the same method. This can be
-// verified by `assertKeysTransformation` function below
-func keysTransformation(t *testing.T, keys []verifyapi.ExposureKey) map[string]bool {
-	res := make(map[string]bool)
-	for _, p := range keys {
-		dec, err := base64util.DecodeString(p.Key)
-		if err != nil {
-			t.Fatalf("Failed to decode key %q: %v", p.Key, err)
-		}
-		res[string(dec)] = true
-	}
-	return res
-}
-
-func assertKeysTransformation(t *testing.T, ctx context.Context, db *database.DB,
-	criteria publishdb.IterateExposuresCriteria, generatedKeys map[string]bool) {
-	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
-		if _, ok := generatedKeys[string(m.ExposureKey)]; ok {
-			generatedKeys[string(m.ExposureKey)] = false
-		} else {
-			return fmt.Errorf("key %q doesn't belong to generated keys: %v", string(m.ExposureKey), generatedKeys)
-		}
-		return nil
-	}); err != nil {
+	if err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func alterExposureCreatedAt(t *testing.T, ctx context.Context, db *database.DB,
-	criteria publishdb.IterateExposuresCriteria, keys map[string]bool, timeDelta time.Duration) {
-	// Move the tick of first batch, and make them old
-	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
-		if _, ok := keys[string(m.ExposureKey)]; !ok {
-			return nil
-		}
-		if _, err := publishdb.New(db).DeleteExposure(ctx, m.ExposureKey); err != nil {
-			return fmt.Errorf("failed deleting exposure %v: %v", m.ExposureKey, err)
-		}
-		m.CreatedAt = m.CreatedAt.Add(timeDelta)
-		if err := publishdb.New(db).InsertExposures(ctx, []*publishmodel.Exposure{m}); err != nil {
-			return fmt.Errorf("failed inserting exposure %v with updated creation time: %v",
-				m.ExposureKey, err)
-		}
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func assertExports(t *testing.T, wantedKeysMap map[string]*export.TemporaryExposureKey,
-	wantExport *export.TemporaryExposureKeyExport, got *export.TemporaryExposureKeyExport) {
-	if wantExport != nil {
-		if *wantExport.BatchSize != *got.BatchSize {
-			t.Errorf("Invalid BatchSize: want: %v, got: %v", *wantExport.BatchSize, *got.BatchSize)
-		}
-
-		if *wantExport.BatchNum != *got.BatchNum {
-			t.Errorf("Invalid BatchNum: want: %v, got: %v", *wantExport.BatchNum, *got.BatchNum)
-		}
-
-		if *wantExport.Region != *got.Region {
-			t.Errorf("Invalid Region: want: %v, got: %v", *wantExport.BatchSize, *got.BatchSize)
-		}
-	}
-
-	for _, key := range got.Keys {
-		s := util.ToBase64(key.KeyData)
-		wantedKey := wantedKeysMap[s]
-		diff := cmp.Diff(wantedKey, key, cmpopts.IgnoreUnexported(export.TemporaryExposureKey{}))
-		if diff != "" {
-			t.Errorf("invalid key value: %v:%v", s, diff)
-		}
-	}
-
-	if _, err := json.MarshalIndent(got, "", ""); err != nil {
-		t.Fatalf("can't marshal json results: %v", err)
-	}
-}
-
-func assertExportedKeysMatch(t *testing.T, wantedKeysMap map[string]*export.TemporaryExposureKey,
-	got []*export.TemporaryExposureKeyExport) {
-	var gotKeys []*export.TemporaryExposureKey
-	for _, e := range got {
-		gotKeys = append(gotKeys, e.Keys...)
-	}
-	if len(wantedKeysMap) != len(gotKeys) {
-		t.Fatalf("Number of keys mismatch. Want: %d, got %d", len(wantedKeysMap), len(gotKeys))
-	}
-	for _, key := range gotKeys {
-		s := util.ToBase64(key.KeyData)
-		wantedKey := wantedKeysMap[s]
-		diff := cmp.Diff(wantedKey, key, cmpopts.IgnoreUnexported(export.TemporaryExposureKey{}))
-		if diff != "" {
-			t.Errorf("invalid key value: %v:%v", s, diff)
-		}
-	}
-
-	if _, err := json.MarshalIndent(got, "", ""); err != nil {
-		t.Fatalf("can't marshal json results: %v", err)
-	}
-}
-
-func wantFromKeys(keys []verifyapi.ExposureKey, batchNum, batchSize int32) (map[string]*export.TemporaryExposureKey,
-	*export.TemporaryExposureKeyExport) {
-	wantedKeysMap := make(map[string]*export.TemporaryExposureKey)
-	for _, key := range keys {
-		wantedKeysMap[key.Key] = &export.TemporaryExposureKey{
-			KeyData:                    util.DecodeKey(key.Key),
-			TransmissionRiskLevel:      proto.Int32(int32(key.TransmissionRisk)),
-			RollingStartIntervalNumber: proto.Int32(key.IntervalNumber),
-		}
-	}
-
-	wantExport := &export.TemporaryExposureKeyExport{
-		Region:    proto.String("TEST"),
-		BatchNum:  proto.Int32(batchNum),
-		BatchSize: proto.Int32(batchSize),
-	}
-
-	return wantedKeysMap, wantExport
-}
-
-func sendPayloadWorker(t *testing.T, enClient *integration.EnServerClient, jobs <-chan int) {
-	for range jobs {
-		payload := verifyapi.Publish{
-			Keys:           util.GenerateExposureKeys(14, -1, false),
-			Regions:        []string{"TEST"},
-			AppPackageName: "com.example.app",
-
-			// TODO: hook up verification
-			VerificationPayload: "TODO: ",
-		}
-		enClient.PublishKeys(t, payload)
-	}
-
-}
-
-func assertExposures(t *testing.T, ctx context.Context, db *database.DB, want int) {
-	// Look up the exposures in the database.
-	criteria := publishdb.IterateExposuresCriteria{
-		OnlyLocalProvenance: false,
 	}
 
 	var exposures []*publishmodel.Exposure
@@ -236,83 +76,135 @@ func assertExposures(t *testing.T, ctx context.Context, db *database.DB, want in
 	}); err != nil {
 		t.Fatal(err)
 	}
-
-	got := len(exposures)
-	if want != got {
-		t.Errorf("Want: %d, got: %d", want, got)
+	if l := len(exposures); l != keysPerPublish {
+		t.Fatalf("Want: %d keys, got: %d", keysPerPublish, l)
 	}
-}
 
-// getKeysFromAllBatches gets all exported keys, unless the filename is
-// explicitly listed in excluded
-func getKeysFromAllBatches(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv) []*export.TemporaryExposureKeyExport {
-	var res []*export.TemporaryExposureKeyExport
-	exportFiles := getAllBatchesFiles(t, exportDir, ctx, env)
-	t.Log("all files:", exportFiles)
-
-	for _, exportFile := range exportFiles {
-		e, err := readKeyExportFromBlob(t, exportDir, exportFile, ctx, env)
+	// Creates batche based on first batch
+	time.Sleep(3 * time.Second)
+	if err := client.ExportBatches(); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+					UPDATE
+						ExportBatch
+					SET
+						start_timestamp = $1,
+						end_timestamp = $2
+					WHERE
+						start_timestamp > $3
+				`,
+			batchStartTime,
+			batchStartTime.Add(exportPeriod),
+			time.Now().Add(-2*exportPeriod),
+		)
 		if err != nil {
-			t.Fatalf("cannot read file %q: %v", exportFile, err)
+			return err
 		}
-		res = append(res, e)
+		if got, want := result.RowsAffected(), int64(1); got != want {
+			return fmt.Errorf("expected %v to be %v", got, want)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
-	return res
-}
-
-func getKeysFromLatestBatch(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv) *export.TemporaryExposureKeyExport {
-	files := getAllBatchesFiles(t, exportDir, ctx, env)
-	exportFile := getLatestFile(files)
-	t.Log("latest:", exportFile)
-	res, err := readKeyExportFromBlob(t, exportDir, exportFile, ctx, env)
+	// Delete the first batch of exposures. The creation time of all exposures
+	// in this test are modified to fit nicely among exports, delete the first
+	// one is easier than running a sql modifying them
+	deleted, err := publishdb.New(db).DeleteExposuresBefore(ctx, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-	return res
-}
-
-func readKeyExportFromBlob(t *testing.T, exportDir, exportFile string, ctx context.Context, env *serverenv.ServerEnv) (*export.TemporaryExposureKeyExport, error) {
-	if exportFile == "" {
-		return nil, fmt.Errorf("Can't find export files in blobstore: %q", exportDir)
+	if deleted != keysPerPublish {
+		t.Fatalf("Delete template publishes, want: %d, got: %d", keysPerPublish, deleted)
 	}
 
-	t.Logf("Reading keys data from: %q", exportFile)
-
-	blob, err := env.Blobstore().GetObject(ctx, exportDir, exportFile)
-	if err != nil {
-		return nil, fmt.Errorf("can't open file from %q in dir %q: %w", exportFile, exportDir, err)
-	}
-
-	keyExport, err := exportapi.UnmarshalExportFile(blob)
-	if err != nil {
-		return nil, fmt.Errorf("can't extract export data: %w", err)
-	}
-
-	return keyExport, nil
-}
-
-func getLatestFile(files []string) string {
-	latestFileName := ""
-	for _, fileName := range files {
-		if strings.HasSuffix(fileName, "zip") {
-			if latestFileName == "" {
-				latestFileName = fileName
-			} else {
-				if fileName > latestFileName {
-					latestFileName = fileName
-				}
-			}
+	// Publish keys based on first batch of published keys
+	for i := 0; i < numPublishes; i++ {
+		if r := i % roughPerBatch; r == 0 { // increace start time after each batch
+			batchStartTime = batchStartTime.Add(exportPeriod)
+		}
+		var revisedExposures []*publishmodel.Exposure
+		for j, newKey := range util.GenerateExposureKeys(keysPerPublish, -1, false) {
+			m := *exposures[j]
+			m.CreatedAt = batchStartTime.Add(1 * time.Second)
+			m.ExposureKey, _ = base64util.DecodeString(newKey.Key)
+			revisedExposures = append(revisedExposures, &m)
+		}
+		updated, err := publishdb.New(db).InsertAndReviseExposures(ctx, revisedExposures)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if updated != keysPerPublish {
+			t.Fatalf("Want updated: %d, got %d", keysPerPublish, updated)
 		}
 	}
 
-	return latestFileName
-}
+	// Ensure all keys published
+	integration.Eventually(t, 30, func() error {
+		var exposures []*publishmodel.Exposure
+		if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
+			exposures = append(exposures, m)
+			return nil
+		}); err != nil {
+			return err
+		}
+		if l := len(exposures); l != want {
+			return retry.RetryableError(fmt.Errorf("Want: %d, got %d", want, l))
+		}
+		return nil
+	})
 
-func getAllBatchesFiles(t *testing.T, exportDir string, ctx context.Context, env *serverenv.ServerEnv) []string {
-	readmeBlob, err := env.Blobstore().GetObject(ctx, exportDir, "index.txt")
-	if err != nil {
-		t.Fatalf("Can't file index.txt in blobstore: %v", err)
-	}
-	t.Log("index.txt: ", string(readmeBlob))
-	return strings.Split(string(readmeBlob), "\n")
+	// Start measurement
+	startTime := time.Now()
+	integration.Eventually(t, 30, func() error {
+		// Export batch again to make the rest of batches
+		if err := client.ExportBatches(); err != nil {
+			t.Fatal(err)
+		}
+
+		// Start export workers
+		if err := client.StartExportWorkers(); err != nil {
+			return err
+		}
+
+		index, err := env.Blobstore().GetObject(ctx, integration.ExportDir,
+			integration.IndexFilePath())
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				time.Sleep(500 * time.Millisecond)
+				return retry.RetryableError(err)
+			}
+			return err
+		} else if c := strings.TrimSpace(string(index)); c == "" {
+			time.Sleep(500 * time.Millisecond)
+			return retry.RetryableError(fmt.Errorf("index file %s/%s is empty", integration.ExportDir, integration.IndexFilePath()))
+		}
+
+		var got int
+		for _, f := range strings.Split(string(index), "\n") {
+			// Download the latest export file contents
+			data, err := env.Blobstore().GetObject(ctx, integration.ExportDir, f)
+			if err != nil {
+				return fmt.Errorf("failed to open %s/%s: %v", integration.ExportDir, f, err)
+			}
+
+			// Process contents as an export
+			key, err := exportapi.UnmarshalExportFile(data)
+			if err != nil {
+				return fmt.Errorf("failed to extract export data: %v", err)
+			}
+			got += len(key.Keys)
+		}
+
+		if got != want {
+			time.Sleep(500 * time.Millisecond)
+			return retry.RetryableError(fmt.Errorf("Want exported keys: %d, got: %d", want, got))
+		}
+		return nil
+	})
+	stopTime := time.Now()
+
+	t.Logf("Export finished in '%v'", stopTime.Sub(startTime))
 }
