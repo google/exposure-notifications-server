@@ -39,10 +39,6 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-var (
-	zero = []byte{}
-)
-
 // RevisionKey represents an individual revision key.
 type RevisionKey struct {
 	KeyID         int64
@@ -116,7 +112,7 @@ func (rdb *RevisionDB) DestroyKey(ctx context.Context, keyID int64) error {
 				wrapped_cipher = $1, aad = $2, allowed = $3
 			WHERE
 				kid = $4
-		`, zero, zero, false, keyID)
+		`, nil, nil, false, keyID)
 		if err != nil {
 			return fmt.Errorf("updating revisionkey: %w", err)
 		}

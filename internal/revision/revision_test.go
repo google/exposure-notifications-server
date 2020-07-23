@@ -102,7 +102,7 @@ func TestEncryptDecrypt(t *testing.T) {
 	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
-	kms, err := keys.NewInMemoryKMS(ctx)
+	kms, err := keys.NewInMemory(ctx)
 	if err != nil {
 		t.Fatalf("unable to cerate in memory KMS")
 	}
