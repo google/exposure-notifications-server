@@ -1,3 +1,5 @@
+// +build performance
+
 // Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +25,10 @@ import (
 	"testing"
 	"time"
 
+	// Warning: package github.com/golang/protobuf/proto is deprecated: Use the
+	// "google.golang.org/protobuf/proto" package instead.  (SA1019).
+	// Use deprecated package as mako isn't compatible with
+	// github.com/golang/protobuf/proto yet
 	"github.com/golang/protobuf/proto"
 	"github.com/google/mako/go/quickstore"
 
