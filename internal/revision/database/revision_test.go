@@ -55,7 +55,7 @@ func TestRevisionKey(t *testing.T) {
 		t.Fatalf("unable to read effective revision keyL: %v", err)
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, got, cmpopts.EquateApproxTime(time.Millisecond)); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -97,7 +97,7 @@ func TestMultipleRevisionKeys(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unable to read effective keys: %v", err)
 		}
-		if diff := cmp.Diff(key2, got); diff != "" {
+		if diff := cmp.Diff(key2, got, cmpopts.EquateApproxTime(time.Millisecond)); diff != "" {
 			t.Fatalf("wrong effective key (-want, +got):\n%s", diff)
 		}
 	}
