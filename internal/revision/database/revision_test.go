@@ -154,7 +154,7 @@ func TestMultipleRevisionKeys(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unable to read effective keys: %v", err)
 		}
-		if diff := cmp.Diff(key1, got); diff != "" {
+		if diff := cmp.Diff(key1, got, timeCmp); diff != "" {
 			t.Fatalf("wrong effective key (-want, +got):\n%s", diff)
 		}
 	}
