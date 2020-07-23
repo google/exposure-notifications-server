@@ -25,6 +25,10 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
+var (
+	timeCmp = cmpopts.EquateApproxTime(time.Millisecond)
+)
+
 func TestRevisionKey(t *testing.T) {
 	t.Parallel()
 
@@ -55,7 +59,7 @@ func TestRevisionKey(t *testing.T) {
 		t.Fatalf("unable to read effective revision keyL: %v", err)
 	}
 
-	if diff := cmp.Diff(want, got, cmpopts.EquateApproxTime(time.Millisecond)); diff != "" {
+	if diff := cmp.Diff(want, got, timeCmp); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -97,7 +101,7 @@ func TestMultipleRevisionKeys(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unable to read effective keys: %v", err)
 		}
-		if diff := cmp.Diff(key2, got, cmpopts.EquateApproxTime(time.Millisecond)); diff != "" {
+		if diff := cmp.Diff(key2, got, timeCmp); diff != "" {
 			t.Fatalf("wrong effective key (-want, +got):\n%s", diff)
 		}
 	}
@@ -114,7 +118,7 @@ func TestMultipleRevisionKeys(t *testing.T) {
 			t.Fatalf("unable to read all keys: %v", err)
 		}
 		want := []*RevisionKey{key1, key2}
-		if diff := cmp.Diff(want, got, sorter); diff != "" {
+		if diff := cmp.Diff(want, got, sorter, timeCmp); diff != "" {
 			t.Fatalf("mismatch (-want, +got):\n%s", diff)
 		}
 		if gotID != key2.KeyID {
@@ -162,7 +166,7 @@ func TestMultipleRevisionKeys(t *testing.T) {
 			t.Fatalf("unable to read all keys: %v", err)
 		}
 		want := []*RevisionKey{key1}
-		if diff := cmp.Diff(want, got, sorter); diff != "" {
+		if diff := cmp.Diff(want, got, sorter, timeCmp); diff != "" {
 			t.Fatalf("mismatch (-want, +got):\n%s", diff)
 		}
 		if gotID != key1.KeyID {
