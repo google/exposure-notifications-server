@@ -51,6 +51,11 @@ type Config struct {
 	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=21"`
 	CreatedAtTruncateWindow      time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
+	// Crypto key to use for wrapping/unwrapping the revision token cipher blocks.
+	RevisionTokenKeyID         string `env:"REVISION_TOKEN_KEY_ID"`
+	RevisionKeyWrapperAAD      string `env:"REVISION_KEY_WRAPPER_AAD"` // must be base64 encoded, may come from secret://
+	BypassRevisionCertificates bool   `env:"BYPASS_REVISION_CERTIFICATES, default=false"`
+
 	// Flags for local development and testing. This will cause still valid keys
 	// to not be embargoed.
 	// Normally "still valid" keys can be accepted, but are embargoed.
