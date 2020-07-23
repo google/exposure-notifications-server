@@ -15,12 +15,18 @@
 package revision
 
 import (
+	"context"
 	"crypto/rand"
+	"fmt"
 	"io"
 	"testing"
+	"time"
 
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -92,9 +98,42 @@ func TestBuildTokenBuffer(t *testing.T) {
 }
 
 func TestEncryptDecrypt(t *testing.T) {
+	t.Parallel()
+	testDB := database.NewTestDatabase(t)
+	ctx := context.Background()
+
+	kms, err := keys.NewInMemory(ctx)
+	if err != nil {
+		t.Fatalf("unable to cerate in memory KMS")
+	}
+	keyID := "skeleton"
+	if err := kms.AddEncryptionKey(keyID); err != nil {
+		t.Fatalf("unable to generate key: %v", err)
+	}
 	key := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, key); err != nil {
 		t.Fatalf("unable to generate AES key: %v", err)
+	}
+
+	cfg := revisiondb.KMSConfig{
+		WrapperKeyID: keyID,
+		WrapperAAD:   []byte("super"),
+		KeyManager:   kms,
+	}
+	revDB, err := revisiondb.New(testDB, &cfg)
+	if err != nil {
+		t.Fatalf("unable to provision revision DB: %v", err)
+	}
+
+	// Add an allowed key.
+	firstKey, err := revDB.CreateRevisionKey(ctx)
+	if err != nil {
+		t.Fatalf("unable to create a revision key: %v", err)
+	}
+
+	tm, err := New(ctx, revDB, time.Second)
+	if err != nil {
+		t.Fatalf("unable to build token manager: %v", err)
 	}
 
 	// Build data to serialize and encrypt.
@@ -111,7 +150,6 @@ func TestEncryptDecrypt(t *testing.T) {
 		},
 	}
 	aad := []byte{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-	kid := "123"
 	// Expected result in the end
 	want := &pb.RevisionTokenData{
 		RevisableKeys: []*pb.RevisableKey{
@@ -128,20 +166,34 @@ func TestEncryptDecrypt(t *testing.T) {
 		},
 	}
 
-	encrypted, err := MakeRevisionToken(source, aad, kid, key)
+	encrypted, err := tm.MakeRevisionToken(ctx, source, aad)
 	if err != nil {
 		t.Fatalf("error encrypting and serializing data: %v", err)
 	}
 
-	validKeys := map[string][]byte{
-		kid: key,
-	}
-	got, err := UnmarshalRevisionToken(encrypted, aad, validKeys)
+	got, err := tm.UnmarshalRevisionToken(ctx, encrypted, aad)
 	if err != nil {
 		t.Fatalf("error decrypting token: %v", err)
 	}
 
 	if diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(pb.RevisionTokenData{}), cmpopts.IgnoreUnexported(pb.RevisableKey{})); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	// Replace the effective key and destroy the original.
+	if _, err := revDB.CreateRevisionKey(ctx); err != nil {
+		t.Fatalf("unable to create second revision key: %v", err)
+	}
+	if err := revDB.DestroyKey(ctx, firstKey.KeyID); err != nil {
+		t.Fatalf("unable to destroy revision key: %v", err)
+	}
+
+	// force expire the cache.
+	tm.cacheRefreshAfter = time.Now().Add(-1 * time.Second)
+
+	// Decryption of the key should fail this time.
+	wantErr := fmt.Sprintf("token has invalid key id: %v", firstKey.KeyID)
+	if _, err := tm.UnmarshalRevisionToken(ctx, encrypted, aad); err == nil || err.Error() != wantErr {
+		t.Fatalf("want error: %v, got: %v", wantErr, err)
 	}
 }
