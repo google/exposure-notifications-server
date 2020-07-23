@@ -57,6 +57,9 @@ func TestExport(t *testing.T) {
 		batchStartTime = time.Now().Add(time.Duration(-totalBatches-10) * exportPeriod)
 	)
 
+	makoQuickstore, cancel := setup(t)
+	defer cancel(context.Background())
+
 	env, client, db := integration.NewTestServer(t, exportPeriod)
 	payload := &verifyapi.Publish{
 		Keys:           util.GenerateExposureKeys(keysPerPublish, -1, false),
@@ -190,7 +193,13 @@ func TestExport(t *testing.T) {
 		}
 		return nil
 	})
-	t.Logf("Export finished in '%v'", time.Now().Sub(startTime))
+	exportDuration := time.Now().Sub(startTime)
+	t.Logf("Export finished in '%v'", exportDuration)
+	if err := makoQuickstore.AddSamplePoint(float64(time.Now().Unix()), map[string]float64{
+		"m1": float64(exportDuration / 1000000),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Next, measure cleanup performance
 
@@ -240,5 +249,14 @@ func TestExport(t *testing.T) {
 			t.Fatalf("Failed reading blob %q: %v", r, err)
 		}
 	}
-	t.Logf("Clean up finished in '%v'", time.Now().Sub(startTime))
+
+	cleanupDuration := time.Now().Sub(startTime)
+	t.Logf("Clean up finished in '%v'", cleanupDuration)
+	if err := makoQuickstore.AddSamplePoint(float64(time.Now().Unix()), map[string]float64{
+		"m2": float64(cleanupDuration / 1000000),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	store(t, makoQuickstore)
 }
