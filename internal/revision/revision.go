@@ -50,7 +50,7 @@ type TokenManager struct {
 
 	// The allowed/effective keys are cached to avoid excessive decrypt calls to the KMS system to unwrap
 	// the individual revision keys.
-	// A cache refresh is initally a shallow refresh, if the IDs of allowed/effective keys haven't changed,
+	// A cache refresh is initially a shallow refresh, if the IDs of allowed/effective keys haven't changed,
 	// we don't re-unwrap the keys. If there are any changes to the IDs, all of the daata is reloaded and
 	// the keys are unwrapped.
 	cacheDuration     time.Duration

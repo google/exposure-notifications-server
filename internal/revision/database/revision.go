@@ -16,7 +16,7 @@
 // for createion and storage of the wrapped keys that encrypet revision certificates.
 //
 // RevisionKey data is stored in the revisionkeys table.
-// * The most recently created 'allowed' key is considerd to be the effective key.
+// * The most recently created 'allowed' key is considered to be the effective key.
 //   The effective key is used to encrypt outgoing revision tokens.
 // * Any still 'allowed' key can be used to decrypt incoming revision tokens.
 //
