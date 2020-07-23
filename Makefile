@@ -61,7 +61,7 @@ test-acc:
 performance-test:
 	@go test \
 		-count=1 \
-		-timeout=10m \
+		-timeout=30m \
 		-v \
 		-tags=performance \
 		./internal/performance
