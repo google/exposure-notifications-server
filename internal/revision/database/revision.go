@@ -14,6 +14,15 @@
 
 // Package database contains the management of interactions with the database
 // for createion and storage of the wrapped keys that encrypet revision certificates.
+//
+// RevisionKey data is stored in the revisionkeys table.
+// * The most recently created 'allowed' key is considerd to be the effective key.
+//   The effective key is used to encrypt outgoing revision tokens.
+// * Any still 'allowed' key can be used to decrypt incoming revision tokens.
+//
+// This package also supports the creation of new keys with a locally generated
+// AES key that is encrypted using the provided KMS and stored in the database
+// in it's encrypted form.
 package database
 
 import (
@@ -21,12 +30,17 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/jackc/pgx/v4"
+)
+
+var (
+	zero = []byte{}
 )
 
 // RevisionKey represents an individual revision key.
@@ -43,33 +57,49 @@ type RevisionKey struct {
 
 // KeyIDString returns the keyID as a string that can be used in the encoded revision tokens.
 func (r *RevisionKey) KeyIDString() string {
-	return fmt.Sprintf("%d", r.KeyID)
+	return strconv.FormatInt(r.KeyID, 10)
+}
+
+// KMSConfig represents the configuration of the RevisionDB in terms how how it should utilize the
+// given KeyManager for wrapping/unwrapping keys.
+type KMSConfig struct {
+	WrapperKeyID string
+	WrapperAAD   []byte
+	KeyManager   keys.KeyManager
+}
+
+// Copy creates a deep copy of the KMSConfig
+// This is done to ensure that we have a clean copy of the ADD slice that can't be changed externally.
+func (k *KMSConfig) Copy() *KMSConfig {
+	c := KMSConfig{
+		WrapperKeyID: k.WrapperKeyID,
+		WrapperAAD:   make([]byte, 0, len(k.WrapperAAD)),
+		KeyManager:   k.KeyManager,
+	}
+	copy(c.WrapperAAD, k.WrapperAAD)
+	return &c
 }
 
 // RevisionDB wraps a database connection and provides functions for interacting with revision keys.
 type RevisionDB struct {
-	db           *database.DB
-	wrapperKeyID string
-	wrapperAAD   []byte
-	keyManager   keys.KeyManager
+	db     *database.DB
+	config *KMSConfig
 }
 
 // New creates a new `RevisionDB`
-func New(db *database.DB, wrapperKey string, wrapperAAD []byte, kms keys.KeyManager) (*RevisionDB, error) {
-	if wrapperKey == "" {
+func New(db *database.DB, c *KMSConfig) (*RevisionDB, error) {
+	if c.WrapperKeyID == "" {
 		return nil, fmt.Errorf("no KMS key ID passed in to revision.New")
 	}
-	if len(wrapperAAD) == 0 {
+	if len(c.WrapperAAD) == 0 {
 		return nil, fmt.Errorf("no AAD provided")
 	}
-	if kms == nil {
+	if c.KeyManager == nil {
 		return nil, fmt.Errorf("no KeyManager provided")
 	}
 	return &RevisionDB{
-		db:           db,
-		wrapperKeyID: wrapperKey,
-		wrapperAAD:   wrapperAAD,
-		keyManager:   kms,
+		db:     db,
+		config: c.Copy(),
 	}, nil
 }
 
@@ -77,7 +107,6 @@ func New(db *database.DB, wrapperKey string, wrapperAAD []byte, kms keys.KeyMana
 func (rdb *RevisionDB) DestroyKey(ctx context.Context, keyID int64) error {
 	logger := logging.FromContext(ctx)
 	logger.Warnf("destroying key material for revision key ID %v", keyID)
-	zero := []byte{0}
 
 	if err := rdb.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
@@ -103,10 +132,14 @@ func (rdb *RevisionDB) DestroyKey(ctx context.Context, keyID int64) error {
 
 // GetAllowedRevisionKeyIDs returns just the IDs of still allowed keys.
 // Once the keys have been unwrapped, there is no reason to continue to unwrap them.
+//
+// The first return value is the ID of the currently effective key (most recently created, still active)
+// The second return value is a map of the currently allowed keys for decryption
 func (rdb *RevisionDB) GetAllowedRevisionKeyIDs(ctx context.Context) (int64, map[int64]struct{}, error) {
 	var effectiveID int64
 	keys := make(map[int64]struct{})
 	if err := rdb.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		// Ordering by created_at DESC puts the "effective key" first.
 		rows, err := tx.Query(ctx, `
 			SELECT
 				kid
@@ -129,6 +162,7 @@ func (rdb *RevisionDB) GetAllowedRevisionKeyIDs(ctx context.Context) (int64, map
 				return err
 			}
 			keys[id] = struct{}{}
+			// The first key we see (due to sort) is the effective key.
 			if effectiveID == 0 {
 				effectiveID = id
 			}
@@ -144,11 +178,16 @@ func (rdb *RevisionDB) GetAllowedRevisionKeyIDs(ctx context.Context) (int64, map
 // GetAllowedRevisionKeys returns all of the curently allowed revision keys.
 // This method will unwrap all of the keys so that they can be used to create and verify
 // revision tokens.
+//
+// The first return value is the ID of the effective RevisionKey
+// The second is a slice of all currently allowed RevisionKeys for decryption purposes. The returned
+// revision keys will be sorted in reverse time order by creation time.
 func (rdb *RevisionDB) GetAllowedRevisionKeys(ctx context.Context) (int64, []*RevisionKey, error) {
 	logger := logging.FromContext(ctx)
 	var effectiveID int64
 	keys := make([]*RevisionKey, 0)
 	if err := rdb.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		// Need to sort by created_at DESC so the first key encountered is the "effective" key.
 		rows, err := tx.Query(ctx, `
 			SELECT
 				kid, aad, wrapped_cipher, created_at, allowed
@@ -185,10 +224,10 @@ func (rdb *RevisionDB) GetAllowedRevisionKeys(ctx context.Context) (int64, []*Re
 	unwrappedKeys := make([]*RevisionKey, 0, len(keys))
 	// Attempt to unwrap all of the keys
 	for _, wk := range keys {
-		unwrapped, err := rdb.keyManager.Decrypt(ctx, rdb.wrapperKeyID, wk.WrappedCipher, rdb.wrapperAAD)
+		unwrapped, err := rdb.decrypt(ctx, wk.WrappedCipher)
 		if err != nil {
 			logger.Errorf("still allowed revision key that can't be unwrapped: kid: %v error: %v", wk.KeyID, err)
-			continue
+			return 0, nil, fmt.Errorf("unable to unwrap revision key: %w", err)
 		}
 		wk.DEK = unwrapped
 		unwrappedKeys = append(unwrappedKeys, wk)
@@ -221,7 +260,7 @@ func (rdb *RevisionDB) GetEffectiveRevisionKey(ctx context.Context) (*RevisionKe
 			if err := rows.Err(); err != nil {
 				return fmt.Errorf("failed to iterate: %w", err)
 			}
-			r := RevisionKey{}
+			var r RevisionKey
 			if err := rows.Scan(&r.KeyID, &r.AAD, &r.WrappedCipher, &r.CreatedAt, &r.Allowed); err != nil {
 				return err
 			}
@@ -236,13 +275,17 @@ func (rdb *RevisionDB) GetEffectiveRevisionKey(ctx context.Context) (*RevisionKe
 	}
 
 	// Unwrap the DEK w/ the KeyManager.
-	unwrapped, err := rdb.keyManager.Decrypt(ctx, rdb.wrapperKeyID, revKey.WrappedCipher, rdb.wrapperAAD)
+	unwrapped, err := rdb.decrypt(ctx, revKey.WrappedCipher)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unwrap key: %w", err)
 	}
 	revKey.DEK = unwrapped
 
 	return revKey, nil
+}
+
+func (rdb *RevisionDB) decrypt(ctx context.Context, ciphertext []byte) ([]byte, error) {
+	return rdb.config.KeyManager.Decrypt(ctx, rdb.config.WrapperKeyID, ciphertext, rdb.config.WrapperAAD)
 }
 
 // CreateRevisionKey generates a new AES key and wraps it
@@ -257,7 +300,7 @@ func (rdb *RevisionDB) CreateRevisionKey(ctx context.Context) (*RevisionKey, err
 	}
 
 	// Wrap the key using the configured KMS.
-	wrapped, err := rdb.keyManager.Encrypt(ctx, rdb.wrapperKeyID, key, rdb.wrapperAAD)
+	wrapped, err := rdb.config.KeyManager.Encrypt(ctx, rdb.config.WrapperKeyID, key, rdb.config.WrapperAAD)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wrap key: %w", err)
 	}

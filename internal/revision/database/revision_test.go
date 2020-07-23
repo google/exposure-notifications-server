@@ -35,7 +35,7 @@ func TestRevisionKey(t *testing.T) {
 	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
-	kms, err := keys.NewInMemoryKMS(ctx)
+	kms, err := keys.NewInMemory(ctx)
 	if err != nil {
 		t.Fatalf("unable to cerate in memory KMS")
 	}
@@ -44,7 +44,8 @@ func TestRevisionKey(t *testing.T) {
 		t.Fatalf("unable to generate key: %v", err)
 	}
 
-	revDB, err := New(testDB, keyID, []byte("super"), kms)
+	cfg := KMSConfig{keyID, []byte("super"), kms}
+	revDB, err := New(testDB, &cfg)
 	if err != nil {
 		t.Fatalf("unable to provision revision DB: %v", err)
 	}
@@ -70,7 +71,7 @@ func TestMultipleRevisionKeys(t *testing.T) {
 	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
-	kms, err := keys.NewInMemoryKMS(ctx)
+	kms, err := keys.NewInMemory(ctx)
 	if err != nil {
 		t.Fatalf("unable to cerate in memory KMS")
 	}
@@ -79,7 +80,8 @@ func TestMultipleRevisionKeys(t *testing.T) {
 		t.Fatalf("unable to generate key: %v", err)
 	}
 
-	revDB, err := New(testDB, keyID, []byte("super"), kms)
+	cfg := KMSConfig{keyID, []byte("super"), kms}
+	revDB, err := New(testDB, &cfg)
 	if err != nil {
 		t.Fatalf("unable to provision revision DB: %v", err)
 	}

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -38,10 +39,20 @@ import (
 type TokenManager struct {
 	db *database.RevisionDB
 
-	mu        sync.RWMutex
-	allowed   map[int64]*database.RevisionKey
+	// All encrypt/decrypt operations are done under read lock.
+	// Cache refresh esclates to a write lock.
+	mu sync.RWMutex
+
+	// A store of the currently allowed revision keys for decryption purposes.
+	allowed map[int64]*database.RevisionKey
+	// A poitners to the currently active key for encryption purposes.
 	effective *database.RevisionKey
 
+	// The allowed/effective keys are cached to avoid excessive decrypt calls to the KMS system to unwrap
+	// the individual revision keys.
+	// A cache refresh is initally a shallow refresh, if the IDs of allowed/effective keys haven't changed,
+	// we don't re-unwrap the keys. If there are any changes to the IDs, all of the daata is reloaded and
+	// the keys are unwrapped.
 	cacheDuration     time.Duration
 	cacheRefreshAfter time.Time
 }
@@ -49,6 +60,9 @@ type TokenManager struct {
 // New creates a new TokenManager that uses a database handle to manage a cache
 // of allowed revision keys.
 func New(ctx context.Context, db *database.RevisionDB, cacheDuration time.Duration) (*TokenManager, error) {
+	if cacheDuration > 60*time.Minute {
+		return nil, fmt.Errorf("cache duration must be <= 60 minutes, got: %v", cacheDuration)
+	}
 	now := time.Now()
 	tm := &TokenManager{
 		db:                db,
@@ -84,7 +98,8 @@ func (tm *TokenManager) maybeRefreshCache(ctx context.Context) error {
 		return nil
 	}
 
-	// At this point reload is needed. Trash the
+	// At this point reload is needed. Trash the information currently stored
+	// so that if something failes on refresh, the cache has been invalidated.
 	tm.allowed = make(map[int64]*database.RevisionKey)
 	tm.effective = nil
 
@@ -177,11 +192,11 @@ func (tm *TokenManager) MakeRevisionToken(ctx context.Context, eKeys []*model.Ex
 	}
 	// Capture DEK and KID in read lock, but don't do encryption with the lock
 	var dek []byte
-	var kid int64
+	var kid string
 	{
 		tm.mu.RLock()
 		dek = tm.effective.DEK
-		kid = tm.effective.KeyID
+		kid = tm.effective.KeyIDString()
 		tm.mu.RUnlock()
 	}
 
@@ -233,13 +248,17 @@ func (tm *TokenManager) UnmarshalRevisionToken(ctx context.Context, tokenBytes [
 		return nil, fmt.Errorf("unable to unmarshal proto envelope: %w", err)
 	}
 	data := revisionToken.Data
+	kid, err := strconv.ParseInt(revisionToken.Kid, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid key id: %w", err)
+	}
 
 	var dek []byte
 	// Capture the DEK under read lock, but don't hold lock for decryption.
 	{
 		tm.mu.RLock()
 		defer tm.mu.RUnlock()
-		rk, ok := tm.allowed[revisionToken.Kid]
+		rk, ok := tm.allowed[kid]
 		if !ok {
 			return nil, fmt.Errorf("token has invalid key id: %v", revisionToken.Kid)
 		}

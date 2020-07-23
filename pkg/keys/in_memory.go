@@ -27,22 +27,25 @@ import (
 	"sync"
 )
 
-// InMemoryKMS is useful for testing. Do NOT use in a running system as all
+// InMemory is useful for testing. Do NOT use in a running system as all
 // keys are only kept in memory and will be lost across server reboots.
-type InMemoryKMS struct {
+type InMemory struct {
 	mu          sync.RWMutex
 	signingKeys map[string]*ecdsa.PrivateKey
 	cryptoKeys  map[string][]byte
 }
 
-func NewInMemoryKMS(ctx context.Context) (*InMemoryKMS, error) {
-	return &InMemoryKMS{
+// NewInMemory creates a new, local, in memory KeyManager.
+func NewInMemory(ctx context.Context) (*InMemory, error) {
+	return &InMemory{
 		signingKeys: make(map[string]*ecdsa.PrivateKey),
 		cryptoKeys:  make(map[string][]byte),
 	}, nil
 }
 
-func (k *InMemoryKMS) AddSigningKey(keyID string) error {
+// AddSigningKey generates a new ECDSA P256 Signing Key identified by
+// the provided keyID
+func (k *InMemory) AddSigningKey(keyID string) error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 
@@ -59,7 +62,9 @@ func (k *InMemoryKMS) AddSigningKey(keyID string) error {
 	return nil
 }
 
-func (k *InMemoryKMS) AddEncryptionKey(keyID string) error {
+// AddEncryptionKey generates a new encryption key identified by
+// the provided keyID.
+func (k *InMemory) AddEncryptionKey(keyID string) error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 
@@ -77,7 +82,7 @@ func (k *InMemoryKMS) AddEncryptionKey(keyID string) error {
 	return nil
 }
 
-func (k *InMemoryKMS) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
+func (k *InMemory) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
 	var pk *ecdsa.PrivateKey
 	{
 		k.mu.RLock()
@@ -93,7 +98,7 @@ func (k *InMemoryKMS) NewSigner(ctx context.Context, keyID string) (crypto.Signe
 	return pk, nil
 }
 
-func (k *InMemoryKMS) getDEK(keyID string) ([]byte, error) {
+func (k *InMemory) getDEK(keyID string) ([]byte, error) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 
@@ -103,7 +108,7 @@ func (k *InMemoryKMS) getDEK(keyID string) ([]byte, error) {
 	return nil, fmt.Errorf("key not found")
 }
 
-func (k *InMemoryKMS) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad []byte) ([]byte, error) {
+func (k *InMemory) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad []byte) ([]byte, error) {
 	dek, err := k.getDEK(keyID)
 	if err != nil {
 		return nil, err
@@ -126,7 +131,7 @@ func (k *InMemoryKMS) Encrypt(ctx context.Context, keyID string, plaintext []byt
 	return ciphertext, nil
 }
 
-func (k *InMemoryKMS) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad []byte) ([]byte, error) {
+func (k *InMemory) Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad []byte) ([]byte, error) {
 	dek, err := k.getDEK(keyID)
 	if err != nil {
 		return nil, err

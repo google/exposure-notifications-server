@@ -16,8 +16,8 @@ BEGIN;
 
 CREATE TABLE RevisionKeys (
     kid SERIAL PRIMARY KEY,
-    aad bytea NOT NULL,
-    wrapped_cipher bytea NOT NULL,
+    aad bytea,
+    wrapped_cipher bytea,
     created_at TIMESTAMPTZ NOT NULL,
     allowed bool DEFAULT true
 );

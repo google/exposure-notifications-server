@@ -17,7 +17,7 @@ syntax = "proto3";
 option go_package = "github.com/google/exposure-notifications-server/internal/pb;pb";
 
 message RevisionToken {
-    int64 kid = 1;
+    string kid = 1;
     bytes data = 2;
 }
 
