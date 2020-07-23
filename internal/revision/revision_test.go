@@ -115,7 +115,11 @@ func TestEncryptDecrypt(t *testing.T) {
 		t.Fatalf("unable to generate AES key: %v", err)
 	}
 
-	cfg := revisiondb.KMSConfig{keyID, []byte("super"), kms}
+	cfg := revisiondb.KMSConfig{
+		WrapperKeyID: keyID,
+		WrapperAAD:   []byte("super"),
+		KeyManager:   kms,
+	}
 	revDB, err := revisiondb.New(testDB, &cfg)
 	if err != nil {
 		t.Fatalf("unable to provision revision DB: %v", err)
