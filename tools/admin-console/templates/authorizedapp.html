@@ -26,11 +26,21 @@
   <hr/>
 
   <div class="form-group row">
-  <label class="control-label col-sm-3" for="BypassHealthAuthorityVerification">Health Authority Verification Disabled:</label>
+    <label class="control-label col-sm-3" for="BypassHealthAuthorityVerification">Revision Token Enforcement Disabled:</label>
+    <div class="col-sm-6">
+      <select name="BypassHealthAuthorityVerification" id="BypassHealthAuthorityVerification">
+        <option value="false" {{if not .app.BypassHealthAuthorityVerification}}selected{{end}}>false</option>
+        <option value="true" {{if .app.BypassHealthAuthorityVerification}}selected{{end}}>true</option>
+      </select>
+    </div>
+    </div>
+
+  <div class="form-group row">
+  <label class="control-label col-sm-3" for="BypassRevisionToken">Health Authority Verification Disabled:</label>
   <div class="col-sm-6">
-    <select name="BypassHealthAuthorityVerification" id="BypassHealthAuthorityVerification">
-      <option value="false" {{if not .app.BypassHealthAuthorityVerification}}selected{{end}}>false</option>
-      <option value="true" {{if .app.BypassHealthAuthorityVerification}}selected{{end}}>true</option>
+    <select name="BypassRevisionToken" id="BypassRevisionToken">
+      <option value="false" {{if not .app.BypassRevisionToken}}selected{{end}}>false</option>
+      <option value="true" {{if .app.BypassRevisionToken}}selected{{end}}>true</option>
     </select>
   </div>
   </div>

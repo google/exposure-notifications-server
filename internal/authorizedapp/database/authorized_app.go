@@ -46,11 +46,12 @@ func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.Aut
 			INSERT INTO
 				AuthorizedApp
 				(app_package_name, allowed_regions,
-				allowed_health_authority_ids, bypass_health_authority_verification)
+				allowed_health_authority_ids, bypass_health_authority_verification, bypass_revision_token)
 			VALUES
-				(LOWER($1), $2, $3, $4)
+				(LOWER($1), $2, $3, $4, $5)
 		`, m.AppPackageName, m.AllAllowedRegions(),
-			m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification)
+			m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification,
+			m.BypassRevisionToken)
 
 		if err != nil {
 			return fmt.Errorf("inserting authorizedapp: %w", err)
@@ -68,12 +69,13 @@ func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey str
 			UPDATE AuthorizedApp
 			SET
 				app_package_name = LOWER($1), allowed_regions = $2,
-				allowed_health_authority_ids = $3, bypass_health_authority_verification = $4
+				allowed_health_authority_ids = $3, bypass_health_authority_verification = $4,
+				bypass_revision_token = $5
 			WHERE
-				LOWER(app_package_name) = LOWER($5)
+				LOWER(app_package_name) = LOWER($6)
 			`, m.AppPackageName, m.AllAllowedRegions(),
 			m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification,
-			priorKey)
+			m.BypassRevisionToken, priorKey)
 		if err != nil {
 			return fmt.Errorf("updating authorizedapp: %w", err)
 		}
@@ -115,7 +117,7 @@ func (aa *AuthorizedAppDB) ListAuthorizedApps(ctx context.Context) ([]*model.Aut
 		rows, err := tx.Query(ctx, `
 			SELECT
 				LOWER(app_package_name), allowed_regions,
-				allowed_health_authority_ids, bypass_health_authority_verification
+				allowed_health_authority_ids, bypass_health_authority_verification, bypass_revision_token
 			FROM
 				AuthorizedApp
 			ORDER BY LOWER(app_package_name) ASC
@@ -154,7 +156,7 @@ func (aa *AuthorizedAppDB) GetAuthorizedApp(ctx context.Context, name string) (*
 		row := tx.QueryRow(ctx, `
 			SELECT
 				LOWER(app_package_name), allowed_regions,
-				allowed_health_authority_ids, bypass_health_authority_verification
+				allowed_health_authority_ids, bypass_health_authority_verification, bypass_revision_token
 			FROM
 				AuthorizedApp
 			WHERE LOWER(app_package_name) = LOWER($1)
@@ -180,6 +182,7 @@ func scanOneAuthorizedApp(row pgx.Row) (*model.AuthorizedApp, error) {
 	if err := row.Scan(
 		&config.AppPackageName, &allowedRegions,
 		&allowedHealthAuthorityIDs, &config.BypassHealthAuthorityVerification,
+		&config.BypassRevisionToken,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil

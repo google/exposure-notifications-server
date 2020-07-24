@@ -34,6 +34,10 @@ type AuthorizedApp struct {
 	// that this app can obtain and verify diagnosis verification certificates from.
 	AllowedHealthAuthorityIDs         map[int64]struct{}
 	BypassHealthAuthorityVerification bool
+
+	// If true - revision tokens will still be accepted and checked, but will not
+	// enforce correctness. They will still be generated as output.
+	BypassRevisionToken bool
 }
 
 func NewAuthorizedApp() *AuthorizedApp {
