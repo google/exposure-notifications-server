@@ -42,10 +42,7 @@ const (
 
 // setup sets up client used for performance test
 func setup(tb testing.TB) (*quickstore.Quickstore, func(context.Context)) {
-	var (
-		microservice string
-	)
-
+	var microservice string
 	benchmarkConfig := &mpb.BenchmarkInfo{}
 
 	{
