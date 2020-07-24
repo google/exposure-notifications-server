@@ -20,8 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -31,6 +29,7 @@ import (
 	// github.com/golang/protobuf/proto yet
 	"github.com/golang/protobuf/proto"
 	"github.com/google/mako/go/quickstore"
+	"github.com/sethvargo/go-envconfig/pkg/envconfig"
 
 	qpb "github.com/google/mako/proto/quickstore/quickstore_go_proto"
 	mpb "github.com/google/mako/spec/proto/mako_go_proto"
@@ -40,40 +39,33 @@ const (
 	benchmarkConfigFile = "export_test_benchmark.config"
 )
 
+type config struct {
+	MakoPort uint `env:"MAKO_PORT,required"`
+}
+
 // setup sets up client used for performance test
 func setup(tb testing.TB) (*quickstore.Quickstore, func(context.Context)) {
-	var microservice string
-	benchmarkConfig := &mpb.BenchmarkInfo{}
-
-	{
-		p := os.Getenv("MAKO_PORT")
-		if p == "" {
-			tb.Fatal("Env var MAKO_PORT is required.")
-		}
-		port, err := strconv.Atoi(p)
-		if err != nil {
-			tb.Fatalf("Could not parse MAKO_PORT env var: %v", err)
-		}
-		microservice = fmt.Sprintf("localhost:%d", port)
-	}
-
-	{
-		data, err := ioutil.ReadFile(benchmarkConfigFile)
-		if err != nil {
-			tb.Fatal(err)
-		}
-		if err = proto.UnmarshalText(string(data), benchmarkConfig); err != nil {
-			tb.Fatal(err)
-		}
-	}
-
 	ctx := context.Background()
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
+	benchmarkConfig := &mpb.BenchmarkInfo{}
+	data, err := ioutil.ReadFile(benchmarkConfigFile)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	if err = proto.UnmarshalText(string(data), benchmarkConfig); err != nil {
+		tb.Fatal(err)
+	}
 	input := &qpb.QuickstoreInput{
 		BenchmarkKey: proto.String(*benchmarkConfig.BenchmarkKey),
 	}
+
+	c := config{}
+	if err := envconfig.ProcessWith(context.Background(), &c, envconfig.OsLookuper()); err != nil {
+		tb.Fatalf("unable to process env: %v", err)
+	}
+	microservice := fmt.Sprintf("localhost:%d", c.MakoPort)
 
 	q, close, err := quickstore.NewAtAddress(ctxWithTimeout, input, microservice)
 	if err != nil {
