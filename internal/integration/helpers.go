@@ -38,6 +38,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/google/exposure-notifications-server/pkg/server"
+	"github.com/sethvargo/go-envconfig"
 	"github.com/sethvargo/go-retry"
 
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
@@ -125,6 +126,16 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	}
 
 	db := database.NewTestDatabase(tb)
+	if v := os.Getenv("DB_NAME"); v != "" && !testing.Short() {
+		dbConfig := &database.Config{}
+		if err := envconfig.ProcessWith(ctx, dbConfig, envconfig.OsLookuper()); err != nil {
+			tb.Fatalf("unable to process secret manager env: %v", err)
+		}
+		db, err = database.NewFromEnv(ctx, dbConfig)
+		if err != nil {
+			tb.Fatalf("unable to connect to database: %v", err)
+		}
+	}
 
 	km, err := keys.NewInMemory(ctx)
 	if err != nil {

@@ -87,4 +87,11 @@ fi
 
 
 echo "🧪 Test"
+if [[ "${CREATE_DB:-}" == "1" ]]; then
+  eval $(${ROOT}/scripts/db.sh export_env_var)
+  ${ROOT}/scripts/db.sh setup
+  trap "${ROOT}/scripts/db.sh teardown" EXIT
+  eval $(${ROOT}/scripts/db.sh export_private_ip)
+fi
+
 make test-acc
