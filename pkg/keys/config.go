@@ -22,7 +22,7 @@ const (
 	KeyManagerTypeAzureKeyVault  KeyManagerType = "AZURE_KEY_VAULT"
 	KeyManagerTypeGoogleCloudKMS KeyManagerType = "GOOGLE_CLOUD_KMS"
 	KeyManagerTypeHashiCorpVault KeyManagerType = "HASHICORP_VAULT"
-	KeyManagerTypeNoop           KeyManagerType = "NOOP"
+	KeyManagerTypeInMemory       KeyManagerType = "IN_MEMORY"
 )
 
 // Config defines configuration.

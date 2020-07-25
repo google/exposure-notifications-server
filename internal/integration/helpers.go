@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
@@ -31,6 +32,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	"github.com/google/exposure-notifications-server/internal/publish"
+	revdb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/keys"
@@ -124,8 +126,22 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 
 	db := database.NewTestDatabase(tb)
 
-	km, err := keys.NewNoop(ctx)
+	km, err := keys.NewInMemory(ctx)
 	if err != nil {
+		tb.Fatal(err)
+	}
+	if err := km.AddEncryptionKey("tokenkey"); err != nil {
+		tb.Fatal(err)
+	}
+	if err := km.AddSigningKey("signingkey"); err != nil {
+		tb.Fatal(err)
+	}
+	// create an initial revision key.
+	revisionDB, err := revdb.New(db, &revdb.KMSConfig{WrapperKeyID: "tokenkey", KeyManager: km})
+	if err != nil {
+		tb.Fatal(err)
+	}
+	if _, err := revisionDB.CreateRevisionKey(ctx); err != nil {
 		tb.Fatal(err)
 	}
 
@@ -201,11 +217,16 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 
 	// Publish
 	publishConfig := &publish.Config{
-		MaxKeysOnPublish:         15,
-		MaxSameStartIntervalKeys: 2,
-		MaxIntervalAge:           360 * time.Hour,
-		CreatedAtTruncateWindow:  1 * time.Second,
-		ReleaseSameDayKeys:       true,
+		MaxKeysOnPublish:           15,
+		MaxSameStartIntervalKeys:   2,
+		MaxIntervalAge:             360 * time.Hour,
+		CreatedAtTruncateWindow:    1 * time.Second,
+		ReleaseSameDayKeys:         true,
+		RevisionTokenKeyID:         "tokenkey",
+		RevisionTokenAAD:           base64.RawStdEncoding.EncodeToString([]byte{1, 2, 3}),
+		BypassRevisionCertificates: false,
+		RevisionKeyCacheDuration:   time.Second,
+		RevisionTokenMinLength:     28,
 	}
 
 	publishHandler, err := publish.NewHandler(ctx, publishConfig, env)
