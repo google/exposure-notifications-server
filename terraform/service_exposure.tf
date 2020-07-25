@@ -47,6 +47,14 @@ resource "google_secret_manager_secret_iam_member" "exposure-db" {
   member    = "serviceAccount:${google_service_account.exposure.email}"
 }
 
+resource "google_secret_manager_secret_iam_member" "revision-token-aad" {
+  provider = google-beta
+
+  secret_id = google_secret_manager_secret.revision_token_aad.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.exposure.email}"
+}
+
 resource "google_project_iam_member" "exposure-observability" {
   for_each = toset([
     "roles/cloudtrace.agent",
@@ -92,6 +100,15 @@ resource "google_cloud_run_service" "exposure" {
             name  = env.key
             value = env.value
           }
+        }
+
+        env {
+          name = "REVISION_TOKEN_KEY_ID"
+          value = replace(data.google_kms_crypto_key_version.token_key_version.id, "\\/\\/cloudkms.googleapis.com\\/v1\\/", "")
+        }
+        env {
+          name = "REVISION_TOKEN_AAD"
+          value = "secret://${google_secret_manager_secret_version.revision_token_aad_secret_version.id}"
         }
       }
     }

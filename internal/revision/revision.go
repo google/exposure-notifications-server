@@ -127,8 +127,16 @@ func (tm *TokenManager) maybeRefreshCache(ctx context.Context) error {
 		return fmt.Errorf("reading revision key cache: %w", err)
 	}
 
+	// To aid in system upgrade, assuming env vars are setup correctly,
+	// we autocreate the first wrapped revision key.
 	if len(allowed) == 0 {
-		return fmt.Errorf("no revision keys exist")
+		logger.Errorf("no revision keys exist - creating one.")
+		if rk, err := tm.db.CreateRevisionKey(ctx); err != nil {
+			return fmt.Errorf("unable to bootstrap reivion keys: %w", err)
+		} else {
+			allowed[rk.KeyID] = rk
+			effectiveID = rk.KeyID
+		}
 	}
 
 	for _, rk := range allowed {

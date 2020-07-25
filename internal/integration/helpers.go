@@ -217,16 +217,15 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 
 	// Publish
 	publishConfig := &publish.Config{
-		MaxKeysOnPublish:           15,
-		MaxSameStartIntervalKeys:   2,
-		MaxIntervalAge:             360 * time.Hour,
-		CreatedAtTruncateWindow:    1 * time.Second,
-		ReleaseSameDayKeys:         true,
-		RevisionTokenKeyID:         "tokenkey",
-		RevisionTokenAAD:           base64.RawStdEncoding.EncodeToString([]byte{1, 2, 3}),
-		BypassRevisionCertificates: false,
-		RevisionKeyCacheDuration:   time.Second,
-		RevisionTokenMinLength:     28,
+		MaxKeysOnPublish:         15,
+		MaxSameStartIntervalKeys: 2,
+		MaxIntervalAge:           360 * time.Hour,
+		CreatedAtTruncateWindow:  1 * time.Second,
+		ReleaseSameDayKeys:       true,
+		RevisionTokenKeyID:       "tokenkey",
+		RevisionTokenAAD:         base64.RawStdEncoding.EncodeToString([]byte{1, 2, 3}),
+		RevisionKeyCacheDuration: time.Second,
+		RevisionTokenMinLength:   28,
 	}
 
 	publishHandler, err := publish.NewHandler(ctx, publishConfig, env)
