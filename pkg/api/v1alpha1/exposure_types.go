@@ -85,9 +85,14 @@ type Publish struct {
 // passed back if the same devices wishes to publish TEKs again.
 //
 // On error, the error field will contain the error details.
+//
+// The Padding field may be populated with random data on both success and
+// error responses.
 type PublishResponse struct {
-	RevisionToken string `json:"revisionToken"`
-	Error         string `json:"error"`
+	RevisionToken     string `json:"revisionToken"`
+	InsertedExposures int    `json:"insertedExposures"`
+	Error             string `json:"error"`
+	Padding           string `json:"padding"`
 }
 
 // ExposureKey is the 16 byte key, the start time of the key and the

@@ -142,6 +142,10 @@ func (s *ServerEnv) ObservabilityExporter() observability.Exporter {
 	return s.observabilityExporter
 }
 
+func (s *ServerEnv) GetKeyManager() keys.KeyManager {
+	return s.keyManager
+}
+
 // GetSignerForKey returns the crypto.Singer implementation to use based on the installed KeyManager.
 // If there is no KeyManager installed, this returns an error.
 func (s *ServerEnv) GetSignerForKey(ctx context.Context, keyName string) (crypto.Signer, error) {

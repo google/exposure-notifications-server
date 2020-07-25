@@ -44,7 +44,7 @@ func TestRevisionKey(t *testing.T) {
 		t.Fatalf("unable to generate key: %v", err)
 	}
 
-	cfg := KMSConfig{keyID, []byte("super"), kms}
+	cfg := KMSConfig{keyID, kms}
 	revDB, err := New(testDB, &cfg)
 	if err != nil {
 		t.Fatalf("unable to provision revision DB: %v", err)
@@ -80,7 +80,7 @@ func TestMultipleRevisionKeys(t *testing.T) {
 		t.Fatalf("unable to generate key: %v", err)
 	}
 
-	cfg := KMSConfig{keyID, []byte("super"), kms}
+	cfg := KMSConfig{keyID, kms}
 	revDB, err := New(testDB, &cfg)
 	if err != nil {
 		t.Fatalf("unable to provision revision DB: %v", err)

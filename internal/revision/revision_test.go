@@ -33,9 +33,10 @@ import (
 
 func TestBuildTokenBuffer(t *testing.T) {
 	cases := []struct {
-		name    string
-		publish []*model.Exposure
-		want    *pb.RevisionTokenData
+		name     string
+		publish  []*model.Exposure
+		previous *pb.RevisionTokenData
+		want     *pb.RevisionTokenData
 	}{
 		{
 			name: "one",
@@ -46,6 +47,7 @@ func TestBuildTokenBuffer(t *testing.T) {
 					IntervalCount:  144,
 				},
 			},
+			previous: nil,
 			want: &pb.RevisionTokenData{
 				RevisableKeys: []*pb.RevisableKey{
 					{
@@ -57,7 +59,7 @@ func TestBuildTokenBuffer(t *testing.T) {
 			},
 		},
 		{
-			name: "wrong_order",
+			name: "merge_previous",
 			publish: []*model.Exposure{
 				{
 					ExposureKey:    []byte{4, 3, 2, 1},
@@ -70,17 +72,36 @@ func TestBuildTokenBuffer(t *testing.T) {
 					IntervalCount:  144,
 				},
 			},
+			previous: &pb.RevisionTokenData{
+				RevisableKeys: []*pb.RevisableKey{
+					{
+						TemporaryExposureKey: []byte{4, 3, 2, 1},
+						IntervalNumber:       200144,
+						IntervalCount:        144,
+					},
+					{
+						TemporaryExposureKey: []byte{8, 9, 10, 11},
+						IntervalNumber:       200144,
+						IntervalCount:        82,
+					},
+				},
+			},
 			want: &pb.RevisionTokenData{
 				RevisableKeys: []*pb.RevisableKey{
+					{
+						TemporaryExposureKey: []byte{4, 3, 2, 1},
+						IntervalNumber:       200144,
+						IntervalCount:        144,
+					},
 					{
 						TemporaryExposureKey: []byte{1, 2, 3, 4},
 						IntervalNumber:       200000,
 						IntervalCount:        144,
 					},
 					{
-						TemporaryExposureKey: []byte{4, 3, 2, 1},
+						TemporaryExposureKey: []byte{8, 9, 10, 11},
 						IntervalNumber:       200144,
-						IntervalCount:        144,
+						IntervalCount:        82,
 					},
 				},
 			},
@@ -89,7 +110,7 @@ func TestBuildTokenBuffer(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := buildTokenBufer(tc.publish)
+			got := buildTokenBufer(tc.previous, tc.publish)
 			if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreUnexported(pb.RevisionTokenData{}), cmpopts.IgnoreUnexported(pb.RevisableKey{})); diff != "" {
 				t.Fatalf("mismatch (-want, +got):\n%s", diff)
 			}
@@ -117,7 +138,6 @@ func TestEncryptDecrypt(t *testing.T) {
 
 	cfg := revisiondb.KMSConfig{
 		WrapperKeyID: keyID,
-		WrapperAAD:   []byte("super"),
 		KeyManager:   kms,
 	}
 	revDB, err := revisiondb.New(testDB, &cfg)
@@ -131,7 +151,7 @@ func TestEncryptDecrypt(t *testing.T) {
 		t.Fatalf("unable to create a revision key: %v", err)
 	}
 
-	tm, err := New(ctx, revDB, time.Second)
+	tm, err := New(ctx, revDB, time.Second, 28)
 	if err != nil {
 		t.Fatalf("unable to build token manager: %v", err)
 	}
@@ -166,7 +186,7 @@ func TestEncryptDecrypt(t *testing.T) {
 		},
 	}
 
-	encrypted, err := tm.MakeRevisionToken(ctx, source, aad)
+	encrypted, err := tm.MakeRevisionToken(ctx, nil, source, aad)
 	if err != nil {
 		t.Fatalf("error encrypting and serializing data: %v", err)
 	}
