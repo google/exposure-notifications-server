@@ -55,6 +55,12 @@ resource "google_secret_manager_secret_iam_member" "revision-token-aad" {
   member    = "serviceAccount:${google_service_account.exposure.email}"
 }
 
+resource "google_kms_key_ring_iam_member" "revision-tokens-encrypt-decrypt" {
+  key_ring_id = google_kms_key_ring.revision-tokens.self_link
+  role        = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member      = "serviceAccount:${google_service_account.exposure.email}"
+}
+
 resource "google_project_iam_member" "exposure-observability" {
   for_each = toset([
     "roles/cloudtrace.agent",
@@ -104,7 +110,7 @@ resource "google_cloud_run_service" "exposure" {
 
         env {
           name = "REVISION_TOKEN_KEY_ID"
-          value = replace(data.google_kms_crypto_key_version.token_key_version.id, "\\/\\/cloudkms.googleapis.com\\/v1\\/", "")
+          value = google_kms_crypto_key.token-key.self_link
         }
         env {
           name = "REVISION_TOKEN_AAD"

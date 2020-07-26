@@ -134,7 +134,7 @@ func (tm *TokenManager) maybeRefreshCache(ctx context.Context) error {
 		if rk, err := tm.db.CreateRevisionKey(ctx); err != nil {
 			return fmt.Errorf("unable to bootstrap reivion keys: %w", err)
 		} else {
-			allowed[rk.KeyID] = rk
+			allowed = append(allowed, rk)
 			effectiveID = rk.KeyID
 		}
 	}
