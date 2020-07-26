@@ -21,9 +21,9 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io"
-	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -33,6 +33,15 @@ import (
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/revision/database"
 	"google.golang.org/protobuf/proto"
+)
+
+var (
+	// Used for padding only.
+	zeroTEK = pb.RevisableKey{
+		TemporaryExposureKey: make([]byte, 16),
+		IntervalCount:        0,
+		IntervalNumber:       0,
+	}
 )
 
 // TokenManager is responsible for creating and unlocking revision tokens.
@@ -48,6 +57,10 @@ type TokenManager struct {
 	// A poitners to the currently active key for encryption purposes.
 	effective *database.RevisionKey
 
+	// Pads tokens so that the size of the token can't be used to determine how many keys
+	// are held within.
+	minTokenSize int
+
 	// The allowed/effective keys are cached to avoid excessive decrypt calls to the KMS system to unwrap
 	// the individual revision keys.
 	// A cache refresh is initially a shallow refresh, if the IDs of allowed/effective keys haven't changed,
@@ -59,7 +72,7 @@ type TokenManager struct {
 
 // New creates a new TokenManager that uses a database handle to manage a cache
 // of allowed revision keys.
-func New(ctx context.Context, db *database.RevisionDB, cacheDuration time.Duration) (*TokenManager, error) {
+func New(ctx context.Context, db *database.RevisionDB, cacheDuration time.Duration, minTokenSize uint) (*TokenManager, error) {
 	if cacheDuration > 60*time.Minute {
 		return nil, fmt.Errorf("cache duration must be <= 60 minutes, got: %v", cacheDuration)
 	}
@@ -67,6 +80,7 @@ func New(ctx context.Context, db *database.RevisionDB, cacheDuration time.Durati
 	tm := &TokenManager{
 		db:                db,
 		allowed:           make(map[int64]*database.RevisionKey),
+		minTokenSize:      int(minTokenSize),
 		cacheDuration:     cacheDuration,
 		cacheRefreshAfter: now.Add(-2 * cacheDuration),
 	}
@@ -113,8 +127,16 @@ func (tm *TokenManager) maybeRefreshCache(ctx context.Context) error {
 		return fmt.Errorf("reading revision key cache: %w", err)
 	}
 
+	// To aid in system upgrade, assuming env vars are setup correctly,
+	// we autocreate the first wrapped revision key.
 	if len(allowed) == 0 {
-		return fmt.Errorf("no revision keys exist")
+		logger.Errorf("no revision keys exist - creating one.")
+		if rk, err := tm.db.CreateRevisionKey(ctx); err != nil {
+			return fmt.Errorf("unable to bootstrap reivion keys: %w", err)
+		} else {
+			allowed = append(allowed, rk)
+			effectiveID = rk.KeyID
+		}
 	}
 
 	for _, rk := range allowed {
@@ -158,16 +180,14 @@ func (tm *TokenManager) isReloadNeeded(ctx context.Context) (bool, error) {
 	return false, nil
 }
 
-func buildTokenBufer(eKeys []*model.Exposure) *pb.RevisionTokenData {
-	// sort the keys.
-	sort.Slice(eKeys, func(i, j int) bool {
-		return eKeys[i].ExposureKeyBase64() < eKeys[j].ExposureKeyBase64()
-	})
+func buildTokenBufer(previous *pb.RevisionTokenData, eKeys []*model.Exposure) *pb.RevisionTokenData {
 	// Build the protocol buffer version of the revision token data.
 	tokenData := pb.RevisionTokenData{
 		RevisableKeys: make([]*pb.RevisableKey, 0, len(eKeys)),
 	}
+	got := make(map[string]struct{})
 	for _, k := range eKeys {
+		got[k.ExposureKeyBase64()] = struct{}{}
 		pbKey := pb.RevisableKey{
 			TemporaryExposureKey: make([]byte, len(k.ExposureKey)),
 			IntervalNumber:       k.IntervalNumber,
@@ -176,13 +196,21 @@ func buildTokenBufer(eKeys []*model.Exposure) *pb.RevisionTokenData {
 		copy(pbKey.TemporaryExposureKey, k.ExposureKey)
 		tokenData.RevisableKeys = append(tokenData.RevisableKeys, &pbKey)
 	}
+	// Add in previous keys that weren't also in the new exposures
+	if previous != nil {
+		for _, rk := range previous.RevisableKeys {
+			if _, ok := got[base64.StdEncoding.EncodeToString(rk.TemporaryExposureKey)]; !ok {
+				tokenData.RevisableKeys = append(tokenData.RevisableKeys, rk)
+			}
+		}
+	}
 	return &tokenData
 }
 
 // MakeRevisionToken turns the TEK data from a given publish request
 // into an encrypted protocol buffer revision token.
 // This is using envelope encryption, based on the currently active revision key.
-func (tm *TokenManager) MakeRevisionToken(ctx context.Context, eKeys []*model.Exposure, aad []byte) ([]byte, error) {
+func (tm *TokenManager) MakeRevisionToken(ctx context.Context, previous *pb.RevisionTokenData, eKeys []*model.Exposure, aad []byte) ([]byte, error) {
 	if len(eKeys) == 0 {
 		return nil, fmt.Errorf("no keys to build token for")
 	}
@@ -200,7 +228,12 @@ func (tm *TokenManager) MakeRevisionToken(ctx context.Context, eKeys []*model.Ex
 		tm.mu.RUnlock()
 	}
 
-	tokenData := buildTokenBufer(eKeys)
+	tokenData := buildTokenBufer(previous, eKeys)
+	// Padd the revisable keys out w/ the zero key.
+	for len(tokenData.RevisableKeys) < tm.minTokenSize {
+		tokenData.RevisableKeys = append(tokenData.RevisableKeys, &zeroTEK)
+	}
+
 	plaintext, err := proto.Marshal(tokenData)
 	if err != nil {
 		return nil, fmt.Errorf("unable to masrhal token data: %w", err)
@@ -288,9 +321,17 @@ func (tm *TokenManager) UnmarshalRevisionToken(ctx context.Context, tokenBytes [
 	}
 
 	// The plaintext is a pb.RevisionTokenData
-	var tokenData pb.RevisionTokenData
-	if err := proto.Unmarshal(plaintext, &tokenData); err != nil {
+	var paddedTokenData pb.RevisionTokenData
+	if err := proto.Unmarshal(plaintext, &paddedTokenData); err != nil {
 		return nil, fmt.Errorf("faield to unmarshal token data: %w", err)
+	}
+
+	var tokenData pb.RevisionTokenData
+	for _, rk := range paddedTokenData.RevisableKeys {
+		if rk.IntervalNumber == 0 && rk.IntervalCount == 0 {
+			continue
+		}
+		tokenData.RevisableKeys = append(tokenData.RevisableKeys, rk)
 	}
 
 	return &tokenData, nil

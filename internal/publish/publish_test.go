@@ -36,13 +36,17 @@ import (
 	aadb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/pb"
 	pubdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	"github.com/google/exposure-notifications-server/internal/revision"
+	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/util"
 	verdb "github.com/google/exposure-notifications-server/internal/verification/database"
 	vermodel "github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"
@@ -337,6 +341,27 @@ func TestPublishWithBypass(t *testing.T) {
 			testDB := coredb.NewTestDatabase(t)
 			ctx := context.Background()
 
+			// Make key manager
+			kms, err := keys.NewInMemory(ctx)
+			if err != nil {
+				t.Fatalf("can't make kms: %v", err)
+			}
+			keyID := "rev" + tc.Name
+			kms.AddEncryptionKey(keyID)
+			tokenAAD := make([]byte, 16)
+			if _, err := rand.Read(tokenAAD); err != nil {
+				t.Fatalf("not enough entropy: %v", err)
+			}
+			aad := base64.StdEncoding.EncodeToString(tokenAAD)
+			// Configure revision keys.
+			revDB, err := revisiondb.New(testDB, &revisiondb.KMSConfig{WrapperKeyID: keyID, KeyManager: kms})
+			if err != nil {
+				t.Fatalf("unable to create revision DB handle: %v", err)
+			}
+			if _, err := revDB.CreateRevisionKey(ctx); err != nil {
+				t.Fatalf("unable to create revision key: %v", err)
+			}
+
 			// And set up publish handler up front.
 			config := Config{}
 			config.AuthorizedApp.CacheDuration = time.Nanosecond
@@ -348,9 +373,12 @@ func TestPublishWithBypass(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			config.RevisionTokenAAD = aad
+			config.RevisionTokenKeyID = keyID
 			env := serverenv.New(ctx,
 				serverenv.WithDatabase(testDB),
-				serverenv.WithAuthorizedAppProvider(aaProvider))
+				serverenv.WithAuthorizedAppProvider(aaProvider),
+				serverenv.WithKeyManager(kms))
 			// Some config overrides for test.
 			handler, err := NewHandler(ctx, &config, env)
 			if err != nil {
@@ -423,13 +451,17 @@ func TestPublishWithBypass(t *testing.T) {
 			}
 
 			// For non success status, check that they body contains the expected message
+			defer resp.Body.Close()
 			respBytes, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				t.Fatal(err)
 			}
-			respBody := string(respBytes)
+			var response verifyapi.PublishResponse
+			if err := json.Unmarshal(respBytes, &response); err != nil {
+				t.Fatalf("unable to unmarshal response body: %v; data: %v", err, string(respBytes))
+			}
 			if resp.StatusCode != tc.Code {
-				t.Fatalf("http response code want: %v, got %v. Extended: %v", tc.Code, resp.StatusCode, respBody)
+				t.Fatalf("http response code want: %v, got %v.", tc.Code, resp.StatusCode)
 			}
 
 			if resp.StatusCode == http.StatusOK {
@@ -450,6 +482,7 @@ func TestPublishWithBypass(t *testing.T) {
 				}
 
 				want := make([]*model.Exposure, 0, len(tc.Publish.Keys))
+				tokenWant := &pb.RevisionTokenData{}
 				for _, k := range tc.Publish.Keys {
 					if key, err := base64util.DecodeString(k.Key); err != nil {
 						t.Fatal(err)
@@ -469,6 +502,13 @@ func TestPublishWithBypass(t *testing.T) {
 						}
 
 						want = append(want, &next)
+
+						tokenWant.RevisableKeys = append(tokenWant.RevisableKeys,
+							&pb.RevisableKey{
+								TemporaryExposureKey: key,
+								IntervalNumber:       k.IntervalNumber,
+								IntervalCount:        k.IntervalCount,
+							})
 					}
 				}
 
@@ -489,9 +529,33 @@ func TestPublishWithBypass(t *testing.T) {
 				if diff := cmp.Diff(want, got, sorter, ignoreCreatedAt, cmpopts.IgnoreUnexported(model.Exposure{})); diff != "" {
 					t.Errorf("mismatch (-want, +got):\n%s", diff)
 				}
+
+				// Crack the revision token - it should contain the uploaded exposure keys.
+				tm, err := revision.New(ctx, revDB, time.Minute, 1)
+				if err != nil {
+					t.Fatalf("unable to create token manager: %v", err)
+				}
+				revTokenBytes, err := base64util.DecodeString(response.RevisionToken)
+				if err != nil {
+					t.Fatalf("revision token encoded incorrectly: %v", err)
+				}
+				revToken, err := tm.UnmarshalRevisionToken(ctx, revTokenBytes, tokenAAD)
+				if err != nil {
+					t.Fatalf("unable to decrypt revision token: %v", err)
+				}
+				revisableSorter := cmp.Transformer("Sort", func(in []*pb.RevisableKey) []*pb.RevisableKey {
+					out := append([]*pb.RevisableKey(nil), in...)
+					sort.Slice(out, func(i int, j int) bool {
+						return bytes.Compare(out[i].TemporaryExposureKey, out[j].TemporaryExposureKey) <= 0
+					})
+					return out
+				})
+				if diff := cmp.Diff(tokenWant.RevisableKeys, revToken.RevisableKeys, revisableSorter, cmpopts.IgnoreUnexported(pb.RevisableKey{})); diff != "" {
+					t.Errorf("mismatch (-want, +got):\n%s", diff)
+				}
 			} else {
-				if !strings.Contains(respBody, tc.Error) {
-					t.Errorf("missing error text '%v', got '%v'", tc.Error, respBody)
+				if !strings.Contains(response.Error, tc.Error) {
+					t.Errorf("missing error text '%v', got '%+v'", tc.Error, response)
 				}
 			}
 		})

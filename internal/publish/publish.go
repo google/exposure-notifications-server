@@ -17,6 +17,8 @@ package publish
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -27,12 +29,16 @@ import (
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	"github.com/google/exposure-notifications-server/internal/revision"
+	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifydb "github.com/google/exposure-notifications-server/internal/verification/database"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/base64util"
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
@@ -63,11 +69,30 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("verification.New: %w", err)
 	}
 
+	aadBytes, err := config.RevisionTokenADDBytes()
+	if err != nil {
+		return nil, fmt.Errorf("must provide ADD for revision token encryption in REVISION_TOKEN_AAD env variable: %w", err)
+	}
+	revisionKeyConfig := revisiondb.KMSConfig{
+		WrapperKeyID: config.RevisionTokenKeyID,
+		KeyManager:   env.GetKeyManager(),
+	}
+	revisionDB, err := revisiondb.New(env.Database(), &revisionKeyConfig)
+	if err != nil {
+		return nil, fmt.Errorf("revisiondb.New: %w", err)
+	}
+	tm, err := revision.New(ctx, revisionDB, config.RevisionKeyCacheDuration, config.RevisionTokenMinLength)
+	if err != nil {
+		return nil, fmt.Errorf("revision.New: %w", err)
+	}
+
 	return &publishHandler{
 		serverenv:             env,
 		transformer:           transformer,
 		config:                config,
 		database:              database.New(env.Database()),
+		tokenManager:          tm,
+		tokenAAD:              aadBytes,
 		authorizedAppProvider: env.AuthorizedAppProvider(),
 		verifier:              verifier,
 	}, nil
@@ -78,16 +103,17 @@ type publishHandler struct {
 	serverenv             *serverenv.ServerEnv
 	transformer           *model.Transformer
 	database              *database.PublishDB
+	tokenManager          *revision.TokenManager
+	tokenAAD              []byte
 	authorizedAppProvider authorizedapp.Provider
 	verifier              *verification.Verifier
 }
 
 type response struct {
 	status      int
-	message     string
+	pubResponse *verifyapi.PublishResponse
 	metric      string
 	count       int // metricCount
-	errorInProd bool
 }
 
 func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) response {
@@ -102,7 +128,10 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	if err != nil {
 		message := fmt.Sprintf("error unmarshaling API call, code: %v: %v", code, err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		return response{status: http.StatusBadRequest, message: message, metric: "publish-bad-json", count: 1}
+		return response{
+			status:      http.StatusBadRequest,
+			pubResponse: &verifyapi.PublishResponse{Error: message},
+			metric:      "publish-bad-json", count: 1}
 	}
 
 	appConfig, err := h.authorizedAppProvider.AppConfig(ctx, data.AppPackageName)
@@ -113,7 +142,9 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		if errors.Is(err, authorizedapp.ErrAppNotFound) {
 			message := fmt.Sprintf("unauthorized app: %v", data.AppPackageName)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-			return response{status: http.StatusUnauthorized, message: message, metric: "publish-app-not-authorized", count: 1}
+			return response{status: http.StatusUnauthorized,
+				pubResponse: &verifyapi.PublishResponse{Error: message},
+				metric:      "publish-app-not-authorized", count: 1}
 		}
 
 		// A higher-level configuration error occurred, likely while trying to read
@@ -125,10 +156,9 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{
 			status:      http.StatusUnauthorized,
-			message:     message,
+			pubResponse: &verifyapi.PublishResponse{Error: message},
 			metric:      "publish-error-loading-authorizedapp",
 			count:       1,
-			errorInProd: true,
 		}
 	}
 
@@ -139,10 +169,10 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 			message := fmt.Sprintf("verifying allowed regions: %v", err)
 			span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
 			return response{
-				status:  http.StatusUnauthorized,
-				message: message,
-				metric:  "publish-region-not-authorized",
-				count:   1,
+				status:      http.StatusUnauthorized,
+				pubResponse: &verifyapi.PublishResponse{Error: message},
+				metric:      "publish-region-not-authorized",
+				count:       1,
 			}
 		}
 	}
@@ -156,7 +186,25 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		} else {
 			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
-			return response{status: http.StatusUnauthorized, message: message, metric: "publish-bad-verification", count: 1}
+			return response{
+				status:      http.StatusUnauthorized,
+				pubResponse: &verifyapi.PublishResponse{Error: message},
+				metric:      "publish-bad-verification", count: 1}
+		}
+	}
+
+	// Examine the revision token.
+	var token *pb.RevisionTokenData
+	if len(data.RevisionToken) != 0 {
+		encryptedToken, err := base64util.DecodeString(data.RevisionToken)
+		if err != nil {
+			logger.Errorf("unable to decode revision token, proceeding without: %v", err)
+		} else {
+			token, err = h.tokenManager.UnmarshalRevisionToken(ctx, encryptedToken, h.tokenAAD)
+			if err != nil {
+				logger.Errorf("unable to unmarshall / descrypt revision token: %v", err)
+				token = nil // just in case.
+			}
 		}
 	}
 
@@ -166,25 +214,50 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		message := fmt.Sprintf("unable to read request data: %v", err)
 		logger.Errorf(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
-		return response{status: http.StatusBadRequest, message: message, metric: "publish-transform-fail", count: 1}
+		return response{
+			status:      http.StatusBadRequest,
+			pubResponse: &verifyapi.PublishResponse{Error: message},
+			metric:      "publish-transform-fail", count: 1}
 	}
 
-	n, err := h.database.InsertAndReviseExposures(ctx, exposures)
+	n, err := h.database.InsertAndReviseExposures(ctx, exposures, token, appConfig.BypassRevisionToken)
 	if err != nil {
 		message := fmt.Sprintf("error writing exposure record: %v", err)
 		logger.Errorf(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		return response{status: http.StatusInternalServerError, message: http.StatusText(http.StatusInternalServerError), metric: "publish-db-write-error", count: 1}
+		return response{
+			status:      http.StatusInternalServerError,
+			pubResponse: &verifyapi.PublishResponse{Error: http.StatusText(http.StatusInternalServerError)},
+			metric:      "publish-db-write-error", count: 1}
+	}
+
+	// Build the new revision token. Union of existing token take + new exposures.
+	var keep pb.RevisionTokenData
+	if token != nil {
+		// put existing tokens that aren't too old back in the token.
+		retainInterval := model.IntervalNumber(batchTime.Add(-1 * h.config.MaxIntervalAge))
+		for _, rk := range token.RevisableKeys {
+			if rk.IntervalNumber+rk.IntervalCount >= retainInterval {
+				keep.RevisableKeys = append(keep.RevisableKeys, rk)
+			}
+		}
+	}
+	newToken, err := h.tokenManager.MakeRevisionToken(ctx, &keep, exposures, h.tokenAAD)
+	if err != nil {
+		logger.Errorf("unable to make new revision token: %v", err)
 	}
 
 	message := fmt.Sprintf("Inserted %d exposures.", n)
 	span.AddAttributes(trace.Int64Attribute("inserted_exposures", int64(n)))
 	logger.Info(message)
 	return response{
-		status:  http.StatusOK,
-		message: message,
-		metric:  "publish-exposures-written",
-		count:   len(exposures),
+		status: http.StatusOK,
+		pubResponse: &verifyapi.PublishResponse{
+			RevisionToken:     base64.StdEncoding.EncodeToString(newToken),
+			InsertedExposures: n,
+		},
+		metric: "publish-exposures-written",
+		count:  n,
 	}
 }
 
@@ -199,6 +272,12 @@ func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		metrics.WriteInt(response.metric, true, response.count)
 	}
 
+	data, err := json.Marshal(response.pubResponse)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("{\"error\": \"%v\"}", err.Error())))
+		return
+	}
 	w.WriteHeader(response.status)
-	fmt.Fprint(w, response.message)
+	w.Write(data)
 }

@@ -59,8 +59,8 @@ func KeyManagerFor(ctx context.Context, typ KeyManagerType) (KeyManager, error) 
 		return NewGoogleCloudKMS(ctx)
 	case KeyManagerTypeHashiCorpVault:
 		return NewHashiCorpVault(ctx)
-	case KeyManagerTypeNoop:
-		return NewNoop(ctx)
+	case KeyManagerTypeInMemory:
+		return NewInMemory(ctx)
 	}
 
 	return nil, fmt.Errorf("unknown key manager type: %v", typ)

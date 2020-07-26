@@ -24,6 +24,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/verification"
+	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
@@ -33,6 +35,7 @@ var _ setup.DatabaseConfigProvider = (*Config)(nil)
 var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
 var _ model.TransformerConfig = (*Config)(nil)
+var _ setup.KeyManagerConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.
@@ -40,6 +43,7 @@ type Config struct {
 	AuthorizedApp         authorizedapp.Config
 	Database              database.Config
 	SecretManager         secrets.Config
+	KeyManager            keys.Config
 	Verification          verification.Config
 	ObservabilityExporter observability.Config
 
@@ -52,14 +56,19 @@ type Config struct {
 	CreatedAtTruncateWindow      time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
 	// Crypto key to use for wrapping/unwrapping the revision token cipher blocks.
-	RevisionTokenKeyID         string `env:"REVISION_TOKEN_KEY_ID"`
-	RevisionKeyWrapperAAD      string `env:"REVISION_KEY_WRAPPER_AAD"` // must be base64 encoded, may come from secret://
-	BypassRevisionCertificates bool   `env:"BYPASS_REVISION_CERTIFICATES, default=false"`
+	RevisionTokenKeyID       string        `env:"REVISION_TOKEN_KEY_ID"`
+	RevisionTokenAAD         string        `env:"REVISION_TOKEN_AAD"` // must be base64 encoded, may come from secret://
+	RevisionKeyCacheDuration time.Duration `env:"REVISION_KEY_CACHE_DURATION, default=1m"`
+	RevisionTokenMinLength   uint          `env:"REVISION_TOKEN_MIN_LENGTH, default=28"`
 
 	// Flags for local development and testing. This will cause still valid keys
 	// to not be embargoed.
 	// Normally "still valid" keys can be accepted, but are embargoed.
 	ReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
+}
+
+func (c *Config) RevisionTokenADDBytes() ([]byte, error) {
+	return base64util.DecodeString(c.RevisionTokenAAD)
 }
 
 func (c *Config) MaxExposureKeys() uint {
@@ -100,4 +109,8 @@ func (c *Config) SecretManagerConfig() *secrets.Config {
 
 func (c *Config) ObservabilityExporterConfig() *observability.Config {
 	return &c.ObservabilityExporter
+}
+
+func (c *Config) KeyManagerConfig() *keys.Config {
+	return &c.KeyManager
 }

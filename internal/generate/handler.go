@@ -147,7 +147,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		n, err := h.database.InsertAndReviseExposures(ctx, exposures)
+		n, err := h.database.InsertAndReviseExposures(ctx, exposures, nil, false)
 		if err != nil {
 			message := fmt.Sprintf("error writing exposure record: %v", err)
 			logger.Errorf(message)
@@ -182,7 +182,8 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			n, err := h.database.InsertAndReviseExposures(ctx, exposures)
+			// Bypass revision token enforcement on generated data.
+			n, err := h.database.InsertAndReviseExposures(ctx, exposures, nil, false)
 			if err != nil {
 				message := fmt.Sprintf("error writing exposure record: %v", err)
 				logger.Errorf(message)

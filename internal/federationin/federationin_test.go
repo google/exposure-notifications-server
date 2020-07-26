@@ -70,7 +70,7 @@ type publishDB struct {
 	exposures []*publishmodel.Exposure
 }
 
-func (idb *publishDB) insertExposures(ctx context.Context, exposures []*publishmodel.Exposure) (int, error) {
+func (idb *publishDB) insertExposures(ctx context.Context, exposures []*publishmodel.Exposure, rt *pb.RevisionTokenData, enforce bool) (int, error) {
 	idb.exposures = append(idb.exposures, exposures...)
 	return len(exposures), nil
 }

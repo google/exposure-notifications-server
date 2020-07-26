@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	pgx "github.com/jackc/pgx/v4"
@@ -63,7 +64,7 @@ func TestReadExposures(t *testing.T) {
 			LocalProvenance: true,
 		},
 	}
-	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -142,7 +143,7 @@ func TestExposures(t *testing.T) {
 			LocalProvenance: false,
 		},
 	}
-	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -236,8 +237,10 @@ func TestReviseExposures(t *testing.T) {
 	createdAt := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Hour)
 	revisedAt := time.Now().UTC().Truncate(time.Hour)
 
+	existingTEK := []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4}
+
 	existingExp := &model.Exposure{
-		ExposureKey:      []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4},
+		ExposureKey:      existingTEK,
 		TransmissionRisk: verifyapi.TransmissionRiskClinical,
 		AppPackageName:   "foo.bar",
 		Regions:          []string{"US", "CA", "MX"},
@@ -248,7 +251,7 @@ func TestReviseExposures(t *testing.T) {
 		ReportType:       verifyapi.ReportTypeClinical,
 	}
 	existingExp.SetDaysSinceSymptomOnset(0)
-	if n, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{existingExp}); err != nil {
+	if n, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{existingExp}, nil, true); err != nil {
 		t.Fatalf("error inserting exposures: %v", err)
 	} else if n != 1 {
 		t.Fatalf("wrong number of changed exposures, want: 1, got: %v", n)
@@ -256,7 +259,7 @@ func TestReviseExposures(t *testing.T) {
 
 	// Modify the existing on in place.
 	revisedExp := &model.Exposure{
-		ExposureKey:      []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4},
+		ExposureKey:      existingTEK,
 		TransmissionRisk: verifyapi.TransmissionRiskConfirmedStandard,
 		AppPackageName:   "foo.bar",
 		Regions:          []string{"US", "CA", "MX"},
@@ -267,8 +270,9 @@ func TestReviseExposures(t *testing.T) {
 		ReportType:       verifyapi.ReportTypeConfirmed,
 	}
 	// Add a new TEK to insert.
+	newTEK := []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5}
 	newExp := &model.Exposure{
-		ExposureKey:      []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5},
+		ExposureKey:      newTEK,
 		TransmissionRisk: verifyapi.TransmissionRiskClinical,
 		AppPackageName:   "foo.bar",
 		Regions:          []string{"US", "CA", "MX"},
@@ -281,7 +285,23 @@ func TestReviseExposures(t *testing.T) {
 	newExp.SetDaysSinceSymptomOnset(1)
 
 	revisions := []*model.Exposure{revisedExp, newExp}
-	if n, err := pubDB.InsertAndReviseExposures(ctx, revisions); err != nil {
+	// In the first pass - try to revise the key without the necessary revision token.
+	wantError := "attempt to revise key not in revision token"
+	if _, err := pubDB.InsertAndReviseExposures(ctx, revisions, nil, true); err == nil {
+		t.Fatalf("expected error revising without token data")
+	} else if !strings.Contains(err.Error(), wantError) {
+		t.Fatalf("wrong error, want: '%v' got: %v", wantError, err)
+	}
+
+	// Revision token that allows revision of the revised key.
+	var token pb.RevisionTokenData
+	token.RevisableKeys = append(token.RevisableKeys, &pb.RevisableKey{
+		TemporaryExposureKey: existingTEK,
+		IntervalNumber:       100,
+		IntervalCount:        144,
+	})
+
+	if n, err := pubDB.InsertAndReviseExposures(ctx, revisions, &token, true); err != nil {
 		t.Fatalf("error revising exposures: %v", err)
 	} else if n != 2 {
 		t.Fatalf("wrong number of changed exposures, want: 2, got: %v", n)
@@ -315,8 +335,14 @@ func TestReviseExposures(t *testing.T) {
 		}
 	}
 
+	token.RevisableKeys = append(token.RevisableKeys, &pb.RevisableKey{
+		TemporaryExposureKey: newTEK,
+		IntervalNumber:       244,
+		IntervalCount:        144,
+	})
+
 	// Attempt to revise the already revised key.
-	if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}); err == nil {
+	if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, &token, true); err == nil {
 		t.Fatalf("expected error on revising already revised key, got nil")
 	} else if !strings.Contains(err.Error(), "key has already been revised ") {
 		t.Fatalf("wrong error, want 'invalid key revision request', got: %v", err)
@@ -348,7 +374,7 @@ func TestIterateExposuresCursor(t *testing.T) {
 			Regions:        []string{"MX", "CA"},
 		},
 	}
-	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true); err != nil {
 		t.Fatal(err)
 	}
 	// Iterate over them, canceling the context in the middle.

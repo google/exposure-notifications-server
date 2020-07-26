@@ -60,20 +60,7 @@ func (r *RevisionKey) KeyIDString() string {
 // given KeyManager for wrapping/unwrapping keys.
 type KMSConfig struct {
 	WrapperKeyID string
-	WrapperAAD   []byte
 	KeyManager   keys.KeyManager
-}
-
-// Copy creates a deep copy of the KMSConfig
-// This is done to ensure that we have a clean copy of the ADD slice that can't be changed externally.
-func (k *KMSConfig) Copy() *KMSConfig {
-	c := KMSConfig{
-		WrapperKeyID: k.WrapperKeyID,
-		WrapperAAD:   make([]byte, 0, len(k.WrapperAAD)),
-		KeyManager:   k.KeyManager,
-	}
-	copy(c.WrapperAAD, k.WrapperAAD)
-	return &c
 }
 
 // RevisionDB wraps a database connection and provides functions for interacting with revision keys.
@@ -87,15 +74,12 @@ func New(db *database.DB, c *KMSConfig) (*RevisionDB, error) {
 	if c.WrapperKeyID == "" {
 		return nil, fmt.Errorf("no KMS key ID passed in to revision.New")
 	}
-	if len(c.WrapperAAD) == 0 {
-		return nil, fmt.Errorf("no AAD provided")
-	}
 	if c.KeyManager == nil {
 		return nil, fmt.Errorf("no KeyManager provided")
 	}
 	return &RevisionDB{
 		db:     db,
-		config: c.Copy(),
+		config: c,
 	}, nil
 }
 
@@ -220,7 +204,7 @@ func (rdb *RevisionDB) GetAllowedRevisionKeys(ctx context.Context) (int64, []*Re
 	unwrappedKeys := make([]*RevisionKey, 0, len(keys))
 	// Attempt to unwrap all of the keys
 	for _, wk := range keys {
-		unwrapped, err := rdb.decrypt(ctx, wk.WrappedCipher)
+		unwrapped, err := rdb.decrypt(ctx, wk.WrappedCipher, wk.AAD)
 		if err != nil {
 			logger.Errorf("still allowed revision key that can't be unwrapped: kid: %v error: %v", wk.KeyID, err)
 			return 0, nil, fmt.Errorf("unable to unwrap revision key: %w", err)
@@ -271,7 +255,7 @@ func (rdb *RevisionDB) GetEffectiveRevisionKey(ctx context.Context) (*RevisionKe
 	}
 
 	// Unwrap the DEK w/ the KeyManager.
-	unwrapped, err := rdb.decrypt(ctx, revKey.WrappedCipher)
+	unwrapped, err := rdb.decrypt(ctx, revKey.WrappedCipher, revKey.AAD)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unwrap key: %w", err)
 	}
@@ -280,8 +264,8 @@ func (rdb *RevisionDB) GetEffectiveRevisionKey(ctx context.Context) (*RevisionKe
 	return revKey, nil
 }
 
-func (rdb *RevisionDB) decrypt(ctx context.Context, ciphertext []byte) ([]byte, error) {
-	return rdb.config.KeyManager.Decrypt(ctx, rdb.config.WrapperKeyID, ciphertext, rdb.config.WrapperAAD)
+func (rdb *RevisionDB) decrypt(ctx context.Context, ciphertext []byte, aad []byte) ([]byte, error) {
+	return rdb.config.KeyManager.Decrypt(ctx, rdb.config.WrapperKeyID, ciphertext, aad)
 }
 
 // CreateRevisionKey generates a new AES key and wraps it
@@ -296,7 +280,7 @@ func (rdb *RevisionDB) CreateRevisionKey(ctx context.Context) (*RevisionKey, err
 	}
 
 	// Wrap the key using the configured KMS.
-	wrapped, err := rdb.config.KeyManager.Encrypt(ctx, rdb.config.WrapperKeyID, key, rdb.config.WrapperAAD)
+	wrapped, err := rdb.config.KeyManager.Encrypt(ctx, rdb.config.WrapperKeyID, key, aad)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wrap key: %w", err)
 	}

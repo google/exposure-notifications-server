@@ -25,6 +25,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
@@ -326,7 +328,8 @@ func executeReviseExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 }
 
 // InsertAndReviseExposures transactionally revises and inserts a set of keys as necessary.
-func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*model.Exposure) (int, error) {
+func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*model.Exposure, token *pb.RevisionTokenData, tokenRequired bool) (int, error) {
+	logger := logging.FromContext(ctx)
 	updated := 0
 	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		// Read any existing TEKs FOR UPDATE in this transaction.
@@ -337,6 +340,39 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 		existing, err := db.ReadExposures(ctx, tx, b64keys)
 		if err != nil {
 			return fmt.Errorf("unable to check for existing records")
+		}
+
+		// See if the revision token is relevant. We only need to check it if keys are being revised.
+		if len(existing) > 0 {
+			// Turn the token data into a map for easy comparison.
+			allowedRevisions := make(map[string]*pb.RevisableKey)
+			if token != nil {
+				for _, rk := range token.RevisableKeys {
+					allowedRevisions[base64.StdEncoding.EncodeToString(rk.TemporaryExposureKey)] = rk
+				}
+			}
+			// Check that any existing exposures are present in the token. It doesn't mater if they
+			// would be materially changed or not (the revise keys steps below)
+			for k, v := range existing {
+				if rk, ok := allowedRevisions[k]; !ok {
+					// user sent in an existing key they they do not have the token for.
+					message := "attempt to revise key not in revision token."
+					logger.Errorf(message)
+					if tokenRequired {
+						return fmt.Errorf(message)
+					}
+				} else {
+					// Validate that the key parameters haven't changed.
+					if v.IntervalNumber != rk.IntervalNumber || v.IntervalCount != rk.IntervalCount {
+						message := "revision token metadata mismatch"
+						logger.Errorf(message)
+						if tokenRequired {
+							return fmt.Errorf(message)
+						}
+					}
+				}
+			}
+			// Revision token is valid for this request, not required, or bypassed.
 		}
 
 		// Run through the merge logic.
