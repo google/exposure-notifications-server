@@ -51,6 +51,19 @@ In addition to the above configurations,
 	`hmackey` must be able to be used to calculate the HMAC value as present in
 	the certificate.
 
+## Chaff Requests
+
+It may be possible for a server operator or network observer to glean
+information about client's communicating with the server. To minimize this, the
+exposure service supports chaff (fake) requests. **Your client should send
+regular chaff requests.** To send a chaff request:
+
+1.  Create a real request with a real request body.
+
+1.  Set the `X-Chaff` header on the request.
+
+1.  Receive and **discard** the response. **Do not process the response!**
+
 ## Server Access Configuration
 
 In order for your application to publish keys to the server, the server
