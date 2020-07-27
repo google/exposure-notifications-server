@@ -39,6 +39,7 @@ import (
 	verifydb "github.com/google/exposure-notifications-server/internal/verification/database"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/mikehelmick/go-chaff"
 )
 
 // NewHandler creates the HTTP handler for the TTK publishing API.
@@ -91,6 +92,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		transformer:           transformer,
 		config:                config,
 		database:              database.New(env.Database()),
+		tracker:               chaff.New(),
 		tokenManager:          tm,
 		tokenAAD:              aadBytes,
 		authorizedAppProvider: env.AuthorizedAppProvider(),
@@ -104,6 +106,7 @@ type publishHandler struct {
 	transformer           *model.Transformer
 	database              *database.PublishDB
 	tokenManager          *revision.TokenManager
+	tracker               *chaff.Tracker
 	tokenAAD              []byte
 	authorizedAppProvider authorizedapp.Provider
 	verifier              *verification.Verifier
@@ -261,23 +264,26 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	}
 }
 
-// There is a target normalized latency for this function. This is to help prevent
-// clients from being able to distinguish from successful or errored requests.
+// ServeHTTP handles the publish event. It tracks requests and can handle chaff
+// requests when provided a request with the X-Chaff header.
 func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	response := h.handleRequest(w, r)
+	h.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			response := h.handleRequest(w, r)
 
-	if response.metric != "" {
-		ctx := r.Context()
-		metrics := h.serverenv.MetricsExporter(ctx)
-		metrics.WriteInt(response.metric, true, response.count)
-	}
+			if response.metric != "" {
+				ctx := r.Context()
+				metrics := h.serverenv.MetricsExporter(ctx)
+				metrics.WriteInt(response.metric, true, response.count)
+			}
 
-	data, err := json.Marshal(response.pubResponse)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(fmt.Sprintf("{\"error\": \"%v\"}", err.Error())))
-		return
-	}
-	w.WriteHeader(response.status)
-	w.Write(data)
+			data, err := json.Marshal(response.pubResponse)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "{\"error\": \"%v\"}", err.Error())
+				return
+			}
+			w.WriteHeader(response.status)
+			fmt.Fprintf(w, "%s", data)
+		})).ServeHTTP(w, r)
 }

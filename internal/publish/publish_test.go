@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -456,6 +457,9 @@ func TestPublishWithBypass(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
+			log.Printf("\n\n%#v\n\n", string(respBytes))
+
 			var response verifyapi.PublishResponse
 			if err := json.Unmarshal(respBytes, &response); err != nil {
 				t.Fatalf("unable to unmarshal response body: %v; data: %v", err, string(respBytes))

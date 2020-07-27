@@ -47,6 +47,7 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.5.2 // indirect
 	github.com/lstoll/awskms v0.0.0-20191202211033-9042d2a6f52c
+	github.com/mikehelmick/go-chaff v0.3.0
 	github.com/mitchellh/cli v1.1.1 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/mapstructure v1.3.1 // indirect
