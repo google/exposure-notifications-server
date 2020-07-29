@@ -63,6 +63,8 @@ make spellcheck || {
 
 echo "🔨 Building"
 go build ./...
+# Compiling *_test.go files with performance tag
+go test -c -tags=performance ./internal/performance/...
 
 
 echo "🌌 Verify and tidy module"
