@@ -166,6 +166,16 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	}
 
 	// Verify the request is from a permitted region.
+	if len(data.Regions) == 0 {
+		message := "no regions provided on publish request"
+		span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
+		return response{
+			status:      http.StatusBadRequest,
+			pubResponse: &verifyapi.PublishResponse{Error: message},
+			metric:      "publish-region-not-specified",
+			count:       1,
+		}
+	}
 	for _, r := range data.Regions {
 		if !appConfig.IsAllowedRegion(r) {
 			err := fmt.Errorf("app %v tried to write to unauthorized region %v", appConfig.AppPackageName, r)

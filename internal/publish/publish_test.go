@@ -169,6 +169,23 @@ func TestPublishWithBypass(t *testing.T) {
 			Error:       "content-type is not application/json",
 		},
 		{
+			Name: "missing_regions",
+			AuthorizedApp: func() *aamodel.AuthorizedApp {
+				authApp := aamodel.NewAuthorizedApp()
+				authApp.AppPackageName = "com.example.health"
+				authApp.BypassHealthAuthorityVerification = true
+				authApp.AllowedRegions["US"] = struct{}{}
+				return authApp
+			}(),
+			Publish: verifyapi.Publish{
+				Keys:           util.GenerateExposureKeys(2, 5, false),
+				Regions:        []string{},
+				AppPackageName: "com.example.health",
+			},
+			Code:  http.StatusBadRequest,
+			Error: "no regions provided",
+		},
+		{
 			Name: "bad app package name",
 			AuthorizedApp: func() *aamodel.AuthorizedApp {
 				authApp := aamodel.NewAuthorizedApp()
