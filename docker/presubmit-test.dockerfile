@@ -20,6 +20,9 @@ FROM golang:1.14
 RUN apt-get update -yqq && apt-get install -yqq sudo
 
 # Install gcloud
+WORKDIR /workspace
+RUN mkdir -p /workspace
+
 ENV PATH=/google-cloud-sdk/bin:/workspace:${PATH} \
     CLOUDSDK_CORE_DISABLE_PROMPTS=1
 
