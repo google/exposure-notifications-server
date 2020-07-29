@@ -909,7 +909,7 @@ func TestApplyOverrides(t *testing.T) {
 		Want      []verifyapi.ExposureKey
 	}{
 		{
-			Name: "no overrides",
+			Name: "no_overrides",
 			Publish: verifyapi.Publish{
 				Keys: []verifyapi.ExposureKey{
 					{
@@ -921,6 +921,28 @@ func TestApplyOverrides(t *testing.T) {
 				},
 			},
 			Overrides: make([]verifyapi.TransmissionRiskOverride, 0),
+			Want: []verifyapi.ExposureKey{
+				{
+					Key:              "A",
+					IntervalNumber:   1,
+					IntervalCount:    2,
+					TransmissionRisk: 1,
+				},
+			},
+		},
+		{
+			Name: "nil_overrides",
+			Publish: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:              "A",
+						IntervalNumber:   1,
+						IntervalCount:    2,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			Overrides: nil,
 			Want: []verifyapi.ExposureKey{
 				{
 					Key:              "A",
