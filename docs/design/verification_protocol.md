@@ -75,14 +75,15 @@ We also prescribe a set of private claims to transmit data from the PHA
 verification server to the exposure notification key server.
 
 * `tekhmac` : The HMAC of the TEKs that was presented to the PHA verification
-server. This must be calculated in a specific way (see below).
-* `phadata` : Contains a map of claims for the PHA to communicate back
-to the mobile app and/or the exposure notification key server. This specific
-implementation of the exposure notification key server will disregard and never
-save the `phadata`
+server. This must be calculated in a specific way (see below). This is REQUIRED.
+Base64 encoded string property.
+* `reportType` : One of 'confirmed', 'likely', or 'negative. Will set the ReportType
+on all TEKs that are uploaded with this certificate. String property.
+* `symptomOnsetInterval` : uses the same 10 minute interval timing as TEKs use. If an interval is provided that isn not the start of a UTC day, then it will be rounded down to the beginning of that UTC day. And from there the days +/- symptom onset will be calculated. Int property.
 * `trisk` : Contains an array of transmission risk overrides to enact when
 importing the associated keys. If data is present in this field, it will
-override the data in the upload from the device.
+override the data in the upload from the device. _Deprecated, only populate if
+your system is not using the new report type and +/- symptom onset data._
 
 The verification server can indicate a specific key ID to use by setting the
 `kid` header attribute in the JWT.
