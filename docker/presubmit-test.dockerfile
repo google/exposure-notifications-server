@@ -19,6 +19,21 @@ FROM golang:1.14
 # Install sudo
 RUN apt-get update -yqq && apt-get install -yqq sudo
 
+# Install gcloud
+ENV PATH=/google-cloud-sdk/bin:/workspace:${PATH} \
+    CLOUDSDK_CORE_DISABLE_PROMPTS=1
+
+RUN wget -q https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.tar.gz && \
+    tar xzf google-cloud-sdk.tar.gz -C / && \
+    rm google-cloud-sdk.tar.gz && \
+    /google-cloud-sdk/install.sh \
+        --disable-installation-options \
+        --bash-completion=false \
+        --path-update=false \
+        --usage-reporting=false && \
+    gcloud components install alpha beta kubectl && \
+    gcloud info | tee /workspace/gcloud-info.txt
+
 #
 # BEGIN: DOCKER IN DOCKER SETUP
 #

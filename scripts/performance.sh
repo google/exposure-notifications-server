@@ -29,6 +29,9 @@ if [[ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
 fi
 
 echo "🔨 Start mako microservice"
+gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+gcloud auth configure-docker
+
 docker \
   run \
   --rm \
