@@ -46,8 +46,8 @@ func SecretManagerFor(ctx context.Context, typ SecretManagerType) (SecretManager
 		return NewGoogleSecretManager(ctx)
 	case SecretManagerTypeGoogleHashiCorpVault:
 		return NewHashiCorpVault(ctx)
-	case SecretManagerTypeNoop:
-		return NewNoop(ctx)
+	case SecretManagerTypeInMemory, SecretManagerTypeNoop:
+		return NewInMemory(ctx)
 	}
 
 	return nil, fmt.Errorf("unknown secret manager type: %v", typ)
