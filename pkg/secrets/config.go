@@ -27,9 +27,6 @@ const (
 	SecretManagerTypeGoogleHashiCorpVault SecretManagerType = "HASHICORP_VAULT"
 	SecretManagerTypeGoogleSecretManager  SecretManagerType = "GOOGLE_SECRET_MANAGER"
 	SecretManagerTypeInMemory             SecretManagerType = "IN_MEMORY"
-
-	// SecretManagerTypeNoop is deprecated. Use SecretManagerTypeInMemory.
-	SecretManagerTypeNoop SecretManagerType = "NOOP"
 )
 
 // Config represents the config for a secret manager.

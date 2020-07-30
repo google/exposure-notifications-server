@@ -46,7 +46,7 @@ func SecretManagerFor(ctx context.Context, typ SecretManagerType) (SecretManager
 		return NewGoogleSecretManager(ctx)
 	case SecretManagerTypeGoogleHashiCorpVault:
 		return NewHashiCorpVault(ctx)
-	case SecretManagerTypeInMemory, SecretManagerTypeNoop:
+	case SecretManagerTypeInMemory:
 		return NewInMemory(ctx)
 	}
 
