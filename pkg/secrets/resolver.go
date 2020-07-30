@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
-	"github.com/sethvargo/go-envconfig/pkg/envconfig"
+	"github.com/sethvargo/go-envconfig"
 )
 
 const (

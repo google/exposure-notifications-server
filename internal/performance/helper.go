@@ -29,7 +29,7 @@ import (
 	// github.com/golang/protobuf/proto yet
 	"github.com/golang/protobuf/proto"
 	"github.com/google/mako/go/quickstore"
-	"github.com/sethvargo/go-envconfig/pkg/envconfig"
+	"github.com/sethvargo/go-envconfig"
 
 	qpb "github.com/google/mako/proto/quickstore/quickstore_go_proto"
 	mpb "github.com/google/mako/spec/proto/mako_go_proto"
