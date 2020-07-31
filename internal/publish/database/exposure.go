@@ -158,6 +158,8 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 
 	if len(criteria.IncludeRegions) == 1 {
 		if criteria.IncludeTravelers {
+			// If the query has include ragions and include travelers set - we want the union of the specified regions and
+			// all "traveler" keys that this server knows about.
 			args = append(args, criteria.IncludeRegions)
 			args = append(args, true)
 			q += fmt.Sprintf(" AND ((regions && $%d) OR traveler = $%d)", len(args)-1, len(args)) // Operation "&&" means "array overlaps / intersects"
