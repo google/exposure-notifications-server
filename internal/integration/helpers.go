@@ -145,7 +145,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		tb.Fatal(err)
 	}
 
-	sm, err := secrets.NewNoop(ctx)
+	sm, err := secrets.NewInMemory(ctx)
 	if err != nil {
 		tb.Fatal(err)
 	}

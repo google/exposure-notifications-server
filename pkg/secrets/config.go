@@ -24,9 +24,9 @@ type SecretManagerType string
 const (
 	SecretManagerTypeAWSSecretsManager    SecretManagerType = "AWS_SECRETS_MANAGER"
 	SecretManagerTypeAzureKeyVault        SecretManagerType = "AZURE_KEY_VAULT"
-	SecretManagerTypeGoogleSecretManager  SecretManagerType = "GOOGLE_SECRET_MANAGER"
 	SecretManagerTypeGoogleHashiCorpVault SecretManagerType = "HASHICORP_VAULT"
-	SecretManagerTypeNoop                 SecretManagerType = "NOOP"
+	SecretManagerTypeGoogleSecretManager  SecretManagerType = "GOOGLE_SECRET_MANAGER"
+	SecretManagerTypeInMemory             SecretManagerType = "IN_MEMORY"
 )
 
 // Config represents the config for a secret manager.

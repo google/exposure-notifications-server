@@ -20,6 +20,8 @@ import (
 )
 
 func TestJSONExpander_GetSecretValue(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	testSM := &testSecretManager{}

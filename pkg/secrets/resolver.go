@@ -39,7 +39,8 @@ const (
 
 // Resolver returns a function that fetches secrets from the secret manager. If
 // the provided secret manager is nil, the function is nil, Otherwise, it looks
-// for values prefixed with secret:// and resolves them as secrets.
+// for values prefixed with secret:// and resolves them as secrets. For slice
+// functions, values separated by commas are processed as individual secrets.
 func Resolver(sm SecretManager, config *Config) envconfig.MutatorFunc {
 	if sm == nil {
 		return nil
@@ -51,7 +52,18 @@ func Resolver(sm SecretManager, config *Config) envconfig.MutatorFunc {
 	}
 
 	return func(ctx context.Context, key, value string) (string, error) {
-		return resolver.resolve(ctx, key, value)
+		vals := strings.Split(value, ",")
+		resolved := make([]string, len(vals))
+
+		for i, val := range vals {
+			s, err := resolver.resolve(ctx, key, val)
+			if err != nil {
+				return "", err
+			}
+			resolved[i] = s
+		}
+
+		return strings.Join(resolved, ","), nil
 	}
 }
 
