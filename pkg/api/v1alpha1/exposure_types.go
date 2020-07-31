@@ -56,6 +56,10 @@ const (
 //  - Does not have to be within range of any of the provided keys (i.e. future
 //    key uploads)
 //
+// traveler - set to true if the TEKs in this publish set are consider to be the
+//  keys of a "traveler" who has left the home region represented by this server
+//  (or by the home health authority in case of a multi-tenant installation).
+//
 // revisionToken: An opaque string that must be passed in-tact from on additional
 //   publish requests from the same device, there the same TEKs may be published
 //   again.
@@ -72,6 +76,7 @@ type Publish struct {
 	VerificationPayload  string        `json:"verificationPayload"`
 	HMACKey              string        `json:"hmackey"`
 	SymptomOnsetInterval int32         `json:"symptomOnsetInterval"`
+	Traveler             bool          `json:"traveler"`
 	RevisionToken        string        `json:"revisionToken"`
 
 	Padding string `json:"padding"`

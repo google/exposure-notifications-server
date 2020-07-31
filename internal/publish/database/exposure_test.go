@@ -54,6 +54,7 @@ func TestReadExposures(t *testing.T) {
 			IntervalCount:   144,
 			CreatedAt:       createdAt,
 			LocalProvenance: true,
+			Traveler:        true,
 		},
 		{
 			ExposureKey:     []byte("DEF456"),
@@ -62,6 +63,7 @@ func TestReadExposures(t *testing.T) {
 			IntervalCount:   144,
 			CreatedAt:       createdAt,
 			LocalProvenance: true,
+			Traveler:        true,
 		},
 	}
 	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true); err != nil {
@@ -121,6 +123,7 @@ func TestExposures(t *testing.T) {
 		{
 			ExposureKey:     []byte("DEF"),
 			Regions:         []string{"CA"},
+			Traveler:        true,
 			IntervalNumber:  118,
 			IntervalCount:   1,
 			CreatedAt:       batchTime.Add(1 * time.Hour),
@@ -140,6 +143,7 @@ func TestExposures(t *testing.T) {
 			IntervalCount:   3,
 			CreatedAt:       batchTime.Add(3 * time.Hour),
 			Regions:         []string{"US"},
+			Traveler:        true,
 			LocalProvenance: false,
 		},
 	}
@@ -183,6 +187,18 @@ func TestExposures(t *testing.T) {
 				SinceTimestamp: exposures[2].CreatedAt,
 			},
 			nil,
+		},
+		{
+			IterateExposuresCriteria{OnlyTravelers: true},
+			[]int{1, 3},
+		},
+		{
+			IterateExposuresCriteria{IncludeRegions: []string{"CA"}, IncludeTravelers: true},
+			[]int{0, 1, 2, 3},
+		},
+		{
+			IterateExposuresCriteria{OnlyLocalProvenance: true, OnlyTravelers: true},
+			[]int{1},
 		},
 	} {
 		got, err := listExposures(ctx, testPublishDB, test.criteria)

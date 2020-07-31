@@ -46,6 +46,7 @@ type Exposure struct {
 	TransmissionRisk int
 	AppPackageName   string
 	Regions          []string
+	Traveler         bool
 	IntervalNumber   int32
 	IntervalCount    int32
 	CreatedAt        time.Time
@@ -505,6 +506,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 				exposure.SetDaysSinceSymptomOnset(daysSince)
 			}
 		}
+		exposure.Traveler = inData.Traveler
 		entities = append(entities, exposure)
 	}
 
