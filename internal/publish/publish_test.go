@@ -291,6 +291,7 @@ func TestPublishWithBypass(t *testing.T) {
 			Publish: verifyapi.Publish{
 				Keys:                util.GenerateExposureKeys(2, 5, false),
 				Regions:             []string{regions.current()},
+				Traveler:            true,
 				AppPackageName:      names.current(),
 				VerificationPayload: "totally not a JWT",
 			},
@@ -552,6 +553,7 @@ func TestPublishWithBypass(t *testing.T) {
 							IntervalNumber:   k.IntervalNumber,
 							IntervalCount:    k.IntervalCount,
 							Regions:          tc.Publish.Regions,
+							Traveler:         tc.Publish.Traveler,
 							LocalProvenance:  true,
 							FederationSyncID: 0,
 						}
