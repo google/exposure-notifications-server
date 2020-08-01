@@ -33,8 +33,6 @@ resource "google_service_account_iam_member" "cloudbuild-deploy-federationout" {
 }
 
 resource "google_secret_manager_secret_iam_member" "federationout-db" {
-  provider = google-beta
-
   for_each = toset([
     "sslcert",
     "sslkey",

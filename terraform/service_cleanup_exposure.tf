@@ -33,8 +33,6 @@ resource "google_service_account_iam_member" "cloudbuild-deploy-cleanup-exposure
 }
 
 resource "google_secret_manager_secret_iam_member" "cleanup-exposure-db" {
-  provider = google-beta
-
   for_each = toset([
     "sslcert",
     "sslkey",

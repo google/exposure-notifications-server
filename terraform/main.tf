@@ -17,12 +17,6 @@ provider "google" {
   region  = var.region
 }
 
-# For beta-only resources like secrets-manager
-provider "google-beta" {
-  project = var.project
-  region  = var.region
-}
-
 # To generate passwords.
 provider "random" {}
 

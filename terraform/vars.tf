@@ -137,9 +137,8 @@ variable "vpc_access_connector_max_throughput" {
 
 terraform {
   required_providers {
-    google      = "~> 3.32"
-    google-beta = "~> 3.32"
-    null        = "~> 2.1"
-    random      = "~> 2.3"
+    google = "~> 3.32"
+    null   = "~> 2.1"
+    random = "~> 2.3"
   }
 }

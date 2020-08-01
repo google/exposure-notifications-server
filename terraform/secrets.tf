@@ -21,8 +21,6 @@ resource "random_id" "revision_token_aad" {
 }
 
 resource "google_secret_manager_secret" "revision_token_aad" {
-  provider = google-beta
-
   secret_id = "revision-token-aad"
   replication {
     automatic = true
@@ -33,8 +31,6 @@ resource "google_secret_manager_secret" "revision_token_aad" {
 }
 
 resource "google_secret_manager_secret_version" "revision_token_aad_secret_version" {
-  provider = google-beta
-
   secret      = google_secret_manager_secret.revision_token_aad.id
   secret_data = random_id.revision_token_aad.b64_std
 }
