@@ -34,7 +34,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 
-	"github.com/google/exposure-notifications-server/internal/util"
+	"github.com/google/exposure-notifications-server/pkg/util"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
