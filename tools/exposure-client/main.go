@@ -28,8 +28,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/util"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/util"
 )
 
 var (

@@ -43,11 +43,11 @@ import (
 	"github.com/google/exposure-notifications-server/internal/revision"
 	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/google/exposure-notifications-server/internal/util"
 	verdb "github.com/google/exposure-notifications-server/internal/verification/database"
 	vermodel "github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/keys"
+	"github.com/google/exposure-notifications-server/pkg/util"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"
