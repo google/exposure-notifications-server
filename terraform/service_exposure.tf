@@ -130,6 +130,21 @@ resource "google_cloud_run_service" "exposure" {
   }
 }
 
+resource "google_cloud_run_domain_mapping" "exposure" {
+  count    = var.exposure_custom_domain != "" ? 1 : 0
+  location = var.cloudrun_location
+  name     = var.exposure_custom_domain
+
+  metadata {
+    namespace = var.project
+  }
+
+  spec {
+    route_name     = google_cloud_run_service.exposure.name
+    force_override = true
+  }
+}
+
 resource "google_cloud_run_service_iam_member" "exposure-public" {
   location = google_cloud_run_service.exposure.location
   project  = google_cloud_run_service.exposure.project

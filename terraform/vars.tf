@@ -128,6 +128,20 @@ variable "service_environment" {
   description = "Per-service environment overrides."
 }
 
+variable "exposure_custom_domain" {
+  type    = string
+  default = ""
+
+  description = "Custom domain to map for exposures. This domain must already be verified by Google. If not provided, no domain mapping is created."
+}
+
+variable "federationout_custom_domain" {
+  type    = string
+  default = ""
+
+  description = "Custom domain to map for federation. This domain must already be verified by Google. If not provided, no domain mapping is created."
+}
+
 variable "vpc_access_connector_max_throughput" {
   type    = number
   default = 1000
