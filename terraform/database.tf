@@ -97,8 +97,6 @@ resource "google_sql_user" "user" {
 }
 
 resource "google_secret_manager_secret" "db-secret" {
-  provider = google-beta
-
   for_each = toset([
     "sslcert",
     "sslkey",
@@ -118,8 +116,6 @@ resource "google_secret_manager_secret" "db-secret" {
 }
 
 resource "google_secret_manager_secret_version" "db-secret-version" {
-  provider = google-beta
-
   for_each = {
     sslcert     = google_sql_ssl_cert.db-cert.cert
     sslkey      = google_sql_ssl_cert.db-cert.private_key
@@ -134,7 +130,6 @@ resource "google_secret_manager_secret_version" "db-secret-version" {
 # Grant Cloud Build the ability to access the database password (required to run
 # migrations).
 resource "google_secret_manager_secret_iam_member" "cloudbuild-db-pwd" {
-  provider  = google-beta
   secret_id = google_secret_manager_secret.db-secret["password"].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"

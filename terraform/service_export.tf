@@ -33,8 +33,6 @@ resource "google_service_account_iam_member" "cloudbuild-deploy-export" {
 }
 
 resource "google_secret_manager_secret_iam_member" "export-db" {
-  provider = google-beta
-
   for_each = toset([
     "sslcert",
     "sslkey",
@@ -76,6 +74,8 @@ resource "google_cloud_run_service" "export" {
   name     = "export"
   location = var.cloudrun_location
 
+  autogenerate_revision_name = true
+
   template {
     spec {
       service_account_name = google_service_account.export.email
@@ -91,15 +91,13 @@ resource "google_cloud_run_service" "export" {
         }
 
         dynamic "env" {
-          for_each = local.common_cloudrun_env_vars
-          content {
-            name  = env.value["name"]
-            value = env.value["value"]
-          }
-        }
+          for_each = merge(
+            local.common_cloudrun_env_vars,
 
-        dynamic "env" {
-          for_each = lookup(var.service_environment, "export", {})
+            // This MUST come last to allow overrides!
+            lookup(var.service_environment, "export", {}),
+          )
+
           content {
             name  = env.key
             value = env.value
@@ -126,7 +124,8 @@ resource "google_cloud_run_service" "export" {
 
   lifecycle {
     ignore_changes = [
-      template,
+      template[0].metadata[0].annotations,
+      template[0].spec[0].containers[0].image,
     ]
   }
 }

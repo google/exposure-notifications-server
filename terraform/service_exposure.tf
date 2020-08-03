@@ -33,8 +33,6 @@ resource "google_service_account_iam_member" "cloudbuild-deploy-exposure" {
 }
 
 resource "google_secret_manager_secret_iam_member" "exposure-db" {
-  provider = google-beta
-
   for_each = toset([
     "sslcert",
     "sslkey",
@@ -48,8 +46,6 @@ resource "google_secret_manager_secret_iam_member" "exposure-db" {
 }
 
 resource "google_secret_manager_secret_iam_member" "revision-token-aad" {
-  provider = google-beta
-
   secret_id = google_secret_manager_secret.revision_token_aad.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.exposure.email}"
@@ -78,6 +74,8 @@ resource "google_cloud_run_service" "exposure" {
   name     = "exposure"
   location = var.cloudrun_location
 
+  autogenerate_revision_name = true
+
   template {
     spec {
       service_account_name = google_service_account.exposure.email
@@ -93,28 +91,19 @@ resource "google_cloud_run_service" "exposure" {
         }
 
         dynamic "env" {
-          for_each = local.common_cloudrun_env_vars
-          content {
-            name  = env.value["name"]
-            value = env.value["value"]
-          }
-        }
+          for_each = merge(
+            local.common_cloudrun_env_vars,
+            { "REVISION_TOKEN_KEY_ID" = google_kms_crypto_key.token-key.self_link },
+            { "REVISION_TOKEN_AAD" = "secret://${google_secret_manager_secret_version.revision_token_aad_secret_version.id}" },
 
-        dynamic "env" {
-          for_each = lookup(var.service_environment, "exposure", {})
+            // This MUST come last to allow overrides!
+            lookup(var.service_environment, "exposure", {}),
+          )
+
           content {
             name  = env.key
             value = env.value
           }
-        }
-
-        env {
-          name = "REVISION_TOKEN_KEY_ID"
-          value = google_kms_crypto_key.token-key.self_link
-        }
-        env {
-          name = "REVISION_TOKEN_AAD"
-          value = "secret://${google_secret_manager_secret_version.revision_token_aad_secret_version.id}"
         }
       }
     }
@@ -135,7 +124,8 @@ resource "google_cloud_run_service" "exposure" {
 
   lifecycle {
     ignore_changes = [
-      template,
+      template[0].metadata[0].annotations,
+      template[0].spec[0].containers[0].image,
     ]
   }
 }

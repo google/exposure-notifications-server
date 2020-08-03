@@ -24,7 +24,7 @@ substitutions:
 
 steps:
 - id: 'export'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:293.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:303.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'

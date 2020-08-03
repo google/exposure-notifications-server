@@ -33,8 +33,6 @@ resource "google_service_account_iam_member" "cloudbuild-deploy-cleanup-exposure
 }
 
 resource "google_secret_manager_secret_iam_member" "cleanup-exposure-db" {
-  provider = google-beta
-
   for_each = toset([
     "sslcert",
     "sslkey",
@@ -64,6 +62,8 @@ resource "google_cloud_run_service" "cleanup-exposure" {
   name     = "cleanup-exposure"
   location = var.cloudrun_location
 
+  autogenerate_revision_name = true
+
   template {
     spec {
       service_account_name = google_service_account.cleanup-exposure.email
@@ -79,15 +79,13 @@ resource "google_cloud_run_service" "cleanup-exposure" {
         }
 
         dynamic "env" {
-          for_each = local.common_cloudrun_env_vars
-          content {
-            name  = env.value["name"]
-            value = env.value["value"]
-          }
-        }
+          for_each = merge(
+            local.common_cloudrun_env_vars,
 
-        dynamic "env" {
-          for_each = lookup(var.service_environment, "cleanup_exposure", {})
+            // This MUST come last to allow overrides!
+            lookup(var.service_environment, "cleanup_exposure", {}),
+          )
+
           content {
             name  = env.key
             value = env.value
@@ -112,7 +110,8 @@ resource "google_cloud_run_service" "cleanup-exposure" {
 
   lifecycle {
     ignore_changes = [
-      template,
+      template[0].metadata[0].annotations,
+      template[0].spec[0].containers[0].image,
     ]
   }
 }
