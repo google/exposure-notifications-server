@@ -128,6 +128,20 @@ variable "service_environment" {
   description = "Per-service environment overrides."
 }
 
+variable "exposure_custom_domain" {
+  type    = string
+  default = ""
+
+  description = "Custom domain to map for exposures. This domain must already be verified by Google, and you must have a DNS CNAME record pointing to ghs.googlehosted.com in advance. If not provided, no domain mapping is created."
+}
+
+variable "federationout_custom_domain" {
+  type    = string
+  default = ""
+
+  description = "Custom domain to map for federationin. This domain must already be verified by Google, and you must have a DNS CNAME record pointing to ghs.googlehosted.com in advance. If not provided, no domain mapping is created."
+}
+
 variable "vpc_access_connector_max_throughput" {
   type    = number
   default = 1000

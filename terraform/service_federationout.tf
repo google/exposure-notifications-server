@@ -116,6 +116,21 @@ resource "google_cloud_run_service" "federationout" {
   }
 }
 
+resource "google_cloud_run_domain_mapping" "federationout" {
+  count    = var.federationout_custom_domain != "" ? 1 : 0
+  location = var.cloudrun_location
+  name     = var.federationout_custom_domain
+
+  metadata {
+    namespace = var.project
+  }
+
+  spec {
+    route_name     = google_cloud_run_service.federationout.name
+    force_override = true
+  }
+}
+
 resource "google_cloud_run_service_iam_member" "federationout-public" {
   location = google_cloud_run_service.federationout.location
   project  = google_cloud_run_service.federationout.project
