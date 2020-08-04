@@ -30,7 +30,7 @@ import (
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	pgx "github.com/jackc/pgx/v4"
@@ -62,9 +62,8 @@ func TestExport(t *testing.T) {
 
 	env, client, db := integration.NewTestServer(t, exportPeriod)
 	payload := &verifyapi.Publish{
-		Keys:           util.GenerateExposureKeys(keysPerPublish, -1, false),
-		Regions:        []string{"TEST"},
-		AppPackageName: "com.example.app",
+		Keys:              util.GenerateExposureKeys(keysPerPublish, -1, false),
+		HealthAuthorityID: "com.example.app",
 
 		// TODO: hook up verification
 		VerificationPayload: "TODO: ",

@@ -25,7 +25,7 @@ import (
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	v1 "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/cache"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"
@@ -54,30 +54,29 @@ type VerifiedClaims struct {
 	HealthAuthorityID    int64
 	ReportType           string // blank indicates no report type was present.
 	SymptomOnsetInterval uint32 // 0 indicates no symptom onset interval present. This should be checked for "reasonable" value before application.
-	TransmissionRisks    verifyapi.TransmissionRiskVector
 }
 
 // VerifyDiagnosisCertificate accepts a publish request (from which is extracts the JWT),
 // fully verifies the JWT and signture against what the passed in authorrized app is allowed
 // to use. Returns any transmission risk overrides if they are present.
-func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamodel.AuthorizedApp, publish *verifyapi.Publish) (*VerifiedClaims, error) {
+func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamodel.AuthorizedApp, publish *v1.Publish) (*VerifiedClaims, error) {
 	// These get assigned during the ParseWithClaims closure.
 	var healthAuthorityID int64
-	var claims *verifyapi.VerificationClaims
+	var claims *v1.VerificationClaims
 
 	// Unpack JWT so we can determine issuer and key version.
-	token, err := jwt.ParseWithClaims(publish.VerificationPayload, &verifyapi.VerificationClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(publish.VerificationPayload, &v1.VerificationClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if method, ok := token.Method.(*jwt.SigningMethodECDSA); !ok || method.Name != jwt.SigningMethodES256.Name {
 			return nil, fmt.Errorf("unsupported signing method, must be %v", jwt.SigningMethodES256.Name)
 		}
 
 		var ok bool
-		kid, ok := token.Header[verifyapi.KeyIDHeader]
+		kid, ok := token.Header[v1.KeyIDHeader]
 		if !ok {
 			return nil, fmt.Errorf("missing required header field, 'kid' indicating key id")
 		}
 
-		claims, ok = token.Claims.(*verifyapi.VerificationClaims)
+		claims, ok = token.Claims.(*v1.VerificationClaims)
 		if !ok {
 			return nil, fmt.Errorf("does not contain expected claim set")
 		}
@@ -148,6 +147,5 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 		HealthAuthorityID:    healthAuthorityID,
 		ReportType:           claims.ReportType,
 		SymptomOnsetInterval: claims.SymptomOnsetInterval,
-		TransmissionRisks:    claims.TransmissionRisks,
 	}, nil
 }

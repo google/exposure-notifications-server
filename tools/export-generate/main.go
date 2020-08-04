@@ -36,7 +36,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/pkg/util"
 
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
 
 var (
