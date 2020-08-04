@@ -22,9 +22,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/verification"
-	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
@@ -46,6 +46,7 @@ type Config struct {
 	KeyManager            keys.Config
 	Verification          verification.Config
 	ObservabilityExporter observability.Config
+	RevisionToken         revision.Config
 
 	Port             string `env:"PORT, default=8080"`
 	MaxKeysOnPublish uint   `env:"MAX_KEYS_ON_PUBLISH, default=30"`
@@ -55,20 +56,12 @@ type Config struct {
 	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=21"`
 	CreatedAtTruncateWindow      time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
-	// Crypto key to use for wrapping/unwrapping the revision token cipher blocks.
-	RevisionTokenKeyID       string        `env:"REVISION_TOKEN_KEY_ID"`
-	RevisionTokenAAD         string        `env:"REVISION_TOKEN_AAD"` // must be base64 encoded, may come from secret://
 	RevisionKeyCacheDuration time.Duration `env:"REVISION_KEY_CACHE_DURATION, default=1m"`
-	RevisionTokenMinLength   uint          `env:"REVISION_TOKEN_MIN_LENGTH, default=28"`
 
 	// Flags for local development and testing. This will cause still valid keys
 	// to not be embargoed.
 	// Normally "still valid" keys can be accepted, but are embargoed.
 	ReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
-}
-
-func (c *Config) RevisionTokenADDBytes() ([]byte, error) {
-	return base64util.DecodeString(c.RevisionTokenAAD)
 }
 
 func (c *Config) MaxExposureKeys() uint {
