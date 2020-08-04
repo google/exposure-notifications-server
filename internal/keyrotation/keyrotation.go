@@ -67,10 +67,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TODO(whaught):
 	// 1. Retrieve keys
 	// 2. Early exit if the newest is new (configurable)
-	// 2. Otherwise generate a key and store
-	// 3. delete oldest keys, but always keep recent and min 2
-	// 4. Metric on count created and deleted
-	// 5. logger.log that too
+	// 3. Take a lock on the DB
+	// 4. Otherwise generate a key and store
+	// 5. delete oldest keys, but always keep any within 15d or still primary
+	// 6. Metric on count created and deleted
+	// 7. logger.log that too
+	// 8. Unlock
 
 	logger.Info("key rotation complete.")
 	w.WriteHeader(http.StatusOK)

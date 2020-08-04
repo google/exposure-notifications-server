@@ -21,12 +21,10 @@ import (
 	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/setup"
-	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
 // Compile-time check to assert this config matches requirements.
-var _ setup.BlobstoreConfigProvider = (*Config)(nil)
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
 var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
@@ -34,21 +32,22 @@ var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
 // Config represents the configuration and associated environment variables for
 // the key rotation components.
 type Config struct {
-	// TODO(whaught): Copied. Not sure if we will actually need all of these.
 	Database              database.Config
 	SecretManager         secrets.Config
-	Storage               storage.Config
 	ObservabilityExporter observability.Config
 
 	RevisionToken publish.RevisionTokenConfig
 
-	Port           string        `env:"PORT, default=8080"`
-	RotationPeriod time.Duration `env:"ROTATION_PERIOD, default=14d"`
-	MinKeys        int           `env:"MIN_KEYS, default=2"`
-}
+	Port string `env:"PORT, default=8080"`
 
-func (c *Config) BlobstoreConfig() *storage.Config {
-	return &c.Storage
+	// NewKeyPeriod is the duration after which we will rotate encryption keys. By default we
+	// generate a new key every two weeks.
+	NewKeyPeriod time.Duration `env:"NEW_KEY_PERIOD, default=7d"`
+
+	// DeleteOldKeyPeriod is the duration after which it is safe to delete old keys.
+	// We delete old data after two weeks after which it should be safe to also delete
+	// the associated key - we default to 15d to buffer for potential timezones issues.
+	DeleteOldKeyPeriod time.Duration `env:"DELETE_OLD_KEY_PERIOD, default=15d"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {

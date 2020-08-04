@@ -37,17 +37,17 @@ func TestNewRotationHandler(t *testing.T) {
 		err  error
 	}{
 		{
-			name: "nil Database",
+			name: "nil_database",
 			env:  serverenv.New(ctx),
 			err:  fmt.Errorf("missing database in server environment"),
 		},
 		{
-			name: "nil Key manager",
+			name: "nil_key_manager",
 			env:  serverenv.New(ctx, serverenv.WithDatabase(testDB)),
 			err:  fmt.Errorf("missing key manager in server environment"),
 		},
 		{
-			name: "Fully Specified",
+			name: "fully_specified",
 			env:  serverenv.New(ctx, serverenv.WithKeyManager(emptyKMS), serverenv.WithDatabase(testDB)),
 			err:  nil,
 		},
