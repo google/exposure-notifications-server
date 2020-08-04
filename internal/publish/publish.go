@@ -233,7 +233,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 			metric:      "publish-transform-fail", count: 1}
 	}
 
-	n, err := h.database.InsertAndReviseExposures(ctx, exposures, token, appConfig.BypassRevisionToken)
+	n, err := h.database.InsertAndReviseExposures(ctx, exposures, token, !appConfig.BypassRevisionToken)
 	if err != nil {
 		message := fmt.Sprintf("error writing exposure record: %v", err)
 		logger.Errorf(message)
