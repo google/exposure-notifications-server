@@ -68,20 +68,15 @@ func TestNewRotationHandler(t *testing.T) {
 			}
 			config.RevisionToken.KeyID = keyID
 
-			got, err := NewRotationHandler(config, tc.env)
+			got, err := NewServer(config, tc.env)
 			if tc.err != nil {
 				if err.Error() != tc.err.Error() {
 					t.Fatalf("got %+v: want %v", err, tc.err)
 				}
 			} else if err != nil {
 				t.Fatalf("got unexpected error: %v", err)
-			} else {
-				handler, ok := got.(*handler)
-				if !ok {
-					t.Fatal("handler does not satisfy http.Handler interface")
-				} else if handler.env != tc.env {
-					t.Fatalf("got %+v: want %v", handler.env, tc.env)
-				}
+			} else if got.env != tc.env {
+				t.Fatalf("got %+v: want %v", got.env, tc.env)
 			}
 		})
 	}

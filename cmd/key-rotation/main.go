@@ -18,7 +18,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/keyrotation"
 	"github.com/google/exposure-notifications-server/internal/logging"
@@ -51,19 +50,16 @@ func realMain(ctx context.Context) error {
 	}
 	defer env.Close(ctx)
 
-	handler, err := keyrotation.NewRotationHandler(&config, env)
+	rotationServer, err := keyrotation.NewServer(&config, env)
 	if err != nil {
-		return fmt.Errorf("keyrotation.NewRotationHandler: %w", err)
+		return fmt.Errorf("keyrotation.NewServer: %w", err)
 	}
-
-	mux := http.NewServeMux()
-	mux.Handle("/", handler)
 
 	srv, err := server.New(config.Port)
 	if err != nil {
 		return fmt.Errorf("server.New: %w", err)
 	}
-	logger.Infof("listening on :%s", config.Port)
+	logger.Info("listening on: ", config.Port)
 
-	return srv.ServeHTTPHandler(ctx, mux)
+	return srv.ServeHTTPHandler(ctx, rotationServer.Routes(ctx))
 }

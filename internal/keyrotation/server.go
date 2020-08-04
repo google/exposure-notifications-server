@@ -16,6 +16,7 @@
 package keyrotation
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -26,9 +27,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
-// NewRotationHandler creates a http.Handler that manages deletion of
+// NewServer creates a Server that manages deletion of
 // old export files that are no longer needed by clients for download.
-func NewRotationHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
+func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	if env.Database() == nil {
 		return nil, fmt.Errorf("missing database in server environment")
 	}
@@ -45,35 +46,47 @@ func NewRotationHandler(config *Config, env *serverenv.ServerEnv) (http.Handler,
 		return nil, fmt.Errorf("revisiondb.New: %w", err)
 	}
 
-	return &handler{
+	return &Server{
 		config:     config,
 		env:        env,
 		revisionDB: revisionDB,
 	}, nil
 }
 
-type handler struct {
+// Server hosts end points to manage key rotation
+type Server struct {
 	config     *Config
 	env        *serverenv.ServerEnv
 	revisionDB *revisiondb.RevisionDB
 }
 
-func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, span := trace.StartSpan(r.Context(), "(*keyrotation.handler).ServeHTTP")
-	defer span.End()
+// Routes defines and returns the routes for this server.
+func (s *Server) Routes(ctx context.Context) *http.ServeMux {
+	mux := http.NewServeMux()
 
+	mux.HandleFunc("/rotate-keys", s.handleRotateKeys(ctx))
+
+	return mux
+}
+
+func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 	logger := logging.FromContext(ctx).Named("keyrotation.HandleRotate")
 
-	// TODO(whaught):
-	// 1. Retrieve keys
-	// 2. Early exit if the newest is new (configurable)
-	// 3. Take a lock on the DB
-	// 4. Otherwise generate a key and store
-	// 5. delete oldest keys, but always keep any within 15d or still primary
-	// 6. Metric on count created and deleted
-	// 7. logger.log that too
-	// 8. Unlock
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, span := trace.StartSpan(r.Context(), "(*keyrotation.handler).ServeHTTP")
+		defer span.End()
 
-	logger.Info("key rotation complete.")
-	w.WriteHeader(http.StatusOK)
+		// TODO(whaught):
+		// 1. Retrieve keys
+		// 2. Early exit if the newest is new (configurable)
+		// 3. Take a lock on the DB
+		// 4. Otherwise generate a key and store
+		// 5. delete oldest keys, but always keep any within 15d or still primary
+		// 6. Metric on count created and deleted
+		// 7. logger.log that too
+		// 8. Unlock
+
+		logger.Info("key rotation complete.")
+		w.WriteHeader(http.StatusOK)
+	}
 }
