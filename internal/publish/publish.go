@@ -190,7 +190,7 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		}
 	}
 
-	// Perform health authority certificat verification.
+	// Perform health authority certificate verification.
 	verifiedClaims, err := h.verifier.VerifyDiagnosisCertificate(ctx, appConfig, &data)
 	if err != nil {
 		if appConfig.BypassHealthAuthorityVerification {

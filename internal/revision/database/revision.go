@@ -155,11 +155,11 @@ func (rdb *RevisionDB) GetAllowedRevisionKeyIDs(ctx context.Context) (int64, map
 	return effectiveID, keys, nil
 }
 
-// GetAllowedRevisionKeys returns all of the curently allowed revision keys.
+// GetAllowedRevisionKeys returns all of the currently allowed revision keys.
 // This method will unwrap all of the keys so that they can be used to create and verify
 // revision tokens.
 //
-// The first return value is the ID of the effective RevisionKey
+// The first return value is the ID of the effective RevisionKey.
 // The second is a slice of all currently allowed RevisionKeys for decryption purposes. The returned
 // revision keys will be sorted in reverse time order by creation time.
 func (rdb *RevisionDB) GetAllowedRevisionKeys(ctx context.Context) (int64, []*RevisionKey, error) {
@@ -217,7 +217,7 @@ func (rdb *RevisionDB) GetAllowedRevisionKeys(ctx context.Context) (int64, []*Re
 	return effectiveID, unwrappedKeys, nil
 }
 
-// GetEffectiveRevisionKey returnes the revision key to use when encrypting revision tokens.
+// GetEffectiveRevisionKey returns the revision key to use when encrypting revision tokens.
 // This is consided the most recently created key that is still "allowed"
 func (rdb *RevisionDB) GetEffectiveRevisionKey(ctx context.Context) (*RevisionKey, error) {
 	var revKey *RevisionKey
