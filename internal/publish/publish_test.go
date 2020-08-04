@@ -391,8 +391,8 @@ func TestPublishWithBypass(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			config.RevisionTokenAAD = aad
-			config.RevisionTokenKeyID = keyID
+			config.RevisionToken.AAD = aad
+			config.RevisionToken.KeyID = keyID
 			env := serverenv.New(ctx,
 				serverenv.WithDatabase(testDB),
 				serverenv.WithAuthorizedAppProvider(aaProvider),

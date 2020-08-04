@@ -75,14 +75,14 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("must provide ADD for revision token encryption in REVISION_TOKEN_AAD env variable: %w", err)
 	}
 	revisionKeyConfig := revisiondb.KMSConfig{
-		WrapperKeyID: config.RevisionTokenConfig.KeyID,
+		WrapperKeyID: config.RevisionToken.KeyID,
 		KeyManager:   env.GetKeyManager(),
 	}
 	revisionDB, err := revisiondb.New(env.Database(), &revisionKeyConfig)
 	if err != nil {
 		return nil, fmt.Errorf("revisiondb.New: %w", err)
 	}
-	tm, err := revision.New(ctx, revisionDB, config.RevisionKeyCacheDuration, config.RevisionTokenConfig.MinLength)
+	tm, err := revision.New(ctx, revisionDB, config.RevisionKeyCacheDuration, config.RevisionToken.MinLength)
 	if err != nil {
 		return nil, fmt.Errorf("revision.New: %w", err)
 	}

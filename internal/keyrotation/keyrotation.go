@@ -58,11 +58,11 @@ type handler struct {
 	revisionDB *revisiondb.RevisionDB
 }
 
-func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, span := trace.StartSpan(r.Context(), "(*keyrotation.handler).ServeHTTP")
 	defer span.End()
 
-	logger := logging.FromContext(ctx)
+	logger := logging.FromContext(ctx).Named("keyrotation.HandleRotate")
 
 	// TODO(whaught):
 	// 1. Retrieve keys

@@ -46,8 +46,7 @@ type Config struct {
 	KeyManager            keys.Config
 	Verification          verification.Config
 	ObservabilityExporter observability.Config
-
-	RevisionTokenConfig
+	RevisionToken         RevisionTokenConfig
 
 	Port             string `env:"PORT, default=8080"`
 	MaxKeysOnPublish uint   `env:"MAX_KEYS_ON_PUBLISH, default=30"`
@@ -75,7 +74,7 @@ type RevisionTokenConfig struct {
 }
 
 func (c *Config) RevisionTokenADDBytes() ([]byte, error) {
-	return base64util.DecodeString(c.RevisionTokenConfig.AAD)
+	return base64util.DecodeString(c.RevisionToken.AAD)
 }
 
 func (c *Config) MaxExposureKeys() uint {
