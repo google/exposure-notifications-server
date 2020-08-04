@@ -17,5 +17,7 @@
 *.tfvars
 terraform/state.tf
 
+# Test stuff
 /local/
 .vscode/
+.env
