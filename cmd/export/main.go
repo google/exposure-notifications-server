@@ -29,11 +29,11 @@ import (
 
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
+	logger := logging.FromContext(ctx)
 
 	err := realMain(ctx)
 	done()
 
-	logger := logging.FromContext(ctx)
 	if err != nil {
 		logger.Fatal(err)
 	}
