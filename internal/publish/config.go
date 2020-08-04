@@ -25,7 +25,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/verification"
-	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
@@ -63,10 +62,6 @@ type Config struct {
 	// to not be embargoed.
 	// Normally "still valid" keys can be accepted, but are embargoed.
 	ReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
-}
-
-func (c *Config) RevisionTokenADDBytes() ([]byte, error) {
-	return base64util.DecodeString(c.RevisionToken.AAD)
 }
 
 func (c *Config) MaxExposureKeys() uint {

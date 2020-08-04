@@ -370,7 +370,6 @@ func TestPublishWithBypass(t *testing.T) {
 			if _, err := rand.Read(tokenAAD); err != nil {
 				t.Fatalf("not enough entropy: %v", err)
 			}
-			aad := base64.StdEncoding.EncodeToString(tokenAAD)
 			// Configure revision keys.
 			revDB, err := revisiondb.New(testDB, &revisiondb.KMSConfig{WrapperKeyID: keyID, KeyManager: kms})
 			if err != nil {
@@ -391,7 +390,7 @@ func TestPublishWithBypass(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			config.RevisionToken.AAD = aad
+			config.RevisionToken.AAD = tokenAAD
 			config.RevisionToken.KeyID = keyID
 			env := serverenv.New(ctx,
 				serverenv.WithDatabase(testDB),
