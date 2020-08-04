@@ -32,12 +32,28 @@ import (
 	"sort"
 	"strings"
 
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	v1 "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
+
+// CalculateExpsureKeyHMACv1Alpha1 is a convenience method for anyone still on v1alpha1.
+// This method is DEPRECATED and will be removed in v0.3
+func CalculateExpsureKeyHMACv1Alpha1(legacyKeys []v1alpha1.ExposureKey, secret []byte) ([]byte, error) {
+	keys := make([]v1.ExposureKey, len(legacyKeys))
+	for i, k := range legacyKeys {
+		keys[i] = v1.ExposureKey{
+			Key:              k.Key,
+			IntervalNumber:   k.IntervalNumber,
+			IntervalCount:    k.IntervalCount,
+			TransmissionRisk: k.TransmissionRisk,
+		}
+	}
+	return CalculateExposureKeyHMAC(keys, secret)
+}
 
 // CalculateExposureKeyHMAC will calculate the verification protocol HMAC value.
 // Input keys are already to be base64 encoded. They will be sorted if necessary.
-func CalculateExposureKeyHMAC(keys []verifyapi.ExposureKey, secret []byte) ([]byte, error) {
+func CalculateExposureKeyHMAC(keys []v1.ExposureKey, secret []byte) ([]byte, error) {
 	if len(keys) == 0 {
 		return nil, fmt.Errorf("cannot calculate hmac on empty exposure keys")
 	}

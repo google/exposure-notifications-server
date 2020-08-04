@@ -22,7 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
 
 // Client provides Exposure Notifications API client to support

@@ -32,7 +32,7 @@ import (
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/internal/util"
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -54,9 +54,8 @@ func TestIntegration(t *testing.T) {
 
 	// Publish 3 keys
 	payload := &verifyapi.Publish{
-		Keys:           util.GenerateExposureKeys(3, -1, false),
-		Regions:        []string{"TEST"},
-		AppPackageName: "com.example.app",
+		Keys:              util.GenerateExposureKeys(3, -1, false),
+		HealthAuthorityID: "com.example.app",
 
 		// TODO: hook up verification
 		VerificationPayload: "TODO",

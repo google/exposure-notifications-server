@@ -1,20 +1,20 @@
 {{define "index"}}
 {{template "top" .}}
 
-<h2>Authorized Applications</h2>
+<h2>Authorized Health Authority Configuration</h2>
 <ul>
   {{if .apps}}
     {{range .apps}}
       <li><a href="/app?apn={{.AppPackageName}}">{{.AppPackageName}}</a></li>
     {{end}}
   {{else}}
-    <li><i>There are no authorized applications</i></li>
+    <li><i>There are no authorized health authorities</i></li>
   {{end}}
 </ul>
-<a href="/app?apn=" class="btn btn-outline-primary">Create new Authorized Application</a>
+<a href="/app?apn=" class="btn btn-outline-primary">Create new Authorized Health Authority</a>
 
 <hr/>
-<h2>Health Authority and Health Authority Keys</h2>
+<h2>Health Authority Verification Key Keys</h2>
 <ul>
   {{if .healthauthorities}}
     {{range .healthauthorities}}
@@ -24,7 +24,7 @@
     <li><i>There are no health authorities configured</i><li>
   {{end}}
 </ul>
-<a href="/healthauthority/0" class="btn btn-outline-primary">Create new Health Authority</a>
+<a href="/healthauthority/0" class="btn btn-outline-primary">Create new Health Authority Key Configuration</a>
 
 <hr/>
 <h2>Export Configurations</h2>

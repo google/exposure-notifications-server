@@ -66,7 +66,10 @@ func (c *AuthorizedApp) AllAllowedHealthAuthorityIDs() []int64 {
 func (c *AuthorizedApp) Validate() []string {
 	errors := make([]string, 0)
 	if c.AppPackageName == "" {
-		errors = append(errors, "AppPackageName cannot be empty")
+		errors = append(errors, "Health Authority ID cannot be empty")
+	}
+	if len(c.AllowedRegions) == 0 {
+		errors = append(errors, "Regions list cannot be empty")
 	}
 	return errors
 }

@@ -228,7 +228,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		RevisionTokenMinLength:   28,
 	}
 
-	publishHandler, err := publish.NewHandler(ctx, publishConfig, env)
+	publishHandler, err := publish.NewV1Handler(ctx, publishConfig, env)
 	if err != nil {
 		tb.Fatal(err)
 	}

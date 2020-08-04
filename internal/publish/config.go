@@ -61,6 +61,14 @@ type Config struct {
 	RevisionKeyCacheDuration time.Duration `env:"REVISION_KEY_CACHE_DURATION, default=1m"`
 	RevisionTokenMinLength   uint          `env:"REVISION_TOKEN_MIN_LENGTH, default=28"`
 
+	// API Versions.
+	EnableV1Alpha1API bool `env:"ENABLE_V1ALPHA1_API, default=true"`
+	EnableV1API       bool `env:"ENABLE_V1_API, default=true"`
+
+	// If set and if a publish request has no regions. This default will be assumed.
+	// Should only be set if a server is being operated in a single region.
+	DefaultRegion string `env:"DEFAULT_REGION"`
+
 	// Flags for local development and testing. This will cause still valid keys
 	// to not be embargoed.
 	// Normally "still valid" keys can be accepted, but are embargoed.
