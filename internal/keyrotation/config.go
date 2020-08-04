@@ -19,7 +19,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/observability"
-	"github.com/google/exposure-notifications-server/internal/publish"
+	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
@@ -35,8 +35,7 @@ type Config struct {
 	Database              database.Config
 	SecretManager         secrets.Config
 	ObservabilityExporter observability.Config
-
-	RevisionToken publish.RevisionTokenConfig
+	RevisionToken         revision.Config
 
 	Port string `env:"PORT, default=8080"`
 

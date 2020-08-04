@@ -22,6 +22,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
@@ -46,7 +47,7 @@ type Config struct {
 	KeyManager            keys.Config
 	Verification          verification.Config
 	ObservabilityExporter observability.Config
-	RevisionToken         RevisionTokenConfig
+	RevisionToken         revision.Config
 
 	Port             string `env:"PORT, default=8080"`
 	MaxKeysOnPublish uint   `env:"MAX_KEYS_ON_PUBLISH, default=30"`
@@ -62,15 +63,6 @@ type Config struct {
 	// to not be embargoed.
 	// Normally "still valid" keys can be accepted, but are embargoed.
 	ReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
-}
-
-// RevisionTokenConfig represents the configuration and associated environment variables
-// for handling revision tokens.
-type RevisionTokenConfig struct {
-	// Crypto key to use for wrapping/unwrapping the revision token cipher blocks.
-	KeyID     string `env:"REVISION_TOKEN_KEY_ID"`
-	AAD       string `env:"REVISION_TOKEN_AAD"` // must be base64 encoded, may come from secret://
-	MinLength uint   `env:"REVISION_TOKEN_MIN_LENGTH, default=28"`
 }
 
 func (c *Config) RevisionTokenADDBytes() ([]byte, error) {
