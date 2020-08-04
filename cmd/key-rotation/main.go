@@ -53,7 +53,7 @@ func realMain(ctx context.Context) error {
 
 	handler, err := keyrotation.NewRotationHandler(&config, env)
 	if err != nil {
-		return fmt.Errorf("cleanup.NewRotationHandler: %w", err)
+		return fmt.Errorf("keyrotation.NewRotationHandler: %w", err)
 	}
 
 	mux := http.NewServeMux()
