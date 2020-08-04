@@ -52,13 +52,13 @@ func New(db *database.DB) *PublishDB {
 // IterateExposuresCriteria is criteria to iterate exposures.
 type IterateExposuresCriteria struct {
 	IncludeRegions   []string
-	IncludeTravelers bool // Include records in the IncludeRegions OR travallers
+	IncludeTravelers bool // Include records in the IncludeRegions OR travalers
 	OnlyTravelers    bool // Only includes records marked as travelers.
 	ExcludeRegions   []string
 	SinceTimestamp   time.Time
 	UntilTimestamp   time.Time
 	LastCursor       string
-	RevisedKeys      bool // If true, only revised keys that match will be selected.
+	OnlyRevisedKeys  bool // If true, only revised keys that match will be selected.
 
 	// OnlyLocalProvenance indicates that only exposures with LocalProvenance=true will be returned.
 	OnlyLocalProvenance bool
@@ -175,7 +175,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	}
 
 	timeField := "created_at"
-	if criteria.RevisedKeys {
+	if criteria.OnlyRevisedKeys {
 		q += " AND revised_at IS NOT NULL"
 		timeField = "revised_at"
 	}
@@ -205,7 +205,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 		q += fmt.Sprintf(" AND traveler = $%d", len(args))
 	}
 
-	if criteria.RevisedKeys {
+	if criteria.OnlyRevisedKeys {
 		q += " ORDER BY revised_at"
 	} else {
 		q += " ORDER BY created_at"

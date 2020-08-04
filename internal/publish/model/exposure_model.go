@@ -28,7 +28,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 
-	v1 "github.com/google/exposure-notifications-server/pkg/api/v1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
 
 var (
@@ -89,9 +89,9 @@ func (e *Exposure) Revise(in *Exposure) (bool, error) {
 	// Check to see if this is a valid transition.
 	eReportType := e.ReportType
 	if eReportType == "" {
-		eReportType = v1.ReportTypeClinical
+		eReportType = verifyapi.ReportTypeClinical
 	}
-	if !(eReportType == v1.ReportTypeClinical && (in.ReportType == v1.ReportTypeConfirmed || in.ReportType == v1.ReportTypeNegative)) {
+	if !(eReportType == verifyapi.ReportTypeClinical && (in.ReportType == verifyapi.ReportTypeConfirmed || in.ReportType == verifyapi.ReportTypeNegative)) {
 		return false, fmt.Errorf("invalid report type transition, cannot transition from '%v' to '%v'", e.ReportType, in.ReportType)
 	}
 
@@ -189,7 +189,7 @@ func (e *Exposure) ExposureKeyBase64() string {
 // IntervalNumber calculates the exposure notification system interval
 // number based on the input time.
 func IntervalNumber(t time.Time) int32 {
-	return int32(t.UTC().Unix()) / int32(v1.IntervalLength.Seconds())
+	return int32(t.UTC().Unix()) / int32(verifyapi.IntervalLength.Seconds())
 }
 
 // TruncateWindow truncates a time based on the size of the creation window.
@@ -200,7 +200,7 @@ func TruncateWindow(t time.Time, d time.Duration) time.Time {
 // TimeForIntervalNumber returns the time at which a specific interval starts.
 // The interval number * 600 (10m = 600s) is the corresponding unix timestamp.
 func TimeForIntervalNumber(interval int32) time.Time {
-	return time.Unix(int64(v1.IntervalLength.Seconds())*int64(interval), 0)
+	return time.Unix(int64(verifyapi.IntervalLength.Seconds())*int64(interval), 0)
 }
 
 // DaysFromSymptomOnset calculates the number of days between two start intervals.
@@ -208,12 +208,12 @@ func TimeForIntervalNumber(interval int32) time.Time {
 // If the checkInterval is before the onsetInterval, number of days will be negative.
 func DaysFromSymptomOnset(onsetInterval int32, checkInterval int32) int32 {
 	distance := checkInterval - onsetInterval
-	days := distance / v1.MaxIntervalCount
+	days := distance / verifyapi.MaxIntervalCount
 	// if the days don't divide evenly, round (up or down) to the closest even day.
-	if rem := distance % v1.MaxIntervalCount; rem != 0 {
+	if rem := distance % verifyapi.MaxIntervalCount; rem != 0 {
 		// remainder of negative number is negative in go. So if the ABS is more than
 		// half a day, adjust the day count.
-		if math.Abs(float64(rem)) > v1.MaxIntervalCount/2 {
+		if math.Abs(float64(rem)) > verifyapi.MaxIntervalCount/2 {
 			// Account for the fact that if day is 0 and rem is > half a day, sign of rem matters.
 			if days < 0 || rem < 0 {
 				days--
@@ -281,18 +281,18 @@ type KeyTransform struct {
 // * exposure keys are exactly 16 bytes in length after base64 decoding
 // * minInterval <= interval number +intervalCount <= maxInterval
 // * MinIntervalCount <= interval count <= MaxIntervalCount
-func TransformExposureKey(exposureKey v1.ExposureKey, appPackageName string, upcaseRegions []string, settings *KeyTransform) (*Exposure, error) {
+func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName string, upcaseRegions []string, settings *KeyTransform) (*Exposure, error) {
 	binKey, err := base64util.DecodeString(exposureKey.Key)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate individual pieces of the exposure key
-	if len(binKey) != v1.KeyLength {
-		return nil, fmt.Errorf("invalid key length, %v, must be %v", len(binKey), v1.KeyLength)
+	if len(binKey) != verifyapi.KeyLength {
+		return nil, fmt.Errorf("invalid key length, %v, must be %v", len(binKey), verifyapi.KeyLength)
 	}
-	if ic := exposureKey.IntervalCount; ic < v1.MinIntervalCount || ic > v1.MaxIntervalCount {
-		return nil, fmt.Errorf("invalid interval count, %v, must be >= %v && <= %v", ic, v1.MinIntervalCount, v1.MaxIntervalCount)
+	if ic := exposureKey.IntervalCount; ic < verifyapi.MinIntervalCount || ic > verifyapi.MaxIntervalCount {
+		return nil, fmt.Errorf("invalid interval count, %v, must be >= %v && <= %v", ic, verifyapi.MinIntervalCount, verifyapi.MaxIntervalCount)
 	}
 
 	// Validate the IntervalNumber, if the key was ever valid during this period, we'll accept it.
@@ -312,8 +312,8 @@ func TransformExposureKey(exposureKey v1.ExposureKey, appPackageName string, upc
 		}
 	}
 
-	if tr := exposureKey.TransmissionRisk; tr < v1.MinTransmissionRisk || tr > v1.MaxTransmissionRisk {
-		return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, v1.MinTransmissionRisk, v1.MaxTransmissionRisk)
+	if tr := exposureKey.TransmissionRisk; tr < verifyapi.MinTransmissionRisk || tr > verifyapi.MaxTransmissionRisk {
+		return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, verifyapi.MinTransmissionRisk, verifyapi.MaxTransmissionRisk)
 	}
 
 	return &Exposure{
@@ -376,16 +376,16 @@ func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 	if providedTR != 0 {
 		return providedTR
 	}
-	// Otherwise this value needs to be backfilled for v1.0 clients.
+	// Otherwise this value needs to be backfilled for verifyapi.0 clients.
 	switch reportType {
-	case v1.ReportTypeConfirmed:
-		return v1.TransmissionRiskConfirmedStandard
-	case v1.ReportTypeClinical:
-		return v1.TransmissionRiskClinical
-	case v1.ReportTypeNegative:
-		return v1.TransmissionRiskNegative
+	case verifyapi.ReportTypeConfirmed:
+		return verifyapi.TransmissionRiskConfirmedStandard
+	case verifyapi.ReportTypeClinical:
+		return verifyapi.TransmissionRiskClinical
+	case verifyapi.ReportTypeNegative:
+		return verifyapi.TransmissionRiskNegative
 	}
-	return v1.TransmissionRiskUnknown
+	return verifyapi.TransmissionRiskUnknown
 }
 
 // TransformPublish converts incoming key data to a list of exposure entities.
@@ -394,7 +394,7 @@ func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 // * 0 exposure Keys in the requests
 // * > Transformer.maxExposureKeys in the request
 //
-func (t *Transformer) TransformPublish(ctx context.Context, inData *v1.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, error) {
+func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, error) {
 	logger := logging.FromContext(ctx)
 	if t.debugReleaseSameDay {
 		logger.Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
@@ -426,7 +426,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *v1.Publish, 
 		// A key must have been issued on the device in the current interval or earlier.
 		MaxStartInterval: IntervalNumber(batchTime),
 		// And the max valid interval is the maxStartInterval + 144
-		MaxEndInteral:         IntervalNumber(batchTime) + v1.MaxIntervalCount,
+		MaxEndInteral:         IntervalNumber(batchTime) + verifyapi.MaxIntervalCount,
 		CreatedAt:             defaultCreatedAt,
 		ReleaseStillValidKeys: t.debugReleaseSameDay,
 		BatchWindow:           t.truncateWindow,
@@ -469,7 +469,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *v1.Publish, 
 	}
 
 	// Validate the uploaded data meets configuration parameters.
-	// In v1.5+, it is possible to have multiple keys that overlap. They
+	// In verifyapi.5+, it is possible to have multiple keys that overlap. They
 	// take the form of the same start interval with variable rolling period numbers.
 	// Sort by interval number to make necessary checks easier.
 	sort.Slice(entities, func(i int, j int) bool {

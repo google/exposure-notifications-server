@@ -68,7 +68,7 @@ func (h *saveController) Execute(c *gin.Context) {
 		if len(errors) > 0 {
 			m.AddErrors(errors...)
 			m["app"] = authApp
-			// Load the health authorities.
+			// Load the health authorities into m for display on the edit form.
 			if err := addHealthAuthorityInfo(ctx, verdb.New(h.env.Database()), authApp, m); err != nil {
 				admin.ErrorPage(c, err.Error())
 				return

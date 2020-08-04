@@ -57,7 +57,7 @@ const (
 //  - Android: The App Package AppPackageName
 //  - iOS: The BundleID
 // verificationPayload: The Verification Certificate from a verification server.
-// hmackey: the device generated secret that is used to recalcualte the HMAC value
+// hmacKey: the device generated secret that is used to recalcualte the HMAC value
 //  that is present in the verification payload.
 //
 // symptomOnsetInterval: An interval number that aligns with the symptom onset date.
@@ -81,10 +81,10 @@ const (
 type Publish struct {
 	Keys                 []ExposureKey `json:"temporaryExposureKeys"`
 	HealthAuthorityID    string        `json:"healthAuthorityID"`
-	VerificationPayload  string        `json:"verificationPayload"`
-	HMACKey              string        `json:"hmackey"`
-	SymptomOnsetInterval int32         `json:"symptomOnsetInterval"`
-	Traveler             bool          `json:"traveler"`
+	VerificationPayload  string        `json:"verificationPayload,omitempty"`
+	HMACKey              string        `json:"hmacKey,omitempty"`
+	SymptomOnsetInterval int32         `json:"symptomOnsetInterval,omitempty"`
+	Traveler             bool          `json:"traveler,omitempty"`
 	RevisionToken        string        `json:"revisionToken"`
 
 	Padding string `json:"padding"`
@@ -94,16 +94,19 @@ type Publish struct {
 // If successful, the revisionToken indicates an opaque string that must be
 // passed back if the same devices wishes to publish TEKs again.
 //
-// On error, the error field will contain the error details.
+// On error, the error message will contain a message from the server
+// and the 'code' field will contain one of the constants defined in this file.
+// The intent is that code can be used to show a localized error message on the
+// device.
 //
 // The Padding field may be populated with random data on both success and
 // error responses.
 type PublishResponse struct {
-	RevisionToken     string `json:"revisionToken"`
-	InsertedExposures int    `json:"insertedExposures"`
-	ErrorMessage      string `json:"error"`
-	ErrorCode         string `json:"errorCode"`
-	Padding           string `json:"padding"`
+	RevisionToken     string `json:"revisionToken,omitempty"`
+	InsertedExposures int    `json:"insertedExposures,omitempty"`
+	ErrorMessage      string `json:"error,omitempty"`
+	Code              string `json:"code,omitempty"`
+	Padding           string `json:"padding,omitempty"`
 }
 
 // ExposureKey is the 16 byte key, the start time of the key and the
@@ -119,8 +122,8 @@ type PublishResponse struct {
 // IntervalCount must >= `minIntervalCount` and <= `maxIntervalCount`
 //   1 - 144 inclusive.
 // transmissionRisk must be >= 0 and <= 8.
-//   Transmission risk is depercated, but should still be populated for compatibility
-//   with olrder clients. If it is omitted, and there is a valid report type,
+//   Transmission risk is optional, but should still be populated for compatibility
+//   with older clients. If it is omitted, and there is a valid report type,
 //   then transmissionRisk will be set to 0.
 //   IF there is a report type from the verification certificate AND tranismission risk
 //    is not set, then a report type of
@@ -131,7 +134,7 @@ type ExposureKey struct {
 	Key              string `json:"key"`
 	IntervalNumber   int32  `json:"rollingStartNumber"`
 	IntervalCount    int32  `json:"rollingPeriod"`
-	TransmissionRisk int    `json:"transmissionRisk"` // DEPRECATED
+	TransmissionRisk int    `json:"transmissionRisk,omitempty"` // Optional
 }
 
 // ExposureKeys represents a set of ExposureKey objects as input to

@@ -37,7 +37,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/go-cmp/cmp"
 
-	v1 "github.com/google/exposure-notifications-server/pkg/api/v1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"
 )
@@ -139,8 +139,8 @@ func TestVerifyCertificate(t *testing.T) {
 				authApp.AllowedHealthAuthorityIDs[healthAuthority.ID] = struct{}{}
 
 				// Build a sample certificate.
-				publish := v1.Publish{
-					Keys: []v1.ExposureKey{
+				publish := verifyapi.Publish{
+					Keys: []verifyapi.ExposureKey{
 						{
 							Key:              "IRgYIhYiy4WMl9z68bMk6w==",
 							IntervalNumber:   2650032,
@@ -181,7 +181,7 @@ func TestVerifyCertificate(t *testing.T) {
 					// contains legacy transmission risk field, but will be an empty array, just there.
 					claims = v1alpha1claims
 				} else {
-					v1claims := v1.NewVerificationClaims()
+					v1claims := verifyapi.NewVerificationClaims()
 					v1claims.Audience = "exposure-notifications-server"
 					v1claims.Issuer = "doh.my.gov"
 					v1claims.IssuedAt = time.Now().Add(tc.Warp).Unix()

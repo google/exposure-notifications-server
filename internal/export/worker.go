@@ -118,7 +118,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		UntilTimestamp:      eb.EndTimestamp,
 		IncludeRegions:      eb.EffectiveInputRegions(),
 		OnlyLocalProvenance: false, // include federated ids
-		RevisedKeys:         false,
+		OnlyRevisedKeys:     false,
 	}
 
 	// Build up groups of exposures in memory. We need to use memory so we can
@@ -143,7 +143,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	}
 
 	// go get the revised keys.
-	criteria.RevisedKeys = true
+	criteria.OnlyRevisedKeys = true
 	_, err = publishdatabase.New(db).IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
 		nextGroup.revised = append(nextGroup.revised, exp)
 		totalRevisedKeys++

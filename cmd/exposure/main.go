@@ -51,25 +51,16 @@ func realMain(ctx context.Context) error {
 	}
 	defer env.Close(ctx)
 
-	if !(config.EnableV1API || config.EnableV1Alpha1API) {
-		return fmt.Errorf("no APIs enabled, must set one or more of ENABLE_V1_API, ENABLE_V1ALPHA1_API")
-	}
-
 	mux := http.NewServeMux()
+	handler, err := publish.NewHandler(ctx, &config, env)
+	if err != nil {
+		return fmt.Errorf("publish.NewHandler: %w", err)
+	}
+	// Serving of v1alpha1 is on by default, but can be disabled through env var.
 	if config.EnableV1Alpha1API {
-		handler, err := publish.NewV1Alpha1Handler(ctx, &config, env)
-		if err != nil {
-			return fmt.Errorf("publish.NewHandler: %w", err)
-		}
-		mux.Handle("/", handler)
+		mux.Handle("/", handler.HandleV1Alpha1())
 	}
-	if config.EnableV1API {
-		handler, err := publish.NewV1Handler(ctx, &config, env)
-		if err != nil {
-			return fmt.Errorf("publish.NewHandler: %w", err)
-		}
-		mux.Handle("/v1/publish", handler)
-	}
+	mux.Handle("/v1/publish", handler.Handle())
 
 	srv, err := server.New(config.Port)
 	if err != nil {

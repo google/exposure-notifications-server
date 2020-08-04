@@ -35,15 +35,15 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifydb "github.com/google/exposure-notifications-server/internal/verification/database"
-	v1 "github.com/google/exposure-notifications-server/pkg/api/v1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/mikehelmick/go-chaff"
 )
 
-// newProcessor creates common API handler for the publish API.
-// This uses the latest version of the API and it is the responsibility of the
-// specific version handler to upgrade requests and downgrade responses.
-func newProcessor(ctx context.Context, config *Config, env *serverenv.ServerEnv) (*publishHandler, error) {
+// NewHandler creates common API handler for the publish API.
+// This supports all current versions of the API and each defines it's own entry point via
+// an http.HandlerFunc
+func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (*PublishHandler, error) {
 	logger := logging.FromContext(ctx)
 
 	if env.Database() == nil {
@@ -87,7 +87,7 @@ func newProcessor(ctx context.Context, config *Config, env *serverenv.ServerEnv)
 		return nil, fmt.Errorf("revision.New: %w", err)
 	}
 
-	return &publishHandler{
+	return &PublishHandler{
 		serverenv:             env,
 		transformer:           transformer,
 		config:                config,
@@ -100,7 +100,7 @@ func newProcessor(ctx context.Context, config *Config, env *serverenv.ServerEnv)
 	}, nil
 }
 
-type publishHandler struct {
+type PublishHandler struct {
 	config                *Config
 	serverenv             *serverenv.ServerEnv
 	transformer           *model.Transformer
@@ -114,7 +114,7 @@ type publishHandler struct {
 
 type response struct {
 	status      int
-	pubResponse *v1.PublishResponse
+	pubResponse *verifyapi.PublishResponse
 	metric      string
 	count       int // metricCount
 }
@@ -134,8 +134,8 @@ func newVersionBridge(regions []string) *versionBridge {
 
 // process runs the publish business logic over a "v1" version of the publish request
 // and knows how to join in data from previous versions (the provided versionBridge)
-func (h *publishHandler) process(ctx context.Context, data *v1.Publish, bridge *versionBridge) response {
-	ctx, span := trace.StartSpan(ctx, "(*publish.publishHandler).process")
+func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, bridge *versionBridge) response {
+	ctx, span := trace.StartSpan(ctx, "(*publish.PublishHandler).process")
 	defer span.End()
 
 	logger := logging.FromContext(ctx)
@@ -151,9 +151,9 @@ func (h *publishHandler) process(ctx context.Context, data *v1.Publish, bridge *
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 			return response{
 				status: http.StatusUnauthorized,
-				pubResponse: &v1.PublishResponse{
+				pubResponse: &verifyapi.PublishResponse{
 					ErrorMessage: message,
-					ErrorCode:    v1.ErrorUnknownHealthAuthorityID,
+					Code:         verifyapi.ErrorUnknownHealthAuthorityID,
 				},
 				metric: "publish-health-authority-not-authorized",
 				count:  1,
@@ -169,9 +169,9 @@ func (h *publishHandler) process(ctx context.Context, data *v1.Publish, bridge *
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{
 			status: http.StatusNotFound,
-			pubResponse: &v1.PublishResponse{
+			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
-				ErrorCode:    v1.ErrorUnableToLoadHealthAuthority,
+				Code:         verifyapi.ErrorUnableToLoadHealthAuthority,
 			},
 			metric: "publish-error-loading-authorizedapp",
 			count:  1,
@@ -191,7 +191,7 @@ func (h *publishHandler) process(ctx context.Context, data *v1.Publish, bridge *
 				span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
 				return response{
 					status: http.StatusUnauthorized,
-					pubResponse: &v1.PublishResponse{
+					pubResponse: &verifyapi.PublishResponse{
 						ErrorMessage: message, // Error code omitted, since this isn't in the v1 path.
 					},
 					metric: "publish-region-not-authorized",
@@ -218,9 +218,9 @@ func (h *publishHandler) process(ctx context.Context, data *v1.Publish, bridge *
 		span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
 		return response{
 			status: http.StatusBadRequest,
-			pubResponse: &v1.PublishResponse{
+			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
-				ErrorCode:    v1.ErrorHealthAuthorityMissingRegionConfiguration,
+				Code:         verifyapi.ErrorHealthAuthorityMissingRegionConfiguration,
 			},
 			metric: "publish-region-not-specified",
 			count:  1,
@@ -239,9 +239,9 @@ func (h *publishHandler) process(ctx context.Context, data *v1.Publish, bridge *
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
 			return response{
 				status: http.StatusUnauthorized,
-				pubResponse: &v1.PublishResponse{
+				pubResponse: &verifyapi.PublishResponse{
 					ErrorMessage: message,
-					ErrorCode:    v1.ErrorVerificationCertificateInvalid,
+					Code:         verifyapi.ErrorVerificationCertificateInvalid,
 				},
 				metric: "publish-bad-verification", count: 1}
 		}
@@ -270,9 +270,9 @@ func (h *publishHandler) process(ctx context.Context, data *v1.Publish, bridge *
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
 		return response{
 			status: http.StatusBadRequest,
-			pubResponse: &v1.PublishResponse{
+			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
-				ErrorCode:    v1.ErrorBadRequest,
+				Code:         verifyapi.ErrorBadRequest,
 			},
 			metric: "publish-transform-fail", count: 1}
 	}
@@ -284,9 +284,9 @@ func (h *publishHandler) process(ctx context.Context, data *v1.Publish, bridge *
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{
 			status: http.StatusInternalServerError,
-			pubResponse: &v1.PublishResponse{
+			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: http.StatusText(http.StatusInternalServerError),
-				ErrorCode:    v1.ErrorInternalError,
+				Code:         verifyapi.ErrorInternalError,
 			},
 			metric: "publish-db-write-error", count: 1}
 	}
@@ -315,7 +315,7 @@ func (h *publishHandler) process(ctx context.Context, data *v1.Publish, bridge *
 	logger.Info(message)
 	return response{
 		status: http.StatusOK,
-		pubResponse: &v1.PublishResponse{
+		pubResponse: &verifyapi.PublishResponse{
 			RevisionToken:     base64.StdEncoding.EncodeToString(newToken),
 			InsertedExposures: n,
 		},

@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/google/exposure-notifications-server/pkg/api/v1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/util"
 )
 
@@ -63,7 +63,7 @@ func realMain() error {
 		return fmt.Errorf("failed to get random padding: %w", err)
 	}
 
-	data := v1.Publish{
+	data := verifyapi.Publish{
 		Keys:              exposureKeys,
 		HealthAuthorityID: *healthAuthority,
 		Padding:           base64.RawStdEncoding.EncodeToString(padding),

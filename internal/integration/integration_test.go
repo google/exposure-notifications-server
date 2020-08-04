@@ -60,8 +60,10 @@ func TestIntegration(t *testing.T) {
 		// TODO: hook up verification
 		VerificationPayload: "TODO",
 	}
-	if err := client.PublishKeys(payload); err != nil {
+	if resp, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
+	} else {
+		t.Logf("response: %+v", resp)
 	}
 
 	// Assert there are 3 exposures in the database
@@ -204,8 +206,10 @@ func TestIntegration(t *testing.T) {
 
 	// Publish some new keys so we can generate a new batch
 	payload.Keys = util.GenerateExposureKeys(3, -1, false)
-	if err := client.PublishKeys(payload); err != nil {
+	if resp, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
+	} else {
+		t.Logf("response: %+v", resp)
 	}
 
 	// Assert there are 5 exposures in the database

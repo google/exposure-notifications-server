@@ -16,7 +16,6 @@
 package publish
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -24,58 +23,46 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
-	v1 "github.com/google/exposure-notifications-server/pkg/api/v1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/mikehelmick/go-chaff"
 )
 
-// NewV1Handler creates the HTTP handler for the TTK publishing API set at v1.
-func NewV1Handler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
-	processor, err := newProcessor(ctx, config, env)
-	if err != nil {
-		return nil, err
-	}
-
-	return &v1Handler{processor: processor}, nil
-}
-
-type v1Handler struct {
-	processor *publishHandler
-}
-
-func (h *v1Handler) handleRequest(w http.ResponseWriter, r *http.Request) response {
-	ctx, span := trace.StartSpan(r.Context(), "(*publish.publishHandler).handleRequest")
+func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) response {
+	ctx, span := trace.StartSpan(r.Context(), "(*publish.PublishHandler).handleRequest")
 	defer span.End()
 
-	var data v1.Publish
+	var data verifyapi.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		message := fmt.Sprintf("error unmarshaling API call, code: %v: %v", code, err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+		errorCode := verifyapi.ErrorBadRequest
+		if code == http.StatusInternalServerError {
+			errorCode = verifyapi.ErrorInternalError
+		}
 		return response{
-			status: http.StatusBadRequest,
-			pubResponse: &v1.PublishResponse{
+			status: code,
+			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
-				ErrorCode:    v1.ErrorBadRequest,
+				Code:         errorCode,
 			},
 			metric: "publish-bad-json",
 			count:  1,
 		}
 	}
 
-	return h.processor.process(ctx, &data, newVersionBridge([]string{}))
+	return h.process(ctx, &data, newVersionBridge([]string{}))
 }
 
-// ServeHTTP handles the publish event. It tracks requests and can handle chaff
-// requests when provided a request with the X-Chaff header.
-func (h *v1Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.processor.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
+// Handle returns an http.Handler that can process V1 publish requests.
+func (h *PublishHandler) Handle() http.Handler {
+	return h.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			response := h.handleRequest(w, r)
 
 			if response.metric != "" {
 				ctx := r.Context()
-				metrics := h.processor.serverenv.MetricsExporter(ctx)
+				metrics := h.serverenv.MetricsExporter(ctx)
 				metrics.WriteInt(response.metric, true, response.count)
 			}
 
@@ -87,5 +74,5 @@ func (h *v1Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			w.WriteHeader(response.status)
 			fmt.Fprintf(w, "%s", data)
-		})).ServeHTTP(w, r)
+		}))
 }

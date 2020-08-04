@@ -213,9 +213,9 @@ func TestPublishWithBypass(t *testing.T) {
 			Code:    http.StatusOK,
 		},
 		{
-			Name:        "invalid content type",
+			Name:        "invalid_content_type",
 			ContentType: "application/pdf",
-			Code:        http.StatusBadRequest,
+			Code:        http.StatusUnsupportedMediaType,
 			Error:       "content-type is not application/json",
 		},
 		{
@@ -464,14 +464,13 @@ func TestPublishWithBypass(t *testing.T) {
 					serverenv.WithKeyManager(kms))
 				// Some config overrides for test.
 
-				var handler http.Handler
-				if ver == useV1 {
-					handler, err = NewV1Handler(ctx, &config, env)
-				} else {
-					handler, err = NewV1Alpha1Handler(ctx, &config, env)
-				}
+				pubHandler, err := NewHandler(ctx, &config, env)
 				if err != nil {
-					t.Fatal(err)
+					t.Fatalf("unable to create publish handler: %v", err)
+				}
+				handler := pubHandler.Handle()
+				if ver == useV1Alpha1 {
+					handler = pubHandler.HandleV1Alpha1()
 				}
 
 				// See if there is a health authority to set up.
@@ -531,7 +530,6 @@ func TestPublishWithBypass(t *testing.T) {
 						VerificationPayload:  tc.Publish.VerificationPayload,
 						HMACKey:              tc.Publish.HMACKey,
 						SymptomOnsetInterval: tc.Publish.SymptomOnsetInterval,
-						Traveler:             tc.Publish.Traveler,
 						RevisionToken:        tc.Publish.RevisionToken,
 						Padding:              tc.Publish.Padding,
 					}
@@ -686,8 +684,8 @@ func TestPublishWithBypass(t *testing.T) {
 						if !strings.Contains(response.ErrorMessage, tc.Error) {
 							t.Errorf("missing error text '%v', got '%+v'", tc.Error, response)
 						}
-						if tc.ErrorCode != "" && response.ErrorCode != tc.ErrorCode {
-							t.Errorf("wrong error code want: %v, got: %v", tc.ErrorCode, response.ErrorCode)
+						if tc.ErrorCode != "" && response.Code != tc.ErrorCode {
+							t.Errorf("wrong error code want: %v, got: %v", tc.ErrorCode, response.Code)
 						}
 					}
 				}

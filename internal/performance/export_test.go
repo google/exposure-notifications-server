@@ -68,7 +68,7 @@ func TestExport(t *testing.T) {
 		// TODO: hook up verification
 		VerificationPayload: "TODO: ",
 	}
-	if err := client.PublishKeys(payload); err != nil {
+	if _, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
 	}
 

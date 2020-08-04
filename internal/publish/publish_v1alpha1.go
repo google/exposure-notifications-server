@@ -16,7 +16,6 @@
 package publish
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -24,28 +23,13 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
-	v1 "github.com/google/exposure-notifications-server/pkg/api/v1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/mikehelmick/go-chaff"
 )
 
-// NewV1Alpha1Handler creates the HTTP handler for the TTK publishing API set at v1alpha1.
-func NewV1Alpha1Handler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
-	processor, err := newProcessor(ctx, config, env)
-	if err != nil {
-		return nil, err
-	}
-
-	return &v1alpha1Handler{processor: processor}, nil
-}
-
-type v1alpha1Handler struct {
-	processor *publishHandler
-}
-
-func (h *v1alpha1Handler) handleRequest(w http.ResponseWriter, r *http.Request) response {
-	ctx, span := trace.StartSpan(r.Context(), "(*publish.publishHandler).handleRequest")
+func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) response {
+	ctx, span := trace.StartSpan(r.Context(), "(*publish.PublishHandler).handleRequest")
 	defer span.End()
 
 	var data v1alpha1.Publish
@@ -54,15 +38,15 @@ func (h *v1alpha1Handler) handleRequest(w http.ResponseWriter, r *http.Request) 
 		message := fmt.Sprintf("error unmarshaling API call, code: %v: %v", code, err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{
-			status:      http.StatusBadRequest,
-			pubResponse: &v1.PublishResponse{ErrorMessage: message}, // will be down-converted in ServeHTTP
+			status:      code,
+			pubResponse: &verifyapi.PublishResponse{ErrorMessage: message}, // will be down-converted in ServeHTTP
 			metric:      "publish-bad-json", count: 1}
 	}
 
 	// Upconvert the exposure key records.
-	v1keys := make([]v1.ExposureKey, len(data.Keys))
+	v1keys := make([]verifyapi.ExposureKey, len(data.Keys))
 	for i, k := range data.Keys {
-		v1keys[i] = v1.ExposureKey{
+		v1keys[i] = verifyapi.ExposureKey{
 			Key:              k.Key,
 			IntervalNumber:   k.IntervalNumber,
 			IntervalCount:    k.IntervalCount,
@@ -70,28 +54,26 @@ func (h *v1alpha1Handler) handleRequest(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// Upconvert v1alpha1 to v1.
-	publish := v1.Publish{
+	// Upconvert v1alpha1 to verifyapi.
+	publish := verifyapi.Publish{
 		Keys:                 v1keys,
 		HealthAuthorityID:    data.AppPackageName,
 		VerificationPayload:  data.VerificationPayload,
 		HMACKey:              data.HMACKey,
 		SymptomOnsetInterval: data.SymptomOnsetInterval,
-		Traveler:             data.Traveler,
+		Traveler:             len(data.Regions) > 1, // if the key is in more than 1 region, upgrade to traveler status.
 		RevisionToken:        data.RevisionToken,
 		Padding:              data.Padding,
 	}
 	bridge := newVersionBridge(data.Regions)
 
-	return h.processor.process(ctx, &publish, bridge)
+	return h.process(ctx, &publish, bridge)
 }
 
-// ServeHTTP handles the publish event. It tracks requests and can handle chaff
-// requests when provided a request with the X-Chaff header.
-func (h *v1alpha1Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.processor.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
+func (h *PublishHandler) HandleV1Alpha1() http.Handler {
+	return h.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			response := h.handleRequest(w, r)
+			response := h.handleV1Apha1Request(w, r)
 
 			// Downgrade the v1 response to a v1alpha1 response.
 			alpha1Response := v1alpha1.PublishResponse{
@@ -103,7 +85,7 @@ func (h *v1alpha1Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			if response.metric != "" {
 				ctx := r.Context()
-				metrics := h.processor.serverenv.MetricsExporter(ctx)
+				metrics := h.serverenv.MetricsExporter(ctx)
 				metrics.WriteInt(response.metric, true, response.count)
 			}
 
@@ -115,5 +97,5 @@ func (h *v1alpha1Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			w.WriteHeader(response.status)
 			fmt.Fprintf(w, "%s", data)
-		})).ServeHTTP(w, r)
+		}))
 }

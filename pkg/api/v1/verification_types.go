@@ -54,16 +54,20 @@ const (
 // This data is used to set data on the uploaded TEKs and will be reflected on export. See the export file format:
 // https://github.com/google/exposure-notifications-server/blob/main/internal/pb/export/export.proto#L73
 type VerificationClaims struct {
+	jwt.StandardClaims
+
 	// ReportType is one of 'confirmed', 'likely', or 'negative' as defined by the constants in this file.
+	// Required. Claims must contain a valid report type or the publish request won't have any effect.
 	ReportType string `json:"reportType"`
 	// SymptomOnsetInterval uses the same 10 minute interval timing as TEKs use. If an interval is provided that isn not the
 	// start of a UTC day, then it will be rounded down to the beginning of that UTC day. And from there the days +/- symptom
 	// onset will be calculated.
-	SymptomOnsetInterval uint32 `json:"symptomOnsetInterval"`
+	// Optional. If present, TEKs will be adjusted accordingly on publish.
+	SymptomOnsetInterval uint32 `json:"symptomOnsetInterval,omitempty"`
 
 	// SignedMac is the HMAC of the TEKs that may be uploaded with the certificate containing these claims.
+	// Required, indicates what can be uploaded with this certificate.
 	SignedMAC string `json:"tekmac"`
-	jwt.StandardClaims
 }
 
 // NewVerificationClaims initializes a new VerificationClaims struct.
