@@ -28,12 +28,15 @@ import (
 
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
-	defer done()
+	logger := logging.FromContext(ctx)
 
-	if err := realMain(ctx); err != nil {
-		logger := logging.FromContext(ctx)
+	err := realMain(ctx)
+	done()
+
+	if err != nil {
 		logger.Fatal(err)
 	}
+	logger.Info("successful shutdown")
 }
 
 func realMain(ctx context.Context) error {
