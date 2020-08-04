@@ -49,7 +49,7 @@ type TokenManager struct {
 	db *database.RevisionDB
 
 	// All encrypt/decrypt operations are done under read lock.
-	// Cache refresh esclates to a write lock.
+	// Cache refresh escalates to a write lock.
 	mu sync.RWMutex
 
 	// A store of the currently allowed revision keys for decryption purposes.
@@ -64,7 +64,7 @@ type TokenManager struct {
 	// The allowed/effective keys are cached to avoid excessive decrypt calls to the KMS system to unwrap
 	// the individual revision keys.
 	// A cache refresh is initially a shallow refresh, if the IDs of allowed/effective keys haven't changed,
-	// we don't re-unwrap the keys. If there are any changes to the IDs, all of the daata is reloaded and
+	// we don't re-unwrap the keys. If there are any changes to the IDs, all of the data is reloaded and
 	// the keys are unwrapped.
 	cacheDuration     time.Duration
 	cacheRefreshAfter time.Time
@@ -113,7 +113,7 @@ func (tm *TokenManager) maybeRefreshCache(ctx context.Context) error {
 	}
 
 	// At this point reload is needed. Trash the information currently stored
-	// so that if something failes on refresh, the cache has been invalidated.
+	// so that if something fails on refresh, the cache has been invalidated.
 	tm.allowed = make(map[int64]*database.RevisionKey)
 	tm.effective = nil
 
@@ -131,19 +131,19 @@ func (tm *TokenManager) maybeRefreshCache(ctx context.Context) error {
 	// we autocreate the first wrapped revision key.
 	if len(allowed) == 0 {
 		logger.Errorf("no revision keys exist - creating one.")
-		if rk, err := tm.db.CreateRevisionKey(ctx); err != nil {
-			return fmt.Errorf("unable to bootstrap reivion keys: %w", err)
-		} else {
-			allowed = append(allowed, rk)
-			effectiveID = rk.KeyID
+		rk, err := tm.db.CreateRevisionKey(ctx)
+		if err != nil {
+			return fmt.Errorf("unable to bootstrap revision keys: %w", err)
 		}
+		allowed = append(allowed, rk)
+		effectiveID = rk.KeyID
 	}
 
 	for _, rk := range allowed {
 		tm.allowed[rk.KeyID] = rk
 	}
 	tm.effective = tm.allowed[effectiveID]
-	// we did it! mark the next refresh time.
+	// We did it! mark the next refresh time.
 	tm.cacheRefreshAfter = time.Now().Add(tm.cacheDuration)
 	return nil
 }
@@ -323,7 +323,7 @@ func (tm *TokenManager) UnmarshalRevisionToken(ctx context.Context, tokenBytes [
 	// The plaintext is a pb.RevisionTokenData
 	var paddedTokenData pb.RevisionTokenData
 	if err := proto.Unmarshal(plaintext, &paddedTokenData); err != nil {
-		return nil, fmt.Errorf("faield to unmarshal token data: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal token data: %w", err)
 	}
 
 	var tokenData pb.RevisionTokenData
