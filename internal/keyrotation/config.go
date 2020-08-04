@@ -44,7 +44,7 @@ type Config struct {
 
 	Port           string        `env:"PORT, default=8080"`
 	RotationPeriod time.Duration `env:"ROTATION_PERIOD, default=14d"`
-	MinKeys        time.Duration `env:"MinKeys, default=2"`
+	MinKeys        int           `env:"MIN_KEYS, default=2"`
 }
 
 func (c *Config) BlobstoreConfig() *storage.Config {
