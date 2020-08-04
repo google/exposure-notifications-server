@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 )
@@ -29,7 +30,8 @@ func TestNewRotationHandler(t *testing.T) {
 
 	ctx := context.Background()
 	testDB := database.NewTestDatabase(t)
-	emptyKMS := &keys.GoogleCloudKMS{}
+
+	kms, _ := keys.NewInMemory(context.Background())
 
 	testCases := []struct {
 		name string
@@ -48,7 +50,7 @@ func TestNewRotationHandler(t *testing.T) {
 		},
 		{
 			name: "fully_specified",
-			env:  serverenv.New(ctx, serverenv.WithKeyManager(emptyKMS), serverenv.WithDatabase(testDB)),
+			env:  serverenv.New(ctx, serverenv.WithKeyManager(kms), serverenv.WithDatabase(testDB)),
 			err:  nil,
 		},
 	}
@@ -59,7 +61,14 @@ func TestNewRotationHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := NewRotationHandler(&Config{}, tc.env)
+			keyID := "test" + t.Name()
+			kms.AddEncryptionKey(keyID)
+			config := &Config{
+				RevisionToken: revision.Config{KeyID: keyID},
+			}
+			config.RevisionToken.KeyID = keyID
+
+			got, err := NewRotationHandler(config, tc.env)
 			if tc.err != nil {
 				if err.Error() != tc.err.Error() {
 					t.Fatalf("got %+v: want %v", err, tc.err)
