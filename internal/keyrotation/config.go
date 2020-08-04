@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/observability"
+	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
@@ -37,6 +38,8 @@ type Config struct {
 	SecretManager         secrets.Config
 	Storage               storage.Config
 	ObservabilityExporter observability.Config
+
+	RevisionToken publish.RevisionTokenConfig
 
 	Port           string        `env:"PORT, default=8080"`
 	RotationPeriod time.Duration `env:"ROTATION_PERIOD, default=14d"`

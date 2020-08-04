@@ -21,11 +21,9 @@ import (
 
 	"go.opencensus.io/trace"
 
-	"github.com/google/exposure-notifications-server/internal/export/database"
-
 	"github.com/google/exposure-notifications-server/internal/logging"
+	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
 // NewRotationHandler creates a http.Handler that manages deletion of
@@ -34,23 +32,30 @@ func NewRotationHandler(config *Config, env *serverenv.ServerEnv) (http.Handler,
 	if env.Database() == nil {
 		return nil, fmt.Errorf("missing database in server environment")
 	}
-	if env.Blobstore() == nil {
-		return nil, fmt.Errorf("missing blobstore in server environment")
+	if env.GetKeyManager() == nil {
+		return nil, fmt.Errorf("missing key manager in server environment")
+	}
+
+	revisionKeyConfig := revisiondb.KMSConfig{
+		WrapperKeyID: config.RevisionToken.KeyID,
+		KeyManager:   env.GetKeyManager(),
+	}
+	revisionDB, err := revisiondb.New(env.Database(), &revisionKeyConfig)
+	if err != nil {
+		return nil, fmt.Errorf("revisiondb.New: %w", err)
 	}
 
 	return &handler{
-		config:    config,
-		env:       env,
-		database:  database.New(env.Database()),
-		blobstore: env.Blobstore(),
+		config:     config,
+		env:        env,
+		revisionDB: revisionDB,
 	}, nil
 }
 
 type handler struct {
-	config    *Config
-	env       *serverenv.ServerEnv
-	database  *database.ExportDB
-	blobstore storage.Blobstore
+	config     *Config
+	env        *serverenv.ServerEnv
+	revisionDB *revisiondb.RevisionDB
 }
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

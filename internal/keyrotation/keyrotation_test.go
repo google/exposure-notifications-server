@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 )
 
 func TestNewRotationHandler(t *testing.T) {
@@ -29,7 +29,7 @@ func TestNewRotationHandler(t *testing.T) {
 
 	ctx := context.Background()
 	testDB := database.NewTestDatabase(t)
-	noopBlobstore, _ := storage.NewNoop(ctx)
+	emptyKMS := &keys.GoogleCloudKMS{}
 
 	testCases := []struct {
 		name string
@@ -42,13 +42,13 @@ func TestNewRotationHandler(t *testing.T) {
 			err:  fmt.Errorf("missing database in server environment"),
 		},
 		{
-			name: "nil Blobstore",
+			name: "nil Key manager",
 			env:  serverenv.New(ctx, serverenv.WithDatabase(testDB)),
-			err:  fmt.Errorf("missing blobstore in server environment"),
+			err:  fmt.Errorf("missing key manager in server environment"),
 		},
 		{
 			name: "Fully Specified",
-			env:  serverenv.New(ctx, serverenv.WithBlobStorage(noopBlobstore), serverenv.WithDatabase(testDB)),
+			env:  serverenv.New(ctx, serverenv.WithKeyManager(emptyKMS), serverenv.WithDatabase(testDB)),
 			err:  nil,
 		},
 	}
