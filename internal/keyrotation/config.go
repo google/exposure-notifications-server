@@ -34,6 +34,7 @@ var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
 // Config represents the configuration and associated environment variables for
 // the key rotation components.
 type Config struct {
+	// TODO(whaught): Copied. Not sure if we will actually need all of these.
 	Database              database.Config
 	SecretManager         secrets.Config
 	Storage               storage.Config
