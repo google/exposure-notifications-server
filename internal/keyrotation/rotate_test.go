@@ -122,7 +122,7 @@ func TestRotateKeys(t *testing.T) {
 			}
 
 			for _, k := range tc.keys {
-				if err := insertRawKey(ctx, t, testDB, &k); err != nil {
+				if err := testInsertRawKey(ctx, t, testDB, &k); err != nil {
 					t.Error("Failed to insert keys: ", err)
 				}
 			}
@@ -131,7 +131,7 @@ func TestRotateKeys(t *testing.T) {
 				t.Fatalf("doRotate failed: %v", err)
 			}
 
-			count, err := purgeAllKeys(ctx, t, testDB)
+			count, err := testPurgeAllKeys(ctx, t, testDB)
 			if err != nil {
 				t.Error("Failed to purge keys", err)
 			}
