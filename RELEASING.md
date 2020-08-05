@@ -4,7 +4,7 @@
   * All releases will have a release branch and a corresponding tag
   * Both the exposure-notifications-sever and exposure-notifications-verification-server wil follow the same release numbering
 
-# Dependenceis
+# Dependencies
 
 You need the kubernetes release-notes tool to generate release notes.
 
