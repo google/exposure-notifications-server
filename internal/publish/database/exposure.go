@@ -41,7 +41,7 @@ const (
 )
 
 var (
-	// ErrExistingKeyNotInToken is returned when attmping to present an exposure that already exists, but
+	// ErrExistingKeyNotInToken is returned when attempting to present an exposure that already exists, but
 	// isn't in the provided revision token.
 	ErrExistingKeyNotInToken = errors.New("sent existing exposure key that is not in revision token")
 	// ErrNoRevisionToken is returned when presenting exposures that already exists, but no revision
