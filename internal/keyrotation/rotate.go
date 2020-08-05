@@ -51,7 +51,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 
 	_, allowed, err := s.revisionDB.GetAllowedRevisionKeys(ctx)
 	if err != nil {
-		return fmt.Errorf("rotate-keys unable to read revision keys: %v", err)
+		return fmt.Errorf("rotate-keys unable to read revision keys: %w", err)
 	}
 
 	// First allowed is newest due to sql orderby.
