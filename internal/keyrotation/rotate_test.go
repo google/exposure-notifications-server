@@ -65,7 +65,7 @@ func TestRotateKeys(t *testing.T) {
 			expectKeyCount: 1,
 			expectAllowed:  []int64{100},
 			keys: []revisiondb.RevisionKey{
-				revisiondb.RevisionKey{
+				{
 					KeyID:         100,
 					CreatedAt:     notStaleTime,
 					Allowed:       true,
@@ -80,7 +80,7 @@ func TestRotateKeys(t *testing.T) {
 			expectKeyCount:   1,
 			expectNotAllowed: []int64{111},
 			keys: []revisiondb.RevisionKey{
-				revisiondb.RevisionKey{
+				{
 					KeyID:         111,
 					CreatedAt:     staleTime,
 					Allowed:       true,
@@ -96,7 +96,7 @@ func TestRotateKeys(t *testing.T) {
 			expectAllowed:    []int64{121},
 			expectNotAllowed: []int64{122},
 			keys: []revisiondb.RevisionKey{
-				revisiondb.RevisionKey{
+				{
 					KeyID:         121,
 					CreatedAt:     notStaleTime,
 					Allowed:       true,
@@ -104,7 +104,7 @@ func TestRotateKeys(t *testing.T) {
 					WrappedCipher: wrapped,
 					DEK:           key,
 				},
-				revisiondb.RevisionKey{
+				{
 					KeyID:         122,
 					CreatedAt:     staleTime,
 					Allowed:       true,
