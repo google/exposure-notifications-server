@@ -15,4 +15,51 @@
 // Package keyrotation implements the API handlers for running key rotation jobs.
 package keyrotation
 
-// TODO(whaught): this.
+import (
+	"context"
+	"testing"
+
+	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/revision"
+	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/pkg/keys"
+)
+
+func TestRotateKeys(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	testDB := database.NewTestDatabase(t)
+	kms, _ := keys.NewInMemory(context.Background())
+	env := serverenv.New(ctx, serverenv.WithKeyManager(kms), serverenv.WithDatabase(testDB))
+
+	testCases := []struct {
+		name string
+	}{
+		{
+			name: "empty_db",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			keyID := "test" + t.Name()
+			kms.AddEncryptionKey(keyID)
+			config := &Config{
+				RevisionToken: revision.Config{KeyID: keyID},
+			}
+			config.RevisionToken.KeyID = keyID
+
+			server, err := NewServer(config, env)
+			if err != nil {
+				t.Fatalf("got unexpected error: %v", err)
+			}
+
+			if err := server.doRotate(ctx); err != nil {
+				t.Fatalf("doRotate failed: %v", err)
+			}
+		})
+	}
+}

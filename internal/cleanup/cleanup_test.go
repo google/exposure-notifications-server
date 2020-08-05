@@ -49,8 +49,6 @@ func TestNewExposureHandler(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -86,25 +84,23 @@ func TestNewExportHandler(t *testing.T) {
 		err  error
 	}{
 		{
-			name: "nil Database",
+			name: "nil_database",
 			env:  serverenv.New(ctx),
 			err:  fmt.Errorf("missing database in server environment"),
 		},
 		{
-			name: "nil Blobstore",
+			name: "nil_blobstore",
 			env:  serverenv.New(ctx, serverenv.WithDatabase(testDB)),
 			err:  fmt.Errorf("missing blobstore in server environment"),
 		},
 		{
-			name: "Fully Specified",
+			name: "fully_specified",
 			env:  serverenv.New(ctx, serverenv.WithBlobStorage(noopBlobstore), serverenv.WithDatabase(testDB)),
 			err:  nil,
 		},
 	}
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

@@ -55,11 +55,15 @@ func (s *Server) doRotate(ctx context.Context) error {
 	}
 
 	// First allowed is newest due to sql orderby.
-	if time.Since(allowed[0].CreatedAt) >= s.config.NewKeyPeriod {
+	if len(allowed) == 0 || time.Since(allowed[0].CreatedAt) >= s.config.NewKeyPeriod {
 		if _, err := s.revisionDB.CreateRevisionKey(ctx); err != nil {
 			return err
 		}
 		metrics.WriteInt("revision-keys-created", true, 1)
+	}
+
+	if len(allowed) < 2 {
+		return nil
 	}
 
 	deleted := 0
