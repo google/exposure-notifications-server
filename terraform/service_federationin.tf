@@ -73,7 +73,7 @@ resource "google_cloud_run_service" "federationin" {
 
         resources {
           limits = {
-            cpu    = "2"
+            cpu    = "2000m"
             memory = "1G"
           }
         }

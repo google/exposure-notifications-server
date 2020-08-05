@@ -85,7 +85,7 @@ resource "google_cloud_run_service" "exposure" {
 
         resources {
           limits = {
-            cpu    = "2"
+            cpu    = "2000m"
             memory = "1G"
           }
         }
@@ -93,8 +93,10 @@ resource "google_cloud_run_service" "exposure" {
         dynamic "env" {
           for_each = merge(
             local.common_cloudrun_env_vars,
-            { "REVISION_TOKEN_KEY_ID" = google_kms_crypto_key.token-key.self_link },
-            { "REVISION_TOKEN_AAD" = "secret://${google_secret_manager_secret_version.revision_token_aad_secret_version.id}" },
+            {
+              "REVISION_TOKEN_KEY_ID" = google_kms_crypto_key.token-key.self_link
+              "REVISION_TOKEN_AAD"    = "secret://${google_secret_manager_secret_version.revision_token_aad_secret_version.id}"
+            },
 
             // This MUST come last to allow overrides!
             lookup(var.service_environment, "exposure", {}),
