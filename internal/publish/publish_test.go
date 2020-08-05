@@ -196,7 +196,7 @@ func TestPublishWithBypass(t *testing.T) {
 		SkipVersions       map[version]bool
 	}{
 		{
-			Name:       "successful insert, bypass HA verification",
+			Name:       "successful_insert_bypass_ha_verification",
 			TestRegion: regions.next(),
 			AuthorizedApp: func() *aamodel.AuthorizedApp {
 				authApp := aamodel.NewAuthorizedApp()
@@ -209,7 +209,7 @@ func TestPublishWithBypass(t *testing.T) {
 				Keys:              util.GenerateExposureKeys(2, 5, false),
 				HealthAuthorityID: names.current(),
 			},
-			Regions: []string{"US"},
+			Regions: []string{regions.current()},
 			Code:    http.StatusOK,
 		},
 		{
@@ -584,7 +584,7 @@ func TestPublishWithBypass(t *testing.T) {
 					if resp.StatusCode == http.StatusOK {
 						// For success requests, verify that the exposures were inserted.
 						criteria := pubdb.IterateExposuresCriteria{
-							IncludeRegions: []string{"US"},
+							IncludeRegions: []string{tc.TestRegion},
 							SinceTimestamp: time.Now().Add(-1 * time.Minute),
 							UntilTimestamp: time.Now().Add(time.Minute),
 						}
