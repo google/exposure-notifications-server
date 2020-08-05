@@ -19,6 +19,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -37,6 +38,18 @@ import (
 const (
 	// InsertExposuresBatchSize is the maximum number of exposures that can be inserted at once.
 	InsertExposuresBatchSize = 500
+)
+
+var (
+	// ErrExistingKeyNotInToken is returned when attmping to present an exposure that already exists, but
+	// isn't in the provided revision token.
+	ErrExistingKeyNotInToken = errors.New("sent existing exposure key that is not in revision token")
+	// ErrNoRevisionToken is returned when presenting exposures that already exists, but no revision
+	// token was presented.
+	ErrNoRevisionToken = errors.New("sent existing exposures but no revision token present")
+	// ErrRevisionTokenMetadataMismatch is returned when a revision token has the correct TEK in it,
+	// but the new request is attempting to change the metadata of the key (intervalNumber/Count)
+	ErrRevisionTokenMetadataMismatch = errors.New("changing exposure key metadata is not allowed ")
 )
 
 type PublishDB struct {
@@ -351,23 +364,27 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 					allowedRevisions[base64.StdEncoding.EncodeToString(rk.TemporaryExposureKey)] = rk
 				}
 			}
+			if len(allowedRevisions) == 0 {
+				logger.Errorf("attempt to revise keys, but no revision token presented")
+				if tokenRequired {
+					return ErrNoRevisionToken
+				}
+			}
 			// Check that any existing exposures are present in the token. It doesn't mater if they
 			// would be materially changed or not (the revise keys steps below)
 			for k, v := range existing {
 				if rk, ok := allowedRevisions[k]; !ok {
 					// user sent in an existing key they they do not have the token for.
-					message := "attempt to revise key not in revision token."
-					logger.Errorf(message)
+					logger.Errorf("attempt to revise key not in revision token")
 					if tokenRequired {
-						return fmt.Errorf(message)
+						return ErrExistingKeyNotInToken
 					}
 				} else {
 					// Validate that the key parameters haven't changed.
 					if v.IntervalNumber != rk.IntervalNumber || v.IntervalCount != rk.IntervalCount {
-						message := "revision token metadata mismatch"
-						logger.Errorf(message)
+						logger.Errorf("revision token metadata mismatch")
 						if tokenRequired {
-							return fmt.Errorf(message)
+							return ErrRevisionTokenMetadataMismatch
 						}
 					}
 				}
