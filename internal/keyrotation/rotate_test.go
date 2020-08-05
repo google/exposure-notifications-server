@@ -17,11 +17,15 @@ package keyrotation
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"io"
 	"testing"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/revision"
+	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/jackc/pgx/v4"
@@ -34,29 +38,89 @@ func TestRotateKeys(t *testing.T) {
 	testDB := database.NewTestDatabase(t)
 	kms, _ := keys.NewInMemory(context.Background())
 	env := serverenv.New(ctx, serverenv.WithKeyManager(kms), serverenv.WithDatabase(testDB))
+	keyID := "testKeyID"
+	kms.AddEncryptionKey(keyID)
+	config := &Config{
+		RevisionToken:      revision.Config{KeyID: keyID},
+		DeleteOldKeyPeriod: 14 * 24 * time.Hour, // two weeks
+		NewKeyPeriod:       24 * time.Hour,      // one day
+	}
+	config.RevisionToken.KeyID = keyID
+	server, err := NewServer(config, env)
+	if err != nil {
+		t.Fatalf("got unexpected error: %v", err)
+	}
+
+	// Wrap the key using the configured KMS.
+	key := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		t.Errorf("unable to generate AES key: %w", err)
+	}
+	aad := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, aad); err != nil {
+		t.Errorf("unable to generate random data: %w", err)
+	}
+
+	wrapped, err := kms.Encrypt(ctx, keyID, key, aad)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	neg20Days, _ := time.ParseDuration("-20d")
+	staleTime := time.Now().Add(neg20Days)
+	//notStaleTime := time.Now()
 
 	testCases := []struct {
 		name           string
 		expectKeyCount int64
+		keys           []revisiondb.RevisionKey
 	}{
 		{
-			name:           "empty_db",
+			name:           "empty_db, create key",
 			expectKeyCount: 1,
+		},
+		{
+			name:           "four keys, drop two",
+			expectKeyCount: 4,
+			keys: []revisiondb.RevisionKey{
+				revisiondb.RevisionKey{
+					CreatedAt:     staleTime,
+					Allowed:       true,
+					AAD:           aad,
+					WrappedCipher: wrapped,
+					DEK:           key,
+				},
+				revisiondb.RevisionKey{
+					CreatedAt:     staleTime,
+					Allowed:       true,
+					AAD:           aad,
+					WrappedCipher: wrapped,
+					DEK:           key,
+				},
+				revisiondb.RevisionKey{
+					CreatedAt:     staleTime,
+					Allowed:       true,
+					AAD:           aad,
+					WrappedCipher: wrapped,
+					DEK:           key,
+				},
+				revisiondb.RevisionKey{
+					CreatedAt:     staleTime,
+					Allowed:       true,
+					AAD:           aad,
+					WrappedCipher: wrapped,
+					DEK:           key,
+				},
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			keyID := "test" + t.Name()
-			kms.AddEncryptionKey(keyID)
-			config := &Config{
-				RevisionToken: revision.Config{KeyID: keyID},
-			}
-			config.RevisionToken.KeyID = keyID
-			server, err := NewServer(config, env)
-
-			if err != nil {
-				t.Fatalf("got unexpected error: %v", err)
+			for _, k := range tc.keys {
+				if err := insertRawKey(ctx, t, testDB, &k); err != nil {
+					t.Error("Failed to insert keys: ", err)
+				}
 			}
 
 			if err := server.doRotate(ctx); err != nil {
@@ -86,4 +150,26 @@ func purgeAllKeys(ctx context.Context, t *testing.T, db *database.DB) (int64, er
 		return count, fmt.Errorf("unable to clear keys: %w", err)
 	}
 	return count, nil
+}
+
+func insertRawKey(ctx context.Context, t *testing.T, db *database.DB, key *revisiondb.RevisionKey) error {
+	if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		row := tx.QueryRow(ctx, `
+			INSERT INTO
+				RevisionKeys
+				(aad, wrapped_cipher, created_at, allowed)
+			VALUES
+				($1, $2, $3, $4)
+			RETURNING kid`,
+			key.AAD, key.WrappedCipher, key.CreatedAt, true)
+		if err := row.Scan(&key.KeyID); err != nil {
+			return fmt.Errorf("fetching kid: %w", err)
+		}
+		t.Log("inserted key with Id", key.KeyID)
+		return nil
+	}); err != nil {
+		return fmt.Errorf("unable to persist revision key: %w", err)
+	}
+
+	return nil
 }
