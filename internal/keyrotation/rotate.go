@@ -33,6 +33,7 @@ func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 		_, span := trace.StartSpan(r.Context(), "(*keyrotation.handler).ServeHTTP")
 		defer span.End()
 
+		// TODO(whaught): This mutex should be a DB lock. Doesn't help for many instances.
 		s.mu.Lock()
 		defer s.mu.Unlock()
 
