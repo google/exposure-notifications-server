@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/trace"
 )
 
@@ -62,19 +63,19 @@ func (s *Server) doRotate(ctx context.Context) error {
 		metrics.WriteInt("revision-keys-created", true, 1)
 	}
 
+	var result error
 	deleted := 0
-	defer metrics.WriteInt("revision-keys-deleted", true, deleted)
-
 	for _, key := range allowed {
 		if time.Since(key.CreatedAt) < s.config.DeleteOldKeyPeriod {
 			continue
 		}
-
 		if err := s.revisionDB.DestroyKey(ctx, key.KeyID); err != nil {
-			return err
+			result = multierror.Append(result, err)
+			continue
 		}
 		deleted++
 	}
 
-	return nil
+	metrics.WriteInt("revision-keys-deleted", true, deleted)
+	return result
 }
