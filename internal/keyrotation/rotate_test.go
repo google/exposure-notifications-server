@@ -43,62 +43,69 @@ func TestRotateKeys(t *testing.T) {
 		DeleteOldKeyPeriod: 14 * 24 * time.Hour, // two weeks
 		NewKeyPeriod:       24 * time.Hour,      // one day
 	}
-	config.RevisionToken.KeyID = keyID
+	key, aad, wrapped := testMakeKey(ctx, t, kms, keyID)
 
-	// Wrap the key using the configured KMS.
-	key := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, key); err != nil {
-		t.Errorf("unable to generate AES key: %w", err)
-	}
-	aad := make([]byte, 16)
-	if _, err := io.ReadFull(rand.Reader, aad); err != nil {
-		t.Errorf("unable to generate random data: %w", err)
-	}
-
-	wrapped, err := kms.Encrypt(ctx, keyID, key, aad)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	neg20Days, _ := time.ParseDuration("-20d")
+	neg20Days, _ := time.ParseDuration("-480h")
 	staleTime := time.Now().Add(neg20Days)
-	//notStaleTime := time.Now()
+	notStaleTime := time.Now()
 
 	testCases := []struct {
-		name           string
-		expectKeyCount int64
-		keys           []revisiondb.RevisionKey
+		name             string
+		expectKeyCount   int
+		expectAllowed    []int64
+		expectNotAllowed []int64
+		keys             []revisiondb.RevisionKey
 	}{
 		{
 			name:           "empty_db, create key",
 			expectKeyCount: 1,
 		},
 		{
-			name:           "four keys, drop two",
-			expectKeyCount: 4,
+			name:           "already fresh",
+			expectKeyCount: 1,
+			expectAllowed:  []int64{100},
 			keys: []revisiondb.RevisionKey{
 				revisiondb.RevisionKey{
+					KeyID:         100,
+					CreatedAt:     notStaleTime,
+					Allowed:       true,
+					AAD:           aad,
+					WrappedCipher: wrapped,
+					DEK:           key,
+				},
+			},
+		},
+		{
+			name:             "one stale",
+			expectKeyCount:   1,
+			expectNotAllowed: []int64{111},
+			keys: []revisiondb.RevisionKey{
+				revisiondb.RevisionKey{
+					KeyID:         111,
 					CreatedAt:     staleTime,
 					Allowed:       true,
 					AAD:           aad,
 					WrappedCipher: wrapped,
 					DEK:           key,
 				},
+			},
+		},
+		{
+			name:             "one fresh, one stale",
+			expectKeyCount:   1,
+			expectAllowed:    []int64{121},
+			expectNotAllowed: []int64{122},
+			keys: []revisiondb.RevisionKey{
 				revisiondb.RevisionKey{
-					CreatedAt:     staleTime,
+					KeyID:         121,
+					CreatedAt:     notStaleTime,
 					Allowed:       true,
 					AAD:           aad,
 					WrappedCipher: wrapped,
 					DEK:           key,
 				},
 				revisiondb.RevisionKey{
-					CreatedAt:     staleTime,
-					Allowed:       true,
-					AAD:           aad,
-					WrappedCipher: wrapped,
-					DEK:           key,
-				},
-				revisiondb.RevisionKey{
+					KeyID:         122,
 					CreatedAt:     staleTime,
 					Allowed:       true,
 					AAD:           aad,
@@ -131,50 +138,63 @@ func TestRotateKeys(t *testing.T) {
 				t.Fatalf("doRotate failed: %v", err)
 			}
 
-			count, err := testPurgeAllKeys(ctx, t, testDB)
+			_, keys, err := server.revisionDB.GetAllowedRevisionKeyIDs(ctx)
 			if err != nil {
-				t.Error("Failed to purge keys", err)
+				t.Fatalf("GetAllowedRevisionKeyIDs failed: %v", err)
 			}
 
-			if count != tc.expectKeyCount {
-				t.Errorf("Purged %d keys, wanted %d", count, tc.expectKeyCount)
+			if len(keys) != tc.expectKeyCount {
+				t.Errorf("Allowed keys %d keys, wanted %d", len(keys), tc.expectKeyCount)
+			}
+
+			for _, i := range tc.expectAllowed {
+				if _, has := keys[i]; !has {
+					t.Errorf("Expected id %d to be allowed", i)
+				}
+			}
+
+			for _, i := range tc.expectNotAllowed {
+				if _, has := keys[i]; has {
+					t.Errorf("Expected id %d to be NOT allowed", i)
+				}
 			}
 		})
 	}
 }
 
-func testPurgeAllKeys(ctx context.Context, t testing.TB, db *database.DB) (int64, error) {
-	t.Helper()
-	var count int64 = 0
-	if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		result, err := tx.Exec(ctx, `DELETE FROM RevisionKeys`)
-		count = result.RowsAffected()
-		return err
-	}); err != nil {
-		return count, fmt.Errorf("unable to clear keys: %w", err)
+func testMakeKey(ctx context.Context, t testing.TB, kms keys.KeyManager, keyID string) (key []byte, aad []byte, wrapped []byte) {
+	key = make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		t.Errorf("unable to generate AES key: %w", err)
 	}
-	return count, nil
+	aad = make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, aad); err != nil {
+		t.Errorf("unable to generate random data: %w", err)
+	}
+	wrapped, err := kms.Encrypt(ctx, keyID, key, aad)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return
 }
 
 func testInsertRawKey(ctx context.Context, t testing.TB, db *database.DB, key *revisiondb.RevisionKey) error {
 	t.Helper()
 	if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx, `
+		_, err := tx.Exec(ctx, `
 			INSERT INTO
 				RevisionKeys
-				(aad, wrapped_cipher, created_at, allowed)
+				(kid, aad, wrapped_cipher, created_at, allowed)
 			VALUES
-				($1, $2, $3, $4)
+				($1, $2, $3, $4, $5)
 			RETURNING kid`,
-			key.AAD, key.WrappedCipher, key.CreatedAt, true)
-		if err := row.Scan(&key.KeyID); err != nil {
-			return fmt.Errorf("fetching kid: %w", err)
-		}
-		t.Log("inserted key with Id", key.KeyID)
-		return nil
+			key.KeyID, key.AAD, key.WrappedCipher, key.CreatedAt, true)
+		return err
 	}); err != nil {
 		return fmt.Errorf("unable to persist revision key: %w", err)
 	}
 
+	t.Log("inserted key with Id", key.KeyID)
 	return nil
 }
