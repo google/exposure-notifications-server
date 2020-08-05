@@ -19,8 +19,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sync"
 
+	"github.com/google/exposure-notifications-server/internal/database"
 	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
@@ -29,10 +29,8 @@ import (
 type Server struct {
 	config     *Config
 	env        *serverenv.ServerEnv
+	db         *database.DB
 	revisionDB *revisiondb.RevisionDB
-
-	// mutex lock to be held over read/write operations when rotating keys.
-	mu sync.RWMutex
 }
 
 // NewServer creates a Server that manages deletion of
@@ -49,7 +47,8 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 		WrapperKeyID: config.RevisionToken.KeyID,
 		KeyManager:   env.GetKeyManager(),
 	}
-	revisionDB, err := revisiondb.New(env.Database(), &revisionKeyConfig)
+	db := env.Database()
+	revisionDB, err := revisiondb.New(db, &revisionKeyConfig)
 	if err != nil {
 		return nil, fmt.Errorf("revisiondb.New: %w", err)
 	}
@@ -57,6 +56,7 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	return &Server{
 		config:     config,
 		env:        env,
+		db:         db,
 		revisionDB: revisionDB,
 	}, nil
 }
