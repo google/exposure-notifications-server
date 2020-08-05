@@ -16,6 +16,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -286,11 +287,42 @@ func TestReviseExposures(t *testing.T) {
 
 	revisions := []*model.Exposure{revisedExp, newExp}
 	// In the first pass - try to revise the key without the necessary revision token.
-	wantError := "attempt to revise key not in revision token"
 	if _, err := pubDB.InsertAndReviseExposures(ctx, revisions, nil, true); err == nil {
 		t.Fatalf("expected error revising without token data")
-	} else if !strings.Contains(err.Error(), wantError) {
-		t.Fatalf("wrong error, want: '%v' got: %v", wantError, err)
+	} else if !errors.Is(err, ErrNoRevisionToken) {
+		t.Fatalf("wrong error, want: '%v' got: %v", ErrNoRevisionToken, err)
+	}
+
+	// Build a wrong revision token
+	{
+		var badToken pb.RevisionTokenData
+		badToken.RevisableKeys = append(badToken.RevisableKeys, &pb.RevisableKey{
+			TemporaryExposureKey: []byte{0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3},
+			IntervalNumber:       100,
+			IntervalCount:        144,
+		})
+
+		if _, err := pubDB.InsertAndReviseExposures(ctx, revisions, &badToken, true); err == nil {
+			t.Fatalf("expected error revising with bad token")
+		} else if !errors.Is(err, ErrExistingKeyNotInToken) {
+			t.Fatalf("wrong error, want: '%v' got: %v", ErrExistingKeyNotInToken, err)
+		}
+	}
+
+	// Revision token with bad metadata
+	{
+		var badMetadata pb.RevisionTokenData
+		badMetadata.RevisableKeys = append(badMetadata.RevisableKeys, &pb.RevisableKey{
+			TemporaryExposureKey: existingTEK,
+			IntervalNumber:       101,
+			IntervalCount:        144,
+		})
+
+		if _, err := pubDB.InsertAndReviseExposures(ctx, revisions, &badMetadata, true); err == nil {
+			t.Fatalf("expected error revising with bad token")
+		} else if !errors.Is(err, ErrRevisionTokenMetadataMismatch) {
+			t.Fatalf("wrong error, want: '%v' got: %v", ErrRevisionTokenMetadataMismatch, err)
+		}
 	}
 
 	// Revision token that allows revision of the revised key.
