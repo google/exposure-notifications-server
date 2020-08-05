@@ -26,16 +26,27 @@ import (
 	"go.opencensus.io/trace"
 )
 
+// Global lock id for key rotation.
+const lockID = "key-rotation-lock"
+
 func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 	logger := logging.FromContext(ctx).Named("keyrotation.HandleRotate")
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		_, span := trace.StartSpan(r.Context(), "(*keyrotation.handler).ServeHTTP")
+		ctx, span := trace.StartSpan(r.Context(), "(*keyrotation.handler).ServeHTTP")
 		defer span.End()
 
-		// TODO(whaught): This mutex should be a DB lock. Doesn't help for many instances.
-		s.mu.Lock()
-		defer s.mu.Unlock()
+		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
+		if err != nil {
+			logger.Warn(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		defer func() {
+			if err := unlock(); err != nil {
+				logger.Errorf("failed to unlock: %v", err)
+			}
+		}()
 
 		if err := s.doRotate(ctx); err != nil {
 			logger.Errorw("failed to rotate", "error", err)
