@@ -29,7 +29,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/util"
 )
 
@@ -80,9 +80,8 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		logger.Infof("Generating exposure %v of %v", i+1, h.config.NumExposures)
 
 		publish := verifyapi.Publish{
-			Keys:           util.GenerateExposureKeys(h.config.KeysPerExposure, 0, false),
-			Regions:        regions,
-			AppPackageName: "generated.data",
+			Keys:              util.GenerateExposureKeys(h.config.KeysPerExposure, 0, false),
+			HealthAuthorityID: "generated.data",
 		}
 		if h.config.SimulateSameDayRelease {
 			sort.Slice(publish.Keys, func(i int, j int) bool {
@@ -137,7 +136,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			SymptomOnsetInterval: uint32(publish.Keys[intervalIdx].IntervalNumber),
 		}
 
-		exposures, err := h.transformer.TransformPublish(ctx, &publish, &claims, batchTime)
+		exposures, err := h.transformer.TransformPublish(ctx, &publish, regions, &claims, batchTime)
 		if err != nil {
 			message := fmt.Sprintf("Error transforming generated exposures: %v", err)
 			logger.Errorf(message)
@@ -172,7 +171,7 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			claims.ReportType = revisedReportType
 			batchTime = batchTime.Add(h.config.KeyRevisionDelay)
 
-			exposures, err := h.transformer.TransformPublish(ctx, &publish, &claims, batchTime)
+			exposures, err := h.transformer.TransformPublish(ctx, &publish, regions, &claims, batchTime)
 			if err != nil {
 				message := fmt.Sprintf("Error transforming generated exposures: %v", err)
 				logger.Errorf(message)

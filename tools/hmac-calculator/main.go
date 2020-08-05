@@ -24,7 +24,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/verification"
 )
@@ -59,7 +59,7 @@ func main() {
 	log.Printf("Expected HMAC B64: %v", base64.StdEncoding.EncodeToString(wantHMAC))
 }
 
-func ReadFile(fname string) (*v1alpha1.Publish, error) {
+func ReadFile(fname string) (*verifyapi.Publish, error) {
 	f, err := os.Open(fname)
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func ReadFile(fname string) (*v1alpha1.Publish, error) {
 		return nil, fmt.Errorf("file too large: %v - more than %v bytes", fname, bufferSize)
 	}
 
-	var publish v1alpha1.Publish
+	var publish verifyapi.Publish
 	if err := json.Unmarshal(buffer[0:n], &publish); err != nil {
 		return nil, fmt.Errorf("json.Unmarshal: %w", err)
 	}

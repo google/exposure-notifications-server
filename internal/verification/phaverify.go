@@ -25,7 +25,7 @@ import (
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/cache"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"
@@ -54,7 +54,6 @@ type VerifiedClaims struct {
 	HealthAuthorityID    int64
 	ReportType           string // blank indicates no report type was present.
 	SymptomOnsetInterval uint32 // 0 indicates no symptom onset interval present. This should be checked for "reasonable" value before application.
-	TransmissionRisks    verifyapi.TransmissionRiskVector
 }
 
 // VerifyDiagnosisCertificate accepts a publish request (from which is extracts the JWT),
@@ -148,6 +147,5 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 		HealthAuthorityID:    healthAuthorityID,
 		ReportType:           claims.ReportType,
 		SymptomOnsetInterval: claims.SymptomOnsetInterval,
-		TransmissionRisks:    claims.TransmissionRisks,
 	}, nil
 }

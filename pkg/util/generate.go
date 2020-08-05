@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	v1 "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 )
 
@@ -66,11 +66,11 @@ func RandomRevisedReportType() (string, error) {
 	}
 	switch n {
 	case 0:
-		return v1alpha1.ReportTypeConfirmed, nil
+		return v1.ReportTypeConfirmed, nil
 	case 1:
-		return v1alpha1.ReportTypeNegative, nil
+		return v1.ReportTypeNegative, nil
 	}
-	return v1alpha1.ReportTypeConfirmed, nil
+	return v1.ReportTypeConfirmed, nil
 }
 
 func RandomReportType() (string, error) {
@@ -80,18 +80,18 @@ func RandomReportType() (string, error) {
 	}
 	switch n {
 	case 0:
-		return v1alpha1.ReportTypeConfirmed, nil
+		return v1.ReportTypeConfirmed, nil
 	case 1:
-		return v1alpha1.ReportTypeClinical, nil
+		return v1.ReportTypeClinical, nil
 	case 2:
-		return v1alpha1.ReportTypeNegative, nil
+		return v1.ReportTypeNegative, nil
 	}
-	return v1alpha1.ReportTypeConfirmed, nil
+	return v1.ReportTypeConfirmed, nil
 }
 
 // RandomTransmissionRisk produces a random transmission risk score.
 func RandomTransmissionRisk() (int, error) {
-	n, err := RandomInt(v1alpha1.MaxTransmissionRisk)
+	n, err := RandomInt(v1.MaxTransmissionRisk)
 	return n + 1, err
 }
 
@@ -105,7 +105,7 @@ func RandomArrValue(arr []string) (string, error) {
 }
 
 // GenerateExposureKeys creates the given number of exposure keys.
-func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1alpha1.ExposureKey {
+func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1.ExposureKey {
 	// When publishing multiple keys - they'll be on different days.
 	var err error
 	intervalCount := int32(144)
@@ -118,7 +118,7 @@ func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1alpha1.Expos
 	// Keys will normally align to UTC day boundries.
 	utcDay := time.Now().UTC().Truncate(24 * time.Hour)
 	intervalNumber := int32(utcDay.Unix()/600) - intervalCount
-	exposureKeys := make([]v1alpha1.ExposureKey, numKeys)
+	exposureKeys := make([]v1.ExposureKey, numKeys)
 	for i := 0; i < numKeys; i++ {
 		transmissionRisk := tr
 		if transmissionRisk < 0 {
@@ -145,12 +145,12 @@ func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1alpha1.Expos
 }
 
 // RandomExposureKey creates a random exposure key.
-func RandomExposureKey(intervalNumber int32, intervalCount int32, transmissionRisk int) (v1alpha1.ExposureKey, error) {
+func RandomExposureKey(intervalNumber int32, intervalCount int32, transmissionRisk int) (v1.ExposureKey, error) {
 	key, err := GenerateKey()
 	if err != nil {
-		return v1alpha1.ExposureKey{}, err
+		return v1.ExposureKey{}, err
 	}
-	return v1alpha1.ExposureKey{
+	return v1.ExposureKey{
 		Key:              key,
 		IntervalNumber:   int32(intervalNumber),
 		IntervalCount:    intervalCount,

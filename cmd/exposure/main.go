@@ -51,13 +51,16 @@ func realMain(ctx context.Context) error {
 	}
 	defer env.Close(ctx)
 
+	mux := http.NewServeMux()
 	handler, err := publish.NewHandler(ctx, &config, env)
 	if err != nil {
 		return fmt.Errorf("publish.NewHandler: %w", err)
 	}
-
-	mux := http.NewServeMux()
-	mux.Handle("/", handler)
+	// Serving of v1alpha1 is on by default, but can be disabled through env var.
+	if config.EnableV1Alpha1API {
+		mux.Handle("/", handler.HandleV1Alpha1())
+	}
+	mux.Handle("/v1/publish", handler.Handle())
 
 	srv, err := server.New(config.Port)
 	if err != nil {

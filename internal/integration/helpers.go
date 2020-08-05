@@ -234,7 +234,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	mux.Handle("/publish", publishHandler)
+	mux.Handle("/publish", publishHandler.Handle())
 
 	srv, err := server.New("")
 	if err != nil {

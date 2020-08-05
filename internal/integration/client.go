@@ -22,7 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
 
 // Client provides Exposure Notifications API client to support
@@ -31,22 +31,28 @@ type Client struct {
 	client *http.Client
 }
 
-func (c *Client) PublishKeys(payload *verifyapi.Publish) error {
+func (c *Client) PublishKeys(payload *verifyapi.Publish) (*verifyapi.PublishResponse, error) {
 	j, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("failed to marshal json: %w", err)
+		return nil, fmt.Errorf("failed to marshal json: %w", err)
 	}
 
 	resp, err := c.client.Post("/publish", "application/json", bytes.NewReader(j))
 	if err != nil {
-		return fmt.Errorf("failed to POST /publish: %w", err)
+		return nil, fmt.Errorf("failed to POST /publish: %w", err)
 	}
 
 	body, err := checkResp(resp)
 	if err != nil {
-		return fmt.Errorf("failed to POST /publish: %w: %s", err, body)
+		return nil, fmt.Errorf("failed to POST /publish: %w: %s", err, body)
 	}
-	return nil
+
+	var pubResponse verifyapi.PublishResponse
+	if err := json.Unmarshal(body, &pubResponse); err != nil {
+		return nil, fmt.Errorf("bad publish response")
+	}
+
+	return &pubResponse, nil
 }
 
 func (c *Client) CleanupExposures() error {

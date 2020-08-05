@@ -28,7 +28,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
 
 var (
@@ -46,6 +46,7 @@ type Exposure struct {
 	TransmissionRisk int
 	AppPackageName   string
 	Regions          []string
+	Traveler         bool
 	IntervalNumber   int32
 	IntervalCount    int32
 	CreatedAt        time.Time
@@ -183,44 +184,6 @@ func (e *Exposure) ExposureKeyBase64() string {
 		e.base64Key = base64.StdEncoding.EncodeToString(e.ExposureKey)
 	}
 	return e.base64Key
-}
-
-// ApplyTransmissionRiskOverrides modifies the transmission risk values in the publish request
-// based on the provided TransmissionRiskVector.
-// In the live system, the TransmissionRiskVector values come from a trusted public health authority
-// and are embedded in the verification certificate (JWT) transmitted on the publish request.
-func ApplyTransmissionRiskOverrides(p *verifyapi.Publish, overrides verifyapi.TransmissionRiskVector) {
-	if len(overrides) == 0 {
-		return
-	}
-	// The default sort order for TransmissionRiskVector is descending by SinceRollingPeriod.
-	sort.Sort(overrides)
-	// Sort the keys with the largest start interval first (descending), same as overrides.
-	sort.Slice(p.Keys, func(i int, j int) bool {
-		return p.Keys[i].IntervalNumber > p.Keys[j].IntervalNumber
-	})
-
-	overrideIdx := 0
-	for i, eKey := range p.Keys {
-		// Advance the overrideIdx until the current key is covered or we exhaust the
-		// override index.
-		for overrideIdx < len(overrides) &&
-			eKey.IntervalNumber+eKey.IntervalCount <= overrides[overrideIdx].SinceRollingInterval {
-			overrideIdx++
-		}
-
-		// If we've run out of overrides to apply, then we have to break free.
-		if overrideIdx >= len(overrides) {
-			break
-		}
-
-		// Check to see if this key is in the current override.
-		// If the key was EVERY valid during the SinceRollingPeriod then the override applies.
-		if eKey.IntervalNumber+eKey.IntervalCount >= overrides[overrideIdx].SinceRollingInterval {
-			p.Keys[i].TransmissionRisk = overrides[overrideIdx].TransmissionRisk
-			// don't advance overrideIdx, there might be additional keys in this override.
-		}
-	}
 }
 
 // IntervalNumber calculates the exposure notification system interval
@@ -413,7 +376,7 @@ func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 	if providedTR != 0 {
 		return providedTR
 	}
-	// Otherwise this value needs to be backfilled for v1.0 clients.
+	// Otherwise this value needs to be backfilled for verifyapi.0 clients.
 	switch reportType {
 	case verifyapi.ReportTypeConfirmed:
 		return verifyapi.TransmissionRiskConfirmedStandard
@@ -431,7 +394,7 @@ func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 // * 0 exposure Keys in the requests
 // * > Transformer.maxExposureKeys in the request
 //
-func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, error) {
+func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, error) {
 	logger := logging.FromContext(ctx)
 	if t.debugReleaseSameDay {
 		logger.Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
@@ -447,10 +410,6 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		msg := fmt.Sprintf("too many exposure keys in publish: %v, max of %v is allowed", len(inData.Keys), t.maxExposureKeys)
 		logger.Debugf(msg)
 		return nil, fmt.Errorf(msg)
-	}
-
-	if claims != nil {
-		ApplyTransmissionRiskOverrides(inData, claims.TransmissionRisks)
 	}
 
 	onsetInterval := inData.SymptomOnsetInterval
@@ -477,13 +436,13 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	// There is no set of "valid" regions overall, but it is defined
 	// elsewhere by what regions an authorized application may write to.
 	// See `authorizedapp.Config`
-	upcaseRegions := make([]string, len(inData.Regions))
-	for i, r := range inData.Regions {
+	upcaseRegions := make([]string, len(regions))
+	for i, r := range regions {
 		upcaseRegions[i] = strings.ToUpper(r)
 	}
 
 	for _, exposureKey := range inData.Keys {
-		exposure, err := TransformExposureKey(exposureKey, inData.AppPackageName, upcaseRegions, &settings)
+		exposure, err := TransformExposureKey(exposureKey, inData.HealthAuthorityID, upcaseRegions, &settings)
 		if err != nil {
 			logger.Debugf("individual key transform failed: %v", err)
 			return nil, fmt.Errorf("invalid publish data: %v", err)
@@ -505,11 +464,12 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 				exposure.SetDaysSinceSymptomOnset(daysSince)
 			}
 		}
+		exposure.Traveler = inData.Traveler
 		entities = append(entities, exposure)
 	}
 
 	// Validate the uploaded data meets configuration parameters.
-	// In v1.5+, it is possible to have multiple keys that overlap. They
+	// In verifyapi.5+, it is possible to have multiple keys that overlap. They
 	// take the form of the same start interval with variable rolling period numbers.
 	// Sort by interval number to make necessary checks easier.
 	sort.Slice(entities, func(i int, j int) bool {

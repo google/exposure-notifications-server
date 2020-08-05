@@ -64,12 +64,14 @@ func New(db *database.DB) *PublishDB {
 
 // IterateExposuresCriteria is criteria to iterate exposures.
 type IterateExposuresCriteria struct {
-	IncludeRegions []string
-	ExcludeRegions []string
-	SinceTimestamp time.Time
-	UntilTimestamp time.Time
-	LastCursor     string
-	RevisedKeys    bool // If true, only revised keys that match will be selected.
+	IncludeRegions   []string
+	IncludeTravelers bool // Include records in the IncludeRegions OR travalers
+	OnlyTravelers    bool // Only includes records marked as travelers.
+	ExcludeRegions   []string
+	SinceTimestamp   time.Time
+	UntilTimestamp   time.Time
+	LastCursor       string
+	OnlyRevisedKeys  bool // If true, only revised keys that match will be selected.
 
 	// OnlyLocalProvenance indicates that only exposures with LocalProvenance=true will be returned.
 	OnlyLocalProvenance bool
@@ -126,9 +128,9 @@ func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExpos
 			var m model.Exposure
 			var encodedKey string
 			var syncID *int64
-			if err := rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.IntervalNumber,
-				&m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &syncID, &m.HealthAuthorityID, &m.ReportType,
-				&m.DaysSinceSymptomOnset, &m.RevisedReportType, &m.RevisedAt, &m.RevisedDaysSinceSymptomOnset); err != nil {
+			if err := rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.Traveler,
+				&m.IntervalNumber, &m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &syncID, &m.HealthAuthorityID,
+				&m.ReportType, &m.DaysSinceSymptomOnset, &m.RevisedReportType, &m.RevisedAt, &m.RevisedDaysSinceSymptomOnset); err != nil {
 				return fmt.Errorf("failed to parse: %w", err)
 			}
 
@@ -158,7 +160,8 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	var args []interface{}
 	q := `
 		SELECT
-			exposure_key, transmission_risk, LOWER(app_package_name), regions, interval_number, interval_count,
+			exposure_key, transmission_risk, LOWER(app_package_name), regions, traveler,
+			interval_number, interval_count,
 			created_at, local_provenance, sync_id, health_authority_id, report_type,
 			days_since_symptom_onset, revised_report_type, revised_at, revised_days_since_symptom_onset
 		FROM
@@ -167,8 +170,16 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	`
 
 	if len(criteria.IncludeRegions) == 1 {
-		args = append(args, criteria.IncludeRegions)
-		q += fmt.Sprintf(" AND (regions && $%d)", len(args)) // Operation "&&" means "array overlaps / intersects"
+		if criteria.IncludeTravelers {
+			// If the query has include ragions and include travelers set - we want the union of the specified regions and
+			// all "traveler" keys that this server knows about.
+			args = append(args, criteria.IncludeRegions)
+			args = append(args, true)
+			q += fmt.Sprintf(" AND ((regions && $%d) OR traveler = $%d)", len(args)-1, len(args)) // Operation "&&" means "array overlaps / intersects"
+		} else {
+			args = append(args, criteria.IncludeRegions)
+			q += fmt.Sprintf(" AND (regions && $%d)", len(args)) // Operation "&&" means "array overlaps / intersects"
+		}
 	}
 
 	if len(criteria.ExcludeRegions) == 1 {
@@ -177,7 +188,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	}
 
 	timeField := "created_at"
-	if criteria.RevisedKeys {
+	if criteria.OnlyRevisedKeys {
 		q += " AND revised_at IS NOT NULL"
 		timeField = "revised_at"
 	}
@@ -202,7 +213,16 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 		q += fmt.Sprintf(" AND local_provenance = $%d", len(args))
 	}
 
-	q += " ORDER BY created_at"
+	if criteria.OnlyTravelers {
+		args = append(args, true)
+		q += fmt.Sprintf(" AND traveler = $%d", len(args))
+	}
+
+	if criteria.OnlyRevisedKeys {
+		q += " ORDER BY revised_at"
+	} else {
+		q += " ORDER BY created_at"
+	}
 
 	if criteria.LastCursor != "" {
 		decoded, err := decodeCursor(criteria.LastCursor)
@@ -227,7 +247,7 @@ func (db *PublishDB) ReadExposures(ctx context.Context, tx pgx.Tx, b64keys []str
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT
-				exposure_key, transmission_risk, app_package_name, regions,
+				exposure_key, transmission_risk, app_package_name, regions, traveler,
 				interval_number, interval_count, created_at, local_provenance, sync_id,
 				health_authority_id, report_type, days_since_symptom_onset,
 				revised_report_type, revised_at, revised_days_since_symptom_onset,
@@ -253,7 +273,7 @@ func (db *PublishDB) ReadExposures(ctx context.Context, tx pgx.Tx, b64keys []str
 			var exposure model.Exposure
 			if err := rows.Scan(
 				&encodedKey, &exposure.TransmissionRisk, &exposure.AppPackageName,
-				&exposure.Regions, &exposure.IntervalNumber, &exposure.IntervalCount,
+				&exposure.Regions, &exposure.Traveler, &exposure.IntervalNumber, &exposure.IntervalCount,
 				&exposure.CreatedAt, &exposure.LocalProvenance, &syncID,
 				&exposure.HealthAuthorityID, &exposure.ReportType, &exposure.DaysSinceSymptomOnset,
 				&exposure.RevisedReportType, &exposure.RevisedAt, &exposure.RevisedDaysSinceSymptomOnset,
@@ -288,10 +308,10 @@ func prepareInsertExposure(ctx context.Context, tx pgx.Tx) (string, error) {
 	_, err := tx.Prepare(ctx, stmtName, `
 		INSERT INTO
 			Exposure
-				(exposure_key, transmission_risk, app_package_name, regions, interval_number, interval_count,
+				(exposure_key, transmission_risk, app_package_name, regions, traveler, interval_number, interval_count,
 				 created_at, local_provenance, sync_id, health_authority_id, report_type, days_since_symptom_onset)
 		VALUES
-			($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		ON CONFLICT (exposure_key) DO NOTHING
 	`)
 	return stmtName, err
@@ -303,7 +323,7 @@ func executeInsertExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 		syncID = &exp.FederationSyncID
 	}
 	_, err := tx.Exec(ctx, stmtName, encodeExposureKey(exp.ExposureKey), exp.TransmissionRisk,
-		exp.AppPackageName, exp.Regions, exp.IntervalNumber, exp.IntervalCount,
+		exp.AppPackageName, exp.Regions, exp.Traveler, exp.IntervalNumber, exp.IntervalCount,
 		exp.CreatedAt, exp.LocalProvenance, syncID,
 		exp.HealthAuthorityID, exp.ReportType, exp.DaysSinceSymptomOnset)
 	if err != nil {

@@ -18,7 +18,6 @@ package publish
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -27,7 +26,6 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
-	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/publish/database"
@@ -37,13 +35,15 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifydb "github.com/google/exposure-notifications-server/internal/verification/database"
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/mikehelmick/go-chaff"
 )
 
-// NewHandler creates the HTTP handler for the TTK publishing API.
-func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
+// NewHandler creates common API handler for the publish API.
+// This supports all current versions of the API and each defines it's own entry point via
+// an http.HandlerFunc
+func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (*PublishHandler, error) {
 	logger := logging.FromContext(ctx)
 
 	if env.Database() == nil {
@@ -87,7 +87,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("revision.New: %w", err)
 	}
 
-	return &publishHandler{
+	return &PublishHandler{
 		serverenv:             env,
 		transformer:           transformer,
 		config:                config,
@@ -100,7 +100,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 	}, nil
 }
 
-type publishHandler struct {
+type PublishHandler struct {
 	config                *Config
 	serverenv             *serverenv.ServerEnv
 	transformer           *model.Transformer
@@ -119,35 +119,45 @@ type response struct {
 	count       int // metricCount
 }
 
-func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) response {
-	ctx, span := trace.StartSpan(r.Context(), "(*publish.publishHandler).handleRequest")
+// versionBridge closes the gap in up-leveling v1alpha1 to v1 API.
+type versionBridge struct {
+	AdditionalRegions []string
+}
+
+func newVersionBridge(regions []string) *versionBridge {
+	b := versionBridge{
+		AdditionalRegions: make([]string, len(regions)),
+	}
+	copy(b.AdditionalRegions, regions)
+	return &b
+}
+
+// process runs the publish business logic over a "v1" version of the publish request
+// and knows how to join in data from previous versions (the provided versionBridge)
+func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, bridge *versionBridge) response {
+	ctx, span := trace.StartSpan(ctx, "(*publish.PublishHandler).process")
 	defer span.End()
 
 	logger := logging.FromContext(ctx)
 	metrics := h.serverenv.MetricsExporter(ctx)
 
-	var data verifyapi.Publish
-	code, err := jsonutil.Unmarshal(w, r, &data)
-	if err != nil {
-		message := fmt.Sprintf("error unmarshaling API call, code: %v: %v", code, err)
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		return response{
-			status:      http.StatusBadRequest,
-			pubResponse: &verifyapi.PublishResponse{Error: message},
-			metric:      "publish-bad-json", count: 1}
-	}
-
-	appConfig, err := h.authorizedAppProvider.AppConfig(ctx, data.AppPackageName)
+	appConfig, err := h.authorizedAppProvider.AppConfig(ctx, data.HealthAuthorityID)
 	if err != nil {
 		// Config loaded, but app with that name isn't registered. This can also
 		// happen if the app was recently registered but the cache hasn't been
 		// refreshed.
 		if errors.Is(err, authorizedapp.ErrAppNotFound) {
-			message := fmt.Sprintf("unauthorized app: %v", data.AppPackageName)
+			message := fmt.Sprintf("unauthorized health authority: %v", data.HealthAuthorityID)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-			return response{status: http.StatusUnauthorized,
-				pubResponse: &verifyapi.PublishResponse{Error: message},
-				metric:      "publish-app-not-authorized", count: 1}
+			return response{
+				status: http.StatusUnauthorized,
+				pubResponse: &verifyapi.PublishResponse{
+					ErrorMessage: message,
+					Code:         verifyapi.ErrorUnknownHealthAuthorityID,
+				},
+				metric: "publish-health-authority-not-authorized",
+				count:  1,
+			}
 		}
 
 		// A higher-level configuration error occurred, likely while trying to read
@@ -155,58 +165,89 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		// isn't transient.
 		// This message (and logging) will only contain the AppPkgName from the request
 		// and no other data from the request.
-		message := fmt.Sprintf("no AuthorizedApp, dropping data: %v", err)
+		message := fmt.Sprintf("error loading health authority config: %v", err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{
-			status:      http.StatusUnauthorized,
-			pubResponse: &verifyapi.PublishResponse{Error: message},
-			metric:      "publish-error-loading-authorizedapp",
-			count:       1,
+			status: http.StatusNotFound,
+			pubResponse: &verifyapi.PublishResponse{
+				ErrorMessage: message,
+				Code:         verifyapi.ErrorUnableToLoadHealthAuthority,
+			},
+			metric: "publish-error-loading-authorizedapp",
+			count:  1,
 		}
 	}
 
-	// Verify the request is from a permitted region.
-	if len(data.Regions) == 0 {
-		message := "no regions provided on publish request"
-		span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
-		return response{
-			status:      http.StatusBadRequest,
-			pubResponse: &verifyapi.PublishResponse{Error: message},
-			metric:      "publish-region-not-specified",
-			count:       1,
+	// In the v1 API - regions aren't passed. They may be passed from v1Apha1
+	var regions []string
+	if bridge != nil && len(bridge.AdditionalRegions) > 0 {
+		regions = bridge.AdditionalRegions
+		// Authorized regions only need to checked if they are coming in from the
+		// v1alpha1 version of the API.
+		for _, r := range regions {
+			if !appConfig.IsAllowedRegion(r) {
+				err := fmt.Errorf("app %v tried to write to unauthorized region %v", appConfig.AppPackageName, r)
+				message := fmt.Sprintf("verifying allowed regions: %v", err)
+				span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
+				return response{
+					status: http.StatusUnauthorized,
+					pubResponse: &verifyapi.PublishResponse{
+						ErrorMessage: message, // Error code omitted, since this isn't in the v1 path.
+					},
+					metric: "publish-region-not-authorized",
+					count:  1,
+				}
+			}
 		}
 	}
-	for _, r := range data.Regions {
-		if !appConfig.IsAllowedRegion(r) {
-			err := fmt.Errorf("app %v tried to write to unauthorized region %v", appConfig.AppPackageName, r)
-			message := fmt.Sprintf("verifying allowed regions: %v", err)
-			span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
-			return response{
-				status:      http.StatusUnauthorized,
-				pubResponse: &verifyapi.PublishResponse{Error: message},
-				metric:      "publish-region-not-authorized",
-				count:       1,
-			}
+	// If regions is still empty (normal for v1 request), copy the regions from
+	// the authorized app config.
+	if len(regions) == 0 {
+		regions = appConfig.AllAllowedRegions()
+	}
+	// And - worse case, still no regions and server default set.
+	if len(regions) == 0 && h.config.DefaultRegion != "" {
+		regions = append(regions, h.config.DefaultRegion)
+	}
+
+	// Verify that there is at least one region set by API call or by one of the
+	// generous defaults. If there isn't a region set, then the TEKs
+	// won't be retrievable, so we ensure there is something set.
+	if len(regions) == 0 {
+		message := fmt.Sprintf("unknown health authority regions for %v", data.HealthAuthorityID)
+		span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
+		return response{
+			status: http.StatusBadRequest,
+			pubResponse: &verifyapi.PublishResponse{
+				ErrorMessage: message,
+				Code:         verifyapi.ErrorHealthAuthorityMissingRegionConfiguration,
+			},
+			metric: "publish-region-not-specified",
+			count:  1,
 		}
 	}
 
 	// Perform health authority certificate verification.
-	verifiedClaims, err := h.verifier.VerifyDiagnosisCertificate(ctx, appConfig, &data)
+	verifiedClaims, err := h.verifier.VerifyDiagnosisCertificate(ctx, appConfig, data)
 	if err != nil {
 		if appConfig.BypassHealthAuthorityVerification {
-			logger.Warnf("bypassing health authority certificate verification for app: %v", appConfig.AppPackageName)
+			logger.Warnf("bypassing health authority certificate verification health authority: %v", appConfig.AppPackageName)
 			metrics.WriteInt("publish-health-authority-verification-bypassed", true, 1)
 		} else {
 			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
+			logger.Error(message)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
 			return response{
-				status:      http.StatusUnauthorized,
-				pubResponse: &verifyapi.PublishResponse{Error: message},
-				metric:      "publish-bad-verification", count: 1}
+				status: http.StatusUnauthorized,
+				pubResponse: &verifyapi.PublishResponse{
+					ErrorMessage: message,
+					Code:         verifyapi.ErrorVerificationCertificateInvalid,
+				},
+				metric: "publish-bad-verification", count: 1}
 		}
 	}
 
-	// Examine the revision token.
+	// Examine the revision token. It is expected that it is missing in most cases.
 	var token *pb.RevisionTokenData
 	if len(data.RevisionToken) != 0 {
 		encryptedToken, err := base64util.DecodeString(data.RevisionToken)
@@ -222,26 +263,32 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	}
 
 	batchTime := time.Now()
-	exposures, err := h.transformer.TransformPublish(ctx, &data, verifiedClaims, batchTime)
+	exposures, err := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
 	if err != nil {
 		message := fmt.Sprintf("unable to read request data: %v", err)
-		logger.Errorf(message)
+		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
 		return response{
-			status:      http.StatusBadRequest,
-			pubResponse: &verifyapi.PublishResponse{Error: message},
-			metric:      "publish-transform-fail", count: 1}
+			status: http.StatusBadRequest,
+			pubResponse: &verifyapi.PublishResponse{
+				ErrorMessage: message,
+				Code:         verifyapi.ErrorBadRequest,
+			},
+			metric: "publish-transform-fail", count: 1}
 	}
 
 	n, err := h.database.InsertAndReviseExposures(ctx, exposures, token, !appConfig.BypassRevisionToken)
 	if err != nil {
 		message := fmt.Sprintf("error writing exposure record: %v", err)
-		logger.Errorf(message)
+		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		return response{
-			status:      http.StatusInternalServerError,
-			pubResponse: &verifyapi.PublishResponse{Error: http.StatusText(http.StatusInternalServerError)},
-			metric:      "publish-db-write-error", count: 1}
+			status: http.StatusInternalServerError,
+			pubResponse: &verifyapi.PublishResponse{
+				ErrorMessage: http.StatusText(http.StatusInternalServerError),
+				Code:         verifyapi.ErrorInternalError,
+			},
+			metric: "publish-db-write-error", count: 1}
 	}
 
 	// Build the new revision token. Union of existing token take + new exposures.
@@ -257,7 +304,10 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	}
 	newToken, err := h.tokenManager.MakeRevisionToken(ctx, &keep, exposures, h.tokenAAD)
 	if err != nil {
+		// In this case, an empty revision token is returned. The rest of the request
+		// was handled correctly.
 		logger.Errorf("unable to make new revision token: %v", err)
+		newToken = make([]byte, 0)
 	}
 
 	message := fmt.Sprintf("Inserted %d exposures.", n)
@@ -272,28 +322,4 @@ func (h *publishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		metric: "publish-exposures-written",
 		count:  n,
 	}
-}
-
-// ServeHTTP handles the publish event. It tracks requests and can handle chaff
-// requests when provided a request with the X-Chaff header.
-func (h *publishHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			response := h.handleRequest(w, r)
-
-			if response.metric != "" {
-				ctx := r.Context()
-				metrics := h.serverenv.MetricsExporter(ctx)
-				metrics.WriteInt(response.metric, true, response.count)
-			}
-
-			data, err := json.Marshal(response.pubResponse)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "{\"error\": \"%v\"}", err.Error())
-				return
-			}
-			w.WriteHeader(response.status)
-			fmt.Fprintf(w, "%s", data)
-		})).ServeHTTP(w, r)
 }

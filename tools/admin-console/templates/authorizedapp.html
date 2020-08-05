@@ -2,25 +2,26 @@
 {{template "top" .}}
 
 {{if .new}}
-<h2>Create New Authorized Application</h2>
+<h2>Create New Authorized Health Authority</h2>
 {{else}}
-<h2>Edit Application {{.app.AppPackageName}}</h2>
+<h2>Edit Health Authority {{.app.AppPackageName}}</h2>
 {{end}}
 
 <form method="POST" action="/app" class="form-horizontal">
   <input type="hidden" name="Key" value="{{.previousKey}}" />
-  <div class="alert alert-info" role="alert">Basic Application Authorization Information</div>
+  <div class="alert alert-info" role="alert">Basic Information</div>
   <div class="form-group row">
-    <label class="control-label col-sm-3" for="AppPackageName">App Package Name / Bundle ID:</label>
+    <label class="control-label col-sm-3" for="AppPackageName">Health Authority ID:</label>
     <div class="col-sm-6">
       <input type="text" id="AppPackageName" name="AppPackageName" size="50" value="{{.app.AppPackageName}}">
+      <small id="RegionsHelpBlock" class="form-text text-muted">This exact string must be passed by clients. Reverse DNS is recommended, but not required.</small>
     </div>
   </div>
   <div class="form-group row">
     <label class="control-label col-sm-3" for="Regions">Regions:</label>
     <div class="col-sm-6">
       <textarea class="form-control" name="Regions" id="Regions" rows="3">{{.app.RegionsOnePerLine}}</textarea>
-      <small id="RegionsHelpBlock" class="form-text text-muted">One per line, leave blank for all</small>
+      <small id="RegionsHelpBlock" class="form-text text-muted">One per line. TEKs uploaded by this health authority will be present in all configurd regions (v1 API)</small>
     </div>
   </div>
   <hr/>

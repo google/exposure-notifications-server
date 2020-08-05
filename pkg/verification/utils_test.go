@@ -18,7 +18,7 @@ import (
 	"encoding/base64"
 	"testing"
 
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
 
 func TestCalculateHac(t *testing.T) {
