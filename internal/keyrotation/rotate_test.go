@@ -33,11 +33,9 @@ import (
 
 func TestRotateKeys(t *testing.T) {
 	t.Parallel()
-
 	ctx := context.Background()
-	testDB := database.NewTestDatabase(t)
+
 	kms, _ := keys.NewInMemory(context.Background())
-	env := serverenv.New(ctx, serverenv.WithKeyManager(kms), serverenv.WithDatabase(testDB))
 	keyID := "testKeyID"
 	kms.AddEncryptionKey(keyID)
 	config := &Config{
@@ -46,10 +44,6 @@ func TestRotateKeys(t *testing.T) {
 		NewKeyPeriod:       24 * time.Hour,      // one day
 	}
 	config.RevisionToken.KeyID = keyID
-	server, err := NewServer(config, env)
-	if err != nil {
-		t.Fatalf("got unexpected error: %v", err)
-	}
 
 	// Wrap the key using the configured KMS.
 	key := make([]byte, 32)
@@ -116,7 +110,17 @@ func TestRotateKeys(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			testDB := database.NewTestDatabase(t)
+			env := serverenv.New(ctx, serverenv.WithKeyManager(kms), serverenv.WithDatabase(testDB))
+			server, err := NewServer(config, env)
+			if err != nil {
+				t.Fatalf("got unexpected error: %v", err)
+			}
+
 			for _, k := range tc.keys {
 				if err := insertRawKey(ctx, t, testDB, &k); err != nil {
 					t.Error("Failed to insert keys: ", err)
@@ -142,7 +146,7 @@ func TestRotateKeys(t *testing.T) {
 func purgeAllKeys(ctx context.Context, t *testing.T, db *database.DB) (int64, error) {
 	t.Helper()
 	var count int64 = 0
-	if err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `DELETE FROM RevisionKeys`)
 		count = result.RowsAffected()
 		return err
