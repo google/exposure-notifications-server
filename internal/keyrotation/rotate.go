@@ -36,7 +36,7 @@ func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 		defer s.mu.Unlock()
 
 		if err := s.doRotate(ctx); err != nil {
-			logger.Error(err)
+			logger.Errorw("failed to rotate", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
