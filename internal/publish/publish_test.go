@@ -131,9 +131,9 @@ func issueJWT(t *testing.T, cfg jwtConfig) (jwtText, hmacKey string) {
 }
 
 type nameAssigner struct {
-	baseAPK      string
-	modifier     int
-	lastAssigned string
+	baseAPK  string
+	modifier int
+	assigned string
 }
 
 func makeNameAssigner(base string) *nameAssigner {
@@ -144,12 +144,12 @@ func makeNameAssigner(base string) *nameAssigner {
 
 func (n *nameAssigner) next() string {
 	n.modifier++
-	n.lastAssigned = fmt.Sprintf("%s.%d", n.baseAPK, n.modifier)
-	return n.lastAssigned
+	n.assigned = fmt.Sprintf("%s.%d", n.baseAPK, n.modifier)
+	return n.assigned
 }
 
-func (n *nameAssigner) last() string {
-	return n.lastAssigned
+func (n *nameAssigner) current() string {
+	return n.assigned
 }
 
 func TestPublishWithBypass(t *testing.T) {
@@ -181,13 +181,13 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp := aamodel.NewAuthorizedApp()
 				authApp.AppPackageName = names.next()
 				authApp.BypassHealthAuthorityVerification = true
-				authApp.AllowedRegions[regions.last()] = struct{}{}
+				authApp.AllowedRegions[regions.current()] = struct{}{}
 				return authApp
 			}(),
 			Publish: verifyapi.Publish{
 				Keys:           util.GenerateExposureKeys(2, 5, false),
-				Regions:        []string{regions.last()},
-				AppPackageName: names.last(),
+				Regions:        []string{regions.current()},
+				AppPackageName: names.current(),
 			},
 			Code: http.StatusOK,
 		},
@@ -204,13 +204,13 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp := aamodel.NewAuthorizedApp()
 				authApp.AppPackageName = names.next()
 				authApp.BypassHealthAuthorityVerification = true
-				authApp.AllowedRegions[regions.last()] = struct{}{}
+				authApp.AllowedRegions[regions.current()] = struct{}{}
 				return authApp
 			}(),
 			Publish: verifyapi.Publish{
 				Keys:           util.GenerateExposureKeys(2, 5, false),
 				Regions:        []string{},
-				AppPackageName: names.last(),
+				AppPackageName: names.current(),
 			},
 			Code:  http.StatusBadRequest,
 			Error: "no regions provided",
@@ -222,13 +222,13 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp := aamodel.NewAuthorizedApp()
 				authApp.AppPackageName = names.next()
 				authApp.BypassHealthAuthorityVerification = true
-				authApp.AllowedRegions[regions.last()] = struct{}{}
+				authApp.AllowedRegions[regions.current()] = struct{}{}
 				return authApp
 			}(),
 			Publish: verifyapi.Publish{
 				Keys:           util.GenerateExposureKeys(2, 5, false),
-				Regions:        []string{regions.last()},
-				AppPackageName: names.last() + "WRONG",
+				Regions:        []string{regions.current()},
+				AppPackageName: names.current() + "WRONG",
 			},
 			Code:  http.StatusUnauthorized,
 			Error: "unauthorized app",
@@ -240,16 +240,16 @@ func TestPublishWithBypass(t *testing.T) {
 				authApp := aamodel.NewAuthorizedApp()
 				authApp.AppPackageName = names.next()
 				authApp.BypassHealthAuthorityVerification = true
-				authApp.AllowedRegions[regions.last()] = struct{}{}
+				authApp.AllowedRegions[regions.current()] = struct{}{}
 				return authApp
 			}(),
 			Publish: verifyapi.Publish{
 				Keys:           util.GenerateExposureKeys(2, 5, false),
-				Regions:        []string{regions.last() + "X"},
-				AppPackageName: names.last(),
+				Regions:        []string{regions.current() + "X"},
+				AppPackageName: names.current(),
 			},
 			Code:  http.StatusUnauthorized,
-			Error: "tried to write to unauthorized region " + regions.last() + "X",
+			Error: "tried to write to unauthorized region " + regions.current() + "X",
 		},
 		{
 			Name:       "bad HA certificate",
@@ -257,13 +257,13 @@ func TestPublishWithBypass(t *testing.T) {
 			AuthorizedApp: func() *aamodel.AuthorizedApp {
 				authApp := aamodel.NewAuthorizedApp()
 				authApp.AppPackageName = names.next()
-				authApp.AllowedRegions[regions.last()] = struct{}{}
+				authApp.AllowedRegions[regions.current()] = struct{}{}
 				return authApp
 			}(),
 			Publish: verifyapi.Publish{
 				Keys:                util.GenerateExposureKeys(2, 5, false),
-				Regions:             []string{regions.last()},
-				AppPackageName:      names.last(),
+				Regions:             []string{regions.current()},
+				AppPackageName:      names.current(),
 				VerificationPayload: "totally not a JWT",
 			},
 			Code:  http.StatusUnauthorized,
@@ -285,13 +285,13 @@ func TestPublishWithBypass(t *testing.T) {
 			AuthorizedApp: func() *aamodel.AuthorizedApp {
 				authApp := aamodel.NewAuthorizedApp()
 				authApp.AppPackageName = names.next()
-				authApp.AllowedRegions[regions.last()] = struct{}{}
+				authApp.AllowedRegions[regions.current()] = struct{}{}
 				return authApp
 			}(),
 			Publish: verifyapi.Publish{
 				Keys:                util.GenerateExposureKeys(2, 5, false),
-				Regions:             []string{regions.last()},
-				AppPackageName:      names.last(),
+				Regions:             []string{regions.current()},
+				AppPackageName:      names.current(),
 				VerificationPayload: "totally not a JWT",
 			},
 			Code: http.StatusOK,
@@ -312,13 +312,13 @@ func TestPublishWithBypass(t *testing.T) {
 			AuthorizedApp: func() *aamodel.AuthorizedApp {
 				authApp := aamodel.NewAuthorizedApp()
 				authApp.AppPackageName = names.next()
-				authApp.AllowedRegions[regions.last()] = struct{}{}
+				authApp.AllowedRegions[regions.current()] = struct{}{}
 				return authApp
 			}(),
 			Publish: verifyapi.Publish{
 				Keys:                util.GenerateExposureKeys(2, 5, false),
-				Regions:             []string{regions.last()},
-				AppPackageName:      names.last(),
+				Regions:             []string{regions.current()},
+				AppPackageName:      names.current(),
 				VerificationPayload: "totally not a JWT",
 			},
 			Overrides: []verifyapi.TransmissionRiskOverride{
@@ -346,13 +346,13 @@ func TestPublishWithBypass(t *testing.T) {
 			AuthorizedApp: func() *aamodel.AuthorizedApp {
 				authApp := aamodel.NewAuthorizedApp()
 				authApp.AppPackageName = names.next()
-				authApp.AllowedRegions[regions.last()] = struct{}{}
+				authApp.AllowedRegions[regions.current()] = struct{}{}
 				return authApp
 			}(),
 			Publish: verifyapi.Publish{
 				Keys:                util.GenerateExposureKeys(2, 5, false),
-				Regions:             []string{regions.last()},
-				AppPackageName:      names.last(),
+				Regions:             []string{regions.current()},
+				AppPackageName:      names.current(),
 				VerificationPayload: "totally not a JWT",
 			},
 			JWTTiming: time.Hour,
@@ -375,13 +375,13 @@ func TestPublishWithBypass(t *testing.T) {
 			AuthorizedApp: func() *aamodel.AuthorizedApp {
 				authApp := aamodel.NewAuthorizedApp()
 				authApp.AppPackageName = names.next()
-				authApp.AllowedRegions[regions.last()] = struct{}{}
+				authApp.AllowedRegions[regions.current()] = struct{}{}
 				return authApp
 			}(),
 			Publish: verifyapi.Publish{
 				Keys:                util.GenerateExposureKeys(2, 5, false),
-				Regions:             []string{regions.last()},
-				AppPackageName:      names.last(),
+				Regions:             []string{regions.current()},
+				AppPackageName:      names.current(),
 				VerificationPayload: "totally not a JWT",
 			},
 			JWTTiming: -6 * time.Minute,
