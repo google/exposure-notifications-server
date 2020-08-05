@@ -57,7 +57,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 	// First allowed is newest due to sql orderby.
 	if len(allowed) == 0 || time.Since(allowed[0].CreatedAt) >= s.config.NewKeyPeriod {
 		if _, err := s.revisionDB.CreateRevisionKey(ctx); err != nil {
-			return err
+			return fmt.Errorf("failed to create revision key: %w", err)
 		}
 		metrics.WriteInt("revision-keys-created", true, 1)
 	}
