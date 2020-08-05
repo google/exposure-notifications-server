@@ -62,14 +62,10 @@ func (s *Server) doRotate(ctx context.Context) error {
 		metrics.WriteInt("revision-keys-created", true, 1)
 	}
 
-	if len(allowed) < 2 {
-		return nil
-	}
-
 	deleted := 0
 	defer metrics.WriteInt("revision-keys-deleted", true, deleted)
 
-	for _, key := range allowed[2:] {
+	for _, key := range allowed {
 		if time.Since(key.CreatedAt) < s.config.DeleteOldKeyPeriod {
 			continue
 		}

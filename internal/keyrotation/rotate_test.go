@@ -143,7 +143,7 @@ func TestRotateKeys(t *testing.T) {
 	}
 }
 
-func purgeAllKeys(ctx context.Context, t *testing.T, db *database.DB) (int64, error) {
+func testPurgeAllKeys(ctx context.Context, t testing.TB, db *database.DB) (int64, error) {
 	t.Helper()
 	var count int64 = 0
 	if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
@@ -156,7 +156,8 @@ func purgeAllKeys(ctx context.Context, t *testing.T, db *database.DB) (int64, er
 	return count, nil
 }
 
-func insertRawKey(ctx context.Context, t *testing.T, db *database.DB, key *revisiondb.RevisionKey) error {
+func testInsertRawKey(ctx context.Context, t testing.TB, db *database.DB, key *revisiondb.RevisionKey) error {
+	t.Helper()
 	if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
