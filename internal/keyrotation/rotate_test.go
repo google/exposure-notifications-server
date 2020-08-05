@@ -17,12 +17,14 @@ package keyrotation
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/keys"
+	"github.com/jackc/pgx/v4"
 )
 
 func TestRotateKeys(t *testing.T) {
@@ -34,25 +36,25 @@ func TestRotateKeys(t *testing.T) {
 	env := serverenv.New(ctx, serverenv.WithKeyManager(kms), serverenv.WithDatabase(testDB))
 
 	testCases := []struct {
-		name string
+		name           string
+		expectKeyCount int64
 	}{
 		{
-			name: "empty_db",
+			name:           "empty_db",
+			expectKeyCount: 1,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			keyID := "test" + t.Name()
 			kms.AddEncryptionKey(keyID)
 			config := &Config{
 				RevisionToken: revision.Config{KeyID: keyID},
 			}
 			config.RevisionToken.KeyID = keyID
-
 			server, err := NewServer(config, env)
+
 			if err != nil {
 				t.Fatalf("got unexpected error: %v", err)
 			}
@@ -60,6 +62,28 @@ func TestRotateKeys(t *testing.T) {
 			if err := server.doRotate(ctx); err != nil {
 				t.Fatalf("doRotate failed: %v", err)
 			}
+
+			count, err := purgeAllKeys(ctx, t, testDB)
+			if err != nil {
+				t.Error("Failed to purge keys", err)
+			}
+
+			if count != tc.expectKeyCount {
+				t.Errorf("Purged %d keys, wanted %d", count, tc.expectKeyCount)
+			}
 		})
 	}
+}
+
+func purgeAllKeys(ctx context.Context, t *testing.T, db *database.DB) (int64, error) {
+	t.Helper()
+	var count int64 = 0
+	if err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `DELETE FROM RevisionKeys`)
+		count = result.RowsAffected()
+		return err
+	}); err != nil {
+		return count, fmt.Errorf("unable to clear keys: %w", err)
+	}
+	return count, nil
 }
