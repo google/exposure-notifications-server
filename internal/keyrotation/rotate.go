@@ -35,7 +35,7 @@ func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 
-		if err := s.handleRotation(ctx); err != nil {
+		if err := s.doRotate(ctx); err != nil {
 			logger.Error(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -46,7 +46,7 @@ func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 	}
 }
 
-func (s *Server) handleRotation(ctx context.Context) error {
+func (s *Server) doRotate(ctx context.Context) error {
 	metrics := s.env.MetricsExporter(ctx)
 
 	_, allowed, err := s.revisionDB.GetAllowedRevisionKeys(ctx)
