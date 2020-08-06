@@ -26,33 +26,15 @@
 package verification
 
 import (
-	"crypto/ecdsa"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"sort"
 	"strings"
-	"testing"
-	"time"
 
-	"github.com/dgrijalva/jwt-go"
-	vm "github.com/google/exposure-notifications-server/internal/verification/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
-
-// JwtConfig stores the config used to fetch a verification jwt certificate
-type JwtConfig struct {
-	HealthAuthority      *vm.HealthAuthority
-	HealthAuthorityKey   *vm.HealthAuthorityKey
-	ExposureKeys         []verifyapi.ExposureKey
-	Key                  *ecdsa.PrivateKey
-	JWTWarp              time.Duration
-	ReportType           string
-	SymptomOnsetInterval uint32
-}
 
 // CalculateExpsureKeyHMACv1Alpha1 is a convenience method for anyone still on v1alpha1.
 // Deprecated: use CalculateExposureKeyHMAC instead
@@ -95,43 +77,4 @@ func CalculateExposureKeyHMAC(keys []verifyapi.ExposureKey, secret []byte) ([]by
 	}
 
 	return mac.Sum(nil), nil
-}
-
-// IssueJWT generates a JWT as if it came from the
-// authorized health authority.
-func IssueJWT(t *testing.T, cfg JwtConfig) (jwtText, hmacKey string) {
-	t.Helper()
-
-	hmacKeyBytes := make([]byte, 32)
-	if _, err := rand.Read(hmacKeyBytes); err != nil {
-		t.Fatal(err)
-	}
-	hmacKey = base64.StdEncoding.EncodeToString(hmacKeyBytes)
-
-	hmacBytes, err := CalculateExposureKeyHMAC(cfg.ExposureKeys, hmacKeyBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hmac := base64.StdEncoding.EncodeToString(hmacBytes)
-
-	claims := verifyapi.NewVerificationClaims()
-	claims.Audience = cfg.HealthAuthority.Audience
-	claims.Issuer = cfg.HealthAuthority.Issuer
-	claims.IssuedAt = time.Now().Add(cfg.JWTWarp).Unix()
-	claims.ExpiresAt = time.Now().Add(cfg.JWTWarp).Add(5 * time.Minute).Unix()
-	claims.SignedMAC = hmac
-	if cfg.ReportType != "" {
-		claims.ReportType = cfg.ReportType
-	}
-	if cfg.SymptomOnsetInterval > 0 {
-		claims.SymptomOnsetInterval = cfg.SymptomOnsetInterval
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-	token.Header[verifyapi.KeyIDHeader] = cfg.HealthAuthorityKey.Version
-	jwtText, err = token.SignedString(cfg.Key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return
 }
