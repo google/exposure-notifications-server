@@ -107,19 +107,6 @@ func (c *Client) StartExportWorkers() error {
 	return nil
 }
 
-func (c *Client) RotateKeys() error {
-	resp, err := c.client.Get("/key-rotation/rotate-keys")
-	if err != nil {
-		return fmt.Errorf("failed to GET /key-rotation/rotate-keys: %w", err)
-	}
-
-	body, err := checkResp(resp)
-	if err != nil {
-		return fmt.Errorf("failed to GET /key-rotation/rotate-keys: %w: %s", err, body)
-	}
-	return nil
-}
-
 func checkResp(r *http.Response) ([]byte, error) {
 	defer r.Body.Close()
 
