@@ -18,6 +18,8 @@
 package v1
 
 import (
+	"fmt"
+
 	"github.com/dgrijalva/jwt-go"
 )
 
@@ -50,6 +52,14 @@ const (
 	TransmissionRiskNegative          = 6
 )
 
+var (
+	ValidReportTypes = map[string]bool{
+		ReportTypeConfirmed: true,
+		ReportTypeClinical:  true,
+		ReportTypeNegative:  true,
+	}
+)
+
 // VerificationClaims represents the accepted Claims portion of the verification certificate JWT.
 // This data is used to set data on the uploaded TEKs and will be reflected on export. See the export file format:
 // https://github.com/google/exposure-notifications-server/blob/main/internal/pb/export/export.proto#L73
@@ -73,4 +83,13 @@ type VerificationClaims struct {
 // NewVerificationClaims initializes a new VerificationClaims struct.
 func NewVerificationClaims() *VerificationClaims {
 	return &VerificationClaims{}
+}
+
+// CustomClaimsValid returns nil if the custom claims are valid.
+// .Valid() should still be called to validate the standard claims.
+func (v *VerificationClaims) CustomClaimsValid() error {
+	if !ValidReportTypes[v.ReportType] {
+		return fmt.Errorf("invalid report type: %q", v.ReportType)
+	}
+	return nil
 }

@@ -317,8 +317,9 @@ func TestPublishWithBypass(t *testing.T) {
 				HealthAuthorityID:   names.current(),
 				VerificationPayload: "totally not a JWT",
 			},
-			Regions: []string{}, // will receive defaults
-			Code:    http.StatusOK,
+			ReportType: verifyapi.ReportTypeConfirmed,
+			Regions:    []string{}, // will receive defaults
+			Code:       http.StatusOK,
 		},
 		{
 			Name:       "valid_HA_certificate_with_overrides",
