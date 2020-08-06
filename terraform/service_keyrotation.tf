@@ -19,7 +19,7 @@
 resource "google_service_account" "key-rotation" {
   project      = data.google_project.project.project_id
   account_id   = "en-key-rotation-sa"
-  display_name = "Exposure Notification RevisionKey Rotation"
+  display_name = "Exposure Notification Revision-Key Rotation"
 }
 
 resource "google_service_account_iam_member" "cloudbuild-deploy-key-rotation" {
@@ -135,10 +135,14 @@ resource "google_cloud_run_service_iam_member" "key-rotation-invoker" {
   member   = "serviceAccount:${google_service_account.key-rotation-invoker.email}"
 }
 
+# Schedule to run daily
+# Note that this endpoints default configuration only rotates keys weekly
+# but we over-schedule to ensure they succeed on time.
+
 resource "google_cloud_scheduler_job" "key-rotation-worker" {
   name             = "key-rotation-worker"
   region           = var.cloudscheduler_location
-  schedule         = "0 0 * * *" #daily
+  schedule         = "0 0 * * *"
   time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 
