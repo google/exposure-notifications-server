@@ -16,8 +16,13 @@ package integration
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
@@ -25,6 +30,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -35,6 +41,8 @@ import (
 	revdb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	vdb "github.com/google/exposure-notifications-server/internal/verification/database"
+	vm "github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/google/exposure-notifications-server/pkg/server"
@@ -43,12 +51,32 @@ import (
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	utils "github.com/google/exposure-notifications-server/pkg/verification"
 )
 
 var (
 	ExportDir    = "my-bucket"
 	FileNameRoot = "/"
+	jwtCfg       = jwtConfig{}
 )
+
+// Holds a single signing key and the PEM public key.
+type signingKey struct {
+	Key       *ecdsa.PrivateKey
+	PublicKey string
+}
+
+// Config to fetch a verification jwt certificate
+type jwtConfig struct {
+	HealthAuthority      *vm.HealthAuthority
+	HealthAuthorityKey   *vm.HealthAuthorityKey
+	ExposureKeys         []verifyapi.ExposureKey
+	Key                  *ecdsa.PrivateKey
+	JWTWarp              time.Duration
+	ReportType           string
+	SymptomOnsetInterval uint32
+}
 
 // NewTestServer sets up clients used for integration tests
 func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.ServerEnv, *Client, *database.DB) {
@@ -65,11 +93,11 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 			"TEST": {},
 		},
 		AllowedHealthAuthorityIDs: map[int64]struct{}{
-			12345: {},
+			1: {},
 		},
 
 		// TODO: hook up verification, and disable
-		BypassHealthAuthorityVerification: true,
+		BypassHealthAuthorityVerification: false,
 	}); err != nil {
 		tb.Fatal(err)
 	}
@@ -143,6 +171,34 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	}
 	if _, err := revisionDB.CreateRevisionKey(ctx); err != nil {
 		tb.Fatal(err)
+	}
+
+	verifyDB := vdb.New(db)
+
+	// create a signing key
+	sk := newSigningKey(tb)
+
+	// create a health authority
+	ha := &vm.HealthAuthority{
+		Audience: "exposure-notifications-service",
+		Issuer:   "Department of Health",
+		Name:     "Integration Test HA",
+	}
+	haKey := &vm.HealthAuthorityKey{
+		Version: "v1",
+		From:    time.Now().Add(-1 * time.Minute),
+	}
+	haKey.PublicKeyPEM = sk.PublicKey
+	verifyDB.AddHealthAuthority(ctx, ha)
+	verifyDB.AddHealthAuthorityKey(ctx, ha, haKey)
+
+	// jwt config to be used to get a verification certificate
+	jwtCfg = jwtConfig{
+		HealthAuthority:    ha,
+		HealthAuthorityKey: haKey,
+		Key:                sk.Key,
+		JWTWarp:            time.Duration(0),
+		ReportType:         verifyapi.ReportTypeConfirmed,
 	}
 
 	sm, err := secrets.NewInMemory(ctx)
@@ -318,4 +374,64 @@ func Eventually(tb testing.TB, times uint64, f func() error) {
 
 func IndexFilePath() string {
 	return path.Join(FileNameRoot, "index.txt")
+}
+
+func newSigningKey(tb testing.TB) *signingKey {
+	tb.Helper()
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	publicKey := privateKey.Public()
+	x509EncodedPub, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509EncodedPub})
+	pemPublicKey := string(pemEncodedPub)
+
+	return &signingKey{
+		Key:       privateKey,
+		PublicKey: pemPublicKey,
+	}
+}
+
+// Based on the publish request, generate a JWT as if it came from the
+// authorized health authority.
+func issueJWT(t *testing.T, cfg jwtConfig) (jwtText, hmacKey string) {
+	t.Helper()
+
+	hmacKeyBytes := make([]byte, 32)
+	if _, err := rand.Read(hmacKeyBytes); err != nil {
+		t.Fatal(err)
+	}
+	hmacKey = base64.StdEncoding.EncodeToString(hmacKeyBytes)
+
+	hmacBytes, err := utils.CalculateExposureKeyHMAC(cfg.ExposureKeys, hmacKeyBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hmac := base64.StdEncoding.EncodeToString(hmacBytes)
+
+	claims := verifyapi.NewVerificationClaims()
+	claims.Audience = cfg.HealthAuthority.Audience
+	claims.Issuer = cfg.HealthAuthority.Issuer
+	claims.IssuedAt = time.Now().Add(cfg.JWTWarp).Unix()
+	claims.ExpiresAt = time.Now().Add(cfg.JWTWarp).Add(5 * time.Minute).Unix()
+	claims.SignedMAC = hmac
+	if cfg.ReportType != "" {
+		claims.ReportType = cfg.ReportType
+	}
+	if cfg.SymptomOnsetInterval > 0 {
+		claims.SymptomOnsetInterval = cfg.SymptomOnsetInterval
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	token.Header[verifyapi.KeyIDHeader] = cfg.HealthAuthorityKey.Version
+	jwtText, err = token.SignedString(cfg.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return
 }

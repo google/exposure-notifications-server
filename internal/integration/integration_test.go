@@ -52,14 +52,20 @@ func TestIntegration(t *testing.T) {
 		OnlyLocalProvenance: false,
 	}
 
+	keys := util.GenerateExposureKeys(3, -1, false)
+
 	// Publish 3 keys
 	payload := &verifyapi.Publish{
-		Keys:              util.GenerateExposureKeys(3, -1, false),
+		Keys:              keys,
 		HealthAuthorityID: "com.example.app",
 
 		// TODO: hook up verification
-		VerificationPayload: "TODO",
+		//VerificationPayload: "eyJhbGciOiJFUzI1NiIsImtpZCI6IjEiLCJ0eXAiOiJKV1QifQ.eyJyZXBvcnRUeXBlIjoiY29uZmlybWVkIiwic3ltcHRvbU9uc2V0SW50ZXJ2YWwiOjI2NTk1MzYsInRyaXNrIjpbXSwidGVrbWFjIjoicmVwbGFjZSB3LyB0ZWsgaG1hYyIsImF1ZCI6ImV4cG9zdXJlLW5vdGlmaWNhdGlvbnMtc2VydmljZSIsImV4cCI6MTU5NjAzNTQ4NiwiaWF0IjoxNTk2MDM1MTg2LCJpc3MiOiJEZXBhcnRtZW50IG9mIEhlYWx0aCIsIm5iZiI6MTU5NjAzNTE4NX0.eSLHtXJsIOM38-15qnSBGPu-TQ9PmrTMy4XwolksJmbUZyyQQ_3PQ3a55_2sCOxYnpotQhe53z0YhMtkT5a5MQ",
 	}
+	jwtCfg.ExposureKeys = keys
+	verification, salt := issueJWT(t, jwtCfg)
+	payload.VerificationPayload = verification
+	payload.HMACKey = salt
 	if resp, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
 	} else {
@@ -205,7 +211,12 @@ func TestIntegration(t *testing.T) {
 	}
 
 	// Publish some new keys so we can generate a new batch
-	payload.Keys = util.GenerateExposureKeys(3, -1, false)
+	keys = util.GenerateExposureKeys(3, -1, false)
+	payload.Keys = keys
+	jwtCfg.ExposureKeys = keys
+	verification, salt = issueJWT(t, jwtCfg)
+	payload.VerificationPayload = verification
+	payload.HMACKey = salt
 	if resp, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
 	} else {
@@ -360,6 +371,7 @@ func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey) []*export.Tem
 			KeyData:                    decoded,
 			TransmissionRiskLevel:      proto.Int32(int32(key.TransmissionRisk)),
 			RollingStartIntervalNumber: proto.Int32(key.IntervalNumber),
+			ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
 		}
 	}
 
