@@ -87,15 +87,14 @@ func (s *Server) doRotate(ctx context.Context) error {
 		if key.KeyID == effectiveID {
 			continue
 		}
-		// A key is safe to delete if the previous one was effective for the period.
 		if time.Since(previousCreated) < s.config.DeleteOldKeyPeriod {
-			continue
+			continue // A key is not safe to delete until the previous one was effective for the period.
 		}
-		previousCreated = key.CreatedAt
 		if err := s.revisionDB.DestroyKey(ctx, key.KeyID); err != nil {
 			result = multierror.Append(result, err)
 			continue
 		}
+		previousCreated = key.CreatedAt
 		deleted++
 	}
 
