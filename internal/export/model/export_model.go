@@ -39,6 +39,7 @@ type ExportConfig struct {
 	Period           time.Duration
 	OutputRegion     string
 	InputRegions     []string
+	IncludeTravelers bool
 	From             time.Time
 	Thru             time.Time
 	SignatureInfoIDs []int64
@@ -103,6 +104,7 @@ type ExportBatch struct {
 	EndTimestamp     time.Time
 	OutputRegion     string
 	InputRegions     []string
+	IncludeTravelers bool
 	Status           string
 	LeaseExpires     time.Time
 	SignatureInfoIDs []int64
@@ -115,14 +117,15 @@ func (eb *ExportBatch) EffectiveInputRegions() []string {
 }
 
 type ExportFile struct {
-	BucketName   string
-	Filename     string
-	BatchID      int64
-	OutputRegion string
-	InputRegions []string
-	BatchNum     int
-	BatchSize    int
-	Status       string
+	BucketName       string
+	Filename         string
+	BatchID          int64
+	OutputRegion     string
+	InputRegions     []string
+	IncludeTravelers bool
+	BatchNum         int
+	BatchSize        int
+	Status           string
 }
 
 // EffectiveInputRegions either returns `InputRegions` or if that array is

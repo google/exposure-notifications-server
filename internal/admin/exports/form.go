@@ -24,16 +24,17 @@ import (
 )
 
 type formData struct {
-	OutputRegion string        `form:"OutputRegion"`
-	InputRegions string        `form:"InputRegions"`
-	BucketName   string        `form:"BucketName"`
-	FilenameRoot string        `form:"FilenameRoot"`
-	Period       time.Duration `form:"Period"`
-	FromDate     string        `form:"fromdate"`
-	FromTime     string        `form:"fromtime"`
-	ThruDate     string        `form:"thrudate"`
-	ThruTime     string        `form:"thrutime"`
-	SigInfoIDs   []int64       `form:"siginfo"`
+	OutputRegion     string        `form:"OutputRegion"`
+	InputRegions     string        `form:"InputRegions"`
+	IncludeTravelers bool          `form:"IncludeTravelers"`
+	BucketName       string        `form:"BucketName"`
+	FilenameRoot     string        `form:"FilenameRoot"`
+	Period           time.Duration `form:"Period"`
+	FromDate         string        `form:"fromdate"`
+	FromTime         string        `form:"fromtime"`
+	ThruDate         string        `form:"thrudate"`
+	ThruTime         string        `form:"thrutime"`
+	SigInfoIDs       []int64       `form:"siginfo"`
 }
 
 func (f *formData) PopulateExportConfig(ec *model.ExportConfig) error {
@@ -57,6 +58,7 @@ func (f *formData) PopulateExportConfig(ec *model.ExportConfig) error {
 			ec.InputRegions = append(ec.InputRegions, strings.TrimSpace(s))
 		}
 	}
+	ec.IncludeTravelers = f.IncludeTravelers
 	ec.From = from
 	ec.Thru = thru
 	ec.SignatureInfoIDs = f.SigInfoIDs
