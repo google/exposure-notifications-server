@@ -31,10 +31,10 @@ import (
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	testutil "github.com/google/exposure-notifications-server/internal/testing"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/util"
-	utils "github.com/google/exposure-notifications-server/pkg/verification"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	pgx "github.com/jackc/pgx/v4"
@@ -61,7 +61,7 @@ func TestIntegration(t *testing.T) {
 		HealthAuthorityID: "com.example.app",
 	}
 	jwtCfg.ExposureKeys = keys
-	verification, salt := utils.IssueJWT(t, jwtCfg)
+	verification, salt := testutil.IssueJWT(t, jwtCfg)
 	payload.VerificationPayload = verification
 	payload.HMACKey = salt
 	if resp, err := client.PublishKeys(payload); err != nil {
@@ -212,7 +212,7 @@ func TestIntegration(t *testing.T) {
 	keys = util.GenerateExposureKeys(3, -1, false)
 	payload.Keys = keys
 	jwtCfg.ExposureKeys = keys
-	verification, salt = utils.IssueJWT(t, jwtCfg)
+	verification, salt = testutil.IssueJWT(t, jwtCfg)
 	payload.VerificationPayload = verification
 	payload.HMACKey = salt
 	if resp, err := client.PublishKeys(payload); err != nil {

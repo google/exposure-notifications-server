@@ -51,9 +51,9 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/jackc/pgx/v4"
 
+	testutil "github.com/google/exposure-notifications-server/internal/testing"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
-	utils "github.com/google/exposure-notifications-server/pkg/verification"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -486,7 +486,7 @@ func TestPublishWithBypass(t *testing.T) {
 
 				// If verification is being used. The JWT and HMAC Salt must be incorporated.
 				if tc.HealthAuthority != nil {
-					cfg := utils.JwtConfig{
+					cfg := testutil.JwtConfig{
 						HealthAuthority:    tc.HealthAuthority,
 						HealthAuthorityKey: tc.HealthAuthorityKey,
 						ExposureKeys:       tc.Publish.Keys,
@@ -494,7 +494,7 @@ func TestPublishWithBypass(t *testing.T) {
 						JWTWarp:            tc.JWTTiming,
 						ReportType:         tc.ReportType,
 					}
-					verification, salt := utils.IssueJWT(t, cfg)
+					verification, salt := testutil.IssueJWT(t, cfg)
 					tc.Publish.VerificationPayload = verification
 					tc.Publish.HMACKey = salt
 				}
@@ -853,7 +853,7 @@ func TestKeyRevision(t *testing.T) {
 			// Do the initial insert
 			{
 				// Issue the likely diagnosis certificate.
-				cfg := utils.JwtConfig{
+				cfg := testutil.JwtConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
 					ExposureKeys:       tc.Publish.Keys,
@@ -861,7 +861,7 @@ func TestKeyRevision(t *testing.T) {
 					JWTWarp:            time.Duration(0),
 					ReportType:         verifyapi.ReportTypeClinical,
 				}
-				verification, salt := utils.IssueJWT(t, cfg)
+				verification, salt := testutil.IssueJWT(t, cfg)
 				tc.Publish.VerificationPayload = verification
 				tc.Publish.HMACKey = salt
 
@@ -899,7 +899,7 @@ func TestKeyRevision(t *testing.T) {
 			{
 				revisionToken = tc.RevTokenMesser(ctx, revisionToken, tm, tokenAAD)
 
-				cfg := utils.JwtConfig{
+				cfg := testutil.JwtConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
 					ExposureKeys:       tc.Publish.Keys,
@@ -907,7 +907,7 @@ func TestKeyRevision(t *testing.T) {
 					JWTWarp:            time.Duration(0),
 					ReportType:         verifyapi.ReportTypeConfirmed,
 				}
-				verification, salt := utils.IssueJWT(t, cfg)
+				verification, salt := testutil.IssueJWT(t, cfg)
 				tc.Publish.VerificationPayload = verification
 				tc.Publish.HMACKey = salt
 

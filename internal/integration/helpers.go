@@ -49,14 +49,14 @@ import (
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
+	testutil "github.com/google/exposure-notifications-server/internal/testing"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
-	utils "github.com/google/exposure-notifications-server/pkg/verification"
 )
 
 var (
 	ExportDir    = "my-bucket"
 	FileNameRoot = "/"
-	jwtCfg       = utils.JwtConfig{}
+	jwtCfg       = testutil.JwtConfig{}
 )
 
 // Holds a single signing key and the PEM public key.
@@ -180,7 +180,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	verifyDB.AddHealthAuthorityKey(ctx, ha, haKey)
 
 	// jwt config to be used to get a verification certificate
-	jwtCfg = utils.JwtConfig{
+	jwtCfg = testutil.JwtConfig{
 		HealthAuthority:    ha,
 		HealthAuthorityKey: haKey,
 		Key:                sk.Key,
