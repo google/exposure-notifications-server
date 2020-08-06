@@ -68,17 +68,22 @@ func (s *Server) doRotate(ctx context.Context) error {
 	}
 
 	// First allowed is newest due to sql orderby.
+	var effectiveCreated time.Time
 	if len(allowed) == 0 || time.Since(allowed[0].CreatedAt) >= s.config.NewKeyPeriod {
-		if _, err := s.revisionDB.CreateRevisionKey(ctx); err != nil {
+		key, err := s.revisionDB.CreateRevisionKey(ctx)
+		if err != nil {
 			return fmt.Errorf("failed to create revision key: %w", err)
 		}
+		effectiveCreated = key.CreatedAt
 		metrics.WriteInt("revision-keys-created", true, 1)
+	} else {
+		effectiveCreated = allowed[0].CreatedAt
 	}
 
 	var result error
 	deleted := 0
 	for _, key := range allowed {
-		if time.Since(key.CreatedAt) < s.config.DeleteOldKeyPeriod {
+		if effectiveCreated.Sub(key.CreatedAt) < s.config.DeleteOldKeyPeriod {
 			continue
 		}
 		if err := s.revisionDB.DestroyKey(ctx, key.KeyID); err != nil {
