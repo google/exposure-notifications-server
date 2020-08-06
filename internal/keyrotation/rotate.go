@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/trace"
 )
@@ -62,32 +63,55 @@ func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 func (s *Server) doRotate(ctx context.Context) error {
 	metrics := s.env.MetricsExporter(ctx)
 
-	_, allowed, err := s.revisionDB.GetAllowedRevisionKeys(ctx)
+	effectiveID, allowed, err := s.revisionDB.GetAllowedRevisionKeys(ctx)
 	if err != nil {
 		return fmt.Errorf("rotate-keys unable to read revision keys: %w", err)
 	}
 
 	// First allowed is newest due to sql orderby.
+	var previousCreated time.Time
 	if len(allowed) == 0 || time.Since(allowed[0].CreatedAt) >= s.config.NewKeyPeriod {
-		if _, err := s.revisionDB.CreateRevisionKey(ctx); err != nil {
+		key, err := s.revisionDB.CreateRevisionKey(ctx)
+		if err != nil {
 			return fmt.Errorf("failed to create revision key: %w", err)
 		}
+		effectiveID = key.KeyID
+		previousCreated = key.CreatedAt
 		metrics.WriteInt("revision-keys-created", true, 1)
+	} else {
+		previousCreated = allowed[0].CreatedAt
 	}
 
 	var result error
 	deleted := 0
 	for _, key := range allowed {
-		if time.Since(key.CreatedAt) < s.config.DeleteOldKeyPeriod {
-			continue
-		}
-		if err := s.revisionDB.DestroyKey(ctx, key.KeyID); err != nil {
+		if did, err := s.maybeDeleteKey(ctx, key, effectiveID, previousCreated); err != nil {
 			result = multierror.Append(result, err)
-			continue
+		} else if did {
+			deleted++
 		}
-		deleted++
+		previousCreated = key.CreatedAt
 	}
 
 	metrics.WriteInt("revision-keys-deleted", true, deleted)
 	return result
+}
+
+func (s *Server) maybeDeleteKey(
+	ctx context.Context,
+	key *database.RevisionKey,
+	effectiveID int64,
+	previousCreated time.Time) (bool, error) {
+
+	if key.KeyID == effectiveID {
+		return false, nil
+	}
+	// A key is not safe to delete until the newer one was effective for the period.
+	if time.Since(previousCreated) < s.config.DeleteOldKeyPeriod {
+		return false, nil
+	}
+	if err := s.revisionDB.DestroyKey(ctx, key.KeyID); err != nil {
+		return false, err
+	}
+	return true, nil
 }
