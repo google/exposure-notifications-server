@@ -62,30 +62,36 @@ func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 func (s *Server) doRotate(ctx context.Context) error {
 	metrics := s.env.MetricsExporter(ctx)
 
-	_, allowed, err := s.revisionDB.GetAllowedRevisionKeys(ctx)
+	effectiveID, allowed, err := s.revisionDB.GetAllowedRevisionKeys(ctx)
 	if err != nil {
 		return fmt.Errorf("rotate-keys unable to read revision keys: %w", err)
 	}
 
 	// First allowed is newest due to sql orderby.
-	var effectiveCreated time.Time
+	var previousCreated time.Time
 	if len(allowed) == 0 || time.Since(allowed[0].CreatedAt) >= s.config.NewKeyPeriod {
 		key, err := s.revisionDB.CreateRevisionKey(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to create revision key: %w", err)
 		}
-		effectiveCreated = key.CreatedAt
+		effectiveID = key.KeyID
+		previousCreated = key.CreatedAt
 		metrics.WriteInt("revision-keys-created", true, 1)
 	} else {
-		effectiveCreated = allowed[0].CreatedAt
+		previousCreated = allowed[0].CreatedAt
 	}
 
 	var result error
 	deleted := 0
 	for _, key := range allowed {
-		if effectiveCreated.Sub(key.CreatedAt) < s.config.DeleteOldKeyPeriod {
+		if key.KeyID == effectiveID {
 			continue
 		}
+		// A key is safe to delete if the previous one was effective for the period.
+		if time.Since(previousCreated) < s.config.DeleteOldKeyPeriod {
+			continue
+		}
+		previousCreated = key.CreatedAt
 		if err := s.revisionDB.DestroyKey(ctx, key.KeyID); err != nil {
 			result = multierror.Append(result, err)
 			continue
