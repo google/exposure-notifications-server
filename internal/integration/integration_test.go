@@ -204,11 +204,20 @@ func TestIntegration(t *testing.T) {
 		}
 	}
 
+	// Rotate Keys
+	time.Sleep(2 * time.Second) // Ensure DeleteOldKeyPeriod is elapsed
+	if err := client.RotateKeys(); err != nil {
+		t.Fatalf("Error rotating keys: %v", err)
+	}
+
 	// Publish some new keys so we can generate a new batch
 	payload.Keys = util.GenerateExposureKeys(3, -1, false)
 	if resp, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
 	} else {
+		if resp.RevisionToken == "" {
+			t.Fatal("empty revision token")
+		}
 		t.Logf("response: %+v", resp)
 	}
 
@@ -221,12 +230,6 @@ func TestIntegration(t *testing.T) {
 		if got, want := len(exposures), 5; got != want {
 			t.Fatalf("expected %v to be %v", got, want)
 		}
-	}
-
-	// Rotate Keys
-	time.Sleep(2 * time.Second) // Ensure DeleteOldKeyPeriod is elapsed
-	if err := client.RotateKeys(); err != nil {
-		t.Fatalf("Error rotating keys: %v", err)
 	}
 
 	// Wait for the export to be created and get the list of files
