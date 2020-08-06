@@ -279,16 +279,33 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 
 	n, err := h.database.InsertAndReviseExposures(ctx, exposures, token, !appConfig.BypassRevisionToken)
 	if err != nil {
-		message := fmt.Sprintf("error writing exposure record: %v", err)
-		logger.Error(message)
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+		status := http.StatusBadRequest
+		var logMessage, errorMessage, errorCode string
+		metric := "publish-revision-token-issue"
+		switch {
+		case errors.Is(err, database.ErrNoRevisionToken):
+			logMessage = "no revision token"
+			errorMessage = "no revision token, but sent existing keys"
+			errorCode = verifyapi.ErrorMissingRevisionToken
+		case errors.Is(err, database.ErrExistingKeyNotInToken) || errors.Is(err, database.ErrRevisionTokenMetadataMismatch):
+			logMessage = fmt.Sprintf("revision token present, but invalid: %v", err)
+			errorMessage = "revision token is invalid"
+			errorCode = verifyapi.ErrorInvalidRevisionToken
+		default:
+			logMessage = fmt.Sprintf("error writing exposure record: %v", err)
+			errorMessage = http.StatusText(http.StatusInternalServerError)
+			errorCode = verifyapi.ErrorInternalError
+			metric = "publish-db-write-error"
+		}
+		logger.Error(logMessage)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: logMessage})
 		return response{
-			status: http.StatusInternalServerError,
+			status: status,
 			pubResponse: &verifyapi.PublishResponse{
-				ErrorMessage: http.StatusText(http.StatusInternalServerError),
-				Code:         verifyapi.ErrorInternalError,
+				ErrorMessage: errorMessage,
+				Code:         errorCode,
 			},
-			metric: "publish-db-write-error", count: 1}
+			metric: metric, count: 1}
 	}
 
 	// Build the new revision token. Union of existing token take + new exposures.
