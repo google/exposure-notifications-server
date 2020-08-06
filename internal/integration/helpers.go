@@ -216,8 +216,16 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	// Federation out
 	// TODO: this is a grpc listener and requires a lot of setup.
 
+	revConfig := revision.Config{
+		KeyID:     "tokenkey",
+		AAD:       []byte{1, 2, 3},
+		MinLength: 28,
+	}
+
 	// Key Rotation
 	keyRotationConfig := &keyrotation.Config{
+		RevisionToken: revConfig,
+
 		// Very accellerated schedule for testing.
 		NewKeyPeriod:       10 * time.Second,
 		DeleteOldKeyPeriod: 5 * time.Second,
@@ -231,11 +239,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 
 	// Publish
 	publishConfig := &publish.Config{
-		RevisionToken: revision.Config{
-			KeyID:     "tokenkey",
-			AAD:       []byte{1, 2, 3},
-			MinLength: 28,
-		},
+		RevisionToken:            revConfig,
 		MaxKeysOnPublish:         15,
 		MaxSameStartIntervalKeys: 2,
 		MaxIntervalAge:           360 * time.Hour,
