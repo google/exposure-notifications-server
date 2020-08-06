@@ -42,6 +42,7 @@ resource "google_sql_database_instance" "db-inst" {
 
     backup_configuration {
       enabled    = true
+      location   = var.cloudsql_backup_location
       start_time = "02:00"
     }
 
