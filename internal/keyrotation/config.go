@@ -38,6 +38,7 @@ type Config struct {
 	SecretManager         secrets.Config
 	ObservabilityExporter observability.Config
 	RevisionToken         revision.Config
+	KeyManager            keys.Config
 
 	Port string `env:"PORT, default=8080"`
 
