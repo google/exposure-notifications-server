@@ -30,6 +30,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/federationin"
+	"github.com/google/exposure-notifications-server/internal/keyrotation"
 	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/revision"
 	revdb "github.com/google/exposure-notifications-server/internal/revision/database"
@@ -185,6 +186,18 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		tb.Fatal(err)
 	}
 	mux.Handle("/cleanup-exposure", cleanupExposureHandler)
+
+	// Key Rotation
+	keyRotationConfig := &keyrotation.Config{
+		NewKeyPeriod:       160 * time.Hour,
+		DeleteOldKeyPeriod: 360 * time.Hour,
+	}
+
+	keyRotationServer, err := keyrotation.NewServer(keyRotationConfig, env)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	mux.Handle("/rotate-keys/", http.StripPrefix("/rotate-keys", keyRotationServer.Routes(ctx)))
 
 	// Export
 	exportConfig := &export.Config{
