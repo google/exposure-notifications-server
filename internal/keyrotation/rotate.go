@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/trace"
 )
@@ -84,20 +85,33 @@ func (s *Server) doRotate(ctx context.Context) error {
 	var result error
 	deleted := 0
 	for _, key := range allowed {
-		if key.KeyID == effectiveID {
-			continue
-		}
-		if time.Since(previousCreated) < s.config.DeleteOldKeyPeriod {
-			continue // A key is not safe to delete until the newer one was effective for the period.
-		}
-		if err := s.revisionDB.DestroyKey(ctx, key.KeyID); err != nil {
+		if did, err := s.maybeDeleteKey(ctx, key, effectiveID, previousCreated); err != nil {
 			result = multierror.Append(result, err)
-			continue
+		} else if did {
+			deleted++
 		}
 		previousCreated = key.CreatedAt
-		deleted++
 	}
 
 	metrics.WriteInt("revision-keys-deleted", true, deleted)
 	return result
+}
+
+func (s *Server) maybeDeleteKey(
+	ctx context.Context,
+	key *database.RevisionKey,
+	effectiveID int64,
+	previousCreated time.Time) (bool, error) {
+
+	if key.KeyID == effectiveID {
+		return false, nil
+	}
+	// A key is not safe to delete until the newer one was effective for the period.
+	if time.Since(previousCreated) < s.config.DeleteOldKeyPeriod {
+		return false, nil
+	}
+	if err := s.revisionDB.DestroyKey(ctx, key.KeyID); err != nil {
+		return false, err
+	}
+	return true, nil
 }
