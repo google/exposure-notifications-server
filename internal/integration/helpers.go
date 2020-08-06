@@ -30,6 +30,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/federationin"
+	"github.com/google/exposure-notifications-server/internal/keyrotation"
 	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/revision"
 	revdb "github.com/google/exposure-notifications-server/internal/revision/database"
@@ -214,6 +215,19 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 
 	// Federation out
 	// TODO: this is a grpc listener and requires a lot of setup.
+
+	// Key Rotation
+	keyRotationConfig := &keyrotation.Config{
+		// Very accellerated schedule for testing.
+		NewKeyPeriod:       10 * time.Second,
+		DeleteOldKeyPeriod: 5 * time.Second,
+	}
+
+	rotationServer, err := keyrotation.NewServer(keyRotationConfig, env)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	mux.Handle("/key-rotation/", http.StripPrefix("/key-rotation", rotationServer.Routes(ctx)))
 
 	// Publish
 	publishConfig := &publish.Config{

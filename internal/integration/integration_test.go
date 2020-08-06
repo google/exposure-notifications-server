@@ -44,6 +44,8 @@ import (
 func TestIntegration(t *testing.T) {
 	t.Parallel()
 
+	// TODO: key rotation.
+
 	ctx := context.Background()
 	env, client, db := NewTestServer(t, 2*time.Second)
 
