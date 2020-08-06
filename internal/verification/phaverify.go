@@ -124,6 +124,11 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 		return nil, fmt.Errorf("app %v has not authorized health authority issuer: %v", authApp.AppPackageName, claims.Issuer)
 	}
 
+	// Verify our cutom claim types
+	if err := claims.CustomClaimsValid(); err != nil {
+		return nil, err
+	}
+
 	// Verify the HMAC.
 	jwtHMAC, err := base64util.DecodeString(claims.SignedMAC)
 	if err != nil {
