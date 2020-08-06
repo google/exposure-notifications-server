@@ -46,7 +46,7 @@ func TestRotateKeys(t *testing.T) {
 	key, aad, wrapped := testMakeKey(ctx, t, kms, keyID)
 
 	neg20Days, _ := time.ParseDuration("-480h")
-	neg40Days, _ := time.ParseDuration("-480h")
+	neg40Days, _ := time.ParseDuration("-960h")
 	staleTime := time.Now().Add(neg20Days)
 	reallyStaleTime := time.Now().Add(neg40Days)
 	notStaleTime := time.Now()
