@@ -29,7 +29,7 @@ func TestValidateClaims(t *testing.T) {
 		t.Fatalf("wanted an error that contained bogus, got: %v", err)
 	}
 
-	for k, _ := range ValidReportTypes {
+	for k := range ValidReportTypes {
 		c.ReportType = k
 		if err := c.CustomClaimsValid(); err != nil {
 			t.Errorf("got error when using valid report type: %q, err: %v", k, err)
