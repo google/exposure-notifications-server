@@ -138,12 +138,17 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 	if err != nil {
 		return nil, fmt.Errorf("error decoding HMAC secret from publish request: %w", err)
 	}
-	wantHMAC, err := utils.CalculateExposureKeyHMAC(publish.Keys, secret)
+	// Allow the HMAC to be calculated without transmission risk values IFF all transmission risks are zero.
+	validHMACs, err := utils.CalculateAllAllowedExposureKeyHMAC(publish.Keys, secret)
 	if err != nil {
 		return nil, fmt.Errorf("calculating expected HMAC: %w", err)
 	}
 
-	if !hmac.Equal(wantHMAC, jwtHMAC) {
+	valid := false
+	for _, wantHMAC := range validHMACs {
+		valid = valid || hmac.Equal(wantHMAC, jwtHMAC)
+	}
+	if !valid {
 		return nil, fmt.Errorf("HMAC mismatch, publish request does not match disgnosis verification certificate")
 	}
 
