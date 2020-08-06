@@ -58,9 +58,6 @@ func TestIntegration(t *testing.T) {
 	payload := &verifyapi.Publish{
 		Keys:              keys,
 		HealthAuthorityID: "com.example.app",
-
-		// TODO: hook up verification
-		//VerificationPayload: "eyJhbGciOiJFUzI1NiIsImtpZCI6IjEiLCJ0eXAiOiJKV1QifQ.eyJyZXBvcnRUeXBlIjoiY29uZmlybWVkIiwic3ltcHRvbU9uc2V0SW50ZXJ2YWwiOjI2NTk1MzYsInRyaXNrIjpbXSwidGVrbWFjIjoicmVwbGFjZSB3LyB0ZWsgaG1hYyIsImF1ZCI6ImV4cG9zdXJlLW5vdGlmaWNhdGlvbnMtc2VydmljZSIsImV4cCI6MTU5NjAzNTQ4NiwiaWF0IjoxNTk2MDM1MTg2LCJpc3MiOiJEZXBhcnRtZW50IG9mIEhlYWx0aCIsIm5iZiI6MTU5NjAzNTE4NX0.eSLHtXJsIOM38-15qnSBGPu-TQ9PmrTMy4XwolksJmbUZyyQQ_3PQ3a55_2sCOxYnpotQhe53z0YhMtkT5a5MQ",
 	}
 	jwtCfg.ExposureKeys = keys
 	verification, salt := issueJWT(t, jwtCfg)
