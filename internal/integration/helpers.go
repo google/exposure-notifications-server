@@ -21,7 +21,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"net/http"
@@ -30,7 +29,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -58,24 +56,13 @@ import (
 var (
 	ExportDir    = "my-bucket"
 	FileNameRoot = "/"
-	jwtCfg       = jwtConfig{}
+	jwtCfg       = utils.JwtConfig{}
 )
 
 // Holds a single signing key and the PEM public key.
 type signingKey struct {
 	Key       *ecdsa.PrivateKey
 	PublicKey string
-}
-
-// Config to fetch a verification jwt certificate
-type jwtConfig struct {
-	HealthAuthority      *vm.HealthAuthority
-	HealthAuthorityKey   *vm.HealthAuthorityKey
-	ExposureKeys         []verifyapi.ExposureKey
-	Key                  *ecdsa.PrivateKey
-	JWTWarp              time.Duration
-	ReportType           string
-	SymptomOnsetInterval uint32
 }
 
 // NewTestServer sets up clients used for integration tests
@@ -193,7 +180,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	verifyDB.AddHealthAuthorityKey(ctx, ha, haKey)
 
 	// jwt config to be used to get a verification certificate
-	jwtCfg = jwtConfig{
+	jwtCfg = utils.JwtConfig{
 		HealthAuthority:    ha,
 		HealthAuthorityKey: haKey,
 		Key:                sk.Key,
@@ -395,43 +382,4 @@ func newSigningKey(tb testing.TB) *signingKey {
 		Key:       privateKey,
 		PublicKey: pemPublicKey,
 	}
-}
-
-// Based on the publish request, generate a JWT as if it came from the
-// authorized health authority.
-func issueJWT(t *testing.T, cfg jwtConfig) (jwtText, hmacKey string) {
-	t.Helper()
-
-	hmacKeyBytes := make([]byte, 32)
-	if _, err := rand.Read(hmacKeyBytes); err != nil {
-		t.Fatal(err)
-	}
-	hmacKey = base64.StdEncoding.EncodeToString(hmacKeyBytes)
-
-	hmacBytes, err := utils.CalculateExposureKeyHMAC(cfg.ExposureKeys, hmacKeyBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hmac := base64.StdEncoding.EncodeToString(hmacBytes)
-
-	claims := verifyapi.NewVerificationClaims()
-	claims.Audience = cfg.HealthAuthority.Audience
-	claims.Issuer = cfg.HealthAuthority.Issuer
-	claims.IssuedAt = time.Now().Add(cfg.JWTWarp).Unix()
-	claims.ExpiresAt = time.Now().Add(cfg.JWTWarp).Add(5 * time.Minute).Unix()
-	claims.SignedMAC = hmac
-	if cfg.ReportType != "" {
-		claims.ReportType = cfg.ReportType
-	}
-	if cfg.SymptomOnsetInterval > 0 {
-		claims.SymptomOnsetInterval = cfg.SymptomOnsetInterval
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-	token.Header[verifyapi.KeyIDHeader] = cfg.HealthAuthorityKey.Version
-	jwtText, err = token.SignedString(cfg.Key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return
 }

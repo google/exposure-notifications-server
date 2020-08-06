@@ -55,8 +55,6 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"
 
-	"github.com/dgrijalva/jwt-go"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -98,55 +96,6 @@ func newSigningKey(t *testing.T) *signingKey {
 		Key:       privateKey,
 		PublicKey: pemPublicKey,
 	}
-}
-
-type jwtConfig struct {
-	HealthAuthority      *vermodel.HealthAuthority
-	HealthAuthorityKey   *vermodel.HealthAuthorityKey
-	Publish              *verifyapi.Publish
-	Key                  *ecdsa.PrivateKey
-	JWTWarp              time.Duration
-	ReportType           string
-	SymptomOnsetInterval uint32
-}
-
-// Based on the publish request, generate a JWT as if it came from the
-// authorized health authority.
-func issueJWT(t *testing.T, cfg jwtConfig) (jwtText, hmacKey string) {
-	t.Helper()
-
-	hmacKeyBytes := make([]byte, 32)
-	if _, err := rand.Read(hmacKeyBytes); err != nil {
-		t.Fatal(err)
-	}
-	hmacKey = base64.StdEncoding.EncodeToString(hmacKeyBytes)
-
-	hmacBytes, err := utils.CalculateExposureKeyHMAC(cfg.Publish.Keys, hmacKeyBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hmac := base64.StdEncoding.EncodeToString(hmacBytes)
-
-	claims := verifyapi.NewVerificationClaims()
-	claims.Audience = cfg.HealthAuthority.Audience
-	claims.Issuer = cfg.HealthAuthority.Issuer
-	claims.IssuedAt = time.Now().Add(cfg.JWTWarp).Unix()
-	claims.ExpiresAt = time.Now().Add(cfg.JWTWarp).Add(5 * time.Minute).Unix()
-	claims.SignedMAC = hmac
-	if cfg.ReportType != "" {
-		claims.ReportType = cfg.ReportType
-	}
-	if cfg.SymptomOnsetInterval > 0 {
-		claims.SymptomOnsetInterval = cfg.SymptomOnsetInterval
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-	token.Header[verifyapi.KeyIDHeader] = cfg.HealthAuthorityKey.Version
-	jwtText, err = token.SignedString(cfg.Key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return
 }
 
 type nameAssigner struct {
@@ -537,15 +486,15 @@ func TestPublishWithBypass(t *testing.T) {
 
 				// If verification is being used. The JWT and HMAC Salt must be incorporated.
 				if tc.HealthAuthority != nil {
-					cfg := jwtConfig{
+					cfg := utils.JwtConfig{
 						HealthAuthority:    tc.HealthAuthority,
 						HealthAuthorityKey: tc.HealthAuthorityKey,
-						Publish:            &tc.Publish,
+						ExposureKeys:       tc.Publish.Keys,
 						Key:                tc.SigningKey.Key,
 						JWTWarp:            tc.JWTTiming,
 						ReportType:         tc.ReportType,
 					}
-					verification, salt := issueJWT(t, cfg)
+					verification, salt := utils.IssueJWT(t, cfg)
 					tc.Publish.VerificationPayload = verification
 					tc.Publish.HMACKey = salt
 				}
@@ -904,15 +853,15 @@ func TestKeyRevision(t *testing.T) {
 			// Do the initial insert
 			{
 				// Issue the likely diagnosis certificate.
-				cfg := jwtConfig{
+				cfg := utils.JwtConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
-					Publish:            &tc.Publish,
+					ExposureKeys:       tc.Publish.Keys,
 					Key:                signingKey.Key,
 					JWTWarp:            time.Duration(0),
 					ReportType:         verifyapi.ReportTypeClinical,
 				}
-				verification, salt := issueJWT(t, cfg)
+				verification, salt := utils.IssueJWT(t, cfg)
 				tc.Publish.VerificationPayload = verification
 				tc.Publish.HMACKey = salt
 
@@ -950,15 +899,15 @@ func TestKeyRevision(t *testing.T) {
 			{
 				revisionToken = tc.RevTokenMesser(ctx, revisionToken, tm, tokenAAD)
 
-				cfg := jwtConfig{
+				cfg := utils.JwtConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
-					Publish:            &tc.Publish,
+					ExposureKeys:       tc.Publish.Keys,
 					Key:                signingKey.Key,
 					JWTWarp:            time.Duration(0),
 					ReportType:         verifyapi.ReportTypeConfirmed,
 				}
-				verification, salt := issueJWT(t, cfg)
+				verification, salt := utils.IssueJWT(t, cfg)
 				tc.Publish.VerificationPayload = verification
 				tc.Publish.HMACKey = salt
 
