@@ -227,8 +227,8 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 		RevisionToken: revConfig,
 
 		// Very accellerated schedule for testing.
-		NewKeyPeriod:       10 * time.Second,
-		DeleteOldKeyPeriod: 5 * time.Second,
+		NewKeyPeriod:       1 * time.Second,
+		DeleteOldKeyPeriod: 1 * time.Second,
 	}
 
 	rotationServer, err := keyrotation.NewServer(keyRotationConfig, env)

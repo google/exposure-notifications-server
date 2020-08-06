@@ -225,6 +225,12 @@ func TestIntegration(t *testing.T) {
 		}
 	}
 
+	// Rotate Keys
+	time.Sleep(2 * time.Second) // Ensure DeleteOldKeyPeriod is elapsed
+	if err := client.RotateKeys(); err != nil {
+		t.Fatalf("Error rotating keys: %v", err)
+	}
+
 	// Wait for the export to be created and get the list of files
 	var batchFiles []string
 	Eventually(t, 30, func() error {
