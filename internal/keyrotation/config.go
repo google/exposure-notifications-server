@@ -21,6 +21,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
@@ -28,6 +29,7 @@ import (
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
 var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
+var _ setup.KeyManagerConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the key rotation components.
@@ -59,4 +61,8 @@ func (c *Config) SecretManagerConfig() *secrets.Config {
 
 func (c *Config) ObservabilityExporterConfig() *observability.Config {
 	return &c.ObservabilityExporter
+}
+
+func (c *Config) KeyManagerConfig() *keys.Config {
+	return &c.KeyManager
 }
