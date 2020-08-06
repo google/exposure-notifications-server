@@ -37,6 +37,20 @@
 			  to combine multiple regions/apps uploaded to this server.</small>
 		</div>
 	</div>
+	<div class="form-group row">
+		<label class="control-label col-sm-3" for="IncludeTravelers">Include Travelers:</label>
+		<div class="col-sm-6">
+			<select name="IncludeTravelers" id="IncludeTravelers">
+				<option value="true" {{if .export.IncludeTravelers}}selected{{end}}>Yes</option>
+				<option value="false" {{if not .export.IncludeTravelers}}selected{{end}}>No</option>
+			  </select>
+			<small id="InputRegionsHelpBlock" class="form-text text-muted">Should federeated-in traveler
+				keys be included in this export. If this server is sharing keys with anouther server,
+				the recommended setting is 'yes'. Even if you are not yet federating, but may in the
+				future, 'yes' is still the recommended setting.
+			</small>
+		</div>
+	</div>
 
 	<div class="form-group row">
 		<label class="control-label col-sm-3" for="BucketName">Cloud Storage Bucket Name:</label>
