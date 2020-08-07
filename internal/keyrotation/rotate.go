@@ -94,9 +94,10 @@ func (s *Server) doRotate(ctx context.Context) error {
 		}
 		previousCreated = key.CreatedAt
 	}
-
-	logger.Infof("Deleted %d old revision keys.", deleted)
-	metrics.WriteInt("revision-keys-deleted", true, deleted)
+	if deleted > 0 {
+		logger.Infof("Deleted %d old revision keys.", deleted)
+		metrics.WriteInt("revision-keys-deleted", true, deleted)
+	}
 	return result
 }
 

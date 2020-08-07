@@ -229,7 +229,7 @@ func TestIntegration(t *testing.T) {
 	payload.RevisionToken = revisionToken
 	if _, err := client.PublishKeys(payload); err == nil {
 		t.Fatal(err)
-	} else if !strings.Contains(err.Error(), verifyapi.ErrorMissingRevisionToken) {
+	} else if !strings.Contains(err.Error(), verifyapi.ErrorInvalidRevisionToken) {
 		t.Fatal(err)
 	}
 

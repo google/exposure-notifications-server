@@ -249,6 +249,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 
 	// Examine the revision token. It is expected that it is missing in most cases.
 	var token *pb.RevisionTokenData
+	decryptFail := false
 	if len(data.RevisionToken) != 0 {
 		encryptedToken, err := base64util.DecodeString(data.RevisionToken)
 		if err != nil {
@@ -256,8 +257,9 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		} else {
 			token, err = h.tokenManager.UnmarshalRevisionToken(ctx, encryptedToken, h.tokenAAD)
 			if err != nil {
-				logger.Errorf("unable to unmarshall / descrypt revision token: %v", err)
+				logger.Errorf("unable to unmarshall / decrypt revision token: %v", err)
 				token = nil // just in case.
+				decryptFail = true
 			}
 		}
 	}
@@ -283,14 +285,14 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		var logMessage, errorMessage, errorCode string
 		metric := "publish-revision-token-issue"
 		switch {
+		case decryptFail || errors.Is(err, database.ErrExistingKeyNotInToken) || errors.Is(err, database.ErrRevisionTokenMetadataMismatch):
+			logMessage = fmt.Sprintf("revision token present, but invalid: %v", err)
+			errorMessage = "revision token is invalid"
+			errorCode = verifyapi.ErrorInvalidRevisionToken
 		case errors.Is(err, database.ErrNoRevisionToken):
 			logMessage = "no revision token"
 			errorMessage = "no revision token, but sent existing keys"
 			errorCode = verifyapi.ErrorMissingRevisionToken
-		case errors.Is(err, database.ErrExistingKeyNotInToken) || errors.Is(err, database.ErrRevisionTokenMetadataMismatch):
-			logMessage = fmt.Sprintf("revision token present, but invalid: %v", err)
-			errorMessage = "revision token is invalid"
-			errorCode = verifyapi.ErrorInvalidRevisionToken
 		default:
 			logMessage = fmt.Sprintf("error writing exposure record: %v", err)
 			errorMessage = http.StatusText(http.StatusInternalServerError)
