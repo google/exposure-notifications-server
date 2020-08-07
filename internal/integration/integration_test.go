@@ -214,13 +214,13 @@ func TestIntegration(t *testing.T) {
 	}
 
 	// Rotate Keys. Should Genereate a new key.
-	time.Sleep(2 * time.Second) // Ensure DeleteOldKeyPeriod is elapsed
+	time.Sleep(200 * time.Millisecond) // Ensure DeleteOldKeyPeriod is elapsed
 	if err := client.RotateKeys(); err != nil {
 		t.Fatalf("Error rotating keys: %v", err)
 	}
 
 	// Rotate Keys. Should Delete the original key.
-	time.Sleep(2 * time.Second) // Ensure DeleteOldKeyPeriod is elapsed
+	time.Sleep(200 * time.Millisecond) // Ensure DeleteOldKeyPeriod is elapsed
 	if err := client.RotateKeys(); err != nil {
 		t.Fatalf("Error rotating keys: %v", err)
 	}
