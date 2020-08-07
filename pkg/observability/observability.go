@@ -18,64 +18,48 @@ package observability
 import (
 	"context"
 	"fmt"
-	"time"
+	"io"
 
-	"contrib.go.opencensus.io/exporter/ocagent"
-	"contrib.go.opencensus.io/exporter/stackdriver"
-	"github.com/google/exposure-notifications-server/internal/logging"
+	"go.opencensus.io/plugin/ocgrpc"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/stats/view"
 )
 
 // Exporter defines the minimum shared functionality for an observability exporter
 // used by this application.
 type Exporter interface {
-	InitExportOnce() error
-	Flush()
+	io.Closer
+	StartExporter() error
 }
 
 // NewFromEnv returns the observability exporter given the provided configuration, or an error
 // if it failed to be created.
 func NewFromEnv(ctx context.Context, config *Config) (Exporter, error) {
 	switch config.ExporterType {
-	default:
-		return &NoopExporter{}, nil
-
 	case ExporterNoop:
-		return &NoopExporter{}, nil
-
+		return NewNoop(ctx)
 	case ExporterStackdriver:
-		if config.StackdriverConfig.ProjectID == "" {
-			return nil, fmt.Errorf("configuration PROJECT_ID is required to use the Stackdriver observability exporter")
-		}
-		logger := logging.FromContext(ctx).Named("stackdriver")
-
-		monitoredResource := NewStackdriverMonitoredResoruce(&config.StackdriverConfig)
-
-		sde, err := stackdriver.NewExporter(stackdriver.Options{
-			ProjectID:         config.StackdriverConfig.ProjectID,
-			ReportingInterval: time.Minute, // stackdriver export interval minimum
-			MonitoredResource: monitoredResource,
-			OnError: func(err error) {
-				logger.Errorf("stackdriver export error: %v", err)
-			},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create Stackdriver observability exporter: %v", err)
-		}
-		return &GenericExporter{sde, config.TraceProbabilitySampleRate, func() { sde.Flush() }}, nil
-
+		return NewStackdriver(ctx, config.Stackdriver)
 	case ExporterOCAgent, ExporterPrometheus:
-		var opts []ocagent.ExporterOption
-		if config.OCAgentConfig.Insecure {
-			opts = append(opts, ocagent.WithInsecure())
-		}
-		if config.OCAgentConfig.Endpoint != "" {
-			opts = append(opts, ocagent.WithAddress(config.OCAgentConfig.Endpoint))
-		}
-
-		oce, err := ocagent.NewExporter(opts...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create OpenCensus observability exporter: %v", err)
-		}
-		return &GenericExporter{oce, config.TraceProbabilitySampleRate, func() { oce.Flush() }}, nil
+		return NewOpenCensus(ctx, config.OpenCensus)
+	default:
+		return nil, fmt.Errorf("unknown observability exporter type %v", config.ExporterType)
 	}
+}
+
+// registerViews registers the necessary tracing views.
+func registerViews() error {
+	// Record the various HTTP view to collect metrics.
+	httpViews := append(ochttp.DefaultServerViews, ochttp.DefaultClientViews...)
+	if err := view.Register(httpViews...); err != nil {
+		return fmt.Errorf("failed to register http views: %w", err)
+	}
+
+	// Register the various gRPC views to collect metrics.
+	gRPCViews := append(ocgrpc.DefaultServerViews, ocgrpc.DefaultClientViews...)
+	if err := view.Register(gRPCViews...); err != nil {
+		return fmt.Errorf("failed to register grpc views: %w", err)
+	}
+
+	return nil
 }
