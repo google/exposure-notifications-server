@@ -25,6 +25,7 @@
 package utils
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -35,6 +36,8 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/google/exposure-notifications-server/internal/database"
+	vdb "github.com/google/exposure-notifications-server/internal/verification/database"
 	vm "github.com/google/exposure-notifications-server/internal/verification/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	vutil "github.com/google/exposure-notifications-server/pkg/verification"
@@ -116,4 +119,38 @@ func IssueJWT(t *testing.T, cfg JWTConfig) (jwtText, hmacKey string) {
 		t.Fatal(err)
 	}
 	return
+}
+
+// BuildJWTConfig creates a stub for a generic JWT given an existing database and
+// exposure keys
+func BuildJWTConfig(tb testing.TB, db *database.DB, keys []verifyapi.ExposureKey) *JWTConfig {
+	ctx := context.Background()
+	verifyDB := vdb.New(db)
+
+	// create a signing key
+	sk := GetSigningKey(tb)
+
+	// create a health authority
+	ha := &vm.HealthAuthority{
+		Audience: "exposure-notifications-service",
+		Issuer:   "Department of Health",
+		Name:     "Integration Test HA",
+	}
+	haKey := &vm.HealthAuthorityKey{
+		Version: "v1",
+		From:    time.Now().Add(-1 * time.Minute),
+	}
+	haKey.PublicKeyPEM = sk.PublicKey
+	verifyDB.AddHealthAuthority(ctx, ha)
+	verifyDB.AddHealthAuthorityKey(ctx, ha, haKey)
+
+	// jwt config to be used to get a verification certificate
+	return &JWTConfig{
+		HealthAuthority:    ha,
+		HealthAuthorityKey: haKey,
+		ExposureKeys:       keys,
+		Key:                sk.Key,
+		JWTWarp:            time.Duration(0),
+		ReportType:         verifyapi.ReportTypeConfirmed,
+	}
 }

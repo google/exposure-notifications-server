@@ -42,6 +42,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var jwtCfg = &testutil.JWTConfig{}
+
 func TestIntegration(t *testing.T) {
 	t.Parallel()
 
@@ -60,8 +62,8 @@ func TestIntegration(t *testing.T) {
 		Keys:              keys,
 		HealthAuthorityID: "com.example.app",
 	}
-	jwtCfg.ExposureKeys = keys
-	verification, salt := testutil.IssueJWT(t, jwtCfg)
+	jwtCfg = testutil.BuildJWTConfig(t, db, keys)
+	verification, salt := testutil.IssueJWT(t, *jwtCfg)
 	payload.VerificationPayload = verification
 	payload.HMACKey = salt
 	if resp, err := client.PublishKeys(payload); err != nil {
@@ -212,7 +214,7 @@ func TestIntegration(t *testing.T) {
 	keys = util.GenerateExposureKeys(3, -1, false)
 	payload.Keys = keys
 	jwtCfg.ExposureKeys = keys
-	verification, salt = testutil.IssueJWT(t, jwtCfg)
+	verification, salt = testutil.IssueJWT(t, *jwtCfg)
 	payload.VerificationPayload = verification
 	payload.HMACKey = salt
 	if resp, err := client.PublishKeys(payload); err != nil {
