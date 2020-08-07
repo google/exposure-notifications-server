@@ -52,13 +52,12 @@ import (
 var (
 	ExportDir    = "my-bucket"
 	FileNameRoot = "/"
-	jwtCfg       = testutil.JWTConfig{}
 )
 
 // NewTestServer sets up clients used for integration tests
-func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.ServerEnv, *Client, *database.DB) {
+func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.ServerEnv, *Client, *database.DB, testutil.JWTConfig) {
 	ctx := context.Background()
-	env, client := testServer(tb)
+	env, client, jwtCfg := testServer(tb)
 	db := env.Database()
 	enClient := &Client{client: client}
 
@@ -103,14 +102,17 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 		tb.Fatal(err)
 	}
 
-	return env, enClient, db
+	return env, enClient, db, jwtCfg
 }
 
 // testServer sets up mocked local servers for running tests
-func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
+func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWTConfig) {
 	tb.Helper()
 
-	ctx := context.Background()
+	var (
+		ctx    = context.Background()
+		jwtCfg = testutil.JWTConfig{}
+	)
 
 	aa, err := authorizedapp.NewMemoryProvider(ctx, nil)
 	if err != nil {
@@ -288,7 +290,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	// Create a client
 	client := testClient(tb, srv)
 
-	return env, client
+	return env, client, jwtCfg
 }
 
 type prefixRoundTripper struct {

@@ -46,7 +46,7 @@ func TestIntegration(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	env, client, db := NewTestServer(t, 2*time.Second)
+	env, client, db, jwtCfg := NewTestServer(t, 2*time.Second)
 
 	// Set query criteria (used throughout)
 	criteria := publishdb.IterateExposuresCriteria{
