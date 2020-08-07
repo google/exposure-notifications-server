@@ -29,7 +29,7 @@ in the `Publish` type. Please see the documentation in the source file for detai
 fields themselves. The 'publish' API is hosted at `/v1/publish` on the `exposure` service. The legacy version (v1alpha1) _may_ also be posted on that same service.
 
 Access to the API depends ont he provided `healthAuthorityID` in the publish request, the
-the verifcation certificate provided in the `verificationPayload` and how things are configred
+the verification certificate provided in the `verificationPayload` and how things are configured
 at the server. Any region metadata assigned to TEKS will be done automatically
 at the server. If a TEK is known to be outside of the "home area," then the `traveler` field
 should be set to `true`.
@@ -69,7 +69,7 @@ the new upload came from the same device that originated the TEK and that the re
 same server only.
 
 The content of the revision token cannot be used to infer that a client ever uploaded keys or
-what their diagnosis status is. It is recommmended that clients fill this spot in memory
+what their diagnosis status is. It is recommended that clients fill this spot in memory
 with random data in advance of TEK publish.
 
 ## Chaff Requests
