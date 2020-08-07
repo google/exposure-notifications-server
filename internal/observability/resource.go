@@ -19,7 +19,7 @@ import (
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource/gcp"
 )
 
-const ResourceType = "enservice"
+const cloudRunResource = "cloud_run_revision"
 
 var _ monitoredresource.Interface = (*StackdriverMonitoredResoruce)(nil)
 
@@ -30,7 +30,7 @@ type StackdriverMonitoredResoruce struct {
 
 func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Interface {
 	detected := gcp.Autodetect()
-	resource := ResourceType
+	resource := "exposurenotifications"
 	labels := make(map[string]string)
 	if detected != nil {
 		resource, labels = detected.MonitoredResource()
@@ -39,11 +39,15 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 	if _, ok := labels["project_id"]; !ok {
 		labels["project_id"] = c.ProjectID
 	}
-	if _, ok := labels["revision"]; !ok && c.Revision != "" {
-		labels["revision"] = c.Revision
+	if _, ok := labels["revision_name"]; !ok && c.Revision != "" {
+		labels["revision_name"] = c.Revision
 	}
-	if _, ok := labels["service"]; !ok && c.Service != "" {
-		labels["service"] = c.Service
+	if _, ok := labels["service_name"]; !ok && c.Service != "" {
+		labels["service_name"] = c.Service
+	}
+
+	if c.CloudRunResourceType {
+		resource = cloudRunResource
 	}
 
 	return &StackdriverMonitoredResoruce{
