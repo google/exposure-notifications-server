@@ -23,7 +23,7 @@ There are a number of variables that need to be figured out to determine cost.
 
 Let's assume that we are calculating the cost of operating for an area with:
 
-* A population of 10 Million (10,000,000) people.  
+* A population of 10 Million (10,000,000) people.
 * An exposure window of 14 days
 * 50% adoption of an exposure notifications system
 * 1,250 new cases daily (approximately .01% new cases per day)
@@ -60,6 +60,7 @@ There are multiple containers needed for a complete deployment:
 * Exposure
 * Federation In
 * Federation Out
+* Key Rotation
 
 Most of the services run periodically, not constantly. For this reason it is
 likely no higher than 6 containers at this scale. Likely, estimating as if 3-4
