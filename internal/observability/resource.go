@@ -15,24 +15,13 @@
 package observability
 
 import (
-	"encoding/base64"
-
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource/gcp"
-	"github.com/google/uuid"
 )
 
 const ResourceType = "enservice"
 
 var _ monitoredresource.Interface = (*StackdriverMonitoredResoruce)(nil)
-
-var (
-	nodeUUID string
-)
-
-func init() {
-	nodeUUID = base64.StdEncoding.EncodeToString(uuid.NodeID())
-}
 
 type StackdriverMonitoredResoruce struct {
 	resource string
@@ -47,16 +36,15 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 		resource, labels = detected.MonitoredResource()
 	}
 
-	/*
-		l := make(map[string]string)
-		l["project_id"] = c.ProjectID
-		if c.Revision != "" {
-			l["revision"] = c.Revision
-		}
-		if c.Service != "" {
-			l["service"] = c.Service
-		}
-	*/
+	if _, ok := labels["project_id"]; !ok {
+		labels["project_id"] = c.ProjectID
+	}
+	if _, ok := labels["revision"]; !ok && c.Revision != "" {
+		labels["revision"] = c.Revision
+	}
+	if _, ok := labels["service"]; !ok && c.Service != "" {
+		labels["service"] = c.Service
+	}
 
 	return &StackdriverMonitoredResoruce{
 		resource: resource,

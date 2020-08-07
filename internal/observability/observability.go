@@ -47,12 +47,12 @@ func NewFromEnv(ctx context.Context, config *Config) (Exporter, error) {
 		}
 		logger := logging.FromContext(ctx).Named("stackdriver")
 
-		r, l := NewStackdriverMonitoredResoruce(&config.StackdriverConfig).MonitoredResource()
-		logger.Errorf("monitored resource: %v :: %+v", r, l)
+		monitoredResource := NewStackdriverMonitoredResoruce(&config.StackdriverConfig)
 
 		sde, err := stackdriver.NewExporter(stackdriver.Options{
 			ProjectID:         config.StackdriverConfig.ProjectID,
 			ReportingInterval: time.Minute, // stackdriver export interval minimum
+			MonitoredResource: monitoredResource,
 			OnError: func(err error) {
 				logger.Errorf("stackdriver export error: %v", err)
 			},
