@@ -161,7 +161,7 @@ To enable distributed tracing, please ensure your environment has these variable
 Variable|Values|Comment
 ---|---|---
 OBSERVABILITY_EXPORTER|If unset, no exporting shall be done. Use any of "stackdriver", "prometheus", or "ocagent" otherwise|Note: when using "prometheus" a METRICS_PORT environment variable should also be set
-PROJECT_ID|The ProjectID of your associated Google Cloud Platform project on which this application shall be deployed|Required if you use "stackdrver"
+PROJECT_ID|The ProjectID of your associated Google Cloud Platform project on which this application shall be deployed|Required if you use "stackdriver"
 
 ## Running migrations
 
