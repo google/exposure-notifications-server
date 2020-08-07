@@ -128,7 +128,7 @@ func TestEncryptDecrypt(t *testing.T) {
 		t.Fatalf("unable to cerate in memory KMS")
 	}
 	keyID := "skeleton"
-	if err := kms.AddEncryptionKey(keyID); err != nil {
+	if _, err := kms.CreateEncryptionKey(keyID); err != nil {
 		t.Fatalf("unable to generate key: %v", err)
 	}
 	key := make([]byte, 32)

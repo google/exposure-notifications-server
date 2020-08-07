@@ -135,10 +135,10 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	if err := km.AddEncryptionKey("tokenkey"); err != nil {
+	if _, err := km.CreateEncryptionKey("tokenkey"); err != nil {
 		tb.Fatal(err)
 	}
-	if err := km.AddSigningKey("signingkey"); err != nil {
+	if _, err := km.CreateSigningKey("signingkey"); err != nil {
 		tb.Fatal(err)
 	}
 	// create an initial revision key.

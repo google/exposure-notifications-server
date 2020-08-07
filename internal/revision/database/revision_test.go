@@ -40,7 +40,7 @@ func TestRevisionKey(t *testing.T) {
 		t.Fatalf("unable to cerate in memory KMS")
 	}
 	keyID := "funkey"
-	if err := kms.AddEncryptionKey(keyID); err != nil {
+	if _, err := kms.CreateEncryptionKey(keyID); err != nil {
 		t.Fatalf("unable to generate key: %v", err)
 	}
 
@@ -76,7 +76,7 @@ func TestMultipleRevisionKeys(t *testing.T) {
 		t.Fatalf("unable to cerate in memory KMS")
 	}
 	keyID := "funkey"
-	if err := kms.AddEncryptionKey(keyID); err != nil {
+	if _, err := kms.CreateEncryptionKey(keyID); err != nil {
 		t.Fatalf("unable to generate key: %v", err)
 	}
 
