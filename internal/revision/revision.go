@@ -54,7 +54,7 @@ type TokenManager struct {
 
 	// A store of the currently allowed revision keys for decryption purposes.
 	allowed map[int64]*database.RevisionKey
-	// A poitners to the currently active key for encryption purposes.
+	// A pointers to the currently active key for encryption purposes.
 	effective *database.RevisionKey
 
 	// Pads tokens so that the size of the token can't be used to determine how many keys

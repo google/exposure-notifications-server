@@ -21,6 +21,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/observability"
 	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
@@ -28,6 +29,7 @@ import (
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
 var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
+var _ setup.KeyManagerConfigProvider = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the key rotation components.
@@ -36,17 +38,18 @@ type Config struct {
 	SecretManager         secrets.Config
 	ObservabilityExporter observability.Config
 	RevisionToken         revision.Config
+	KeyManager            keys.Config
 
 	Port string `env:"PORT, default=8080"`
 
 	// NewKeyPeriod is the duration after which we will rotate encryption keys. By default we
 	// generate a new key every two weeks.
-	NewKeyPeriod time.Duration `env:"NEW_KEY_PERIOD, default=7d"`
+	NewKeyPeriod time.Duration `env:"NEW_KEY_PERIOD, default=168h"`
 
 	// DeleteOldKeyPeriod is the duration after which it is safe to delete old keys.
 	// We delete old data after two weeks after which it should be safe to also delete
 	// the associated key - we default to 15d to buffer for potential timezones issues.
-	DeleteOldKeyPeriod time.Duration `env:"DELETE_OLD_KEY_PERIOD, default=15d"`
+	DeleteOldKeyPeriod time.Duration `env:"DELETE_OLD_KEY_PERIOD, default=360h"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
@@ -59,4 +62,8 @@ func (c *Config) SecretManagerConfig() *secrets.Config {
 
 func (c *Config) ObservabilityExporterConfig() *observability.Config {
 	return &c.ObservabilityExporter
+}
+
+func (c *Config) KeyManagerConfig() *keys.Config {
+	return &c.KeyManager
 }

@@ -18,15 +18,18 @@ package observability
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"contrib.go.opencensus.io/exporter/ocagent"
 	"contrib.go.opencensus.io/exporter/stackdriver"
+	"github.com/google/exposure-notifications-server/internal/logging"
 )
 
 // Exporter defines the minimum shared functionality for an observability exporter
 // used by this application.
 type Exporter interface {
 	InitExportOnce() error
+	Flush()
 }
 
 // NewFromEnv returns the observability exporter given the provided configuration, or an error
@@ -43,13 +46,22 @@ func NewFromEnv(ctx context.Context, config *Config) (Exporter, error) {
 		if config.StackdriverConfig.ProjectID == "" {
 			return nil, fmt.Errorf("configuration PROJECT_ID is required to use the Stackdriver observability exporter")
 		}
+		logger := logging.FromContext(ctx).Named("stackdriver")
+
+		monitoredResource := NewStackdriverMonitoredResoruce(&config.StackdriverConfig)
+
 		sde, err := stackdriver.NewExporter(stackdriver.Options{
-			ProjectID: config.StackdriverConfig.ProjectID,
+			ProjectID:         config.StackdriverConfig.ProjectID,
+			ReportingInterval: time.Minute, // stackdriver export interval minimum
+			MonitoredResource: monitoredResource,
+			OnError: func(err error) {
+				logger.Errorf("stackdriver export error: %v", err)
+			},
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Stackdriver observability exporter: %v", err)
 		}
-		return &GenericExporter{sde, config.TraceProbabilitySampleRate}, nil
+		return &GenericExporter{sde, config.TraceProbabilitySampleRate, func() { sde.Flush() }}, nil
 
 	case ExporterOCAgent, ExporterPrometheus:
 		var opts []ocagent.ExporterOption
@@ -64,6 +76,6 @@ func NewFromEnv(ctx context.Context, config *Config) (Exporter, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create OpenCensus observability exporter: %v", err)
 		}
-		return &GenericExporter{oce, config.TraceProbabilitySampleRate}, nil
+		return &GenericExporter{oce, config.TraceProbabilitySampleRate, func() { oce.Flush() }}, nil
 	}
 }

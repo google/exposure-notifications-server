@@ -137,6 +137,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 		Period:           3 * time.Hour,
 		OutputRegion:     "i1",
 		InputRegions:     []string{"US"},
+		IncludeTravelers: true,
 		From:             fromTime,
 		Thru:             thruTime,
 		SignatureInfoIDs: []int64{42, 84},
@@ -243,6 +244,7 @@ func TestBatches(t *testing.T) {
 		From:             now,
 		Thru:             now.Add(time.Hour),
 		SignatureInfoIDs: []int64{1, 2, 3, 4},
+		IncludeTravelers: true,
 	}
 	if err := New(testDB).AddExportConfig(ctx, config); err != nil {
 		t.Fatal(err)
@@ -262,6 +264,7 @@ func TestBatches(t *testing.T) {
 			StartTimestamp:   start,
 			EndTimestamp:     end,
 			SignatureInfoIDs: []int64{1, 2, 3, 4},
+			IncludeTravelers: true,
 		})
 	}
 	if err := New(testDB).AddExportBatches(ctx, batches); err != nil {
@@ -428,6 +431,106 @@ func TestFinalizeBatch(t *testing.T) {
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("mismatch for %q (-want, +got):\n%s", filename, diff)
 		}
+	}
+}
+
+// TestTravelerKeys ensures traveler keys are pulled in when necessary.
+func TestTravelerKeys(t *testing.T) {
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
+	ctx := context.Background()
+	now := time.Now()
+
+	// Add a config.
+	ec := &model.ExportConfig{
+		BucketName:       "bucket-name",
+		FilenameRoot:     "filename-root",
+		Period:           3600 * time.Second,
+		OutputRegion:     "US",
+		From:             now.Add(-24 * time.Hour),
+		IncludeTravelers: true,
+	}
+	if err := New(testDB).AddExportConfig(ctx, ec); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a batch for two hours ago to one hour ago.
+	startTimestamp := now.Truncate(time.Hour).Add(-2 * time.Hour)
+	endTimestamp := startTimestamp.Add(time.Hour)
+	eb := &model.ExportBatch{
+		ConfigID:         ec.ConfigID,
+		BucketName:       ec.BucketName,
+		FilenameRoot:     ec.FilenameRoot,
+		StartTimestamp:   startTimestamp,
+		EndTimestamp:     endTimestamp,
+		OutputRegion:     ec.OutputRegion,
+		Status:           model.ExportBatchOpen,
+		IncludeTravelers: ec.IncludeTravelers,
+	}
+	if err := New(testDB).AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create traveler key out of the main region.
+	trav := &publishmodel.Exposure{
+		ExposureKey: []byte("aaa"),
+		Regions:     []string{ec.OutputRegion + "A"},
+		CreatedAt:   startTimestamp,
+		Traveler:    true,
+	}
+
+	// Create non traveler key out of the main region.
+	notTrav := &publishmodel.Exposure{
+		ExposureKey: []byte("bbb"),
+		Regions:     []string{ec.OutputRegion + "B"},
+		CreatedAt:   endTimestamp,
+	}
+
+	// Add the keys to the database.
+	if _, err := publishdb.New(testDB).InsertAndReviseExposures(ctx, []*publishmodel.Exposure{trav, notTrav}, nil, true); err != nil {
+		t.Fatal(err)
+	}
+
+	// Re-fetch the ExposureBatch by leasing it; this is important to this test which is trying
+	// to ensure our dates are going in-and-out of the database correctly.
+	leased, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that the batch times from the database are *exactly* what we started with.
+	if eb.StartTimestamp.UnixNano() != leased.StartTimestamp.UnixNano() {
+		t.Errorf("Start timestamps did not align original: %d, leased: %d", eb.StartTimestamp.UnixNano(), leased.StartTimestamp.UnixNano())
+	}
+	if eb.EndTimestamp.UnixNano() != leased.EndTimestamp.UnixNano() {
+		t.Errorf("End timestamps did not align original: %d, leased: %d", eb.EndTimestamp.UnixNano(), leased.EndTimestamp.UnixNano())
+	}
+
+	// Lookup the keys; they must be only the key created_at the startTimestamp
+	// (because start is inclusive, end is exclusive).
+	criteria := publishdb.IterateExposuresCriteria{
+		IncludeRegions:   []string{leased.OutputRegion},
+		SinceTimestamp:   leased.StartTimestamp,
+		UntilTimestamp:   leased.EndTimestamp,
+		IncludeTravelers: true,
+	}
+
+	var got []*publishmodel.Exposure
+	_, err = publishdb.New(testDB).IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
+		got = append(got, exp)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("Incorrect exposure key result length, got %d, want 1", len(got))
+	}
+	want := []byte("aaa")
+	if string(got[0].ExposureKey) != string(want) {
+		t.Fatalf("Incorrect exposure key in batch, got %q, want %q", got[0].ExposureKey, want)
 	}
 }
 

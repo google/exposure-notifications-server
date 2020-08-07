@@ -35,6 +35,8 @@ import (
 	revdb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	vdb "github.com/google/exposure-notifications-server/internal/verification/database"
+	vm "github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/google/exposure-notifications-server/pkg/server"
@@ -43,11 +45,14 @@ import (
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
+	testutil "github.com/google/exposure-notifications-server/internal/utils"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
 
 var (
 	ExportDir    = "my-bucket"
 	FileNameRoot = "/"
+	jwtCfg       = testutil.JWTConfig{}
 )
 
 // NewTestServer sets up clients used for integration tests
@@ -65,11 +70,11 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 			"TEST": {},
 		},
 		AllowedHealthAuthorityIDs: map[int64]struct{}{
-			12345: {},
+			1: {},
 		},
 
 		// TODO: hook up verification, and disable
-		BypassHealthAuthorityVerification: true,
+		BypassHealthAuthorityVerification: false,
 	}); err != nil {
 		tb.Fatal(err)
 	}
@@ -143,6 +148,34 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	}
 	if _, err := revisionDB.CreateRevisionKey(ctx); err != nil {
 		tb.Fatal(err)
+	}
+
+	verifyDB := vdb.New(db)
+
+	// create a signing key
+	sk := testutil.GetSigningKey(tb)
+
+	// create a health authority
+	ha := &vm.HealthAuthority{
+		Audience: "exposure-notifications-service",
+		Issuer:   "Department of Health",
+		Name:     "Integration Test HA",
+	}
+	haKey := &vm.HealthAuthorityKey{
+		Version: "v1",
+		From:    time.Now().Add(-1 * time.Minute),
+	}
+	haKey.PublicKeyPEM = sk.PublicKey
+	verifyDB.AddHealthAuthority(ctx, ha)
+	verifyDB.AddHealthAuthorityKey(ctx, ha, haKey)
+
+	// jwt config to be used to get a verification certificate
+	jwtCfg = testutil.JWTConfig{
+		HealthAuthority:    ha,
+		HealthAuthorityKey: haKey,
+		Key:                sk.Key,
+		JWTWarp:            time.Duration(0),
+		ReportType:         verifyapi.ReportTypeConfirmed,
 	}
 
 	sm, err := secrets.NewInMemory(ctx)

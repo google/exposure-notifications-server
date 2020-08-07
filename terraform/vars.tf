@@ -100,6 +100,13 @@ variable "cloudsql_max_connections" {
   description = "Maximum number of allowed connections. If you change to a smaller instance size, you must lower this number."
 }
 
+variable "cloudsql_backup_location" {
+  type    = string
+  default = "us"
+
+  description = "Location in which to backup the database."
+}
+
 variable "generate_cron_schedule" {
   type    = string
   default = "0 0 1 1 0"

@@ -19,9 +19,10 @@ import (
 	"testing"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/go-cmp/cmp"
 )
 
-func TestCalculateHac(t *testing.T) {
+func TestCalculateHMAC(t *testing.T) {
 	secret := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 
 	eKeys := []verifyapi.ExposureKey{
@@ -50,5 +51,45 @@ func TestCalculateHac(t *testing.T) {
 	// hmac.Equals. This is just verifying the calculation code in this package.
 	if got != want {
 		t.Fatalf("incorrect mac, want: %v, got %v", want, mac)
+	}
+}
+
+func TestCalculateDualHMACs(t *testing.T) {
+	secret := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+
+	eKeys := []verifyapi.ExposureKey{
+		{
+			Key:              "z2Cx9hdz2SlxZ8GEgqTYpA==",
+			IntervalNumber:   1,
+			IntervalCount:    144,
+			TransmissionRisk: 0,
+		},
+		{
+			Key:              "dPCphLzfG4uzXneNimkPRQ==",
+			IntervalNumber:   144,
+			IntervalCount:    144,
+			TransmissionRisk: 0,
+		},
+	}
+
+	macs, err := CalculateAllAllowedExposureKeyHMAC(eKeys, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if l := len(macs); l != 2 {
+		t.Fatalf("2 hmac values expected, got: %v", l)
+	}
+
+	got := make([]string, len(macs))
+	for i, mac := range macs {
+		got[i] = base64.StdEncoding.EncodeToString(mac)
+	}
+	want := []string{
+		"mFNI9zhTA17n4ndd1Vu5tsn4XQX0gPrIKyjeh/9noUE=",
+		"J9S7xVebH/66dm14wGsIcAnSUR3PHD4NtDQEOGZbDUo=",
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("claims mismatch (-want, +got):\n%s", diff)
 	}
 }

@@ -12,17 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package observability sets up and configures observability tools.
-package observability
+package v1
 
-// Compile-time check to verify implements interface.
-var _ Exporter = (*NoopExporter)(nil)
+import (
+	"strings"
+	"testing"
+)
 
-// NoopExporter is an observability exporter that does nothing.
-type NoopExporter struct{}
+func TestValidateClaims(t *testing.T) {
+	c := NewVerificationClaims()
+	c.ReportType = "bogus"
 
-func (g *NoopExporter) InitExportOnce() error {
-	return nil
+	if err := c.CustomClaimsValid(); err == nil {
+		t.Fatal("expected an error, got nil")
+	} else if !strings.Contains(err.Error(), "bogus") {
+		t.Fatalf("wanted an error that contained bogus, got: %v", err)
+	}
+
+	for k := range ValidReportTypes {
+		c.ReportType = k
+		if err := c.CustomClaimsValid(); err != nil {
+			t.Errorf("got error when using valid report type: %q, err: %v", k, err)
+		}
+	}
 }
-
-func (g *NoopExporter) Flush() {}

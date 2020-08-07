@@ -27,7 +27,6 @@ health authority in the jurisdiction.
 * HMAC : hash-based message authentication code
 * TEK : Temporary Exposure Key
 
-
 ## High Level Flow
 
 1. App user is diagnosed with Covid-19. PHA issues a PIN code to the user.
@@ -74,41 +73,18 @@ authorities.
 We also prescribe a set of private claims to transmit data from the PHA
 verification server to the exposure notification key server.
 
-* `tekhmac` : The HMAC of the TEKs that was presented to the PHA verification
+* `tekhmac` : _REQUIRED_ The HMAC of the TEKs that was presented to the PHA verification
 server. This must be calculated in a specific way (see below). This is REQUIRED.
 Base64 encoded string property.
-* `reportType` : One of 'confirmed', 'likely', or 'negative. Will set the ReportType
-on all TEKs that are uploaded with this certificate. String property.
-* `symptomOnsetInterval` : uses the same 10 minute interval timing as TEKs use. If an interval is provided that isn not the start of a UTC day, then it will be rounded down to the beginning of that UTC day. And from there the days +/- symptom onset will be calculated. Int property.
-* `trisk` : Contains an array of transmission risk overrides to enact when
-importing the associated keys. If data is present in this field, it will
-override the data in the upload from the device. _Deprecated, only populate if
-your system is not using the new report type and +/- symptom onset data._
+* `reportType` : _REQUIRED_ One of 'confirmed', 'likely', or 'negative' to indicate the
+  diagnosis report type that the verification server is attesting to. At the key
+  server, if no transmission risk values are set, the report type is used to
+  assign transmission risk for compatibility with older apps/clients.
+  This is the __only__ way set reportType on TEKs is through a verification certificate.
+* `symptomOnsetInterval` : _OPTIONAL_ uses the same 10 minute interval timing as TEKs use. If an interval is provided that isn not the start of a UTC day, then it will be rounded down to the beginning of that UTC day. And from there the days +/- symptom onset will be calculated. Int property.
 
 The verification server can indicate a specific key ID to use by setting the
 `kid` header attribute in the JWT.
-
-### Transmission Risk Overrides
-
-An array of JSON objects of the following structure:
-
-* `tr` : Integer 1 - 8
-* `sinceRollingPeriod` : Rolling period number that this transmission risk is
-valid from. Lasts until current time, or until conflict with another entry
-in this array.
-
-Example: In this example, there are 3 days of risk level '4', anything newer
-is risk level '5', anything older is risk level '0'.
-
-```JSON
-{
-	"trisk": [
-		{"tr": 5, "sinceRollingPeriod": 2649744},
-		{"tr": 4, "sinceRollingPeriod": 2649312},
-		{"tr": 0, "sinceRollingPeriod": 0}
-	]
-}
-```
 
 ### HMAC Calculation
 
@@ -130,4 +106,14 @@ As an example:
 
 ```
 key1.rp1.rpc1.tr1,key2.rp2.rpc2.tr2
+```
+
+For newer clients that are not assigning transmission risk values, the 4th
+segment of the per-TEK segment can be omitted. If this is done, then a value
+of 0 (zero) must be passed on the publish request at the key server, or the
+transmission risk must be omitted entirerly. That would make the clear text
+portion look like:
+
+```
+key1.rp1.rpc1,key2.rp2.rpc2
 ```
