@@ -21,6 +21,7 @@ import (
 
 	"contrib.go.opencensus.io/exporter/ocagent"
 	"contrib.go.opencensus.io/exporter/stackdriver"
+	"github.com/google/exposure-notifications-server/internal/logging"
 )
 
 // Exporter defines the minimum shared functionality for an observability exporter
@@ -43,8 +44,12 @@ func NewFromEnv(ctx context.Context, config *Config) (Exporter, error) {
 		if config.StackdriverConfig.ProjectID == "" {
 			return nil, fmt.Errorf("configuration PROJECT_ID is required to use the Stackdriver observability exporter")
 		}
+		logger := logging.FromContext(ctx).Named("stackdriver")
 		sde, err := stackdriver.NewExporter(stackdriver.Options{
 			ProjectID: config.StackdriverConfig.ProjectID,
+			OnError: func(err error) {
+				logger.Errorf("stackdriver export error: %v", err)
+			},
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Stackdriver observability exporter: %v", err)
