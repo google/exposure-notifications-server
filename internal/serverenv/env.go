@@ -178,7 +178,9 @@ func (s *ServerEnv) Close(ctx context.Context) error {
 	}
 
 	if s.observabilityExporter != nil {
-		s.observabilityExporter.Flush()
+		if err := s.observabilityExporter.Close(); err != nil {
+			return nil
+		}
 	}
 
 	return nil

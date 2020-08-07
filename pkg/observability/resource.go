@@ -22,9 +22,9 @@ import (
 	"github.com/google/uuid"
 )
 
-var _ monitoredresource.Interface = (*StackdriverMonitoredResoruce)(nil)
+var _ monitoredresource.Interface = (*stackdriverMonitoredResource)(nil)
 
-type StackdriverMonitoredResoruce struct {
+type stackdriverMonitoredResource struct {
 	resource string
 	labels   map[string]string
 }
@@ -65,12 +65,12 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 	}
 	labels["namespace"] = c.Namespace
 
-	return &StackdriverMonitoredResoruce{
+	return &stackdriverMonitoredResource{
 		resource: resource,
 		labels:   labels,
 	}
 }
 
-func (s *StackdriverMonitoredResoruce) MonitoredResource() (string, map[string]string) {
+func (s *stackdriverMonitoredResource) MonitoredResource() (string, map[string]string) {
 	return s.resource, s.labels
 }

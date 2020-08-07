@@ -231,9 +231,10 @@ func TestSetupWith(t *testing.T) {
 		if oe == nil {
 			t.Errorf("expected observability exporter to exist")
 		}
-
-		if _, ok := oe.(*observability.NoopExporter); !ok {
-			t.Errorf("expected %T to be GenericExporter", oe)
-		}
+		defer func() {
+			if err := oe.Close(); err != nil {
+				t.Fatal(err)
+			}
+		}()
 	})
 }

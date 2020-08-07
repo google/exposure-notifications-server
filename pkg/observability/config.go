@@ -29,30 +29,31 @@ const (
 type Config struct {
 	ExporterType ExporterType `env:"OBSERVABILITY_EXPORTER, default=STACKDRIVER"`
 
-	OpenCensusConfig
-	StackdriverConfig
-	OCAgentConfig
+	OpenCensus  *OpenCensusConfig
+	Stackdriver *StackdriverConfig
 }
 
 // OpenCensusConfig holds the configuration options for the open census exporter
 type OpenCensusConfig struct {
-	TraceProbabilitySampleRate float64 `env:"TRACE_PROBABILITY, default=0.40"`
+	SampleRate float64 `env:"TRACE_PROBABILITY, default=0.40"`
+
+	Insecure bool   `env:"OCAGENT_INSECURE"`
+	Endpoint string `env:"OCAGENT_TRACE_EXPORTER_ENDPOINT"`
 }
 
 // StackdriverConfig holds the configuration options for the stackdriver exporter
 type StackdriverConfig struct {
+	SampleRate float64 `env:"TRACE_PROBABILITY, default=0.40"`
+
 	ProjectID string `env:"PROJECT_ID, default=$GOOGLE_CLOUD_PROJECT"`
-	// Knative+Cloud Run container contract env vars
+
+	// Knative+Cloud Run container contract envvars:
+	//
 	// https://cloud.google.com/run/docs/reference/container-contract#env-vars
-	// If present, can be used to configured the Stackdriver MonitoredResource correctly.
-	Service  string `env:"K_SERVICE"`
-	Revision string `env:"K_REVISION"`
-
-	Namespace string `env:"K_CONFIGURATION, default=ens"`
-}
-
-// OCAgentConfig holds the configuration options for the default opencensus exporter
-type OCAgentConfig struct {
-	Insecure bool   `env:"OCAGENT_INSECURE, default=true"`
-	Endpoint string `env:"OCAGENT_TRACE_EXPORTER_ENDPOINT"`
+	//
+	// If present, can be used to configured the Stackdriver MonitoredResource
+	// correctly.
+	Service   string `env:"K_SERVICE"`
+	Revision  string `env:"K_REVISION"`
+	Namespace string `env:"K_CONFIGURATION, default=en"`
 }

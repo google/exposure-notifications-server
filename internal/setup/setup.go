@@ -170,18 +170,21 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 	// Configure and initialize the observability exporter.
 	if provider, ok := config.(ObservabilityExporterConfigProvider); ok {
 		logger.Info("configuring observability exporter")
+
 		oeConfig := provider.ObservabilityExporterConfig()
 		oe, err := observability.NewFromEnv(ctx, oeConfig)
 		if err != nil {
-			return nil, fmt.Errorf("unable to create ObservabilityExporter provider: %v", err)
+			return nil, fmt.Errorf("unable to create observability provider: %v", err)
 		}
-		if err := oe.InitExportOnce(); err != nil {
-			return nil, fmt.Errorf("error initializing observability exporter: %v", err)
+		if err := oe.StartExporter(); err != nil {
+			return nil, fmt.Errorf("failed to start observability: %w", err)
 		}
+		exporter := serverenv.WithObservabilityExporter(oe)
 
-		serverEnvOpts = append(serverEnvOpts, serverenv.WithObservabilityExporter(oe))
+		// Update serverEnv setup.
+		serverEnvOpts = append(serverEnvOpts, exporter)
 
-		logger.Infow("observability exporter", "config", oeConfig)
+		logger.Infow("observability", "config", oeConfig)
 	}
 
 	// Configure blob storage.
