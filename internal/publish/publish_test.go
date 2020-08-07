@@ -17,13 +17,9 @@ package publish
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -51,22 +47,13 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/jackc/pgx/v4"
 
+	testutil "github.com/google/exposure-notifications-server/internal/utils"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
-	utils "github.com/google/exposure-notifications-server/pkg/verification"
-
-	"github.com/dgrijalva/jwt-go"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
-
-// Holds a single signing key and the PEM public key.
-// Each test case has it's own key issued.
-type signingKey struct {
-	Key       *ecdsa.PrivateKey
-	PublicKey string
-}
 
 type version int
 
@@ -78,76 +65,6 @@ const (
 var (
 	versions = []version{useV1, useV1Alpha1}
 )
-
-func newSigningKey(t *testing.T) *signingKey {
-	t.Helper()
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	publicKey := privateKey.Public()
-	x509EncodedPub, err := x509.MarshalPKIXPublicKey(publicKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509EncodedPub})
-	pemPublicKey := string(pemEncodedPub)
-
-	return &signingKey{
-		Key:       privateKey,
-		PublicKey: pemPublicKey,
-	}
-}
-
-type jwtConfig struct {
-	HealthAuthority      *vermodel.HealthAuthority
-	HealthAuthorityKey   *vermodel.HealthAuthorityKey
-	Publish              *verifyapi.Publish
-	Key                  *ecdsa.PrivateKey
-	JWTWarp              time.Duration
-	ReportType           string
-	SymptomOnsetInterval uint32
-}
-
-// Based on the publish request, generate a JWT as if it came from the
-// authorized health authority.
-func issueJWT(t *testing.T, cfg jwtConfig) (jwtText, hmacKey string) {
-	t.Helper()
-
-	hmacKeyBytes := make([]byte, 32)
-	if _, err := rand.Read(hmacKeyBytes); err != nil {
-		t.Fatal(err)
-	}
-	hmacKey = base64.StdEncoding.EncodeToString(hmacKeyBytes)
-
-	hmacBytes, err := utils.CalculateExposureKeyHMAC(cfg.Publish.Keys, hmacKeyBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hmac := base64.StdEncoding.EncodeToString(hmacBytes)
-
-	claims := verifyapi.NewVerificationClaims()
-	claims.Audience = cfg.HealthAuthority.Audience
-	claims.Issuer = cfg.HealthAuthority.Issuer
-	claims.IssuedAt = time.Now().Add(cfg.JWTWarp).Unix()
-	claims.ExpiresAt = time.Now().Add(cfg.JWTWarp).Add(5 * time.Minute).Unix()
-	claims.SignedMAC = hmac
-	if cfg.ReportType != "" {
-		claims.ReportType = cfg.ReportType
-	}
-	if cfg.SymptomOnsetInterval > 0 {
-		claims.SymptomOnsetInterval = cfg.SymptomOnsetInterval
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-	token.Header[verifyapi.KeyIDHeader] = cfg.HealthAuthorityKey.Version
-	jwtText, err = token.SignedString(cfg.Key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return
-}
 
 type nameAssigner struct {
 	baseAPK  string
@@ -181,7 +98,7 @@ func TestPublishWithBypass(t *testing.T) {
 	cases := []struct {
 		Name               string
 		ContentType        string // if blank, application/json
-		SigningKey         *signingKey
+		SigningKey         *testutil.SigningKey
 		TestRegion         string
 		HealthAuthority    *vermodel.HealthAuthority    // Automatically linked to keys.
 		HealthAuthorityKey *vermodel.HealthAuthorityKey // Automatically linked to SigningKey
@@ -294,7 +211,7 @@ func TestPublishWithBypass(t *testing.T) {
 		},
 		{
 			Name:       "valid_HA_certificate",
-			SigningKey: newSigningKey(t),
+			SigningKey: testutil.GetSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -323,7 +240,7 @@ func TestPublishWithBypass(t *testing.T) {
 		},
 		{
 			Name:       "valid_HA_certificate_with_overrides",
-			SigningKey: newSigningKey(t),
+			SigningKey: testutil.GetSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -352,7 +269,7 @@ func TestPublishWithBypass(t *testing.T) {
 		},
 		{
 			Name:       "revise_with_cert",
-			SigningKey: newSigningKey(t),
+			SigningKey: testutil.GetSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -381,7 +298,7 @@ func TestPublishWithBypass(t *testing.T) {
 		},
 		{
 			Name:       "certificate in future",
-			SigningKey: newSigningKey(t),
+			SigningKey: testutil.GetSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -410,7 +327,7 @@ func TestPublishWithBypass(t *testing.T) {
 		},
 		{
 			Name:       "certificate expired",
-			SigningKey: newSigningKey(t),
+			SigningKey: testutil.GetSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -512,7 +429,7 @@ func TestPublishWithBypass(t *testing.T) {
 					}
 					if tc.HealthAuthorityKey != nil {
 						if tc.SigningKey == nil {
-							t.Fatal("test cases that have health authority keys registered must provide a siningKey as well")
+							t.Fatal("test cases that have health authority keys registered must provide a signingKey as well")
 						}
 						// Join in the public key.
 						tc.HealthAuthorityKey.PublicKeyPEM = tc.SigningKey.PublicKey
@@ -537,15 +454,15 @@ func TestPublishWithBypass(t *testing.T) {
 
 				// If verification is being used. The JWT and HMAC Salt must be incorporated.
 				if tc.HealthAuthority != nil {
-					cfg := jwtConfig{
+					cfg := testutil.JWTConfig{
 						HealthAuthority:    tc.HealthAuthority,
 						HealthAuthorityKey: tc.HealthAuthorityKey,
-						Publish:            &tc.Publish,
+						ExposureKeys:       tc.Publish.Keys,
 						Key:                tc.SigningKey.Key,
 						JWTWarp:            tc.JWTTiming,
 						ReportType:         tc.ReportType,
 					}
-					verification, salt := issueJWT(t, cfg)
+					verification, salt := testutil.IssueJWT(t, cfg)
 					tc.Publish.VerificationPayload = verification
 					tc.Publish.HMACKey = salt
 				}
@@ -737,7 +654,7 @@ func TestKeyRevision(t *testing.T) {
 	haName := "gov.state.health"
 	region := "US"
 
-	signingKey := newSigningKey(t)
+	signingKey := testutil.GetSigningKey(t)
 	authorizedApp := func() *aamodel.AuthorizedApp {
 		authApp := aamodel.NewAuthorizedApp()
 		authApp.AppPackageName = haName
@@ -904,15 +821,15 @@ func TestKeyRevision(t *testing.T) {
 			// Do the initial insert
 			{
 				// Issue the likely diagnosis certificate.
-				cfg := jwtConfig{
+				cfg := testutil.JWTConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
-					Publish:            &tc.Publish,
+					ExposureKeys:       tc.Publish.Keys,
 					Key:                signingKey.Key,
 					JWTWarp:            time.Duration(0),
 					ReportType:         verifyapi.ReportTypeClinical,
 				}
-				verification, salt := issueJWT(t, cfg)
+				verification, salt := testutil.IssueJWT(t, cfg)
 				tc.Publish.VerificationPayload = verification
 				tc.Publish.HMACKey = salt
 
@@ -950,15 +867,15 @@ func TestKeyRevision(t *testing.T) {
 			{
 				revisionToken = tc.RevTokenMesser(ctx, revisionToken, tm, tokenAAD)
 
-				cfg := jwtConfig{
+				cfg := testutil.JWTConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
-					Publish:            &tc.Publish,
+					ExposureKeys:       tc.Publish.Keys,
 					Key:                signingKey.Key,
 					JWTWarp:            time.Duration(0),
 					ReportType:         verifyapi.ReportTypeConfirmed,
 				}
-				verification, salt := issueJWT(t, cfg)
+				verification, salt := testutil.IssueJWT(t, cfg)
 				tc.Publish.VerificationPayload = verification
 				tc.Publish.HMACKey = salt
 

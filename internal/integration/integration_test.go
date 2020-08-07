@@ -31,6 +31,7 @@ import (
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	testutil "github.com/google/exposure-notifications-server/internal/utils"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/util"
@@ -52,14 +53,17 @@ func TestIntegration(t *testing.T) {
 		OnlyLocalProvenance: false,
 	}
 
+	keys := util.GenerateExposureKeys(3, -1, false)
+
 	// Publish 3 keys
 	payload := &verifyapi.Publish{
-		Keys:              util.GenerateExposureKeys(3, -1, false),
+		Keys:              keys,
 		HealthAuthorityID: "com.example.app",
-
-		// TODO: hook up verification
-		VerificationPayload: "TODO",
 	}
+	jwtCfg.ExposureKeys = keys
+	verification, salt := testutil.IssueJWT(t, jwtCfg)
+	payload.VerificationPayload = verification
+	payload.HMACKey = salt
 	var revisionToken string
 	if resp, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
@@ -230,7 +234,12 @@ func TestIntegration(t *testing.T) {
 	}
 
 	// Publish some new keys so we can generate a new batch
-	payload.Keys = util.GenerateExposureKeys(3, -1, false)
+	keys = util.GenerateExposureKeys(3, -1, false)
+	payload.Keys = keys
+	jwtCfg.ExposureKeys = keys
+	verification, salt = testutil.IssueJWT(t, jwtCfg)
+	payload.VerificationPayload = verification
+	payload.HMACKey = salt
 	if resp, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
 	} else {
@@ -385,6 +394,7 @@ func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey) []*export.Tem
 			KeyData:                    decoded,
 			TransmissionRiskLevel:      proto.Int32(int32(key.TransmissionRisk)),
 			RollingStartIntervalNumber: proto.Int32(key.IntervalNumber),
+			ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
 		}
 	}
 
