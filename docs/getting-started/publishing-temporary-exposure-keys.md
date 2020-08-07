@@ -64,7 +64,7 @@ In addition to the above configurations,
 
 One of the fields of the publish request is the `revisionToken`. The revision token is an encrypted
 piece of metadata that must be passed to the server again, if the same device wants to either
-upload addtional TEKs later or revise the status of TEKs already uploaded. This ensures that
+upload additional TEKs later or revise the status of TEKs already uploaded. This ensures that
 the new upload came from the same device that originated the TEK and that the request go to the
 same server only.
 
@@ -119,7 +119,7 @@ on publish requests.
 The list of regions provided will be automatically added to all TEKs uploaded via that
 health authority ID.
 
-There are two bypass settings that can make development easier for your app develoeprs.
+There are two bypass settings that can make development easier for your app developers.
 
 * Revision Token Enforcement Disabled: Must be set to _false_ in production environments. Can be
   set to _true_ for testing
