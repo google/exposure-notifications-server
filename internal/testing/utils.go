@@ -21,6 +21,7 @@
 // https://developers.google.com/android/exposure-notifications/verification-system
 //
 
+// Package testing provides utilities to be used in testing.
 package testing
 
 import (
