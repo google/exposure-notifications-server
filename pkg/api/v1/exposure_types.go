@@ -62,7 +62,7 @@ const (
 //  - Android: The App Package AppPackageName
 //  - iOS: The BundleID
 // verificationPayload: The Verification Certificate from a verification server.
-// hmacKey: the device generated secret that is used to recalcualte the HMAC value
+// hmacKey: the device generated secret that is used to recalculate the HMAC value
 //  that is present in the verification payload.
 //
 // symptomOnsetInterval: An interval number that aligns with the symptom onset date.
@@ -77,8 +77,8 @@ const (
 //  keys of a "traveler" who has left the home region represented by this server
 //  (or by the home health authority in case of a multi-tenant installation).
 //
-// revisionToken: An opaque string that must be passed in-tact from on additional
-//   publish requests from the same device, there the same TEKs may be published
+// revisionToken: An opaque string that must be passed intact on additional
+//   publish requests from the same device, where the same TEKs may be published
 //   again.
 //
 // Padding: random base64 encoded data to obscure the request size. The server will

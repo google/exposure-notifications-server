@@ -60,9 +60,14 @@ func TestIntegration(t *testing.T) {
 		// TODO: hook up verification
 		VerificationPayload: "TODO",
 	}
+	var revisionToken string
 	if resp, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
 	} else {
+		if resp.RevisionToken == "" {
+			t.Fatal("empty revision token")
+		}
+		revisionToken = resp.RevisionToken
 		t.Logf("response: %+v", resp)
 	}
 
@@ -204,10 +209,24 @@ func TestIntegration(t *testing.T) {
 		}
 	}
 
-	// Rotate Keys
+	// Rotate Keys. Should Genereate a new key.
 	time.Sleep(2 * time.Second) // Ensure DeleteOldKeyPeriod is elapsed
 	if err := client.RotateKeys(); err != nil {
 		t.Fatalf("Error rotating keys: %v", err)
+	}
+
+	// Rotate Keys. Should Delete the original key.
+	time.Sleep(2 * time.Second) // Ensure DeleteOldKeyPeriod is elapsed
+	if err := client.RotateKeys(); err != nil {
+		t.Fatalf("Error rotating keys: %v", err)
+	}
+
+	// Re-publish with the original token. This key is now not-allowed.
+	payload.RevisionToken = revisionToken
+	if _, err := client.PublishKeys(payload); err == nil {
+		t.Fatal(err)
+	} else if !strings.Contains(err.Error(), verifyapi.ErrorMissingRevisionToken) {
+		t.Fatal(err)
 	}
 
 	// Publish some new keys so we can generate a new batch
@@ -215,9 +234,6 @@ func TestIntegration(t *testing.T) {
 	if resp, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
 	} else {
-		if resp.RevisionToken == "" {
-			t.Fatal("empty revision token")
-		}
 		t.Logf("response: %+v", resp)
 	}
 
