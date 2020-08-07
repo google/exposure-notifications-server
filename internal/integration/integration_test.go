@@ -31,7 +31,7 @@ import (
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
-	testutil "github.com/google/exposure-notifications-server/internal/testing"
+	testutil "github.com/google/exposure-notifications-server/internal/utils"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/util"

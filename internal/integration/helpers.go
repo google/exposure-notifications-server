@@ -49,7 +49,7 @@ import (
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
-	testutil "github.com/google/exposure-notifications-server/internal/testing"
+	testutil "github.com/google/exposure-notifications-server/internal/utils"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
 

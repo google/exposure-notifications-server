@@ -51,7 +51,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/jackc/pgx/v4"
 
-	testutil "github.com/google/exposure-notifications-server/internal/testing"
+	testutil "github.com/google/exposure-notifications-server/internal/utils"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 

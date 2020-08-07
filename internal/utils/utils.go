@@ -21,8 +21,8 @@
 // https://developers.google.com/android/exposure-notifications/verification-system
 //
 
-// Package testing provides utilities to be used in testing.
-package testing
+// Package utils provides utilities to be used in testing.
+package utils
 
 import (
 	"crypto/ecdsa"
@@ -34,7 +34,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	vm "github.com/google/exposure-notifications-server/internal/verification/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
-	utils "github.com/google/exposure-notifications-server/pkg/verification"
+	vutil "github.com/google/exposure-notifications-server/pkg/verification"
 )
 
 // JwtConfig stores the config used to fetch a verification jwt certificate
@@ -59,7 +59,7 @@ func IssueJWT(t *testing.T, cfg JwtConfig) (jwtText, hmacKey string) {
 	}
 	hmacKey = base64.StdEncoding.EncodeToString(hmacKeyBytes)
 
-	hmacBytes, err := utils.CalculateExposureKeyHMAC(cfg.ExposureKeys, hmacKeyBytes)
+	hmacBytes, err := vutil.CalculateExposureKeyHMAC(cfg.ExposureKeys, hmacKeyBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
