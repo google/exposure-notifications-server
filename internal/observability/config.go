@@ -42,6 +42,13 @@ type OpenCensusConfig struct {
 // StackdriverConfig holds the configuration options for the stackdriver exporter
 type StackdriverConfig struct {
 	ProjectID string `env:"PROJECT_ID, default=$GOOGLE_CLOUD_PROJECT"`
+	// Knative+Cloud Run container contract env vars
+	// https://cloud.google.com/run/docs/reference/container-contract#env-vars
+	// If present, can be used to configured the Stackdriver MonitoredResource correctly.
+	Service  string `env:"K_SERVICE"`
+	Revision string `env:"K_REVISION"`
+
+	Namespace string `env:"K_CONFIGURATION, default=ens"`
 }
 
 // OCAgentConfig holds the configuration options for the default opencensus exporter
