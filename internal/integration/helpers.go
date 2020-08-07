@@ -16,12 +16,8 @@ package integration
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
@@ -56,14 +52,8 @@ import (
 var (
 	ExportDir    = "my-bucket"
 	FileNameRoot = "/"
-	jwtCfg       = testutil.JwtConfig{}
+	jwtCfg       = testutil.JWTConfig{}
 )
-
-// Holds a single signing key and the PEM public key.
-type signingKey struct {
-	Key       *ecdsa.PrivateKey
-	PublicKey string
-}
 
 // NewTestServer sets up clients used for integration tests
 func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.ServerEnv, *Client, *database.DB) {
@@ -163,7 +153,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	verifyDB := vdb.New(db)
 
 	// create a signing key
-	sk := newSigningKey(tb)
+	sk := testutil.GetSigningKey(tb)
 
 	// create a health authority
 	ha := &vm.HealthAuthority{
@@ -180,7 +170,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	verifyDB.AddHealthAuthorityKey(ctx, ha, haKey)
 
 	// jwt config to be used to get a verification certificate
-	jwtCfg = testutil.JwtConfig{
+	jwtCfg = testutil.JWTConfig{
 		HealthAuthority:    ha,
 		HealthAuthorityKey: haKey,
 		Key:                sk.Key,
@@ -361,25 +351,4 @@ func Eventually(tb testing.TB, times uint64, f func() error) {
 
 func IndexFilePath() string {
 	return path.Join(FileNameRoot, "index.txt")
-}
-
-func newSigningKey(tb testing.TB) *signingKey {
-	tb.Helper()
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		tb.Fatal(err)
-	}
-
-	publicKey := privateKey.Public()
-	x509EncodedPub, err := x509.MarshalPKIXPublicKey(publicKey)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509EncodedPub})
-	pemPublicKey := string(pemEncodedPub)
-
-	return &signingKey{
-		Key:       privateKey,
-		PublicKey: pemPublicKey,
-	}
 }

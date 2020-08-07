@@ -17,13 +17,9 @@ package publish
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -59,13 +55,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-// Holds a single signing key and the PEM public key.
-// Each test case has it's own key issued.
-type signingKey struct {
-	Key       *ecdsa.PrivateKey
-	PublicKey string
-}
-
 type version int
 
 const (
@@ -76,27 +65,6 @@ const (
 var (
 	versions = []version{useV1, useV1Alpha1}
 )
-
-func newSigningKey(t *testing.T) *signingKey {
-	t.Helper()
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	publicKey := privateKey.Public()
-	x509EncodedPub, err := x509.MarshalPKIXPublicKey(publicKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509EncodedPub})
-	pemPublicKey := string(pemEncodedPub)
-
-	return &signingKey{
-		Key:       privateKey,
-		PublicKey: pemPublicKey,
-	}
-}
 
 type nameAssigner struct {
 	baseAPK  string
@@ -130,7 +98,7 @@ func TestPublishWithBypass(t *testing.T) {
 	cases := []struct {
 		Name               string
 		ContentType        string // if blank, application/json
-		SigningKey         *signingKey
+		SigningKey         *testutil.SigningKey
 		TestRegion         string
 		HealthAuthority    *vermodel.HealthAuthority    // Automatically linked to keys.
 		HealthAuthorityKey *vermodel.HealthAuthorityKey // Automatically linked to SigningKey
@@ -243,7 +211,7 @@ func TestPublishWithBypass(t *testing.T) {
 		},
 		{
 			Name:       "valid_HA_certificate",
-			SigningKey: newSigningKey(t),
+			SigningKey: testutil.GetSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -272,7 +240,7 @@ func TestPublishWithBypass(t *testing.T) {
 		},
 		{
 			Name:       "valid_HA_certificate_with_overrides",
-			SigningKey: newSigningKey(t),
+			SigningKey: testutil.GetSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -301,7 +269,7 @@ func TestPublishWithBypass(t *testing.T) {
 		},
 		{
 			Name:       "revise_with_cert",
-			SigningKey: newSigningKey(t),
+			SigningKey: testutil.GetSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -330,7 +298,7 @@ func TestPublishWithBypass(t *testing.T) {
 		},
 		{
 			Name:       "certificate in future",
-			SigningKey: newSigningKey(t),
+			SigningKey: testutil.GetSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -359,7 +327,7 @@ func TestPublishWithBypass(t *testing.T) {
 		},
 		{
 			Name:       "certificate expired",
-			SigningKey: newSigningKey(t),
+			SigningKey: testutil.GetSigningKey(t),
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -486,7 +454,7 @@ func TestPublishWithBypass(t *testing.T) {
 
 				// If verification is being used. The JWT and HMAC Salt must be incorporated.
 				if tc.HealthAuthority != nil {
-					cfg := testutil.JwtConfig{
+					cfg := testutil.JWTConfig{
 						HealthAuthority:    tc.HealthAuthority,
 						HealthAuthorityKey: tc.HealthAuthorityKey,
 						ExposureKeys:       tc.Publish.Keys,
@@ -686,7 +654,7 @@ func TestKeyRevision(t *testing.T) {
 	haName := "gov.state.health"
 	region := "US"
 
-	signingKey := newSigningKey(t)
+	signingKey := testutil.GetSigningKey(t)
 	authorizedApp := func() *aamodel.AuthorizedApp {
 		authApp := aamodel.NewAuthorizedApp()
 		authApp.AppPackageName = haName
@@ -853,7 +821,7 @@ func TestKeyRevision(t *testing.T) {
 			// Do the initial insert
 			{
 				// Issue the likely diagnosis certificate.
-				cfg := testutil.JwtConfig{
+				cfg := testutil.JWTConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
 					ExposureKeys:       tc.Publish.Keys,
@@ -899,7 +867,7 @@ func TestKeyRevision(t *testing.T) {
 			{
 				revisionToken = tc.RevTokenMesser(ctx, revisionToken, tm, tokenAAD)
 
-				cfg := testutil.JwtConfig{
+				cfg := testutil.JWTConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
 					ExposureKeys:       tc.Publish.Keys,

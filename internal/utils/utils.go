@@ -26,8 +26,11 @@ package utils
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"testing"
 	"time"
 
@@ -37,8 +40,14 @@ import (
 	vutil "github.com/google/exposure-notifications-server/pkg/verification"
 )
 
-// JwtConfig stores the config used to fetch a verification jwt certificate
-type JwtConfig struct {
+// SigningKey holds a single signing key and the PEM public key.
+type SigningKey struct {
+	Key       *ecdsa.PrivateKey
+	PublicKey string
+}
+
+// JWTConfig stores the config used to fetch a verification jwt certificate
+type JWTConfig struct {
 	HealthAuthority      *vm.HealthAuthority
 	HealthAuthorityKey   *vm.HealthAuthorityKey
 	ExposureKeys         []verifyapi.ExposureKey
@@ -48,9 +57,31 @@ type JwtConfig struct {
 	SymptomOnsetInterval uint32
 }
 
+// GetSigningKey returns a new signing key to be used for verification.
+func GetSigningKey(tb testing.TB) *SigningKey {
+	tb.Helper()
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	publicKey := privateKey.Public()
+	x509EncodedPub, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509EncodedPub})
+	pemPublicKey := string(pemEncodedPub)
+
+	return &SigningKey{
+		Key:       privateKey,
+		PublicKey: pemPublicKey,
+	}
+}
+
 // IssueJWT generates a JWT as if it came from the
 // authorized health authority.
-func IssueJWT(t *testing.T, cfg JwtConfig) (jwtText, hmacKey string) {
+func IssueJWT(t *testing.T, cfg JWTConfig) (jwtText, hmacKey string) {
 	t.Helper()
 
 	hmacKeyBytes := make([]byte, 32)
