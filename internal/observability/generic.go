@@ -30,6 +30,8 @@ var _ Exporter = (*GenericExporter)(nil)
 
 var initExporterOnce sync.Once
 
+type FlushFn func()
+
 type traceAndViewExporter interface {
 	trace.Exporter
 	view.Exporter
@@ -40,6 +42,7 @@ type traceAndViewExporter interface {
 type GenericExporter struct {
 	exporter   traceAndViewExporter
 	sampleRate float64
+	flushFn    FlushFn
 }
 
 func (g *GenericExporter) InitExportOnce() error {
@@ -48,6 +51,10 @@ func (g *GenericExporter) InitExportOnce() error {
 		err = g.initExporter()
 	})
 	return err
+}
+
+func (g *GenericExporter) Flush() {
+	g.flushFn()
 }
 
 func (g *GenericExporter) initExporter() error {

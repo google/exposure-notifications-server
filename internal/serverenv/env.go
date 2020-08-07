@@ -176,5 +176,10 @@ func (s *ServerEnv) Close(ctx context.Context) error {
 	if s.database != nil {
 		s.database.Close(ctx)
 	}
+
+	if s.observabilityExporter != nil {
+		s.observabilityExporter.Flush()
+	}
+
 	return nil
 }

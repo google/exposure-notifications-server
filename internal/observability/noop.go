@@ -24,3 +24,5 @@ type NoopExporter struct{}
 func (g *NoopExporter) InitExportOnce() error {
 	return nil
 }
+
+func (g *NoopExporter) Flush() {}
