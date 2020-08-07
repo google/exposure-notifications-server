@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/keyrotation"
 	"github.com/google/exposure-notifications-server/internal/logging"
-	_ "github.com/google/exposure-notifications-server/internal/observability"
+	_ "github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/sethvargo/go-signalcontext"
