@@ -23,6 +23,7 @@ package keys
 import (
 	"context"
 	"crypto"
+	"crypto/ecdsa"
 	"fmt"
 )
 
@@ -46,6 +47,26 @@ type KeyManager interface {
 	// Currently Google Cloud KMS, Hashicorp Vault and AWS KMS support AAD
 	// The Azure Key Vault implementation does not.
 	Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad []byte) ([]byte, error)
+}
+
+// EncryptionKeyCreator supports creating encryption keys.
+type EncryptionKeyCreator interface {
+	CreateEncryptionKey(string) ([]byte, error)
+}
+
+// EncryptionKeyAdder supports creating encryption keys.
+type EncryptionKeyAdder interface {
+	AddEncryptionKey(string, []byte) error
+}
+
+// SigningKeyCreator supports creating signing keys.
+type SigningKeyCreator interface {
+	CreateSigningKey(string) (*ecdsa.PrivateKey, error)
+}
+
+// SigningKeyAdder supports creating signing keys.
+type SigningKeyAdder interface {
+	AddSigningKey(string, *ecdsa.PrivateKey) error
 }
 
 // KeyManagerFor returns the appropriate key manager for the given type.

@@ -371,7 +371,9 @@ func TestPublishWithBypass(t *testing.T) {
 			t.Fatalf("can't make kms: %v", err)
 		}
 		keyID := "rev"
-		kms.AddEncryptionKey(keyID)
+		if _, err := kms.CreateEncryptionKey(keyID); err != nil {
+			t.Fatal(err)
+		}
 		tokenAAD := make([]byte, 16)
 		if _, err := rand.Read(tokenAAD); err != nil {
 			t.Fatalf("not enough entropy: %v", err)
@@ -682,7 +684,9 @@ func TestKeyRevision(t *testing.T) {
 		t.Fatalf("can't make kms: %v", err)
 	}
 	keyID := "rev"
-	kms.AddEncryptionKey(keyID)
+	if _, err := kms.CreateEncryptionKey(keyID); err != nil {
+		t.Fatal(err)
+	}
 	tokenAAD := make([]byte, 16)
 	if _, err := rand.Read(tokenAAD); err != nil {
 		t.Fatalf("not enough entropy: %v", err)

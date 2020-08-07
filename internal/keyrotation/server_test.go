@@ -62,7 +62,9 @@ func TestNewRotationHandler(t *testing.T) {
 			t.Parallel()
 
 			keyID := "test" + t.Name()
-			kms.AddEncryptionKey(keyID)
+			if _, err := kms.CreateEncryptionKey(keyID); err != nil {
+				t.Fatal(err)
+			}
 			config := &Config{
 				RevisionToken: revision.Config{KeyID: keyID},
 			}

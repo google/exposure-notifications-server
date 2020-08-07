@@ -27,6 +27,12 @@ import (
 	"sync"
 )
 
+var _ KeyManager = (*InMemory)(nil)
+var _ SigningKeyCreator = (*InMemory)(nil)
+var _ SigningKeyAdder = (*InMemory)(nil)
+var _ EncryptionKeyCreator = (*InMemory)(nil)
+var _ EncryptionKeyAdder = (*InMemory)(nil)
+
 // InMemory is useful for testing. Do NOT use in a running system as all
 // keys are only kept in memory and will be lost across server reboots.
 type InMemory struct {
@@ -43,9 +49,28 @@ func NewInMemory(ctx context.Context) (*InMemory, error) {
 	}, nil
 }
 
-// AddSigningKey generates a new ECDSA P256 Signing Key identified by
+// CreateSigningKey generates a new ECDSA P256 Signing Key identified by
 // the provided keyID
-func (k *InMemory) AddSigningKey(keyID string) error {
+func (k *InMemory) CreateSigningKey(keyID string) (*ecdsa.PrivateKey, error) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+
+	if _, ok := k.signingKeys[keyID]; ok {
+		return nil, fmt.Errorf("key already exists: %v", keyID)
+	}
+
+	pk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate private key: %w", err)
+	}
+
+	k.signingKeys[keyID] = pk
+	return pk, nil
+}
+
+// AddSigningKey adds a new ECDSA P256 Signing Key identified by the provided
+// keyID.
+func (k *InMemory) AddSigningKey(keyID string, pk *ecdsa.PrivateKey) error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 
@@ -53,18 +78,31 @@ func (k *InMemory) AddSigningKey(keyID string) error {
 		return fmt.Errorf("key already exists: %v", keyID)
 	}
 
-	pk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return fmt.Errorf("unable to generate private key: %w", err)
-	}
-
 	k.signingKeys[keyID] = pk
 	return nil
 }
 
-// AddEncryptionKey generates a new encryption key identified by
-// the provided keyID.
-func (k *InMemory) AddEncryptionKey(keyID string) error {
+// CreateEncryptionKey generates and stores new encryption key identified by the
+// provided keyID.
+func (k *InMemory) CreateEncryptionKey(keyID string) ([]byte, error) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+
+	if _, ok := k.cryptoKeys[keyID]; ok {
+		return nil, fmt.Errorf("key already exists: %v", keyID)
+	}
+
+	key := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		return nil, fmt.Errorf("failed to read random bytes: %w", err)
+	}
+
+	k.cryptoKeys[keyID] = key
+	return key, nil
+}
+
+// AddEncryptionKey stores the key on the system.
+func (k *InMemory) AddEncryptionKey(keyID string, key []byte) error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 
@@ -72,13 +110,7 @@ func (k *InMemory) AddEncryptionKey(keyID string) error {
 		return fmt.Errorf("key already exists: %v", keyID)
 	}
 
-	key := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, key); err != nil {
-		return fmt.Errorf("failed to read random bytes: %w", err)
-	}
-
 	k.cryptoKeys[keyID] = key
-
 	return nil
 }
 

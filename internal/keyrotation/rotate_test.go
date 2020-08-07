@@ -37,7 +37,9 @@ func TestRotateKeys(t *testing.T) {
 
 	kms, _ := keys.NewInMemory(context.Background())
 	keyID := "testKeyID"
-	kms.AddEncryptionKey(keyID)
+	if _, err := kms.CreateEncryptionKey(keyID); err != nil {
+		t.Fatal(err)
+	}
 	config := &Config{
 		RevisionToken:      revision.Config{KeyID: keyID},
 		DeleteOldKeyPeriod: 14 * 24 * time.Hour, // two weeks
