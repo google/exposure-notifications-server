@@ -18,6 +18,7 @@ package observability
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"contrib.go.opencensus.io/exporter/ocagent"
 	"contrib.go.opencensus.io/exporter/stackdriver"
@@ -46,7 +47,8 @@ func NewFromEnv(ctx context.Context, config *Config) (Exporter, error) {
 		}
 		logger := logging.FromContext(ctx).Named("stackdriver")
 		sde, err := stackdriver.NewExporter(stackdriver.Options{
-			ProjectID: config.StackdriverConfig.ProjectID,
+			ProjectID:         config.StackdriverConfig.ProjectID,
+			ReportingInterval: time.Minute, // stackdriver export interval minimum
 			OnError: func(err error) {
 				logger.Errorf("stackdriver export error: %v", err)
 			},
