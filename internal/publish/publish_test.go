@@ -429,7 +429,7 @@ func TestPublishWithBypass(t *testing.T) {
 					}
 					if tc.HealthAuthorityKey != nil {
 						if tc.SigningKey == nil {
-							t.Fatal("test cases that have health authority keys registered must provide a siningKey as well")
+							t.Fatal("test cases that have health authority keys registered must provide a signingKey as well")
 						}
 						// Join in the public key.
 						tc.HealthAuthorityKey.PublicKeyPEM = tc.SigningKey.PublicKey
