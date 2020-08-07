@@ -32,7 +32,7 @@ resource "google_service_account_iam_member" "cloudbuild-deploy-key-rotation" {
   ]
 }
 
-resource "google_secret_manager_secret_iam_member" "revision-token-aad" {
+resource "google_secret_manager_secret_iam_member" "key-rotation-token-aad" {
   secret_id = google_secret_manager_secret.revision_token_aad.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.key-rotation.email}"
