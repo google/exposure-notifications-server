@@ -12,7 +12,7 @@ layout: default
 This page outlines how you might estimate the cost of deploying the reference
 server for your application. Cost estimates assume the use of Google Cloud,
 deployment and use within the US, and uses the
-[published pricing rates](https://cloud.google.com/pricing) to arrivea at the
+[published pricing rates](https://cloud.google.com/pricing) to arrive at the
 estimation. This could be repeated for other regions as well as for other
 cloud providers. Please note that for much of this simplifications have been
 made. Due to a majority of the expected costs to be incurred due to storage
@@ -84,7 +84,7 @@ Depending on the needed scale of your deployment this could require a different
 configuration.
 
 For instance, while the default is `db-custom-8-30720`, the documentation
-mentions that a `db-custom-1-3840` instance is likely sufficeint for local
+mentions that a `db-custom-1-3840` instance is likely sufficient for local
 development work. This instance should cost around an eighth of the amount.
 
 **Project Monthly Cost: $1000 - $1250**
