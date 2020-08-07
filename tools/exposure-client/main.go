@@ -90,7 +90,7 @@ func realMain() error {
 }
 
 func sendRequest(data io.Reader) ([]byte, error) {
-	url := strings.ReplaceAll(*host+"/v1/publish", "//", "/")
+	url := strings.ReplaceAll(*host+"/v1/publish", "//v1", "/v1")
 	req, err := http.NewRequest("POST", url, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build request: %w", err)

@@ -46,7 +46,9 @@ func TestRotateKeys(t *testing.T) {
 	key, aad, wrapped := testMakeKey(ctx, t, kms, keyID)
 
 	neg20Days, _ := time.ParseDuration("-480h")
+	neg40Days, _ := time.ParseDuration("-960h")
 	staleTime := time.Now().Add(neg20Days)
+	reallyStaleTime := time.Now().Add(neg40Days)
 	notStaleTime := time.Now()
 
 	testCases := []struct {
@@ -76,9 +78,9 @@ func TestRotateKeys(t *testing.T) {
 			},
 		},
 		{
-			name:             "one stale",
-			expectKeyCount:   1,
-			expectNotAllowed: []int64{111},
+			name:           "dont delete old effective",
+			expectKeyCount: 2, // should generate a new one
+			expectAllowed:  []int64{111},
 			keys: []revisiondb.RevisionKey{
 				{
 					KeyID:         111,
@@ -91,10 +93,9 @@ func TestRotateKeys(t *testing.T) {
 			},
 		},
 		{
-			name:             "one fresh, one stale",
-			expectKeyCount:   1,
-			expectAllowed:    []int64{121},
-			expectNotAllowed: []int64{122},
+			name:           "one fresh, one stale",
+			expectKeyCount: 2,
+			expectAllowed:  []int64{121, 122},
 			keys: []revisiondb.RevisionKey{
 				{
 					KeyID:         121,
@@ -107,6 +108,38 @@ func TestRotateKeys(t *testing.T) {
 				{
 					KeyID:         122,
 					CreatedAt:     staleTime,
+					Allowed:       true,
+					AAD:           aad,
+					WrappedCipher: wrapped,
+					DEK:           key,
+				},
+			},
+		},
+		{
+			name:             "very old retired",
+			expectKeyCount:   2,
+			expectAllowed:    []int64{131, 132},
+			expectNotAllowed: []int64{133},
+			keys: []revisiondb.RevisionKey{
+				{
+					KeyID:         131,
+					CreatedAt:     notStaleTime,
+					Allowed:       true,
+					AAD:           aad,
+					WrappedCipher: wrapped,
+					DEK:           key,
+				},
+				{
+					KeyID:         132,
+					CreatedAt:     staleTime,
+					Allowed:       true,
+					AAD:           aad,
+					WrappedCipher: wrapped,
+					DEK:           key,
+				},
+				{
+					KeyID:         133,
+					CreatedAt:     reallyStaleTime,
 					Allowed:       true,
 					AAD:           aad,
 					WrappedCipher: wrapped,
