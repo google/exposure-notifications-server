@@ -45,6 +45,12 @@ resource "google_secret_manager_secret_iam_member" "key-rotation-db" {
   member    = "serviceAccount:${google_service_account.key-rotation.email}"
 }
 
+resource "google_kms_key_ring_iam_member" "key-rotation-signerverifier" {
+  key_ring_id = google_kms_key_ring.key-rotation-signing.self_link
+  role        = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member      = "serviceAccount:${google_service_account.key-rotation.email}"
+}
+
 resource "google_project_iam_member" "key-rotation-observability" {
   for_each = toset([
     "roles/cloudtrace.agent",
@@ -81,6 +87,10 @@ resource "google_cloud_run_service" "key-rotation" {
         dynamic "env" {
           for_each = merge(
             local.common_cloudrun_env_vars,
+            {
+              "REVISION_TOKEN_KEY_ID" = google_kms_crypto_key.token-key.self_link
+              "REVISION_TOKEN_AAD"    = "secret://${google_secret_manager_secret_version.revision_token_aad_secret_version.id}"
+            },
 
             // This MUST come last to allow overrides!
             lookup(var.service_environment, "key_rotation", {}),
