@@ -15,11 +15,12 @@
 package observability
 
 import (
+	"encoding/base64"
+
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource/gcp"
+	"github.com/google/uuid"
 )
-
-const cloudRunResource = "cloud_run_revision"
 
 var _ monitoredresource.Interface = (*StackdriverMonitoredResoruce)(nil)
 
@@ -29,25 +30,27 @@ type StackdriverMonitoredResoruce struct {
 }
 
 func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Interface {
-	detected := gcp.Autodetect()
-	resource := "exposurenotifications"
+	resource := "generic_task"
 	labels := make(map[string]string)
+
+	// On GCP we can fill in some of the information.
+	detected := gcp.Autodetect()
 	if detected != nil {
-		resource, labels = detected.MonitoredResource()
+		_, labels = detected.MonitoredResource()
 	}
 
 	if _, ok := labels["project_id"]; !ok {
 		labels["project_id"] = c.ProjectID
 	}
-	if _, ok := labels["revision_name"]; !ok && c.Revision != "" {
-		labels["revision_name"] = c.Revision
+	if _, ok := labels["job"]; !ok && c.Service != "" {
+		labels["job"] = c.Service
 	}
-	if _, ok := labels["service_name"]; !ok && c.Service != "" {
-		labels["service_name"] = c.Service
-	}
-
-	if c.CloudRunResourceType {
-		resource = cloudRunResource
+	// Transform "instance_id" to "task_id" or generate task_id
+	if iid, ok := labels["instance_id"]; ok {
+		labels["task_id"] = iid
+		delete(labels, "instance_id")
+	} else {
+		labels["task_id"] = base64.StdEncoding.EncodeToString(uuid.NodeID())
 	}
 
 	return &StackdriverMonitoredResoruce{

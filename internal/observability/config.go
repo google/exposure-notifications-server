@@ -47,8 +47,6 @@ type StackdriverConfig struct {
 	// If present, can be used to configured the Stackdriver MonitoredResource correctly.
 	Service  string `env:"K_SERVICE"`
 	Revision string `env:"K_REVISION"`
-
-	CloudRunResourceType bool `env:"STACKDRIVER_CLOUD_RUN_RESOURCE, default=true"`
 }
 
 // OCAgentConfig holds the configuration options for the default opencensus exporter
