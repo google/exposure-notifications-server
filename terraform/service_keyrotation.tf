@@ -87,6 +87,10 @@ resource "google_cloud_run_service" "key-rotation" {
         dynamic "env" {
           for_each = merge(
             local.common_cloudrun_env_vars,
+            {
+              "REVISION_TOKEN_KEY_ID" = google_kms_crypto_key.token-key.self_link
+              "REVISION_TOKEN_AAD"    = "secret://${google_secret_manager_secret_version.revision_token_aad_secret_version.id}"
+            },
 
             // This MUST come last to allow overrides!
             lookup(var.service_environment, "key_rotation", {}),
