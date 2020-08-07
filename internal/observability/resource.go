@@ -42,9 +42,13 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 
 	if _, ok := providedLabels["project_id"]; !ok {
 		labels["project_id"] = c.ProjectID
+	} else {
+		labels["project_id"] = providedLabels["project_id"]
 	}
 	if c.Service != "" {
 		labels["job"] = c.Service
+	} else {
+		labels["job"] = "unknown"
 	}
 	// Transform "instance_id" to "task_id" or generate task_id
 	if iid, ok := providedLabels["instance_id"]; ok {
@@ -52,6 +56,14 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 	} else {
 		labels["task_id"] = base64.StdEncoding.EncodeToString(uuid.NodeID())
 	}
+	if zone, ok := providedLabels["zone"]; ok {
+		labels["location"] = zone
+	} else if loc, ok := providedLabels["location"]; ok {
+		labels["location"] = loc
+	} else {
+		labels["location"] = "unknown"
+	}
+	labels["namespace"] = c.Namespace
 
 	return &StackdriverMonitoredResoruce{
 		resource: resource,
