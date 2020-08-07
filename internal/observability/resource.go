@@ -35,20 +35,20 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 
 	// On GCP we can fill in some of the information.
 	detected := gcp.Autodetect()
+	providedLabels := make(map[string]string)
 	if detected != nil {
-		_, labels = detected.MonitoredResource()
+		_, providedLabels = detected.MonitoredResource()
 	}
 
-	if _, ok := labels["project_id"]; !ok {
+	if _, ok := providedLabels["project_id"]; !ok {
 		labels["project_id"] = c.ProjectID
 	}
-	if _, ok := labels["job"]; !ok && c.Service != "" {
+	if c.Service != "" {
 		labels["job"] = c.Service
 	}
 	// Transform "instance_id" to "task_id" or generate task_id
-	if iid, ok := labels["instance_id"]; ok {
+	if iid, ok := providedLabels["instance_id"]; ok {
 		labels["task_id"] = iid
-		delete(labels, "instance_id")
 	} else {
 		labels["task_id"] = base64.StdEncoding.EncodeToString(uuid.NodeID())
 	}
