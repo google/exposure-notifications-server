@@ -64,9 +64,14 @@ func TestIntegration(t *testing.T) {
 	verification, salt := testutil.IssueJWT(t, jwtCfg)
 	payload.VerificationPayload = verification
 	payload.HMACKey = salt
+	var revisionToken string
 	if resp, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
 	} else {
+		if resp.RevisionToken == "" {
+			t.Fatal("empty revision token")
+		}
+		revisionToken = resp.RevisionToken
 		t.Logf("response: %+v", resp)
 	}
 
@@ -206,6 +211,26 @@ func TestIntegration(t *testing.T) {
 		if got, want := len(exposures), 2; got != want {
 			t.Fatalf("expected %v to be %v", got, want)
 		}
+	}
+
+	// Rotate Keys. Should Genereate a new key.
+	time.Sleep(200 * time.Millisecond) // Ensure DeleteOldKeyPeriod is elapsed
+	if err := client.RotateKeys(); err != nil {
+		t.Fatalf("Error rotating keys: %v", err)
+	}
+
+	// Rotate Keys. Should Delete the original key.
+	time.Sleep(200 * time.Millisecond) // Ensure DeleteOldKeyPeriod is elapsed
+	if err := client.RotateKeys(); err != nil {
+		t.Fatalf("Error rotating keys: %v", err)
+	}
+
+	// Re-publish with the original token. This key is now not-allowed.
+	payload.RevisionToken = revisionToken
+	if _, err := client.PublishKeys(payload); err == nil {
+		t.Fatal(err)
+	} else if !strings.Contains(err.Error(), verifyapi.ErrorInvalidRevisionToken) {
+		t.Fatal(err)
 	}
 
 	// Publish some new keys so we can generate a new batch

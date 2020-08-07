@@ -53,7 +53,7 @@ type Exposure struct {
 	LocalProvenance  bool
 	FederationSyncID int64
 
-	// These fileds are nullable to maintain backwards compatibility with
+	// These fields are nullable to maintain backwards compatibility with
 	// older versions that predate their existence.
 	HealthAuthorityID     *int64
 	ReportType            string

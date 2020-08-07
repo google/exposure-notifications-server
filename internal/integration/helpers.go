@@ -30,6 +30,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/federationin"
+	"github.com/google/exposure-notifications-server/internal/keyrotation"
 	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/revision"
 	revdb "github.com/google/exposure-notifications-server/internal/revision/database"
@@ -250,13 +251,30 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWT
 	// Federation out
 	// TODO: this is a grpc listener and requires a lot of setup.
 
+	revConfig := revision.Config{
+		KeyID:     "tokenkey",
+		AAD:       []byte{1, 2, 3},
+		MinLength: 28,
+	}
+
+	// Key Rotation
+	keyRotationConfig := &keyrotation.Config{
+		RevisionToken: revConfig,
+
+		// Very accellerated schedule for testing.
+		NewKeyPeriod:       100 * time.Millisecond,
+		DeleteOldKeyPeriod: 100 * time.Millisecond,
+	}
+
+	rotationServer, err := keyrotation.NewServer(keyRotationConfig, env)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	mux.Handle("/key-rotation/", http.StripPrefix("/key-rotation", rotationServer.Routes(ctx)))
+
 	// Publish
 	publishConfig := &publish.Config{
-		RevisionToken: revision.Config{
-			KeyID:     "tokenkey",
-			AAD:       []byte{1, 2, 3},
-			MinLength: 28,
-		},
+		RevisionToken:            revConfig,
 		MaxKeysOnPublish:         15,
 		MaxSameStartIntervalKeys: 2,
 		MaxIntervalAge:           360 * time.Hour,

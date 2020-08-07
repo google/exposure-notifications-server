@@ -62,6 +62,7 @@ func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 
 func (s *Server) doRotate(ctx context.Context) error {
 	metrics := s.env.MetricsExporter(ctx)
+	logger := logging.FromContext(ctx).Named("keyrotation.doRotate")
 
 	effectiveID, allowed, err := s.revisionDB.GetAllowedRevisionKeys(ctx)
 	if err != nil {
@@ -77,6 +78,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 		}
 		effectiveID = key.KeyID
 		previousCreated = key.CreatedAt
+		logger.Info("Created new revision key.")
 		metrics.WriteInt("revision-keys-created", true, 1)
 	} else {
 		previousCreated = allowed[0].CreatedAt
@@ -92,8 +94,10 @@ func (s *Server) doRotate(ctx context.Context) error {
 		}
 		previousCreated = key.CreatedAt
 	}
-
-	metrics.WriteInt("revision-keys-deleted", true, deleted)
+	if deleted > 0 {
+		logger.Infof("Deleted %d old revision keys.", deleted)
+		metrics.WriteInt("revision-keys-deleted", true, deleted)
+	}
 	return result
 }
 
