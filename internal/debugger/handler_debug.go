@@ -47,6 +47,7 @@ func (s *Server) handleDebug(ctx context.Context) http.HandlerFunc {
 		"federationin",
 		"federationout",
 		"generate",
+		"key-rotation",
 	}
 
 	type response struct {
