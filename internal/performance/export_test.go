@@ -30,6 +30,7 @@ import (
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	testutil "github.com/google/exposure-notifications-server/internal/utils"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/util"
@@ -60,14 +61,16 @@ func TestExport(t *testing.T) {
 	makoQuickstore, cancel := setup(t)
 	defer cancel(context.Background())
 
-	env, client, db := integration.NewTestServer(t, exportPeriod)
+	env, client, db, jwtCfg := integration.NewTestServer(t, exportPeriod)
+	keys := util.GenerateExposureKeys(keysPerPublish, -1, false)
 	payload := &verifyapi.Publish{
-		Keys:              util.GenerateExposureKeys(keysPerPublish, -1, false),
+		Keys:              keys,
 		HealthAuthorityID: "com.example.app",
-
-		// TODO: hook up verification
-		VerificationPayload: "TODO: ",
 	}
+	jwtCfg.ExposureKeys = keys
+	verification, salt := testutil.IssueJWT(t, jwtCfg)
+	payload.VerificationPayload = verification
+	payload.HMACKey = salt
 	if _, err := client.PublishKeys(payload); err != nil {
 		t.Fatal(err)
 	}
