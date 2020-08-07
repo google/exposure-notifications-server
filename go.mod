@@ -28,6 +28,7 @@ require (
 	github.com/golang/protobuf v1.4.2
 	github.com/google/go-cmp v0.5.0
 	github.com/google/mako v0.2.0
+	github.com/google/uuid v1.0.0
 	github.com/hashicorp/go-hclog v0.13.0
 	github.com/hashicorp/go-memdb v1.2.1 // indirect
 	github.com/hashicorp/go-msgpack v1.1.5 // indirect

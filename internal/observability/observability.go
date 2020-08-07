@@ -46,6 +46,10 @@ func NewFromEnv(ctx context.Context, config *Config) (Exporter, error) {
 			return nil, fmt.Errorf("configuration PROJECT_ID is required to use the Stackdriver observability exporter")
 		}
 		logger := logging.FromContext(ctx).Named("stackdriver")
+
+		r, l := NewStackdriverMonitoredResoruce(&config.StackdriverConfig).MonitoredResource()
+		logger.Errorf("monitored resource: %v :: %+v", r, l)
+
 		sde, err := stackdriver.NewExporter(stackdriver.Options{
 			ProjectID:         config.StackdriverConfig.ProjectID,
 			ReportingInterval: time.Minute, // stackdriver export interval minimum
