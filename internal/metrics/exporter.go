@@ -18,7 +18,7 @@ package metrics
 import (
 	"context"
 
-	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"go.uber.org/zap"
 )
 

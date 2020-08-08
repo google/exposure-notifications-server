@@ -26,7 +26,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 
-	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
 // handleCreateBatches is a handler to iterate the rows of ExportConfig and

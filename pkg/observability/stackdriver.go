@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
-	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 )
