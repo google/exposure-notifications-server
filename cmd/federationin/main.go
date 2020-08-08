@@ -31,7 +31,9 @@ import (
 
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
-	logger := logging.FromContext(ctx)
+
+	logger := logging.NewLogger(true)
+	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)
 	done()

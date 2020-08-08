@@ -72,7 +72,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 
 	aadBytes := config.RevisionToken.AAD
 	if len(aadBytes) == 0 {
-		return nil, fmt.Errorf("must provide ADD for revision token encryption in REVISION_TOKEN_AAD env variable: %w", err)
+		return nil, fmt.Errorf("must provide ADD for revision token encryption in REVISION_TOKEN_AAD env variable")
 	}
 	revisionKeyConfig := revisiondb.KMSConfig{
 		WrapperKeyID: config.RevisionToken.KeyID,
