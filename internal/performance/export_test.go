@@ -67,8 +67,8 @@ func TestExport(t *testing.T) {
 		Keys:              keys,
 		HealthAuthorityID: "com.example.app",
 	}
-	jwtCfg.ExposureKeys = keys
-	verification, salt := testutil.IssueJWT(t, jwtCfg)
+	jwtConfig := testutil.BuildJWTConfig(t, db, keys)
+	verification, salt := testutil.IssueJWT(t, *jwtConfig)
 	payload.VerificationPayload = verification
 	payload.HMACKey = salt
 	if _, err := client.PublishKeys(payload); err != nil {
