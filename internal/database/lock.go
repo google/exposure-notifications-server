@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	pgx "github.com/jackc/pgx/v4"
 )
 

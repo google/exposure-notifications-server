@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
-	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
 // ServeMetricsIfPrometheus serves the opencensus metrics at /metrics when OBSERVABILITY_EXPORTER set to "prometheus"

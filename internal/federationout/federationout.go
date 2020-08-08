@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
-	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationout/database"

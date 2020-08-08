@@ -26,9 +26,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 
-	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
 const (

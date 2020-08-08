@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
 func TestNewLogger(t *testing.T) {
