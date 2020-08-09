@@ -74,7 +74,8 @@ Minimum required fields, followed by a JSON example:
   * `ExposureKey` object properties
     * `key` (**REQUIRED**)
       * Type: String
-      * Description: Base64 encoded temporary exposure key from the device
+      * Description: Base64 encoded temporary exposure key from the device.
+      The server MUST validate that the length of the decoded key is exactly 16 bytes.
     * `rollingStartNumber` (**REQUIRED**)
       * Type: integer (uint32)
       * Description: Intervals are 10 minute increments since the UTC epoch
@@ -86,23 +87,20 @@ Minimum required fields, followed by a JSON example:
       * Description: Number of intervals that the key is valid for
     * `transmissionRisk` (**REQUIRED**)
       * Type: Integer
-      * **The values and meanings of this enum are not finalized at this time.** //TODO(llatif): check status
       * Constraints:
         * Valid values range from 0-8
-      * Description: //TODO(llatif): Add description
-* `regions` (**REQUIRED**)
-  [ISO 3166 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) format.
-  * Type: Array of string
-  * Description: 2 letter country to identify the region(s) a key is valid for.
-* `appPackageName` (**REQUIRED**)
+      * Description: recommend practice is to use the diagnosis verification
+        protocol with a 'reportType' provided in the verification certificate.
+        The server can then backfill transmission risk correctly.
+* `healthAuthorityID` (**REQUIRED**)
   * Type: string (lowercase)
-  * Description: Name of the application being used to send the request. This
-    is used to determine what app is uploading keys and if it is an allowed
-    region for that app. (BundleID on iOS)
+  * Description: Name of the health authority for whom these keys are being
+    shared.
 * `verificationPayload` (**REQUIRED FOR VERIFICATION PROTOCOL**)
   * Type: String
   * Description: verificationPayload is a signed certificate from a public
-    health authority, indicating a confirmed diagnosis
+    health authority, indicating a confirmed diagnosis. Use of the verification
+    protocol is HIGHLY recommended.
 * `hmackey` (**REQUIRED FOR VERIFICATION PROTOCOL**)
   * Type: String
   * Description: The device generated, random key that was used to create the
@@ -110,6 +108,18 @@ Minimum required fields, followed by a JSON example:
   data to calculate the HMAC over is defined as part of the
   [verification protocol](design/verification_protocol.md). This field is base64
   encoded.
+* `symptomOnsetInterval`
+  * Type: int (int32)
+  * Description:  An interval number that aligns with the symptom onset date.
+    * Uses the same interval system as TEK timing.
+    * Will be rounded down to the start of the UTC day provided.
+    * Will be used to calculate the days +/- symptom onset for provided keys.
+    * MUST be no more than 14 days ago.
+    * Does not have to be within range of any of the provided keys (i.e. future key uploads)
+* `revisionToken`
+  * Type: string
+  * Description: An opaque string that must be passed intact on additional publish
+     requests from the same device, where the same TEKs may be published again.
 * `padding`
   * Type: String
   * Constraints:
@@ -122,31 +132,44 @@ The following snippet is an example POST request payload in JSON format.
 ```json
 {
   "temporaryExposureKeys": [
-    {"key": "base64 KEY1", "rollingStartNumber": 12345, "rollingPeriod": 144, "transmissionRisk": 5},
-    {"key": "base64 KEY2", "rollingStartNumber": 12489, "rollingPeriod": 10, "transmissionRisk": 6},
-    {"key": "base64 KEYN", "rollingStartNumber": 12499, "rollingPeriod": 100, "transmissionRisk": 7}],
-  "regions": ["US", "CA", "MX"],
-  "appPackageName": "com.foo.app",
+    {"key": "base64 KEY1 (16 bytes)", "rollingStartNumber": 12345, "rollingPeriod": 144, "transmissionRisk": 5},
+    {"key": "base64 KEY2 (16 bytes)", "rollingStartNumber": 12489, "rollingPeriod": 10, "transmissionRisk": 6},
+    {"key": "base64 KEYN (16 bytes)", "rollingStartNumber": 12499, "rollingPeriod": 100, "transmissionRisk": 7}],
+  "healthAuthorityID": "gov.state.doh",
   "verificationPayload": "signed JWT issued by public health authority",
   "hmackey": "base64 encoded HMAC key used in preparing the data for the verification server",
+  "symptomOnsetInterval": 12345,
+  "revisionToken": "empty or result of previous publish"
   "padding": "random string data..."
+}
+```
+
+The publish request should respond with a structure described in [exposure_types.go](https://github.com/google/exposure-notifications-server/blob/main/pkg/api/v1alpha1/exposure_types.go).
+
+The revision token is a critical piece of ensuring that revised keys that ensures that a different device cannot revise a previously uploaded key. We have a reference implementation in the [revision package](https://github.com/google/exposure-notifications-server/blob/main/internal/revision/revision.go).
+
+```json
+{
+  "revisionToken": "oaque token that needs to be sent on future publish.",
+  "insertedExposures": 14,
+  "error": "omitted, or error message",
+  "code": "omitted or standard error code",
+  "padding": "padding to normalize response size"
 }
 ```
 
 ### Requirements and recommendations
 
-* Required: An allow-list check for `appPackageName` and the regions in
-which the app is allowed to report on. Individual applications should also be
-configured for one or more public health authorities they at they accept
-diagnosis verifications from.
-
-* Recommended: To discourage abuse, only failures in processing should
-return retry-able error codes to clients. For example, invalid device
-attestations should return success, with the data only saved for abuse
-analysis.
-
-* Appropriate denial of service protection should be put in place.
-
+* Required 
+   * An allow-list check for `healthAuthorityID` that specifies the 
+  verification certificate signing keys allowed and the region information
+  for those keys.
+  * Validation of all uploaded data, in particular that TEK data is 16 bytes in length
+    and that the interval number is valid (>=14days ago not in the future), the 
+    interval count is valid (1-144) and that the rest of the metadata that will
+    appear in an export file is valid.
+* Recommended
+  * Appropriate denial of service protection should be put in place.
 * Recommended: Our overall security and privacy recommendation is to, from
   the mobile application, periodically send chaff requests to the sever so that
   ALL users appear to be reporting themselves as infected multiple times per
