@@ -50,7 +50,9 @@ func main() {
 	}
 
 	// Do some basic data validation.
-	checkExportFile(keyExport)
+	if !*quiet {
+		checkExportFile(keyExport)
+	}
 
 	prettyJSON, err := json.MarshalIndent(keyExport, "", "  ")
 	if err != nil {
