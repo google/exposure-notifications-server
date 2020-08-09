@@ -14,9 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+DEV=0
+
+for arg in "$@"
+do
+    case $arg in
+        -d|--dev)
+        DEV=1
+        shift # Remove --dev from processing
+        ;;
+    esac
+done
+
 set -eEuo pipefail
 
 echo "🌳 Set up environment variables"
+echo "# Should Dev: $DEV"
 # Docker image build
 # instruction(https://github.com/google/mako/blob/v0.2.0/docs/GUIDE.md#quickstore-microservice-as-a-docker-image)
 # for mako microservice is currently broken according to mako maintainers. This
@@ -45,4 +58,8 @@ docker \
   &
 
 echo "🧪 Test"
-make performance-test
+if [ $DEV == 1 ]; then
+   make performance-dev-test
+else
+   make performance-test
+fi

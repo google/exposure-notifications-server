@@ -36,7 +36,8 @@ import (
 )
 
 const (
-	benchmarkConfigFile = "export_test_benchmark.config"
+	benchmarkProdConfigFile = "export_test_benchmark.config"
+	benchmarkDevConfigFile  = "export_test_benchmark.dev.config"
 )
 
 type config struct {
@@ -44,13 +45,21 @@ type config struct {
 }
 
 // setup sets up client used for performance test
-func setup(tb testing.TB) (*quickstore.Quickstore, func(context.Context)) {
-	ctx := context.Background()
+func setup(tb testing.TB, dev bool) (*quickstore.Quickstore, func(context.Context)) {
+	var (
+		ctx  = context.Background()
+		data []byte
+		err  error
+	)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	benchmarkConfig := &mpb.BenchmarkInfo{}
-	data, err := ioutil.ReadFile(benchmarkConfigFile)
+	if dev {
+		data, err = ioutil.ReadFile(benchmarkDevConfigFile)
+	} else {
+		data, err = ioutil.ReadFile(benchmarkProdConfigFile)
+	}
 	if err != nil {
 		tb.Fatal(err)
 	}

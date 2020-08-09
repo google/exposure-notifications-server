@@ -19,6 +19,7 @@ package performance
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"path"
 	"strings"
@@ -38,27 +39,28 @@ import (
 	"github.com/sethvargo/go-retry"
 )
 
+var makoDev = flag.Bool("dev", false, "Use the development config for mako")
+var numPublishes = flag.Int("publishes", 100000, "Number of Publishes to generate keys for in 24hr")
+
 func TestExport(t *testing.T) {
 	const (
 		keysPerPublish = 14
-		// Publishes in 24 hours
-		numPublishes = 100000
 		// Consider the above publishes are evenly distributed in 24 hours, and
 		// period is 10 minutes
-		exportPeriod  = 10 * time.Minute
-		totalBatches  = 24 * 6
-		roughPerBatch = numPublishes/totalBatches + 1
+		exportPeriod = 10 * time.Minute
+		totalBatches = 24 * 6
 	)
 	var (
 		ctx      = context.Background()
 		criteria = publishdb.IterateExposuresCriteria{
 			OnlyLocalProvenance: false,
 		}
-		want           = keysPerPublish * numPublishes
+		want           = keysPerPublish * *numPublishes
 		batchStartTime = time.Now().Add(time.Duration(-totalBatches-10) * exportPeriod)
+		roughPerBatch  = *numPublishes/totalBatches + 1
 	)
 
-	makoQuickstore, cancel := setup(t)
+	makoQuickstore, cancel := setup(t, *makoDev)
 	defer cancel(context.Background())
 
 	env, client, db, jwtCfg := integration.NewTestServer(t, exportPeriod)
@@ -127,7 +129,7 @@ func TestExport(t *testing.T) {
 	}
 
 	// Publish keys based on first batch of published keys
-	for i := 0; i < numPublishes; i++ {
+	for i := 0; i < *numPublishes; i++ {
 		if r := i % roughPerBatch; r == 0 { // increace start time after each batch
 			batchStartTime = batchStartTime.Add(exportPeriod)
 		}
