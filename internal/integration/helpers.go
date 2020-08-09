@@ -44,7 +44,6 @@ import (
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
-	testutil "github.com/google/exposure-notifications-server/internal/utils"
 )
 
 var (
@@ -107,10 +106,7 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client) {
 	tb.Helper()
 
-	var (
-		ctx    = context.Background()
-		jwtCfg = testutil.JWTConfig{}
-	)
+	ctx := context.Background()
 
 	aa, err := authorizedapp.NewMemoryProvider(ctx, nil)
 	if err != nil {
