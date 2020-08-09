@@ -129,8 +129,13 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	groups := []*group{}
 	nextGroup := group{}
 	totalNewKeys, totalRevisedKeys := 0, 0
+	droppedKeys := 0
 
 	_, err := publishdatabase.New(db).IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
+		if len(exp.ExposureKey) != verifyapi.KeyLength {
+			droppedKeys++
+			return nil
+		}
 		nextGroup.exposures = append(nextGroup.exposures, exp)
 		totalNewKeys++
 		if nextGroup.Length() == s.config.MaxRecords {
@@ -146,6 +151,10 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	// go get the revised keys.
 	criteria.OnlyRevisedKeys = true
 	_, err = publishdatabase.New(db).IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
+		if len(exp.ExposureKey) != verifyapi.KeyLength {
+			droppedKeys++
+			return nil
+		}
 		nextGroup.revised = append(nextGroup.revised, exp)
 		totalRevisedKeys++
 		if nextGroup.Length() == s.config.MaxRecords {
@@ -156,6 +165,11 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	})
 	if err != nil {
 		return fmt.Errorf("iterating revised exposures: %w", err)
+	}
+
+	if droppedKeys > 0 {
+		logger.Errorf("Export found keys of invalid length, %v keys were dropped", droppedKeys)
+		s.env.MetricsExporter(ctx).WriteInt("export-bad-key-length", false, droppedKeys)
 	}
 
 	// If the last group has anything, add it to the list.
