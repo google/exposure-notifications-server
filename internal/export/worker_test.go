@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/util"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -60,7 +61,6 @@ func TestEnsureMinExposures(t *testing.T) {
 	// Insert a few exposures - that will be used to base the interval information off of.
 	exposures := []*model.Exposure{
 		{
-			ExposureKey:           []byte{1},
 			TransmissionRisk:      verifyapi.TransmissionRiskConfirmedStandard,
 			IntervalNumber:        123456,
 			IntervalCount:         144,
@@ -68,7 +68,6 @@ func TestEnsureMinExposures(t *testing.T) {
 			ReportType:            verifyapi.ReportTypeConfirmed,
 		},
 		{
-			ExposureKey:           []byte{2},
 			TransmissionRisk:      verifyapi.TransmissionRiskConfirmedStandard,
 			IntervalNumber:        123456 + 144,
 			IntervalCount:         144,
@@ -76,13 +75,20 @@ func TestEnsureMinExposures(t *testing.T) {
 			ReportType:            verifyapi.ReportTypeConfirmed,
 		},
 		{
-			ExposureKey:           []byte{3},
 			TransmissionRisk:      verifyapi.TransmissionRiskConfirmedStandard,
 			IntervalNumber:        123456 - 144,
 			IntervalCount:         144,
 			DaysSinceSymptomOnset: proto.Int32(-1),
 			ReportType:            verifyapi.ReportTypeConfirmed,
 		},
+	}
+
+	for _, k := range exposures {
+		b64, err := util.GenerateKey()
+		if err != nil {
+			t.Fatalf("unable to generate exposure keys: %v", err)
+		}
+		k.ExposureKey = util.DecodeKey(b64)
 	}
 
 	numKeys := 100
