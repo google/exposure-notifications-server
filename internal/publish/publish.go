@@ -26,7 +26,6 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
-	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
@@ -37,6 +36,7 @@ import (
 	verifydb "github.com/google/exposure-notifications-server/internal/verification/database"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/mikehelmick/go-chaff"
 )
 
@@ -72,7 +72,7 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 
 	aadBytes := config.RevisionToken.AAD
 	if len(aadBytes) == 0 {
-		return nil, fmt.Errorf("must provide ADD for revision token encryption in REVISION_TOKEN_AAD env variable: %w", err)
+		return nil, fmt.Errorf("must provide ADD for revision token encryption in REVISION_TOKEN_AAD env variable")
 	}
 	revisionKeyConfig := revisiondb.KMSConfig{
 		WrapperKeyID: config.RevisionToken.KeyID,

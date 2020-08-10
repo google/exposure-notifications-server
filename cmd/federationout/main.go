@@ -25,9 +25,9 @@ import (
 	"go.opencensus.io/plugin/ocgrpc"
 
 	"github.com/google/exposure-notifications-server/internal/federationout"
-	"github.com/google/exposure-notifications-server/internal/logging"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	_ "github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/sethvargo/go-signalcontext"
@@ -35,7 +35,9 @@ import (
 
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
-	logger := logging.FromContext(ctx)
+
+	logger := logging.NewLogger(true)
+	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)
 	done()

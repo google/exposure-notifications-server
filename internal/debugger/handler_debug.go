@@ -27,7 +27,7 @@ import (
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
-	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/kelseyhightower/run"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/iam/v1"

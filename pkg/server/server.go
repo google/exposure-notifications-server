@@ -28,7 +28,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/logging"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"go.opencensus.io/plugin/ochttp"
 	"google.golang.org/grpc"
 )
