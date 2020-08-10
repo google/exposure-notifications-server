@@ -47,7 +47,7 @@ type Config struct {
 	MaxIntervalAge               time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
 	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=21"`
 	CreatedAtTruncateWindow      time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
-	DefaultRegion                string        `env:"DEFAULT_REGOIN, default=US"`
+	DefaultRegion                string        `env:"DEFAULT_REGION, default=US"`
 	ChanceOfKeyRevision          int           `env:"CHANCE_OF_KEY_REVISION, default=30"` // 0-100 are valid values.
 	KeyRevisionDelay             time.Duration `env:"KEY_REVISION_DELAY, default=2h"`     // key revision will be forward dates this amount.
 }
