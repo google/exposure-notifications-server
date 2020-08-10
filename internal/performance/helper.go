@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -45,7 +46,7 @@ type config struct {
 }
 
 // setup sets up client used for performance test
-func setup(tb testing.TB, dev bool) (*quickstore.Quickstore, func(context.Context)) {
+func setup(tb testing.TB) (*quickstore.Quickstore, func(context.Context)) {
 	var (
 		ctx  = context.Background()
 		data []byte
@@ -55,7 +56,7 @@ func setup(tb testing.TB, dev bool) (*quickstore.Quickstore, func(context.Contex
 	defer cancel()
 
 	benchmarkConfig := &mpb.BenchmarkInfo{}
-	if dev {
+	if os.Getenv("PERFORMANCE_DEV") == "1" {
 		data, err = ioutil.ReadFile(benchmarkDevConfigFile)
 	} else {
 		data, err = ioutil.ReadFile(benchmarkProdConfigFile)

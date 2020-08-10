@@ -66,15 +66,3 @@ performance-test:
 		-tags=performance \
 		./internal/performance
 .PHONY: performance-test
-
-performance-dev-test:
-	@go test \
-		-count=1 \
-		-timeout=30m \
-		-v \
-		-tags=performance \
-		./internal/performance \
-		-args \
-		-dev \
-		-publishes=1000
-.PHONY: performance-dev-test
