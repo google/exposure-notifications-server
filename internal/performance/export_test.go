@@ -20,9 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -37,8 +35,14 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	pgx "github.com/jackc/pgx/v4"
+	"github.com/sethvargo/go-envconfig"
 	"github.com/sethvargo/go-retry"
 )
+
+type testConfig struct {
+	Publishes int  `env:"PUBLISHES,required"`
+	Dev       bool `env:"PERFORMANCE_DEV"`
+}
 
 func TestExport(t *testing.T) {
 	const (
@@ -58,9 +62,13 @@ func TestExport(t *testing.T) {
 		batchStartTime = time.Now().Add(time.Duration(-totalBatches-10) * exportPeriod)
 		roughPerBatch  = numPublishes/totalBatches + 1
 	)
+	c := testConfig{}
+	if err := envconfig.ProcessWith(context.Background(), &c, envconfig.OsLookuper()); err != nil {
+		t.Fatalf("unable to process env: %v", err)
+	}
 
-	if p, err := strconv.Atoi(os.Getenv("PUBLISHES")); err == nil {
-		numPublishes = p
+	if c.Dev && c.Publishes > 0 {
+		numPublishes = c.Publishes
 		want = keysPerPublish * numPublishes
 		roughPerBatch = numPublishes/totalBatches + 1
 	}
