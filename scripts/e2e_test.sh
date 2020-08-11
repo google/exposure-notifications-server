@@ -22,6 +22,7 @@ ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 echo "🌳 Set up environment variables"
 if [[ -z "${PROJECT_ID:-}" ]]; then
   echo "✋ PROJECT_ID must be set"
+  exit 1
 fi
 
 
