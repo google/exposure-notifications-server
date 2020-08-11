@@ -14,6 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if [[ "$1" == "--dev" || "$1" == "-d" ]]; then
+ export PERFORMANCE_DEV=1
+ export PUBLISHES=${2:-1000}
+fi
+
 set -eEuo pipefail
 
 echo "🌳 Set up environment variables"

@@ -36,23 +36,39 @@ import (
 )
 
 const (
-	benchmarkConfigFile = "export_test_benchmark.config"
+	benchmarkProdConfigFile = "export_test_benchmark.config"
+	benchmarkDevConfigFile  = "export_test_benchmark.dev.config"
 )
 
-type config struct {
+type makoConfig struct {
 	MakoPort uint `env:"MAKO_PORT,required"`
+	Dev      bool `env:"PERFORMANCE_DEV"`
 }
 
 // setup sets up client used for performance test
 func setup(tb testing.TB) (*quickstore.Quickstore, func(context.Context)) {
-	ctx := context.Background()
+	var (
+		ctx  = context.Background()
+		data []byte
+		err  error
+	)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
+	c := makoConfig{}
+	if err := envconfig.ProcessWith(context.Background(), &c, envconfig.OsLookuper()); err != nil {
+		tb.Fatalf("unable to process env: %v", err)
+	}
+	microservice := fmt.Sprintf("localhost:%d", c.MakoPort)
+
 	benchmarkConfig := &mpb.BenchmarkInfo{}
-	data, err := ioutil.ReadFile(benchmarkConfigFile)
+	if c.Dev {
+		data, err = ioutil.ReadFile(benchmarkDevConfigFile)
+	} else {
+		data, err = ioutil.ReadFile(benchmarkProdConfigFile)
+	}
 	if err != nil {
-		tb.Fatal(err)
+		tb.Fatalf("unable to read benchmark config: %v", err)
 	}
 	if err = proto.UnmarshalText(string(data), benchmarkConfig); err != nil {
 		tb.Fatal(err)
@@ -60,12 +76,6 @@ func setup(tb testing.TB) (*quickstore.Quickstore, func(context.Context)) {
 	input := &qpb.QuickstoreInput{
 		BenchmarkKey: proto.String(*benchmarkConfig.BenchmarkKey),
 	}
-
-	c := config{}
-	if err := envconfig.ProcessWith(context.Background(), &c, envconfig.OsLookuper()); err != nil {
-		tb.Fatalf("unable to process env: %v", err)
-	}
-	microservice := fmt.Sprintf("localhost:%d", c.MakoPort)
 
 	q, close, err := quickstore.NewAtAddress(ctxWithTimeout, input, microservice)
 	if err != nil {
