@@ -47,17 +47,17 @@ type testConfig struct {
 func TestExport(t *testing.T) {
 	const (
 		keysPerPublish = 14
-		// Consider the above publishes are evenly distributed in 24 hours, and
-		// period is 10 minutes
-		exportPeriod = 10 * time.Minute
-		totalBatches = 24 * 6
+		exportPeriod   = 10 * time.Minute
+		totalBatches   = 24 * 6
 	)
 	var (
 		ctx      = context.Background()
 		criteria = publishdb.IterateExposuresCriteria{
 			OnlyLocalProvenance: false,
 		}
-		numPublishes   = 100000
+		numPublishes = 100000
+		// Consider the above publishes are evenly distributed in 24 hours, and
+		// period is 10 minutes
 		batchStartTime = time.Now().Add(time.Duration(-totalBatches-10) * exportPeriod)
 	)
 	c := testConfig{}
