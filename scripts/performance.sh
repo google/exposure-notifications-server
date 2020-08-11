@@ -16,8 +16,6 @@
 
 if [[ "$1" == "--dev" || "$1" == "-d" ]]; then
  export PERFORMANCE_DEV=1
- pubs = $2
- echo $2
  export PUBLISHES=${2:-1000}
 fi
 

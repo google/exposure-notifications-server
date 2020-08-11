@@ -40,7 +40,7 @@ import (
 )
 
 type testConfig struct {
-	Publishes int  `env:"PUBLISHES,required"`
+	Publishes int  `env:"PUBLISHES,default=1000"`
 	Dev       bool `env:"PERFORMANCE_DEV"`
 }
 
@@ -58,9 +58,7 @@ func TestExport(t *testing.T) {
 			OnlyLocalProvenance: false,
 		}
 		numPublishes   = 100000
-		want           = keysPerPublish * numPublishes
 		batchStartTime = time.Now().Add(time.Duration(-totalBatches-10) * exportPeriod)
-		roughPerBatch  = numPublishes/totalBatches + 1
 	)
 	c := testConfig{}
 	if err := envconfig.ProcessWith(context.Background(), &c, envconfig.OsLookuper()); err != nil {
@@ -69,9 +67,9 @@ func TestExport(t *testing.T) {
 
 	if c.Dev && c.Publishes > 0 {
 		numPublishes = c.Publishes
-		want = keysPerPublish * numPublishes
-		roughPerBatch = numPublishes/totalBatches + 1
 	}
+	want := keysPerPublish * numPublishes
+	roughPerBatch := numPublishes/totalBatches + 1
 
 	makoQuickstore, cancel := setup(t)
 	defer cancel(context.Background())
