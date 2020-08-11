@@ -12,14 +12,35 @@ You need the kubernetes release-notes tool to generate release notes.
 GO111MODULE=on go get k8s.io/release/cmd/release-notes
 ```
 
+You'll also need a GitHub Personal Access Token with permission to read repositories. It should be exported as `GITHUB_TOKEN`.
+
 # Cutting a release
+
+Set a target version:
+
+```shell
+# Note: no "v" prefix here!
+export RELEASE_VERSION="0.3.0"
+```
 
 ## Generate release notes
 
-This is a diff from the last time a release was generated. Adjust the `start-rev` and filename output as appropriate. The start rev should be the last release tag.
+This is a diff from the last time a release was generated.
 
-```
-release-notes --github-org google --github-repo exposure-notifications-server --required-author="" --start-rev=v0.2.0 --end-rev=main --output=/tmp/relnotes-0.3.0.md --repo-path=/tmp/relnotes-repo --dependencies=true  --branch=main
+```shell
+export LAST_RELEASE_TAG="TODO" # e.g. v0.2.2
+
+release-notes \
+  --github-org "google" \
+  --github-repo "exposure-notifications-server" \
+  --branch "main" \
+  --required-author ""  \
+  --start-rev "${LAST_RELEASE_TAG}" \
+  --end-rev "main" \
+  --release-version "${RELEASE_VERSION}" \
+  --output "/tmp/relnotes-${RELEASE_VERSION}.md" \
+  --repo-path "/tmp/relnotes-repo" \
+  --dependencies true
 ```
 
 ## Update the release notes
@@ -29,20 +50,40 @@ database migrations, possible breaking changes, and new environment variables th
 
 ## Create a release branch
 
-Ensure that you are on main, that you are up to date (the commit you want to cut the release at). This requires repo admin privelages.
+Ensure that you are on `main`, that you are up to date (the commit you want to cut the release at). This requires repo admin privelages.
 
+```shell
+git checkout -b release-${RELEASE_VERSION%??}
+git push --set-upstream origin release-${RELEASE_VERSION%??}
 ```
-git branch release-0.3
-git checkout release-0.3
-git push --set-upstream upstream release-0.3
+
+If you are cutting a patch release, the `release-x.y` branch likely already exists:
+
+```shell
+git fetch --all
+git checkout -t origin/release-${RELEASE_VERSION%??}
+# cherry-pick or decide the best way to bring over changes
+git push origin release-${RELEASE_VERSION%??}
 ```
 
-## Draft a new release on github
+## Create and push tag
 
-Visit: https://github.com/google/exposure-notifications-server/releases/new
+Ensure you are on the **release branch** and create a new tag:
 
-Set the tag, including the patch level, i.e. `v0.3.0`
+```shell
+git tag -a -s -m "Release v${RELEASE_VERSION}" v${RELEASE_VERSION}
+git push origin --tags
+```
 
-Copy the release notes into the web form.
+## Draft a new release on GitHub
+
+1. Find the tag you just pushed on the repo:
+
+    - [main](https://github.com/google/exposure-notifications-server/tags)
+    - [verification](https://github.com/google/exposure-notifications-verification-server/tags)
+
+1. Click the "..." and choose "create release".
+
+1. Copy the release notes into the web form.
 
 # Go do the same on exposure-notifications-verification-server
