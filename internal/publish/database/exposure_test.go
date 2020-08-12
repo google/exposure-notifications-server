@@ -16,6 +16,7 @@ package database
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"sort"
@@ -244,6 +245,20 @@ func listExposures(ctx context.Context, db *PublishDB, c IterateExposuresCriteri
 	return exps, nil
 }
 
+func testRandomTEK(tb testing.TB) []byte {
+	tb.Helper()
+
+	b := make([]byte, 16)
+	n, err := rand.Read(b)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	if n < 16 {
+		tb.Fatalf("expected %v to be %v", n, 16)
+	}
+	return b
+}
+
 func TestReviseExposures(t *testing.T) {
 	t.Parallel()
 
@@ -254,8 +269,7 @@ func TestReviseExposures(t *testing.T) {
 	createdAt := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Hour)
 	revisedAt := time.Now().UTC().Truncate(time.Hour)
 
-	existingTEK := []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4}
-
+	existingTEK := testRandomTEK(t)
 	existingExp := &model.Exposure{
 		ExposureKey:      existingTEK,
 		TransmissionRisk: verifyapi.TransmissionRiskClinical,
@@ -272,6 +286,88 @@ func TestReviseExposures(t *testing.T) {
 		t.Fatalf("error inserting exposures: %v", err)
 	} else if n != 1 {
 		t.Fatalf("wrong number of changed exposures, want: 1, got: %v", n)
+	}
+
+	// Attempt to revise without a revision token - this should fail.
+	{
+		revisedExp := &model.Exposure{}
+		*revisedExp = *existingExp
+		revisedExp.TransmissionRisk = verifyapi.TransmissionRiskConfirmedStandard
+		revisedExp.CreatedAt = revisedAt
+		revisedExp.ReportType = verifyapi.ReportTypeConfirmed
+
+		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, nil, true); !errors.Is(err, ErrNoRevisionToken) {
+			t.Fatalf("expected %#v to be %#v", err, ErrNoRevisionToken)
+		}
+	}
+
+	// Attempt to revise with a revision token that doesn't include the TEK - this
+	// should fail.
+	{
+		revisedExp := &model.Exposure{}
+		*revisedExp = *existingExp
+		revisedExp.TransmissionRisk = verifyapi.TransmissionRiskConfirmedStandard
+		revisedExp.CreatedAt = revisedAt
+		revisedExp.ReportType = verifyapi.ReportTypeConfirmed
+
+		token := &pb.RevisionTokenData{
+			RevisableKeys: []*pb.RevisableKey{
+				{
+					TemporaryExposureKey: testRandomTEK(t), // TEK mismatch
+					IntervalNumber:       100,
+					IntervalCount:        144,
+				},
+			},
+		}
+
+		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true); !errors.Is(err, ErrExistingKeyNotInToken) {
+			t.Fatalf("expected %#v to be %#v", err, ErrExistingKeyNotInToken)
+		}
+	}
+
+	// Attempt to revise with a revision token that has the wrong metadata - this
+	// should fail.
+	{
+		revisedExp := &model.Exposure{}
+		*revisedExp = *existingExp
+		revisedExp.TransmissionRisk = verifyapi.TransmissionRiskConfirmedStandard
+		revisedExp.CreatedAt = revisedAt
+		revisedExp.ReportType = verifyapi.ReportTypeConfirmed
+
+		token := &pb.RevisionTokenData{
+			RevisableKeys: []*pb.RevisableKey{
+				{
+					TemporaryExposureKey: existingTEK,
+					IntervalNumber:       101, // Changed, should cause failure
+					IntervalCount:        144,
+				},
+			},
+		}
+
+		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true); !errors.Is(err, ErrRevisionTokenMetadataMismatch) {
+			t.Fatalf("expected %#v to be %#v", err, ErrRevisionTokenMetadataMismatch)
+		}
+	}
+
+	// Attempt to modify metadata on incoming keys - this should fail.
+	{
+		revisedExp := &model.Exposure{}
+		*revisedExp = *existingExp
+		revisedExp.IntervalCount = 124 // Changed, should make request invalid
+
+		token := &pb.RevisionTokenData{
+			RevisableKeys: []*pb.RevisableKey{
+				{
+					TemporaryExposureKey: existingTEK,
+					IntervalNumber:       101, // Changed, should cause failure
+					IntervalCount:        144,
+				},
+			},
+		}
+
+		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true); !errors.Is(err, ErrIncomingMetadataMismatch) {
+			t.Fatalf("expected %#v to be %#v", err, ErrIncomingMetadataMismatch)
+		}
 	}
 
 	// Modify the existing on in place.
@@ -307,38 +403,6 @@ func TestReviseExposures(t *testing.T) {
 		t.Fatalf("expected error revising without token data")
 	} else if !errors.Is(err, ErrNoRevisionToken) {
 		t.Fatalf("wrong error, want: '%v' got: %v", ErrNoRevisionToken, err)
-	}
-
-	// Build a wrong revision token
-	{
-		var badToken pb.RevisionTokenData
-		badToken.RevisableKeys = append(badToken.RevisableKeys, &pb.RevisableKey{
-			TemporaryExposureKey: []byte{0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3},
-			IntervalNumber:       100,
-			IntervalCount:        144,
-		})
-
-		if _, err := pubDB.InsertAndReviseExposures(ctx, revisions, &badToken, true); err == nil {
-			t.Fatalf("expected error revising with bad token")
-		} else if !errors.Is(err, ErrExistingKeyNotInToken) {
-			t.Fatalf("wrong error, want: '%v' got: %v", ErrExistingKeyNotInToken, err)
-		}
-	}
-
-	// Revision token with bad metadata
-	{
-		var badMetadata pb.RevisionTokenData
-		badMetadata.RevisableKeys = append(badMetadata.RevisableKeys, &pb.RevisableKey{
-			TemporaryExposureKey: existingTEK,
-			IntervalNumber:       101,
-			IntervalCount:        144,
-		})
-
-		if _, err := pubDB.InsertAndReviseExposures(ctx, revisions, &badMetadata, true); err == nil {
-			t.Fatalf("expected error revising with bad token")
-		} else if !errors.Is(err, ErrRevisionTokenMetadataMismatch) {
-			t.Fatalf("wrong error, want: '%v' got: %v", ErrRevisionTokenMetadataMismatch, err)
-		}
 	}
 
 	// Revision token that allows revision of the revised key.

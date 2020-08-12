@@ -94,14 +94,42 @@ func TestBuildTokenBuffer(t *testing.T) {
 						IntervalCount:        144,
 					},
 					{
+						TemporaryExposureKey: []byte{8, 9, 10, 11},
+						IntervalNumber:       200144,
+						IntervalCount:        82,
+					},
+					{
 						TemporaryExposureKey: []byte{1, 2, 3, 4},
 						IntervalNumber:       200000,
 						IntervalCount:        144,
 					},
+				},
+			},
+		},
+		{
+			name: "merge_duplicates_prefers_previous",
+			publish: []*model.Exposure{
+				{
+					ExposureKey:    []byte{4, 3, 2, 1},
+					IntervalNumber: 200134,
+					IntervalCount:  122,
+				},
+			},
+			previous: &pb.RevisionTokenData{
+				RevisableKeys: []*pb.RevisableKey{
 					{
-						TemporaryExposureKey: []byte{8, 9, 10, 11},
+						TemporaryExposureKey: []byte{4, 3, 2, 1},
 						IntervalNumber:       200144,
-						IntervalCount:        82,
+						IntervalCount:        144,
+					},
+				},
+			},
+			want: &pb.RevisionTokenData{
+				RevisableKeys: []*pb.RevisableKey{
+					{
+						TemporaryExposureKey: []byte{4, 3, 2, 1},
+						IntervalNumber:       200144,
+						IntervalCount:        144,
 					},
 				},
 			},
