@@ -442,7 +442,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		upcaseRegions[i] = strings.ToUpper(r)
 	}
 
-	var transformErrors error
+	var transformErrors *multierror.Error
 	for i, exposureKey := range inData.Keys {
 		exposure, err := TransformExposureKey(exposureKey, inData.HealthAuthorityID, upcaseRegions, &settings)
 		if err != nil {
@@ -473,7 +473,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 
 	if len(entities) == 0 {
 		// All keys in the batch are valid.
-		return nil, transformErrors
+		return nil, transformErrors.ErrorOrNil()
 	}
 
 	// Validate the uploaded data meets configuration parameters.
@@ -524,5 +524,5 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		}
 	}
 
-	return entities, transformErrors
+	return entities, transformErrors.ErrorOrNil()
 }
