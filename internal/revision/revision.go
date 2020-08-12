@@ -187,9 +187,8 @@ func buildTokenBufer(previous *pb.RevisionTokenData, eKeys []*model.Exposure) *p
 	}
 	got := make(map[string]struct{})
 
-	// Add in previous keys that weren't also in the new exposures. This needs to
-	// come first so the revision token is valid for all keys, not just the ones
-	// uploaded now.
+	// Add in previous keys from the revision token. This needs to come first so
+	// the revision token is valid for all keys, not just the ones uploaded now.
 	if previous != nil {
 		for _, rk := range previous.RevisableKeys {
 			got[base64.StdEncoding.EncodeToString(rk.TemporaryExposureKey)] = struct{}{}
