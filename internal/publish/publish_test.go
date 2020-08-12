@@ -112,6 +112,7 @@ func TestPublishWithBypass(t *testing.T) {
 		Error              string
 		ErrorCode          string
 		SkipVersions       map[version]bool
+		SkipKeys           map[int]bool // which keys should be skipped (partial success)
 	}{
 		{
 			Name:       "successful_insert_bypass_ha_verification",
@@ -129,6 +130,34 @@ func TestPublishWithBypass(t *testing.T) {
 			},
 			Regions: []string{regions.current()},
 			Code:    http.StatusOK,
+		},
+		{
+			Name:       "partial_success",
+			TestRegion: regions.next(),
+			AuthorizedApp: func() *aamodel.AuthorizedApp {
+				authApp := aamodel.NewAuthorizedApp()
+				authApp.AppPackageName = names.next()
+				authApp.BypassHealthAuthorityVerification = true
+				authApp.AllowedRegions[regions.current()] = struct{}{}
+				return authApp
+			}(),
+			Publish: verifyapi.Publish{
+				Keys: func() []verifyapi.ExposureKey {
+					keys := util.GenerateExposureKeys(5, 0, false)
+					keys[1].Key = base64.StdEncoding.EncodeToString(make([]byte, 18)) // key 1 has invalid length
+					keys[2].IntervalNumber = 100                                      // key 2 is too old
+					keys[3].IntervalCount = 200                                       // key 3 has invalid interval count
+					keys[4].IntervalNumber = keys[4].IntervalNumber + 100000          // key 4 is in the future
+					// key 0 is just right.
+					return keys
+				}(),
+				HealthAuthorityID: names.current(),
+			},
+			Regions:   []string{regions.current()},
+			Code:      http.StatusOK,
+			SkipKeys:  map[int]bool{1: true, 2: true, 3: true, 4: true},
+			Error:     "4 errors occurred:",
+			ErrorCode: verifyapi.ErrorPartialFailure,
 		},
 		{
 			Name:        "invalid_content_type",
@@ -539,6 +568,17 @@ func TestPublishWithBypass(t *testing.T) {
 							UntilTimestamp: time.Now().Add(time.Minute),
 						}
 
+						// it's possible a success still has an errort code w/ partial failures.
+						if tc.ErrorCode != response.Code {
+							t.Fatalf("error code wrong want: %v, got: %v", tc.ErrorCode, response.Code)
+						}
+						if tc.ErrorCode != "" {
+							// Check the error message
+							if !strings.Contains(response.ErrorMessage, tc.Error) {
+								t.Fatalf("expected error: %v, got: %v", tc.Error, response.ErrorMessage)
+							}
+						}
+
 						got := make([]*model.Exposure, 0, len(tc.Publish.Keys))
 						_, err = pubDB.IterateExposures(ctx, criteria, func(ex *model.Exposure) error {
 							got = append(got, ex)
@@ -556,7 +596,11 @@ func TestPublishWithBypass(t *testing.T) {
 
 						want := make([]*model.Exposure, 0, len(tc.Publish.Keys))
 						tokenWant := &pb.RevisionTokenData{}
-						for _, k := range tc.Publish.Keys {
+						for i, k := range tc.Publish.Keys {
+							if len(tc.SkipKeys) > 0 && tc.SkipKeys[i] {
+								// see if this key should be skipped
+								continue
+							}
 							if key, err := base64util.DecodeString(k.Key); err != nil {
 								t.Fatal(err)
 							} else {

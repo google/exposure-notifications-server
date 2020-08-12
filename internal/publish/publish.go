@@ -265,9 +265,12 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	}
 
 	batchTime := time.Now()
-	exposures, err := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
-	if err != nil {
-		message := fmt.Sprintf("unable to read request data: %v", err)
+	exposures, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
+	// Check for non-recovarable error. It is possible that individual keys are dropped, but if there
+	// are any valid ones, we will try and move forward.
+	// If at the end, there is a success, the transformError will be returned as supplemental information.
+	if transformError != nil && len(exposures) == 0 {
+		message := fmt.Sprintf("unable to read request data: %v", transformError)
 		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
 		return response{
@@ -332,13 +335,21 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	message := fmt.Sprintf("Inserted %d exposures.", n)
 	span.AddAttributes(trace.Int64Attribute("inserted_exposures", int64(n)))
 	logger.Info(message)
+
+	publishResponse := verifyapi.PublishResponse{
+		RevisionToken:     base64.StdEncoding.EncodeToString(newToken),
+		InsertedExposures: n,
+	}
+	// If there was a partial failure on transform, add that information back into the success response.
+	if transformError != nil {
+		publishResponse.Code = verifyapi.ErrorPartialFailure
+		publishResponse.ErrorMessage = transformError.Error()
+	}
+
 	return response{
-		status: http.StatusOK,
-		pubResponse: &verifyapi.PublishResponse{
-			RevisionToken:     base64.StdEncoding.EncodeToString(newToken),
-			InsertedExposures: n,
-		},
-		metric: "publish-exposures-written",
-		count:  n,
+		status:      http.StatusOK,
+		pubResponse: &publishResponse,
+		metric:      "publish-exposures-written",
+		count:       n,
 	}
 }
