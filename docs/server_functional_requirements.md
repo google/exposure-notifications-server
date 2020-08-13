@@ -165,8 +165,8 @@ The revision token is a critical piece of ensuring that revised keys that ensure
   verification certificate signing keys allowed and the region information
   for those keys.
   * Validation of all uploaded data, in particular that TEK data is 16 bytes in length
-    and that the interval number is valid (>=14days ago not in the future), the 
-    interval count is valid (1-144) and that the rest of the metadata that will
+    and that the interval number is valid (not more than 14 days old and not in the future),
+    the interval count is valid (1-144) and that the rest of the metadata that will
     appear in an export file is valid.
 * Recommended
   * Appropriate denial of service protection should be put in place.
