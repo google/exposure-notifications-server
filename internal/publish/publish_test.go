@@ -954,10 +954,12 @@ func TestKeyRevision(t *testing.T) {
 				var got map[string]*model.Exposure
 				var err error
 
-				testDB.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+				if err := testDB.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 					got, err = pubDB.ReadExposures(ctx, tx, expectedKeys)
 					return err
-				})
+				}); err != nil {
+					t.Fatal(err)
+				}
 
 				ignoreCreatedAt := cmpopts.IgnoreFields(model.Exposure{}, "CreatedAt", "RevisedAt")
 				if diff := cmp.Diff(want, got, ignoreCreatedAt, cmpopts.IgnoreUnexported(model.Exposure{})); diff != "" {

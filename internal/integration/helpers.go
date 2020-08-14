@@ -112,10 +112,7 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWTConfig) {
 	tb.Helper()
 
-	var (
-		ctx    = context.Background()
-		jwtCfg = testutil.JWTConfig{}
-	)
+	ctx := context.Background()
 
 	aa, err := authorizedapp.NewMemoryProvider(ctx, nil)
 	if err != nil {
@@ -185,7 +182,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWT
 		From:    time.Now().Add(-1 * time.Minute),
 	}
 	testutil.InitalizeVerificationDB(ctx, tb, db, ha, haKey, sk)
-	jwtCfg = testutil.JWTConfig{
+	jwtCfg := testutil.JWTConfig{
 		HealthAuthority:    ha,
 		HealthAuthorityKey: haKey,
 		Key:                sk.Key,

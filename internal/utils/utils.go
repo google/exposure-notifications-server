@@ -128,13 +128,14 @@ func InitalizeVerificationDB(ctx context.Context, tb testing.TB, db *database.DB
 		tb.Fatal(err)
 	}
 	if hak != nil {
-		if sk != nil {
-			// Join in the public key.
-			if err := verDB.AddHealthAuthorityKey(ctx, ha, hak); err != nil {
-				tb.Fatal(err)
-			}
-		} else {
+		if sk == nil {
 			tb.Fatal("test cases that have health authority keys registered must provide a signingKey as well")
+			return
+		}
+		// Join in the public key.
+		hak.PublicKeyPEM = sk.PublicKey
+		if err := verDB.AddHealthAuthorityKey(ctx, ha, hak); err != nil {
+			tb.Fatal(err)
 		}
 	}
 }
