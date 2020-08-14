@@ -42,8 +42,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const INVALID_ERR_CODE = "health_authority_verification_certificate_invalid"
-
 func TestIntegration(t *testing.T) {
 	t.Parallel()
 
