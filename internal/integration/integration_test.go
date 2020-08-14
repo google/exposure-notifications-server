@@ -93,7 +93,7 @@ func TestIntegration(t *testing.T) {
 				if err == nil || !strings.Contains(err.Error(), tc.Error) {
 					t.Fatalf("expected error: %v, got: %v", tc.Error, err)
 				}
-				t.Skip()
+				return
 			}
 			if err != nil {
 				t.Fatal(err)
