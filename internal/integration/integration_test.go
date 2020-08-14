@@ -140,12 +140,8 @@ func TestIntegration(t *testing.T) {
 				latest := ""
 				for _, entry := range lines {
 					if strings.HasSuffix(entry, "zip") {
-						if latest > entry {
+						if entry > latest {
 							latest = entry
-						} else {
-							if entry > latest {
-								latest = entry
-							}
 						}
 					}
 				}
