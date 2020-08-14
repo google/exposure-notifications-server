@@ -72,7 +72,6 @@ func TestIntegration(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			t.Parallel()
 			keys := util.GenerateExposureKeys(3, -1, false)
 
 			// Publish 3 keys
@@ -110,7 +109,7 @@ func TestIntegration(t *testing.T) {
 					t.Fatal(err)
 				}
 				if got, want := len(exposures), 3; got != want {
-					t.Fatalf("expected %v to be %v", got, want)
+					t.Fatalf("expected %#v to be %#v", got, want)
 				}
 			}
 
@@ -141,7 +140,7 @@ func TestIntegration(t *testing.T) {
 				latest := ""
 				for _, entry := range lines {
 					if strings.HasSuffix(entry, "zip") {
-						if latest == "" {
+						if latest > entry {
 							latest = entry
 						} else {
 							if entry > latest {
