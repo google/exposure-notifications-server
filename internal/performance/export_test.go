@@ -74,14 +74,14 @@ func TestExport(t *testing.T) {
 	makoQuickstore, cancel := setup(t)
 	defer cancel(context.Background())
 
-	env, client, db := integration.NewTestServer(t, exportPeriod)
+	env, client, db, jwtCfg := integration.NewTestServer(t, exportPeriod)
 	keys := util.GenerateExposureKeys(keysPerPublish, -1, false)
 	payload := &verifyapi.Publish{
 		Keys:              keys,
 		HealthAuthorityID: "com.example.app",
 	}
-	jwtCfg := testutil.BuildJWTConfig(t, db, keys)
-	verification, salt := testutil.IssueJWT(t, *jwtCfg)
+	jwtCfg.ExposureKeys = keys
+	verification, salt := testutil.IssueJWT(t, jwtCfg)
 	payload.VerificationPayload = verification
 	payload.HMACKey = salt
 	if _, err := client.PublishKeys(payload); err != nil {

@@ -121,36 +121,20 @@ func IssueJWT(t *testing.T, cfg JWTConfig) (jwtText, hmacKey string) {
 	return
 }
 
-// BuildJWTConfig creates a stub for a generic JWT given an existing database and
-// exposure keys
-func BuildJWTConfig(tb testing.TB, db *database.DB, keys []verifyapi.ExposureKey) *JWTConfig {
-	ctx := context.Background()
-	verifyDB := vdb.New(db)
-
-	// create a signing key
-	sk := GetSigningKey(tb)
-
-	// create a health authority
-	ha := &vm.HealthAuthority{
-		Audience: "exposure-notifications-service",
-		Issuer:   "Department of Health",
-		Name:     "Integration Test HA",
+// InitalizeVerificationDB links the vdb, HA and SigningKeys together
+func InitalizeVerificationDB(ctx context.Context, tb testing.TB, db *database.DB, ha *vm.HealthAuthority, hak *vm.HealthAuthorityKey, sk *SigningKey) {
+	verDB := vdb.New(db)
+	if err := verDB.AddHealthAuthority(ctx, ha); err != nil {
+		tb.Fatal(err)
 	}
-	haKey := &vm.HealthAuthorityKey{
-		Version: "v1",
-		From:    time.Now().Add(-1 * time.Minute),
-	}
-	haKey.PublicKeyPEM = sk.PublicKey
-	verifyDB.AddHealthAuthority(ctx, ha)
-	verifyDB.AddHealthAuthorityKey(ctx, ha, haKey)
-
-	// jwt config to be used to get a verification certificate
-	return &JWTConfig{
-		HealthAuthority:    ha,
-		HealthAuthorityKey: haKey,
-		ExposureKeys:       keys,
-		Key:                sk.Key,
-		JWTWarp:            time.Duration(0),
-		ReportType:         verifyapi.ReportTypeConfirmed,
+	if hak != nil {
+		if sk == nil {
+			tb.Fatal("test cases that have health authority keys registered must provide a signingKey as well")
+		}
+		// Join in the public key.
+		hak.PublicKeyPEM = sk.PublicKey
+		if err := verDB.AddHealthAuthorityKey(ctx, ha, hak); err != nil {
+			tb.Fatal(err)
+		}
 	}
 }

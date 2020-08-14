@@ -46,7 +46,7 @@ func TestIntegration(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	env, client, db := NewTestServer(t, 2*time.Second)
+	env, client, db, jwtCfg := NewTestServer(t, 2*time.Second)
 
 	// Set query criteria (used throughout)
 	criteria := publishdb.IterateExposuresCriteria{
@@ -60,8 +60,8 @@ func TestIntegration(t *testing.T) {
 		Keys:              keys,
 		HealthAuthorityID: "com.example.app",
 	}
-	jwtCfg := testutil.BuildJWTConfig(t, db, keys)
-	verification, salt := testutil.IssueJWT(t, *jwtCfg)
+	jwtCfg.ExposureKeys = keys
+	verification, salt := testutil.IssueJWT(t, jwtCfg)
 	payload.VerificationPayload = verification
 	payload.HMACKey = salt
 	var revisionToken string
@@ -237,7 +237,7 @@ func TestIntegration(t *testing.T) {
 	keys = util.GenerateExposureKeys(3, -1, false)
 	payload.Keys = keys
 	jwtCfg.ExposureKeys = keys
-	verification, salt = testutil.IssueJWT(t, *jwtCfg)
+	verification, salt = testutil.IssueJWT(t, jwtCfg)
 	payload.VerificationPayload = verification
 	payload.HMACKey = salt
 	if resp, err := client.PublishKeys(payload); err != nil {
