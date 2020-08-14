@@ -27,6 +27,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/hashicorp/go-multierror"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
@@ -441,11 +442,13 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		upcaseRegions[i] = strings.ToUpper(r)
 	}
 
-	for _, exposureKey := range inData.Keys {
+	var transformErrors *multierror.Error
+	for i, exposureKey := range inData.Keys {
 		exposure, err := TransformExposureKey(exposureKey, inData.HealthAuthorityID, upcaseRegions, &settings)
 		if err != nil {
 			logger.Debugf("individual key transform failed: %v", err)
-			return nil, fmt.Errorf("invalid publish data: %v", err)
+			transformErrors = multierror.Append(transformErrors, fmt.Errorf("key %d cannot be imported: %w", i, err))
+			continue
 		}
 		// If there are verified claims, apply to this key.
 		if claims != nil {
@@ -466,6 +469,11 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		}
 		exposure.Traveler = inData.Traveler
 		entities = append(entities, exposure)
+	}
+
+	if len(entities) == 0 {
+		// All keys in the batch are valid.
+		return nil, transformErrors.ErrorOrNil()
 	}
 
 	// Validate the uploaded data meets configuration parameters.
@@ -516,5 +524,5 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		}
 	}
 
-	return entities, nil
+	return entities, transformErrors.ErrorOrNil()
 }

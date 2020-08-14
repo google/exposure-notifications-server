@@ -72,7 +72,7 @@ signature_infos {
 ...
 ```
 
-## Verifying an export
+### Verifying the signature
 
 There's a handy utility to extract the raw bytes of the signature from the
 SignatureInfo proto in the `export.sig` file. Then you can use any
@@ -83,4 +83,13 @@ $ go run ./tools/unwrap-signature/ --in=export.sig --out=sigRaw
 ...
 $ openssl dgst -sha256 -verify public.pem -signature sigRaw export.bin
 Verified OK
+```
+
+### Verifying the keyfile itself
+
+To verify that the keyfile satisfies the [functional requirements](https://github.com/google/exposure-notifications-server/blob/main/docs/server_functional_requirements.md#publishing-temporary-exposure-keys), use the export-analyzer tool:
+
+```shell
+go run ./tools/export-analyzer --file=./examples/export/testExport-2-records-1-of-1.zip 
+...
 ```

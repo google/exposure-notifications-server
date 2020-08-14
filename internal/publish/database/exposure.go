@@ -44,12 +44,19 @@ var (
 	// ErrExistingKeyNotInToken is returned when attempting to present an exposure that already exists, but
 	// isn't in the provided revision token.
 	ErrExistingKeyNotInToken = errors.New("sent existing exposure key that is not in revision token")
+
 	// ErrNoRevisionToken is returned when presenting exposures that already exists, but no revision
 	// token was presented.
 	ErrNoRevisionToken = errors.New("sent existing exposures but no revision token present")
+
 	// ErrRevisionTokenMetadataMismatch is returned when a revision token has the correct TEK in it,
 	// but the new request is attempting to change the metadata of the key (intervalNumber/Count)
-	ErrRevisionTokenMetadataMismatch = errors.New("changing exposure key metadata is not allowed ")
+	ErrRevisionTokenMetadataMismatch = errors.New("changing exposure key metadata is not allowed")
+
+	// ErrIncomingMetadataMismatch is returned when incoming data has a known TEK
+	// in it, but the new request is attempting to change the metadata of the key
+	// (intervalNumber/Count).
+	ErrIncomingMetadataMismatch = errors.New("incoming exposure key metadata does not match expected values")
 )
 
 type PublishDB struct {
@@ -365,52 +372,85 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 	logger := logging.FromContext(ctx)
 	updated := 0
 	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		// Read any existing TEKs FOR UPDATE in this transaction.
+		// Build the base64-encoded list of keys - this is needed so we can lookup
+		// the keys in the database. Also build a lookup map by key for validation
+		// later.
 		b64keys := make([]string, len(incoming))
-		for i, e := range incoming {
-			b64keys[i] = e.ExposureKeyBase64()
+		incomingMap := make(map[string]*model.Exposure, len(incoming))
+		for i, v := range incoming {
+			b64keys[i] = v.ExposureKeyBase64()
+			incomingMap[v.ExposureKeyBase64()] = v
 		}
+
+		// Lookup the keys in the database and build a lookup map for validation
+		// later.
 		existing, err := db.ReadExposures(ctx, tx, b64keys)
 		if err != nil {
 			return fmt.Errorf("unable to check for existing records")
 		}
+		existingMap := make(map[string]*model.Exposure, len(existing))
+		for _, v := range existing {
+			existingMap[v.ExposureKeyBase64()] = v
+		}
 
-		// See if the revision token is relevant. We only need to check it if keys are being revised.
+		// See if the revision token is relevant. We only need to check it if keys
+		// are being revised.
 		if len(existing) > 0 {
-			// Turn the token data into a map for easy comparison.
-			allowedRevisions := make(map[string]*pb.RevisableKey)
-			if token != nil {
-				for _, rk := range token.RevisableKeys {
-					allowedRevisions[base64.StdEncoding.EncodeToString(rk.TemporaryExposureKey)] = rk
-				}
-			}
-			if len(allowedRevisions) == 0 {
-				logger.Errorf("attempt to revise keys, but no revision token presented")
+			// Check if a revision token is required.
+			if token == nil {
+				logger.Errorw("attempted to revise keys, but revision token is missing")
 				if tokenRequired {
 					return ErrNoRevisionToken
 				}
 			}
-			// Check that any existing exposures are present in the token. It doesn't mater if they
-			// would be materially changed or not (the revise keys steps below)
-			for k, v := range existing {
-				if rk, ok := allowedRevisions[k]; !ok {
-					// user sent in an existing key they they do not have the token for.
-					logger.Errorf("attempt to revise key not in revision token")
-					if tokenRequired {
-						return ErrExistingKeyNotInToken
+
+			// Build a map of allowed revisions for validation and comparison.
+			allowedRevisions := make(map[string]*pb.RevisableKey, len(token.RevisableKeys))
+			for _, v := range token.RevisableKeys {
+				b := base64.StdEncoding.EncodeToString(v.TemporaryExposureKey)
+				allowedRevisions[b] = v
+			}
+
+			// Check that any existing exposures are present in the token.
+			for k, ex := range existing {
+				// Check the incoming values first.
+				if in, ok := incomingMap[k]; ok {
+					if ex.IntervalNumber != in.IntervalNumber || ex.IntervalCount != in.IntervalCount {
+						logger.Errorw("incoming metadata mismatch",
+							"existing_count", ex.IntervalCount,
+							"existing_number", ex.IntervalNumber,
+							"incoming_count", in.IntervalCount,
+							"incoming_number", in.IntervalNumber)
+						if tokenRequired {
+							return ErrIncomingMetadataMismatch
+						}
 					}
-				} else {
-					// Validate that the key parameters haven't changed.
-					if v.IntervalNumber != rk.IntervalNumber || v.IntervalCount != rk.IntervalCount {
-						logger.Errorf("revision token metadata mismatch")
+				}
+
+				// Now check against allowed revisions.
+				if rk, ok := allowedRevisions[k]; ok {
+					if ex.IntervalNumber != rk.IntervalNumber || ex.IntervalCount != rk.IntervalCount {
+						logger.Errorw("token metadata mismatch",
+							"existing_count", ex.IntervalCount,
+							"existing_number", ex.IntervalNumber,
+							"incoming_count", rk.IntervalCount,
+							"incoming_number", rk.IntervalNumber)
 						if tokenRequired {
 							return ErrRevisionTokenMetadataMismatch
 						}
 					}
+				} else {
+					// User sent in an existing key they they do not have the token for.
+					logger.Errorw("cannot revise key: not in revision token")
+					if tokenRequired {
+						return ErrExistingKeyNotInToken
+					}
 				}
 			}
-			// Revision token is valid for this request, not required, or bypassed.
 		}
+
+		// If we got this far, the revision token is valid for this request, not
+		// required, or bypassed.
 
 		// Run through the merge logic.
 		exposures, err := model.ReviseKeys(ctx, existing, incoming)

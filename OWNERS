@@ -1,11 +1,9 @@
 approvers:
-  - crwilcox
   - mikehelmick
   - sethvargo
 reviewers:
-  - crwilcox
   - gurayAlsac
   - mikehelmick
   - sethvargo
-  - squee1945
   - whaught
+  - icco
