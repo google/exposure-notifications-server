@@ -18,25 +18,36 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/export"
 	exportpb "github.com/google/exposure-notifications-server/internal/pb/export"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	"github.com/hashicorp/go-multierror"
 )
 
 var (
-	filePath = flag.String("file", "", "Path to the export zip file.")
-	quiet    = flag.Bool("q", false, "run in quiet mode")
+	filePath       = flag.String("file", "", "path to the export zip file.")
+	printJSON      = flag.Bool("json", true, "print a JSON representation of the output")
+	quiet          = flag.Bool("q", false, "run in quiet mode")
+	allowedTEKAge  = flag.Duration("tek-age", 14*24*time.Hour, "max TEK age in checks")
+	symptomDayLmit = flag.Int("symptom-days", 14, "magnitude of expected symptom onset day range")
 )
 
 func main() {
 	flag.Parse()
-
 	if *filePath == "" {
 		log.Fatal("--file is required.")
+	}
+	if *allowedTEKAge < time.Duration(0) {
+		log.Fatalf("--tek-age must be a positive duration, got: %v", *allowedTEKAge)
+	}
+	if *symptomDayLmit < 0 {
+		log.Fatalf("--symptom-days must be >=0, got: %v", *symptomDayLmit)
 	}
 
 	blob, err := ioutil.ReadFile(*filePath)
@@ -50,43 +61,63 @@ func main() {
 	}
 
 	// Do some basic data validation.
-	if !*quiet {
-		checkExportFile(keyExport)
+	success := true
+	if err := checkExportFile(keyExport); err != nil {
+		success = false
+		if !*quiet {
+			log.Printf("export file contains errors: %v", err)
+		}
 	}
 
-	prettyJSON, err := json.MarshalIndent(keyExport, "", "  ")
-	if err != nil {
-		log.Fatalf("error pretty printing export: %v", err)
+	if *printJSON {
+		prettyJSON, err := json.MarshalIndent(keyExport, "", "  ")
+		if err != nil {
+			log.Fatalf("error pretty printing export: %v", err)
+		}
+		log.Printf("Export file contents:\n%v", string(prettyJSON))
 	}
-	log.Printf("%v", string(prettyJSON))
+
+	if !success {
+		// return a non zero code if there are issues with the export file.
+		os.Exit(1)
+	}
 }
 
-func checkExportFile(export *exportpb.TemporaryExposureKeyExport) {
+func checkExportFile(export *exportpb.TemporaryExposureKeyExport) error {
 	now := time.Now().UTC()
-	floor := model.IntervalNumber(now.Add(-14 * 24 * time.Hour))
+	floor := model.IntervalNumber(now.Add(*allowedTEKAge))
 	ceiling := model.IntervalNumber(now)
 
-	checkKeys("keys", export.Keys, floor, ceiling)
-	checkKeys("revisedKeys", export.RevisedKeys, floor, ceiling)
+	var errors *multierror.Error
+	if err := checkKeys("keys", export.Keys, floor, ceiling); err != nil {
+		errors = multierror.Append(errors, err)
+	}
+	if err := checkKeys("revisedKeys", export.RevisedKeys, floor, ceiling); err != nil {
+		errors = multierror.Append(errors, err)
+	}
+	return errors
 }
 
-func checkKeys(kType string, keys []*exportpb.TemporaryExposureKey, floor, ceiling int32) {
+func checkKeys(kType string, keys []*exportpb.TemporaryExposureKey, floor, ceiling int32) error {
+	symptomDays := int32(*symptomDayLmit)
+	var errors *multierror.Error
 	for i, k := range keys {
 		if l := len(k.KeyData); l != 16 {
-			log.Printf("%s #%d: invald key length: want 16, got: %v", kType, i, l)
+			errors = multierror.Append(fmt.Errorf("%s #%d: invald key length: want 16, got: %v", kType, i, l))
 		}
 		if s := k.GetRollingStartIntervalNumber(); s < floor {
-			log.Printf("%s #%d: rolling interval start number is > 14 days ago, want >= %d, got %d", kType, i, floor, s)
+			errors = multierror.Append(fmt.Errorf("%s #%d: rolling interval start number is > %v ago, want >= %d, got %d", kType, i, *allowedTEKAge, floor, s))
 		} else if s > ceiling {
-			log.Printf("%s #%d: rolling interval start number in the future, want < %d, got %d", kType, i, ceiling, s)
+			errors = multierror.Append(fmt.Errorf("%s #%d: rolling interval start number in the future, want < %d, got %d", kType, i, ceiling, s))
 		}
 		if r := k.GetRollingPeriod(); r < 1 || r > 144 {
-			log.Printf("%s #%d: rolling period invalid, want >= 1 && <= 144, got %d", kType, i, r)
+			errors = multierror.Append(fmt.Errorf("%s #%d: rolling period invalid, want >= 1 && <= 144, got %d", kType, i, r))
 		}
 		if k.DaysSinceOnsetOfSymptoms != nil {
-			if d := k.GetDaysSinceOnsetOfSymptoms(); d < -14 || d > 14 {
-				log.Printf("%s #%d: days_since_onset_of_symptoms is outside of expectd range, -14..14, got: %d", kType, i, d)
+			if d := k.GetDaysSinceOnsetOfSymptoms(); d < -symptomDays || d > symptomDays {
+				errors = multierror.Append(fmt.Errorf("%s #%d: days_since_onset_of_symptoms is outside of expectd range, -%d..%d, got: %d", kType, i, symptomDays, symptomDays, d))
 			}
 		}
 	}
+	return errors
 }
