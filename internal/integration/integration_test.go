@@ -71,7 +71,9 @@ func TestIntegration(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc // Capture test case var for parallel runs
 		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
 			keys := util.GenerateExposureKeys(3, -1, false)
 
 			// Publish 3 keys
@@ -260,6 +262,7 @@ func TestIntegration(t *testing.T) {
 			keys = util.GenerateExposureKeys(3, -1, false)
 			payload.Keys = keys
 			jwtCfg.ExposureKeys = keys
+			jwtCfg.JWTWarp = tc.JWTWrap
 			verification, salt = testutil.IssueJWT(t, jwtCfg)
 			payload.VerificationPayload = verification
 			payload.HMACKey = salt
