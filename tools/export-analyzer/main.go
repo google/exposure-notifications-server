@@ -31,11 +31,11 @@ import (
 )
 
 var (
-	filePath       = flag.String("file", "", "Path to the export zip file.")
-	printJSON      = flag.Bool("json", true, "Print a JSON representation of the output")
+	filePath       = flag.String("file", "", "path to the export zip file.")
+	printJSON      = flag.Bool("json", true, "print a JSON representation of the output")
 	quiet          = flag.Bool("q", false, "run in quiet mode")
-	allowedTEKAge  = flag.Duration("tekage", 14*24*time.Hour, "max TEK age in checks")
-	symptomDayLmit = flag.Int("symptomdays", 14, "magnitude of expected symptom onset day range")
+	allowedTEKAge  = flag.Duration("tek-age", 14*24*time.Hour, "max TEK age in checks")
+	symptomDayLmit = flag.Int("symptom-days", 14, "magnitude of expected symptom onset day range")
 )
 
 func main() {
@@ -44,10 +44,10 @@ func main() {
 		log.Fatal("--file is required.")
 	}
 	if *allowedTEKAge < time.Duration(0) {
-		log.Fatalf("--tekage must be a positive duration, got: %v", *allowedTEKAge)
+		log.Fatalf("--tek-age must be a positive duration, got: %v", *allowedTEKAge)
 	}
 	if *symptomDayLmit < 0 {
-		log.Fatalf("--sypmtomdays must be >=0, got: %v", *symptomDayLmit)
+		log.Fatalf("--symptom-days must be >=0, got: %v", *symptomDayLmit)
 	}
 
 	blob, err := ioutil.ReadFile(*filePath)
@@ -74,7 +74,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("error pretty printing export: %v", err)
 		}
-		log.Printf("%v", string(prettyJSON))
+		log.Printf("Export file contents:\n%v", string(prettyJSON))
 	}
 
 	if !success {
