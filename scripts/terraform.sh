@@ -112,6 +112,7 @@ function help() {
   echo 1>&2 "Usage: ${PROGNAME} <command>"
   echo 1>&2 ""
   echo 1>&2 "Commands:"
+  echo 1>&2 "  init         init terraform"
   echo 1>&2 "  deploy       deploy server"
   echo 1>&2 "  destroy      destroy server"
   echo 1>&2 "  smoke        deploy then destroy server"
@@ -122,7 +123,7 @@ case "${1:-}" in
     help
     ;;
 
-  "deploy" | "destroy" | "smoke" )
+  "init" | "deploy" | "destroy" | "smoke" )
     $1
     ;;
 
