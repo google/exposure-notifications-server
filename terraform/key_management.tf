@@ -12,9 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+resource "random_string" "key-suffix" {
+  length  = 5
+  special = false
+  number  = false
+  upper   = false
+}
+
 resource "google_kms_key_ring" "export-signing" {
   project  = data.google_project.project.project_id
-  name     = "export-signing"
+  name     = "export-signing-${random_string.key-suffix.result}"
   location = var.kms_location
 
   depends_on = [
@@ -34,7 +41,7 @@ resource "google_kms_crypto_key" "export-signer" {
 
 resource "google_kms_key_ring" "revision-tokens" {
   project  = data.google_project.project.project_id
-  name     = "revision-tokens"
+  name     = "revision-tokens-${random_string.key-suffix.result}"
   location = var.kms_location
 
   depends_on = [
