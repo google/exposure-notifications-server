@@ -39,6 +39,10 @@ if [ -z "${TAG:-}" ]; then
   exit 1
 fi
 
+if [ -z "${REVISION:-}" ]; then
+  REVISION="${TAG}"
+fi
+
 if [ "${SERVICES}" == "all" ]; then
   SERVICES="${ALL_SERVICES}"
   echo "🚧 Deploying all services! (${SERVICES})" >&2
@@ -49,7 +53,7 @@ for SERVICE in "${SERVICES_ARR[@]}"; do
   gcloud builds submit --no-source \
     --project "${PROJECT_ID}" \
     --config "${ROOT}/builders/deploy.yaml" \
-    --substitutions "_REGION=${REGION},_SERVICE=${SERVICE},_TAG=${TAG}" \
+    --substitutions "_REGION=${REGION},_SERVICE=${SERVICE},_TAG=${TAG},_REVISION=${REVISION}" \
     &
 done
 

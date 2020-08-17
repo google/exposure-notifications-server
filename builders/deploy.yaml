@@ -20,6 +20,7 @@ substitutions:
   _REGION:
   _SERVICE:
   _TAG:
+  _REVISION:
 
 steps:
 - id: 'deploy'
@@ -36,4 +37,5 @@ steps:
       --platform "managed" \
       --region "${_REGION}" \
       --image "gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/${_SERVICE}:${_TAG}" \
+      --revision-suffix "${_REVISION}" \
       --no-traffic
