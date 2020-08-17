@@ -18,6 +18,8 @@ set -eEuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 
+# TODO(chaodaiG): make sure comment this out before merging
+export PROJECT_ID="chao-en-e2e-exp"
 
 echo "🌳 Set up environment variables"
 if [[ -z "${PROJECT_ID:-}" ]]; then
@@ -25,6 +27,9 @@ if [[ -z "${PROJECT_ID:-}" ]]; then
   exit 1
 fi
 
+# Best effort destroy before applying
+./terraform.sh destroy || true
+./terraform.sh deploy
 
 if [[ -z "${DB_CONN:-}" ]]; then # Allow custom database
   echo "🔨 Provision servers"
@@ -39,19 +44,23 @@ if [[ -z "${DB_CONN:-}" ]]; then # Allow custom database
 fi
 
 
-echo "🔨 Run cloud sql proxy"
-which cloud_sql_proxy || {
-  echo "✋ Download cloud_sql_proxy from https://cloud.google.com/sql/docs/mysql/connect-admin-proxy#install"
-  exit 1
-}
-cloud_sql_proxy -instances=${DB_CONN}=tcp:5432 &
-CLOUD_SQL_PROXY_PID=$!
-trap "kill $CLOUD_SQL_PROXY_PID || true" EXIT
+# TODO(chaodaiG): cloud_sql_proxy hasn't been installed yet, uncomment these once terraform confirmed to work
+# echo "🔨 Run cloud sql proxy"
+# which cloud_sql_proxy || {
+#   echo "✋ Download cloud_sql_proxy from https://cloud.google.com/sql/docs/mysql/connect-admin-proxy#install"
+#   exit 1
+# }
+# cloud_sql_proxy -instances=${DB_CONN}=tcp:5432 &
+# CLOUD_SQL_PROXY_PID=$!
+# trap "kill $CLOUD_SQL_PROXY_PID || true" EXIT
 
 
-echo "🧪 Test"
-go test \
-  -count=1 \
-  -race \
-  -timeout=10m \
-  ./internal/integration
+# echo "🧪 Test"
+# go test \
+#   -count=1 \
+#   -race \
+#   -timeout=10m \
+#   ./internal/integration
+
+# Don't fail even if destroy failed
+./terraform.sh destroy || true
