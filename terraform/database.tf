@@ -192,3 +192,7 @@ output "db_user" {
 output "db_pass_secret" {
   value = google_secret_manager_secret_version.db-secret-version["password"].name
 }
+
+output "db_inst_name" {
+  value = google_sql_database_instance.db-inst.name
+}
