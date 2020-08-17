@@ -20,8 +20,9 @@ import (
 	"fmt"
 	"time"
 
-	"contrib.go.opencensus.io/exporter/stackdriver"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+
+	"contrib.go.opencensus.io/exporter/stackdriver"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 )
