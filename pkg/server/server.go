@@ -29,7 +29,9 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
+
 	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
 	"google.golang.org/grpc"
 )
 
@@ -113,7 +115,8 @@ func (s *Server) ServeHTTP(ctx context.Context, srv *http.Server) error {
 func (s *Server) ServeHTTPHandler(ctx context.Context, handler http.Handler) error {
 	return s.ServeHTTP(ctx, &http.Server{
 		Handler: &ochttp.Handler{
-			Handler: handler,
+			Handler:     handler,
+			Propogation: tracecontext.HTTPFormat{},
 		},
 	})
 }
