@@ -28,8 +28,8 @@ if [[ -z "${PROJECT_ID:-}" ]]; then
 fi
 
 # Best effort destroy before applying
-./terraform.sh destroy || true
-./terraform.sh deploy
+./scripts/terraform.sh destroy 2>/dev/null || true
+./scripts/terraform.sh deploy
 
 if [[ -z "${DB_CONN:-}" ]]; then # Allow custom database
   echo "🔨 Provision servers"
@@ -63,4 +63,4 @@ fi
 #   ./internal/integration
 
 # Don't fail even if destroy failed
-./terraform.sh destroy || true
+./scripts/terraform.sh destroy || true

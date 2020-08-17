@@ -23,9 +23,10 @@ if [[ -z "${PROJECT_ID:-}" ]]; then
   echo "✋ PROJECT_ID must be set"
 fi
 
-if [[ -n "${GOOGLE_APPLCIATION_CREDENTIALS}" ]]; then
+if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS}" ]]; then
   echo "GOOGLE_APPLCIATION_CREDENTIALS defined, use it for authentication."
-  echo "Run `unset GOOGLE_APPLCIATION_CREDENTIALS` for local development"
+  echo "For local development, run 'unset GOOGLE_APPLCIATION_CREDENTIALS', "
+  echo "then rerun this script"
 else
   echo "This is local development, authenticate using gcloud"
   gcloud auth login && gcloud auth application-default login
@@ -35,8 +36,8 @@ function deploy() {
   pushd "${ROOT}/terraform" > /dev/null
   
   # Preparing for deployment
-  echo "project = \"${PROJECT_ID}\" >> ./terraform.tfvars"
-  gsutil mb -p ${PROJECT_ID} gs://${PROJECT_ID}-tf-state
+  echo "project = \"${PROJECT_ID}\"" >> ./terraform.tfvars
+  gsutil mb -p ${PROJECT_ID} gs://${PROJECT_ID}-tf-state 2>/dev/null || true
   cat <<EOF > ./state.tf
 terraform {
   backend "gcs" {
@@ -94,7 +95,7 @@ case "$1" in
     ;;
 
   "deploy" | "destroy" )
-    start "$1"
+    $1
     ;;
 
   *)
