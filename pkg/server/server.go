@@ -116,7 +116,7 @@ func (s *Server) ServeHTTPHandler(ctx context.Context, handler http.Handler) err
 	return s.ServeHTTP(ctx, &http.Server{
 		Handler: &ochttp.Handler{
 			Handler:     handler,
-			Propogation: tracecontext.HTTPFormat{},
+			Propagation: tracecontext.HTTPFormat{},
 		},
 	})
 }
