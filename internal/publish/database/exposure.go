@@ -405,10 +405,13 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 			}
 
 			// Build a map of allowed revisions for validation and comparison.
-			allowedRevisions := make(map[string]*pb.RevisableKey, len(token.RevisableKeys))
-			for _, v := range token.RevisableKeys {
-				b := base64.StdEncoding.EncodeToString(v.TemporaryExposureKey)
-				allowedRevisions[b] = v
+			allowedRevisions := make(map[string]*pb.RevisableKey)
+			if token != nil {
+				// Special handling for the allow bypass scenario where no token was presented.
+				for _, v := range token.RevisableKeys {
+					b := base64.StdEncoding.EncodeToString(v.TemporaryExposureKey)
+					allowedRevisions[b] = v
+				}
 			}
 
 			// Check that any existing exposures are present in the token.
