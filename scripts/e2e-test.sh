@@ -36,14 +36,14 @@ trap "./scripts/terraform.sh destroy || true" EXIT
 # TODO(chaodaiG): e2e test with GCP db doesn't quite work as expected, uncomment once fixed
 # if [[ -z "${DB_CONN:-}" ]]; then # Allow custom database
 #   echo "🔨 Provision servers"
-#   pushd terraform
+#   pushd terraform > /dev/null
 #   # TODO(chaodaiG): terraform init; terraform apply; trap "terraform destroy"
 #   export DB_CONN="$(terraform output 'db_conn')"
 #   export DB_NAME="$(terraform output 'db_name')"
 #   export DB_USER="$(terraform output 'db_user')"
 #   export DB_PASSWORD="secret://$(terraform output db_pass_secret)"
 #   export DB_SSLMODE=disable
-#   popd
+#   popd > /dev/null
 # fi
 
 # echo "🔨 Run cloud sql proxy"
