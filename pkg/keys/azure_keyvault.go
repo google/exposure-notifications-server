@@ -94,7 +94,7 @@ func (v *AzureKeyVault) Encrypt(ctx context.Context, keyID string, plaintext []b
 		return nil, fmt.Errorf("unable to encrypt: %w", err)
 	}
 
-	resBytes, err := base64.URLEncoding.DecodeString(*res.Result)
+	resBytes, err := base64.RawURLEncoding.DecodeString(*res.Result)
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode encrypted data: %w", err)
 	}
@@ -119,7 +119,7 @@ func (v *AzureKeyVault) Decrypt(ctx context.Context, keyID string, ciphertext []
 		return nil, fmt.Errorf("unable to decrypt: %w", err)
 	}
 
-	plaintext, err := base64.URLEncoding.DecodeString(*res.Result)
+	plaintext, err := base64.RawURLEncoding.DecodeString(*res.Result)
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode decrypted data: %w", err)
 	}
