@@ -30,41 +30,35 @@ fi
 # Best effort destroy before applying
 ./scripts/terraform.sh destroy 2>/dev/null || true
 ./scripts/terraform.sh deploy
-
-if [[ -z "${DB_CONN:-}" ]]; then # Allow custom database
-  echo "🔨 Provision servers"
-  pushd terraform
-  # TODO(chaodaiG): terraform init; terraform apply; trap "terraform destroy"
-  export DB_CONN="$(terraform output 'db_conn')"
-  export DB_NAME="$(terraform output 'db_name')"
-  export DB_USER="$(terraform output 'db_user')"
-  export DB_PASSWORD="secret://$(terraform output db_pass_secret)"
-  export DB_SSLMODE=disable
-  popd
-fi
+trap "./scripts/terraform.sh destroy || true" EXIT
 
 
-# TODO(chaodaiG): cloud_sql_proxy hasn't been installed yet, uncomment these once terraform confirmed to work
+# TODO(chaodaiG): e2e test with GCP db doesn't quite work as expected, uncomment once fixed
+# if [[ -z "${DB_CONN:-}" ]]; then # Allow custom database
+#   echo "🔨 Provision servers"
+#   pushd terraform
+#   # TODO(chaodaiG): terraform init; terraform apply; trap "terraform destroy"
+#   export DB_CONN="$(terraform output 'db_conn')"
+#   export DB_NAME="$(terraform output 'db_name')"
+#   export DB_USER="$(terraform output 'db_user')"
+#   export DB_PASSWORD="secret://$(terraform output db_pass_secret)"
+#   export DB_SSLMODE=disable
+#   popd
+# fi
 
-wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O /usr/bin/cloud_sql_proxy
-chmod +x /usr/bin/cloud_sql_proxy
-
-echo "🔨 Run cloud sql proxy"
-which cloud_sql_proxy || {
-  echo "✋ Download cloud_sql_proxy from https://cloud.google.com/sql/docs/mysql/connect-admin-proxy#install"
-  exit 1
-}
-cloud_sql_proxy -instances=${DB_CONN}=tcp:5432 &
-CLOUD_SQL_PROXY_PID=$!
-trap "kill $CLOUD_SQL_PROXY_PID || true" EXIT
+# echo "🔨 Run cloud sql proxy"
+# which cloud_sql_proxy || {
+#   echo "✋ Download cloud_sql_proxy from https://cloud.google.com/sql/docs/mysql/connect-admin-proxy#install"
+#   exit 1
+# }
+# cloud_sql_proxy -instances=${DB_CONN}=tcp:5432 &
+# CLOUD_SQL_PROXY_PID=$!
+# trap "kill $CLOUD_SQL_PROXY_PID || true" EXIT
 
 
-echo "🧪 Test"
-go test \
-  -count=1 \
-  -race \
-  -timeout=10m \
-  ./internal/integration
-
-# Don't fail even if destroy failed
-./scripts/terraform.sh destroy || true
+# echo "🧪 Test"
+# go test \
+#   -count=1 \
+#   -race \
+#   -timeout=10m \
+#   ./internal/integration
