@@ -45,22 +45,26 @@ fi
 
 
 # TODO(chaodaiG): cloud_sql_proxy hasn't been installed yet, uncomment these once terraform confirmed to work
-# echo "🔨 Run cloud sql proxy"
-# which cloud_sql_proxy || {
-#   echo "✋ Download cloud_sql_proxy from https://cloud.google.com/sql/docs/mysql/connect-admin-proxy#install"
-#   exit 1
-# }
-# cloud_sql_proxy -instances=${DB_CONN}=tcp:5432 &
-# CLOUD_SQL_PROXY_PID=$!
-# trap "kill $CLOUD_SQL_PROXY_PID || true" EXIT
+
+wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O /usr/bin/cloud_sql_proxy
+chmod +x /usr/bin/cloud_sql_proxy
+
+echo "🔨 Run cloud sql proxy"
+which cloud_sql_proxy || {
+  echo "✋ Download cloud_sql_proxy from https://cloud.google.com/sql/docs/mysql/connect-admin-proxy#install"
+  exit 1
+}
+cloud_sql_proxy -instances=${DB_CONN}=tcp:5432 &
+CLOUD_SQL_PROXY_PID=$!
+trap "kill $CLOUD_SQL_PROXY_PID || true" EXIT
 
 
-# echo "🧪 Test"
-# go test \
-#   -count=1 \
-#   -race \
-#   -timeout=10m \
-#   ./internal/integration
+echo "🧪 Test"
+go test \
+  -count=1 \
+  -race \
+  -timeout=10m \
+  ./internal/integration
 
 # Don't fail even if destroy failed
 ./scripts/terraform.sh destroy || true
