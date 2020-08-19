@@ -29,37 +29,20 @@ if [[ -z "${PROJECT_ID:-}" ]]; then
   exit 1
 fi
 
-./scripts/terraform.sh init
-
-START_TIME=$(date)
-./scripts/build
-./scripts/deploy
-./scripts/promote
-
-not_ready=0
-IFS=',' read -ra SERVICES_ARR <<< "${SERVICES}"
-for SERVICE in "${SERVICES_ARR[@]}"; do
-  revision_exist="$( gcloud \
-    run \
-    revisions \
-    list \
-    --platform=managed \
-    --service=${SERVICE} \
-    --project=${PROJECT_ID} \
-    --region=${REGION} | \
-    grep '${TAG}' || true)"
-  [[ -z "${revision_exist}" ]] && { not_ready=1; break; }
-  echo "${SERVICE} is ready"
-done
-
-echo "Start time: ${START_TIME}"
-echo "$(date)"
-
 
 if [[ -z "${DB_CONN:-}" ]]; then # Allow custom database
-  echo "🔨 Provision servers"
+  echo "🔨 Create new Cloud Run services revisions"
+  ./scripts/terraform.sh init
+
+  START_TIME=$(date)
+  ./scripts/build
+  ./scripts/deploy
+  ./scripts/promote
+
+  echo "Start time: ${START_TIME}"
+  echo "$(date)"
+
   pushd terraform
-  # TODO(chaodaiG): terraform init; terraform apply; trap "terraform destroy"
   export DB_CONN="$(terraform output 'db_conn')"
   export DB_NAME="$(terraform output 'db_name')"
   export DB_USER="$(terraform output 'db_user')"
