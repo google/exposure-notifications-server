@@ -18,18 +18,19 @@ set -eEuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 
-echo "🌳 Set up environment variables"
 if [[ -z "${PROJECT_ID:-}" ]]; then
   echo "✋ PROJECT_ID must be set"
 fi
 
-if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS}" ]]; then
+if [[ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
+  if [[ ! -f "${HOME}/.config/gcloud/application_default_credentials.json" ]]; then
+    echo "This is local development, authenticate using gcloud"
+    gcloud auth login && gcloud auth application-default login
+  fi
+else
   echo "GOOGLE_APPLCIATION_CREDENTIALS defined, use it for authentication."
   echo "For local development, run 'unset GOOGLE_APPLCIATION_CREDENTIALS', "
   echo "then rerun this script"
-else
-  echo "This is local development, authenticate using gcloud"
-  gcloud auth login && gcloud auth application-default login
 fi
 
 function deploy() {
