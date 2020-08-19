@@ -14,7 +14,7 @@
 
 # protoc is a base container with protoc and protoc-gen-go installed.
 
-FROM golang:1.14 AS builder
+FROM golang:1.15 AS builder
 
 ENV PROTOC_VERSION "3.11.4"
 ENV PROTOC_GEN_GO_VERSION "1.4.1"
