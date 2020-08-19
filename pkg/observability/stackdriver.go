@@ -46,6 +46,7 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 	monitoredResource := NewStackdriverMonitoredResoruce(config)
 
 	exporter, err := stackdriver.NewExporter(stackdriver.Options{
+		Context:           ctx,
 		ProjectID:         projectID,
 		ReportingInterval: time.Minute, // stackdriver export interval minimum
 		MonitoredResource: monitoredResource,
