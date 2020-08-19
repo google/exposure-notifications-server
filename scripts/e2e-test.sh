@@ -21,6 +21,10 @@ ALL_SERVICES="cleanup-export,cleanup-exposure,export,exposure,federationin,feder
 
 
 echo "🌳 Set up environment variables"
+
+# TODO(chaodaiG): delete this before merge
+export PROJECT_ID="chao-en-e2e-exp"
+
 export REGION="us-central1"
 export SERVICES="all"
 export TAG="$(openssl rand -hex 12)"
