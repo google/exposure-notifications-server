@@ -85,7 +85,7 @@ func main() {
 
 func checkExportFile(export *exportpb.TemporaryExposureKeyExport) error {
 	now := time.Now().UTC()
-	floor := model.IntervalNumber(now.Add(*allowedTEKAge))
+	floor := model.IntervalNumber(now.Add(-1 * *allowedTEKAge))
 	ceiling := model.IntervalNumber(now)
 
 	var errors *multierror.Error
