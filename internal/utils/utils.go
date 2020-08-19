@@ -25,6 +25,7 @@
 package utils
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -35,6 +36,8 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/google/exposure-notifications-server/internal/database"
+	vdb "github.com/google/exposure-notifications-server/internal/verification/database"
 	vm "github.com/google/exposure-notifications-server/internal/verification/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	vutil "github.com/google/exposure-notifications-server/pkg/verification"
@@ -116,4 +119,23 @@ func IssueJWT(t *testing.T, cfg JWTConfig) (jwtText, hmacKey string) {
 		t.Fatal(err)
 	}
 	return
+}
+
+// InitalizeVerificationDB links the vdb, HA and SigningKeys together
+func InitalizeVerificationDB(ctx context.Context, tb testing.TB, db *database.DB, ha *vm.HealthAuthority, hak *vm.HealthAuthorityKey, sk *SigningKey) {
+	verDB := vdb.New(db)
+	if err := verDB.AddHealthAuthority(ctx, ha); err != nil {
+		tb.Fatal(err)
+	}
+	if hak != nil {
+		if sk == nil {
+			tb.Fatal("test cases that have health authority keys registered must provide a signingKey as well")
+			return
+		}
+		// Join in the public key.
+		hak.PublicKeyPEM = sk.PublicKey
+		if err := verDB.AddHealthAuthorityKey(ctx, ha, hak); err != nil {
+			tb.Fatal(err)
+		}
+	}
 }

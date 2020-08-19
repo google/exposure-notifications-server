@@ -36,7 +36,6 @@ import (
 	revdb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
-	vdb "github.com/google/exposure-notifications-server/internal/verification/database"
 	vm "github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
@@ -113,10 +112,7 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWTConfig) {
 	tb.Helper()
 
-	var (
-		ctx    = context.Background()
-		jwtCfg = testutil.JWTConfig{}
-	)
+	ctx := context.Background()
 
 	aa, err := authorizedapp.NewMemoryProvider(ctx, nil)
 	if err != nil {
@@ -172,8 +168,6 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWT
 		tb.Fatal(err)
 	}
 
-	verifyDB := vdb.New(db)
-
 	// create a signing key
 	sk := testutil.GetSigningKey(tb)
 
@@ -187,16 +181,11 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWT
 		Version: "v1",
 		From:    time.Now().Add(-1 * time.Minute),
 	}
-	haKey.PublicKeyPEM = sk.PublicKey
-	verifyDB.AddHealthAuthority(ctx, ha)
-	verifyDB.AddHealthAuthorityKey(ctx, ha, haKey)
-
-	// jwt config to be used to get a verification certificate
-	jwtCfg = testutil.JWTConfig{
+	testutil.InitalizeVerificationDB(ctx, tb, db, ha, haKey, sk)
+	jwtCfg := testutil.JWTConfig{
 		HealthAuthority:    ha,
 		HealthAuthorityKey: haKey,
 		Key:                sk.Key,
-		JWTWarp:            time.Duration(0),
 		ReportType:         verifyapi.ReportTypeConfirmed,
 	}
 
