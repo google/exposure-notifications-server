@@ -33,11 +33,11 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 	resource := "generic_task"
 	labels := make(map[string]string)
 
-	// On GCP we can fill in some of the information.
+	// On GCP we can fill in some of the information for GCE and GKE.
 	detected := gcp.Autodetect()
 	providedLabels := make(map[string]string)
 	if detected != nil {
-		_, providedLabels = detected.MonitoredResource()
+		resource, providedLabels = detected.MonitoredResource()
 	}
 
 	if _, ok := providedLabels["project_id"]; !ok {
@@ -45,17 +45,20 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 	} else {
 		labels["project_id"] = providedLabels["project_id"]
 	}
+
 	if c.Service != "" {
 		labels["job"] = c.Service
 	} else {
 		labels["job"] = "unknown"
 	}
+
 	// Transform "instance_id" to "task_id" or generate task_id
 	if iid, ok := providedLabels["instance_id"]; ok {
 		labels["task_id"] = iid
 	} else {
 		labels["task_id"] = base64.StdEncoding.EncodeToString(uuid.NodeID())
 	}
+
 	if zone, ok := providedLabels["zone"]; ok {
 		labels["location"] = zone
 	} else if loc, ok := providedLabels["location"]; ok {
@@ -63,7 +66,19 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 	} else {
 		labels["location"] = "unknown"
 	}
+
 	labels["namespace"] = c.Namespace
+
+	// Are on Cloud Run Managed?
+	//
+	// https://cloud.google.com/monitoring/api/resources#tag_cloud_run_revision
+	// https://cloud.google.com/run/docs/reference/container-contract#env-vars
+	if c.Service != "" && c.Revision != "" {
+		resource = "cloud_run_revision"
+		labels["service_name"] = c.Service
+		labels["revision_name"] = c.Revision
+		labels["configuration_name"] = c.Namespace
+	}
 
 	return &stackdriverMonitoredResource{
 		resource: resource,
