@@ -1,0 +1,194 @@
+timeout: 40m
+options:
+  machineType: 'N1_HIGHCPU_8'
+steps:
+- id: 'cleanup-export'
+  name: 'docker'
+  timeout: 10m
+  waitFor: ["-"]
+  args: [
+    'build',
+    '--tag',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/cleanup-export:${SHORT_SHA}',
+    '--build-arg',
+    'SERVICE=cleanup-export',
+    '.',
+  ]
+- id: 'cleanup-export:publish'
+  name: 'docker'
+  waitFor:
+  - cleanup-export
+  args: [
+    'push',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/cleanup-export:${SHORT_SHA}',
+  ]
+- id: 'cleanup-exposure'
+  name: 'docker'
+  timeout: 10m
+  waitFor: ["-"]
+  args: [
+    'build',
+    '--tag',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/cleanup-exposure:${SHORT_SHA}',
+    '--build-arg',
+    'SERVICE=cleanup-exposure',
+    '.',
+  ]
+- id: 'cleanup-exposure:publish'
+  name: 'docker'
+  waitFor:
+  - cleanup-exposure
+  args: [
+    'push',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/cleanup-exposure:${SHORT_SHA}',
+  ]
+- id: 'debugger'
+  name: 'docker'
+  timeout: 10m
+  waitFor: ["-"]
+  args: [
+    'build',
+    '--tag',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/debugger:${SHORT_SHA}',
+    '--build-arg',
+    'SERVICE=debugger',
+    '.',
+  ]
+- id: 'debugger:publish'
+  name: 'docker'
+  waitFor:
+  - debugger
+  args: [
+    'push',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/debugger:${SHORT_SHA}',
+  ]
+- id: 'export'
+  name: 'docker'
+  timeout: 10m
+  waitFor: ["-"]
+  args: [
+    'build',
+    '--tag',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/export:${SHORT_SHA}',
+    '--build-arg',
+    'SERVICE=export',
+    '.',
+  ]
+- id: 'export:publish'
+  name: 'docker'
+  waitFor:
+  - export
+  args: [
+    'push',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/export:${SHORT_SHA}',
+  ]
+- id: 'exposure'
+  name: 'docker'
+  timeout: 10m
+  waitFor: ["-"]
+  args: [
+    'build',
+    '--tag',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/exposure:${SHORT_SHA}',
+    '--build-arg',
+    'SERVICE=exposure',
+    '.',
+  ]
+- id: 'exposure:publish'
+  name: 'docker'
+  waitFor:
+  - exposure
+  args: [
+    'push',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/exposure:${SHORT_SHA}',
+  ]
+- id: 'ferationin'
+  name: 'docker'
+  timeout: 10m
+  waitFor: ["-"]
+  args: [
+    'build',
+    '--tag',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/ferationin:${SHORT_SHA}',
+    '--build-arg',
+    'SERVICE=ferationin',
+    '.',
+  ]
+- id: 'ferationin:publish'
+  name: 'docker'
+  waitFor:
+  - ferationin
+  args: [
+    'push',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/ferationin:${SHORT_SHA}',
+  ]
+- id: 'ferationout'
+  name: 'docker'
+  timeout: 10m
+  waitFor: ["-"]
+  args: [
+    'build',
+    '--tag',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/ferationout:${SHORT_SHA}',
+    '--build-arg',
+    'SERVICE=ferationout',
+    '.',
+  ]
+- id: 'ferationout:publish'
+  name: 'docker'
+  waitFor:
+  - ferationout
+  args: [
+    'push',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/ferationout:${SHORT_SHA}',
+  ]
+- id: 'generate'
+  name: 'docker'
+  timeout: 10m
+  waitFor: ["-"]
+  args: [
+    'build',
+    '--tag',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/generate:${SHORT_SHA}',
+    '--build-arg',
+    'SERVICE=generate',
+    '.',
+  ]
+- id: 'generate:publish'
+  name: 'docker'
+  waitFor:
+  - generate
+  args: [
+    'push',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/generate:${SHORT_SHA}',
+  ]
+- id: 'key-rotation'
+  name: 'docker'
+  timeout: 10m
+  waitFor: ["-"]
+  args: [
+    'build',
+    '--tag',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/key-rotation:${SHORT_SHA}',
+    '--build-arg',
+    'SERVICE=key-rotation',
+    '.',
+  ]
+- id: 'key-rotation:publish'
+  name: 'docker'
+  waitFor:
+  - key-rotation
+  args: [
+    'push',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/key-rotation:${SHORT_SHA}',
+  ]
+images: [
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/cleanup-export:${SHORT_SHA}',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/cleanup-exposure:${SHORT_SHA}',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/debugger:${SHORT_SHA}',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/export:${SHORT_SHA}',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/ferationin:${SHORT_SHA}',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/ferationout:${SHORT_SHA}',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/generate:${SHORT_SHA}',
+    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/key-rotation:${SHORT_SHA}',
+]
