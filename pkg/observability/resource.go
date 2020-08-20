@@ -15,21 +15,42 @@
 package observability
 
 import (
+	"context"
 	"encoding/base64"
+
+	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource/gcp"
 	"github.com/google/uuid"
 )
 
-var _ monitoredresource.Interface = (*stackdriverMonitoredResource)(nil)
+var (
+	_ monitoredresource.Interface = (*stackdriverMonitoredResource)(nil)
+
+	// The labels each resource type requires.
+	requiredLabels = map[string]map[string]bool{
+		// https://cloud.google.com/monitoring/api/resources#tag_generic_task
+		"generic_task": map[string]bool{"project_id": true, "location": true, "namespace": true, "job": true, "task_id": true},
+		// https://cloud.google.com/monitoring/api/resources#tag_gke_container
+		"gke_container": map[string]bool{"project_id": true, "cluster_name": true, "namespace_id": true, "instance_id": true, "pod_id": true, "container_name": true, "zone": true},
+		// https://cloud.google.com/monitoring/api/resources#tag_cloud_run_revision
+		"cloud_run_revision": map[string]bool{"project_id": true, "service_name": true, "revision_name": true, "location": true, "configuration_name": true},
+	}
+)
 
 type stackdriverMonitoredResource struct {
 	resource string
 	labels   map[string]string
 }
 
-func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Interface {
+// NewStackdriverMonitoredResource returns a monitored resource with the
+// required labels filled out. This needs to be the correct resource type so we
+// can compared the default stackdriver metrics with the custom metrics we're
+// generating.
+func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) monitoredresource.Interface {
+	logger := logging.FromContext(ctx).Named("stackdriver")
+
 	resource := "generic_task"
 	labels := make(map[string]string)
 
@@ -78,6 +99,17 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 		labels["service_name"] = c.Service
 		labels["revision_name"] = c.Revision
 		labels["configuration_name"] = c.Namespace
+	}
+
+	if _, ok := requiredLabels[resource]; !ok {
+		logger.Warnw("unknown resource type", "resource", resource, "labels", labels)
+	}
+
+	// Delete unused labels to not flood stackdriver.
+	for k := range labels {
+		if _, ok := requiredLabels[k]; !ok {
+			delete(labels, k)
+		}
 	}
 
 	return &stackdriverMonitoredResource{

@@ -43,7 +43,7 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 		return nil, fmt.Errorf("missing PROJECT_ID in Stackdriver exporter")
 	}
 
-	monitoredResource := NewStackdriverMonitoredResoruce(config)
+	monitoredResource := NewStackdriverMonitoredResource(ctx, config)
 
 	exporter, err := stackdriver.NewExporter(stackdriver.Options{
 		Context:           ctx,
