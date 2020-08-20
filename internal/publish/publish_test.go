@@ -43,6 +43,7 @@ import (
 	vermodel "github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/keys"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/jackc/pgx/v4"
 
@@ -417,6 +418,8 @@ func TestPublishWithBypass(t *testing.T) {
 
 			t.Run(addVer+tc.Name, func(t *testing.T) {
 				ctx = context.Background()
+				logger := logging.NewLogger(true)
+				ctx = logging.WithLogger(ctx, logger)
 
 				// And set up publish handler up front.
 				config := Config{}
@@ -665,10 +668,18 @@ func TestPublishWithBypass(t *testing.T) {
 	}
 }
 
-type RevisionTokenChanger func(ctx context.Context, token string, tm *revision.TokenManager, aad []byte) string
+type RevisionTokenChanger func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string
 
-func TokenIdentity(ctx context.Context, token string, tm *revision.TokenManager, aad []byte) string {
+func TokenIdentity(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
+	t.Helper()
 	return token
+}
+
+type PublishDataChanger func(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish)
+
+func PublishIdentity(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish) {
+	t.Helper()
+	return true, data
 }
 
 func TestKeyRevision(t *testing.T) {
@@ -768,6 +779,7 @@ func TestKeyRevision(t *testing.T) {
 		ErrorCode      string
 		RevErrorCode   string
 		RevTokenMesser RevisionTokenChanger
+		PublishMesser  PublishDataChanger
 	}{
 		{
 			Name: "normal_revision",
@@ -778,6 +790,7 @@ func TestKeyRevision(t *testing.T) {
 				VerificationPayload: "totally not a JWT",
 			},
 			RevTokenMesser: TokenIdentity,
+			PublishMesser:  PublishIdentity,
 		},
 		{
 			Name: "missing_revision_token",
@@ -788,9 +801,10 @@ func TestKeyRevision(t *testing.T) {
 				VerificationPayload: "totally not a JWT",
 			},
 			RevErrorCode: verifyapi.ErrorMissingRevisionToken,
-			RevTokenMesser: func(ctx context.Context, token string, tm *revision.TokenManager, aad []byte) string {
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
 				return ""
 			},
+			PublishMesser: PublishIdentity,
 		},
 		{
 			Name: "token_missing_keys",
@@ -801,7 +815,7 @@ func TestKeyRevision(t *testing.T) {
 				VerificationPayload: "totally not a JWT",
 			},
 			RevErrorCode: verifyapi.ErrorInvalidRevisionToken,
-			RevTokenMesser: func(ctx context.Context, token string, tm *revision.TokenManager, aad []byte) string {
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
 				tokenBytes, err := base64util.DecodeString(token)
 				if err != nil {
 					return ""
@@ -824,6 +838,48 @@ func TestKeyRevision(t *testing.T) {
 					return ""
 				}
 				return base64.StdEncoding.EncodeToString(tokenBytes)
+			},
+			PublishMesser: PublishIdentity,
+		},
+		{
+			Name: "bad_token_doesnt_matter",
+			Publish: verifyapi.Publish{
+				Keys:                util.GenerateExposureKeys(2, 0, false),
+				Traveler:            false,
+				HealthAuthorityID:   haName,
+				VerificationPayload: "totally not a JWT",
+			},
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
+				// This function doesn't change the revision token, but it does
+				// rotate the keys so that this token is effectively useless.
+				t.Helper()
+				_, err := revDB.CreateRevisionKey(ctx)
+				if err != nil {
+					t.Fatalf("error creating new revision key: %v", err)
+				}
+				cur, allowed, err := revDB.GetAllowedRevisionKeyIDs(ctx)
+				if err != nil {
+					t.Fatalf("error listing revision keys: %v", err)
+				}
+				for k := range allowed {
+					if k != cur {
+						if err := revDB.DestroyKey(ctx, k); err != nil {
+							t.Fatalf("unable to destroy revision key: %v", err)
+						}
+					}
+				}
+
+				return token
+			},
+			PublishMesser: func(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish) {
+				t.Helper()
+				// Just generate a new set of TEKs distinct from the first publish.
+				return false, &verifyapi.Publish{
+					Keys:                util.GenerateExposureKeys(2, 0, false),
+					Traveler:            false,
+					HealthAuthorityID:   haName,
+					VerificationPayload: "totally not a JWT",
+				}
 			},
 		},
 	}
@@ -876,9 +932,17 @@ func TestKeyRevision(t *testing.T) {
 				revisionToken = response.RevisionToken
 			}
 
+			var keysAreRevisions bool
 			// Make the revision.
 			{
-				revisionToken = tc.RevTokenMesser(ctx, revisionToken, tm, tokenAAD)
+				revisionToken = tc.RevTokenMesser(ctx, t, revisionToken, tm, tokenAAD)
+				// Add the revision token to publish request.
+				tc.Publish.RevisionToken = revisionToken
+
+				var publishData *verifyapi.Publish
+				keysAreRevisions, publishData = tc.PublishMesser(t, &tc.Publish)
+				tc.Publish = *publishData
+
 				cfg := testutil.JWTConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
@@ -890,11 +954,8 @@ func TestKeyRevision(t *testing.T) {
 				tc.Publish.VerificationPayload = verification
 				tc.Publish.HMACKey = salt
 
-				// Add the revision token to publish request.
-				tc.Publish.RevisionToken = revisionToken
-
 				// Marshal the provided publish request.
-				jsonString, err := json.Marshal(tc.Publish)
+				jsonString, err := json.Marshal(&tc.Publish)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -948,6 +1009,13 @@ func TestKeyRevision(t *testing.T) {
 						DaysSinceSymptomOnset:   nil,
 						RevisedReportType:       &revisedReportType,
 						RevisedTransmissionRisk: &revisedTransmissionRisk,
+					}
+					if !keysAreRevisions {
+						ex := want[k.Key]
+						ex.ReportType = *ex.RevisedReportType
+						ex.RevisedReportType = nil
+						ex.TransmissionRisk = *ex.RevisedTransmissionRisk
+						ex.RevisedTransmissionRisk = nil
 					}
 				}
 
