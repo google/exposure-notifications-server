@@ -17,6 +17,7 @@ package database
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"sort"
@@ -101,6 +102,40 @@ func TestReadExposures(t *testing.T) {
 
 	if diff := cmp.Diff(exposures, got, approxTime, sorter, ignoreUnexportedExposure); diff != "" {
 		t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
+	}
+
+	// Test ReadExposures of an empty list.
+	{
+		var keys []string
+		var readBack map[string]*model.Exposure
+		err := testDB.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+			var err error
+			readBack, err = testPublishDB.ReadExposures(ctx, tx, keys)
+			return err
+		})
+		if err != nil {
+			t.Fatalf("unable to read empty list of keys: %v", err)
+		}
+		if l := len(readBack); l != 0 {
+			t.Fatalf("want readBack len=0, got: %v", l)
+		}
+	}
+
+	// Test ReadExposures of a key that doesn't exist in DB.
+	{
+		keys := []string{base64.StdEncoding.EncodeToString([]byte{19, 8, 7, 6, 5, 4, 3, 2, 1})}
+		var readBack map[string]*model.Exposure
+		err := testDB.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+			var err error
+			readBack, err = testPublishDB.ReadExposures(ctx, tx, keys)
+			return err
+		})
+		if err != nil {
+			t.Fatalf("unable to read keys that don't exist: %v", err)
+		}
+		if l := len(readBack); l != 0 {
+			t.Fatalf("want readBack len=0, got: %v", l)
+		}
 	}
 }
 
