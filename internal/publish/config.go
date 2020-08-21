@@ -70,7 +70,8 @@ type Config struct {
 	// Flags for local development and testing. This will cause still valid keys
 	// to not be embargoed.
 	// Normally "still valid" keys can be accepted, but are embargoed.
-	ReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
+	ReleaseSameDayKeys      bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
+	DebugLogBadCertificates bool `env:"DEBUG_LOG_BAD_CERTIFICATES"`
 }
 
 func (c *Config) MaxExposureKeys() uint {

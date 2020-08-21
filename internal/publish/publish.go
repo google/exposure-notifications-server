@@ -235,7 +235,11 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 			metrics.WriteInt("publish-health-authority-verification-bypassed", true, 1)
 		} else {
 			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
-			logger.Error(message)
+			if h.config.DebugLogBadCertificates {
+				logger.Errorw(message, "error", err, "jwt", data.VerificationPayload)
+			} else {
+				logger.Errorw(message, "error", err)
+			}
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
 			return response{
 				status: http.StatusUnauthorized,
@@ -257,7 +261,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		} else {
 			token, err = h.tokenManager.UnmarshalRevisionToken(ctx, encryptedToken, h.tokenAAD)
 			if err != nil {
-				logger.Errorf("unable to unmarshall / decrypt revision token: %v", err)
+				logger.Errorf("unable to unmarshall / decrypt revision token. Treating as if none was provided: %v", err)
 				token = nil // just in case.
 				decryptFail = true
 			}
