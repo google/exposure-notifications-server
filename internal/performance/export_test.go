@@ -74,7 +74,8 @@ func TestExport(t *testing.T) {
 	makoQuickstore, cancel := setup(t)
 	defer cancel(context.Background())
 
-	env, client, db, jwtCfg := integration.NewTestServer(t, exportPeriod)
+	env, client, jwtCfg, exportDir, exportRoot := integration.NewTestServer(t, exportPeriod)
+	db := env.Database()
 	keys := util.GenerateExposureKeys(keysPerPublish, -1, false)
 	payload := &verifyapi.Publish{
 		Keys:              keys,
@@ -174,8 +175,8 @@ func TestExport(t *testing.T) {
 			return err
 		}
 
-		index, err := env.Blobstore().GetObject(ctx, integration.ExportDir,
-			integration.IndexFilePath())
+		index, err := env.Blobstore().GetObject(ctx, exportDir,
+			integration.IndexFilePath(exportRoot))
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				time.Sleep(500 * time.Millisecond)
@@ -184,15 +185,15 @@ func TestExport(t *testing.T) {
 			return err
 		} else if c := strings.TrimSpace(string(index)); c == "" {
 			time.Sleep(500 * time.Millisecond)
-			return retry.RetryableError(fmt.Errorf("index file %s/%s is empty", integration.ExportDir, integration.IndexFilePath()))
+			return retry.RetryableError(fmt.Errorf("index file %s/%s is empty", exportDir, integration.IndexFilePath(exportRoot)))
 		}
 
 		var got int
 		for _, f := range strings.Split(string(index), "\n") {
 			// Download the latest export file contents
-			data, err := env.Blobstore().GetObject(ctx, integration.ExportDir, f)
+			data, err := env.Blobstore().GetObject(ctx, exportDir, f)
 			if err != nil {
-				return fmt.Errorf("failed to open %s/%s: %v", integration.ExportDir, f, err)
+				return fmt.Errorf("failed to open %s/%s: %v", exportDir, f, err)
 			}
 
 			// Process contents as an export
@@ -244,8 +245,8 @@ func TestExport(t *testing.T) {
 
 	var remainings []string
 	integration.Eventually(t, 30, func() error {
-		index, err := env.Blobstore().GetObject(ctx, integration.ExportDir,
-			path.Join(integration.FileNameRoot, "index.txt"))
+		index, err := env.Blobstore().GetObject(ctx, exportDir,
+			path.Join(exportRoot, "index.txt"))
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return retry.RetryableError(fmt.Errorf("Can not find index file: %v", err))
@@ -257,7 +258,7 @@ func TestExport(t *testing.T) {
 		return nil
 	})
 	for _, r := range remainings {
-		_, err := env.Blobstore().GetObject(ctx, integration.ExportDir, r)
+		_, err := env.Blobstore().GetObject(ctx, exportDir, r)
 		if err == nil {
 			t.Fatalf("Should have been cleaned up %q: %v", r, err)
 		}
