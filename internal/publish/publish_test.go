@@ -452,7 +452,7 @@ func TestPublishWithBypass(t *testing.T) {
 				// See if there is a health authority to set up.
 				if tc.HealthAuthority != nil {
 					testutil.InitalizeVerificationDB(ctx, t, testDB, tc.HealthAuthority, tc.HealthAuthorityKey, signingKey)
-					cfg := testutil.JWTConfig{
+					cfg := &testutil.JWTConfig{
 						HealthAuthority:    tc.HealthAuthority,
 						HealthAuthorityKey: tc.HealthAuthorityKey,
 						ExposureKeys:       tc.Publish.Keys,
@@ -891,7 +891,7 @@ func TestKeyRevision(t *testing.T) {
 			revisionToken := ""
 			// Do the initial insert
 			{
-				cfg := testutil.JWTConfig{
+				cfg := &testutil.JWTConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
 					ExposureKeys:       tc.Publish.Keys,
@@ -950,7 +950,7 @@ func TestKeyRevision(t *testing.T) {
 					Key:                signingKey.Key,
 					ReportType:         verifyapi.ReportTypeConfirmed,
 				}
-				verification, salt := testutil.IssueJWT(t, cfg)
+				verification, salt := testutil.IssueJWT(t, &cfg)
 				tc.Publish.VerificationPayload = verification
 				tc.Publish.HMACKey = salt
 

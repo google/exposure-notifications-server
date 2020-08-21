@@ -62,18 +62,22 @@ func TestIntegration(t *testing.T) {
 			WantErr: true,
 		},
 	}
-	ctx := context.Background()
-	env, client, db, jwtCfg := NewTestServer(t, 2*time.Second)
-
-	// Set query criteria (used throughout)
-	criteria := publishdb.IterateExposuresCriteria{
-		OnlyLocalProvenance: false,
-	}
 
 	for _, tc := range cases {
 		tc := tc // Capture test case var for parallel runs
+
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
+
+			ctx := context.Background()
+			env, client, jwtCfg, exportDir, exportRoot := NewTestServer(t, 2*time.Second)
+			db := env.Database()
+
+			// Set query criteria (used throughout)
+			criteria := publishdb.IterateExposuresCriteria{
+				OnlyLocalProvenance: false,
+			}
+
 			keys := util.GenerateExposureKeys(3, -1, false)
 
 			// Publish 3 keys
@@ -129,7 +133,7 @@ func TestIntegration(t *testing.T) {
 				}
 
 				// Attempt to get the index
-				index, err := env.Blobstore().GetObject(ctx, ExportDir, IndexFilePath())
+				index, err := env.Blobstore().GetObject(ctx, exportDir, IndexFilePath(exportRoot))
 				if err != nil {
 					if errors.Is(err, storage.ErrNotFound) {
 						return retry.RetryableError(fmt.Errorf("Can not find index file: %v", err))
@@ -152,9 +156,9 @@ func TestIntegration(t *testing.T) {
 				}
 
 				// Download the latest export file contents
-				data, err := env.Blobstore().GetObject(ctx, ExportDir, latest)
+				data, err := env.Blobstore().GetObject(ctx, exportDir, latest)
 				if err != nil {
-					return fmt.Errorf("failed to open %s/%s: %w", ExportDir, latest, err)
+					return fmt.Errorf("failed to open %s/%s: %w", exportDir, latest, err)
 				}
 
 				// Process contents as an export
@@ -297,7 +301,7 @@ func TestIntegration(t *testing.T) {
 				}
 
 				// Attempt to get the index
-				index, err := env.Blobstore().GetObject(ctx, ExportDir, IndexFilePath())
+				index, err := env.Blobstore().GetObject(ctx, exportDir, IndexFilePath(exportRoot))
 				if err != nil {
 					if errors.Is(err, storage.ErrNotFound) {
 						return retry.RetryableError(err)
@@ -360,7 +364,7 @@ func TestIntegration(t *testing.T) {
 				}
 
 				// Attempt to get the index
-				index, err := env.Blobstore().GetObject(ctx, ExportDir, IndexFilePath())
+				index, err := env.Blobstore().GetObject(ctx, exportDir, IndexFilePath(exportRoot))
 				if err != nil {
 					if errors.Is(err, storage.ErrNotFound) {
 						return retry.RetryableError(err)
@@ -376,7 +380,7 @@ func TestIntegration(t *testing.T) {
 					}
 
 					// Lookup the file, hope it's gone
-					if _, err := env.Blobstore().GetObject(ctx, ExportDir, f); err != nil {
+					if _, err := env.Blobstore().GetObject(ctx, exportDir, f); err != nil {
 						if errors.Is(err, storage.ErrNotFound) {
 							return nil // expected
 						} else {
