@@ -214,10 +214,11 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	// generous defaults. If there isn't a region set, then the TEKs
 	// won't be retrievable, so we ensure there is something set.
 	if len(regions) == 0 {
+		logger.Errorf("No regions present in request or configured for healthAuthorityID: %v", data.HealthAuthorityID)
 		message := fmt.Sprintf("unknown health authority regions for %v", data.HealthAuthorityID)
 		span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
 		return response{
-			status: http.StatusBadRequest,
+			status: http.StatusInternalServerError,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         verifyapi.ErrorHealthAuthorityMissingRegionConfiguration,
