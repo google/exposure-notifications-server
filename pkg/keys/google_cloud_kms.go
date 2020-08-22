@@ -17,6 +17,7 @@ package keys
 import (
 	"context"
 	"crypto"
+	"errors"
 	"fmt"
 	"time"
 
@@ -25,11 +26,17 @@ import (
 	"github.com/sethvargo/go-gcpkms/pkg/gcpkms"
 	"google.golang.org/api/iterator"
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
+	grpccodes "google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 )
 
 // Compile-time check to verify implements interface.
 var _ KeyManager = (*GoogleCloudKMS)(nil)
 var _ SigningKeyManagement = (*GoogleCloudKMS)(nil)
+
+var (
+	ErrKeyExists = errors.New("key already exists")
+)
 
 // GoogleCloudKMS implements the keys.KeyManager interface and can be used to sign
 // export files.
@@ -42,7 +49,7 @@ type CloudKMSSigningKeyVersion struct {
 	keyID       string
 	createdAt   time.Time
 	destroyedAt time.Time
-	kayManager  *GoogleCloudKMS
+	keyManager  *GoogleCloudKMS
 }
 
 func (k *CloudKMSSigningKeyVersion) KeyID() string {
@@ -58,7 +65,7 @@ func (k *CloudKMSSigningKeyVersion) DetroyedAt() time.Time {
 }
 
 func (k *CloudKMSSigningKeyVersion) GetSigner(ctx context.Context) (crypto.Signer, error) {
-	return k.kayManager.NewSigner(ctx, k.keyID)
+	return k.keyManager.NewSigner(ctx, k.keyID)
 }
 
 func NewGoogleCloudKMS(ctx context.Context, useHSM bool) (KeyManager, error) {
@@ -129,6 +136,7 @@ func (kms *GoogleCloudKMS) GetSigningKeyVersions(ctx context.Context, keyRing st
 	request := kmspb.ListCryptoKeyVersionsRequest{
 		Parent:   fmt.Sprintf("%s/cryptoKeys/%s", keyRing, name),
 		PageSize: 200,
+		Filter:   `Filter: "state != DESTROYED AND state != DESTROY_SCHEDULED"`,
 	}
 
 	results := make([]SigningKeyVersion, 0)
@@ -146,7 +154,7 @@ func (kms *GoogleCloudKMS) GetSigningKeyVersions(ctx context.Context, keyRing st
 		key := CloudKMSSigningKeyVersion{
 			keyID:      resp.Name,
 			createdAt:  resp.GetCreateTime().AsTime(),
-			kayManager: kms,
+			keyManager: kms,
 		}
 		if resp.DestroyEventTime != nil {
 			key.destroyedAt = resp.GetDestroyEventTime().AsTime()
@@ -189,6 +197,9 @@ func (kms *GoogleCloudKMS) getOrCreateSigningKey(ctx context.Context, keyRing st
 	}
 	key, err = kms.client.CreateCryptoKey(ctx, &createRequest)
 	if err != nil {
+		if terr, ok := grpcstatus.FromError(err); ok && terr.Code() == grpccodes.AlreadyExists {
+			return nil, ErrKeyExists
+		}
 		return nil, fmt.Errorf("unable to create signing key: %w", err)
 	}
 	return key, nil
