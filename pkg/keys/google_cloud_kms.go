@@ -18,27 +18,55 @@ import (
 	"context"
 	"crypto"
 	"fmt"
+	"time"
 
 	kms "cloud.google.com/go/kms/apiv1"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/sethvargo/go-gcpkms/pkg/gcpkms"
+	"google.golang.org/api/iterator"
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 )
 
 // Compile-time check to verify implements interface.
 var _ KeyManager = (*GoogleCloudKMS)(nil)
+var _ SigningKeyManagement = (*GoogleCloudKMS)(nil)
 
 // GoogleCloudKMS implements the keys.KeyManager interface and can be used to sign
 // export files.
 type GoogleCloudKMS struct {
 	client *kms.KeyManagementClient
+	useHSM bool
 }
 
-func NewGoogleCloudKMS(ctx context.Context) (KeyManager, error) {
+type CloudKMSSigningKeyVersion struct {
+	keyID       string
+	createdAt   time.Time
+	destroyedAt time.Time
+	kayManager  *GoogleCloudKMS
+}
+
+func (k *CloudKMSSigningKeyVersion) KeyID() string {
+	return k.keyID
+}
+
+func (k *CloudKMSSigningKeyVersion) CreatedAt() time.Time {
+	return k.createdAt
+}
+
+func (k *CloudKMSSigningKeyVersion) DetroyedAt() time.Time {
+	return k.destroyedAt
+}
+
+func (k *CloudKMSSigningKeyVersion) GetSigner(ctx context.Context) (crypto.Signer, error) {
+	return k.kayManager.NewSigner(ctx, k.keyID)
+}
+
+func NewGoogleCloudKMS(ctx context.Context, useHSM bool) (KeyManager, error) {
 	client, err := kms.NewKeyManagementClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &GoogleCloudKMS{client}, nil
+	return &GoogleCloudKMS{client, useHSM}, nil
 }
 
 func (kms *GoogleCloudKMS) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
@@ -69,4 +97,99 @@ func (kms *GoogleCloudKMS) Decrypt(ctx context.Context, keyID string, ciphertext
 		return nil, fmt.Errorf("failed to decrypt: %w", err)
 	}
 	return result.Plaintext, nil
+}
+
+func (kms *GoogleCloudKMS) CreateSigningKeyVersion(ctx context.Context, keyRing string, name string) (string, error) {
+	logger := logging.FromContext(ctx)
+	getRequest := kmspb.GetCryptoKeyRequest{
+		Name: fmt.Sprintf("%s/cryptoKeys/%s", keyRing, name),
+	}
+	logger.Infow("gcpkms.GetCryptoKey", "keyring", keyRing, "name", name)
+	key, err := kms.client.GetCryptoKey(ctx, &getRequest)
+	if err != nil {
+		return "", fmt.Errorf("cannot create version, key does not exist: %w", err)
+	}
+
+	createRequest := kmspb.CreateCryptoKeyVersionRequest{
+		Parent: key.Name,
+	}
+	ver, err := kms.client.CreateCryptoKeyVersion(ctx, &createRequest)
+	if err != nil {
+		return "", fmt.Errorf("gcpkms.CreateCryptoKeyVersion: %w", err)
+	}
+	return ver.Name, nil
+}
+
+func (kms *GoogleCloudKMS) GetSigningKeyVersions(ctx context.Context, keyRing string, name string) ([]SigningKeyVersion, error) {
+	_, err := kms.getOrCreateSigningKey(ctx, keyRing, name)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get crypto key: %w", err)
+	}
+
+	request := kmspb.ListCryptoKeyVersionsRequest{
+		Parent:   fmt.Sprintf("%s/cryptoKeys/%s", keyRing, name),
+		PageSize: 200,
+	}
+
+	results := make([]SigningKeyVersion, 0)
+
+	it := kms.client.ListCryptoKeyVersions(ctx, &request)
+	for {
+		resp, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("error listing crypto keys: %w", err)
+		}
+
+		key := CloudKMSSigningKeyVersion{
+			keyID:      resp.Name,
+			createdAt:  resp.GetCreateTime().AsTime(),
+			kayManager: kms,
+		}
+		if resp.DestroyEventTime != nil {
+			key.destroyedAt = resp.GetDestroyEventTime().AsTime()
+		}
+		results = append(results, &key)
+	}
+
+	return results, nil
+}
+
+func (kms *GoogleCloudKMS) ProtectionLevel() kmspb.ProtectionLevel {
+	if kms.useHSM {
+		return kmspb.ProtectionLevel_HSM
+	}
+	return kmspb.ProtectionLevel_SOFTWARE
+}
+
+func (kms *GoogleCloudKMS) getOrCreateSigningKey(ctx context.Context, keyRing string, name string) (*kmspb.CryptoKey, error) {
+	logger := logging.FromContext(ctx)
+	getRequest := kmspb.GetCryptoKeyRequest{
+		Name: fmt.Sprintf("%s/cryptoKeys/%s", keyRing, name),
+	}
+	logger.Infow("gcpkms.GetCryptoKey", "keyring", keyRing, "name", name)
+	key, err := kms.client.GetCryptoKey(ctx, &getRequest)
+	if err == nil {
+		return key, nil
+	}
+
+	// Attempt to create the crypto key in this key ring w/ our default settings.
+	createRequest := kmspb.CreateCryptoKeyRequest{
+		Parent:      keyRing,
+		CryptoKeyId: name,
+		CryptoKey: &kmspb.CryptoKey{
+			Purpose: kmspb.CryptoKey_ASYMMETRIC_SIGN,
+			VersionTemplate: &kmspb.CryptoKeyVersionTemplate{
+				ProtectionLevel: kms.ProtectionLevel(),
+				Algorithm:       kmspb.CryptoKeyVersion_EC_SIGN_P256_SHA256,
+			},
+		},
+	}
+	key, err = kms.client.CreateCryptoKey(ctx, &createRequest)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create signing key: %w", err)
+	}
+	return key, nil
 }

@@ -25,6 +25,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"fmt"
+	"time"
 )
 
 // KeyManager defines the interface for working with a KMS system that
@@ -69,15 +70,33 @@ type SigningKeyAdder interface {
 	AddSigningKey(string, *ecdsa.PrivateKey) error
 }
 
+// SigningKeyVersion represents the necessary details that this application needs
+// to manage signing keys in an external KMS.
+type SigningKeyVersion interface {
+	KeyID() string
+	CreatedAt() time.Time
+	DetroyedAt() time.Time
+	GetSigner(ctx context.Context) (crypto.Signer, error)
+}
+
+// SigningKeyManagement supports extended management of signing keys and versions.
+type SigningKeyManagement interface {
+	CreateSigningKeyVersion(ctx context.Context, keyRing string, name string) (string, error)
+	GetSigningKeyVersions(ctx context.Context, keyRing string, name string) ([]SigningKeyVersion, error)
+	// TODO(mikehelmick): for rotation, implement destroy
+	// DestroySigningKeyVersion(ctx context.Context, keyID string) error
+}
+
 // KeyManagerFor returns the appropriate key manager for the given type.
-func KeyManagerFor(ctx context.Context, typ KeyManagerType) (KeyManager, error) {
+func KeyManagerFor(ctx context.Context, config *Config) (KeyManager, error) {
+	typ := config.KeyManagerType
 	switch typ {
 	case KeyManagerTypeAWSKMS:
 		return NewAWSKMS(ctx)
 	case KeyManagerTypeAzureKeyVault:
 		return NewAzureKeyVault(ctx)
 	case KeyManagerTypeGoogleCloudKMS:
-		return NewGoogleCloudKMS(ctx)
+		return NewGoogleCloudKMS(ctx, config.CreateHSMKeys)
 	case KeyManagerTypeHashiCorpVault:
 		return NewHashiCorpVault(ctx)
 	case KeyManagerTypeInMemory:
