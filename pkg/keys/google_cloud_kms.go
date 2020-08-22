@@ -55,20 +55,20 @@ func (k *CloudKMSSigningKeyVersion) CreatedAt() time.Time {
 	return k.createdAt
 }
 
-func (k *CloudKMSSigningKeyVersion) DetroyedAt() time.Time {
+func (k *CloudKMSSigningKeyVersion) DestroyedAt() time.Time {
 	return k.destroyedAt
 }
 
-func (k *CloudKMSSigningKeyVersion) GetSigner(ctx context.Context) (crypto.Signer, error) {
+func (k *CloudKMSSigningKeyVersion) Signer(ctx context.Context) (crypto.Signer, error) {
 	return k.keyManager.NewSigner(ctx, k.keyID)
 }
 
-func NewGoogleCloudKMS(ctx context.Context, useHSM bool) (KeyManager, error) {
+func NewGoogleCloudKMS(ctx context.Context, config *Config) (KeyManager, error) {
 	client, err := kms.NewKeyManagementClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &GoogleCloudKMS{client, useHSM}, nil
+	return &GoogleCloudKMS{client, config.CreateHSMKeys}, nil
 }
 
 func (kms *GoogleCloudKMS) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
@@ -122,7 +122,7 @@ func (kms *GoogleCloudKMS) CreateSigningKeyVersion(ctx context.Context, keyRing 
 	return ver.Name, nil
 }
 
-func (kms *GoogleCloudKMS) GetSigningKeyVersions(ctx context.Context, keyRing string, name string) ([]SigningKeyVersion, error) {
+func (kms *GoogleCloudKMS) SigningKeyVersions(ctx context.Context, keyRing string, name string) ([]SigningKeyVersion, error) {
 	_, err := kms.getOrCreateSigningKey(ctx, keyRing, name)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get crypto key: %w", err)

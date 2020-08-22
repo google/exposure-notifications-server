@@ -75,14 +75,14 @@ type SigningKeyAdder interface {
 type SigningKeyVersion interface {
 	KeyID() string
 	CreatedAt() time.Time
-	DetroyedAt() time.Time
-	GetSigner(ctx context.Context) (crypto.Signer, error)
+	DestroyedAt() time.Time
+	Signer(ctx context.Context) (crypto.Signer, error)
 }
 
 // SigningKeyManagement supports extended management of signing keys and versions.
 type SigningKeyManagement interface {
 	CreateSigningKeyVersion(ctx context.Context, keyRing string, name string) (string, error)
-	GetSigningKeyVersions(ctx context.Context, keyRing string, name string) ([]SigningKeyVersion, error)
+	SigningKeyVersions(ctx context.Context, keyRing string, name string) ([]SigningKeyVersion, error)
 	// TODO(mikehelmick): for rotation, implement destroy
 	// DestroySigningKeyVersion(ctx context.Context, keyID string) error
 }
@@ -96,7 +96,7 @@ func KeyManagerFor(ctx context.Context, config *Config) (KeyManager, error) {
 	case KeyManagerTypeAzureKeyVault:
 		return NewAzureKeyVault(ctx)
 	case KeyManagerTypeGoogleCloudKMS:
-		return NewGoogleCloudKMS(ctx, config.CreateHSMKeys)
+		return NewGoogleCloudKMS(ctx, config)
 	case KeyManagerTypeHashiCorpVault:
 		return NewHashiCorpVault(ctx)
 	case KeyManagerTypeInMemory:
