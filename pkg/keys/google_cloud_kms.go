@@ -17,7 +17,6 @@ package keys
 import (
 	"context"
 	"crypto"
-	"errors"
 	"fmt"
 	"time"
 
@@ -33,10 +32,6 @@ import (
 // Compile-time check to verify implements interface.
 var _ KeyManager = (*GoogleCloudKMS)(nil)
 var _ SigningKeyManagement = (*GoogleCloudKMS)(nil)
-
-var (
-	ErrKeyExists = errors.New("key already exists")
-)
 
 // GoogleCloudKMS implements the keys.KeyManager interface and can be used to sign
 // export files.
@@ -174,11 +169,7 @@ func (kms *GoogleCloudKMS) ProtectionLevel() kmspb.ProtectionLevel {
 
 func (kms *GoogleCloudKMS) getOrCreateSigningKey(ctx context.Context, keyRing string, name string) (*kmspb.CryptoKey, error) {
 	logger := logging.FromContext(ctx)
-	getRequest := kmspb.GetCryptoKeyRequest{
-		Name: fmt.Sprintf("%s/cryptoKeys/%s", keyRing, name),
-	}
-	logger.Infow("gcpkms.GetCryptoKey", "keyring", keyRing, "name", name)
-	key, err := kms.client.GetCryptoKey(ctx, &getRequest)
+	key, err := kms.getSigningKey(ctx, keyRing, name)
 	if err == nil {
 		return key, nil
 	}
@@ -198,9 +189,20 @@ func (kms *GoogleCloudKMS) getOrCreateSigningKey(ctx context.Context, keyRing st
 	key, err = kms.client.CreateCryptoKey(ctx, &createRequest)
 	if err != nil {
 		if terr, ok := grpcstatus.FromError(err); ok && terr.Code() == grpccodes.AlreadyExists {
-			return nil, ErrKeyExists
+			// race condition, try and get the key again, and if that errors again, return that error.
+			return kms.getSigningKey(ctx, keyRing, name)
 		}
+		logger.Errorf("failed to create crypto key", "keyRing", keyRing, "name", name, "error", err)
 		return nil, fmt.Errorf("unable to create signing key: %w", err)
 	}
 	return key, nil
+}
+
+func (kms *GoogleCloudKMS) getSigningKey(ctx context.Context, keyRing string, name string) (*kmspb.CryptoKey, error) {
+	logger := logging.FromContext(ctx)
+	getRequest := kmspb.GetCryptoKeyRequest{
+		Name: fmt.Sprintf("%s/cryptoKeys/%s", keyRing, name),
+	}
+	logger.Infow("gcpkms.GetCryptoKey", "keyring", keyRing, "name", name)
+	return kms.client.GetCryptoKey(ctx, &getRequest)
 }
