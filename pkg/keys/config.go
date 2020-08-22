@@ -27,5 +27,11 @@ const (
 
 // Config defines configuration.
 type Config struct {
-	KeyManagerType KeyManagerType `env:"KEY_MANAGER,default=GOOGLE_CLOUD_KMS"`
+	KeyManagerType KeyManagerType `env:"KEY_MANAGER, default=GOOGLE_CLOUD_KMS"`
+
+	// CreateHSMKeys indicates than when keys are creating, HSM level
+	// protection should or should not be used if available.
+	// Adherence to this config setting is optional and based
+	// upon the key manager implementation and underlying capabilities.
+	CreateHSMKeys bool `env:"CREATE_HSM_KEYS, default=true"`
 }
