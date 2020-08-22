@@ -102,14 +102,9 @@ func (kms *GoogleCloudKMS) Decrypt(ctx context.Context, keyID string, ciphertext
 }
 
 func (kms *GoogleCloudKMS) CreateSigningKeyVersion(ctx context.Context, keyRing string, name string) (string, error) {
-	logger := logging.FromContext(ctx)
-	getRequest := kmspb.GetCryptoKeyRequest{
-		Name: fmt.Sprintf("%s/cryptoKeys/%s", keyRing, name),
-	}
-	logger.Infow("gcpkms.GetCryptoKey", "keyring", keyRing, "name", name)
-	key, err := kms.client.GetCryptoKey(ctx, &getRequest)
+	key, err := kms.getOrCreateSigningKey(ctx, keyRing, name)
 	if err != nil {
-		return "", fmt.Errorf("cannot create version, key does not exist: %w", err)
+		return "", fmt.Errorf("cannot create version, unable to find or create key: %w", err)
 	}
 
 	createRequest := kmspb.CreateCryptoKeyVersionRequest{
