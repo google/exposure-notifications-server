@@ -123,9 +123,19 @@ func (kms *GoogleCloudKMS) CreateSigningKeyVersion(ctx context.Context, keyRing 
 }
 
 func (kms *GoogleCloudKMS) SigningKeyVersions(ctx context.Context, keyRing string, name string) ([]SigningKeyVersion, error) {
-	_, _, err := kms.getOrCreateSigningKey(ctx, keyRing, name)
+	key, created, err := kms.getOrCreateSigningKey(ctx, keyRing, name)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get crypto key: %w", err)
+	}
+
+	if created {
+		// If the key was just created, just return the primary key and don't list them all.
+		key := &CloudKMSSigningKeyVersion{
+			keyID:      key.Primary.Name,
+			createdAt:  key.Primary.GetCreateTime().AsTime(),
+			keyManager: kms,
+		}
+		return []SigningKeyVersion{key}, err
 	}
 
 	request := kmspb.ListCryptoKeyVersionsRequest{
