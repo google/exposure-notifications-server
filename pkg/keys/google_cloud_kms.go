@@ -102,14 +102,14 @@ func (kms *GoogleCloudKMS) Decrypt(ctx context.Context, keyID string, ciphertext
 }
 
 func (kms *GoogleCloudKMS) CreateSigningKeyVersion(ctx context.Context, keyRing string, name string) (string, error) {
-	logger := logging.FromContext(ctx)
-	getRequest := kmspb.GetCryptoKeyRequest{
-		Name: fmt.Sprintf("%s/cryptoKeys/%s", keyRing, name),
-	}
-	logger.Infow("gcpkms.GetCryptoKey", "keyring", keyRing, "name", name)
-	key, err := kms.client.GetCryptoKey(ctx, &getRequest)
+	key, created, err := kms.getOrCreateSigningKey(ctx, keyRing, name)
 	if err != nil {
-		return "", fmt.Errorf("cannot create version, key does not exist: %w", err)
+		return "", fmt.Errorf("cannot create version, unable to find or create key: %w", err)
+	}
+
+	if created {
+		// the key is created with an initial key version
+		return key.Primary.Name, nil
 	}
 
 	createRequest := kmspb.CreateCryptoKeyVersionRequest{
@@ -123,9 +123,19 @@ func (kms *GoogleCloudKMS) CreateSigningKeyVersion(ctx context.Context, keyRing 
 }
 
 func (kms *GoogleCloudKMS) SigningKeyVersions(ctx context.Context, keyRing string, name string) ([]SigningKeyVersion, error) {
-	_, err := kms.getOrCreateSigningKey(ctx, keyRing, name)
+	key, created, err := kms.getOrCreateSigningKey(ctx, keyRing, name)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get crypto key: %w", err)
+	}
+
+	if created {
+		// If the key was just created, just return the primary key and don't list them all.
+		key := &CloudKMSSigningKeyVersion{
+			keyID:      key.Primary.Name,
+			createdAt:  key.Primary.GetCreateTime().AsTime(),
+			keyManager: kms,
+		}
+		return []SigningKeyVersion{key}, err
 	}
 
 	request := kmspb.ListCryptoKeyVersionsRequest{
@@ -167,11 +177,11 @@ func (kms *GoogleCloudKMS) ProtectionLevel() kmspb.ProtectionLevel {
 	return kmspb.ProtectionLevel_SOFTWARE
 }
 
-func (kms *GoogleCloudKMS) getOrCreateSigningKey(ctx context.Context, keyRing string, name string) (*kmspb.CryptoKey, error) {
+func (kms *GoogleCloudKMS) getOrCreateSigningKey(ctx context.Context, keyRing string, name string) (*kmspb.CryptoKey, bool, error) {
 	logger := logging.FromContext(ctx)
 	key, err := kms.getSigningKey(ctx, keyRing, name)
 	if err == nil {
-		return key, nil
+		return key, false, nil
 	}
 
 	// Attempt to create the crypto key in this key ring w/ our default settings.
@@ -190,12 +200,13 @@ func (kms *GoogleCloudKMS) getOrCreateSigningKey(ctx context.Context, keyRing st
 	if err != nil {
 		if terr, ok := grpcstatus.FromError(err); ok && terr.Code() == grpccodes.AlreadyExists {
 			// race condition, try and get the key again, and if that errors again, return that error.
-			return kms.getSigningKey(ctx, keyRing, name)
+			result, err := kms.getSigningKey(ctx, keyRing, name)
+			return result, false, err
 		}
 		logger.Errorf("failed to create crypto key", "keyRing", keyRing, "name", name, "error", err)
-		return nil, fmt.Errorf("unable to create signing key: %w", err)
+		return nil, false, fmt.Errorf("unable to create signing key: %w", err)
 	}
-	return key, nil
+	return key, true, nil
 }
 
 func (kms *GoogleCloudKMS) getSigningKey(ctx context.Context, keyRing string, name string) (*kmspb.CryptoKey, error) {
