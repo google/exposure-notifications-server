@@ -89,7 +89,16 @@ git push origin --tags
 # Go do the same on exposure-notifications-verification-server
 
 Before releasing, update the `go.mod` file for the exposure-notifications-verification-server
-so that it references the exposure-notifications-server version that was just released.
+so that it references the exposure-notifications-server version that was just released:
+
+```text
+# From github.com/google/exposure-notifications-verification-server
+go get -u github.com/google/exposure-notifications-server@${RELEASE_VERSION}
+
+# Cleanup
+go mod tidy
+go mod verify
+```
 
 The version being tracked may have been un-pined since the last release or just should
 generally be updated to keep the projects in sync.
