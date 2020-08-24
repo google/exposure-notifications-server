@@ -12,18 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "random_string" "db-name" {
-  length  = 5
-  special = false
-  number  = false
-  upper   = false
-}
-
 resource "google_sql_database_instance" "db-inst" {
   project          = data.google_project.project.project_id
   region           = var.db_location
   database_version = "POSTGRES_11"
-  name             = "en-${random_string.db-name.result}"
+  name             = var.db_name
 
   settings {
     tier              = var.cloudsql_tier
