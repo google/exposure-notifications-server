@@ -14,7 +14,7 @@
 
 resource "google_kms_key_ring" "export-signing" {
   project  = data.google_project.project.project_id
-  name     = "export-signing"
+  name     = var.kms_export_signing_key_ring_name
   location = var.kms_location
 
   depends_on = [
@@ -34,7 +34,7 @@ resource "google_kms_crypto_key" "export-signer" {
 
 resource "google_kms_key_ring" "revision-tokens" {
   project  = data.google_project.project.project_id
-  name     = "revision-tokens"
+  name     = var.kms_revision_tokens_key_ring_name
   location = var.kms_location
 
   depends_on = [
