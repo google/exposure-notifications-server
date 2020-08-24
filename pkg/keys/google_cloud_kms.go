@@ -108,8 +108,9 @@ func (kms *GoogleCloudKMS) CreateSigningKeyVersion(ctx context.Context, keyRing 
 	}
 
 	if created {
-		// the key is created with an initial key version
-		return key.Primary.Name, nil
+		// The primary key isn't populated on create, even though the first version is created.
+		// Create the name of the first key version from the key name.
+		return fmt.Sprintf("%s/cryptoKeyVersions/1", key.Name), nil
 	}
 
 	createRequest := kmspb.CreateCryptoKeyVersionRequest{
