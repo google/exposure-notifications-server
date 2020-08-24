@@ -87,3 +87,9 @@ git push origin --tags
 1. Copy the release notes into the web form.
 
 # Go do the same on exposure-notifications-verification-server
+
+Before releasing, update the `go.mod` file for the exposure-notifications-verification-server
+so that it references the exposure-notifications-server version that was just released.
+
+The version being tracked may have been un-pined since the last release or just should
+generally be updated to keep the projects in sync.
