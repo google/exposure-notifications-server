@@ -44,6 +44,7 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 	}
 
 	monitoredResource := NewStackdriverMonitoredResoruce(config)
+	logger.Debugf("stackdriver monitored resource: %+v", monitoredResource)
 
 	exporter, err := stackdriver.NewExporter(stackdriver.Options{
 		ProjectID:         projectID,
