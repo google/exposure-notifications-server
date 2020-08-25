@@ -56,12 +56,16 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 	} else {
 		labels["task_id"] = base64.StdEncoding.EncodeToString(uuid.NodeID())
 	}
+
 	if zone, ok := providedLabels["zone"]; ok {
 		labels["location"] = zone
 	} else if loc, ok := providedLabels["location"]; ok {
 		labels["location"] = loc
 	} else {
 		labels["location"] = "unknown"
+		if c.LocationOverride != "" {
+			labels["location"] = c.LocationOverride
+		}
 	}
 	labels["namespace"] = c.Namespace
 

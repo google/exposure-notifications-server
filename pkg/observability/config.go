@@ -56,4 +56,8 @@ type StackdriverConfig struct {
 	Service   string `env:"K_SERVICE"`
 	Revision  string `env:"K_REVISION"`
 	Namespace string `env:"K_CONFIGURATION, default=en"`
+
+	// Allows for providing a real Google Cloud location when running locally for development.
+	// This is ignored if a real location was found during discovery.
+	LocationOverride string `env:"DEV_STACKDRIVER_LOCATION"`
 }
