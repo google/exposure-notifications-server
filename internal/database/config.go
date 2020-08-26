@@ -33,7 +33,7 @@ type Config struct {
 	PoolMaxConnections string        `env:"DB_POOL_MAX_CONNS" json:",omitempty"`
 	PoolMaxConnLife    time.Duration `env:"DB_POOL_MAX_CONN_LIFETIME" json:",omitempty"`
 	PoolMaxConnIdle    time.Duration `env:"DB_POOL_MAX_CONN_IDLE_TIME" json:",omitempty"`
-	PoolHealthCheck    time.Duration `env:"DB_POOL_HEALTH_CHECK_PERIOD" json:",omitempty"`
+	PoolHealthCheck    time.Duration `env:"DB_POOL_HEALTH_CHECK_PERIOD, default=1m" json:",omitempty"`
 }
 
 func (c *Config) DatabaseConfig() *Config {
