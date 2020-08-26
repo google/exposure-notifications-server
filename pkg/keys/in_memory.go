@@ -28,9 +28,7 @@ import (
 )
 
 var _ KeyManager = (*InMemory)(nil)
-var _ SigningKeyCreator = (*InMemory)(nil)
 var _ SigningKeyAdder = (*InMemory)(nil)
-var _ EncryptionKeyCreator = (*InMemory)(nil)
 var _ EncryptionKeyAdder = (*InMemory)(nil)
 
 // InMemory is useful for testing. Do NOT use in a running system as all
@@ -51,21 +49,22 @@ func NewInMemory(ctx context.Context) (*InMemory, error) {
 
 // CreateSigningKey generates a new ECDSA P256 Signing Key identified by
 // the provided keyID
-func (k *InMemory) CreateSigningKey(keyID string) (*ecdsa.PrivateKey, error) {
+func (k *InMemory) CreateSigningKey(ctx context.Context, parent, name string) (string, error) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 
+	keyID := fmt.Sprintf("%s/%s", parent, name)
 	if _, ok := k.signingKeys[keyID]; ok {
-		return nil, fmt.Errorf("key already exists: %v", keyID)
+		return "", fmt.Errorf("key already exists: %v", keyID)
 	}
 
 	pk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return nil, fmt.Errorf("unable to generate private key: %w", err)
+		return "", fmt.Errorf("unable to generate private key: %w", err)
 	}
 
 	k.signingKeys[keyID] = pk
-	return pk, nil
+	return keyID, nil
 }
 
 // AddSigningKey adds a new ECDSA P256 Signing Key identified by the provided
