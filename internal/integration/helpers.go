@@ -102,7 +102,7 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 	if _, err := km.CreateEncryptionKey("tokenkey"); err != nil {
 		tb.Fatal(err)
 	}
-	if _, err := km.CreateSigningKey("signingkey"); err != nil {
+	if _, err := km.CreateSigningKey(ctx, "signing", "signingkey"); err != nil {
 		tb.Fatal(err)
 	}
 	// create an initial revision key.

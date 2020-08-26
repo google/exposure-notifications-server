@@ -50,9 +50,11 @@ type KeyManager interface {
 	Decrypt(ctx context.Context, keyID string, ciphertext []byte, aad []byte) ([]byte, error)
 }
 
-// EncryptionKeyCreator supports creating encryption keys.
-type EncryptionKeyCreator interface {
-	CreateEncryptionKey(string) ([]byte, error)
+// KeyVersionCreator supports creating a new version of an existing key.
+type KeyVersionCreator interface {
+	// CreateKeyVersion creates a new key version for the given parent, returning
+	// the ID of the new version. The parent key must already exist.
+	CreateKeyVersion(ctx context.Context, parent string) (string, error)
 }
 
 // EncryptionKeyAdder supports creating encryption keys.
@@ -60,9 +62,11 @@ type EncryptionKeyAdder interface {
 	AddEncryptionKey(string, []byte) error
 }
 
-// SigningKeyCreator supports creating signing keys.
-type SigningKeyCreator interface {
-	CreateSigningKey(string) (*ecdsa.PrivateKey, error)
+// KeyVersionDestroyer supports destroying a key version.
+type KeyVersionDestroyer interface {
+	// DestroyKeyVersion destroys the given key version, if it exists. If the
+	// version does not exist, it should not return an error.
+	DestroyKeyVersion(ctx context.Context, id string) error
 }
 
 // SigningKeyAdder supports creating signing keys.
@@ -79,12 +83,19 @@ type SigningKeyVersion interface {
 	Signer(ctx context.Context) (crypto.Signer, error)
 }
 
-// SigningKeyManagement supports extended management of signing keys and versions.
-type SigningKeyManagement interface {
-	CreateSigningKeyVersion(ctx context.Context, keyRing string, name string) (string, error)
-	SigningKeyVersions(ctx context.Context, keyRing string, name string) ([]SigningKeyVersion, error)
-	// TODO(mikehelmick): for rotation, implement destroy
-	// DestroySigningKeyVersion(ctx context.Context, keyID string) error
+// SigningKeyManager supports extended management of signing keys, versions, and
+// rotation.
+type SigningKeyManager interface {
+	// SigningKeyVersions returns the list of signing keys for the provided
+	// parent. If the parent does not exist, it returns an error.
+	SigningKeyVersions(ctx context.Context, parent string) ([]SigningKeyVersion, error)
+
+	// CreateSigningKey creates a new signing key in the given parent, returning
+	// the id. If the key already exists, it returns the key's id.
+	CreateSigningKey(ctx context.Context, parent, name string) (string, error)
+
+	KeyVersionCreator
+	KeyVersionDestroyer
 }
 
 // KeyManagerFor returns the appropriate key manager for the given type.
