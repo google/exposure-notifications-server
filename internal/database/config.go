@@ -31,8 +31,8 @@ type Config struct {
 	SSLRootCertPath    string        `env:"DB_SSLROOTCERT" json:",omitempty"`
 	PoolMinConnections string        `env:"DB_POOL_MIN_CONNS" json:",omitempty"`
 	PoolMaxConnections string        `env:"DB_POOL_MAX_CONNS" json:",omitempty"`
-	PoolMaxConnLife    time.Duration `env:"DB_POOL_MAX_CONN_LIFETIME" json:",omitempty"`
-	PoolMaxConnIdle    time.Duration `env:"DB_POOL_MAX_CONN_IDLE_TIME" json:",omitempty"`
+	PoolMaxConnLife    time.Duration `env:"DB_POOL_MAX_CONN_LIFETIME, default=5m" json:",omitempty"`
+	PoolMaxConnIdle    time.Duration `env:"DB_POOL_MAX_CONN_IDLE_TIME, default=1m" json:",omitempty"`
 	PoolHealthCheck    time.Duration `env:"DB_POOL_HEALTH_CHECK_PERIOD, default=1m" json:",omitempty"`
 }
 
