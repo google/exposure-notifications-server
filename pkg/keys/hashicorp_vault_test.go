@@ -62,6 +62,8 @@ func TestNewHashiCorpVaultSigner(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 			_, err := NewHashiCorpVaultSigner(ctx, tc.client, tc.keyName, tc.keyVersion)
 			if err == nil {
@@ -71,7 +73,249 @@ func TestNewHashiCorpVaultSigner(t *testing.T) {
 	}
 }
 
+func TestHashiCorpVault_SigningKeyVersions(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		setup func(client *vaultapi.Client) error
+		size  int
+	}{
+		{
+			name: "lists",
+			setup: func(client *vaultapi.Client) error {
+				// Create a key.
+				if _, err := client.Logical().Write("transit/keys/my-key", map[string]interface{}{
+					"type": "ecdsa-p256",
+				}); err != nil {
+					return fmt.Errorf("failed to create key: %w", err)
+				}
+				return nil
+			},
+			size: 1,
+		},
+		{
+			name: "lists_many",
+			setup: func(client *vaultapi.Client) error {
+				// Create a key.
+				if _, err := client.Logical().Write("transit/keys/my-key", map[string]interface{}{
+					"type": "ecdsa-p256",
+				}); err != nil {
+					return fmt.Errorf("failed to create key: %w", err)
+				}
+
+				for i := 0; i < 5; i++ {
+					if _, err := client.Logical().Write("transit/keys/my-key/rotate", nil); err != nil {
+						return fmt.Errorf("failed to rotate key: %w", err)
+					}
+				}
+
+				return nil
+			},
+			size: 6,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Create a Vault server.
+			ctx := context.Background()
+			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
+				DisableMlock: true,
+				DisableCache: true,
+				Logger:       vaultlog.NewNullLogger(),
+				LogicalBackends: map[string]vaultlogical.Factory{
+					"transit": vaulttransit.Factory,
+				},
+			})
+			ln, addr := vaulthttp.TestServer(t, core)
+			defer ln.Close()
+
+			// Create the client.
+			client, err := vaultapi.NewClient(&vaultapi.Config{Address: addr})
+			if err != nil {
+				t.Fatal(err)
+			}
+			client.SetToken(token)
+
+			// Enable transit engine.
+			if _, err := client.Logical().Write("sys/mounts/transit", map[string]interface{}{
+				"type": "transit",
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			// Run setup.
+			if err := tc.setup(client); err != nil {
+				t.Fatal(err)
+			}
+
+			// Wrap client.
+			vault := &HashiCorpVault{client}
+
+			// List the versions.
+			list, err := vault.SigningKeyVersions(ctx, "my-key")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got, want := len(list), tc.size; got != want {
+				t.Errorf("expected list to have %d keys (was %d)", want, got)
+			}
+
+			first := list[0]
+
+			if got, want := first.KeyID(), "my-key/1"; got != want {
+				t.Errorf("expected %#v to be %#v", got, want)
+			}
+		})
+	}
+}
+
+func TestHashiCorpVault_CreateSigningKey(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+	}{
+		{
+			name: "creates",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Create a Vault server.
+			ctx := context.Background()
+			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
+				DisableMlock: true,
+				DisableCache: true,
+				Logger:       vaultlog.NewNullLogger(),
+				LogicalBackends: map[string]vaultlogical.Factory{
+					"transit": vaulttransit.Factory,
+				},
+			})
+			ln, addr := vaulthttp.TestServer(t, core)
+			defer ln.Close()
+
+			// Create the client.
+			client, err := vaultapi.NewClient(&vaultapi.Config{Address: addr})
+			if err != nil {
+				t.Fatal(err)
+			}
+			client.SetToken(token)
+
+			// Enable transit engine.
+			if _, err := client.Logical().Write("sys/mounts/transit", map[string]interface{}{
+				"type": "transit",
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			// Wrap client.
+			vault := &HashiCorpVault{client}
+
+			// Create a new version.
+			id, err := vault.CreateSigningKey(ctx, "", "my-key")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Expect the new version
+			if got, want := id, "my-key"; got != want {
+				t.Errorf("expected %#v to be %#v", got, want)
+			}
+		})
+	}
+}
+
+func TestHashiCorpVault_CreateKeyVersion(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		setup func(client *vaultapi.Client) error
+	}{
+		{
+			name: "creates",
+			setup: func(client *vaultapi.Client) error {
+				// Create a key.
+				if _, err := client.Logical().Write("transit/keys/my-key", map[string]interface{}{
+					"type": "ecdsa-p256",
+				}); err != nil {
+					return fmt.Errorf("failed to create key: %w", err)
+				}
+				return nil
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Create a Vault server.
+			ctx := context.Background()
+			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
+				DisableMlock: true,
+				DisableCache: true,
+				Logger:       vaultlog.NewNullLogger(),
+				LogicalBackends: map[string]vaultlogical.Factory{
+					"transit": vaulttransit.Factory,
+				},
+			})
+			ln, addr := vaulthttp.TestServer(t, core)
+			defer ln.Close()
+
+			// Create the client.
+			client, err := vaultapi.NewClient(&vaultapi.Config{Address: addr})
+			if err != nil {
+				t.Fatal(err)
+			}
+			client.SetToken(token)
+
+			// Enable transit engine.
+			if _, err := client.Logical().Write("sys/mounts/transit", map[string]interface{}{
+				"type": "transit",
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			// Run setup.
+			if err := tc.setup(client); err != nil {
+				t.Fatal(err)
+			}
+
+			// Wrap client.
+			vault := &HashiCorpVault{client}
+
+			// Create a new version.
+			id, err := vault.CreateKeyVersion(ctx, "my-key")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Expect the new version
+			if got, want := id, "my-key/2"; got != want {
+				t.Errorf("expected %#v to be %#v", got, want)
+			}
+		})
+	}
+}
+
 func TestHashiCorpVaultEncryptDecrypt(t *testing.T) {
+	t.Parallel()
+
 	setupFn := func(client *vaultapi.Client) error {
 		if _, err := client.Logical().Write("transit/keys/my-key", map[string]interface{}{
 			"type": "aes256-gcm96",
@@ -110,7 +354,11 @@ func TestHashiCorpVaultEncryptDecrypt(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			// Create a Vault server.
 			ctx := context.Background()
 			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
@@ -164,6 +412,8 @@ func TestHashiCorpVaultEncryptDecrypt(t *testing.T) {
 }
 
 func TestHashiCorpVaultSigner_Public(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name       string
 		setup      func(client *vaultapi.Client) error
@@ -232,6 +482,8 @@ func TestHashiCorpVaultSigner_Public(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			// Create a Vault server.
 			ctx := context.Background()
 			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
@@ -287,6 +539,8 @@ func TestHashiCorpVaultSigner_Public(t *testing.T) {
 }
 
 func TestHashiCorpVaultSigner_Sign(t *testing.T) {
+	t.Parallel()
+
 	// Create a Vault server.
 	ctx := context.Background()
 	core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{

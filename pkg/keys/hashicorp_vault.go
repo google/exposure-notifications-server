@@ -18,20 +18,23 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"fmt"
 	"io"
+	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/mitchellh/mapstructure"
 
 	vaultapi "github.com/hashicorp/vault/api"
 )
 
 // Compile-time check to verify implements interface.
 var _ KeyManager = (*HashiCorpVault)(nil)
+var _ SigningKeyManager = (*HashiCorpVault)(nil)
 var _ crypto.Signer = (*HashiCorpVaultSigner)(nil)
 
 // HashiCorpVault implements the keys.KeyManager interface and can be used to
@@ -70,6 +73,144 @@ func NewHCValueKeyID(keyID string) (*HCValueKeyID, error) {
 	default:
 		return &HCValueKeyID{Name: parts[0], Version: parts[1]}, nil
 	}
+}
+
+type readKeyResponse struct {
+	Versions map[string]struct {
+		CreationTime time.Time `ms:"creation_time"`
+		PublicKeyPEM string    `ms:"public_key"`
+	} `ms:"keys"`
+}
+
+type vaultKeyVersion struct {
+	client    *vaultapi.Client
+	name      string
+	version   int64
+	createdAt time.Time
+	publicKey crypto.PublicKey
+}
+
+func (v *vaultKeyVersion) KeyID() string {
+	return fmt.Sprintf("%s/%d", v.name, v.version)
+}
+
+func (v *vaultKeyVersion) CreatedAt() time.Time {
+	return v.createdAt.UTC()
+}
+
+func (v *vaultKeyVersion) DestroyedAt() time.Time {
+	return time.Time{}
+}
+
+func (v *vaultKeyVersion) Signer(ctx context.Context) (crypto.Signer, error) {
+	return &HashiCorpVaultSigner{
+		client:    v.client,
+		name:      v.name,
+		version:   strconv.FormatInt(v.version, 10),
+		publicKey: v.publicKey,
+	}, nil
+}
+
+// SigningKeyVersions returns the signing keys for the given key name.
+func (v *HashiCorpVault) SigningKeyVersions(ctx context.Context, parent string) ([]SigningKeyVersion, error) {
+	var versions []SigningKeyVersion
+
+	pth := fmt.Sprintf("transit/keys/%s", parent)
+	result, err := v.client.Logical().Read(pth)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read key: %w", err)
+	}
+	if result == nil || result.Data == nil {
+		return nil, fmt.Errorf("key does not exist")
+	}
+
+	var response readKeyResponse
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeHookFunc(time.RFC3339),
+		WeaklyTypedInput: true,
+		Result:           &response,
+		TagName:          "ms",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup decoder: %w", err)
+	}
+	if err := dec.Decode(result.Data); err != nil {
+		return nil, fmt.Errorf("failed to decode result: %w", err)
+	}
+
+	for k, ver := range response.Versions {
+		publicKey, err := parsePublicKeyPEM(ver.PublicKeyPEM)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse public key for %s/%s", k, ver)
+		}
+
+		num, err := strconv.ParseInt(k, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid key key %q: %w", k, err)
+		}
+
+		versions = append(versions, &vaultKeyVersion{
+			client:    v.client,
+			name:      parent,
+			version:   num,
+			createdAt: ver.CreationTime,
+			publicKey: publicKey,
+		})
+	}
+
+	// Sort versions - the results come in as a map, so order is undefined.
+	sort.Slice(versions, func(i, j int) bool {
+		x := versions[i].(*vaultKeyVersion).version
+		y := versions[j].(*vaultKeyVersion).version
+		return x < y
+	})
+
+	return versions, nil
+}
+
+// CreateSigningKey creates a new signing key with the given name.
+func (v *HashiCorpVault) CreateSigningKey(ctx context.Context, parent, name string) (string, error) {
+	id := strings.Trim(strings.Join([]string{parent, name}, "/"), "/")
+	pth := fmt.Sprintf("/transit/keys/%s", id)
+	if _, err := v.client.Logical().Write(pth, map[string]interface{}{
+		"name": name,
+		"type": "ecdsa-p256",
+	}); err != nil {
+		return "", fmt.Errorf("failed to create signing key: %w", err)
+	}
+
+	return id, nil
+}
+
+// CreateKeyVersion rotates the given key.
+func (v *HashiCorpVault) CreateKeyVersion(ctx context.Context, parent string) (string, error) {
+	pth := fmt.Sprintf("/transit/keys/%s/rotate", parent)
+	if _, err := v.client.Logical().Write(pth, nil); err != nil {
+		return "", fmt.Errorf("failed to rotate signing key: %w", err)
+	}
+
+	// WARNING: race condition. Since Vault's API does not return information
+	// about the key that was just rotated, we have to READ the API to get the
+	// latest version. If another version was created between ours and now, we'd
+	// pick up that new version.
+	//
+	// To put it another way, there's no guarantee that the last element in this
+	// result is the element we just created.
+	list, err := v.SigningKeyVersions(ctx, parent)
+	if err != nil {
+		return "", fmt.Errorf("failed to lookup signing keys: %w", err)
+	}
+
+	if len(list) < 1 {
+		return "", fmt.Errorf("no signing keys")
+	}
+	return list[len(list)-1].KeyID(), nil
+}
+
+// DestroyKeyVersion is unimplemented on Vault. Vault can only trim keys up to a
+// point (which might be unsafe).
+func (v *HashiCorpVault) DestroyKeyVersion(ctx context.Context, id string) error {
+	return fmt.Errorf("vault does not support destroying a key version")
 }
 
 // NewSigner creates a new signer that uses a key in HashiCorp Vault's transit
@@ -267,24 +408,19 @@ func (s *HashiCorpVaultSigner) getPublicKey() (crypto.PublicKey, error) {
 		return nil, fmt.Errorf("not in the correct format: %T", keyRaw)
 	}
 
-	publicKeyPemRaw, ok := keyTyped["public_key"]
+	publicKeyPEMRaw, ok := keyTyped["public_key"]
 	if !ok {
 		return nil, fmt.Errorf("no public_key field")
 	}
 
-	publicKeyPem, ok := publicKeyPemRaw.(string)
+	publicKeyPEM, ok := publicKeyPEMRaw.(string)
 	if !ok {
-		return nil, fmt.Errorf("invalid public_key type %T", publicKeyPemRaw)
+		return nil, fmt.Errorf("invalid public_key type %T", publicKeyPEMRaw)
 	}
 
-	block, _ := pem.Decode([]byte(publicKeyPem))
-	if block == nil {
-		return nil, fmt.Errorf("pem is invalid")
-	}
-
-	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	publicKey, err := parsePublicKeyPEM(publicKeyPEM)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse public key pem: %w", err)
+		return nil, err
 	}
 
 	typed, ok := publicKey.(*ecdsa.PublicKey)
