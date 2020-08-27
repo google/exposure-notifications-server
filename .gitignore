@@ -8,6 +8,29 @@
 # Test binary, build with `go test -c`
 *.test
 
+# Locally built binaries
+cmd/cleanup-export/cleanup-export
+cmd/cleanup-exposure/cleanup-exposure
+cmd/debugger/debugger
+cmd/export/export
+cmd/exposure/exposure
+cmd/federationin/federationin
+cmd/federationout/federationout
+cmd/generate/generate
+cmd/key-rotation/key-rotation
+tools/admin-console/admin-console
+tools/example-verification-signing/example-verification-signing
+tools/export-analyzer/export-analyzer
+tools/export-config/export-config
+tools/export-generate/export-generate
+tools/exposure-client/exposure-client
+tools/federationin-query/federationin-query
+tools/federationout-authorization/federationout-authorization
+tools/federationout-test/federationout-test
+tools/hexconvert/hexconvert
+tools/hmac-calculator/hmac-calculator
+tools/interval/interval
+
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
