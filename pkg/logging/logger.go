@@ -165,7 +165,7 @@ func TraceFromContext(ctx context.Context) []zap.Field {
 	return []zap.Field{
 		// TODO(icco): Figure out how to add project ID to this.
 		zap.String("trace", fmt.Sprintf("traces/%s", sc.TraceID)),
-		zap.String("spanId", sc.SpanID),
+		zap.String("spanId", sc.SpanID.String()),
 		zap.Bool("traceSampled", sc.IsSampled()),
 	}
 }
