@@ -17,9 +17,11 @@ package logging
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	"go.opencensus.io/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
