@@ -148,6 +148,26 @@ func levelEncoder() zapcore.LevelEncoder {
 	}
 }
 
+// TraceFromContext adds the correct Stackdriver trace fields.
+//
+// see: https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry
+func TraceFromContext(ctx context.Context) []zap.Field {
+	span := trace.FromContext(ctx)
+
+	if span == nil {
+		return nil
+	}
+
+	sc := span.SpanContext()
+
+	return []zap.Field{
+		// TODO(icco): Figure out how to add project ID to this.
+		zap.String("trace", fmt.Sprintf("traces/%s", sc.TraceID)),
+		zap.String("spanId", sc.SpanID),
+		zap.Bool("traceSampled", sc.IsSampled()),
+	}
+}
+
 // timeEncoder encodes the time as RFC3339 nano
 func timeEncoder() zapcore.TimeEncoder {
 	return func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
