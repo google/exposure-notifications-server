@@ -82,6 +82,8 @@ type readKeyResponse struct {
 	} `ms:"keys"`
 }
 
+var _ SigningKeyVersion = (*vaultKeyVersion)(nil)
+
 type vaultKeyVersion struct {
 	client    *vaultapi.Client
 	name      string
