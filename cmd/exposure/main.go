@@ -54,6 +54,7 @@ func realMain(ctx context.Context) error {
 	defer env.Close(ctx)
 
 	mux := http.NewServeMux()
+	mux.Handle("/health", server.HandleHealthz(ctx))
 	handler, err := publish.NewHandler(ctx, &config, env)
 	if err != nil {
 		return fmt.Errorf("publish.NewHandler: %w", err)

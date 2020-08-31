@@ -23,13 +23,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-
-	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
 func HandleHealthz(hctx context.Context) http.Handler {
-	logger := logging.FromContext(hctx).Named("healthz")
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{"status": "ok"}`)
 	})

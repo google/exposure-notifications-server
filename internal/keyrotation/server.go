@@ -23,6 +23,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/pkg/server"
 )
 
 // Server hosts end points to manage key rotation
@@ -66,6 +67,7 @@ func (s *Server) Routes(ctx context.Context) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/rotate-keys", s.handleRotateKeys(ctx))
+	mux.Handle("/health", server.HandleHealthz(ctx))
 
 	return mux
 }
