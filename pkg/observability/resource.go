@@ -79,6 +79,9 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 	}
 
 	// Try to get task_id from metadata server.
+	//
+	// NOTE: This is essentially the same thing as gcp.Autodetect(). We're doing
+	// this here in case something weird is happening in the autodetect.
 	if labels["task_id"] == "" {
 		iid, err := metadata.InstanceID()
 		if err == nil {
