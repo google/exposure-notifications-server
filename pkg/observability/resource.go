@@ -32,9 +32,9 @@ var (
 	// The labels each resource type requires.
 	requiredLabels = map[string]map[string]bool{
 		// https://cloud.google.com/monitoring/api/resources#tag_generic_task
-		"generic_task": map[string]bool{"project_id": true, "location": true, "namespace": true, "job": true, "task_id": true},
+		"generic_task": {"project_id": true, "location": true, "namespace": true, "job": true, "task_id": true},
 		// https://cloud.google.com/monitoring/api/resources#tag_gke_container
-		"gke_container": map[string]bool{"project_id": true, "cluster_name": true, "namespace_id": true, "instance_id": true, "pod_id": true, "container_name": true, "zone": true},
+		"gke_container": {"project_id": true, "cluster_name": true, "namespace_id": true, "instance_id": true, "pod_id": true, "container_name": true, "zone": true},
 	}
 )
 
