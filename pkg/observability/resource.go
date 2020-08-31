@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
+	"cloud.google.com/go/compute/metadata"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource/gcp"
 	"github.com/google/uuid"
