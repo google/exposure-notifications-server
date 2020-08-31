@@ -15,29 +15,50 @@
 package observability
 
 import (
-	"encoding/base64"
+	"context"
 
+	"github.com/google/exposure-notifications-server/pkg/logging"
+
+	"cloud.google.com/go/compute/metadata"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource/gcp"
 	"github.com/google/uuid"
 )
 
-var _ monitoredresource.Interface = (*stackdriverMonitoredResource)(nil)
+var (
+	_ monitoredresource.Interface = (*stackdriverMonitoredResource)(nil)
+
+	// The labels each resource type requires.
+	requiredLabels = map[string]map[string]bool{
+		// https://cloud.google.com/monitoring/api/resources#tag_generic_task
+		"generic_task": {"project_id": true, "location": true, "namespace": true, "job": true, "task_id": true},
+		// https://cloud.google.com/monitoring/api/resources#tag_gke_container
+		"gke_container": {"project_id": true, "cluster_name": true, "namespace_id": true, "instance_id": true, "pod_id": true, "container_name": true, "zone": true},
+	}
+)
 
 type stackdriverMonitoredResource struct {
 	resource string
 	labels   map[string]string
 }
 
-func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Interface {
+// NewStackdriverMonitoredResource returns a monitored resource with the
+// required labels filled out. This needs to be the correct resource type so we
+// can compared the default stackdriver metrics with the custom metrics we're
+// generating.
+func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) monitoredresource.Interface {
+	logger := logging.FromContext(ctx).Named("stackdriver")
+
 	resource := "generic_task"
 	labels := make(map[string]string)
 
-	// On GCP we can fill in some of the information.
+	// On GCP we can fill in some of the information for GCE and GKE.
 	detected := gcp.Autodetect()
 	providedLabels := make(map[string]string)
+	providedResource := ""
 	if detected != nil {
-		_, providedLabels = detected.MonitoredResource()
+		providedResource, providedLabels = detected.MonitoredResource()
+		logger.Debugw("detected resource", "resource", providedResource, "labels", providedLabels)
 	}
 
 	if _, ok := providedLabels["project_id"]; !ok {
@@ -45,16 +66,32 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 	} else {
 		labels["project_id"] = providedLabels["project_id"]
 	}
+
 	if c.Service != "" {
 		labels["job"] = c.Service
 	} else {
 		labels["job"] = "unknown"
 	}
+
 	// Transform "instance_id" to "task_id" or generate task_id
 	if iid, ok := providedLabels["instance_id"]; ok {
 		labels["task_id"] = iid
-	} else {
-		labels["task_id"] = base64.StdEncoding.EncodeToString(uuid.NodeID())
+	}
+
+	// Try to get task_id from metadata server.
+	//
+	// NOTE: This is essentially the same thing as gcp.Autodetect(). We're doing
+	// this here in case something weird is happening in the autodetect.
+	if labels["task_id"] == "" {
+		iid, err := metadata.InstanceID()
+		if err == nil {
+			labels["task_id"] = iid
+		}
+	}
+
+	// Worse case task_id
+	if labels["task_id"] == "" {
+		labels["task_id"] = uuid.New().String()
 	}
 
 	if zone, ok := providedLabels["zone"]; ok {
@@ -67,7 +104,19 @@ func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Int
 			labels["location"] = c.LocationOverride
 		}
 	}
+
 	labels["namespace"] = c.Namespace
+
+	if _, ok := requiredLabels[resource]; !ok {
+		logger.Warnw("unknown resource type", "resource", resource, "labels", labels)
+	} else {
+		// Delete unused labels to not flood stackdriver.
+		for k := range labels {
+			if _, ok := requiredLabels[k]; !ok {
+				delete(labels, k)
+			}
+		}
+	}
 
 	return &stackdriverMonitoredResource{
 		resource: resource,
