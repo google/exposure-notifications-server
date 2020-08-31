@@ -762,7 +762,7 @@ func TestTransform(t *testing.T) {
 					HealthAuthorityID:     int64Ptr(27),
 				},
 			},
-			PartialError: "key 1 cannot be imported: days from symptom onset is too large, 15 > 14.",
+			PartialError: "key 1 cannot be imported: days from symptom onset is too large, 15 > 14",
 		},
 	}
 
