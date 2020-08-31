@@ -24,6 +24,8 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"time"
 )
@@ -115,4 +117,19 @@ func KeyManagerFor(ctx context.Context, config *Config) (KeyManager, error) {
 	}
 
 	return nil, fmt.Errorf("unknown key manager type: %v", typ)
+}
+
+// parsePublicKeyPEM parses the public key in PEM-encoded format into a public
+// key.
+func parsePublicKeyPEM(s string) (interface{}, error) {
+	block, _ := pem.Decode([]byte(s))
+	if block == nil {
+		return nil, fmt.Errorf("pem is invalid")
+	}
+
+	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key PEM: %w", err)
+	}
+	return key, nil
 }
