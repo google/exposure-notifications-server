@@ -17,9 +17,11 @@ package logging
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	"go.opencensus.io/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -145,6 +147,26 @@ func levelEncoder() zapcore.LevelEncoder {
 		case zapcore.FatalLevel:
 			enc.AppendString(levelEmergency)
 		}
+	}
+}
+
+// TraceFromContext adds the correct Stackdriver trace fields.
+//
+// see: https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry
+func TraceFromContext(ctx context.Context) []zap.Field {
+	span := trace.FromContext(ctx)
+
+	if span == nil {
+		return nil
+	}
+
+	sc := span.SpanContext()
+
+	return []zap.Field{
+		// TODO(icco): Figure out how to add project ID to this.
+		zap.String("trace", fmt.Sprintf("traces/%s", sc.TraceID)),
+		zap.String("spanId", sc.SpanID.String()),
+		zap.Bool("traceSampled", sc.IsSampled()),
 	}
 }
 

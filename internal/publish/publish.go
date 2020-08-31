@@ -214,10 +214,11 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	// generous defaults. If there isn't a region set, then the TEKs
 	// won't be retrievable, so we ensure there is something set.
 	if len(regions) == 0 {
+		logger.Errorf("No regions present in request or configured for healthAuthorityID: %v", data.HealthAuthorityID)
 		message := fmt.Sprintf("unknown health authority regions for %v", data.HealthAuthorityID)
 		span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
 		return response{
-			status: http.StatusBadRequest,
+			status: http.StatusInternalServerError,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         verifyapi.ErrorHealthAuthorityMissingRegionConfiguration,
@@ -235,7 +236,11 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 			metrics.WriteInt("publish-health-authority-verification-bypassed", true, 1)
 		} else {
 			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
-			logger.Error(message)
+			if h.config.DebugLogBadCertificates {
+				logger.Errorw(message, "error", err, "jwt", data.VerificationPayload)
+			} else {
+				logger.Errorw(message, "error", err)
+			}
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
 			return response{
 				status: http.StatusUnauthorized,
@@ -257,7 +262,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		} else {
 			token, err = h.tokenManager.UnmarshalRevisionToken(ctx, encryptedToken, h.tokenAAD)
 			if err != nil {
-				logger.Errorf("unable to unmarshall / decrypt revision token: %v", err)
+				logger.Errorf("unable to unmarshall / decrypt revision token. Treating as if none was provided: %v", err)
 				token = nil // just in case.
 				decryptFail = true
 			}

@@ -386,7 +386,7 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 		// later.
 		existing, err := db.ReadExposures(ctx, tx, b64keys)
 		if err != nil {
-			return fmt.Errorf("unable to check for existing records")
+			return fmt.Errorf("unable to check for existing records: %w", err)
 		}
 		existingMap := make(map[string]*model.Exposure, len(existing))
 		for _, v := range existing {

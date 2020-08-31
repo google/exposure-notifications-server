@@ -35,7 +35,7 @@ import (
 var (
 	// ErrorExposureKeyMismatch - internal coding error, tried to revise key A by passing in key B
 	ErrorExposureKeyMismatch = fmt.Errorf("attempted to revise a key with a different key")
-	// ErrorNonLocalProvenance - key revesion attempted on federated key, which is not allowed
+	// ErrorNonLocalProvenance - key revision attempted on federated key, which is not allowed
 	ErrorNonLocalProvenance = fmt.Errorf("key not origionally uploaded to this server, cannot revise")
 	// ErrorKeyAlreadyRevised - attempt to revise a key that has already been revised.
 	ErrorKeyAlreadyRevised = fmt.Errorf("key has already been revised and cannot be revised again")
@@ -132,7 +132,7 @@ func (e *Exposure) HasDaysSinceSymptomOnset() bool {
 	return e.DaysSinceSymptomOnset != nil
 }
 
-// SetDaysSinceSymptomOnset sets the days since sympton onset field, possibly
+// SetDaysSinceSymptomOnset sets the days since symptom onset field, possibly
 // allocating a new pointer.
 func (e *Exposure) SetDaysSinceSymptomOnset(d int32) {
 	e.DaysSinceSymptomOnset = &d
@@ -148,7 +148,7 @@ func (e *Exposure) SetHealthAuthorityID(haID int64) {
 	e.HealthAuthorityID = &haID
 }
 
-// HasBeenRevised returns true if this key has been revised. This is indicauted
+// HasBeenRevised returns true if this key has been revised. This is indicated
 // by the RevisedAt time not being nil.
 func (e *Exposure) HasBeenRevised() bool {
 	return e.RevisedAt != nil
@@ -179,7 +179,7 @@ func (e *Exposure) SetRevisedTransmissionRisk(tr int) {
 	e.RevisedTransmissionRisk = &tr
 }
 
-// ExposureKeyBase64 returns the ExposuerKey property base64 encoded.
+// ExposureKeyBase64 returns the ExposureKey property base64 encoded.
 func (e *Exposure) ExposureKeyBase64() string {
 	if e.base64Key == "" {
 		e.base64Key = base64.StdEncoding.EncodeToString(e.ExposureKey)
@@ -330,7 +330,7 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 }
 
 // ReviseKeys takes a set of existing keys, and a list of keys currently being uploaded.
-// Only keys that need to be revsised or are being created fir the first time
+// Only keys that need to be revised or are being created fir the first time
 // are returned in the output set.
 func ReviseKeys(ctx context.Context, existing map[string]*Exposure, incoming []*Exposure) ([]*Exposure, error) {
 	//logger := logging.FromContext(ctx)
@@ -339,7 +339,7 @@ func ReviseKeys(ctx context.Context, existing map[string]*Exposure, incoming []*
 	// Iterate over incoming keys.
 	// If the key already exists
 	//  - determine if it needs to be revised, revise it, put in output.
-	//  - if it doesn't need to be revised (nochange), don't put in putput
+	//  - if it doesn't need to be revised (nochange), don't put in output
 	// New keys, throw it in the output list. Party on.
 	for _, inExposure := range incoming {
 		prevExposure, ok := existing[inExposure.ExposureKeyBase64()]

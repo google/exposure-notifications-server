@@ -84,7 +84,7 @@ func GetSigningKey(tb testing.TB) *SigningKey {
 
 // IssueJWT generates a JWT as if it came from the
 // authorized health authority.
-func IssueJWT(t *testing.T, cfg JWTConfig) (jwtText, hmacKey string) {
+func IssueJWT(t *testing.T, cfg *JWTConfig) (jwtText, hmacKey string) {
 	t.Helper()
 
 	hmacKeyBytes := make([]byte, 32)

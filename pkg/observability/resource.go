@@ -86,6 +86,9 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 		labels["location"] = loc
 	} else {
 		labels["location"] = "unknown"
+		if c.LocationOverride != "" {
+			labels["location"] = c.LocationOverride
+		}
 	}
 
 	labels["namespace"] = c.Namespace

@@ -150,7 +150,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		}
 
 		var err error
-		km, err = keys.KeyManagerFor(ctx, kmConfig.KeyManagerType)
+		km, err = keys.KeyManagerFor(ctx, kmConfig)
 		if err != nil {
 			return nil, fmt.Errorf("unable to connect to key manager: %w", err)
 		}
