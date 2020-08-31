@@ -92,7 +92,7 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 
 	// Worse case task_id
 	if labels["task_id"] == "" {
-		labels["task_id"] = base64.StdEncoding.EncodeToString(uuid.NodeID())
+		labels["task_id"] = base64.StdEncoding.EncodeToString(uuid.New())
 	}
 
 	if zone, ok := providedLabels["zone"]; ok {
