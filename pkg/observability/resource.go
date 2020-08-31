@@ -34,8 +34,6 @@ var (
 		"generic_task": map[string]bool{"project_id": true, "location": true, "namespace": true, "job": true, "task_id": true},
 		// https://cloud.google.com/monitoring/api/resources#tag_gke_container
 		"gke_container": map[string]bool{"project_id": true, "cluster_name": true, "namespace_id": true, "instance_id": true, "pod_id": true, "container_name": true, "zone": true},
-		// https://cloud.google.com/monitoring/api/resources#tag_cloud_run_revision
-		"cloud_run_revision": map[string]bool{"project_id": true, "service_name": true, "revision_name": true, "location": true, "configuration_name": true},
 	}
 )
 
@@ -57,8 +55,10 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 	// On GCP we can fill in some of the information for GCE and GKE.
 	detected := gcp.Autodetect()
 	providedLabels := make(map[string]string)
+	providedResource := ""
 	if detected != nil {
-		resource, providedLabels = detected.MonitoredResource()
+		providedResource, providedLabels = detected.MonitoredResource()
+		log.Debugw("detected resource", "resource", providedResource, "labels", providedLabels)
 	}
 
 	if _, ok := providedLabels["project_id"]; !ok {
@@ -76,7 +76,18 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 	// Transform "instance_id" to "task_id" or generate task_id
 	if iid, ok := providedLabels["instance_id"]; ok {
 		labels["task_id"] = iid
-	} else {
+	}
+
+	// Try to get task_id from metadata server.
+	if labels["task_id"] == "" {
+		iid, err := metadata.InstanceID()
+		if err == nil {
+			labels["task_id"] = iid
+		}
+	}
+
+	// Worse case task_id
+	if labels["task_id"] == "" {
 		labels["task_id"] = base64.StdEncoding.EncodeToString(uuid.NodeID())
 	}
 
@@ -93,25 +104,14 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 
 	labels["namespace"] = c.Namespace
 
-	// Are on Cloud Run Managed?
-	//
-	// https://cloud.google.com/monitoring/api/resources#tag_cloud_run_revision
-	// https://cloud.google.com/run/docs/reference/container-contract#env-vars
-	if c.Service != "" && c.Revision != "" {
-		resource = "cloud_run_revision"
-		labels["service_name"] = c.Service
-		labels["revision_name"] = c.Revision
-		labels["configuration_name"] = c.Namespace
-	}
-
 	if _, ok := requiredLabels[resource]; !ok {
 		logger.Warnw("unknown resource type", "resource", resource, "labels", labels)
-	}
-
-	// Delete unused labels to not flood stackdriver.
-	for k := range labels {
-		if _, ok := requiredLabels[k]; !ok {
-			delete(labels, k)
+	} else {
+		// Delete unused labels to not flood stackdriver.
+		for k := range labels {
+			if _, ok := requiredLabels[k]; !ok {
+				delete(labels, k)
+			}
 		}
 	}
 
