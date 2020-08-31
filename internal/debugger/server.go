@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/pkg/server"
 )
 
 // Server is the debugger server.
@@ -55,5 +56,7 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 func (s *Server) Routes(ctx context.Context) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handleDebug(ctx))
+	mux.Handle("/health", server.HandleHealthz(ctx))
+
 	return mux
 }
