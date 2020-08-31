@@ -59,7 +59,7 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 	providedResource := ""
 	if detected != nil {
 		providedResource, providedLabels = detected.MonitoredResource()
-		log.Debugw("detected resource", "resource", providedResource, "labels", providedLabels)
+		logger.Debugw("detected resource", "resource", providedResource, "labels", providedLabels)
 	}
 
 	if _, ok := providedLabels["project_id"]; !ok {
