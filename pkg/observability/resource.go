@@ -16,7 +16,6 @@ package observability
 
 import (
 	"context"
-	"encoding/base64"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
@@ -92,7 +91,7 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 
 	// Worse case task_id
 	if labels["task_id"] == "" {
-		labels["task_id"] = base64.StdEncoding.EncodeToString(uuid.New())
+		labels["task_id"] = uuid.New().String()
 	}
 
 	if zone, ok := providedLabels["zone"]; ok {
