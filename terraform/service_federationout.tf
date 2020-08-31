@@ -138,3 +138,7 @@ resource "google_cloud_run_service_iam_member" "federationout-public" {
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
+
+output "federationout_url" {
+  value = var.federationout_custom_domain != "" ? "https://${var.federationout_custom_domain}" : google_cloud_run_service.federationout.status.0.url
+}

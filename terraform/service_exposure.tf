@@ -154,3 +154,7 @@ resource "google_cloud_run_service_iam_member" "exposure-public" {
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
+
+output "exposure_url" {
+  value = var.exposure_custom_domain != "" ? "https://${var.exposure_custom_domain}" : google_cloud_run_service.exposure.status.0.url
+}
