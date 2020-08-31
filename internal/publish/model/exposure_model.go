@@ -463,9 +463,12 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		// Set days since onset, either from the API or from the verified claims (see above).
 		if onsetInterval > 0 {
 			daysSince := DaysFromSymptomOnset(onsetInterval, exposure.IntervalNumber)
-			if math.Abs(float64(daysSince)) < t.maxSymptomOnsetDays {
-				exposure.SetDaysSinceSymptomOnset(daysSince)
+			if abs := math.Abs(float64(daysSince)); abs > t.maxSymptomOnsetDays {
+				logger.Debugw("dropping key due to symptom onset magnitude too high", "daysSince", daysSince)
+				transformErrors = multierror.Append(transformErrors, fmt.Errorf("key %d cannot be imported: days from symptom onset is too large, %v > %v", i, abs, t.maxSymptomOnsetDays))
+				continue
 			}
+			exposure.SetDaysSinceSymptomOnset(daysSince)
 		}
 		exposure.Traveler = inData.Traveler
 		entities = append(entities, exposure)
