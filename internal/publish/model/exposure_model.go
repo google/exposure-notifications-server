@@ -465,7 +465,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 			daysSince := DaysFromSymptomOnset(onsetInterval, exposure.IntervalNumber)
 			if abs := math.Abs(float64(daysSince)); abs > t.maxSymptomOnsetDays {
 				logger.Debugw("dropping key due to symptom onset magnitude too high", "daysSince", daysSince)
-				transformErrors = multierror.Append(transformErrors, fmt.Errorf("key %d cannot be imported: days from symptom onset is too large, %v > %v.", i, abs, t.maxSymptomOnsetDays))
+				transformErrors = multierror.Append(transformErrors, fmt.Errorf("key %d cannot be imported: days from symptom onset is too large, %v > %v", i, abs, t.maxSymptomOnsetDays))
 				continue
 			}
 			exposure.SetDaysSinceSymptomOnset(daysSince)
