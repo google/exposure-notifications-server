@@ -115,14 +115,14 @@ func (s *stackdriverMonitoredResource) MonitoredResource() (string, map[string]s
 // removeUnusedLabels deletes unused labels to not flood stackdriver.
 func removeUnusedLabels(resource string, in map[string]string) map[string]string {
 	// The labels each resource type requires.
-	requiredLabels = map[string]map[string]bool{
+	requiredLabels := map[string]map[string]bool{
 		// https://cloud.google.com/monitoring/api/resources#tag_generic_task
 		"generic_task": {"project_id": true, "location": true, "namespace": true, "job": true, "task_id": true},
 	}
 
 	ret := map[string]string{}
 	for k, v := range in {
-		if requiredLabels[k] {
+		if requiredLabels[resource][k] {
 			ret[k] = v
 		}
 	}
