@@ -175,8 +175,9 @@ the database migrations and uses the following environment variables:
 
 -   `DB_CONN` (required) - your Cloud SQL connection name.
 
--   `DB_PASS_SECRET` (required) - the **reference** to the secret where the
-    database password is stored in Secret Manager.
+-   `DB_PASSWORD` (required) - the **reference** to the secret where the
+    database password is stored in Secret Manager (e.g.
+    `secret://projects/...`).
 
 -   `DB_NAME` (default: "main") - the name of the database against which to run
     migrations.
@@ -192,7 +193,7 @@ running `terraform output` from inside the `terraform/` directory:
 ```text
 PROJECT_ID=$(terraform output project)
 DB_CONN=$(terraform output db_conn)
-DB_PASS_SECRET=$(terraform output db_pass_secret)
+DB_PASSWORD=$(terraform output db_password)
 ```
 
 ### On a custom setup
@@ -241,7 +242,7 @@ the public Internet!**
     cd terraform/
     export DB_CONN=$(terraform output db_conn)
     export DB_USER=$(terraform output db_user)
-    export DB_PASSWORD="secret://$(terraform output db_pass_secret)"
+    export DB_PASSWORD="secret://$(terraform output db_password)"
     export DB_PORT=5432
     export DB_NAME=$(terraform output db_name)
     cd ../

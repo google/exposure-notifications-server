@@ -69,7 +69,7 @@ resource "google_cloud_run_service" "generate" {
       service_account_name = google_service_account.generate.email
 
       containers {
-        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/generate:initial"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/generate:initial"
 
         resources {
           limits = {

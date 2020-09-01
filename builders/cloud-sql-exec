@@ -16,18 +16,27 @@
 
 set -eEuo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
+DB_PORT=${DB_PORT:-5432}
 
-if [ -z "${PROJECT_ID:-}" ]; then
-  echo "✋ Missing PROJECT_ID!" >&2
+if [ -z "${DB_CONN:-}" ]; then
+  echo "missing DB_CONN"
   exit 1
 fi
 
-SUBS="_PERCENTAGE=${PERCENTAGE:-"100"}"
-SUBS="${SUBS},_REGION=${REGION:-"us-central1"}"
-SUBS="${SUBS},_REVISION=${REVISION:-"LATEST"}"
+function cleanup {
+  echo "==> Terminating proxy (PID ${CLOUD_SQL_PID})"
+  if [ -n "${CLOUD_SQL_PID:-}" ]; then
+    kill -SIGINT "${CLOUD_SQL_PID}"
+  fi
+}
 
-gcloud builds submit --no-source \
-  --project "${PROJECT_ID}" \
-  --config "${ROOT}/builders/promote.yaml" \
-  --substitutions "${SUBS}"
+echo "==> Staring Cloud SQL Proxy"
+/cloud_sql_proxy -instances=${DB_CONN}=tcp:${DB_PORT} &
+CLOUD_SQL_PID=$!
+trap cleanup EXIT
+
+echo "==> Waiting for proxy to be ready"
+sleep 5
+
+echo "==> Running command ($@)"
+$@

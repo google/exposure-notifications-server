@@ -15,24 +15,321 @@
 #
 # Builds a container image.
 #
+options:
+  # N1_HIGHCPU_32 builds faster, but takes much longer to provision.
+  machineType: 'N1_HIGHCPU_8'
+  env:
+  - 'GOPATH=/go'
+  - 'GO111MODULE=on'
+  - 'GOPROXY=https://proxy.golang.org,direct'
+  - 'CGO_ENABLED=0'
+  - 'GOOS=linux'
+  - 'GOARCH=amd64'
+  volumes:
+  - name: 'go-modules'
+    path: '/go/pkg'
 
 substitutions:
-  _SERVICE:
+  _REPO: 'github.com/google/exposure-notifications-server'
   _TAG:
 
 steps:
-- id: 'build'
-  name: 'registry.hub.docker.com/library/docker:18'
-  args: [
-    'build',
-    '--tag', 'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/${_SERVICE}:${_TAG}',
-    '--build-arg', 'SERVICE=${_SERVICE}',
-    '.',
-  ]
+- id: 'restore-cache'
+  name: 'us-docker.pkg.dev/vargolabs/gcs-cacher/gcs-cacher:0.1'
+  args:
+  - '-bucket=${PROJECT_ID}-cloudbuild-cache'
+  - '-restore=go-{{ hashGlob "go.mod" }}'
+  - '-restore=go-'
+  - '-dir=/go/pkg'
+  - '-allow-failure'
 
-- id: 'publish'
-  name: 'registry.hub.docker.com/library/docker:18'
-  args: [
-    'push',
-    'gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/${_SERVICE}:${_TAG}',
-  ]
+- id: 'download-modules'
+  name: 'golang:1.15'
+  args:
+  - 'go'
+  - 'mod'
+  - 'download'
+  - '-x'
+  waitFor:
+  - 'restore-cache'
+
+- id: 'save-cache'
+  name: 'us-docker.pkg.dev/vargolabs/gcs-cacher/gcs-cacher:0.1'
+  args:
+  - '-bucket=${PROJECT_ID}-cloudbuild-cache'
+  - '-cache=go-{{ hashGlob "go.mod" }}'
+  - '-dir=/go/pkg'
+  waitFor:
+  - 'download-modules'
+
+#
+# cleanup-export
+#
+- id: 'build-cleanup-export'
+  name: 'golang:1.15'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/cleanup-export'
+  - './cmd/cleanup-export'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-cleanup-export'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/cleanup-export:${_TAG}'
+  - '--build-arg=SERVICE=cleanup-export'
+  - '.'
+  waitFor:
+  - 'build-cleanup-export'
+
+#
+# cleanup-exposure
+#
+- id: 'build-cleanup-exposure'
+  name: 'golang:1.15'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/cleanup-exposure'
+  - './cmd/cleanup-exposure'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-cleanup-exposure'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/cleanup-exposure:${_TAG}'
+  - '--build-arg=SERVICE=cleanup-exposure'
+  - '.'
+  waitFor:
+  - 'build-cleanup-exposure'
+
+#
+# debugger
+#
+- id: 'build-debugger'
+  name: 'golang:1.15'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/debugger'
+  - './cmd/debugger'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-debugger'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/debugger:${_TAG}'
+  - '--build-arg=SERVICE=debugger'
+  - '.'
+  waitFor:
+  - 'build-debugger'
+
+#
+# export
+#
+- id: 'build-export'
+  name: 'golang:1.15'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/export'
+  - './cmd/export'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-export'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/export:${_TAG}'
+  - '--build-arg=SERVICE=export'
+  - '.'
+  waitFor:
+  - 'build-export'
+
+#
+# exposure
+#
+- id: 'build-exposure'
+  name: 'golang:1.15'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/exposure'
+  - './cmd/exposure'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-exposure'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/exposure:${_TAG}'
+  - '--build-arg=SERVICE=exposure'
+  - '.'
+  waitFor:
+  - 'build-exposure'
+
+#
+# cleanup-export
+#
+- id: 'build-federationin'
+  name: 'golang:1.15'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/federationin'
+  - './cmd/federationin'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-federationin'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/federationin:${_TAG}'
+  - '--build-arg=SERVICE=federationin'
+  - '.'
+  waitFor:
+  - 'build-federationin'
+
+#
+# federationout
+#
+- id: 'build-federationout'
+  name: 'golang:1.15'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/federationout'
+  - './cmd/federationout'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-federationout'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/federationout:${_TAG}'
+  - '--build-arg=SERVICE=federationout'
+  - '.'
+  waitFor:
+  - 'build-federationout'
+
+#
+# generate
+#
+- id: 'build-generate'
+  name: 'golang:1.15'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/generate'
+  - './cmd/generate'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-generate'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/generate:${_TAG}'
+  - '--build-arg=SERVICE=generate'
+  - '.'
+  waitFor:
+  - 'build-generate'
+
+#
+# key-rotation
+#
+- id: 'build-key-rotation'
+  name: 'golang:1.15'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/key-rotation'
+  - './cmd/key-rotation'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-key-rotation'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/key-rotation:${_TAG}'
+  - '--build-arg=SERVICE=key-rotation'
+  - '.'
+  waitFor:
+  - 'build-key-rotation'
+
+#
+# migrate
+#
+- id: 'build-migrate'
+  name: 'golang:1.15'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/migrate'
+  - './cmd/migrate'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-migrate'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/migrate.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/migrate:${_TAG}'
+  - '--build-arg=SERVICE=migrate'
+  - '.'
+  waitFor:
+  - 'build-migrate'
+
+images:
+- 'gcr.io/${PROJECT_ID}/${_REPO}/cleanup-export:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/cleanup-exposure:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/debugger:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/export:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/exposure:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/federationin:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/federationout:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/generate:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/key-rotation:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/migrate:${_TAG}'

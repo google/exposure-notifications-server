@@ -18,42 +18,21 @@ set -eEuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 
-if [ -z "${PROJECT_ID:-}" ]; then
-  echo "✋ Missing PROJECT_ID!" >&2
-  exit 1
+if [ -z "${TAG:-}" ]; then
+  TAG="$(git describe --dirty)"
+  echo "🎈 Using ${TAG}!" >&2
 fi
 
-if [ -z "${DB_CONN:-}" ]; then
-  echo "✋ Missing DB_CONN (e.g. my-project:us-central1:my-database)!" >&2
-  exit 1
-fi
+SUBS="_TAG=${TAG}"
+SUBS="${SUBS},_DB_CONN=${DB_CONN}"
+SUBS="${SUBS},_DB_HOST=${DB_HOST:-"127.0.0.1"}"
+SUBS="${SUBS},_DB_NAME=${DB_NAME:-"main"}"
+SUBS="${SUBS},_DB_PASSWORD=${DB_PASSWORD}"
+SUBS="${SUBS},_DB_PORT=${DB_PORT:-"5432"}"
+SUBS="${SUBS},_DB_SSLMODE=${DB_SSLMODE:-"disable"}"
+SUBS="${SUBS},_DB_USER=${DB_USER:-"notification"}"
 
-if [ -z "${DB_PASS_SECRET:-}" ]; then
-  echo "✋ Missing DB_PASS_SECRET (e.g. projects/my-project/secrets/my-secret/versions/1)!" >&2
-  exit 1
-fi
-
-if [[ "${DB_PASS_SECRET}" != "projects/"*  ]]; then
-  echo "✋ DB_PASS_SECRET does not look like a secret reference!"
-  exit 1
-fi
-
-if [ -z "${DB_NAME:-}" ]; then
-  DB_NAME="main"
-  echo "🚧 Using database \"${DB_NAME}\"" >&2
-fi
-
-if [ -z "${DB_USER:-}" ]; then
-  DB_USER="notification"
-  echo "🚧 Using username \"${DB_USER}\"" >&2
-fi
-
-if [ -z "${COMMAND:-}" ]; then
-  COMMAND="up"
-  echo "🚧 Using command \"${COMMAND}\"" >&2
-fi
-
-gcloud builds submit "${ROOT}" \
+gcloud builds submit --no-source \
+  --project "${PROJECT_ID}" \
   --config "${ROOT}/builders/migrate.yaml" \
-  --substitutions "_COMMAND=${COMMAND},_DB_CONN=${DB_CONN},_DB_NAME=${DB_NAME},_DB_PASS_SECRET=${DB_PASS_SECRET},_DB_USER=${DB_USER}" \
-  --project "${PROJECT_ID}"
+  --substitutions "${SUBS}"

@@ -17,40 +17,21 @@
 set -eEuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
-ALL_SERVICES="cleanup-export,cleanup-exposure,export,exposure,federationin,federationout,generate,key-rotation"
 
 if [ -z "${PROJECT_ID:-}" ]; then
   echo "✋ Missing PROJECT_ID!" >&2
   exit 1
 fi
 
-if [ -z "${REGION:-}" ]; then
-  echo "✋ Missing REGION!" >&2
-  exit 1
-fi
-
-if [ -z "${SERVICES:-}" ]; then
-  echo "✋ Missing SERVICES!" >&2
-  exit 1
-fi
-
 if [ -z "${TAG:-}" ]; then
-  echo "✋ Missing TAG!" >&2
-  exit 1
+  TAG="$(git describe --dirty)"
+  echo "🎈 Using ${TAG}!" >&2
 fi
 
-if [ "${SERVICES}" == "all" ]; then
-  SERVICES="${ALL_SERVICES}"
-  echo "🚧 Deploying all services! (${SERVICES})" >&2
-fi
+SUBS="_TAG=${TAG}"
+SUBS="${SUBS},_REGION=${REGION:-"us-central1"}"
 
-IFS=',' read -ra SERVICES_ARR <<< "${SERVICES}"
-for SERVICE in "${SERVICES_ARR[@]}"; do
-  gcloud builds submit --no-source \
-    --project "${PROJECT_ID}" \
-    --config "${ROOT}/builders/deploy.yaml" \
-    --substitutions "_REGION=${REGION},_SERVICE=${SERVICE},_TAG=${TAG}" \
-    &
-done
-
-wait
+gcloud builds submit --no-source \
+  --project "${PROJECT_ID}" \
+  --config "${ROOT}/builders/deploy.yaml" \
+  --substitutions "${SUBS}"

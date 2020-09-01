@@ -77,7 +77,7 @@ resource "google_cloud_run_service" "debugger" {
       service_account_name = google_service_account.debugger.email
 
       containers {
-        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/debugger:initial"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/debugger:initial"
 
         resources {
           limits = {

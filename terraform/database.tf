@@ -148,16 +148,13 @@ resource "google_project_iam_member" "cloudbuild-sql" {
 resource "null_resource" "migrate" {
   provisioner "local-exec" {
     environment = {
-      PROJECT_ID     = data.google_project.project.project_id
-      DB_CONN        = google_sql_database_instance.db-inst.connection_name
-      DB_PASS_SECRET = google_secret_manager_secret_version.db-secret-version["password"].name
-      DB_NAME        = google_sql_database.db.name
-      DB_USER        = google_sql_user.user.name
-      COMMAND        = "up"
+      PROJECT_ID  = data.google_project.project.project_id
+      DB_CONN     = google_sql_database_instance.db-inst.connection_name
+      DB_PASSWORD = "secret://${google_secret_manager_secret_version.db-secret-version["password"].name}"
+      DB_NAME     = google_sql_database.db.name
+      DB_USER     = google_sql_user.user.name
 
-      REGION   = var.db_location
-      SERVICES = "all"
-      TAG      = "initial"
+      TAG = "initial"
     }
 
     command = "${path.module}/../scripts/migrate"
@@ -167,6 +164,7 @@ resource "null_resource" "migrate" {
     google_project_service.services["cloudbuild.googleapis.com"],
     google_secret_manager_secret_iam_member.cloudbuild-db-pwd,
     google_project_iam_member.cloudbuild-sql,
+    null_resource.build,
   ]
 }
 
@@ -182,7 +180,7 @@ output "db_user" {
   value = google_sql_user.user.name
 }
 
-output "db_pass_secret" {
+output "db_password" {
   value = google_secret_manager_secret_version.db-secret-version["password"].name
 }
 
