@@ -17,23 +17,187 @@
 #
 
 substitutions:
-  _PERCENTAGE: '100'
+  _PERCENTAGE:
   _REGION:
-  _REVISION: 'LATEST'
-  _SERVICE:
+  _REVISION:
 
 steps:
-- id: 'export'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:303.0.0-alpine'
+#
+# cleanup-exposure
+#
+- id: 'deploy-cleanup-exposure'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
   - 'pipefail'
   - '-c'
   - |-
-    gcloud run services update-traffic ${_SERVICE} \
+    gcloud run services update-traffic "cleanup-exposure" \
       --quiet \
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
       --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'
+
+#
+# cleanup-exposure
+#
+- id: 'deploy-cleanup-exposure'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run services update-traffic "cleanup-exposure" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'
+
+#
+# debugger
+#
+- id: 'deploy-debugger'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run services update-traffic "debugger" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'
+
+#
+# export
+#
+- id: 'deploy-export'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run services update-traffic "export" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'
+
+#
+# exposure
+#
+- id: 'deploy-exposure'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run services update-traffic "exposure" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'
+
+#
+# federationin
+#
+- id: 'deploy-federationin'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run services update-traffic "federationin" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'
+
+#
+# federationout
+#
+- id: 'deploy-federationout'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run services update-traffic "federationout" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'
+
+#
+# generate
+#
+- id: 'deploy-generate'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run services update-traffic "generate" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'
+
+#
+# key-rotation
+#
+- id: 'deploy-key-rotation'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run services update-traffic "key-rotation" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'

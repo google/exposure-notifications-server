@@ -12,27 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This package is the service that pulls federation results from other federation severs.
-// It is intended to be invoked over HTTP on a schedule.
 package main
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 
+	"github.com/golang-migrate/migrate/v4"
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
-	"github.com/google/exposure-notifications-server/internal/federationin"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/logging"
-	_ "github.com/google/exposure-notifications-server/pkg/observability"
-	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/sethvargo/go-signalcontext"
+	"go.uber.org/zap"
+)
+
+var (
+	pathFlag = flag.String("path", "migrations/", "path to migrations folder")
 )
 
 func main() {
+	flag.Parse()
+
 	ctx, done := signalcontext.OnInterrupt()
 
 	debug, _ := strconv.ParseBool(os.Getenv("LOG_DEBUG"))
@@ -49,27 +54,48 @@ func main() {
 		logger.Fatal(err)
 	}
 }
+
 func realMain(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
-	var config federationin.Config
+	var config database.Config
 	env, err := setup.Setup(ctx, &config)
 	if err != nil {
-		return fmt.Errorf("setup.Setup: %w", err)
+		return fmt.Errorf("failed to setup database: %w", err)
 	}
 	defer env.Close(ctx)
 
-	handler := federationin.NewHandler(env, &config)
-
-	mux := http.NewServeMux()
-	mux.Handle("/", handler)
-	mux.Handle("/health", server.HandleHealthz(ctx))
-
-	srv, err := server.New(config.Port)
+	// Run the migrations
+	dir := fmt.Sprintf("file://%s", *pathFlag)
+	m, err := migrate.New(dir, config.ConnectionURL())
 	if err != nil {
-		return fmt.Errorf("server.New: %w", err)
+		return fmt.Errorf("failed create migrate: %w", err)
 	}
-	logger.Infof("listening on :%s", config.Port)
+	m.Log = &wrappedLogger{logger}
 
-	return srv.ServeHTTPHandler(ctx, mux)
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed run migrate: %w", err)
+	}
+	srcErr, dbErr := m.Close()
+	if srcErr != nil {
+		return fmt.Errorf("migrate source error: %w", srcErr)
+	}
+	if dbErr != nil {
+		return fmt.Errorf("migrate database error: %w", dbErr)
+	}
+
+	logger.Debugw("finished running migrations")
+	return nil
+}
+
+type wrappedLogger struct {
+	*zap.SugaredLogger
+}
+
+func (w *wrappedLogger) Printf(msg string, vars ...interface{}) {
+	w.Infof(msg, vars...)
+}
+
+func (w *wrappedLogger) Verbose() bool {
+	return true
 }

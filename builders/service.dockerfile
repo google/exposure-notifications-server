@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,20 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -eEuo pipefail
+FROM alpine AS builder
 
-ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
+FROM scratch
+ARG SERVICE
+COPY ./bin/${SERVICE} /server
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-if [ -z "${PROJECT_ID:-}" ]; then
-  echo "✋ Missing PROJECT_ID!" >&2
-  exit 1
-fi
-
-SUBS="_PERCENTAGE=${PERCENTAGE:-"100"}"
-SUBS="${SUBS},_REGION=${REGION:-"us-central1"}"
-SUBS="${SUBS},_REVISION=${REVISION:-"LATEST"}"
-
-gcloud builds submit --no-source \
-  --project "${PROJECT_ID}" \
-  --config "${ROOT}/builders/promote.yaml" \
-  --substitutions "${SUBS}"
+ENV PORT 8080
+ENTRYPOINT ["/server"]

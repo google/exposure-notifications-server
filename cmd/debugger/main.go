@@ -18,7 +18,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 
+	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/debugger"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -29,7 +32,11 @@ import (
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
 
-	logger := logging.NewLogger(true)
+	debug, _ := strconv.ParseBool(os.Getenv("LOG_DEBUG"))
+	logger := logging.NewLogger(debug)
+	logger = logger.With("build_id", buildinfo.BuildID)
+	logger = logger.With("build_tag", buildinfo.BuildTag)
+
 	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)
@@ -38,7 +45,6 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	logger.Info("successful shutdown")
 }
 
 func realMain(ctx context.Context) error {

@@ -17,7 +17,6 @@
 set -eEuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
-ALL_SERVICES="cleanup-export,cleanup-exposure,debugger,export,exposure,federationin,federationout,generate,key-rotation"
 
 if [ -n "$(git status --porcelain)" ]; then
   echo "✋ Uncommitted local changes!" >&2
@@ -29,28 +28,14 @@ if [ -z "${PROJECT_ID:-}" ]; then
   exit 1
 fi
 
-if [ -z "${SERVICES:-}" ]; then
-  echo "✋ Missing SERVICES!" >&2
-  exit 1
-fi
-
-if [ "${SERVICES}" == "all" ]; then
-  SERVICES=${ALL_SERVICES}
-  echo "🚧 Building all services! (${SERVICES})" >&2
-fi
-
 if [ -z "${TAG:-}" ]; then
-  TAG="$(git rev-parse --short HEAD)"
-  echo "🚧 Using generated tag! (${TAG})" >&2
+  TAG="$(git describe --dirty)"
+  echo "🎈 Using ${TAG}!" >&2
 fi
 
-IFS=',' read -ra SERVICES_ARR <<< "${SERVICES}"
-for SERVICE in "${SERVICES_ARR[@]}"; do
-  gcloud builds submit "${ROOT}" \
-    --project "${PROJECT_ID}" \
-    --config "${ROOT}/builders/build.yaml" \
-    --substitutions "_SERVICE=${SERVICE},_TAG=${TAG}" \
-    &
-done
+SUBS="_TAG=${TAG}"
 
-wait
+gcloud builds submit "${ROOT}" \
+  --project "${PROJECT_ID}" \
+  --config "${ROOT}/builders/build.yaml" \
+  --substitutions "${SUBS}"
