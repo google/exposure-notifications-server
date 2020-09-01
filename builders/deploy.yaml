@@ -44,9 +44,9 @@ steps:
   - '-'
 
 #
-# cleanup-exposure
+# cleanup-export
 #
-- id: 'deploy-cleanup-exposure'
+- id: 'deploy-cleanup-export'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
@@ -54,12 +54,12 @@ steps:
   - 'pipefail'
   - '-c'
   - |-
-    gcloud run deploy "cleanup-exposure" \
+    gcloud run deploy "cleanup-export" \
       --quiet \
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --image "gcr.io/${PROJECT_ID}/${_REPO}/cleanup-exposure:${_TAG}" \
+      --image "gcr.io/${PROJECT_ID}/${_REPO}/cleanup-export:${_TAG}" \
       --no-traffic
   waitFor:
   - '-'
