@@ -193,7 +193,7 @@ running `terraform output` from inside the `terraform/` directory:
 ```text
 PROJECT_ID=$(terraform output project)
 DB_CONN=$(terraform output db_conn)
-DB_PASSWORD=$(terraform output DB_PASSWORD)
+DB_PASSWORD=$(terraform output db_password)
 ```
 
 ### On a custom setup
@@ -242,7 +242,7 @@ the public Internet!**
     cd terraform/
     export DB_CONN=$(terraform output db_conn)
     export DB_USER=$(terraform output db_user)
-    export DB_PASSWORD="secret://$(terraform output DB_PASSWORD)"
+    export DB_PASSWORD="secret://$(terraform output db_password)"
     export DB_PORT=5432
     export DB_NAME=$(terraform output db_name)
     cd ../
