@@ -52,7 +52,7 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 		ReportingInterval: time.Minute, // stackdriver export interval minimum
 		MonitoredResource: monitoredResource,
 		OnError: func(err error) {
-			logger.Errorw("failed to export metric", "error", err)
+			logger.Errorw("failed to export metric", "error", err, "resource", monitoredResource)
 		},
 	})
 
