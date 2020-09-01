@@ -27,14 +27,6 @@ import (
 
 var (
 	_ monitoredresource.Interface = (*stackdriverMonitoredResource)(nil)
-
-	// The labels each resource type requires.
-	requiredLabels = map[string]map[string]bool{
-		// https://cloud.google.com/monitoring/api/resources#tag_generic_task
-		"generic_task": {"project_id": true, "location": true, "namespace": true, "job": true, "task_id": true},
-		// https://cloud.google.com/monitoring/api/resources#tag_gke_container
-		"gke_container": {"project_id": true, "cluster_name": true, "namespace_id": true, "instance_id": true, "pod_id": true, "container_name": true, "zone": true},
-	}
 )
 
 type stackdriverMonitoredResource struct {
@@ -107,23 +99,33 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 
 	labels["namespace"] = c.Namespace
 
-	if _, ok := requiredLabels[resource]; !ok {
-		logger.Warnw("unknown resource type", "resource", resource, "labels", labels)
-	} else {
-		// Delete unused labels to not flood stackdriver.
-		for k := range labels {
-			if _, ok := requiredLabels[k]; !ok {
-				delete(labels, k)
-			}
-		}
-	}
+	filteredLabels := removeUnusedLabels(resource, labels)
 
+	logger.Debugw("resource type defined", "resource", resource, "labels", labels, "filteredLabels", filteredLabels)
 	return &stackdriverMonitoredResource{
 		resource: resource,
-		labels:   labels,
+		labels:   filteredLabels,
 	}
 }
 
 func (s *stackdriverMonitoredResource) MonitoredResource() (string, map[string]string) {
 	return s.resource, s.labels
+}
+
+// removeUnusedLabels deletes unused labels to not flood stackdriver.
+func removeUnusedLabels(resource string, in map[string]string) map[string]string {
+	// The labels each resource type requires.
+	requiredLabels = map[string]map[string]bool{
+		// https://cloud.google.com/monitoring/api/resources#tag_generic_task
+		"generic_task": {"project_id": true, "location": true, "namespace": true, "job": true, "task_id": true},
+	}
+
+	ret := map[string]string{}
+	for k, v := range in {
+		if requiredLabels[k] {
+			ret[k] = v
+		}
+	}
+
+	return ret
 }
