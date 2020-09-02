@@ -37,6 +37,9 @@ type stackdriverMonitoredResource struct {
 // required labels filled out. This needs to be the correct resource type so we
 // can compared the default stackdriver metrics with the custom metrics we're
 // generating.
+//
+// NOTE: This code is focused on support GCP Cloud Run Managed. If you are
+// runniing in a different environment, you may see weird results.
 func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) monitoredresource.Interface {
 	logger := logging.FromContext(ctx).Named("stackdriver")
 
@@ -62,8 +65,12 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 		labels["task_id"] = uuid.New().String()
 	}
 
-	// TODO(icco): Just query metadata server
-	labels["location"] = "us-central1"
+	region, err := metadata.Get("instance/region")
+	if err != nil {
+		logger.Errorw("could not get region", "error", err)
+		labels["location"] = "unknown"
+	}
+	labels["location"] = region
 
 	labels["namespace"] = c.Namespace
 
