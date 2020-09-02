@@ -29,8 +29,8 @@ var (
 )
 
 type stackdriverMonitoredResource struct {
-	resource string
-	labels   map[string]string
+	Resource string
+	Labels   map[string]string
 }
 
 // NewStackdriverMonitoredResource returns a monitored resource with the
@@ -72,13 +72,13 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 
 	logger.Debugw("resource type defined", "resource", resource, "labels", labels, "filteredLabels", filteredLabels)
 	return &stackdriverMonitoredResource{
-		resource: resource,
-		labels:   filteredLabels,
+		Resource: resource,
+		Labels:   filteredLabels,
 	}
 }
 
 func (s *stackdriverMonitoredResource) MonitoredResource() (string, map[string]string) {
-	return s.resource, s.labels
+	return s.Resource, s.Labels
 }
 
 // removeUnusedLabels deletes unused labels to not flood stackdriver.
