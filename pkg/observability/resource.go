@@ -69,7 +69,6 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 
 	filteredLabels := removeUnusedLabels(resource, labels)
 
-	logger.Debugw("resource type defined", "resource", resource, "labels", labels, "filteredLabels", filteredLabels)
 	return &stackdriverMonitoredResource{
 		Resource: resource,
 		Labels:   filteredLabels,
