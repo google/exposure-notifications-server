@@ -65,6 +65,10 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 
 // StartExporter starts the exporter.
 func (e *stackdriverExporter) StartExporter() error {
+	if err := registerViews(); err != nil {
+		return fmt.Errorf("failed to register views: %w", err)
+	}
+
 	if err := e.exporter.StartMetricsExporter(); err != nil {
 		return fmt.Errorf("failed to start stackdriver exporter: %w", err)
 	}
@@ -73,7 +77,9 @@ func (e *stackdriverExporter) StartExporter() error {
 		DefaultSampler: trace.ProbabilitySampler(e.config.SampleRate),
 	})
 	trace.RegisterExporter(e.exporter)
+
 	view.RegisterExporter(e.exporter)
+	view.SetReportingPeriod(time.Minute)
 
 	return nil
 }
