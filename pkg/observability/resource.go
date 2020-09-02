@@ -61,7 +61,6 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 	if labels["task_id"] == "" {
 		labels["task_id"] = uuid.New().String()
 	}
-	labels["task_id"] = uuid.New().String()
 
 	// TODO(icco): Just query metadata server
 	labels["location"] = "us-central1"
