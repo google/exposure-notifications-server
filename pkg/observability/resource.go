@@ -77,6 +77,8 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 	pieces := strings.Split(region, "/")
 	if len(pieces) == 4 {
 		labels["location"] = pieces[3]
+	} else {
+		logger.Errorw("region did not match expected format", "region", region)
 	}
 
 	labels["namespace"] = c.Namespace
