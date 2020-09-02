@@ -23,11 +23,8 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
-	"github.com/google/uuid"
-	"go.opencensus.io/resource"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
-	monitoredrespb "google.golang.org/genproto/googleapis/api/monitoredres"
 )
 
 var _ Exporter = (*stackdriverExporter)(nil)
@@ -54,18 +51,9 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 		ProjectID:               projectID,
 		ReportingInterval:       time.Minute, // stackdriver export interval minimum
 		MonitoredResource:       monitoredResource,
-		NumberOfWorkers:         1,
 		DefaultMonitoringLabels: &stackdriver.Labels{},
 		OnError: func(err error) {
 			logger.Errorw("failed to export metric", "error", err, "resource", monitoredResource)
-		},
-		MapResource: func(r *resource.Resource) *monitoredrespb.MonitoredResource {
-			labels := r.Labels
-			labels["task_id"] = uuid.New().String()
-			return &monitoredrespb.MonitoredResource{
-				Type:   "generic_task",
-				Labels: labels,
-			}
 		},
 	})
 
