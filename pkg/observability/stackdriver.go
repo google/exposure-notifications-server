@@ -64,7 +64,7 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 			labels["task_id"] = uuid.New().String()
 			return &monitoredrespb.MonitoredResource{
 				Type:   "generic_task",
-				Labels: r.Labels,
+				Labels: labels,
 			}
 		},
 	})
