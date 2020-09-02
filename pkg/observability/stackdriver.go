@@ -27,7 +27,11 @@ import (
 	"go.opencensus.io/trace"
 )
 
-var _ Exporter = (*stackdriverExporter)(nil)
+var (
+	_ Exporter = (*stackdriverExporter)(nil)
+
+	SDExportFrequency = time.Minute * 2
+)
 
 type stackdriverExporter struct {
 	exporter *stackdriver.Exporter
@@ -49,7 +53,7 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 	exporter, err := stackdriver.NewExporter(stackdriver.Options{
 		Context:                 ctx,
 		ProjectID:               projectID,
-		ReportingInterval:       time.Minute, // stackdriver export interval minimum
+		ReportingInterval:       SDExportFrequency,
 		MonitoredResource:       monitoredResource,
 		DefaultMonitoringLabels: &stackdriver.Labels{},
 		OnError: func(err error) {
@@ -79,7 +83,7 @@ func (e *stackdriverExporter) StartExporter() error {
 	trace.RegisterExporter(e.exporter)
 
 	view.RegisterExporter(e.exporter)
-	view.SetReportingPeriod(time.Minute)
+	view.SetReportingPeriod(SDExportFrequency)
 
 	return nil
 }
