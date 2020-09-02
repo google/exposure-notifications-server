@@ -83,8 +83,11 @@ Base64 encoded string property.
   This is the __only__ way set reportType on TEKs is through a verification certificate.
 * `symptomOnsetInterval` : _OPTIONAL_ uses the same 10 minute interval timing as TEKs use. If an interval is provided that isn not the start of a UTC day, then it will be rounded down to the beginning of that UTC day. And from there the days +/- symptom onset will be calculated. Int property.
 
-The verification server can indicate a specific key ID to use by setting the
-`kid` header attribute in the JWT.
+Standard JWT headers must be provided.
+
+* `alg` : _REQUIRED_ and must be set to `ES256`
+* `kid` : _REQUIRED_ and indicate a specific key ID to use for verification
+* `twp` : _REQUIRED_ and must be set to `JWT`
 
 ### HMAC Calculation
 

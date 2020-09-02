@@ -19,16 +19,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
-	"strconv"
 
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/sethvargo/go-signalcontext"
-	"go.uber.org/zap"
 )
 
 var (
@@ -40,18 +38,11 @@ func main() {
 
 	ctx, done := signalcontext.OnInterrupt()
 
-	debug, _ := strconv.ParseBool(os.Getenv("LOG_DEBUG"))
-	logger := logging.NewLogger(debug)
-	logger = logger.With("build_id", buildinfo.BuildID)
-	logger = logger.With("build_tag", buildinfo.BuildTag)
-
-	ctx = logging.WithLogger(ctx, logger)
-
 	err := realMain(ctx)
 	done()
 
 	if err != nil {
-		logger.Fatal(err)
+		log.Fatal(err)
 	}
 }
 
@@ -71,7 +62,7 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed create migrate: %w", err)
 	}
-	m.Log = &wrappedLogger{logger}
+	m.Log = newLogger()
 
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("failed run migrate: %w", err)
@@ -88,14 +79,20 @@ func realMain(ctx context.Context) error {
 	return nil
 }
 
-type wrappedLogger struct {
-	*zap.SugaredLogger
+type logger struct {
+	logger *log.Logger
 }
 
-func (w *wrappedLogger) Printf(msg string, vars ...interface{}) {
-	w.Infof(msg, vars...)
+func newLogger() *logger {
+	return &logger{
+		logger: log.New(os.Stdout, "migrate", log.LstdFlags),
+	}
 }
 
-func (w *wrappedLogger) Verbose() bool {
+func (l *logger) Printf(arg string, vars ...interface{}) {
+	l.logger.Printf(arg, vars...)
+}
+
+func (l *logger) Verbose() bool {
 	return true
 }
