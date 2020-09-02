@@ -129,6 +129,7 @@ func TestExport(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+
 	// Delete the first batch of exposures. The creation time of all exposures
 	// in this test are modified to fit nicely among exports, delete the first
 	// one is easier than running a sql modifying them
@@ -141,25 +142,26 @@ func TestExport(t *testing.T) {
 	}
 
 	// Publish keys based on first batch of published keys
+	var revisedExposures []*publishmodel.Exposure
 	for i := 0; i < numPublishes; i++ {
 		if r := i % roughPerBatch; r == 0 { // increace start time after each batch
 			batchStartTime = batchStartTime.Add(exportPeriod)
 		}
-		var revisedExposures []*publishmodel.Exposure
+		// var revisedExposures []*publishmodel.Exposure
 		for j, newKey := range util.GenerateExposureKeys(keysPerPublish, -1, false) {
 			m := *exposures[j]
 			m.CreatedAt = batchStartTime.Add(1 * time.Second)
 			m.ExposureKey, _ = base64util.DecodeString(newKey.Key)
 			revisedExposures = append(revisedExposures, &m)
 		}
-		updated, err := publishdb.New(db).InsertAndReviseExposures(ctx, revisedExposures,
-			nil, false)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if updated != keysPerPublish {
-			t.Fatalf("Want updated: %d, got %d", keysPerPublish, updated)
-		}
+	}
+	updated, err := publishdb.New(db).InsertAndReviseExposures(ctx, revisedExposures,
+		nil, false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated != keysPerPublish*numPublishes {
+		t.Fatalf("Want updated: %d, got %d", keysPerPublish*numPublishes, updated)
 	}
 
 	// Start measurement
@@ -239,7 +241,7 @@ func TestExport(t *testing.T) {
 
 	// 4. Cleanup and capture metrics
 	startTime = time.Now()
-	if err = client.CleanupExports(); err != nil {
+	if err := client.CleanupExports(); err != nil {
 		t.Fatal(err)
 	}
 
