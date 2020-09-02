@@ -16,6 +16,7 @@ package observability
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
@@ -71,6 +72,12 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 		labels["location"] = "unknown"
 	}
 	labels["location"] = region
+
+	// Metadata often returns the following: "projects/111111111111/regions/us-central1"
+	pieces := strings.Split(region, "/")
+	if len(pieces) == 4 {
+		labels["location"] = pieces[3]
+	}
 
 	labels["namespace"] = c.Namespace
 
