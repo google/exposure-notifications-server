@@ -39,7 +39,7 @@ type stackdriverMonitoredResource struct {
 // generating.
 //
 // NOTE: This code is focused on support GCP Cloud Run Managed. If you are
-// runniing in a different environment, you may see weird results.
+// running in a different environment, you may see weird results.
 func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) monitoredresource.Interface {
 	logger := logging.FromContext(ctx).Named("stackdriver")
 
