@@ -21,7 +21,6 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource"
-	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource/gcp"
 	"github.com/google/uuid"
 )
 
@@ -42,60 +41,30 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 	logger := logging.FromContext(ctx).Named("stackdriver")
 
 	resource := "generic_task"
-	labels := make(map[string]string)
+	labels := map[string]string{}
 
-	// On GCP we can fill in some of the information for GCE and GKE.
-	detected := gcp.Autodetect()
-	providedLabels := make(map[string]string)
-	providedResource := ""
-	if detected != nil {
-		providedResource, providedLabels = detected.MonitoredResource()
-		logger.Debugw("detected resource", "resource", providedResource, "labels", providedLabels)
-	}
+	labels["project_id"] = c.ProjectID
 
-	if _, ok := providedLabels["project_id"]; !ok {
-		labels["project_id"] = c.ProjectID
-	} else {
-		labels["project_id"] = providedLabels["project_id"]
-	}
-
-	if c.Service != "" {
-		labels["job"] = c.Service
-	} else {
+	labels["job"] = c.Service
+	if labels["job"] == "" {
 		labels["job"] = "unknown"
 	}
 
-	// Transform "instance_id" to "task_id" or generate task_id
-	if iid, ok := providedLabels["instance_id"]; ok {
-		labels["task_id"] = iid
-	}
-
 	// Try to get task_id from metadata server.
-	//
-	// NOTE: This is essentially the same thing as gcp.Autodetect(). We're doing
-	// this here in case something weird is happening in the autodetect.
-	if labels["task_id"] == "" {
-		iid, err := metadata.InstanceID()
-		if err == nil {
-			labels["task_id"] = iid
-		}
+	iid, err := metadata.InstanceID()
+	if err != nil {
+		logger.Errorw("could not get instance id", "error", err)
 	}
+	labels["task_id"] = iid
 
 	// Worse case task_id
 	if labels["task_id"] == "" {
 		labels["task_id"] = uuid.New().String()
 	}
+	labels["task_id"] = uuid.New().String()
 
-	if zone, ok := providedLabels["zone"]; ok {
-		labels["location"] = zone
-	} else if loc, ok := providedLabels["location"]; ok {
-		labels["location"] = loc
-	} else {
-		labels["location"] = "unknown"
-		if c.LocationOverride != "" {
-			labels["location"] = c.LocationOverride
-		}
-	}
+	// TODO(icco): Just query metadata server
+	labels["location"] = "us-central1"
 
 	labels["namespace"] = c.Namespace
 
