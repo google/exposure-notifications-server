@@ -25,7 +25,7 @@ import (
 // Small to base64 decode data and print some info
 func main() {
 	if len(os.Args) != 2 {
-		log.Fatal("requires 1 argument which will be interpreted as a hex byte array")
+		log.Fatal("requires 1 argument which will be interpreted as a base64 encoded byte array")
 	}
 
 	encoded := os.Args[1]
