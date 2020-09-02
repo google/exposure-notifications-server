@@ -16,6 +16,7 @@ package observability
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
@@ -39,7 +40,7 @@ type stackdriverMonitoredResource struct {
 // generating.
 //
 // NOTE: This code is focused on support GCP Cloud Run Managed. If you are
-// runniing in a different environment, you may see weird results.
+// running in a different environment, you may see weird results.
 func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) monitoredresource.Interface {
 	logger := logging.FromContext(ctx).Named("stackdriver")
 
@@ -71,6 +72,14 @@ func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) 
 		labels["location"] = "unknown"
 	}
 	labels["location"] = region
+
+	// Metadata often returns the following: "projects/111111111111/regions/us-central1"
+	pieces := strings.Split(region, "/")
+	if len(pieces) == 4 {
+		labels["location"] = pieces[3]
+	} else {
+		logger.Errorw("region did not match expected format", "region", region)
+	}
 
 	labels["namespace"] = c.Namespace
 
