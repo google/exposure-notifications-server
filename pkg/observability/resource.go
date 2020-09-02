@@ -21,7 +21,6 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource"
-	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource/gcp"
 	"github.com/google/uuid"
 )
 
@@ -30,86 +29,61 @@ var (
 )
 
 type stackdriverMonitoredResource struct {
-	resource string
-	labels   map[string]string
+	Resource string
+	Labels   map[string]string
 }
 
 // NewStackdriverMonitoredResource returns a monitored resource with the
 // required labels filled out. This needs to be the correct resource type so we
 // can compared the default stackdriver metrics with the custom metrics we're
 // generating.
+//
+// NOTE: This code is focused on support GCP Cloud Run Managed. If you are
+// runniing in a different environment, you may see weird results.
 func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) monitoredresource.Interface {
 	logger := logging.FromContext(ctx).Named("stackdriver")
 
 	resource := "generic_task"
-	labels := make(map[string]string)
+	labels := map[string]string{}
 
-	// On GCP we can fill in some of the information for GCE and GKE.
-	detected := gcp.Autodetect()
-	providedLabels := make(map[string]string)
-	providedResource := ""
-	if detected != nil {
-		providedResource, providedLabels = detected.MonitoredResource()
-		logger.Debugw("detected resource", "resource", providedResource, "labels", providedLabels)
-	}
+	labels["project_id"] = c.ProjectID
 
-	if _, ok := providedLabels["project_id"]; !ok {
-		labels["project_id"] = c.ProjectID
-	} else {
-		labels["project_id"] = providedLabels["project_id"]
-	}
-
-	if c.Service != "" {
-		labels["job"] = c.Service
-	} else {
+	labels["job"] = c.Service
+	if labels["job"] == "" {
 		labels["job"] = "unknown"
 	}
 
-	// Transform "instance_id" to "task_id" or generate task_id
-	if iid, ok := providedLabels["instance_id"]; ok {
-		labels["task_id"] = iid
-	}
-
 	// Try to get task_id from metadata server.
-	//
-	// NOTE: This is essentially the same thing as gcp.Autodetect(). We're doing
-	// this here in case something weird is happening in the autodetect.
-	if labels["task_id"] == "" {
-		iid, err := metadata.InstanceID()
-		if err == nil {
-			labels["task_id"] = iid
-		}
+	iid, err := metadata.InstanceID()
+	if err != nil {
+		logger.Errorw("could not get instance id", "error", err)
 	}
+	labels["task_id"] = iid
 
 	// Worse case task_id
 	if labels["task_id"] == "" {
 		labels["task_id"] = uuid.New().String()
 	}
 
-	if zone, ok := providedLabels["zone"]; ok {
-		labels["location"] = zone
-	} else if loc, ok := providedLabels["location"]; ok {
-		labels["location"] = loc
-	} else {
+	region, err := metadata.Get("instance/region")
+	if err != nil {
+		logger.Errorw("could not get region", "error", err)
 		labels["location"] = "unknown"
-		if c.LocationOverride != "" {
-			labels["location"] = c.LocationOverride
-		}
 	}
+	labels["location"] = region
 
 	labels["namespace"] = c.Namespace
 
 	filteredLabels := removeUnusedLabels(resource, labels)
 
-	logger.Debugw("resource type defined", "resource", resource, "labels", labels, "filteredLabels", filteredLabels)
 	return &stackdriverMonitoredResource{
-		resource: resource,
-		labels:   filteredLabels,
+		Resource: resource,
+		Labels:   filteredLabels,
 	}
 }
 
 func (s *stackdriverMonitoredResource) MonitoredResource() (string, map[string]string) {
-	return s.resource, s.labels
+	return s.Resource, s.Labels
 }
 
 // removeUnusedLabels deletes unused labels to not flood stackdriver.
