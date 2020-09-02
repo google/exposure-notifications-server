@@ -47,10 +47,12 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 	logger.Debugw("monitored resource", "resource", monitoredResource)
 
 	exporter, err := stackdriver.NewExporter(stackdriver.Options{
-		Context:           ctx,
-		ProjectID:         projectID,
-		ReportingInterval: time.Minute, // stackdriver export interval minimum
-		MonitoredResource: monitoredResource,
+		Context:                 ctx,
+		ProjectID:               projectID,
+		ReportingInterval:       time.Minute, // stackdriver export interval minimum
+		MonitoredResource:       monitoredResource,
+		NumberOfWorkers:         1,
+		DefaultMonitoringLabels: &Labels{},
 		OnError: func(err error) {
 			logger.Errorw("failed to export metric", "error", err, "resource", monitoredResource)
 		},
