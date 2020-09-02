@@ -115,8 +115,9 @@ func (s *Server) ServeHTTP(ctx context.Context, srv *http.Server) error {
 func (s *Server) ServeHTTPHandler(ctx context.Context, handler http.Handler) error {
 	return s.ServeHTTP(ctx, &http.Server{
 		Handler: &ochttp.Handler{
-			Handler:     handler,
-			Propagation: &tracecontext.HTTPFormat{},
+			Handler:          handler,
+			IsPublicEndpoint: true,
+			Propagation:      &tracecontext.HTTPFormat{},
 		},
 	})
 }
