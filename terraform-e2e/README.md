@@ -1,6 +1,6 @@
 # terraform-e2e
 
-This directory contains terraform configuration to be used for deploying key servers with terraform, while being able to reuse a project to deploy repeatedly.
+This directory contains terraform configuration to be used for deploying key servers with terraform, while being able to reuse a project to deploy repeatedly. Should only be used for running e2e tests.
 
 ## Prerequisite
 

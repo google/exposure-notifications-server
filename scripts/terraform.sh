@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# terrafrom.sh script is used for running e2e test in prow, especially smoke test terrafrom conigurations
+
 set -eEuo pipefail
 
 PROGNAME="$(basename $0)"
