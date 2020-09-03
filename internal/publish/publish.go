@@ -287,7 +287,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 			metric: "publish-transform-fail", count: 1}
 	}
 
-	n, err := h.database.InsertAndReviseExposures(ctx, exposures, token, !appConfig.BypassRevisionToken, false)
+	n, err := h.database.InsertAndReviseExposures(ctx, exposures, token, !appConfig.BypassRevisionToken)
 	if err != nil {
 		status := http.StatusBadRequest
 		var logMessage, errorMessage, errorCode string

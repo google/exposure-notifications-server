@@ -100,7 +100,7 @@ func TestExport(t *testing.T) {
 		t.Fatalf("Want: %d keys, got: %d", keysPerPublish, l)
 	}
 
-	// Creates batche based on first batch
+	// Creates batch based on first batch
 	time.Sleep(3 * time.Second)
 	if err := client.ExportBatches(); err != nil {
 		t.Fatal(err)
@@ -147,7 +147,6 @@ func TestExport(t *testing.T) {
 		if r := i % roughPerBatch; r == 0 { // increace start time after each batch
 			batchStartTime = batchStartTime.Add(exportPeriod)
 		}
-		// var revisedExposures []*publishmodel.Exposure
 		for j, newKey := range util.GenerateExposureKeys(keysPerPublish, -1, false) {
 			m := *exposures[j]
 			m.CreatedAt = batchStartTime.Add(1 * time.Second)
@@ -155,8 +154,7 @@ func TestExport(t *testing.T) {
 			revisedExposures = append(revisedExposures, &m)
 		}
 	}
-	updated, err := publishdb.New(db).InsertAndReviseExposures(ctx, revisedExposures,
-		nil, false, true)
+	updated, err := publishdb.New(db).BulkInsertExposures(ctx, revisedExposures)
 	if err != nil {
 		t.Fatal(err)
 	}

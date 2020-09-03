@@ -317,7 +317,7 @@ func TestReviseExposures(t *testing.T) {
 		ReportType:       verifyapi.ReportTypeClinical,
 	}
 	existingExp.SetDaysSinceSymptomOnset(0)
-	if n, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{existingExp}, nil, true, false); err != nil {
+	if n, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{existingExp}, nil, true); err != nil {
 		t.Fatalf("error inserting exposures: %v", err)
 	} else if n != 1 {
 		t.Fatalf("wrong number of changed exposures, want: 1, got: %v", n)
@@ -331,7 +331,7 @@ func TestReviseExposures(t *testing.T) {
 		revisedExp.CreatedAt = revisedAt
 		revisedExp.ReportType = verifyapi.ReportTypeConfirmed
 
-		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, nil, true, false); !errors.Is(err, ErrNoRevisionToken) {
+		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, nil, true); !errors.Is(err, ErrNoRevisionToken) {
 			t.Fatalf("expected %#v to be %#v", err, ErrNoRevisionToken)
 		}
 	}
@@ -355,7 +355,7 @@ func TestReviseExposures(t *testing.T) {
 			},
 		}
 
-		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true, false); !errors.Is(err, ErrExistingKeyNotInToken) {
+		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true); !errors.Is(err, ErrExistingKeyNotInToken) {
 			t.Fatalf("expected %#v to be %#v", err, ErrExistingKeyNotInToken)
 		}
 	}
@@ -379,7 +379,7 @@ func TestReviseExposures(t *testing.T) {
 			},
 		}
 
-		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true, false); !errors.Is(err, ErrRevisionTokenMetadataMismatch) {
+		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true); !errors.Is(err, ErrRevisionTokenMetadataMismatch) {
 			t.Fatalf("expected %#v to be %#v", err, ErrRevisionTokenMetadataMismatch)
 		}
 	}
@@ -400,7 +400,7 @@ func TestReviseExposures(t *testing.T) {
 			},
 		}
 
-		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true, false); !errors.Is(err, ErrIncomingMetadataMismatch) {
+		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true); !errors.Is(err, ErrIncomingMetadataMismatch) {
 			t.Fatalf("expected %#v to be %#v", err, ErrIncomingMetadataMismatch)
 		}
 	}
@@ -434,7 +434,7 @@ func TestReviseExposures(t *testing.T) {
 
 	revisions := []*model.Exposure{revisedExp, newExp}
 	// In the first pass - try to revise the key without the necessary revision token.
-	if _, err := pubDB.InsertAndReviseExposures(ctx, revisions, nil, true, false); err == nil {
+	if _, err := pubDB.InsertAndReviseExposures(ctx, revisions, nil, true); err == nil {
 		t.Fatalf("expected error revising without token data")
 	} else if !errors.Is(err, ErrNoRevisionToken) {
 		t.Fatalf("wrong error, want: '%v' got: %v", ErrNoRevisionToken, err)
@@ -448,7 +448,7 @@ func TestReviseExposures(t *testing.T) {
 		IntervalCount:        144,
 	})
 
-	if n, err := pubDB.InsertAndReviseExposures(ctx, revisions, &token, true, false); err != nil {
+	if n, err := pubDB.InsertAndReviseExposures(ctx, revisions, &token, true); err != nil {
 		t.Fatalf("error revising exposures: %v", err)
 	} else if n != 2 {
 		t.Fatalf("wrong number of changed exposures, want: 2, got: %v", n)
@@ -521,7 +521,7 @@ func TestIterateExposuresCursor(t *testing.T) {
 			Regions:        []string{"MX", "CA"},
 		},
 	}
-	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true, false); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true); err != nil {
 		t.Fatal(err)
 	}
 	// Iterate over them, canceling the context in the middle.

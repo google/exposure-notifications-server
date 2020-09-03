@@ -319,6 +319,7 @@ func prepareInsertExposure(ctx context.Context, tx pgx.Tx) (string, error) {
 				 created_at, local_provenance, sync_id, health_authority_id, report_type, days_since_symptom_onset)
 		VALUES
 			($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		ON CONFLICT (exposure_key) DO NOTHING
 	`)
 	return stmtName, err
 }
@@ -336,46 +337,6 @@ func executeInsertExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 		return fmt.Errorf("inserting exposure: %v", err)
 	}
 	return nil
-}
-
-func executeBulkInsertExposure(ctx context.Context, tx pgx.Tx, expos []*model.Exposure) (int64, error) {
-	inputRows := [][]interface{}{}
-	for _, exp := range expos {
-		if exp.ReportType == verifyapi.ReportTypeNegative {
-			continue
-		}
-		var syncID *int64
-		if exp.FederationSyncID != 0 {
-			syncID = &exp.FederationSyncID
-		}
-		inputRows = append(inputRows, []interface{}{encodeExposureKey(exp.ExposureKey), exp.TransmissionRisk,
-			exp.AppPackageName, exp.Regions, exp.Traveler, exp.IntervalNumber, exp.IntervalCount,
-			exp.CreatedAt, exp.LocalProvenance, syncID,
-			exp.HealthAuthorityID, exp.ReportType, exp.DaysSinceSymptomOnset})
-	}
-
-	copyCount, err := tx.CopyFrom(ctx, pgx.Identifier{"public", "exposure"},
-		[]string{"exposure_key",
-			"transmission_risk",
-			"app_package_name",
-			"regions",
-			"traveler",
-			"interval_number",
-			"interval_count",
-			"created_at",
-			"local_provenance",
-			"sync_id",
-			"health_authority_id",
-			"report_type",
-			"days_since_symptom_onset"}, pgx.CopyFromRows(inputRows))
-	if err != nil {
-		return 0, fmt.Errorf("Unexpected error for Bulk Insert: %v", err)
-	}
-	if int(copyCount) != len(inputRows) {
-		return 0, fmt.Errorf("Expected Bulk Insert to return %d copied rows, but got %d", len(inputRows), copyCount)
-	}
-	fmt.Printf("Copied #%v keys", copyCount)
-	return copyCount, nil
 }
 
 func prepareReviseExposure(ctx context.Context, tx pgx.Tx) (string, error) {
@@ -407,7 +368,7 @@ func executeReviseExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 }
 
 // InsertAndReviseExposures transactionally revises and inserts a set of keys as necessary.
-func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*model.Exposure, token *pb.RevisionTokenData, tokenRequired, bulkInsert bool) (int, error) {
+func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*model.Exposure, token *pb.RevisionTokenData, tokenRequired bool) (int, error) {
 	logger := logging.FromContext(ctx)
 	updated := 0
 	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
@@ -509,32 +470,23 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 		if err != nil {
 			return fmt.Errorf("preparing update statement: %v", err)
 		}
-		if !bulkInsert {
-			for _, exp := range exposures {
-				if exp.RevisedAt == nil {
-					if exp.ReportType == verifyapi.ReportTypeNegative {
-						continue
-					}
-					if err := executeInsertExposure(ctx, tx, insertStmt, exp); err != nil {
-						return err
-					}
-					updated++
-				} else {
-					if err := executeReviseExposure(ctx, tx, updateStmt, exp); err != nil {
-						return err
-					}
-					updated++
+		for _, exp := range exposures {
+			if exp.RevisedAt == nil {
+				if exp.ReportType == verifyapi.ReportTypeNegative {
+					continue
 				}
+				if err := executeInsertExposure(ctx, tx, insertStmt, exp); err != nil {
+					return err
+				}
+				updated++
+			} else {
+				if err := executeReviseExposure(ctx, tx, updateStmt, exp); err != nil {
+					return err
+				}
+				updated++
 			}
-			return nil
-		} else {
-			count, err := executeBulkInsertExposure(ctx, tx, exposures)
-			if err != nil {
-				return err
-			}
-			updated = int(count)
-			return nil
 		}
+		return nil
 	})
 	if err != nil {
 		updated = 0

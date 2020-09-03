@@ -76,9 +76,6 @@ func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
 			"POSTGRES_USER=" + username,
 			"POSTGRES_PASSWORD=" + password,
 		},
-		// Mounts: []string{
-		// 	"/tmp/postgress:/var/lib/postgresql/data",
-		// },
 	})
 	if err != nil {
 		tb.Fatalf("failed to start postgres container: %s", err)
