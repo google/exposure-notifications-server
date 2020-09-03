@@ -56,10 +56,10 @@ func executeBulkInsertExposure(ctx context.Context, tx pgx.Tx, expos []*model.Ex
 			"report_type",
 			"days_since_symptom_onset"}, pgx.CopyFromRows(inputRows))
 	if err != nil {
-		return 0, fmt.Errorf("Unexpected error for Bulk Insert: %v", err)
+		return 0, fmt.Errorf("unexpected error for Bulk Insert: %v", err)
 	}
 	if int(copyCount) != len(inputRows) {
-		return 0, fmt.Errorf("Expected Bulk Insert to return %d copied rows, but got %d", len(inputRows), copyCount)
+		return 0, fmt.Errorf("expected Bulk Insert to return %d copied rows, but got %d", len(inputRows), copyCount)
 	}
 	return copyCount, nil
 }

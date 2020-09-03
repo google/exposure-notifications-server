@@ -69,7 +69,7 @@ func TestReadExposures(t *testing.T) {
 			Traveler:        true,
 		},
 	}
-	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true, false); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -184,7 +184,7 @@ func TestExposures(t *testing.T) {
 			LocalProvenance: false,
 		},
 	}
-	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true, false); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true); err != nil {
 		t.Fatal(err)
 	}
 
