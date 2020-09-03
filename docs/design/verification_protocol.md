@@ -73,7 +73,7 @@ authorities.
 We also prescribe a set of private claims to transmit data from the PHA
 verification server to the exposure notification key server.
 
-* `tekhmac` : _REQUIRED_ The HMAC of the TEKs that was presented to the PHA verification
+* `tekmac` : _REQUIRED_ The HMAC of the TEKs that was presented to the PHA verification
 server. This must be calculated in a specific way (see below). This is REQUIRED.
 Base64 encoded string property.
 * `reportType` : _REQUIRED_ One of 'confirmed', 'likely', or 'negative' to indicate the
