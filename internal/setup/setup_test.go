@@ -61,7 +61,7 @@ func (t *testConfig) DatabaseConfig() *database.Config {
 
 func (t *testConfig) KeyManagerConfig() *keys.Config {
 	return &keys.Config{
-		KeyManagerType: keys.KeyManagerType("IN_MEMORY"),
+		KeyManagerType: keys.KeyManagerType("FILESYSTEM"),
 	}
 }
 
@@ -186,8 +186,8 @@ func TestSetupWith(t *testing.T) {
 			t.Errorf("expected key manager to exist")
 		}
 
-		if _, ok := km.(*keys.InMemory); !ok {
-			t.Errorf("expected %T to be InMemory", km)
+		if _, ok := km.(*keys.Filesystem); !ok {
+			t.Errorf("expected %T to be Filesystem", km)
 		}
 	})
 

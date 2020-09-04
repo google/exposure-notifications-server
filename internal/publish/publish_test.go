@@ -387,17 +387,13 @@ func TestPublishWithBypass(t *testing.T) {
 		}
 
 		ctx := context.Background()
+
 		// Database init for all modules that will be used.
 		testDB := coredb.NewTestDatabase(t)
-		// Make key manager
-		kms, err := keys.NewInMemory(ctx)
-		if err != nil {
-			t.Fatalf("can't make kms: %v", err)
-		}
-		keyID := "rev"
-		if _, err := kms.CreateEncryptionKey(keyID); err != nil {
-			t.Fatal(err)
-		}
+
+		kms := keys.TestKeyManager(t)
+		keyID := keys.TestEncryptionKey(t, kms)
+
 		tokenAAD := make([]byte, 16)
 		if _, err := rand.Read(tokenAAD); err != nil {
 			t.Fatalf("not enough entropy: %v", err)
@@ -707,17 +703,13 @@ func TestKeyRevision(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
 	// Database init for all modules that will be used.
 	testDB := coredb.NewTestDatabase(t)
-	// Make key manager
-	kms, err := keys.NewInMemory(ctx)
-	if err != nil {
-		t.Fatalf("can't make kms: %v", err)
-	}
-	keyID := "rev"
-	if _, err := kms.CreateEncryptionKey(keyID); err != nil {
-		t.Fatal(err)
-	}
+
+	kms := keys.TestKeyManager(t)
+	keyID := keys.TestEncryptionKey(t, kms)
+
 	tokenAAD := make([]byte, 16)
 	if _, err := rand.Read(tokenAAD); err != nil {
 		t.Fatalf("not enough entropy: %v", err)

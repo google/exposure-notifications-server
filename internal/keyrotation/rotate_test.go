@@ -35,11 +35,9 @@ func TestRotateKeys(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	kms, _ := keys.NewInMemory(context.Background())
-	keyID := "testKeyID"
-	if _, err := kms.CreateEncryptionKey(keyID); err != nil {
-		t.Fatal(err)
-	}
+	kms := keys.TestKeyManager(t)
+	keyID := keys.TestEncryptionKey(t, kms)
+
 	config := &Config{
 		RevisionToken:      revision.Config{KeyID: keyID},
 		DeleteOldKeyPeriod: 14 * 24 * time.Hour, // two weeks

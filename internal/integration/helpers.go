@@ -95,18 +95,11 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 		}
 	}
 
-	km, err := keys.NewInMemory(ctx)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	if _, err := km.CreateEncryptionKey("tokenkey"); err != nil {
-		tb.Fatal(err)
-	}
-	if _, err := km.CreateSigningKey(ctx, "signing", "signingkey"); err != nil {
-		tb.Fatal(err)
-	}
+	kms := keys.TestKeyManager(tb)
+	tokenKey := keys.TestEncryptionKey(tb, kms)
+
 	// create an initial revision key.
-	revisionDB, err := revdb.New(db, &revdb.KMSConfig{WrapperKeyID: "tokenkey", KeyManager: km})
+	revisionDB, err := revdb.New(db, &revdb.KMSConfig{WrapperKeyID: tokenKey, KeyManager: kms})
 	if err != nil {
 		tb.Fatal(err)
 	}
@@ -144,7 +137,7 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 		serverenv.WithAuthorizedAppProvider(aap),
 		serverenv.WithBlobStorage(bs),
 		serverenv.WithDatabase(db),
-		serverenv.WithKeyManager(km),
+		serverenv.WithKeyManager(kms),
 		serverenv.WithSecretManager(sm),
 	)
 	// Note: don't call env.Cleanup() because the database helper closes the
@@ -208,7 +201,7 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 	// TODO: this is a grpc listener and requires a lot of setup.
 
 	revConfig := revision.Config{
-		KeyID:     "tokenkey",
+		KeyID:     tokenKey,
 		AAD:       []byte{1, 2, 3},
 		MinLength: 28,
 	}

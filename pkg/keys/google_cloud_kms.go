@@ -46,18 +46,9 @@ type CloudKMSSigningKeyVersion struct {
 	keyManager  *GoogleCloudKMS
 }
 
-func (k *CloudKMSSigningKeyVersion) KeyID() string {
-	return k.keyID
-}
-
-func (k *CloudKMSSigningKeyVersion) CreatedAt() time.Time {
-	return k.createdAt
-}
-
-func (k *CloudKMSSigningKeyVersion) DestroyedAt() time.Time {
-	return k.destroyedAt
-}
-
+func (k *CloudKMSSigningKeyVersion) KeyID() string          { return k.keyID }
+func (k *CloudKMSSigningKeyVersion) CreatedAt() time.Time   { return k.createdAt }
+func (k *CloudKMSSigningKeyVersion) DestroyedAt() time.Time { return k.destroyedAt }
 func (k *CloudKMSSigningKeyVersion) Signer(ctx context.Context) (crypto.Signer, error) {
 	return k.keyManager.NewSigner(ctx, k.keyID)
 }

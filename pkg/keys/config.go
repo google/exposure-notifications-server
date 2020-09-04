@@ -22,7 +22,7 @@ const (
 	KeyManagerTypeAzureKeyVault  KeyManagerType = "AZURE_KEY_VAULT"
 	KeyManagerTypeGoogleCloudKMS KeyManagerType = "GOOGLE_CLOUD_KMS"
 	KeyManagerTypeHashiCorpVault KeyManagerType = "HASHICORP_VAULT"
-	KeyManagerTypeInMemory       KeyManagerType = "IN_MEMORY"
+	KeyManagerTypeFilesystem     KeyManagerType = "FILESYSTEM"
 )
 
 // Config defines configuration.
@@ -34,4 +34,7 @@ type Config struct {
 	// Adherence to this config setting is optional and based
 	// upon the key manager implementation and underlying capabilities.
 	CreateHSMKeys bool `env:"CREATE_HSM_KEYS, default=true"`
+
+	// FilesystemRoot is the root path where keys are managed on the filesystem.
+	FilesystemRoot string `env:"KEY_FILESYSTEM_ROOT"`
 }
