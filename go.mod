@@ -22,7 +22,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.213 // indirect
 	github.com/armon/go-proxyproto v0.0.0-20200108142055-f0b8253b1507 // indirect
-	github.com/aws/aws-sdk-go v1.34.15
+	github.com/aws/aws-sdk-go v1.34.19
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/circonus-labs/circonusllhist v0.1.4 // indirect
 	github.com/client9/misspell v0.3.4
@@ -38,7 +38,7 @@ require (
 	github.com/google/mako v0.2.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/websocket v1.4.2 // indirect
-	github.com/grpc-ecosystem/grpc-gateway v1.14.7 // indirect
+	github.com/grpc-ecosystem/grpc-gateway v1.14.8 // indirect
 	github.com/hashicorp/go-hclog v0.13.0
 	github.com/hashicorp/go-memdb v1.2.1 // indirect
 	github.com/hashicorp/go-msgpack v1.1.5 // indirect
@@ -87,11 +87,12 @@ require (
 	go.opencensus.io v0.22.4
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
-	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
+	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
+	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/sys v0.0.0-20200826173525-f9321e4c35a6 // indirect
-	golang.org/x/tools v0.0.0-20200901201813-cf97e2b30f39
+	golang.org/x/tools v0.0.0-20200908191908-acefd226e2cc
 	google.golang.org/api v0.30.0
-	google.golang.org/genproto v0.0.0-20200901141002-b3bf27a9dbd1
+	google.golang.org/genproto v0.0.0-20200904004341-0bd0a958aa1d
 	google.golang.org/grpc v1.31.1
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
