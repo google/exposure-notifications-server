@@ -126,11 +126,20 @@ func (r *response) padResponse(c *Config) error {
 		return fmt.Errorf("no publish response exists to pad")
 	}
 
-	bi, err := rand.Int(rand.Reader, big.NewInt(c.ResponsePaddingRange))
+	minBytes := c.ResponsePaddingMinBytes
+	if minBytes <= 0 {
+		minBytes = 1024
+	}
+	padRange := c.ResponsePaddingRange
+	if padRange <= 0 {
+		padRange = 1024
+	}
+
+	bi, err := rand.Int(rand.Reader, big.NewInt(padRange))
 	if err != nil {
 		return fmt.Errorf("padding: failed to generate random number: %w", err)
 	}
-	i := int(bi.Int64() + c.ResponsePaddingMinBytes)
+	i := int(bi.Int64() + minBytes)
 
 	b := make([]byte, i)
 	n, err := rand.Read(b)
