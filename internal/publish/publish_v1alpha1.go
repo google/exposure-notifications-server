@@ -25,6 +25,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/mikehelmick/go-chaff"
 )
 
@@ -41,6 +42,7 @@ func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Req
 			status:      code,
 			pubResponse: &verifyapi.PublishResponse{ErrorMessage: message}, // will be down-converted in ServeHTTP
 			metric:      "publish-bad-json", count: 1}
+
 	}
 
 	// Upconvert the exposure key records.
@@ -75,6 +77,14 @@ func (h *PublishHandler) HandleV1Alpha1() http.Handler {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			response := h.handleV1Apha1Request(w, r)
 
+			ctx := r.Context()
+			metrics := h.serverenv.MetricsExporter(ctx)
+
+			if err := response.padResponse(h.config); err != nil {
+				metrics.WriteInt("padding-failed", true, 1)
+				logging.FromContext(ctx).Errorw("failed to padd response", "error", err)
+			}
+
 			// Downgrade the v1 response to a v1alpha1 response.
 			alpha1Response := v1alpha1.PublishResponse{
 				RevisionToken:     response.pubResponse.RevisionToken,
@@ -84,8 +94,6 @@ func (h *PublishHandler) HandleV1Alpha1() http.Handler {
 			}
 
 			if response.metric != "" {
-				ctx := r.Context()
-				metrics := h.serverenv.MetricsExporter(ctx)
 				metrics.WriteInt(response.metric, true, response.count)
 			}
 

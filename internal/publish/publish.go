@@ -17,9 +17,11 @@ package publish
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"time"
 
@@ -117,6 +119,39 @@ type response struct {
 	pubResponse *verifyapi.PublishResponse
 	metric      string
 	count       int // metricCount
+}
+
+func (r *response) padResponse(c *Config) error {
+	if r.pubResponse == nil {
+		return fmt.Errorf("no publish response exists to pad")
+	}
+
+	minBytes := c.ResponsePaddingMinBytes
+	if minBytes <= 0 {
+		minBytes = 1024
+	}
+	padRange := c.ResponsePaddingRange
+	if padRange <= 0 {
+		padRange = 1024
+	}
+
+	bi, err := rand.Int(rand.Reader, big.NewInt(padRange))
+	if err != nil {
+		return fmt.Errorf("padding: failed to generate random number: %w", err)
+	}
+	i := int(bi.Int64() + minBytes)
+
+	b := make([]byte, i)
+	n, err := rand.Read(b)
+	if err != nil {
+		return fmt.Errorf("padding: failed to read bytes: %w", err)
+	}
+	if n < i {
+		return fmt.Errorf("padding: wrote less bytes than expected")
+	}
+
+	r.pubResponse.Padding = fmt.Sprintf("%q", base64.StdEncoding.EncodeToString(b))
+	return nil
 }
 
 // versionBridge closes the gap in up-leveling v1alpha1 to v1 API.

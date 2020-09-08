@@ -430,6 +430,8 @@ func TestPublishWithBypass(t *testing.T) {
 				}
 				config.RevisionToken.AAD = tokenAAD
 				config.RevisionToken.KeyID = keyID
+				config.ResponsePaddingMinBytes = 100
+				config.ResponsePaddingRange = 100
 				env := serverenv.New(ctx,
 					serverenv.WithDatabase(testDB),
 					serverenv.WithAuthorizedAppProvider(aaProvider),
@@ -531,6 +533,9 @@ func TestPublishWithBypass(t *testing.T) {
 				}
 				if resp.StatusCode != tc.Code {
 					t.Fatalf("http response code want: %v, got %v.", tc.Code, resp.StatusCode)
+				}
+				if len(response.Padding) == 0 {
+					t.Errorf("padding is empty on response: %+v", response)
 				}
 
 				if ver == useV1 {
@@ -733,6 +738,8 @@ func TestKeyRevision(t *testing.T) {
 	config.MaxKeysOnPublish = 20
 	config.MaxSameStartIntervalKeys = 2
 	config.MaxIntervalAge = 14 * 24 * time.Hour
+	config.ResponsePaddingMinBytes = 100
+	config.ResponsePaddingRange = 100
 	aaProvider, err := authorizedapp.NewDatabaseProvider(ctx, testDB, config.AuthorizedAppConfig())
 	if err != nil {
 		t.Fatal(err)
