@@ -152,8 +152,7 @@ func TestExport(t *testing.T) {
 			m.ExposureKey, _ = base64util.DecodeString(newKey.Key)
 			revisedExposures = append(revisedExposures, &m)
 		}
-		updated, err := publishdb.New(db).InsertAndReviseExposures(ctx, revisedExposures,
-			nil, false)
+		updated, err := publishdb.New(db).InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{Incoming: revisedExposures})
 		if err != nil {
 			t.Fatal(err)
 		}
