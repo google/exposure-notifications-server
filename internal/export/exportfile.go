@@ -227,6 +227,43 @@ func createSignatureInfo(si *model.SignatureInfo) *export.SignatureInfo {
 	return sigInfo
 }
 
+// UnmarshalSignatureFile extracts the protobuf encode dsignatures.
+func UnmarshalSignatureFile(zippedProtoPayload []byte) (*export.TEKSignatureList, error) {
+	zp, err := zip.NewReader(bytes.NewReader(zippedProtoPayload), int64(len(zippedProtoPayload)))
+	if err != nil {
+		return nil, fmt.Errorf("can't read payload: %v", err)
+	}
+
+	for _, file := range zp.File {
+		if file.Name == exportSignatureName {
+			return unmarshalSignatureContent(file)
+		}
+	}
+
+	return nil, fmt.Errorf("payload is invalid: no %v file was found", exportBinaryName)
+}
+
+func unmarshalSignatureContent(file *zip.File) (*export.TEKSignatureList, error) {
+	f, err := file.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	content, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+
+	message := new(export.TEKSignatureList)
+	err = proto.Unmarshal(content, message)
+	if err != nil {
+		return nil, err
+	}
+
+	return message, nil
+}
+
 func marshalSignature(exportContents []byte, batchNum, batchSize int32, signers []*Signer) ([]byte, error) {
 	var signatures []*export.TEKSignature
 	for _, s := range signers {
