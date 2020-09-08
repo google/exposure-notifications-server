@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/mikehelmick/go-chaff"
 )
 
@@ -60,9 +61,15 @@ func (h *PublishHandler) Handle() http.Handler {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			response := h.handleRequest(w, r)
 
+			ctx := r.Context()
+			metrics := h.serverenv.MetricsExporter(ctx)
+
+			if err := response.padResponse(h.config); err != nil {
+				metrics.WriteInt("padding-failed", true, 1)
+				logging.FromContext(ctx).Errorw("failed to padd response", "error", err)
+			}
+
 			if response.metric != "" {
-				ctx := r.Context()
-				metrics := h.serverenv.MetricsExporter(ctx)
 				metrics.WriteInt(response.metric, true, response.count)
 			}
 
