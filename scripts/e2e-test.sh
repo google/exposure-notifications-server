@@ -21,6 +21,10 @@ set -eEuo pipefail
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 
 # TODO: use project pool for this
-export PROJECT_ID=serious-physics-287516
+# PROW_JOB_ID is an env var set by prow, use project for prow when it's in prow
+if [[ -z "${PROJECT_ID:-}" && -n "${PROW_JOB_ID:-}" ]]; then
+    echo "Using project for prow since"
+    export PROJECT_ID=serious-physics-287516
+fi
 
 ${ROOT}/scripts/terraform.sh smoke

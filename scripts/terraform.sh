@@ -54,7 +54,7 @@ EOF
   # google_app_engine_application.app is global, cannot be deleted once created,
   # if this project already has it created then terraform apply will fail,
   # importing it can solve this problem
-  terraform init
+  terraform init --upgrade
   terraform get --update
   terraform import module.en.google_app_engine_application.app ${PROJECT_ID} || true
 
