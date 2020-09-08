@@ -48,7 +48,15 @@ type Filesystem struct {
 	mu   sync.RWMutex
 }
 
-// NewFilesystem creates a new, local, in memory KeyManager.
+// NewFilesystem creates a new KeyManager backed by the local filesystem. It
+// should only be used for development and testing.
+//
+// If root is provided and does not exist, it will be created. If root is a
+// relative path, it's relative to where the process is currently executing. If
+// root is not supplied, all data is dumped in the current working directory.
+//
+// In general, root should either be a hardcoded path like $(pwd)/local or a
+// temporary directory like os.TempDir().
 func NewFilesystem(ctx context.Context, root string) (*Filesystem, error) {
 	if root != "" {
 		if err := os.MkdirAll(root, 0700); err != nil {
@@ -110,7 +118,7 @@ func (k *Filesystem) Encrypt(ctx context.Context, keyID string, plaintext []byte
 		}
 	}
 	if latest == nil {
-		return nil, fmt.Errorf("key %s does not exist", keyID)
+		return nil, fmt.Errorf("key %q does not exist", keyID)
 	}
 
 	latestPath := filepath.Join(pth, latest.Name())

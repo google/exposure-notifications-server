@@ -28,6 +28,71 @@ import (
 	"testing"
 )
 
+func TestNewFilesystem(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("root_empty", func(t *testing.T) {
+		t.Parallel()
+
+		if _, err := NewFilesystem(ctx, ""); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("root_relative", func(t *testing.T) {
+		t.Parallel()
+
+		t.Cleanup(func() {
+			if err := os.RemoveAll("tmp1"); err != nil {
+				t.Fatal(err)
+			}
+		})
+
+		fs, err := NewFilesystem(ctx, "tmp1")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := fs.CreateSigningKey(ctx, "foo", "bar"); err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := os.Stat("tmp1/foo/bar"); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("root_absolute", func(t *testing.T) {
+		t.Parallel()
+
+		tmp, err := ioutil.TempDir("", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Cleanup(func() {
+			if err := os.RemoveAll(tmp); err != nil {
+				t.Fatal(err)
+			}
+		})
+
+		fs, err := NewFilesystem(ctx, tmp)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := fs.CreateSigningKey(ctx, "foo", "bar"); err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := os.Stat(tmp + "/foo/bar"); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 func TestFilesystem_NewSigner(t *testing.T) {
 	t.Parallel()
 
