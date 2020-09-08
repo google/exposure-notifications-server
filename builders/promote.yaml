@@ -25,7 +25,7 @@ steps:
 #
 # cleanup-exposure
 #
-- id: 'deploy-cleanup-exposure'
+- id: 'promote-cleanup-exposure'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
@@ -45,7 +45,7 @@ steps:
 #
 # cleanup-export
 #
-- id: 'deploy-cleanup-export'
+- id: 'promote-cleanup-export'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
@@ -65,7 +65,7 @@ steps:
 #
 # debugger
 #
-- id: 'deploy-debugger'
+- id: 'promote-debugger'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
@@ -85,7 +85,7 @@ steps:
 #
 # export
 #
-- id: 'deploy-export'
+- id: 'promote-export'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
@@ -105,7 +105,7 @@ steps:
 #
 # exposure
 #
-- id: 'deploy-exposure'
+- id: 'promote-exposure'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
@@ -125,7 +125,7 @@ steps:
 #
 # federationin
 #
-- id: 'deploy-federationin'
+- id: 'promote-federationin'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
@@ -145,7 +145,7 @@ steps:
 #
 # federationout
 #
-- id: 'deploy-federationout'
+- id: 'promote-federationout'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
@@ -165,7 +165,7 @@ steps:
 #
 # generate
 #
-- id: 'deploy-generate'
+- id: 'promote-generate'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
@@ -185,7 +185,7 @@ steps:
 #
 # key-rotation
 #
-- id: 'deploy-key-rotation'
+- id: 'promote-key-rotation'
   name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
