@@ -35,14 +35,8 @@ func TestRevisionKey(t *testing.T) {
 	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
-	kms, err := keys.NewInMemory(ctx)
-	if err != nil {
-		t.Fatalf("unable to cerate in memory KMS")
-	}
-	keyID := "funkey"
-	if _, err := kms.CreateEncryptionKey(keyID); err != nil {
-		t.Fatalf("unable to generate key: %v", err)
-	}
+	kms := keys.TestKeyManager(t)
+	keyID := keys.TestEncryptionKey(t, kms)
 
 	cfg := KMSConfig{keyID, kms}
 	revDB, err := New(testDB, &cfg)
@@ -71,14 +65,8 @@ func TestMultipleRevisionKeys(t *testing.T) {
 	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
-	kms, err := keys.NewInMemory(ctx)
-	if err != nil {
-		t.Fatalf("unable to cerate in memory KMS")
-	}
-	keyID := "funkey"
-	if _, err := kms.CreateEncryptionKey(keyID); err != nil {
-		t.Fatalf("unable to generate key: %v", err)
-	}
+	kms := keys.TestKeyManager(t)
+	keyID := keys.TestEncryptionKey(t, kms)
 
 	cfg := KMSConfig{keyID, kms}
 	revDB, err := New(testDB, &cfg)
