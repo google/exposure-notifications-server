@@ -33,6 +33,8 @@ func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Req
 	ctx, span := trace.StartSpan(r.Context(), "(*publish.PublishHandler).handleRequest")
 	defer span.End()
 
+	w.Header().Set(HeaderAPIVersion, "v1alpha")
+
 	var data v1alpha1.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
@@ -42,7 +44,6 @@ func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Req
 			status:      code,
 			pubResponse: &verifyapi.PublishResponse{ErrorMessage: message}, // will be down-converted in ServeHTTP
 			metric:      "publish-bad-json", count: 1}
-
 	}
 
 	// Upconvert the exposure key records.

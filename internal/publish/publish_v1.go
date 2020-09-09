@@ -32,6 +32,8 @@ func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 	ctx, span := trace.StartSpan(r.Context(), "(*publish.PublishHandler).handleRequest")
 	defer span.End()
 
+	w.Header().Set(HeaderAPIVersion, "v1")
+
 	var data verifyapi.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
