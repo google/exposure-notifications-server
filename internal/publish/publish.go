@@ -42,6 +42,10 @@ import (
 	"github.com/mikehelmick/go-chaff"
 )
 
+const (
+	HeaderAPIVersion = "x-api-version"
+)
+
 // NewHandler creates common API handler for the publish API.
 // This supports all current versions of the API and each defines it's own entry point via
 // an http.HandlerFunc
