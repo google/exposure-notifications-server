@@ -150,7 +150,7 @@ func (r *response) padResponse(c *Config) error {
 		return fmt.Errorf("padding: wrote less bytes than expected")
 	}
 
-	r.pubResponse.Padding = fmt.Sprintf("%q", base64.StdEncoding.EncodeToString(b))
+	r.pubResponse.Padding = base64.StdEncoding.EncodeToString(b)
 	return nil
 }
 
