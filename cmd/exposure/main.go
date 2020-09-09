@@ -64,11 +64,16 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("publish.NewHandler: %w", err)
 	}
+
+	// Handle v1 API - this route has to come before the v1alpha route because of
+	// path matching.
+	mux.Handle("/v1/publish", handler.Handle())
+	mux.Handle("/v1/publish/", http.NotFoundHandler())
+
 	// Serving of v1alpha1 is on by default, but can be disabled through env var.
 	if config.EnableV1Alpha1API {
 		mux.Handle("/", handler.HandleV1Alpha1())
 	}
-	mux.Handle("/v1/publish", handler.Handle())
 
 	srv, err := server.New(config.Port)
 	if err != nil {
