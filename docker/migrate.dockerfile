@@ -14,7 +14,7 @@
 
 # migrate is a base container with migrate and the Cloud SQL proxy installed.
 
-FROM golang:1.15-alpine AS builder
+FROM golang:1.15.1-alpine AS builder
 
 # Install deps
 RUN apk add --no-cache git
