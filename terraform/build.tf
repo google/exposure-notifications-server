@@ -17,8 +17,8 @@ resource "google_storage_bucket" "cloudbuild-cache" {
   name     = "${var.project}-cloudbuild-cache"
   location = var.storage_location
 
-  force_destroy      = true
-  bucket_policy_only = true
+  force_destroy               = true
+  uniform_bucket_level_access = true
 
   // Automatically expire cached objects after 14 days.
   lifecycle_rule {
