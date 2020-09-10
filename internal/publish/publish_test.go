@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -525,8 +524,6 @@ func TestPublishWithBypass(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				log.Printf("\n\n%#v\n\n", string(respBytes))
-
 				var response verifyapi.PublishResponse
 				if err := json.Unmarshal(respBytes, &response); err != nil {
 					t.Fatalf("unable to unmarshal response body: %v; data: %v", err, string(respBytes))
@@ -773,12 +770,13 @@ func TestKeyRevision(t *testing.T) {
 	pubDB := pubdb.New(testDB)
 
 	cases := []struct {
-		Name           string
-		Publish        verifyapi.Publish
-		ErrorCode      string
-		RevErrorCode   string
-		RevTokenMesser RevisionTokenChanger
-		PublishMesser  PublishDataChanger
+		Name               string
+		Publish            verifyapi.Publish
+		ErrorCode          string
+		RevErrorCode       string
+		RevTokenMesser     RevisionTokenChanger
+		PublishMesser      PublishDataChanger
+		VerificationMesser func(c *testutil.JWTConfig)
 	}{
 		{
 			Name: "normal_revision",
@@ -804,6 +802,65 @@ func TestKeyRevision(t *testing.T) {
 				return ""
 			},
 			PublishMesser: PublishIdentity,
+		},
+		{
+			Name: "key_already_revised",
+			Publish: verifyapi.Publish{
+				Keys:                util.GenerateExposureKeys(2, 0, false),
+				Traveler:            false,
+				HealthAuthorityID:   haName,
+				VerificationPayload: "totally not a JWT",
+			},
+			RevErrorCode:   verifyapi.ErrorKeyAlreadyRevised,
+			RevTokenMesser: TokenIdentity,
+			PublishMesser: func(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish) {
+				// Create some keys in the database
+				var incoming []*model.Exposure
+				for _, key := range data.Keys {
+					b64Key, err := base64util.DecodeString(key.Key)
+					if err != nil {
+						t.Fatal(err)
+					}
+					incoming = append(incoming, &model.Exposure{
+						ExposureKey:    b64Key,
+						IntervalNumber: key.IntervalNumber,
+						IntervalCount:  key.IntervalCount,
+						ReportType:     verifyapi.ReportTypeClinical,
+					})
+				}
+				if _, err := pubDB.InsertAndReviseExposures(ctx, &pubdb.InsertAndReviseExposuresRequest{
+					Incoming: incoming,
+				}); err != nil {
+					t.Fatal(err)
+				}
+
+				// Revise them
+				for _, key := range incoming {
+					key.ReportType = verifyapi.ReportTypeConfirmed
+				}
+				if _, err := pubDB.InsertAndReviseExposures(ctx, &pubdb.InsertAndReviseExposuresRequest{
+					Incoming: incoming,
+				}); err != nil {
+					t.Fatal(err)
+				}
+
+				return PublishIdentity(t, data)
+			},
+		},
+		{
+			Name: "invalid_report_type_transition",
+			Publish: verifyapi.Publish{
+				Keys:                util.GenerateExposureKeys(2, 0, false),
+				Traveler:            false,
+				HealthAuthorityID:   haName,
+				VerificationPayload: "totally not a JWT",
+			},
+			RevErrorCode:   verifyapi.ErrorInvalidReportTypeTransition,
+			RevTokenMesser: TokenIdentity,
+			PublishMesser:  PublishIdentity,
+			VerificationMesser: func(c *testutil.JWTConfig) {
+				c.ReportType = "totally_not_valid"
+			},
 		},
 		{
 			Name: "token_missing_keys",
@@ -926,7 +983,7 @@ func TestKeyRevision(t *testing.T) {
 				}
 
 				if response.Code != tc.ErrorCode {
-					t.Fatalf("wrong code on initial publish, want %v, got %v", tc.ErrorCode, response.Code)
+					t.Fatalf("wrong code on initial publish, want %#v, got %#v", tc.ErrorCode, response.Code)
 				}
 				revisionToken = response.RevisionToken
 			}
@@ -942,14 +999,19 @@ func TestKeyRevision(t *testing.T) {
 				keysAreRevisions, publishData = tc.PublishMesser(t, &tc.Publish)
 				tc.Publish = *publishData
 
-				cfg := testutil.JWTConfig{
+				cfg := &testutil.JWTConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
 					ExposureKeys:       tc.Publish.Keys,
 					Key:                signingKey.Key,
 					ReportType:         verifyapi.ReportTypeConfirmed,
 				}
-				verification, salt := testutil.IssueJWT(t, &cfg)
+
+				if messer := tc.VerificationMesser; messer != nil {
+					messer(cfg)
+				}
+
+				verification, salt := testutil.IssueJWT(t, cfg)
 				tc.Publish.VerificationPayload = verification
 				tc.Publish.HMACKey = salt
 
@@ -978,7 +1040,7 @@ func TestKeyRevision(t *testing.T) {
 				}
 
 				if response.Code != tc.RevErrorCode {
-					t.Fatalf("wrong code on initial publish, want %v, got %v", tc.ErrorCode, response.Code)
+					t.Fatalf("wrong code on revision, want %#v, got %#v", tc.RevErrorCode, response.Code)
 				}
 			}
 
