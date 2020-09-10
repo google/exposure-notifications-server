@@ -330,7 +330,7 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 }
 
 // ReviseKeys takes a set of existing keys, and a list of keys currently being uploaded.
-// Only keys that need to be revised or are being created fir the first time
+// Only keys that need to be revised or are being created for the first time
 // are returned in the output set.
 func ReviseKeys(ctx context.Context, existing map[string]*Exposure, incoming []*Exposure) ([]*Exposure, error) {
 	//logger := logging.FromContext(ctx)

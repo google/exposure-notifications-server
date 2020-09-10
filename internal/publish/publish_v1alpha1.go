@@ -29,9 +29,11 @@ import (
 	"github.com/mikehelmick/go-chaff"
 )
 
-func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) response {
+func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) *response {
 	ctx, span := trace.StartSpan(r.Context(), "(*publish.PublishHandler).handleRequest")
 	defer span.End()
+
+	metrics := h.serverenv.MetricsExporter(ctx)
 
 	w.Header().Set(HeaderAPIVersion, "v1alpha")
 
@@ -40,10 +42,13 @@ func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		message := fmt.Sprintf("error unmarshaling API call, code: %v: %v", code, err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		return response{
+		return &response{
 			status:      code,
 			pubResponse: &verifyapi.PublishResponse{ErrorMessage: message}, // will be down-converted in ServeHTTP
-			metric:      "publish-bad-json", count: 1}
+			metrics: func() {
+				metrics.WriteInt("publish-bad-json", true, 1)
+			},
+		}
 	}
 
 	// Upconvert the exposure key records.
@@ -94,8 +99,8 @@ func (h *PublishHandler) HandleV1Alpha1() http.Handler {
 				Padding:           response.pubResponse.Padding,
 			}
 
-			if response.metric != "" {
-				metrics.WriteInt(response.metric, true, response.count)
+			if response.metrics != nil {
+				response.metrics()
 			}
 
 			data, err := json.Marshal(&alpha1Response)

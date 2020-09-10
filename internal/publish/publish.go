@@ -121,8 +121,9 @@ type PublishHandler struct {
 type response struct {
 	status      int
 	pubResponse *verifyapi.PublishResponse
-	metric      string
-	count       int // metricCount
+
+	// metrics is a function to execute to publish metrics
+	metrics func()
 }
 
 func (r *response) padResponse(c *Config) error {
@@ -173,7 +174,7 @@ func newVersionBridge(regions []string) *versionBridge {
 
 // process runs the publish business logic over a "v1" version of the publish request
 // and knows how to join in data from previous versions (the provided versionBridge)
-func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, bridge *versionBridge) response {
+func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, bridge *versionBridge) *response {
 	ctx, span := trace.StartSpan(ctx, "(*publish.PublishHandler).process")
 	defer span.End()
 
@@ -188,14 +189,15 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		if errors.Is(err, authorizedapp.ErrAppNotFound) {
 			message := fmt.Sprintf("unauthorized health authority: %v", data.HealthAuthorityID)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-			return response{
+			return &response{
 				status: http.StatusUnauthorized,
 				pubResponse: &verifyapi.PublishResponse{
 					ErrorMessage: message,
 					Code:         verifyapi.ErrorUnknownHealthAuthorityID,
 				},
-				metric: "publish-health-authority-not-authorized",
-				count:  1,
+				metrics: func() {
+					metrics.WriteInt("publish-health-authority-not-authorized", true, 1)
+				},
 			}
 		}
 
@@ -206,14 +208,15 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		// and no other data from the request.
 		message := fmt.Sprintf("error loading health authority config: %v", err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		return response{
+		return &response{
 			status: http.StatusNotFound,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         verifyapi.ErrorUnableToLoadHealthAuthority,
 			},
-			metric: "publish-error-loading-authorizedapp",
-			count:  1,
+			metrics: func() {
+				metrics.WriteInt("publish-error-loading-authorizedapp", true, 1)
+			},
 		}
 	}
 
@@ -228,13 +231,14 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 				err := fmt.Errorf("app %v tried to write to unauthorized region %v", appConfig.AppPackageName, r)
 				message := fmt.Sprintf("verifying allowed regions: %v", err)
 				span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
-				return response{
+				return &response{
 					status: http.StatusUnauthorized,
 					pubResponse: &verifyapi.PublishResponse{
 						ErrorMessage: message, // Error code omitted, since this isn't in the v1 path.
 					},
-					metric: "publish-region-not-authorized",
-					count:  1,
+					metrics: func() {
+						metrics.WriteInt("publish-region-not-authorized", true, 1)
+					},
 				}
 			}
 		}
@@ -256,14 +260,15 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		logger.Errorf("No regions present in request or configured for healthAuthorityID: %v", data.HealthAuthorityID)
 		message := fmt.Sprintf("unknown health authority regions for %v", data.HealthAuthorityID)
 		span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
-		return response{
+		return &response{
 			status: http.StatusInternalServerError,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         verifyapi.ErrorHealthAuthorityMissingRegionConfiguration,
 			},
-			metric: "publish-region-not-specified",
-			count:  1,
+			metrics: func() {
+				metrics.WriteInt("publish-region-not-specified", true, 1)
+			},
 		}
 	}
 
@@ -281,13 +286,16 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 				logger.Errorw(message, "error", err)
 			}
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
-			return response{
+			return &response{
 				status: http.StatusUnauthorized,
 				pubResponse: &verifyapi.PublishResponse{
 					ErrorMessage: message,
 					Code:         verifyapi.ErrorVerificationCertificateInvalid,
 				},
-				metric: "publish-bad-verification", count: 1}
+				metrics: func() {
+					metrics.WriteInt("publish-bad-verification", true, 1)
+				},
+			}
 		}
 	}
 
@@ -317,16 +325,25 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		message := fmt.Sprintf("unable to read request data: %v", transformError)
 		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
-		return response{
+		return &response{
 			status: http.StatusBadRequest,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         verifyapi.ErrorBadRequest,
 			},
-			metric: "publish-transform-fail", count: 1}
+			metrics: func() {
+				metrics.WriteInt("publish-transform-fail", true, 1)
+			},
+		}
 	}
 
-	n, err := h.database.InsertAndReviseExposures(ctx, exposures, token, !appConfig.BypassRevisionToken)
+	resp, err := h.database.InsertAndReviseExposures(ctx, &database.InsertAndReviseExposuresRequest{
+		Incoming: exposures,
+		Token:    token,
+
+		RequireToken:          !appConfig.BypassRevisionToken,
+		AllowPartialRevisions: h.config.AllowPartialRevisions,
+	})
 	if err != nil {
 		status := http.StatusBadRequest
 		var logMessage, errorMessage, errorCode string
@@ -348,13 +365,16 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		}
 		logger.Error(logMessage)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: logMessage})
-		return response{
+		return &response{
 			status: status,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: errorMessage,
 				Code:         errorCode,
 			},
-			metric: metric, count: 1}
+			metrics: func() {
+				metrics.WriteInt(metric, true, 1)
+			},
+		}
 	}
 
 	// Build the new revision token. Union of existing token take + new exposures.
@@ -368,7 +388,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 			}
 		}
 	}
-	newToken, err := h.tokenManager.MakeRevisionToken(ctx, &keep, exposures, h.tokenAAD)
+	newToken, err := h.tokenManager.MakeRevisionToken(ctx, &keep, resp.Exposures, h.tokenAAD)
 	if err != nil {
 		// In this case, an empty revision token is returned. The rest of the request
 		// was handled correctly.
@@ -376,13 +396,17 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		newToken = make([]byte, 0)
 	}
 
-	message := fmt.Sprintf("Inserted %d exposures.", n)
-	span.AddAttributes(trace.Int64Attribute("inserted_exposures", int64(n)))
-	logger.Info(message)
+	span.AddAttributes(trace.Int64Attribute("exposures_inserted", int64(resp.Inserted)))
+	span.AddAttributes(trace.Int64Attribute("exposures_revised", int64(resp.Revised)))
+	span.AddAttributes(trace.Int64Attribute("exposures_dropped", int64(resp.Dropped)))
+	logger.Infow("published exposures",
+		"inserted", resp.Inserted,
+		"updated", resp.Revised,
+		"dropped", resp.Dropped)
 
 	publishResponse := verifyapi.PublishResponse{
 		RevisionToken:     base64.StdEncoding.EncodeToString(newToken),
-		InsertedExposures: n,
+		InsertedExposures: int(resp.Inserted),
 	}
 	// If there was a partial failure on transform, add that information back into the success response.
 	if transformError != nil {
@@ -390,10 +414,13 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		publishResponse.ErrorMessage = transformError.Error()
 	}
 
-	return response{
+	return &response{
 		status:      http.StatusOK,
 		pubResponse: &publishResponse,
-		metric:      "publish-exposures-written",
-		count:       n,
+		metrics: func() {
+			metrics.WriteInt("publish-exposures-inserted", true, int(resp.Inserted))
+			metrics.WriteInt("publish-exposures-revised", true, int(resp.Revised))
+			metrics.WriteInt("publish-exposures-dropped", true, int(resp.Dropped))
+		},
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -69,7 +70,10 @@ func TestReadExposures(t *testing.T) {
 			Traveler:        true,
 		},
 	}
-	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+		Incoming:     exposures,
+		RequireToken: true,
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -184,7 +188,10 @@ func TestExposures(t *testing.T) {
 			LocalProvenance: false,
 		},
 	}
-	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+		Incoming:     exposures,
+		RequireToken: true,
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -294,6 +301,24 @@ func testRandomTEK(tb testing.TB) []byte {
 	return b
 }
 
+func testExposure(tb testing.TB) *model.Exposure {
+	tb.Helper()
+
+	exposure := &model.Exposure{
+		ExposureKey:      testRandomTEK(tb),
+		TransmissionRisk: verifyapi.TransmissionRiskClinical,
+		AppPackageName:   "foo.bar",
+		Regions:          []string{"US", "CA", "MX"},
+		IntervalNumber:   100,
+		IntervalCount:    144,
+		CreatedAt:        time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Hour),
+		LocalProvenance:  true,
+		ReportType:       verifyapi.ReportTypeClinical,
+	}
+	exposure.SetDaysSinceSymptomOnset(0)
+	return exposure
+}
+
 func TestReviseExposures(t *testing.T) {
 	t.Parallel()
 
@@ -301,199 +326,391 @@ func TestReviseExposures(t *testing.T) {
 	testDB := database.NewTestDatabase(t)
 	pubDB := New(testDB)
 
-	createdAt := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Hour)
-	revisedAt := time.Now().UTC().Truncate(time.Hour)
-
-	existingTEK := testRandomTEK(t)
-	existingExp := &model.Exposure{
-		ExposureKey:      existingTEK,
-		TransmissionRisk: verifyapi.TransmissionRiskClinical,
-		AppPackageName:   "foo.bar",
-		Regions:          []string{"US", "CA", "MX"},
-		IntervalNumber:   100,
-		IntervalCount:    144,
-		CreatedAt:        createdAt,
-		LocalProvenance:  true,
-		ReportType:       verifyapi.ReportTypeClinical,
-	}
-	existingExp.SetDaysSinceSymptomOnset(0)
-	if n, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{existingExp}, nil, true); err != nil {
-		t.Fatalf("error inserting exposures: %v", err)
-	} else if n != 1 {
-		t.Fatalf("wrong number of changed exposures, want: 1, got: %v", n)
-	}
-
 	// Attempt to revise without a revision token - this should fail.
-	{
-		revisedExp := &model.Exposure{}
-		*revisedExp = *existingExp
-		revisedExp.TransmissionRisk = verifyapi.TransmissionRiskConfirmedStandard
-		revisedExp.CreatedAt = revisedAt
-		revisedExp.ReportType = verifyapi.ReportTypeConfirmed
+	t.Run("revise_without_token", func(t *testing.T) {
+		t.Parallel()
 
-		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, nil, true); !errors.Is(err, ErrNoRevisionToken) {
-			t.Fatalf("expected %#v to be %#v", err, ErrNoRevisionToken)
+		// Insert the exposure
+		exposure := testExposure(t)
+		insertResp, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming: []*model.Exposure{exposure},
+		})
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
+		if got, want := int(insertResp.Inserted), 1; got != want {
+			t.Fatalf("expected %d to be %d", got, want)
+		}
+
+		// Change and revise
+		exposure.TransmissionRisk = verifyapi.TransmissionRiskConfirmedStandard
+		exposure.ReportType = verifyapi.ReportTypeConfirmed
+
+		if _, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming:     []*model.Exposure{exposure},
+			RequireToken: true,
+		}); !errors.Is(err, ErrNoRevisionToken) {
+			t.Errorf("expected %#v to be %#v", err, ErrNoRevisionToken)
+		}
+	})
 
 	// Attempt to revise with a revision token that doesn't include the TEK - this
 	// should fail.
-	{
-		revisedExp := &model.Exposure{}
-		*revisedExp = *existingExp
-		revisedExp.TransmissionRisk = verifyapi.TransmissionRiskConfirmedStandard
-		revisedExp.CreatedAt = revisedAt
-		revisedExp.ReportType = verifyapi.ReportTypeConfirmed
+	t.Run("revise_with_token_without_matching_tek", func(t *testing.T) {
+		t.Parallel()
+
+		// Insert the exposure
+		exposure := testExposure(t)
+		insertResp, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming: []*model.Exposure{exposure},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := int(insertResp.Inserted), 1; got != want {
+			t.Fatalf("expected %d to be %d", got, want)
+		}
+
+		// Change and revise
+		exposure.TransmissionRisk = verifyapi.TransmissionRiskConfirmedStandard
+		exposure.ReportType = verifyapi.ReportTypeConfirmed
 
 		token := &pb.RevisionTokenData{
 			RevisableKeys: []*pb.RevisableKey{
 				{
 					TemporaryExposureKey: testRandomTEK(t), // TEK mismatch
-					IntervalNumber:       100,
-					IntervalCount:        144,
+					IntervalNumber:       exposure.IntervalNumber,
+					IntervalCount:        exposure.IntervalCount,
 				},
 			},
 		}
 
-		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true); !errors.Is(err, ErrExistingKeyNotInToken) {
+		if _, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming:     []*model.Exposure{exposure},
+			Token:        token,
+			RequireToken: true,
+		}); !errors.Is(err, ErrExistingKeyNotInToken) {
 			t.Fatalf("expected %#v to be %#v", err, ErrExistingKeyNotInToken)
 		}
-	}
+	})
 
 	// Attempt to revise with a revision token that has the wrong metadata - this
 	// should fail.
-	{
-		revisedExp := &model.Exposure{}
-		*revisedExp = *existingExp
-		revisedExp.TransmissionRisk = verifyapi.TransmissionRiskConfirmedStandard
-		revisedExp.CreatedAt = revisedAt
-		revisedExp.ReportType = verifyapi.ReportTypeConfirmed
+	t.Run("revise_with_token_wrong_metadata", func(t *testing.T) {
+		t.Parallel()
+
+		// Insert the exposure
+		exposure := testExposure(t)
+		insertResp, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming: []*model.Exposure{exposure},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := int(insertResp.Inserted), 1; got != want {
+			t.Fatalf("expected %d to be %d", got, want)
+		}
 
 		token := &pb.RevisionTokenData{
 			RevisableKeys: []*pb.RevisableKey{
 				{
-					TemporaryExposureKey: existingTEK,
-					IntervalNumber:       101, // Changed, should cause failure
-					IntervalCount:        144,
+					TemporaryExposureKey: exposure.ExposureKey,
+					IntervalNumber:       exposure.IntervalNumber + 1, // Changed, should cause failure
+					IntervalCount:        exposure.IntervalCount,
 				},
 			},
 		}
 
-		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true); !errors.Is(err, ErrRevisionTokenMetadataMismatch) {
+		if _, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming:     []*model.Exposure{exposure},
+			Token:        token,
+			RequireToken: true,
+		}); !errors.Is(err, ErrRevisionTokenMetadataMismatch) {
 			t.Fatalf("expected %#v to be %#v", err, ErrRevisionTokenMetadataMismatch)
 		}
-	}
+	})
 
 	// Attempt to modify metadata on incoming keys - this should fail.
-	{
-		revisedExp := &model.Exposure{}
-		*revisedExp = *existingExp
-		revisedExp.IntervalCount = 124 // Changed, should make request invalid
+	t.Run("revise_metadata_incoming_keys", func(t *testing.T) {
+		t.Parallel()
+
+		// Insert the exposure
+		exposure := testExposure(t)
+		insertResp, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming: []*model.Exposure{exposure},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := int(insertResp.Inserted), 1; got != want {
+			t.Fatalf("expected %d to be %d", got, want)
+		}
+
+		// Change metadata - should make request invalid
+		exposure.IntervalCount = 124
 
 		token := &pb.RevisionTokenData{
 			RevisableKeys: []*pb.RevisableKey{
 				{
-					TemporaryExposureKey: existingTEK,
-					IntervalNumber:       101, // Changed, should cause failure
-					IntervalCount:        144,
+					TemporaryExposureKey: exposure.ExposureKey,
+					IntervalNumber:       exposure.IntervalNumber,
+					IntervalCount:        exposure.IntervalCount,
 				},
 			},
 		}
 
-		if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, token, true); !errors.Is(err, ErrIncomingMetadataMismatch) {
+		if _, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming:     []*model.Exposure{exposure},
+			Token:        token,
+			RequireToken: true,
+		}); !errors.Is(err, ErrIncomingMetadataMismatch) {
 			t.Fatalf("expected %#v to be %#v", err, ErrIncomingMetadataMismatch)
 		}
-	}
-
-	// Modify the existing on in place.
-	revisedExp := &model.Exposure{
-		ExposureKey:      existingTEK,
-		TransmissionRisk: verifyapi.TransmissionRiskConfirmedStandard,
-		AppPackageName:   "foo.bar",
-		Regions:          []string{"US", "CA", "MX"},
-		IntervalNumber:   100,
-		IntervalCount:    144,
-		CreatedAt:        revisedAt,
-		LocalProvenance:  true,
-		ReportType:       verifyapi.ReportTypeConfirmed,
-	}
-	// Add a new TEK to insert.
-	newTEK := []byte{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5}
-	newExp := &model.Exposure{
-		ExposureKey:      newTEK,
-		TransmissionRisk: verifyapi.TransmissionRiskClinical,
-		AppPackageName:   "foo.bar",
-		Regions:          []string{"US", "CA", "MX"},
-		IntervalNumber:   244,
-		IntervalCount:    144,
-		CreatedAt:        revisedAt,
-		LocalProvenance:  true,
-		ReportType:       verifyapi.ReportTypeConfirmed,
-	}
-	newExp.SetDaysSinceSymptomOnset(1)
-
-	revisions := []*model.Exposure{revisedExp, newExp}
-	// In the first pass - try to revise the key without the necessary revision token.
-	if _, err := pubDB.InsertAndReviseExposures(ctx, revisions, nil, true); err == nil {
-		t.Fatalf("expected error revising without token data")
-	} else if !errors.Is(err, ErrNoRevisionToken) {
-		t.Fatalf("wrong error, want: '%v' got: %v", ErrNoRevisionToken, err)
-	}
-
-	// Revision token that allows revision of the revised key.
-	var token pb.RevisionTokenData
-	token.RevisableKeys = append(token.RevisableKeys, &pb.RevisableKey{
-		TemporaryExposureKey: existingTEK,
-		IntervalNumber:       100,
-		IntervalCount:        144,
 	})
 
-	if n, err := pubDB.InsertAndReviseExposures(ctx, revisions, &token, true); err != nil {
-		t.Fatalf("error revising exposures: %v", err)
-	} else if n != 2 {
-		t.Fatalf("wrong number of changed exposures, want: 2, got: %v", n)
-	}
+	// Attempt to revise where a subset of the TEKs match the revision token and
+	// partial revisions are permitted. This should succeed.
+	t.Run("revise_subset_of_keys_partial", func(t *testing.T) {
+		t.Parallel()
 
-	// Read back and compare.
-	expectedKeys := []string{existingExp.ExposureKeyBase64(), newExp.ExposureKeyBase64()}
-	var got map[string]*model.Exposure
-	err := testDB.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		var err error
-		got, err = pubDB.ReadExposures(ctx, tx, expectedKeys)
-		return err
-	})
-	if err != nil {
-		t.Fatalf("error reading exposures: %v", err)
-	}
-
-	if l := len(got); l != 2 {
-		t.Fatalf("didn't read back both exposures, got: %v", l)
-	}
-
-	want := []*model.Exposure{existingExp, newExp}
-	// need to modify the exitingExp to match what we expect to get back.
-	existingExp.SetRevisedTransmissionRisk(verifyapi.TransmissionRiskConfirmedStandard)
-	existingExp.SetRevisedAt(revisedAt)
-	existingExp.SetRevisedReportType(verifyapi.ReportTypeConfirmed)
-
-	for i := 0; i <= 1; i++ {
-		if diff := cmp.Diff(want[i], got[want[i].ExposureKeyBase64()], ignoreUnexportedExposure); diff != "" {
-			t.Errorf("mismatch (-want, +got):\n%s", diff)
+		// Insert the exposure
+		exposure1 := testExposure(t)
+		insertResp1, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming: []*model.Exposure{exposure1},
+		})
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
+		if got, want := int(insertResp1.Inserted), 1; got != want {
+			t.Fatalf("expected %d to be %d", got, want)
+		}
 
-	token.RevisableKeys = append(token.RevisableKeys, &pb.RevisableKey{
-		TemporaryExposureKey: newTEK,
-		IntervalNumber:       244,
-		IntervalCount:        144,
+		// Change the diagnosis
+		exposure1.ReportType = verifyapi.ReportTypeConfirmed
+
+		// Create new exposure which is not included in the revision token, but
+		// should also not return an error due to partial revisions being permitted.
+		exposure2 := testExposure(t)
+		insertResp2, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming: []*model.Exposure{exposure2},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := int(insertResp2.Inserted), 1; got != want {
+			t.Fatalf("expected %d to be %d", got, want)
+		}
+
+		// Create the revision token, only including the first token.
+		token := &pb.RevisionTokenData{
+			RevisableKeys: []*pb.RevisableKey{
+				{
+					TemporaryExposureKey: exposure1.ExposureKey,
+					IntervalNumber:       exposure1.IntervalNumber,
+					IntervalCount:        exposure1.IntervalCount,
+				},
+			},
+		}
+
+		// Attempt to revise
+		resp, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming:              []*model.Exposure{exposure1, exposure2},
+			Token:                 token,
+			RequireToken:          true,
+			AllowPartialRevisions: true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := int(resp.Inserted), 0; got != want {
+			t.Errorf("expected %d to be %d", got, want)
+		}
+		if got, want := int(resp.Revised), 1; got != want {
+			t.Errorf("expected %d to be %d", got, want)
+		}
+		if got, want := int(resp.Dropped), 1; got != want {
+			t.Errorf("expected %d to be %d", got, want)
+		}
 	})
 
-	// Attempt to revise the already revised key.
-	if _, err := pubDB.InsertAndReviseExposures(ctx, []*model.Exposure{revisedExp}, &token, true); err == nil {
-		t.Fatalf("expected error on revising already revised key, got nil")
-	} else if !strings.Contains(err.Error(), "key has already been revised ") {
-		t.Fatalf("wrong error, want 'invalid key revision request', got: %v", err)
-	}
+	t.Run("revise_already_revised", func(t *testing.T) {
+		t.Parallel()
+
+		// Insert the exposure
+		exposure := testExposure(t)
+		insertResp, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming: []*model.Exposure{exposure},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := int(insertResp.Inserted), 1; got != want {
+			t.Fatalf("expected %d to be %d", got, want)
+		}
+
+		// Revise the exposure
+		exposure.ReportType = verifyapi.ReportTypeConfirmed
+
+		token := &pb.RevisionTokenData{
+			RevisableKeys: []*pb.RevisableKey{
+				{
+					TemporaryExposureKey: exposure.ExposureKey,
+					IntervalNumber:       exposure.IntervalNumber,
+					IntervalCount:        exposure.IntervalCount,
+				},
+			},
+		}
+
+		reviseResp, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming:     []*model.Exposure{exposure},
+			Token:        token,
+			RequireToken: true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := int(reviseResp.Revised), 1; got != want {
+			t.Errorf("expected %d to be %d: %#v", got, want, reviseResp)
+		}
+
+		// Attempt to revise the same key again - this should fail.
+		if _, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming:     []*model.Exposure{exposure},
+			Token:        token,
+			RequireToken: true,
+		}); !errors.Is(err, model.ErrorKeyAlreadyRevised) {
+			t.Errorf("expected %#v to be %#v", err, model.ErrorKeyAlreadyRevised)
+		}
+	})
+
+	t.Run("revise_partial_new_flow", func(t *testing.T) {
+		t.Parallel()
+
+		// Insert 2 exposures
+		exposure1 := testExposure(t)
+		exposure2 := testExposure(t)
+		insertResp, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming: []*model.Exposure{exposure1, exposure2},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := int(insertResp.Inserted), 2; got != want {
+			t.Fatalf("expected %d to be %d", got, want)
+		}
+
+		// Change the first exposure
+		exposure1.ReportType = verifyapi.ReportTypeConfirmed
+
+		// Change the second exposure
+		exposure2.ReportType = verifyapi.ReportTypeConfirmed
+
+		// Create another new exposure to insert
+		exposure3 := testExposure(t)
+		exposure3.SetDaysSinceSymptomOnset(1)
+		exposure3.IntervalNumber = 244
+		exposure3.IntervalCount = 144
+		exposure3.ReportType = verifyapi.ReportTypeConfirmed
+
+		// Create a revision token that includes exposure1, but not exposure2 or
+		// exposure3.
+		token := &pb.RevisionTokenData{
+			RevisableKeys: []*pb.RevisableKey{
+				{
+					TemporaryExposureKey: exposure1.ExposureKey,
+					IntervalNumber:       exposure1.IntervalNumber,
+					IntervalCount:        exposure1.IntervalCount,
+				},
+			},
+		}
+
+		// Exposure2 should be dropped since it exists and is not in the database,
+		// but exposure3 should be inserted because its new.
+		resp, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+			Incoming:              []*model.Exposure{exposure1, exposure2, exposure3},
+			Token:                 token,
+			RequireToken:          true,
+			AllowPartialRevisions: true,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := int(resp.Inserted), 1; got != want {
+			// exposure3
+			t.Errorf("expected inserted %d to be %d", got, want)
+		}
+		if got, want := int(resp.Revised), 1; got != want {
+			// exposure1
+			t.Errorf("expected revised %d to be %d", got, want)
+		}
+		if got, want := int(resp.Dropped), 1; got != want {
+			// exposure2
+			t.Errorf("expected dropped %d to be %d", got, want)
+		}
+		if got, want := len(resp.Exposures), 2; got != want {
+			t.Errorf("expected exposures %d to be %d", got, want)
+		}
+
+		// Ensure the returned exposures don't include exposure 2 which should have
+		// been dropped. This will ensure it's not included in the revision token as
+		// well.
+		gotExposures := make([]string, len(resp.Exposures))
+		for i, e := range resp.Exposures {
+			gotExposures[i] = e.ExposureKeyBase64()
+		}
+		sort.Strings(gotExposures)
+		wantExposures := []string{
+			exposure1.ExposureKeyBase64(),
+			exposure3.ExposureKeyBase64(),
+		}
+		sort.Strings(wantExposures)
+		if got, want := gotExposures, wantExposures; !reflect.DeepEqual(got, want) {
+			t.Errorf("expected %#v to be %#v", got, want)
+		}
+
+		// Read back and ensure they actually went in the database.
+		expectedTEKs := []string{
+			exposure1.ExposureKeyBase64(),
+			exposure2.ExposureKeyBase64(),
+			exposure3.ExposureKeyBase64(),
+		}
+		var got map[string]*model.Exposure
+		if err := testDB.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+			var err error
+			got, err = pubDB.ReadExposures(ctx, tx, expectedTEKs)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+
+		// Ensure exposure1 was revised.
+		gotExposure1, ok := got[exposure1.ExposureKeyBase64()]
+		if !ok {
+			t.Fatal("exposure1 is missing in response")
+		}
+		if got, want := gotExposure1.RevisedReportType, verifyapi.ReportTypeConfirmed; got == nil || *got != want {
+			t.Errorf("expected %#v to be %#v", got, want)
+		}
+
+		// Ensure exposure2 was NOT revised (it was not in the revision token and
+		// should have been dropped).
+		gotExposure2, ok := got[exposure2.ExposureKeyBase64()]
+		if !ok {
+			t.Fatal("exposure2 is missing in response")
+		}
+		if got, want := gotExposure2.ReportType, verifyapi.ReportTypeClinical; got != want {
+			t.Errorf("expected %#v to be %#v", got, want)
+		}
+
+		// Ensure exposure3 was inserted.
+		gotExposure3, ok := got[exposure3.ExposureKeyBase64()]
+		if !ok {
+			t.Fatal("exposure3 is missing in response")
+		}
+		if got, want := gotExposure3.IntervalNumber, exposure3.IntervalNumber; got != want {
+			t.Errorf("expected %#v to be %#v", got, want)
+		}
+	})
 }
 
 func TestIterateExposuresCursor(t *testing.T) {
@@ -521,7 +738,10 @@ func TestIterateExposuresCursor(t *testing.T) {
 			Regions:        []string{"MX", "CA"},
 		},
 	}
-	if _, err := testPublishDB.InsertAndReviseExposures(ctx, exposures, nil, true); err != nil {
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
+		Incoming:     exposures,
+		RequireToken: true,
+	}); err != nil {
 		t.Fatal(err)
 	}
 	// Iterate over them, canceling the context in the middle.

@@ -156,7 +156,10 @@ func (h *generateHandler) generate(ctx context.Context, regions []string) error 
 			return fmt.Errorf("failed to transform generated exposures: %w", err)
 		}
 
-		n, err := h.database.InsertAndReviseExposures(ctx, exposures, nil, true)
+		n, err := h.database.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+			Incoming:     exposures,
+			RequireToken: true,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to write exposure record: %w", err)
 		}
@@ -186,7 +189,12 @@ func (h *generateHandler) generate(ctx context.Context, regions []string) error 
 				})
 			}
 
-			n, err := h.database.InsertAndReviseExposures(ctx, exposures, &token, true)
+			// Bypass revision token enforcement on generated data.
+			n, err := h.database.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+				Incoming:     exposures,
+				Token:        &token,
+				RequireToken: true,
+			})
 			if err != nil {
 				return fmt.Errorf("failed to revise exposure record: %w", err)
 			}

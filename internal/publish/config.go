@@ -61,6 +61,12 @@ type Config struct {
 
 	RevisionKeyCacheDuration time.Duration `env:"REVISION_KEY_CACHE_DURATION, default=1m"`
 
+	// AllowPartialRevisions permits uploading multiple exposure keys with a
+	// revision token where only a subset of the keys are in the token. In that
+	// case, only the incoming exposure keys that match the revision token are
+	// uploaded and the remainder are discarded.
+	AllowPartialRevisions bool `env:"ALLOW_PARTIAL_REVISIONS, default=false"`
+
 	// API Versions.
 	EnableV1Alpha1API bool `env:"ENABLE_V1ALPHA1_API, default=true"`
 
