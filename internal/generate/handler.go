@@ -96,6 +96,9 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *generateHandler) generate(ctx context.Context, regions []string) error {
 	logger := h.logger.Named("generate")
 
+	// We require at least 2 keys because revision only revises a subset of keys,
+	// and that subset selects a random sample from (0-len(keys)], and rand panics
+	// if you try to generate a random number between 0 and 0 :).
 	if h.config.KeysPerExposure < 2 {
 		return fmt.Errorf("number of keys to publish must be at least 2")
 	}
