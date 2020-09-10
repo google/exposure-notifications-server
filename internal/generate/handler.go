@@ -23,9 +23,11 @@ import (
 	"time"
 
 	"go.opencensus.io/trace"
+	"go.uber.org/zap"
 
-	"github.com/google/exposure-notifications-server/internal/publish/database"
-	"github.com/google/exposure-notifications-server/internal/publish/model"
+	"github.com/google/exposure-notifications-server/internal/pb"
+	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
@@ -34,77 +36,97 @@ import (
 )
 
 func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
-	logger := logging.FromContext(ctx)
+	logger := logging.FromContext(ctx).Named("generate")
 
 	if env.Database() == nil {
 		return nil, fmt.Errorf("missing database in server environment")
 	}
 
-	transformer, err := model.NewTransformer(config)
+	transformer, err := publishmodel.NewTransformer(config)
 	if err != nil {
 		return nil, fmt.Errorf("model.NewTransformer: %w", err)
 	}
-	logger.Infof("max keys per upload: %v", config.MaxKeysOnPublish)
-	logger.Infof("max interval start age: %v", config.MaxIntervalAge)
-	logger.Infof("truncate window: %v", config.TruncateWindow)
+	logger.Debugw("max keys per upload", "value", config.MaxKeysOnPublish)
+	logger.Debugw("max interval start age", "value", config.MaxIntervalAge)
+	logger.Debugw("truncate window", "value", config.TruncateWindow)
 
 	return &generateHandler{
 		serverenv:   env,
 		transformer: transformer,
 		config:      config,
-		database:    database.New(env.Database()),
+		database:    publishdb.New(env.Database()),
+		logger:      logger,
 	}, nil
 }
 
 type generateHandler struct {
 	config      *Config
 	serverenv   *serverenv.ServerEnv
-	transformer *model.Transformer
-	database    *database.PublishDB
+	transformer *publishmodel.Transformer
+	database    *publishdb.PublishDB
+	logger      *zap.SugaredLogger
 }
 
 func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, span := trace.StartSpan(r.Context(), "(*generate.generateHandler).ServeHTTP")
 	defer span.End()
-	logger := logging.FromContext(ctx)
+
+	logger := h.logger.Named("ServeHTTP")
 
 	regionStr := h.config.DefaultRegion
-	if regionParams, ok := r.URL.Query()["region"]; ok && len(regionParams) > 0 {
-		regionStr = regionParams[0]
+	if v := r.URL.Query().Get("region"); v != "" {
+		regionStr = v
 	}
 	regions := strings.Split(regionStr, ",")
-	logger.Infof("Request to generate data for regions: %v", regions)
+
+	logger.Debugw("generating data", "regions", regions)
+
+	if err := h.generate(ctx, regions); err != nil {
+		logger.Errorw("failed to generate", "error", err)
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "successfully generated exposure keys")
+}
+
+func (h *generateHandler) generate(ctx context.Context, regions []string) error {
+	logger := h.logger.Named("generate")
+
+	if h.config.KeysPerExposure < 2 {
+		return fmt.Errorf("number of keys to publish must be at least 2")
+	}
 
 	batchTime := time.Now().UTC()
 	for i := 0; i < h.config.NumExposures; i++ {
-		logger.Infof("Generating exposure %v of %v", i+1, h.config.NumExposures)
+		logger.Debugf("generating exposure %d of %d", i+1, h.config.NumExposures)
 
-		publish := verifyapi.Publish{
+		publish := &verifyapi.Publish{
 			Keys:              util.GenerateExposureKeys(h.config.KeysPerExposure, 0, false),
 			HealthAuthorityID: "generated.data",
 		}
+
 		if h.config.SimulateSameDayRelease {
 			sort.Slice(publish.Keys, func(i int, j int) bool {
 				return publish.Keys[i].IntervalNumber < publish.Keys[j].IntervalNumber
 			})
+
 			lastKey := &publish.Keys[len(publish.Keys)-1]
 			newLastDayKey, err := util.RandomExposureKey(lastKey.IntervalNumber, 144, lastKey.TransmissionRisk)
 			if err != nil {
-				logger.Errorf("unable to simulate same day key release: %v", err)
-			} else {
-				lastKey.IntervalCount = lastKey.IntervalCount / 2
-				publish.Keys = append(publish.Keys, newLastDayKey)
+				return fmt.Errorf("failed to simulate same day key release: %w", err)
 			}
+
+			lastKey.IntervalCount = lastKey.IntervalCount / 2
+			publish.Keys = append(publish.Keys, newLastDayKey)
 		}
 
 		val, err := util.RandomInt(100)
 		if err != nil {
-			message := fmt.Sprintf("error deciding on revised key status: %v", err)
-			logger.Errorf(message)
-			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, message)
-			return
+			return fmt.Errorf("failed to decide revised key status: %w", err)
 		}
 		generateRevisedKeys := val <= h.config.ChanceOfKeyRevision
 
@@ -112,23 +134,13 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !generateRevisedKeys {
 			reportType, err = util.RandomReportType()
 			if err != nil {
-				message := fmt.Sprintf("error generating report type: %v", err)
-				logger.Errorf(message)
-				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprint(w, message)
-				return
+				return fmt.Errorf("failed to generate report type: %w", err)
 			}
 		}
 
 		intervalIdx, err := util.RandomInt(len(publish.Keys) - 1)
 		if err != nil {
-			message := fmt.Sprintf("error generating symptom onset interval: %v", err)
-			logger.Errorf(message)
-			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, message)
-			return
+			return fmt.Errorf("failed to generate symptom onset interval: %w", err)
 		}
 
 		claims := verification.VerifiedClaims{
@@ -136,64 +148,48 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			SymptomOnsetInterval: uint32(publish.Keys[intervalIdx].IntervalNumber),
 		}
 
-		exposures, err := h.transformer.TransformPublish(ctx, &publish, regions, &claims, batchTime)
+		exposures, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
 		if err != nil {
-			message := fmt.Sprintf("Error transforming generated exposures: %v", err)
-			logger.Errorf(message)
-			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, message)
-			return
+			return fmt.Errorf("failed to transform generated exposures: %w", err)
 		}
 
-		n, err := h.database.InsertAndReviseExposures(ctx, exposures, nil, false)
+		n, err := h.database.InsertAndReviseExposures(ctx, exposures, nil, true)
 		if err != nil {
-			message := fmt.Sprintf("error writing exposure record: %v", err)
-			logger.Errorf(message)
-			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, message)
-			return
+			return fmt.Errorf("failed to write exposure record: %w", err)
 		}
-		logger.Infof("Generated %v exposures", n)
+		logger.Debugw("generated exposures", "num", n)
 
 		if generateRevisedKeys {
 			revisedReportType, err := util.RandomRevisedReportType()
 			if err != nil {
-				message := fmt.Sprintf("error generating revised report type: %v", err)
-				logger.Errorf(message)
-				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprint(w, message)
-				return
+				return fmt.Errorf("failed to generate revised report type: %w", err)
 			}
 
 			claims.ReportType = revisedReportType
 			batchTime = batchTime.Add(h.config.KeyRevisionDelay)
 
-			exposures, err := h.transformer.TransformPublish(ctx, &publish, regions, &claims, batchTime)
+			exposures, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
 			if err != nil {
-				message := fmt.Sprintf("Error transforming generated exposures: %v", err)
-				logger.Errorf(message)
-				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprint(w, message)
-				return
+				return fmt.Errorf("failed to transform generated exposures: %w", err)
 			}
 
-			// Bypass revision token enforcement on generated data.
-			n, err := h.database.InsertAndReviseExposures(ctx, exposures, nil, false)
-			if err != nil {
-				message := fmt.Sprintf("error writing exposure record: %v", err)
-				logger.Errorf(message)
-				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprint(w, message)
-				return
+			// Build the revision token
+			var token pb.RevisionTokenData
+			for _, e := range exposures {
+				token.RevisableKeys = append(token.RevisableKeys, &pb.RevisableKey{
+					TemporaryExposureKey: e.ExposureKey,
+					IntervalNumber:       e.IntervalNumber,
+					IntervalCount:        e.IntervalCount,
+				})
 			}
-			logger.Infof("Revised %v exposures", n)
+
+			n, err := h.database.InsertAndReviseExposures(ctx, exposures, &token, true)
+			if err != nil {
+				return fmt.Errorf("failed to revise exposure record: %w", err)
+			}
+			logger.Debugw("revised exposures", "num", n)
 		}
 	}
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, "Generated exposure keys.")
+
+	return nil
 }
