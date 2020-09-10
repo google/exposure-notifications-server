@@ -95,5 +95,7 @@ RUN curl -sfLo "/bin/runner.sh" "https://raw.githubusercontent.com/kubernetes/te
 RUN go get -u github.com/client9/misspell/cmd/misspell
 RUN go get -u golang.org/x/tools/cmd/goimports
 RUN go get -u honnef.co/go/tools/cmd/staticcheck
+# GCP projects pool manager
+RUN go get -u sigs.k8s.io/boskos/cmd/boskosctl
 
 ENTRYPOINT ["/bin/runner.sh"]
