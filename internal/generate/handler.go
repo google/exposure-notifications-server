@@ -26,7 +26,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/google/exposure-notifications-server/internal/pb"
-	"github.com/google/exposure-notifications-server/internal/publish/database"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -157,7 +156,7 @@ func (h *generateHandler) generate(ctx context.Context, regions []string) error 
 			return fmt.Errorf("failed to transform generated exposures: %w", err)
 		}
 
-		n, err := h.database.InsertAndReviseExposures(ctx, &database.InsertAndReviseExposuresRequest{
+		n, err := h.database.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
 			Incoming:     exposures,
 			RequireToken: true,
 		})
@@ -191,7 +190,7 @@ func (h *generateHandler) generate(ctx context.Context, regions []string) error 
 			}
 
 			// Bypass revision token enforcement on generated data.
-			n, err := h.database.InsertAndReviseExposures(ctx, &database.InsertAndReviseExposuresRequest{
+			n, err := h.database.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
 				Incoming:     exposures,
 				Token:        &token,
 				RequireToken: true,
