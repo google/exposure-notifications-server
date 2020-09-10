@@ -34,7 +34,6 @@ import (
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/pb"
-	"github.com/google/exposure-notifications-server/internal/publish/database"
 	pubdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/revision"
@@ -829,7 +828,7 @@ func TestKeyRevision(t *testing.T) {
 						ReportType:     verifyapi.ReportTypeClinical,
 					})
 				}
-				if _, err := pubDB.InsertAndReviseExposures(ctx, &database.InsertAndReviseExposuresRequest{
+				if _, err := pubDB.InsertAndReviseExposures(ctx, &pubdb.InsertAndReviseExposuresRequest{
 					Incoming: incoming,
 				}); err != nil {
 					t.Fatal(err)
@@ -839,7 +838,7 @@ func TestKeyRevision(t *testing.T) {
 				for _, key := range incoming {
 					key.ReportType = verifyapi.ReportTypeConfirmed
 				}
-				if _, err := pubDB.InsertAndReviseExposures(ctx, &database.InsertAndReviseExposuresRequest{
+				if _, err := pubDB.InsertAndReviseExposures(ctx, &pubdb.InsertAndReviseExposuresRequest{
 					Incoming: incoming,
 				}); err != nil {
 					t.Fatal(err)
