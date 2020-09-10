@@ -152,12 +152,12 @@ func TestExport(t *testing.T) {
 			m.ExposureKey, _ = base64util.DecodeString(newKey.Key)
 			revisedExposures = append(revisedExposures, &m)
 		}
-		updated, err := publishdb.New(db).InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{Incoming: revisedExposures})
+		resp, err := publishdb.New(db).InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{Incoming: revisedExposures})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if updated != keysPerPublish {
-			t.Fatalf("Want updated: %d, got %d", keysPerPublish, updated)
+		if got, want := int(resp.Revised), keysPerPublish; got != want {
+			t.Fatalf("Want revised: %d, got %d", want, got)
 		}
 	}
 

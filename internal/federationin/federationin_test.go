@@ -71,9 +71,12 @@ type publishDB struct {
 	exposures []*publishmodel.Exposure
 }
 
-func (idb *publishDB) insertExposures(ctx context.Context, req *publishdb.InsertAndReviseExposuresRequest) (int, error) {
+func (idb *publishDB) insertExposures(ctx context.Context, req *publishdb.InsertAndReviseExposuresRequest) (*publishdb.InsertAndReviseExposuresResponse, error) {
 	idb.exposures = append(idb.exposures, req.Incoming...)
-	return len(req.Incoming), nil
+	return &publishdb.InsertAndReviseExposuresResponse{
+		Exposures: req.Incoming,
+		Inserted:  uint64(len(req.Incoming)),
+	}, nil
 }
 
 // syncDB mocks the database, recording start and complete invocations for a sync record.

@@ -28,9 +28,11 @@ import (
 	"github.com/mikehelmick/go-chaff"
 )
 
-func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) response {
+func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) *response {
 	ctx, span := trace.StartSpan(r.Context(), "(*publish.PublishHandler).handleRequest")
 	defer span.End()
+
+	metrics := h.serverenv.MetricsExporter(ctx)
 
 	w.Header().Set(HeaderAPIVersion, "v1")
 
@@ -43,14 +45,15 @@ func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		if code == http.StatusInternalServerError {
 			errorCode = verifyapi.ErrorInternalError
 		}
-		return response{
+		return &response{
 			status: code,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         errorCode,
 			},
-			metric: "publish-bad-json",
-			count:  1,
+			metrics: func() {
+				metrics.WriteInt("publish-bad-json", true, 1)
+			},
 		}
 	}
 
@@ -71,8 +74,8 @@ func (h *PublishHandler) Handle() http.Handler {
 				logging.FromContext(ctx).Errorw("failed to padd response", "error", err)
 			}
 
-			if response.metric != "" {
-				metrics.WriteInt(response.metric, true, response.count)
+			if response.metrics != nil {
+				response.metrics()
 			}
 
 			data, err := json.Marshal(response.pubResponse)
