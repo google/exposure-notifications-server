@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -645,6 +646,26 @@ func TestReviseExposures(t *testing.T) {
 		if got, want := int(resp.Dropped), 1; got != want {
 			// exposure2
 			t.Errorf("expected dropped %d to be %d", got, want)
+		}
+		if got, want := len(resp.Exposures), 2; got != want {
+			t.Errorf("expected exposures %d to be %d", got, want)
+		}
+
+		// Ensure the returned exposures don't include exposure 2 which should have
+		// been dropped. This will ensure it's not included in the revision token as
+		// well.
+		gotExposures := make([]string, len(resp.Exposures))
+		for i, e := range resp.Exposures {
+			gotExposures[i] = e.ExposureKeyBase64()
+		}
+		sort.Strings(gotExposures)
+		wantExposures := []string{
+			exposure1.ExposureKeyBase64(),
+			exposure3.ExposureKeyBase64(),
+		}
+		sort.Strings(wantExposures)
+		if got, want := gotExposures, wantExposures; !reflect.DeepEqual(got, want) {
+			t.Errorf("expected %#v to be %#v", got, want)
 		}
 
 		// Read back and ensure they actually went in the database.
