@@ -667,7 +667,7 @@ func TestReviseExposures(t *testing.T) {
 		if !ok {
 			t.Fatal("exposure1 is missing in response")
 		}
-		if got, want := gotExposure1.ReportType, verifyapi.ReportTypeConfirmed; got != want {
+		if got, want := gotExposure1.RevisedReportType, verifyapi.ReportTypeConfirmed; got != want {
 			t.Errorf("expected %#v to be %#v", got, want)
 		}
 
