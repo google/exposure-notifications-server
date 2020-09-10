@@ -347,6 +347,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	if err != nil {
 		status := http.StatusBadRequest
 		var logMessage, errorMessage, errorCode string
+		var errInvalidReportTypeTransition *model.ErrorKeyInvalidReportTypeTransition
 		metric := "publish-revision-token-issue"
 		switch {
 		case decryptFail || errors.Is(err, database.ErrExistingKeyNotInToken) || errors.Is(err, database.ErrRevisionTokenMetadataMismatch):
@@ -357,6 +358,14 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 			logMessage = "no revision token"
 			errorMessage = "no revision token, but sent existing keys"
 			errorCode = verifyapi.ErrorMissingRevisionToken
+		case errors.Is(err, model.ErrorKeyAlreadyRevised):
+			logMessage = "key already revised"
+			errorMessage = "key was already revised"
+			errorCode = verifyapi.ErrorKeyAlreadyRevised
+		case errors.As(err, &errInvalidReportTypeTransition):
+			logMessage = errInvalidReportTypeTransition.Error()
+			errorMessage = errInvalidReportTypeTransition.Error()
+			errorCode = verifyapi.ErrorInvalidReportTypeTransition
 		default:
 			logMessage = fmt.Sprintf("error writing exposure record: %v", err)
 			errorMessage = http.StatusText(http.StatusInternalServerError)
