@@ -9,7 +9,6 @@ layout: default
   - [Building](#building)
   - [Deploying](#deploying)
   - [Promoting](#promoting)
-- [Tracing services](#tracing-services)
 - [Running migrations](#running-migrations)
   - [On Google Cloud](#on-google-cloud)
   - [On a custom setup](#on-a-custom-setup)
@@ -22,6 +21,7 @@ layout: default
 
 <!-- /TOC -->
 
+<!-- omit in toc -->
 # Deployment Guide
 
 This page explains how to build and deploy servers within the Exposure
@@ -153,15 +153,6 @@ SERVICES="export" \
 ```
 
 Expect this process to take 1-2 minutes.
-
-## Tracing services
-
-To enable distributed tracing, please ensure your environment has these variables
-
-Variable|Values|Comment
----|---|---
-OBSERVABILITY_EXPORTER|If unset, no exporting shall be done. Use any of "stackdriver", "prometheus", or "ocagent" otherwise|Note: when using "prometheus" a METRICS_PORT environment variable should also be set
-PROJECT_ID|The ProjectID of your associated Google Cloud Platform project on which this application shall be deployed|Required if you use "stackdriver"
 
 ## Running migrations
 
@@ -333,7 +324,9 @@ configurations are available:
 
 | Name                    | `OBSERVABILITY_EXPORTER` value  | Description
 | ----------------------- | ------------------------------- | -----------
+| Stackdriver\*           | `STACKDRIVER`                   | Use Stackdriver. NOTE: when using `STACKDRIVER`, environment variable `PROJECT_ID` must also be set.
+| Prometheus              | `PROMETHEUS`                    | Use Prometheus. NOTE: when using `PROMETHEUS`, environment variable `METRICS_PORT` must also be set.
 | OpenCensus Agent        | `OCAGENT`                       | Use OpenCensus.
-| Stackdriver\*           | `STACKDRIVER`                   | Use Stackdriver.
+| Noop                    | `NOOP`                          | No metrics are exported.
 
 \* default

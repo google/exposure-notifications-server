@@ -218,7 +218,7 @@ control expiration is set so that the file is refreshed frequently for distribut
 ### Managing secrets
 
 The use of a secure secret manager (for example,
-[Hashicorp](https://www.hashicorp.com/),
+[Hashicorp Vault](https://www.vaultproject.io/),
 [Key Vault](https://azure.microsoft.com/en-us/services/key-vault/),
 [Cloud Secret](https://cloud.google.com/secret-manager)) or a hardened
 on-premises equivalent is required to store the following data:
