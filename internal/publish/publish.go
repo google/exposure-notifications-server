@@ -28,6 +28,7 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
+	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
@@ -180,6 +181,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 
 	logger := logging.FromContext(ctx)
 	metrics := h.serverenv.MetricsExporter(ctx)
+	metricsMiddleWare := metricsware.NewMiddleWare(&metrics)
 
 	appConfig, err := h.authorizedAppProvider.AppConfig(ctx, data.HealthAuthorityID)
 	if err != nil {
@@ -196,7 +198,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 					Code:         verifyapi.ErrorUnknownHealthAuthorityID,
 				},
 				metrics: func() {
-					metrics.WriteInt("publish-health-authority-not-authorized", true, 1)
+					metricsMiddleWare.RecordHealthAuthorityNotAuthorized(ctx)
 				},
 			}
 		}
@@ -215,7 +217,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 				Code:         verifyapi.ErrorUnableToLoadHealthAuthority,
 			},
 			metrics: func() {
-				metrics.WriteInt("publish-error-loading-authorizedapp", true, 1)
+				metricsMiddleWare.RecordErrorLoadingAuthorizedApp(ctx)
 			},
 		}
 	}
@@ -237,7 +239,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 						ErrorMessage: message, // Error code omitted, since this isn't in the v1 path.
 					},
 					metrics: func() {
-						metrics.WriteInt("publish-region-not-authorized", true, 1)
+						metricsMiddleWare.RecordRegionNotAuthorized(ctx)
 					},
 				}
 			}
@@ -267,7 +269,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 				Code:         verifyapi.ErrorHealthAuthorityMissingRegionConfiguration,
 			},
 			metrics: func() {
-				metrics.WriteInt("publish-region-not-specified", true, 1)
+				metricsMiddleWare.RecordRegionNotSpecified(ctx)
 			},
 		}
 	}
@@ -277,7 +279,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	if err != nil {
 		if appConfig.BypassHealthAuthorityVerification {
 			logger.Warnf("bypassing health authority certificate verification health authority: %v", appConfig.AppPackageName)
-			metrics.WriteInt("publish-health-authority-verification-bypassed", true, 1)
+			metricsMiddleWare.RecordVerificationBypassed(ctx)
 		} else {
 			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
 			if h.config.DebugLogBadCertificates {
@@ -293,7 +295,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 					Code:         verifyapi.ErrorVerificationCertificateInvalid,
 				},
 				metrics: func() {
-					metrics.WriteInt("publish-bad-verification", true, 1)
+					metricsMiddleWare.RecordBadVerification(ctx)
 				},
 			}
 		}
@@ -318,7 +320,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 
 	batchTime := time.Now()
 	exposures, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
-	// Check for non-recovarable error. It is possible that individual keys are dropped, but if there
+	// Check for non-recoverable error. It is possible that individual keys are dropped, but if there
 	// are any valid ones, we will try and move forward.
 	// If at the end, there is a success, the transformError will be returned as supplemental information.
 	if transformError != nil && len(exposures) == 0 {
@@ -332,7 +334,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 				Code:         verifyapi.ErrorBadRequest,
 			},
 			metrics: func() {
-				metrics.WriteInt("publish-transform-fail", true, 1)
+				metricsMiddleWare.RecordTransformFail(ctx)
 			},
 		}
 	}
@@ -381,7 +383,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 				Code:         errorCode,
 			},
 			metrics: func() {
-				metrics.WriteInt(metric, true, 1)
+				metricsMiddleWare.RecordRevisionTokenIssue(ctx, metric)
 			},
 		}
 	}
@@ -427,9 +429,9 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		status:      http.StatusOK,
 		pubResponse: &publishResponse,
 		metrics: func() {
-			metrics.WriteInt("publish-exposures-inserted", true, int(resp.Inserted))
-			metrics.WriteInt("publish-exposures-revised", true, int(resp.Revised))
-			metrics.WriteInt("publish-exposures-dropped", true, int(resp.Dropped))
+			metricsMiddleWare.RecordInsertions(ctx, int(resp.Inserted))
+			metricsMiddleWare.RecordRevisions(ctx, int(resp.Revised))
+			metricsMiddleWare.RecordDrops(ctx, int(resp.Dropped))
 		},
 	}
 }

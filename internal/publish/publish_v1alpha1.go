@@ -23,6 +23,7 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
+	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -34,6 +35,7 @@ func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Req
 	defer span.End()
 
 	metrics := h.serverenv.MetricsExporter(ctx)
+	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 
 	w.Header().Set(HeaderAPIVersion, "v1alpha")
 
@@ -46,7 +48,7 @@ func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Req
 			status:      code,
 			pubResponse: &verifyapi.PublishResponse{ErrorMessage: message}, // will be down-converted in ServeHTTP
 			metrics: func() {
-				metrics.WriteInt("publish-bad-json", true, 1)
+				metricsMiddleware.RecordBadJSON(ctx)
 			},
 		}
 	}
@@ -85,9 +87,10 @@ func (h *PublishHandler) HandleV1Alpha1() http.Handler {
 
 			ctx := r.Context()
 			metrics := h.serverenv.MetricsExporter(ctx)
+			metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 
 			if err := response.padResponse(h.config); err != nil {
-				metrics.WriteInt("padding-failed", true, 1)
+				metricsMiddleware.RecordPaddingFailure(ctx)
 				logging.FromContext(ctx).Errorw("failed to padd response", "error", err)
 			}
 

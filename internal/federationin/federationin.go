@@ -31,6 +31,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/federationin/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
@@ -91,21 +92,22 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)
+	metricsMiddleWare := metricsware.NewMiddleWare(&metrics)
 
 	queryIDs, ok := r.URL.Query()[queryParam]
 	if !ok {
-		metrics.WriteInt("federation-pull-invalid-request", true, 1)
+		metricsMiddleWare.RecordPullInvalidRequest(ctx)
 		badRequestf(ctx, w, "%s is required", queryParam)
 		return
 	}
 	if len(queryIDs) > 1 {
-		metrics.WriteInt("federation-pull-invalid-request", true, 1)
+		metricsMiddleWare.RecordPullInvalidRequest(ctx)
 		badRequestf(ctx, w, "only one %s allowed", queryParam)
 		return
 	}
 	queryID := queryIDs[0]
 	if queryID == "" {
-		metrics.WriteInt("federation-pull-invalid-request", true, 1)
+		metricsMiddleWare.RecordPullInvalidRequest(ctx)
 		badRequestf(ctx, w, "%s is required", queryParam)
 		return
 	}
@@ -115,7 +117,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	unlockFn, err := h.db.Lock(ctx, lock, h.config.Timeout)
 	if err != nil {
 		if errors.Is(err, coredb.ErrAlreadyLocked) {
-			metrics.WriteInt("federation-pull-lock-contention", true, 1)
+			metricsMiddleWare.RecordPullLockContention(ctx)
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
 			logger.Infof(msg)
 			fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
@@ -217,6 +219,8 @@ type pullOptions struct {
 }
 
 func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err error) {
+	metricsMiddleWare := metricsware.NewMiddleWare(&metrics)
+
 	ctx, span := trace.StartSpan(ctx, "federationin.pull")
 	defer func() {
 		if err != nil {
@@ -296,7 +300,7 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 							Incoming: exposures,
 						})
 						if err != nil {
-							metrics.WriteInt("federation-pull-inserts", false, len(exposures))
+							metricsMiddleWare.RecordPullInsertions(ctx, len(exposures))
 							return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 						}
 						total += int(resp.Inserted)
@@ -310,7 +314,7 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 				Incoming: exposures,
 			})
 			if err != nil {
-				metrics.WriteInt("federation-pull-inserts", false, len(exposures))
+				metricsMiddleWare.RecordPullInsertions(ctx, len(exposures))
 				return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 			}
 			total += int(resp.Inserted)

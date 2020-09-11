@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
 	"github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
@@ -62,6 +63,7 @@ func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 
 func (s *Server) doRotate(ctx context.Context) error {
 	metrics := s.env.MetricsExporter(ctx)
+	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 	logger := logging.FromContext(ctx).Named("keyrotation.doRotate")
 
 	effectiveID, allowed, err := s.revisionDB.GetAllowedRevisionKeys(ctx)
@@ -79,7 +81,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 		effectiveID = key.KeyID
 		previousCreated = key.CreatedAt
 		logger.Info("Created new revision key.")
-		metrics.WriteInt("revision-keys-created", true, 1)
+		metricsMiddleware.RecordRevisionKeyCreation(ctx)
 	} else {
 		previousCreated = allowed[0].CreatedAt
 	}
@@ -96,7 +98,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 	}
 	if deleted > 0 {
 		logger.Infof("Deleted %d old revision keys.", deleted)
-		metrics.WriteInt("revision-keys-deleted", true, deleted)
+		metricsMiddleware.RecordRevisionKeyDeletion(ctx, deleted)
 	}
 	return result
 }
