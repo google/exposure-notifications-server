@@ -26,6 +26,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 
+	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -61,18 +62,19 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)
+	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 
 	cutoff, err := cutoffDate(ctx, h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
 	if err != nil {
 		message := fmt.Sprintf("error processing cutoff time: %v", err)
 		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		metrics.WriteInt("cleanup-exposures-setup-failed", true, 1)
+		metricsMiddleware.RecordExposuresSetupFailed(ctx)
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 	logger.Infof("Starting cleanup for records older than %v", cutoff.UTC())
-	metrics.WriteInt64("cleanup-exposures-before", false, cutoff.Unix())
+	metricsMiddleware.RecordExposuresCleanupCutoff(ctx, cutoff.Unix())
 
 	// Set timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
@@ -82,13 +84,13 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		message := fmt.Sprintf("Failed deleting exposures: %v", err)
 		logger.Error(message)
-		metrics.WriteInt("cleanup-exposures-delete-failed", true, 1)
+		metricsMiddleware.RecordExposuresDeleteFailed(ctx)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 
-	metrics.WriteInt64("cleanup-exposures-deleted", true, count)
+	metricsMiddleware.RecordExposuresDeleted(ctx, count)
 	logger.Infof("cleanup run complete, deleted %v records.", count)
 	w.WriteHeader(http.StatusOK)
 }
@@ -124,18 +126,19 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)
+	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 
 	cutoff, err := cutoffDate(ctx, h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
 	if err != nil {
 		message := fmt.Sprintf("error calculating cutoff time: %v", err)
-		metrics.WriteInt("cleanup-exports-setup-failed", true, 1)
+		metricsMiddleware.RecordExportsSetupFailed(ctx)
 		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 	logger.Infof("Starting cleanup for export files older than %v", cutoff.UTC())
-	metrics.WriteInt64("cleanup-exports-before", false, cutoff.Unix())
+	metricsMiddleware.RecordExportsCutoffDate(ctx, cutoff.Unix())
 
 	// Set h.Timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
@@ -145,13 +148,13 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		message := fmt.Sprintf("Failed deleting export files: %v", err)
 		logger.Error(message)
-		metrics.WriteInt("cleanup-exports-delete-failed", true, 1)
+		metricsMiddleware.RecordExposuresDeleteFailed(ctx)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 
-	metrics.WriteInt("cleanup-exports-deleted", true, count)
+	metricsMiddleware.RecordExportsDeleted(ctx, count)
 	logger.Infof("cleanup run complete, deleted %v files.", count)
 	w.WriteHeader(http.StatusOK)
 }

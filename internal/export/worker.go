@@ -32,6 +32,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 
+	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
@@ -169,7 +170,9 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 
 	if droppedKeys > 0 {
 		logger.Errorf("Export found keys of invalid length, %v keys were dropped", droppedKeys)
-		s.env.MetricsExporter(ctx).WriteInt("export-bad-key-length", false, droppedKeys)
+		metricsExporter := s.env.MetricsExporter(ctx)
+		metricsMiddleWare := metricsware.NewMiddleWare(&metricsExporter)
+		metricsMiddleWare.RecordExportWorkerBadKeyLength(ctx, droppedKeys)
 	}
 
 	// If the last group has anything, add it to the list.
