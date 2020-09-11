@@ -2,7 +2,7 @@
 
   * Releases are cut every Tuesday (target time 9am, US Pacific Time)
   * All releases will have a release branch and a corresponding tag
-  * Both the exposure-notifications-sever and exposure-notifications-verification-server wil follow the same release numbering
+  * Both the exposure-notifications-sever and exposure-notifications-verification-server will follow the same release numbering
 
 # Dependencies
 
