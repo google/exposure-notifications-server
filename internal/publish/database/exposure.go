@@ -550,7 +550,6 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 		if err != nil {
 			return fmt.Errorf("preparing update statement: %v", err)
 		}
-
 		for _, exp := range exposures {
 			if exp.RevisedAt == nil {
 				if exp.ReportType == verifyapi.ReportTypeNegative {

@@ -100,7 +100,7 @@ func TestExport(t *testing.T) {
 		t.Fatalf("Want: %d keys, got: %d", keysPerPublish, l)
 	}
 
-	// Creates batche based on first batch
+	// Creates batch based on first batch
 	time.Sleep(3 * time.Second)
 	if err := client.ExportBatches(); err != nil {
 		t.Fatal(err)
@@ -129,6 +129,7 @@ func TestExport(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+
 	// Delete the first batch of exposures. The creation time of all exposures
 	// in this test are modified to fit nicely among exports, delete the first
 	// one is easier than running a sql modifying them
@@ -141,24 +142,24 @@ func TestExport(t *testing.T) {
 	}
 
 	// Publish keys based on first batch of published keys
+	var revisedExposures []*publishmodel.Exposure
 	for i := 0; i < numPublishes; i++ {
 		if r := i % roughPerBatch; r == 0 { // increace start time after each batch
 			batchStartTime = batchStartTime.Add(exportPeriod)
 		}
-		var revisedExposures []*publishmodel.Exposure
 		for j, newKey := range util.GenerateExposureKeys(keysPerPublish, -1, false) {
 			m := *exposures[j]
 			m.CreatedAt = batchStartTime.Add(1 * time.Second)
 			m.ExposureKey, _ = base64util.DecodeString(newKey.Key)
 			revisedExposures = append(revisedExposures, &m)
 		}
-		resp, err := publishdb.New(db).InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{Incoming: revisedExposures})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got, want := int(resp.Revised), keysPerPublish; got != want {
-			t.Fatalf("Want revised: %d, got %d", want, got)
-		}
+	}
+	updated, err := publishdb.New(db).BulkInsertExposures(ctx, revisedExposures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated != keysPerPublish*numPublishes {
+		t.Fatalf("Want updated: %d, got %d", keysPerPublish*numPublishes, updated)
 	}
 
 	// Start measurement
@@ -238,7 +239,7 @@ func TestExport(t *testing.T) {
 
 	// 4. Cleanup and capture metrics
 	startTime = time.Now()
-	if err = client.CleanupExports(); err != nil {
+	if err := client.CleanupExports(); err != nil {
 		t.Fatal(err)
 	}
 
