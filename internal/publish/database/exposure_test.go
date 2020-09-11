@@ -757,8 +757,8 @@ func TestIterateExposuresCursor(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	// IterateExposures doesn't guarantee the order, sort to make this test deterministic
-	sortExposureFunc := func(i, j int) bool {
-		return seen[i].IntervalNumber < seen[j].IntervalNumber
+	sortExposureFunc := func(e1, e2 *model.Exposure) bool {
+		return e1.IntervalNumber < e2.IntervalNumber
 	}
 	if diff := cmp.Diff(exposures[:2], seen, ignoreUnexportedExposure, cmpopts.SortSlices(sortExposureFunc)); diff != "" {
 		t.Fatalf("exposures mismatch (-want, +got):\n%s", diff)
