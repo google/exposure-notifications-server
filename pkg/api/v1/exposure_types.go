@@ -54,8 +54,15 @@ const (
 	// ErrorInvalidRevisionToken indicates a revision token was passed, but is missing a
 	// key or has invalid metadata.
 	ErrorInvalidRevisionToken = "invalid_revision_token"
-	// ErrorPartialFailure indicates that some exposure keys in the publish request had invalid
-	// data (size, timing metadata) and were dropped. Other keys were saved.
+	// ErrorKeyAlreadyRevised indicates one of the uploaded TEKs was marked for
+	// revision, but it has already been revised.
+	ErrorKeyAlreadyRevised = "key_already_revised"
+	// ErrorInvalidReportTypeTransition indicates an uploaded TEK tried to
+	// transition to an invalid state (like "positive" -> "likely").
+	ErrorInvalidReportTypeTransition = "invalid_report_type_transition"
+	// ErrorPartialFailure indicates that some exposure keys in the publish
+	// request had invalid data (size, timing metadata) and were dropped. Other
+	// keys were saved.
 	ErrorPartialFailure = "partial_failure"
 )
 

@@ -23,7 +23,6 @@ package keys
 import (
 	"context"
 	"crypto"
-	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -59,21 +58,11 @@ type KeyVersionCreator interface {
 	CreateKeyVersion(ctx context.Context, parent string) (string, error)
 }
 
-// EncryptionKeyAdder supports creating encryption keys.
-type EncryptionKeyAdder interface {
-	AddEncryptionKey(string, []byte) error
-}
-
 // KeyVersionDestroyer supports destroying a key version.
 type KeyVersionDestroyer interface {
 	// DestroyKeyVersion destroys the given key version, if it exists. If the
 	// version does not exist, it should not return an error.
 	DestroyKeyVersion(ctx context.Context, id string) error
-}
-
-// SigningKeyAdder supports creating signing keys.
-type SigningKeyAdder interface {
-	AddSigningKey(string, *ecdsa.PrivateKey) error
 }
 
 // SigningKeyVersion represents the necessary details that this application needs
@@ -100,6 +89,17 @@ type SigningKeyManager interface {
 	KeyVersionDestroyer
 }
 
+// EncryptionKeyManager supports extended management of encryption keys,
+// versions, and rotation.
+type EncryptionKeyManager interface {
+	// CreateEncryptionKey creates a new encryption key in the given parent,
+	// returning the id. If the key already exists, it returns the key's id.
+	CreateEncryptionKey(ctx context.Context, parent, name string) (string, error)
+
+	KeyVersionCreator
+	KeyVersionDestroyer
+}
+
 // KeyManagerFor returns the appropriate key manager for the given type.
 func KeyManagerFor(ctx context.Context, config *Config) (KeyManager, error) {
 	typ := config.KeyManagerType
@@ -112,8 +112,8 @@ func KeyManagerFor(ctx context.Context, config *Config) (KeyManager, error) {
 		return NewGoogleCloudKMS(ctx, config)
 	case KeyManagerTypeHashiCorpVault:
 		return NewHashiCorpVault(ctx)
-	case KeyManagerTypeInMemory:
-		return NewInMemory(ctx)
+	case KeyManagerTypeFilesystem:
+		return NewFilesystem(ctx, config.FilesystemRoot)
 	}
 
 	return nil, fmt.Errorf("unknown key manager type: %v", typ)

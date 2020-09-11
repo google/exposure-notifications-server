@@ -488,7 +488,10 @@ func TestTravelerKeys(t *testing.T) {
 	}
 
 	// Add the keys to the database.
-	if _, err := publishdb.New(testDB).InsertAndReviseExposures(ctx, []*publishmodel.Exposure{trav, notTrav}, nil, true); err != nil {
+	if _, err := publishdb.New(testDB).InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+		Incoming:     []*publishmodel.Exposure{trav, notTrav},
+		RequireToken: true,
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -585,7 +588,10 @@ func TestKeysInBatch(t *testing.T) {
 	}
 
 	// Add the keys to the database.
-	if _, err := publishdb.New(testDB).InsertAndReviseExposures(ctx, []*publishmodel.Exposure{sek, eek}, nil, true); err != nil {
+	if _, err := publishdb.New(testDB).InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+		Incoming:     []*publishmodel.Exposure{sek, eek},
+		RequireToken: true,
+	}); err != nil {
 		t.Fatal(err)
 	}
 

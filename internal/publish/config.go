@@ -56,7 +56,16 @@ type Config struct {
 	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=14"`
 	CreatedAtTruncateWindow      time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
+	ResponsePaddingMinBytes int64 `env:"RESPONSE_PADDING_MIN_BYTES, default=1024"`
+	ResponsePaddingRange    int64 `env:"RESPONSE_PADDING_RANGE, default=1024"`
+
 	RevisionKeyCacheDuration time.Duration `env:"REVISION_KEY_CACHE_DURATION, default=1m"`
+
+	// AllowPartialRevisions permits uploading multiple exposure keys with a
+	// revision token where only a subset of the keys are in the token. In that
+	// case, only the incoming exposure keys that match the revision token are
+	// uploaded and the remainder are discarded.
+	AllowPartialRevisions bool `env:"ALLOW_PARTIAL_REVISIONS, default=false"`
 
 	// API Versions.
 	EnableV1Alpha1API bool `env:"ENABLE_V1ALPHA1_API, default=true"`

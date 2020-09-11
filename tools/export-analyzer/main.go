@@ -31,6 +31,7 @@ import (
 )
 
 var (
+	showSig        = flag.Bool("sig", true, "show signature information from export bundle")
 	filePath       = flag.String("file", "", "path to the export zip file.")
 	printJSON      = flag.Bool("json", true, "print a JSON representation of the output")
 	quiet          = flag.Bool("q", false, "run in quiet mode")
@@ -57,6 +58,19 @@ func main() {
 	blob, err := ioutil.ReadFile(*filePath)
 	if err != nil {
 		log.Fatalf("can't read export file: %v", err)
+	}
+
+	if *showSig {
+		sigExport, err := export.UnmarshalSignatureFile(blob)
+		if err != nil {
+			log.Fatalf("error unmarshaling export signature file: %v", err)
+		}
+
+		prettyJSON, err := json.MarshalIndent(sigExport, "", " ")
+		if err != nil {
+			log.Fatalf("error pretty printing export signature: %v", err)
+		}
+		log.Printf("Export signature file contents:\n%v", string(prettyJSON))
 	}
 
 	keyExport, err := export.UnmarshalExportFile(blob)

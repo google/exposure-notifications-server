@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/federationin/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
+	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 
 	"github.com/google/exposure-notifications-server/internal/metrics"
@@ -70,9 +71,12 @@ type publishDB struct {
 	exposures []*publishmodel.Exposure
 }
 
-func (idb *publishDB) insertExposures(ctx context.Context, exposures []*publishmodel.Exposure, rt *pb.RevisionTokenData, enforce bool) (int, error) {
-	idb.exposures = append(idb.exposures, exposures...)
-	return len(exposures), nil
+func (idb *publishDB) insertExposures(ctx context.Context, req *publishdb.InsertAndReviseExposuresRequest) (*publishdb.InsertAndReviseExposuresResponse, error) {
+	idb.exposures = append(idb.exposures, req.Incoming...)
+	return &publishdb.InsertAndReviseExposuresResponse{
+		Exposures: req.Incoming,
+		Inserted:  uint64(len(req.Incoming)),
+	}, nil
 }
 
 // syncDB mocks the database, recording start and complete invocations for a sync record.

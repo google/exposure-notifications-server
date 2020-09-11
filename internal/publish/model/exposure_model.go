@@ -41,6 +41,20 @@ var (
 	ErrorKeyAlreadyRevised = fmt.Errorf("key has already been revised and cannot be revised again")
 )
 
+var _ error = (*ErrorKeyInvalidReportTypeTransition)(nil)
+
+// ErrorKeyInvalidReportTypeTransition is an error returned when the TEK tried
+// to move to an invalid state (e.g. positive -> likely).
+type ErrorKeyInvalidReportTypeTransition struct {
+	from, to string
+}
+
+// Error implements error.
+func (e *ErrorKeyInvalidReportTypeTransition) Error() string {
+	return fmt.Sprintf("invalid report type transition: cannot transition from %q to %q",
+		e.from, e.to)
+}
+
 // Exposure represents the record as stored in the database
 type Exposure struct {
 	ExposureKey      []byte
@@ -93,7 +107,10 @@ func (e *Exposure) Revise(in *Exposure) (bool, error) {
 		eReportType = verifyapi.ReportTypeClinical
 	}
 	if !(eReportType == verifyapi.ReportTypeClinical && (in.ReportType == verifyapi.ReportTypeConfirmed || in.ReportType == verifyapi.ReportTypeNegative)) {
-		return false, fmt.Errorf("invalid report type transition, cannot transition from '%v' to '%v'", e.ReportType, in.ReportType)
+		return false, &ErrorKeyInvalidReportTypeTransition{
+			from: e.ReportType,
+			to:   in.ReportType,
+		}
 	}
 
 	// Update fields.
@@ -330,7 +347,7 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 }
 
 // ReviseKeys takes a set of existing keys, and a list of keys currently being uploaded.
-// Only keys that need to be revised or are being created fir the first time
+// Only keys that need to be revised or are being created for the first time
 // are returned in the output set.
 func ReviseKeys(ctx context.Context, existing map[string]*Exposure, incoming []*Exposure) ([]*Exposure, error) {
 	//logger := logging.FromContext(ctx)

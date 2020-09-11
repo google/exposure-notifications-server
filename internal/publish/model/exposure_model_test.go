@@ -1169,7 +1169,7 @@ func TestExposureReview(t *testing.T) {
 				ReportType: verifyapi.ReportTypeClinical,
 			},
 			needsRevision: false,
-			err:           "invalid report type transition, cannot transition from 'confirmed' to 'likely'",
+			err:           `invalid report type transition: cannot transition from "confirmed" to "likely"`,
 		},
 		{
 			name: "invalid_transition_from_empty_report_type",
@@ -1181,7 +1181,7 @@ func TestExposureReview(t *testing.T) {
 				ReportType: verifyapi.ReportTypeClinical,
 			},
 			needsRevision: false,
-			err:           "invalid report type transition, cannot transition from '' to 'likely'",
+			err:           `invalid report type transition: cannot transition from "" to "likely"`,
 		},
 		{
 			name: "valid_transition_from_empty_report_type",

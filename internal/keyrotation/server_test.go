@@ -31,7 +31,7 @@ func TestNewRotationHandler(t *testing.T) {
 	ctx := context.Background()
 	testDB := database.NewTestDatabase(t)
 
-	kms, _ := keys.NewInMemory(context.Background())
+	kms := keys.TestKeyManager(t)
 
 	testCases := []struct {
 		name string
@@ -61,10 +61,8 @@ func TestNewRotationHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			keyID := "test" + t.Name()
-			if _, err := kms.CreateEncryptionKey(keyID); err != nil {
-				t.Fatal(err)
-			}
+			keyID := keys.TestEncryptionKey(t, kms)
+
 			config := &Config{
 				RevisionToken: revision.Config{KeyID: keyID},
 			}

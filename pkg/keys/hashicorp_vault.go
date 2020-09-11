@@ -92,18 +92,9 @@ type vaultKeyVersion struct {
 	publicKey crypto.PublicKey
 }
 
-func (v *vaultKeyVersion) KeyID() string {
-	return fmt.Sprintf("%s/%d", v.name, v.version)
-}
-
-func (v *vaultKeyVersion) CreatedAt() time.Time {
-	return v.createdAt.UTC()
-}
-
-func (v *vaultKeyVersion) DestroyedAt() time.Time {
-	return time.Time{}
-}
-
+func (v *vaultKeyVersion) KeyID() string          { return fmt.Sprintf("%s/%d", v.name, v.version) }
+func (v *vaultKeyVersion) CreatedAt() time.Time   { return v.createdAt.UTC() }
+func (v *vaultKeyVersion) DestroyedAt() time.Time { return time.Time{} }
 func (v *vaultKeyVersion) Signer(ctx context.Context) (crypto.Signer, error) {
 	return &HashiCorpVaultSigner{
 		client:    v.client,

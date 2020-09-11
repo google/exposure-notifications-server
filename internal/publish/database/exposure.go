@@ -367,17 +367,62 @@ func executeReviseExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 	return nil
 }
 
-// InsertAndReviseExposures transactionally revises and inserts a set of keys as necessary.
-func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*model.Exposure, token *pb.RevisionTokenData, tokenRequired bool) (int, error) {
-	logger := logging.FromContext(ctx)
-	updated := 0
-	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+// InsertAndReviseExposuresRequest is used as input to InsertAndReviseExposures.
+type InsertAndReviseExposuresRequest struct {
+	Incoming []*model.Exposure
+	Token    *pb.RevisionTokenData
+
+	// RequireToken requires that the request supply a revision token to re-upload
+	// existing keys.
+	RequireToken bool
+
+	// AllowPartialRevisions allows revising a subset of exposures if other
+	// exposures are included that are not part of the revision token. This exists
+	// to support roaming scenarios. This is only used if RequireToken is true.
+	AllowPartialRevisions bool
+}
+
+// InsertAndReviseExposuresResponse is the response from an
+// InsertAndReviseExposures call.
+type InsertAndReviseExposuresResponse struct {
+	// Inserted is the number of new exposures that were inserted into the
+	// database.
+	Inserted uint64
+
+	// Revised is the number of exposures that matched an existing TEK and were
+	// subsequently revised.
+	Revised uint64
+
+	// Dropped is the number of exposures that were not inserted or updated. This
+	// could be because they weren't present in the revision token, etc.
+	Dropped uint64
+
+	// Exposures is the actual exposures that were inserted or updated in this
+	// call.
+	Exposures []*model.Exposure
+}
+
+// InsertAndReviseExposures transactionally revises and inserts a set of keys as
+// necessary.
+func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAndReviseExposuresRequest) (*InsertAndReviseExposuresResponse, error) {
+	logger := logging.FromContext(ctx).Named("InsertAndReviseExposures")
+
+	if req == nil {
+		return nil, fmt.Errorf("missing request")
+	}
+
+	// Maintain a record of the number of exposures inserted and updated, and a
+	// record of the exposures that were actually inserted/updated after merge
+	// logic.
+	var resp InsertAndReviseExposuresResponse
+
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		// Build the base64-encoded list of keys - this is needed so we can lookup
 		// the keys in the database. Also build a lookup map by key for validation
 		// later.
-		b64keys := make([]string, len(incoming))
-		incomingMap := make(map[string]*model.Exposure, len(incoming))
-		for i, v := range incoming {
+		b64keys := make([]string, len(req.Incoming))
+		incomingMap := make(map[string]*model.Exposure, len(req.Incoming))
+		for i, v := range req.Incoming {
 			b64keys[i] = v.ExposureKeyBase64()
 			incomingMap[v.ExposureKeyBase64()] = v
 		}
@@ -397,18 +442,18 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 		// are being revised.
 		if len(existing) > 0 {
 			// Check if a revision token is required.
-			if token == nil {
+			if req.Token == nil {
 				logger.Errorw("attempted to revise keys, but revision token is missing")
-				if tokenRequired {
+				if req.RequireToken {
 					return ErrNoRevisionToken
 				}
 			}
 
 			// Build a map of allowed revisions for validation and comparison.
 			allowedRevisions := make(map[string]*pb.RevisableKey)
-			if token != nil {
+			if req.Token != nil {
 				// Special handling for the allow bypass scenario where no token was presented.
-				for _, v := range token.RevisableKeys {
+				for _, v := range req.Token.RevisableKeys {
 					b := base64.StdEncoding.EncodeToString(v.TemporaryExposureKey)
 					allowedRevisions[b] = v
 				}
@@ -424,7 +469,7 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 							"existing_number", ex.IntervalNumber,
 							"incoming_count", in.IntervalCount,
 							"incoming_number", in.IntervalNumber)
-						if tokenRequired {
+						if req.RequireToken {
 							return ErrIncomingMetadataMismatch
 						}
 					}
@@ -438,28 +483,63 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 							"existing_number", ex.IntervalNumber,
 							"incoming_count", rk.IntervalCount,
 							"incoming_number", rk.IntervalNumber)
-						if tokenRequired {
+						if req.RequireToken {
 							return ErrRevisionTokenMetadataMismatch
 						}
 					}
 				} else {
-					// User sent in an existing key they they do not have the token for.
-					logger.Errorw("cannot revise key: not in revision token")
-					if tokenRequired {
-						return ErrExistingKeyNotInToken
+					// The user sent an existing key for which they do not have a revision
+					// token. There's a plausible scenario with roaming where this user
+					// has changed apps in the middle of a roaming period, and thus this
+					// could be legitimate.
+					//
+					// Suppose a user was in California, using the California app. They
+					// feel ill, do a video call and get a "likely" diagnosis. They decide
+					// to drive to Montana to quarantine, downloading the Montana app.
+					// Once in Montanan, their symptoms worsen and they get a clinical
+					// diagnosis as "positive", marking as such in the app. Since the
+					// Montana app does not have a revision token for the keys that were
+					// previously uploaded when the user was in California, some of the
+					// keys cannot be revised.
+					if req.RequireToken {
+						if req.AllowPartialRevisions {
+							logger.Warnw("skipping key: not in revision token, but " +
+								"partial revision is permitted")
+							delete(incomingMap, k)
+						} else {
+							logger.Errorw("cannot revise key: not in revision token")
+							return ErrExistingKeyNotInToken
+						}
 					}
 				}
 			}
 		}
 
+		// Calculate the number of dropped responses.
+		resp.Dropped = uint64(len(req.Incoming) - len(incomingMap))
+
 		// If we got this far, the revision token is valid for this request, not
-		// required, or bypassed.
+		// required, or bypassed. It's possible that keys were given, but none of
+		// those keys matched the revision token keys and partial responses were
+		// allowed. In that case, stop here.
+		if len(incomingMap) == 0 {
+			return nil
+		}
+
+		// Build the true incoming list from the map. It's possible items were removed
+		// from the map if they did not exist in the revision token and partial
+		// responses were allowed.
+		incoming := make([]*model.Exposure, 0, len(incomingMap))
+		for _, v := range incomingMap {
+			incoming = append(incoming, v)
+		}
 
 		// Run through the merge logic.
 		exposures, err := model.ReviseKeys(ctx, existing, incoming)
 		if err != nil {
 			return fmt.Errorf("unable to revise keys: %w", err)
 		}
+		resp.Exposures = exposures
 
 		// Prepare the insert and update statements.
 		insertStmt, err := prepareInsertExposure(ctx, tx)
@@ -478,20 +558,20 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, incoming []*m
 				if err := executeInsertExposure(ctx, tx, insertStmt, exp); err != nil {
 					return err
 				}
-				updated++
+				resp.Inserted++
 			} else {
 				if err := executeReviseExposure(ctx, tx, updateStmt, exp); err != nil {
 					return err
 				}
-				updated++
+				resp.Revised++
 			}
 		}
 		return nil
-	})
-	if err != nil {
-		updated = 0
+	}); err != nil {
+		return nil, err
 	}
-	return updated, err
+
+	return &resp, nil
 }
 
 // DeleteExposure deletes exposure

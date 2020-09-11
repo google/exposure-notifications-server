@@ -24,12 +24,17 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/mikehelmick/go-chaff"
 )
 
-func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) response {
+func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) *response {
 	ctx, span := trace.StartSpan(r.Context(), "(*publish.PublishHandler).handleRequest")
 	defer span.End()
+
+	metrics := h.serverenv.MetricsExporter(ctx)
+
+	w.Header().Set(HeaderAPIVersion, "v1")
 
 	var data verifyapi.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
@@ -40,14 +45,15 @@ func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) r
 		if code == http.StatusInternalServerError {
 			errorCode = verifyapi.ErrorInternalError
 		}
-		return response{
+		return &response{
 			status: code,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         errorCode,
 			},
-			metric: "publish-bad-json",
-			count:  1,
+			metrics: func() {
+				metrics.WriteInt("publish-bad-json", true, 1)
+			},
 		}
 	}
 
@@ -60,10 +66,16 @@ func (h *PublishHandler) Handle() http.Handler {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			response := h.handleRequest(w, r)
 
-			if response.metric != "" {
-				ctx := r.Context()
-				metrics := h.serverenv.MetricsExporter(ctx)
-				metrics.WriteInt(response.metric, true, response.count)
+			ctx := r.Context()
+			metrics := h.serverenv.MetricsExporter(ctx)
+
+			if err := response.padResponse(h.config); err != nil {
+				metrics.WriteInt("padding-failed", true, 1)
+				logging.FromContext(ctx).Errorw("failed to padd response", "error", err)
+			}
+
+			if response.metrics != nil {
+				response.metrics()
 			}
 
 			data, err := json.Marshal(response.pubResponse)

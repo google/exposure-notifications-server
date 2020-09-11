@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,36 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.15.1 AS builder
+# e2e-test.sh script is the entrypoint for running e2e tests in prow
 
-ARG SERVICE
+set -eEuo pipefail
 
-RUN apt-get -qq update && apt-get -yqq install upx
+ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 
-ENV GO111MODULE=on \
-  CGO_ENABLED=0 \
-  GOOS=linux \
-  GOARCH=amd64
+# TODO: use project pool for this
+# PROW_JOB_ID is an env var set by prow, use project for prow when it's in prow
+if [[ -z "${PROJECT_ID:-}" && -n "${PROW_JOB_ID:-}" ]]; then
+    echo "Using project for prow since"
+    export PROJECT_ID=serious-physics-287516
+fi
 
-WORKDIR /src
-COPY . .
-
-RUN go build \
-  -trimpath \
-  -ldflags "-s -w -extldflags '-static'" \
-  -installsuffix cgo \
-  -tags netgo \
-  -o /bin/service \
-  ./cmd/${SERVICE}
-
-RUN strip /bin/service
-RUN upx -q -9 /bin/service
-
-
-FROM scratch
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /bin/service /bin/service
-
-ENV PORT 8080
-
-ENTRYPOINT ["/bin/service"]
+${ROOT}/scripts/terraform.sh smoke
