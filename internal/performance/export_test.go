@@ -156,7 +156,7 @@ func TestExport(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got, want := int(resp.Revised), keysPerPublish; got != want {
+		if got, want := int(resp.Inserted), keysPerPublish; got != want {
 			t.Fatalf("Want revised: %d, got %d", want, got)
 		}
 	}
