@@ -21,15 +21,20 @@ import (
 	"crypto/elliptic"
 	"encoding/asn1"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
+	"path"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/exposure-notifications-server/internal/azurekeyvault"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/v7.0/keyvault"
+	"github.com/Azure/go-autorest/autorest"
 )
 
 // Compile-time check to verify implements interface.
@@ -75,6 +80,121 @@ func NewAzureKeyVault(ctx context.Context) (KeyManager, error) {
 	}
 
 	return sm, nil
+}
+
+var _ SigningKeyVersion = (*azureKeyVaultKeyVersion)(nil)
+
+type azureKeyVaultKeyVersion struct {
+	kv        *AzureKeyVault
+	kid       string
+	createdAt time.Time
+}
+
+func (v *azureKeyVaultKeyVersion) KeyID() string          { return v.kid }
+func (v *azureKeyVaultKeyVersion) CreatedAt() time.Time   { return v.createdAt.UTC() }
+func (v *azureKeyVaultKeyVersion) DestroyedAt() time.Time { return time.Time{} }
+func (v *azureKeyVaultKeyVersion) Signer(ctx context.Context) (crypto.Signer, error) {
+	return v.kv.NewSigner(ctx, v.kid)
+}
+
+// SigningKeyVersions returns the list of signing keys for the provided
+// parent. If the parent does not exist, it returns an error.
+func (v *AzureKeyVault) SigningKeyVersions(ctx context.Context, parent string) ([]SigningKeyVersion, error) {
+	parts := strings.SplitN(parent, "/", 2)
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("key must include vaultName, keyName: %v", parent)
+	}
+
+	vaultID := fmt.Sprintf("https://%s.vault.azure.net", parts[0])
+	keyID := parts[1]
+
+	maxResults := int32(512)
+	resp, err := v.client.GetKeyVersionsComplete(ctx, vaultID, keyID, &maxResults)
+	if err != nil {
+		return nil, err
+	}
+
+	var versions []SigningKeyVersion
+	for resp.NotDone() {
+		if err := resp.NextWithContext(ctx); err != nil {
+			return nil, fmt.Errorf("failed to list: %w", err)
+		}
+
+		key := resp.Value()
+		versions = append(versions, &azureKeyVaultKeyVersion{
+			kv:        v,
+			kid:       *key.Kid,
+			createdAt: time.Time(*key.Attributes.Created),
+		})
+	}
+
+	// Sort versions - the results come in as a map, so order is undefined.
+	sort.Slice(versions, func(i, j int) bool {
+		x := versions[i].(*azureKeyVaultKeyVersion).kid
+		y := versions[j].(*azureKeyVaultKeyVersion).kid
+		return x < y
+	})
+
+	return versions, nil
+}
+
+// CreateSigningKey creates a new signing key in the given parent, returning
+// the id. If the key already exists, it returns the key's id.
+func (v *AzureKeyVault) CreateSigningKey(ctx context.Context, parent, name string) (string, error) {
+	vaultID := fmt.Sprintf("https://%s.vault.azure.net", parent)
+	if _, err := v.client.GetKey(ctx, vaultID, name, ""); err != nil {
+		var aerr autorest.DetailedError
+		if errors.As(err, &aerr) {
+			// Yea, StatusCode is an interface, so this is what we got...
+			if fmt.Sprintf("%d", aerr.StatusCode) == "404" {
+				// There's a race here where technically the key could be created between
+				// when we checked and now, and there's no CAS in Azure's API, so just...
+				// hope?
+				return v.CreateKeyVersion(ctx, fmt.Sprintf("%s/%s", parent, name))
+			}
+		}
+
+		return "", err
+	}
+
+	return fmt.Sprintf("%s/%s", parent, name), nil
+}
+
+// CreateKeyVersion creates a new key version for the given parent, returning
+// the ID of the new version. The parent key must already exist.
+func (v *AzureKeyVault) CreateKeyVersion(ctx context.Context, parent string) (string, error) {
+	parts := strings.SplitN(parent, "/", 2)
+	if len(parts) < 2 {
+		return "", fmt.Errorf("key must include vaultName, keyName: %v", parent)
+	}
+
+	vaultID := fmt.Sprintf("https://%s.vault.azure.net", parts[0])
+	keyID := parts[1]
+
+	resp, err := v.client.CreateKey(ctx, vaultID, keyID, keyvault.KeyCreateParameters{
+		Kty:   keyvault.EC,
+		Curve: keyvault.P256,
+		KeyOps: &[]keyvault.JSONWebKeyOperation{
+			keyvault.Sign,
+			keyvault.Verify,
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create signing key: %w", err)
+	}
+
+	if resp.Key == nil || resp.Key.Kid == nil {
+		return "", fmt.Errorf("bad response")
+	}
+
+	versionID := path.Base(*resp.Key.Kid)
+	return fmt.Sprintf("%s/%s", parent, versionID), nil
+}
+
+// DestroyKeyVersion destroys the given key version, if it exists. If the
+// version does not exist, it should not return an error.
+func (v *AzureKeyVault) DestroyKeyVersion(ctx context.Context, id string) error {
+	return fmt.Errorf("keyvault does not support destroying a key version")
 }
 
 func (v *AzureKeyVault) Encrypt(ctx context.Context, keyID string, plaintext []byte, aad []byte) ([]byte, error) {
