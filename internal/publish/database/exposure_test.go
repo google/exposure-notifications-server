@@ -757,10 +757,10 @@ func TestIterateExposuresCursor(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	// IterateExposures doesn't guarantee the order, sort to make this test deterministic
-	sort.Slice(seen, func(i, j int) bool {
+	sortExposureFunc := func(i, j int) bool {
 		return seen[i].IntervalNumber < seen[j].IntervalNumber
-	})
-	if diff := cmp.Diff(exposures[:2], seen, ignoreUnexportedExposure); diff != "" {
+	}
+	if diff := cmp.Diff(exposures[:2], seen, ignoreUnexportedExposure, cmpopts.SortSlices(sortExposureFunc)); diff != "" {
 		t.Fatalf("exposures mismatch (-want, +got):\n%s", diff)
 	}
 	if want := encodeCursor("2"); cursor != want {
@@ -774,10 +774,7 @@ func TestIterateExposuresCursor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sort.Slice(seen, func(i, j int) bool {
-		return seen[i].IntervalNumber < seen[j].IntervalNumber
-	})
-	if diff := cmp.Diff(exposures[2:], seen, ignoreUnexportedExposure); diff != "" {
+	if diff := cmp.Diff(exposures[2:], seen, ignoreUnexportedExposure, cmpopts.SortSlices(sortExposureFunc)); diff != "" {
 		t.Fatalf("exposures mismatch (-want, +got):\n%s", diff)
 	}
 	if cursor != "" {
