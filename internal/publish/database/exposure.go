@@ -84,6 +84,8 @@ type IterateExposuresCriteria struct {
 	OnlyLocalProvenance bool
 }
 
+type IteratorFunction func(*model.Exposure) error
+
 // IterateExposures calls f on each Exposure in the database that matches the
 // given criteria. If f returns an error, the iteration stops, and the returned
 // error will match f's error with errors.Is.
@@ -93,7 +95,7 @@ type IterateExposuresCriteria struct {
 // criteria.LastCursor in a subsequent call to IterateExposures, will continue
 // the iteration at the failed row. If IterateExposures returns a nil error,
 // the first return value will be the empty string.
-func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*model.Exposure) error) (cur string, err error) {
+func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f IteratorFunction) (cur string, err error) {
 	offset := 0
 	if criteria.LastCursor != "" {
 		offsetStr, err := decodeCursor(criteria.LastCursor)

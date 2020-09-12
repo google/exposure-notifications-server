@@ -1,0 +1,69 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/google/exposure-notifications-server/internal/pb/federation;federation";
+
+message FederationFetchRequest {
+    string region = 1;
+    bool includeTravelers = 2;
+    bool onlyTravelers = 3;
+    bool onlyLocalProvenance = 4;
+
+    // region, includeTravelers, onlyTravelers must be stable to send a fetchToken.
+    // initial query should send an empty fetch state token.
+	FetchState state = 5;
+}
+
+message FederationFetchResponse {
+    repeated ExposureKey keys = 1;
+    repeated ExposureKey revisedKeys = 2;
+
+	bool partialResponse = 3; // required
+	FetchState nextFetchState = 4; // nextFetchState allows the query to be continued. 
+}
+
+message FetchState {
+    Cursor keyCursor = 1;
+    Cursor revisedKeyCursor = 2;
+}
+
+message Cursor {
+    int64 timestamp = 1;
+    string nextToken = 2;
+}
+
+message ExposureKey {
+    bytes exposureKey = 1; // required
+    int32 transmissionRisk = 2 [deprecated = true];
+	int32 intervalNumber = 3; // required
+    int32 intervalCount = 4; // required
+ 
+    enum ReportType {
+        UNKNOWN = 0;  // Not used by this protocol
+        CONFIRMED_TEST = 1;
+        CONFIRMED_CLINICAL_DIAGNOSIS = 2;
+        SELF_REPORT = 3; // Not used by this protocol
+        RECURSIVE = 4; // Not used by this protocol
+        REVOKED = 5; // Used to revoke a key, never returned by client API.
+    }
+
+    ReportType reportType = 5;
+    sint32 daysSinceOnsetOfSymptoms = 6;
+}
+
+service Federation {
+	rpc Fetch (FederationFetchRequest) returns (FederationFetchResponse) {}
+}
