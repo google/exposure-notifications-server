@@ -76,7 +76,7 @@ func realMain(ctx context.Context) error {
 	exportDB := database.New(env.Database())
 	allSigInfos, err := exportDB.ListAllSigntureInfos(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to list signature infos", err)
+		return fmt.Errorf("unable to list signature infos, %w", err)
 	}
 
 	digest := sha256.Sum256([]byte(*messageToSign))
