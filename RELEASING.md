@@ -14,7 +14,7 @@ GO111MODULE=on go get k8s.io/release/cmd/release-notes
 
 You'll also need a GitHub Personal Access Token with permission to read repositories. It should be exported as `GITHUB_TOKEN`.
 
-You should have a [gpg signing key](https://docs.github.com/en/github/authenticating-to-github/telling-git-about-your-signing-key) set up for your github account
+You should have a [gpg signing key](https://docs.github.com/en/github/authenticating-to-github/telling-git-about-your-signing-key) set up for your github account.
 
 # Cutting a release
 
