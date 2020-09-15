@@ -51,7 +51,6 @@ After you have complete release notes, you may want to switch your repo-path or 
 rm -rf /tmp/relnotes-repo
 ```
 
-
 ## Update the release notes
 
 Edit the generated relnotes file and add anything that may have been missed. It's also wise to call out
