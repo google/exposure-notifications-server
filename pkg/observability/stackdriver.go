@@ -80,7 +80,6 @@ func (e *stackdriverExporter) StartExporter() error {
 	trace.RegisterExporter(e.exporter)
 
 	view.RegisterExporter(e.exporter)
-	view.SetReportingPeriod(SDExportFrequency)
 
 	return nil
 }
