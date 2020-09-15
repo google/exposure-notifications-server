@@ -1,3 +1,18 @@
+// +build e2e
+
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific la
+
 package e2etest
 
 import (
@@ -8,7 +23,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"testing"
 
 	authorizedappdb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
@@ -23,15 +37,25 @@ import (
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 )
 
+type testConfig struct {
+	DbName      string `env:"DB_NAME"`
+	ExposureURL string `env:"EXPOSURE_URL"`
+}
+
+func initConfig(tb testing.TB, c *testConfig) {
+	if err := envconfig.ProcessWith(context.Background(), c, envconfig.OsLookuper()); err != nil {
+		tb.Fatalf("Unable to process environment: %v", err)
+	}
+}
+
 // newTestServer sets up client for local testing
-func newE2ETest(tb testing.TB) *database.DB {
+func newE2ETest(tb testing.TB, dbName string) *database.DB {
 	tb.Helper()
 
 	ctx := context.Background()
 
-	// db := database.NewTestDatabase(tb)
-	var db *database.DB
-	if v := os.Getenv("DB_NAME"); v != "" && !testing.Short() {
+	db := database.NewTestDatabase(tb)
+	if dbName != "" && !testing.Short() {
 		dbConfig := &database.Config{}
 		sm, err := secrets.SecretManagerFor(ctx, secrets.SecretManagerTypeGoogleSecretManager)
 		if err != nil {
@@ -90,11 +114,12 @@ func checkResp(r *http.Response) ([]byte, error) {
 }
 
 func TestPublishEndpoint(t *testing.T) {
-	exposureEndpoint := os.Getenv("EXPOSURE_URL")
-	if exposureEndpoint == "" {
+	tc := testConfig{}
+	initConfig(t, &tc)
+	if tc.ExposureURL == "" {
 		t.Skip()
 	}
-	db := newE2ETest(t)
+	db := newE2ETest(t, tc.DbName)
 	keys := util.GenerateExposureKeys(3, -1, false)
 
 	_, err := authorizedappdb.New(db).GetAuthorizedApp(context.Background(), "com.example.app")
@@ -121,7 +146,7 @@ func TestPublishEndpoint(t *testing.T) {
 		Keys:              keys,
 		HealthAuthorityID: "com.example.app",
 	}
-	resp, err := publishKeys(payload, exposureEndpoint+"/v1/publish")
+	resp, err := publishKeys(payload, tc.ExposureURL+"/v1/publish")
 	if err != nil {
 		t.Fatalf("Failed publishing keys: \n\tResp: %v\n\t%v", resp, err)
 	}

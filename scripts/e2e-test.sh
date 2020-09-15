@@ -48,31 +48,39 @@ function incremental() {
   ${ROOT}/scripts/deploy
   ${ROOT}/scripts/promote
 
-  pushd "${ROOT}/terraform-e2e"
-  DB_CONN="$(terraform output -json 'en' | jq '. | .db_conn' | tr -d \")"
-  DB_NAME="$(terraform output -json 'en' | jq '. | .db_name' | tr -d \")"
-  DB_USER="$(terraform output -json 'en' | jq '. | .db_user' | tr -d \")"
-  DB_PASSWORD="secret://$(terraform output -json 'en' | jq '. | .db_password' | tr -d \")"
-  EXPOSURE_URL="$(terraform output -json 'en' | jq '. | .exposure_url' | tr -d \")"
-  popd
-  export DB_CONN
-  export DB_NAME
-  export DB_USER
-  export DB_PASSWORD
-  export EXPOSURE_URL
-
+  export_terraform_output db_conn DB_CONN
+  export_terraform_output db_name DB_NAME
+  export_terraform_output db_user DB_USER
+  export_terraform_output db_password DB_PASSWORD
+  export_terraform_output exposure_url EXPOSURE_URL
+  
+  export DB_PASSWORD="secret://${DB_PASSWORD}"
   export DB_SSLMODE=disable
 
+  run_e2e_test
+}
+
+function run_e2e_test() {
   which cloud_sql_proxy 1>/dev/null 2>&1 || {
     wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O /usr/bin/cloud_sql_proxy
     chmod +x /usr/bin/cloud_sql_proxy
   }
   cloud_sql_proxy -instances=${DB_CONN}=tcp:5432 &
-  go test \
-    -count=1 \
-    -timeout=30m \
-    -v \
-    ./internal/e2e
+  last_thread_pid=$!
+  trap "kill ${last_thread_pid} || true" EXIT
+
+  make e2e-test
+}
+
+# Export en module output
+# $1 ... terraform output variable name
+# $2 ... exported variable name
+function export_terraform_output() {
+  local output
+  pushd "${ROOT}/terraform-e2e" >/dev/null 2>&1
+  output="$(terraform output -json "en" | jq ". | .${1}" | tr -d \")"
+  popd >/dev/null 2>&1
+  eval "export ${2}=${output}"
 }
 
 
