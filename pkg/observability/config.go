@@ -15,6 +15,8 @@
 // Package observability sets up and configures observability tools.
 package observability
 
+import "time"
+
 // ExporterType represents a type of observability exporter.
 type ExporterType string
 
@@ -60,4 +62,8 @@ type StackdriverConfig struct {
 	// Allows for providing a real Google Cloud location when running locally for development.
 	// This is ignored if a real location was found during discovery.
 	LocationOverride string `env:"DEV_STACKDRIVER_LOCATION"`
+
+	ReportingInterval    time.Duration `env:"STACKDRIVER_REPORTING_INTERVAL, default=2m"`
+	BundleDelayThreshold time.Duration `env:"STACKDRIVER_BUNDLE_DELAY_THRESHOLD, default=2s"`
+	BundleCountThreshold int           `env:"STACKDRIVER_BUNDLE_COUNT_THRESHOLD, default=50"`
 }
