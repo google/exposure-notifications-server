@@ -14,6 +14,8 @@ GO111MODULE=on go get k8s.io/release/cmd/release-notes
 
 You'll also need a GitHub Personal Access Token with permission to read repositories. It should be exported as `GITHUB_TOKEN`.
 
+You should have a [gpg signing key](https://docs.github.com/en/github/authenticating-to-github/telling-git-about-your-signing-key) set up for your github account.
+
 # Cutting a release
 
 Set a target version:
@@ -41,6 +43,12 @@ release-notes \
   --output "/tmp/relnotes-${RELEASE_VERSION}.md" \
   --repo-path "/tmp/relnotes-repo" \
   --dependencies true
+```
+
+After you have complete release notes, you may want to switch your repo-path or clean up.
+
+```shell
+rm -rf /tmp/relnotes-repo
 ```
 
 ## Update the release notes
