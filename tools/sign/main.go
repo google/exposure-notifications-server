@@ -44,7 +44,7 @@ func main() {
 	ctx, done := signalcontext.OnInterrupt()
 
 	debug, _ := strconv.ParseBool(os.Getenv("LOG_DEBUG"))
-	logger := logging.NewLogger(debug).Named("tools/sign")
+	logger := logging.NewLogger(debug).Named("tools.sign")
 	logger = logger.With("build_id", buildinfo.BuildID)
 	logger = logger.With("build_tag", buildinfo.BuildTag)
 
