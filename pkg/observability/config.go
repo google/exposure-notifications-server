@@ -73,5 +73,5 @@ type StackdriverConfig struct {
 	// stackdriver request.
 	ReportingInterval    time.Duration `env:"STACKDRIVER_REPORTING_INTERVAL, default=2m"`
 	BundleDelayThreshold time.Duration `env:"STACKDRIVER_BUNDLE_DELAY_THRESHOLD, default=2s"`
-	BundleCountThreshold int           `env:"STACKDRIVER_BUNDLE_COUNT_THRESHOLD, default=50"`
+	BundleCountThreshold uint          `env:"STACKDRIVER_BUNDLE_COUNT_THRESHOLD, default=50"`
 }
