@@ -20,6 +20,15 @@ substitutions:
   _PERCENTAGE:
   _REGION:
   _REVISION:
+  _SKIP-DEPLOY-CLEANUP-EXPOSURE: false
+  _SKIP-DEPLOY-CLEANUP-EXPORT: false
+  _SKIP-DEPLOY-DEBUGGER: false
+  _SKIP-DEPLOY-EXPORT: false
+  _SKIP-DEPLOY-EXPOSURE: false
+  _SKIP-DEPLOY-FEDERATIONIN: false
+  _SKIP-DEPLOY-FEDERATIONOUT: false
+  _SKIP-DEPLOY-GENERATE: false
+  _SKIP-DEPLOY-KEY-ROTATION: false
 
 steps:
 #
@@ -33,6 +42,7 @@ steps:
   - 'pipefail'
   - '-c'
   - |-
+    [[ "${_SKIP-DEPLOY-CLEANUP-EXPOSURE}" == "true" ]] && exit 0
     gcloud run services update-traffic "cleanup-exposure" \
       --quiet \
       --project "${PROJECT_ID}" \
@@ -53,6 +63,7 @@ steps:
   - 'pipefail'
   - '-c'
   - |-
+    [[ "${_SKIP-DEPLOY-CLEANUP-EXPORT}" == "true" ]] && exit 0
     gcloud run services update-traffic "cleanup-export" \
       --quiet \
       --project "${PROJECT_ID}" \
@@ -73,6 +84,7 @@ steps:
   - 'pipefail'
   - '-c'
   - |-
+    [[ "${_SKIP-DEPLOY-DEBUGGER" == "true" ]] && exit 0
     gcloud run services update-traffic "debugger" \
       --quiet \
       --project "${PROJECT_ID}" \
@@ -93,6 +105,7 @@ steps:
   - 'pipefail'
   - '-c'
   - |-
+    [[ "${_SKIP-DEPLOY-EXPORT}" == "true" ]] && exit 0
     gcloud run services update-traffic "export" \
       --quiet \
       --project "${PROJECT_ID}" \
@@ -113,6 +126,7 @@ steps:
   - 'pipefail'
   - '-c'
   - |-
+    [[ "${_SKIP-DEPLOY-EXPOSURE}" == "true" ]] && exit 0
     gcloud run services update-traffic "exposure" \
       --quiet \
       --project "${PROJECT_ID}" \
@@ -133,6 +147,7 @@ steps:
   - 'pipefail'
   - '-c'
   - |-
+    [[ "${_SKIP-DEPLOY-FEDERATIONIN}" == "true" ]] && exit 0
     gcloud run services update-traffic "federationin" \
       --quiet \
       --project "${PROJECT_ID}" \
@@ -153,6 +168,7 @@ steps:
   - 'pipefail'
   - '-c'
   - |-
+    [[ "${_SKIP-DEPLOY-FEDERATIONOUT}" == "true" ]] && exit 0
     gcloud run services update-traffic "federationout" \
       --quiet \
       --project "${PROJECT_ID}" \
@@ -173,6 +189,7 @@ steps:
   - 'pipefail'
   - '-c'
   - |-
+    [[ "${_SKIP-DEPLOY-GENERATE}" == "true" ]] && exit 0
     gcloud run services update-traffic "generate" \
       --quiet \
       --project "${PROJECT_ID}" \
@@ -193,6 +210,7 @@ steps:
   - 'pipefail'
   - '-c'
   - |-
+    [[ "${_SKIP-DEPLOY-KEY-ROTATION}" == "true" ]] && exit 0
     gcloud run services update-traffic "key-rotation" \
       --quiet \
       --project "${PROJECT_ID}" \
