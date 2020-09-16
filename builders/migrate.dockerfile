@@ -16,5 +16,6 @@ FROM gcr.io/cloudsql-docker/gce-proxy:1.17-buster
 COPY ./bin/migrate /migrate
 COPY ./builders/cloud-sql-exec /cloud-sql-exec
 COPY ./migrations /migrations
+RUN chmod +x /cloud-sql-exec
 ENTRYPOINT ["/cloud-sql-exec"]
 CMD ["/migrate"]
