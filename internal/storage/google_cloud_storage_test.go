@@ -155,7 +155,7 @@ func TestGoogleCloudStorage_CreateObject(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = gcsStorage.CreateObject(ctx, tc.bucket, tc.object, tc.contents, false, ContentTypeDefault)
+			err = gcsStorage.CreateObject(ctx, tc.bucket, tc.object, tc.contents, false, ContentTypeZip)
 			if (err != nil) != tc.err {
 				t.Fatal(err)
 			}

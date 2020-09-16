@@ -24,7 +24,7 @@ var ErrNotFound = fmt.Errorf("storage object not found")
 
 const (
 	ContentTypeTextPlain = "text/plain"
-	ContentTypeDefault   = ""
+	ContentTypeZip       = "application/zip"
 )
 
 // Blobstore defines the minimum interface for a blob storage system.
