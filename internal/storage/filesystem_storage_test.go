@@ -67,7 +67,7 @@ func TestFilesystemStorage_CreateObject(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = storage.CreateObject(ctx, tc.folder, tc.filepath, tc.contents, false)
+			err = storage.CreateObject(ctx, tc.folder, tc.filepath, tc.contents, false, ContentTypeDefault)
 			if (err != nil) != tc.err {
 				t.Fatal(err)
 			}
