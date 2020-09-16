@@ -103,8 +103,8 @@ function destroy() {
 function smoke() {
   # Best effort destroy before applying
   destroy || true
-  deploy
   trap "destroy || true" EXIT
+  deploy
 }
 
 # help prints help.
