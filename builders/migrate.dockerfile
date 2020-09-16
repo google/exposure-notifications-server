@@ -12,10 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM gcr.io/cloudsql-docker/gce-proxy:1.17-buster
+FROM alpine
+RUN apk add --no-cache bash
+
+ADD https://storage.googleapis.com/cloudsql-proxy/v1.18.0/cloud_sql_proxy.linux.amd64 /cloud-sql-proxy
 COPY ./bin/migrate /migrate
 COPY ./builders/cloud-sql-exec /cloud-sql-exec
 COPY ./migrations /migrations
-RUN chmod +x /cloud-sql-exec
+
+RUN chown $(whoami):$(whoami) /cloud-sql-proxy /cloud-sql-exec /migrate
+RUN chmod +x /cloud-sql-proxy /cloud-sql-exec /migrate
+
 ENTRYPOINT ["/cloud-sql-exec"]
 CMD ["/migrate"]
