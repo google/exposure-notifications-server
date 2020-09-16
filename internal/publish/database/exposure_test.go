@@ -760,21 +760,20 @@ func TestIterateExposuresCursor(t *testing.T) {
 	sortExposureFunc := func(e1, e2 *model.Exposure) bool {
 		return e1.IntervalNumber < e2.IntervalNumber
 	}
-	if diff := cmp.Diff(exposures[:2], seen, ignoreUnexportedExposure, cmpopts.SortSlices(sortExposureFunc)); diff != "" {
-		t.Fatalf("exposures mismatch (-want, +got):\n%s", diff)
+	if want := 2; len(seen) != want {
+		t.Fatalf("cursor: got %d, want %d", len(seen), want)
 	}
 	if want := encodeCursor("2"); cursor != want {
 		t.Fatalf("cursor: got %q, want %q", cursor, want)
 	}
 	// Resume from the cursor.
 	ctx = context.Background()
-	seen = nil
 	cursor, err = testPublishDB.IterateExposures(ctx, IterateExposuresCriteria{LastCursor: cursor},
 		func(e *model.Exposure) error { seen = append(seen, e); return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(exposures[2:], seen, ignoreUnexportedExposure, cmpopts.SortSlices(sortExposureFunc)); diff != "" {
+	if diff := cmp.Diff(exposures, seen, ignoreUnexportedExposure, cmpopts.SortSlices(sortExposureFunc)); diff != "" {
 		t.Fatalf("exposures mismatch (-want, +got):\n%s", diff)
 	}
 	if cursor != "" {
