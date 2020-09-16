@@ -95,11 +95,7 @@ func (h *keyController) Execute(c *gin.Context) {
 				hak.From = time.Now()
 			}
 		} else if action == "revoke" {
-			hak.Thru = time.Now()
-			if !hak.Thru.After(hak.From) {
-				// make it so that the key doesn't expire before it is active.
-				hak.Thru = hak.From
-			}
+			hak.Revoke()
 		} else {
 			hak.Thru = time.Time{}
 		}

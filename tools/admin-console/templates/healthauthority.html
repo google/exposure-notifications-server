@@ -49,6 +49,18 @@ health authority.</p>
     </div>
   </div>
 
+  <div class="form-group row">
+    <label class="control-label col-sm-3" for="JWKS URI">JWKS URI:</label>
+    <div class="col-sm-6">
+      <input type="text" id="JwksURI" name="JwksURI" size="50" value="{{.ha.JwksURI}}">
+	  <small id="NameHelpBlock" class="form-text text-muted">The JWKS URI for
+			  the heath authority. If specified, the keys will be fetched
+			  periodically. (The default time is 5 minutes, but could be overridden
+			  by the administrator.)
+
+    </div>
+  </div>
+
   <hr/>
   <button type="submit" class="btn btn-outline-primary" name="TODO" value="save">Save Changes</button>
   <a href="/" class="btn btn-outline-secondary">Cancel</a>

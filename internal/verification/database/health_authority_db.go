@@ -54,11 +54,11 @@ func (db *HealthAuthorityDB) AddHealthAuthority(ctx context.Context, ha *model.H
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				HealthAuthority
-				(iss, aud, name)
+				(iss, aud, name, jwks_uri)
 			VALUES
-				($1, $2, $3)
+				($1, $2, $3, $4)
 			RETURNING id
-			`, ha.Issuer, ha.Audience, ha.Name)
+			`, ha.Issuer, ha.Audience, ha.Name, ha.JwksURI)
 		if err := row.Scan(&ha.ID); err != nil {
 			return fmt.Errorf("inserting healthauthority: %w", err)
 		}
@@ -78,10 +78,10 @@ func (db *HealthAuthorityDB) UpdateHealthAuthority(ctx context.Context, ha *mode
 		result, err := tx.Exec(ctx, `
 			UPDATE HealthAuthority
 			SET
-				iss = $1, aud = $2, name = $3
+				iss = $1, aud = $2, name = $3, jwks_uri = $4
 			WHERE
-				id = $4
-			`, ha.Issuer, ha.Audience, ha.Name, ha.ID)
+				id = $5
+			`, ha.Issuer, ha.Audience, ha.Name, ha.JwksURI, ha.ID)
 		if err != nil {
 			return fmt.Errorf("updating health authority: %w", err)
 		}
@@ -98,7 +98,7 @@ func (db *HealthAuthorityDB) GetHealthAuthorityByID(ctx context.Context, id int6
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			SELECT
-				id, iss, aud, name
+				id, iss, aud, name, jwks_uri
 			FROM
 				HealthAuthority
 			WHERE
@@ -131,7 +131,7 @@ func (db *HealthAuthorityDB) GetHealthAuthority(ctx context.Context, issuer stri
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			SELECT
-				id, iss, aud, name
+				id, iss, aud, name, jwks_uri
 			FROM
 				HealthAuthority
 			WHERE
@@ -163,7 +163,7 @@ func (db *HealthAuthorityDB) ListAllHealthAuthoritiesWithoutKeys(ctx context.Con
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT
-				id, iss, aud, name
+				id, iss, aud, name, jwks_uri
 			FROM
 				HealthAuthority
 			ORDER BY iss ASC
@@ -194,7 +194,7 @@ func (db *HealthAuthorityDB) ListAllHealthAuthoritiesWithoutKeys(ctx context.Con
 
 func scanOneHealthAuthority(row pgx.Row) (*model.HealthAuthority, error) {
 	var ha model.HealthAuthority
-	if err := row.Scan(&ha.ID, &ha.Issuer, &ha.Audience, &ha.Name); err != nil {
+	if err := row.Scan(&ha.ID, &ha.Issuer, &ha.Audience, &ha.Name, &ha.JwksURI); err != nil {
 		return nil, err
 	}
 	return &ha, nil

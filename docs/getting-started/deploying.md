@@ -43,6 +43,7 @@ options. Configuration options are specified via environment variables.
 | federation-out   | cmd/federation-out   | gRPC federation requests listener |
 | generate         | cmd/generate         | Sample service that generates data |
 | key-rotation     | cmd/key-rotation     | Generates new revision keys and retires old ones |
+| jwks-updater     | cmd/jwks-updater     | Updates any HealthAuthority keys with public jwks endpoints |
 
 
 ## Before you begin

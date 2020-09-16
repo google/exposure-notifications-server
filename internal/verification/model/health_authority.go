@@ -32,6 +32,7 @@ type HealthAuthority struct {
 	Audience string
 	Name     string
 	Keys     []*HealthAuthorityKey
+	JwksURI  string
 }
 
 // Validate returns an error if the HealthAuthority struct is not valid.
@@ -77,6 +78,15 @@ func (k *HealthAuthorityKey) IsValid() bool {
 // IsValidAt returns true if the key is valid at a specific point in time.
 func (k *HealthAuthorityKey) IsValidAt(t time.Time) bool {
 	return t.After(k.From) && (k.Thru.IsZero() || k.Thru.After(t))
+}
+
+// Revoke revokes a key.
+func (k HealthAuthorityKey) Revoke() {
+	k.Thru = time.Now().UTC()
+	if !k.Thru.After(k.From) {
+		// make it so that the key doesn't expire before it is active.
+		k.Thru = k.From
+	}
 }
 
 // PublicKey decodes the PublicKeyPEM text and returns the `*ecdsa.PublicKey`

@@ -27,12 +27,14 @@ type formData struct {
 	Issuer   string `form:"Issuer"`
 	Audience string `form:"Audience"`
 	Name     string `form:"Name"`
+	JwksURI  string `form:"JwksURI"`
 }
 
 func (f *formData) PopulateHealthAuthority(ha *model.HealthAuthority) {
 	ha.Issuer = f.Issuer
 	ha.Audience = f.Audience
 	ha.Name = f.Name
+	ha.JwksURI = f.JwksURI
 }
 
 type keyFormData struct {

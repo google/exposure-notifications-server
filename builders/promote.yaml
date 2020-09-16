@@ -201,3 +201,24 @@ steps:
       --to-revisions "${_REVISION}=${_PERCENTAGE}"
   waitFor:
   - '-'
+
+#
+# jwks
+#
+- id: 'promote-jwks'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run services update-traffic "jwks" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'
+

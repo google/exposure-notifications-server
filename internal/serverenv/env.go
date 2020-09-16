@@ -24,6 +24,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/jwks"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
@@ -41,6 +42,7 @@ type ServerEnv struct {
 	keyManager            keys.KeyManager
 	secretManager         secrets.SecretManager
 	observabilityExporter observability.Exporter
+	jwks                  jwks.Manager
 }
 
 // Option defines function types to modify the ServerEnv on creation.
@@ -118,6 +120,14 @@ func WithObservabilityExporter(oe observability.Exporter) Option {
 	}
 }
 
+// WithJwksManager creates an Option to install the JWKS manager.
+func WithJwksManager(mgr jwks.Manager) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.jwks = mgr
+		return s
+	}
+}
+
 func (s *ServerEnv) SecretManager() secrets.SecretManager {
 	return s.secretManager
 }
@@ -144,6 +154,10 @@ func (s *ServerEnv) ObservabilityExporter() observability.Exporter {
 
 func (s *ServerEnv) GetKeyManager() keys.KeyManager {
 	return s.keyManager
+}
+
+func (s *ServerEnv) JwksManager() jwks.Manager {
+	return s.jwks
 }
 
 // GetSignerForKey returns the crypto.Singer implementation to use based on the installed KeyManager.

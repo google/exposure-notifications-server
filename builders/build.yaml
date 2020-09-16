@@ -322,6 +322,32 @@ steps:
   waitFor:
   - 'build-migrate'
 
+#
+# jwks
+#
+- id: 'build-jwks'
+  name: 'golang:1.15.1'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/jwks'
+  - './cmd/jwks-updater'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-jwks'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/jwks:${_TAG}'
+  - '--build-arg=SERVICE=jwks'
+  - '.'
+  waitFor:
+  - 'build-jwks'
+
 images:
 - 'gcr.io/${PROJECT_ID}/${_REPO}/cleanup-export:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/cleanup-exposure:${_TAG}'
@@ -331,5 +357,6 @@ images:
 - 'gcr.io/${PROJECT_ID}/${_REPO}/federationin:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/federationout:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/generate:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/jwks:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/key-rotation:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/migrate:${_TAG}'
