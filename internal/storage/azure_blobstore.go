@@ -112,17 +112,21 @@ func NewAzureBlobstore(ctx context.Context) (Blobstore, error) {
 }
 
 // CreateObject creates a new blobstore object or overwrites an existing one.
-func (s *AzureBlobstore) CreateObject(ctx context.Context, container, name string, contents []byte, cacheable bool) error {
+func (s *AzureBlobstore) CreateObject(ctx context.Context, container, name string, contents []byte, cacheable bool, contentType string) error {
 	cacheControl := "public, max-age=86400"
 	if !cacheable {
 		cacheControl = "no-cache, max-age=0"
 	}
 
 	blobURL := s.serviceURL.NewContainerURL(container).NewBlockBlobURL(name)
+	headers := azblob.BlobHTTPHeaders{
+		CacheControl: cacheControl,
+	}
+	if contentType != "" {
+		headers.ContentType = contentType
+	}
 	if _, err := azblob.UploadBufferToBlockBlob(ctx, contents, blobURL, azblob.UploadToBlockBlobOptions{
-		BlobHTTPHeaders: azblob.BlobHTTPHeaders{
-			CacheControl: cacheControl,
-		},
+		BlobHTTPHeaders: headers,
 	}); err != nil {
 		return fmt.Errorf("storage.CreateObject: %w", err)
 	}

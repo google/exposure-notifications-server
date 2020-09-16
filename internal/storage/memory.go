@@ -38,7 +38,8 @@ func NewMemory(_ context.Context) (Blobstore, error) {
 }
 
 // CreateObject creates a new object.
-func (s *Memory) CreateObject(_ context.Context, folder, filename string, contents []byte, cacheable bool) error {
+// contentType is ignored in this implementation.
+func (s *Memory) CreateObject(_ context.Context, folder, filename string, contents []byte, cacheable bool, contentType string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

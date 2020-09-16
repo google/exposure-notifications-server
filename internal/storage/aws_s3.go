@@ -51,18 +51,22 @@ func NewAWSS3(ctx context.Context) (Blobstore, error) {
 }
 
 // CreateObject creates a new S3 object or overwrites an existing one.
-func (s *AWSS3) CreateObject(ctx context.Context, bucket, key string, contents []byte, cacheable bool) error {
+func (s *AWSS3) CreateObject(ctx context.Context, bucket, key string, contents []byte, cacheable bool, contentType string) error {
 	cacheControl := "public, max-age=86400"
 	if !cacheable {
 		cacheControl = "no-cache, max-age=0"
 	}
 
-	if _, err := s.svc.PutObjectWithContext(ctx, &s3.PutObjectInput{
+	putInput := s3.PutObjectInput{
 		Bucket:       aws.String(bucket),
 		Key:          aws.String(key),
 		CacheControl: aws.String(cacheControl),
 		Body:         bytes.NewReader(contents),
-	}); err != nil {
+	}
+	if contentType != "" {
+		putInput.ContentType = aws.String(contentType)
+	}
+	if _, err := s.svc.PutObjectWithContext(ctx, &putInput); err != nil {
 		return fmt.Errorf("storage.CreateObject: %w", err)
 	}
 	return nil
