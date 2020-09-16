@@ -317,7 +317,6 @@ steps:
   - 'build'
   - '--file=builders/migrate.dockerfile'
   - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/migrate:${_TAG}'
-  - '--build-arg=SERVICE=migrate'
   - '.'
   waitFor:
   - 'build-migrate'
