@@ -15,6 +15,8 @@
 // Package observability sets up and configures observability tools.
 package observability
 
+import "time"
+
 // ExporterType represents a type of observability exporter.
 type ExporterType string
 
@@ -60,4 +62,16 @@ type StackdriverConfig struct {
 	// Allows for providing a real Google Cloud location when running locally for development.
 	// This is ignored if a real location was found during discovery.
 	LocationOverride string `env:"DEV_STACKDRIVER_LOCATION"`
+
+	// The following options are mostly for tuning the metrics reporting
+	// behavior. You normally should not change these values.
+	// ReportingInterval: should be >=60s as stackdriver enforces 60s minimal
+	// interval.
+	// BundleDelayThreshold / BundleCountThreshold: the stackdriver exporter
+	// uses https://google.golang.org/api/support/bundler, these two options
+	// control the max delay/count for batching the data points into one
+	// stackdriver request.
+	ReportingInterval    time.Duration `env:"STACKDRIVER_REPORTING_INTERVAL, default=2m"`
+	BundleDelayThreshold time.Duration `env:"STACKDRIVER_BUNDLE_DELAY_THRESHOLD, default=2s"`
+	BundleCountThreshold uint          `env:"STACKDRIVER_BUNDLE_COUNT_THRESHOLD, default=50"`
 }

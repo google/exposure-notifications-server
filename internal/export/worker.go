@@ -28,6 +28,7 @@ import (
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	publishdatabase "github.com/google/exposure-notifications-server/internal/publish/database"
+	"github.com/google/exposure-notifications-server/internal/storage"
 
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
@@ -274,7 +275,7 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 	logger.Infof("Created file %v, signed with %v keys", objectName, len(signers))
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
-	if err := s.env.Blobstore().CreateObject(ctx, cfi.exportBatch.BucketName, objectName, data, true); err != nil {
+	if err := s.env.Blobstore().CreateObject(ctx, cfi.exportBatch.BucketName, objectName, data, true, storage.ContentTypeZip); err != nil {
 		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, cfi.exportBatch.BucketName, err)
 	}
 	return objectName, nil
@@ -350,8 +351,8 @@ func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObje
 	indexObjectName := exportIndexFilename(eb)
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
-	if err := s.env.Blobstore().CreateObject(ctx, eb.BucketName, indexObjectName, data, false); err != nil {
-		return "", 0, fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, eb.BucketName, err)
+	if err := s.env.Blobstore().CreateObject(ctx, eb.BucketName, indexObjectName, data, false, storage.ContentTypeTextPlain); err != nil {
+		return "", 0, fmt.Errorf("creating index file %s in bucket %s: %w", indexObjectName, eb.BucketName, err)
 	}
 	return indexObjectName, len(objects), nil
 }
