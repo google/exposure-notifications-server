@@ -22,10 +22,16 @@ import (
 
 var ErrNotFound = fmt.Errorf("storage object not found")
 
+const (
+	ContentTypeTextPlain = "text/plain"
+	ContentTypeZip       = "application/zip"
+)
+
 // Blobstore defines the minimum interface for a blob storage system.
 type Blobstore interface {
 	// CreateObject creates or overwrites an object in the storage system.
-	CreateObject(ctx context.Context, parent, name string, contents []byte, cacheable bool) error
+	// If contentType is blank, the default for the chosen storage implementation is used.
+	CreateObject(ctx context.Context, parent, name string, contents []byte, cacheable bool, contentType string) error
 
 	// DeleteObject deletes an object or does nothing if the object doesn't exist.
 	DeleteObject(ctx context.Context, parent, bame string) error
