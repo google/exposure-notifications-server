@@ -480,12 +480,17 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		// Set days since onset, either from the API or from the verified claims (see above).
 		if onsetInterval > 0 {
 			daysSince := DaysFromSymptomOnset(onsetInterval, exposure.IntervalNumber)
+			// Check if the magnitude of this value is too large. If it is too large, we won't want to set
+			// a days since symptom onset value ont he TEK itself, but we do want to warn the application devloper
+			// that this value (not TEK) was dropped.
+			// There are launched applications using this sever that rely on this behavior.
 			if abs := math.Abs(float64(daysSince)); abs > t.maxSymptomOnsetDays {
-				logger.Debugw("dropping key due to symptom onset magnitude too high", "daysSince", daysSince)
-				transformErrors = multierror.Append(transformErrors, fmt.Errorf("key %d cannot be imported: days from symptom onset is too large, %v > %v", i, abs, t.maxSymptomOnsetDays))
-				continue
+				logger.Debugw("setting days since symptom onset to null on key due to symptom onset magnitude too high", "daysSince", daysSince)
+				transformErrors = multierror.Append(transformErrors, fmt.Errorf("key %d symptom onset is too large, %v > %v - saving without days since symptom onset", i, abs, t.maxSymptomOnsetDays))
+			} else {
+				// The value is within acceptable range, save it.
+				exposure.SetDaysSinceSymptomOnset(daysSince)
 			}
-			exposure.SetDaysSinceSymptomOnset(daysSince)
 		}
 		exposure.Traveler = inData.Traveler
 		entities = append(entities, exposure)

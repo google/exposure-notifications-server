@@ -50,6 +50,7 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 		ProjectID:               projectID,
 		ReportingInterval:       config.ReportingInterval,
 		BundleDelayThreshold:    config.BundleDelayThreshold,
+		Timeout:                 config.Timeout,
 		BundleCountThreshold:    int(config.BundleCountThreshold),
 		MonitoredResource:       monitoredResource,
 		DefaultMonitoringLabels: &stackdriver.Labels{},
