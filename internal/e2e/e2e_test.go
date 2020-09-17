@@ -40,38 +40,19 @@ import (
 type testConfig struct {
 	DbName      string `env:"DB_NAME"`
 	ExposureURL string `env:"EXPOSURE_URL"`
+	DBConfig    *database.Config
 }
 
-func initConfig(tb testing.TB, c *testConfig) {
-	if err := envconfig.ProcessWith(context.Background(), c, envconfig.OsLookuper()); err != nil {
+func initConfig(tb testing.TB, ctx context.Context) *testConfig {
+	c := &testConfig{}
+	sm, err := secrets.SecretManagerFor(ctx, secrets.SecretManagerTypeGoogleSecretManager)
+	if err != nil {
+		tb.Fatalf("unable to connect to secret manager: %v", err)
+	}
+	if err := envconfig.ProcessWith(ctx, c, envconfig.OsLookuper(), secrets.Resolver(sm, &secrets.Config{})); err != nil {
 		tb.Fatalf("Unable to process environment: %v", err)
 	}
-}
-
-// newTestServer sets up client for local testing
-func newE2ETest(tb testing.TB, dbName string) *database.DB {
-	tb.Helper()
-
-	ctx := context.Background()
-
-	db := database.NewTestDatabase(tb)
-	if dbName != "" && !testing.Short() {
-		dbConfig := &database.Config{}
-		sm, err := secrets.SecretManagerFor(ctx, secrets.SecretManagerTypeGoogleSecretManager)
-		if err != nil {
-			tb.Fatalf("unable to connect to secret manager: %v", err)
-		}
-		if err := envconfig.ProcessWith(ctx, dbConfig, envconfig.OsLookuper(),
-			secrets.Resolver(sm, &secrets.Config{})); err != nil {
-			tb.Fatalf("error loading environment variables: %v", err)
-		}
-
-		db, err = database.NewFromEnv(ctx, dbConfig)
-		if err != nil {
-			tb.Fatalf("unable to connect to database: %v", err)
-		}
-	}
-	return db
+	return c
 }
 
 func publishKeys(payload *verifyapi.Publish, publishEndpoint string) (*verifyapi.PublishResponse, error) {
@@ -114,15 +95,20 @@ func checkResp(r *http.Response) ([]byte, error) {
 }
 
 func TestPublishEndpoint(t *testing.T) {
-	tc := testConfig{}
-	initConfig(t, &tc)
+	ctx := context.Background()
+
+	tc := initConfig(t, ctx)
 	if tc.ExposureURL == "" {
 		t.Skip()
 	}
-	db := newE2ETest(t, tc.DbName)
+
+	db, err := database.NewFromEnv(ctx, tc.DBConfig)
+	if err != nil {
+		t.Fatalf("unable to connect to database: %v", err)
+	}
 	keys := util.GenerateExposureKeys(3, -1, false)
 
-	_, err := authorizedappdb.New(db).GetAuthorizedApp(context.Background(), "com.example.app")
+	_, err = authorizedappdb.New(db).GetAuthorizedApp(context.Background(), "com.example.app")
 	if err != nil {
 		if err := authorizedappdb.New(db).InsertAuthorizedApp(context.Background(), &authorizedappmodel.AuthorizedApp{
 			AppPackageName: "com.example.app",
