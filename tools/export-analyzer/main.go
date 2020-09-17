@@ -114,10 +114,10 @@ func checkExportFile(export *exportpb.TemporaryExposureKeyExport) error {
 		errors = multierror.Append(errors, err)
 	}
 
-	if len(errors.Errors) == 0 {
-		return nil
+	if len(errors.Errors) != 0 {
+		return errors
 	}
-	return errors
+	return nil
 }
 
 func checkKeys(kType string, keys []*exportpb.TemporaryExposureKey, floor, ceiling int32) error {
