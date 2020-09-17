@@ -761,8 +761,21 @@ func TestTransform(t *testing.T) {
 					DaysSinceSymptomOnset: int32Ptr(12),
 					HealthAuthorityID:     int64Ptr(27),
 				},
+				{
+					ExposureKey:           testKeys[7],
+					IntervalNumber:        intervalNumber - (1 * verifyapi.MaxIntervalCount),
+					IntervalCount:         verifyapi.MaxIntervalCount,
+					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
+					AppPackageName:        appPackage,
+					Regions:               wantRegions,
+					CreatedAt:             batchTimeRounded,
+					LocalProvenance:       true,
+					ReportType:            verifyapi.ReportTypeClinical,
+					DaysSinceSymptomOnset: nil, // dropped since it was too large.
+					HealthAuthorityID:     int64Ptr(27),
+				},
 			},
-			PartialError: "key 1 cannot be imported: days from symptom onset is too large, 15 > 14",
+			PartialError: "key 1 symptom onset is too large, 15 > 14 - saving without days since symptom onset",
 		},
 	}
 
