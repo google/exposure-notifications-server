@@ -113,6 +113,10 @@ func checkExportFile(export *exportpb.TemporaryExposureKeyExport) error {
 	if err := checkKeys("revisedKeys", export.RevisedKeys, floor, ceiling); err != nil {
 		errors = multierror.Append(errors, err)
 	}
+
+	if len(errors.Errors) == 0 {
+		return nil
+	}
 	return errors
 }
 
