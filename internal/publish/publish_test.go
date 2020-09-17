@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -40,10 +39,10 @@ import (
 	"github.com/google/exposure-notifications-server/internal/revision"
 	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-	verdb "github.com/google/exposure-notifications-server/internal/verification/database"
 	vermodel "github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/keys"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/jackc/pgx/v4"
 
@@ -94,11 +93,11 @@ func TestPublishWithBypass(t *testing.T) {
 	names := makeNameAssigner("com.example.health")
 	issNames := makeNameAssigner("com.verification.server")
 	regions := makeNameAssigner("R")
+	signingKey := testutil.GetSigningKey(t)
 
 	cases := []struct {
 		Name               string
 		ContentType        string // if blank, application/json
-		SigningKey         *testutil.SigningKey
 		TestRegion         string
 		HealthAuthority    *vermodel.HealthAuthority    // Automatically linked to keys.
 		HealthAuthorityKey *vermodel.HealthAuthorityKey // Automatically linked to SigningKey
@@ -239,8 +238,7 @@ func TestPublishWithBypass(t *testing.T) {
 			Error:   "unable to validate diagnosis verification: token contains an invalid number of segments",
 		},
 		{
-			Name:       "valid_HA_certificate",
-			SigningKey: testutil.GetSigningKey(t),
+			Name: "valid_HA_certificate",
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -268,8 +266,7 @@ func TestPublishWithBypass(t *testing.T) {
 			Code:       http.StatusOK,
 		},
 		{
-			Name:       "valid_HA_certificate_with_overrides",
-			SigningKey: testutil.GetSigningKey(t),
+			Name: "valid_HA_certificate_with_overrides",
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -297,8 +294,7 @@ func TestPublishWithBypass(t *testing.T) {
 			Code:             http.StatusOK,
 		},
 		{
-			Name:       "revise_with_cert",
-			SigningKey: testutil.GetSigningKey(t),
+			Name: "revise_with_cert",
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -326,8 +322,7 @@ func TestPublishWithBypass(t *testing.T) {
 			Code:             http.StatusOK,
 		},
 		{
-			Name:       "certificate in future",
-			SigningKey: testutil.GetSigningKey(t),
+			Name: "certificate in future",
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -355,8 +350,7 @@ func TestPublishWithBypass(t *testing.T) {
 			Error:     "unable to validate diagnosis verification: Token used before issued",
 		},
 		{
-			Name:       "certificate expired",
-			SigningKey: testutil.GetSigningKey(t),
+			Name: "certificate expired",
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
 				Audience: "unit.test.server",
@@ -392,17 +386,13 @@ func TestPublishWithBypass(t *testing.T) {
 		}
 
 		ctx := context.Background()
+
 		// Database init for all modules that will be used.
 		testDB := coredb.NewTestDatabase(t)
-		// Make key manager
-		kms, err := keys.NewInMemory(ctx)
-		if err != nil {
-			t.Fatalf("can't make kms: %v", err)
-		}
-		keyID := "rev"
-		if _, err := kms.CreateEncryptionKey(keyID); err != nil {
-			t.Fatal(err)
-		}
+
+		kms := keys.TestKeyManager(t)
+		keyID := keys.TestEncryptionKey(t, kms)
+
 		tokenAAD := make([]byte, 16)
 		if _, err := rand.Read(tokenAAD); err != nil {
 			t.Fatalf("not enough entropy: %v", err)
@@ -423,6 +413,8 @@ func TestPublishWithBypass(t *testing.T) {
 
 			t.Run(addVer+tc.Name, func(t *testing.T) {
 				ctx = context.Background()
+				logger := logging.NewLogger(true)
+				ctx = logging.WithLogger(ctx, logger)
 
 				// And set up publish handler up front.
 				config := Config{}
@@ -437,6 +429,8 @@ func TestPublishWithBypass(t *testing.T) {
 				}
 				config.RevisionToken.AAD = tokenAAD
 				config.RevisionToken.KeyID = keyID
+				config.ResponsePaddingMinBytes = 100
+				config.ResponsePaddingRange = 100
 				env := serverenv.New(ctx,
 					serverenv.WithDatabase(testDB),
 					serverenv.WithAuthorizedAppProvider(aaProvider),
@@ -454,20 +448,18 @@ func TestPublishWithBypass(t *testing.T) {
 
 				// See if there is a health authority to set up.
 				if tc.HealthAuthority != nil {
-					verDB := verdb.New(testDB)
-					if err := verDB.AddHealthAuthority(ctx, tc.HealthAuthority); err != nil {
-						t.Fatal(err)
+					testutil.InitalizeVerificationDB(ctx, t, testDB, tc.HealthAuthority, tc.HealthAuthorityKey, signingKey)
+					cfg := &testutil.JWTConfig{
+						HealthAuthority:    tc.HealthAuthority,
+						HealthAuthorityKey: tc.HealthAuthorityKey,
+						ExposureKeys:       tc.Publish.Keys,
+						Key:                signingKey.Key,
+						JWTWarp:            tc.JWTTiming,
+						ReportType:         tc.ReportType,
 					}
-					if tc.HealthAuthorityKey != nil {
-						if tc.SigningKey == nil {
-							t.Fatal("test cases that have health authority keys registered must provide a signingKey as well")
-						}
-						// Join in the public key.
-						tc.HealthAuthorityKey.PublicKeyPEM = tc.SigningKey.PublicKey
-						if err := verDB.AddHealthAuthorityKey(ctx, tc.HealthAuthority, tc.HealthAuthorityKey); err != nil {
-							t.Fatal(err)
-						}
-					}
+					verification, salt := testutil.IssueJWT(t, cfg)
+					tc.Publish.VerificationPayload = verification
+					tc.Publish.HMACKey = salt
 				}
 
 				// Insert the authorized app for the test case, if one exists.
@@ -482,21 +474,6 @@ func TestPublishWithBypass(t *testing.T) {
 					}
 				}
 				pubDB := pubdb.New(env.Database())
-
-				// If verification is being used. The JWT and HMAC Salt must be incorporated.
-				if tc.HealthAuthority != nil {
-					cfg := testutil.JWTConfig{
-						HealthAuthority:    tc.HealthAuthority,
-						HealthAuthorityKey: tc.HealthAuthorityKey,
-						ExposureKeys:       tc.Publish.Keys,
-						Key:                tc.SigningKey.Key,
-						JWTWarp:            tc.JWTTiming,
-						ReportType:         tc.ReportType,
-					}
-					verification, salt := testutil.IssueJWT(t, cfg)
-					tc.Publish.VerificationPayload = verification
-					tc.Publish.HMACKey = salt
-				}
 
 				// Marshal the provided publish request.
 				var jsonString []byte
@@ -547,14 +524,15 @@ func TestPublishWithBypass(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				log.Printf("\n\n%#v\n\n", string(respBytes))
-
 				var response verifyapi.PublishResponse
 				if err := json.Unmarshal(respBytes, &response); err != nil {
 					t.Fatalf("unable to unmarshal response body: %v; data: %v", err, string(respBytes))
 				}
 				if resp.StatusCode != tc.Code {
 					t.Fatalf("http response code want: %v, got %v.", tc.Code, resp.StatusCode)
+				}
+				if len(response.Padding) == 0 {
+					t.Errorf("padding is empty on response: %+v", response)
 				}
 
 				if ver == useV1 {
@@ -688,10 +666,18 @@ func TestPublishWithBypass(t *testing.T) {
 	}
 }
 
-type RevisionTokenChanger func(ctx context.Context, token string, tm *revision.TokenManager, aad []byte) string
+type RevisionTokenChanger func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string
 
-func TokenIdentity(ctx context.Context, token string, tm *revision.TokenManager, aad []byte) string {
+func TokenIdentity(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
+	t.Helper()
 	return token
+}
+
+type PublishDataChanger func(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish)
+
+func PublishIdentity(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish) {
+	t.Helper()
+	return true, data
 }
 
 func TestKeyRevision(t *testing.T) {
@@ -700,7 +686,6 @@ func TestKeyRevision(t *testing.T) {
 	haName := "gov.state.health"
 	region := "US"
 
-	signingKey := testutil.GetSigningKey(t)
 	authorizedApp := func() *aamodel.AuthorizedApp {
 		authApp := aamodel.NewAuthorizedApp()
 		authApp.AppPackageName = haName
@@ -720,17 +705,13 @@ func TestKeyRevision(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
 	// Database init for all modules that will be used.
 	testDB := coredb.NewTestDatabase(t)
-	// Make key manager
-	kms, err := keys.NewInMemory(ctx)
-	if err != nil {
-		t.Fatalf("can't make kms: %v", err)
-	}
-	keyID := "rev"
-	if _, err := kms.CreateEncryptionKey(keyID); err != nil {
-		t.Fatal(err)
-	}
+
+	kms := keys.TestKeyManager(t)
+	keyID := keys.TestEncryptionKey(t, kms)
+
 	tokenAAD := make([]byte, 16)
 	if _, err := rand.Read(tokenAAD); err != nil {
 		t.Fatalf("not enough entropy: %v", err)
@@ -743,6 +724,9 @@ func TestKeyRevision(t *testing.T) {
 	if _, err := revDB.CreateRevisionKey(ctx); err != nil {
 		t.Fatalf("unable to create revision key: %v", err)
 	}
+	// Init verification db with new HA
+	signingKey := testutil.GetSigningKey(t)
+	testutil.InitalizeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, signingKey)
 
 	// And set up publish handler up front.
 	config := Config{}
@@ -751,6 +735,8 @@ func TestKeyRevision(t *testing.T) {
 	config.MaxKeysOnPublish = 20
 	config.MaxSameStartIntervalKeys = 2
 	config.MaxIntervalAge = 14 * 24 * time.Hour
+	config.ResponsePaddingMinBytes = 100
+	config.ResponsePaddingRange = 100
 	aaProvider, err := authorizedapp.NewDatabaseProvider(ctx, testDB, config.AuthorizedAppConfig())
 	if err != nil {
 		t.Fatal(err)
@@ -765,18 +751,6 @@ func TestKeyRevision(t *testing.T) {
 	tm, err := revision.New(ctx, revDB, time.Duration(0), 0)
 	if err != nil {
 		t.Fatalf("unable to create token manager: %v", err)
-	}
-
-	verDB := verdb.New(testDB)
-	if err := verDB.AddHealthAuthority(ctx, healthAuthority); err != nil {
-		t.Fatal(err)
-	}
-
-	// Join in the public key.
-	healthAuthorityKey.PublicKeyPEM = signingKey.PublicKey
-	if err := verDB.AddHealthAuthorityKey(ctx, healthAuthority, healthAuthorityKey); err != nil {
-		t.Fatal(err)
-
 	}
 
 	appDB := aadb.New(env.Database())
@@ -796,11 +770,13 @@ func TestKeyRevision(t *testing.T) {
 	pubDB := pubdb.New(testDB)
 
 	cases := []struct {
-		Name           string
-		Publish        verifyapi.Publish
-		ErrorCode      string
-		RevErrorCode   string
-		RevTokenMesser RevisionTokenChanger
+		Name               string
+		Publish            verifyapi.Publish
+		ErrorCode          string
+		RevErrorCode       string
+		RevTokenMesser     RevisionTokenChanger
+		PublishMesser      PublishDataChanger
+		VerificationMesser func(c *testutil.JWTConfig)
 	}{
 		{
 			Name: "normal_revision",
@@ -811,6 +787,7 @@ func TestKeyRevision(t *testing.T) {
 				VerificationPayload: "totally not a JWT",
 			},
 			RevTokenMesser: TokenIdentity,
+			PublishMesser:  PublishIdentity,
 		},
 		{
 			Name: "missing_revision_token",
@@ -821,8 +798,68 @@ func TestKeyRevision(t *testing.T) {
 				VerificationPayload: "totally not a JWT",
 			},
 			RevErrorCode: verifyapi.ErrorMissingRevisionToken,
-			RevTokenMesser: func(ctx context.Context, token string, tm *revision.TokenManager, aad []byte) string {
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
 				return ""
+			},
+			PublishMesser: PublishIdentity,
+		},
+		{
+			Name: "key_already_revised",
+			Publish: verifyapi.Publish{
+				Keys:                util.GenerateExposureKeys(2, 0, false),
+				Traveler:            false,
+				HealthAuthorityID:   haName,
+				VerificationPayload: "totally not a JWT",
+			},
+			RevErrorCode:   verifyapi.ErrorKeyAlreadyRevised,
+			RevTokenMesser: TokenIdentity,
+			PublishMesser: func(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish) {
+				// Create some keys in the database
+				var incoming []*model.Exposure
+				for _, key := range data.Keys {
+					b64Key, err := base64util.DecodeString(key.Key)
+					if err != nil {
+						t.Fatal(err)
+					}
+					incoming = append(incoming, &model.Exposure{
+						ExposureKey:    b64Key,
+						IntervalNumber: key.IntervalNumber,
+						IntervalCount:  key.IntervalCount,
+						ReportType:     verifyapi.ReportTypeClinical,
+					})
+				}
+				if _, err := pubDB.InsertAndReviseExposures(ctx, &pubdb.InsertAndReviseExposuresRequest{
+					Incoming: incoming,
+				}); err != nil {
+					t.Fatal(err)
+				}
+
+				// Revise them
+				for _, key := range incoming {
+					key.ReportType = verifyapi.ReportTypeConfirmed
+				}
+				if _, err := pubDB.InsertAndReviseExposures(ctx, &pubdb.InsertAndReviseExposuresRequest{
+					Incoming: incoming,
+				}); err != nil {
+					t.Fatal(err)
+				}
+
+				return PublishIdentity(t, data)
+			},
+		},
+		{
+			Name: "invalid_report_type_transition",
+			Publish: verifyapi.Publish{
+				Keys:                util.GenerateExposureKeys(2, 0, false),
+				Traveler:            false,
+				HealthAuthorityID:   haName,
+				VerificationPayload: "totally not a JWT",
+			},
+			RevErrorCode:   verifyapi.ErrorInvalidReportTypeTransition,
+			RevTokenMesser: TokenIdentity,
+			PublishMesser:  PublishIdentity,
+			VerificationMesser: func(c *testutil.JWTConfig) {
+				c.ReportType = "totally_not_valid"
 			},
 		},
 		{
@@ -834,7 +871,7 @@ func TestKeyRevision(t *testing.T) {
 				VerificationPayload: "totally not a JWT",
 			},
 			RevErrorCode: verifyapi.ErrorInvalidRevisionToken,
-			RevTokenMesser: func(ctx context.Context, token string, tm *revision.TokenManager, aad []byte) string {
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
 				tokenBytes, err := base64util.DecodeString(token)
 				if err != nil {
 					return ""
@@ -858,6 +895,48 @@ func TestKeyRevision(t *testing.T) {
 				}
 				return base64.StdEncoding.EncodeToString(tokenBytes)
 			},
+			PublishMesser: PublishIdentity,
+		},
+		{
+			Name: "bad_token_doesnt_matter",
+			Publish: verifyapi.Publish{
+				Keys:                util.GenerateExposureKeys(2, 0, false),
+				Traveler:            false,
+				HealthAuthorityID:   haName,
+				VerificationPayload: "totally not a JWT",
+			},
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
+				// This function doesn't change the revision token, but it does
+				// rotate the keys so that this token is effectively useless.
+				t.Helper()
+				_, err := revDB.CreateRevisionKey(ctx)
+				if err != nil {
+					t.Fatalf("error creating new revision key: %v", err)
+				}
+				cur, allowed, err := revDB.GetAllowedRevisionKeyIDs(ctx)
+				if err != nil {
+					t.Fatalf("error listing revision keys: %v", err)
+				}
+				for k := range allowed {
+					if k != cur {
+						if err := revDB.DestroyKey(ctx, k); err != nil {
+							t.Fatalf("unable to destroy revision key: %v", err)
+						}
+					}
+				}
+
+				return token
+			},
+			PublishMesser: func(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish) {
+				t.Helper()
+				// Just generate a new set of TEKs distinct from the first publish.
+				return false, &verifyapi.Publish{
+					Keys:                util.GenerateExposureKeys(2, 0, false),
+					Traveler:            false,
+					HealthAuthorityID:   haName,
+					VerificationPayload: "totally not a JWT",
+				}
+			},
 		},
 	}
 
@@ -868,13 +947,11 @@ func TestKeyRevision(t *testing.T) {
 			revisionToken := ""
 			// Do the initial insert
 			{
-				// Issue the likely diagnosis certificate.
-				cfg := testutil.JWTConfig{
+				cfg := &testutil.JWTConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
 					ExposureKeys:       tc.Publish.Keys,
 					Key:                signingKey.Key,
-					JWTWarp:            time.Duration(0),
 					ReportType:         verifyapi.ReportTypeClinical,
 				}
 				verification, salt := testutil.IssueJWT(t, cfg)
@@ -906,32 +983,40 @@ func TestKeyRevision(t *testing.T) {
 				}
 
 				if response.Code != tc.ErrorCode {
-					t.Fatalf("wrong code on initial publish, want %v, got %v", tc.ErrorCode, response.Code)
+					t.Fatalf("wrong code on initial publish, want %#v, got %#v", tc.ErrorCode, response.Code)
 				}
 				revisionToken = response.RevisionToken
 			}
 
+			var keysAreRevisions bool
 			// Make the revision.
 			{
-				revisionToken = tc.RevTokenMesser(ctx, revisionToken, tm, tokenAAD)
+				revisionToken = tc.RevTokenMesser(ctx, t, revisionToken, tm, tokenAAD)
+				// Add the revision token to publish request.
+				tc.Publish.RevisionToken = revisionToken
 
-				cfg := testutil.JWTConfig{
+				var publishData *verifyapi.Publish
+				keysAreRevisions, publishData = tc.PublishMesser(t, &tc.Publish)
+				tc.Publish = *publishData
+
+				cfg := &testutil.JWTConfig{
 					HealthAuthority:    healthAuthority,
 					HealthAuthorityKey: healthAuthorityKey,
 					ExposureKeys:       tc.Publish.Keys,
 					Key:                signingKey.Key,
-					JWTWarp:            time.Duration(0),
 					ReportType:         verifyapi.ReportTypeConfirmed,
 				}
+
+				if messer := tc.VerificationMesser; messer != nil {
+					messer(cfg)
+				}
+
 				verification, salt := testutil.IssueJWT(t, cfg)
 				tc.Publish.VerificationPayload = verification
 				tc.Publish.HMACKey = salt
 
-				// Add the revision token to publish request.
-				tc.Publish.RevisionToken = revisionToken
-
 				// Marshal the provided publish request.
-				jsonString, err := json.Marshal(tc.Publish)
+				jsonString, err := json.Marshal(&tc.Publish)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -955,7 +1040,7 @@ func TestKeyRevision(t *testing.T) {
 				}
 
 				if response.Code != tc.RevErrorCode {
-					t.Fatalf("wrong code on initial publish, want %v, got %v", tc.ErrorCode, response.Code)
+					t.Fatalf("wrong code on revision, want %#v, got %#v", tc.RevErrorCode, response.Code)
 				}
 			}
 
@@ -986,15 +1071,24 @@ func TestKeyRevision(t *testing.T) {
 						RevisedReportType:       &revisedReportType,
 						RevisedTransmissionRisk: &revisedTransmissionRisk,
 					}
+					if !keysAreRevisions {
+						ex := want[k.Key]
+						ex.ReportType = *ex.RevisedReportType
+						ex.RevisedReportType = nil
+						ex.TransmissionRisk = *ex.RevisedTransmissionRisk
+						ex.RevisedTransmissionRisk = nil
+					}
 				}
 
 				var got map[string]*model.Exposure
 				var err error
 
-				testDB.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+				if err := testDB.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 					got, err = pubDB.ReadExposures(ctx, tx, expectedKeys)
 					return err
-				})
+				}); err != nil {
+					t.Fatal(err)
+				}
 
 				ignoreCreatedAt := cmpopts.IgnoreFields(model.Exposure{}, "CreatedAt", "RevisedAt")
 				if diff := cmp.Diff(want, got, ignoreCreatedAt, cmpopts.IgnoreUnexported(model.Exposure{})); diff != "" {

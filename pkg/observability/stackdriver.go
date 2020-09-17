@@ -18,7 +18,6 @@ package observability
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
@@ -43,14 +42,20 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 		return nil, fmt.Errorf("missing PROJECT_ID in Stackdriver exporter")
 	}
 
-	monitoredResource := NewStackdriverMonitoredResoruce(config)
+	monitoredResource := NewStackdriverMonitoredResource(ctx, config)
+	logger.Debugw("monitored resource", "resource", monitoredResource)
 
 	exporter, err := stackdriver.NewExporter(stackdriver.Options{
-		ProjectID:         projectID,
-		ReportingInterval: time.Minute, // stackdriver export interval minimum
-		MonitoredResource: monitoredResource,
+		Context:                 ctx,
+		ProjectID:               projectID,
+		ReportingInterval:       config.ReportingInterval,
+		BundleDelayThreshold:    config.BundleDelayThreshold,
+		Timeout:                 config.Timeout,
+		BundleCountThreshold:    int(config.BundleCountThreshold),
+		MonitoredResource:       monitoredResource,
+		DefaultMonitoringLabels: &stackdriver.Labels{},
 		OnError: func(err error) {
-			logger.Errorw("failed to export metric", "error", err)
+			logger.Errorw("failed to export metric", "error", err, "resource", monitoredResource)
 		},
 	})
 
@@ -62,6 +67,10 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 
 // StartExporter starts the exporter.
 func (e *stackdriverExporter) StartExporter() error {
+	if err := registerViews(); err != nil {
+		return fmt.Errorf("failed to register views: %w", err)
+	}
+
 	if err := e.exporter.StartMetricsExporter(); err != nil {
 		return fmt.Errorf("failed to start stackdriver exporter: %w", err)
 	}
@@ -70,6 +79,7 @@ func (e *stackdriverExporter) StartExporter() error {
 		DefaultSampler: trace.ProbabilitySampler(e.config.SampleRate),
 	})
 	trace.RegisterExporter(e.exporter)
+
 	view.RegisterExporter(e.exporter)
 
 	return nil

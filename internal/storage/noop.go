@@ -26,7 +26,7 @@ func NewNoop(ctx context.Context) (Blobstore, error) {
 	return &Noop{}, nil
 }
 
-func (s *Noop) CreateObject(_ context.Context, _, _ string, _ []byte, _ bool) error {
+func (s *Noop) CreateObject(_ context.Context, _, _ string, _ []byte, _ bool, _ string) error {
 	return nil
 }
 

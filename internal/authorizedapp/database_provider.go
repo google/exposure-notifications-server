@@ -17,7 +17,6 @@ package authorizedapp
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -92,8 +91,6 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 	if config == nil {
 		return nil, ErrAppNotFound
 	}
-
-	log.Printf("AppConfig: %+v %v", config, err)
 
 	// Returned config.
 	return config, nil

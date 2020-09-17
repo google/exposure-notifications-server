@@ -2,7 +2,7 @@
 
   * Releases are cut every Tuesday (target time 9am, US Pacific Time)
   * All releases will have a release branch and a corresponding tag
-  * Both the exposure-notifications-sever and exposure-notifications-verification-server wil follow the same release numbering
+  * Both the exposure-notifications-sever and exposure-notifications-verification-server will follow the same release numbering
 
 # Dependencies
 
@@ -13,6 +13,8 @@ GO111MODULE=on go get k8s.io/release/cmd/release-notes
 ```
 
 You'll also need a GitHub Personal Access Token with permission to read repositories. It should be exported as `GITHUB_TOKEN`.
+
+You should have a [gpg signing key](https://docs.github.com/en/github/authenticating-to-github/telling-git-about-your-signing-key) set up for your github account.
 
 # Cutting a release
 
@@ -41,6 +43,12 @@ release-notes \
   --output "/tmp/relnotes-${RELEASE_VERSION}.md" \
   --repo-path "/tmp/relnotes-repo" \
   --dependencies true
+```
+
+After you have complete release notes, you may want to switch your repo-path or clean up.
+
+```shell
+rm -rf /tmp/relnotes-repo
 ```
 
 ## Update the release notes
@@ -87,3 +95,18 @@ git push origin --tags
 1. Copy the release notes into the web form.
 
 # Go do the same on exposure-notifications-verification-server
+
+Before releasing, update the `go.mod` file for the exposure-notifications-verification-server
+so that it references the exposure-notifications-server version that was just released:
+
+```text
+# From github.com/google/exposure-notifications-verification-server
+go get -u github.com/google/exposure-notifications-server@${RELEASE_VERSION}
+
+# Cleanup
+go mod tidy
+go mod verify
+```
+
+The version being tracked may have been un-pined since the last release or just should
+generally be updated to keep the projects in sync.

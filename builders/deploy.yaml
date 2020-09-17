@@ -18,22 +18,195 @@
 
 substitutions:
   _REGION:
-  _SERVICE:
+  _REPO: 'github.com/google/exposure-notifications-server'
   _TAG:
 
 steps:
-- id: 'deploy'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:303.0.0-alpine'
+#
+# cleanup-exposure
+#
+- id: 'deploy-cleanup-exposure'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
   - 'pipefail'
   - '-c'
   - |-
-    gcloud run deploy "${_SERVICE}" \
+    gcloud run deploy "cleanup-exposure" \
       --quiet \
       --project "${PROJECT_ID}" \
       --platform "managed" \
       --region "${_REGION}" \
-      --image "gcr.io/${PROJECT_ID}/github.com/google/exposure-notifications-server/cmd/${_SERVICE}:${_TAG}" \
+      --image "gcr.io/${PROJECT_ID}/${_REPO}/cleanup-exposure:${_TAG}" \
       --no-traffic
+  waitFor:
+  - '-'
+
+#
+# cleanup-export
+#
+- id: 'deploy-cleanup-export'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run deploy "cleanup-export" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --image "gcr.io/${PROJECT_ID}/${_REPO}/cleanup-export:${_TAG}" \
+      --no-traffic
+  waitFor:
+  - '-'
+
+#
+# debugger
+#
+- id: 'deploy-debugger'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run deploy "debugger" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --image "gcr.io/${PROJECT_ID}/${_REPO}/debugger:${_TAG}" \
+      --no-traffic
+  waitFor:
+  - '-'
+
+#
+# export
+#
+- id: 'deploy-export'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run deploy "export" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --image "gcr.io/${PROJECT_ID}/${_REPO}/export:${_TAG}" \
+      --no-traffic
+  waitFor:
+  - '-'
+
+#
+# exposure
+#
+- id: 'deploy-exposure'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run deploy "exposure" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --image "gcr.io/${PROJECT_ID}/${_REPO}/exposure:${_TAG}" \
+      --no-traffic
+  waitFor:
+  - '-'
+
+#
+# federationin
+#
+- id: 'deploy-federationin'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run deploy "federationin" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --image "gcr.io/${PROJECT_ID}/${_REPO}/federationin:${_TAG}" \
+      --no-traffic
+  waitFor:
+  - '-'
+
+#
+# federationout
+#
+- id: 'deploy-federationout'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run deploy "federationout" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --image "gcr.io/${PROJECT_ID}/${_REPO}/federationout:${_TAG}" \
+      --no-traffic
+  waitFor:
+  - '-'
+
+#
+# generate
+#
+- id: 'deploy-generate'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run deploy "generate" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --image "gcr.io/${PROJECT_ID}/${_REPO}/generate:${_TAG}" \
+      --no-traffic
+  waitFor:
+  - '-'
+
+#
+# key-rotation
+#
+- id: 'deploy-key-rotation'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run deploy "key-rotation" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --image "gcr.io/${PROJECT_ID}/${_REPO}/key-rotation:${_TAG}" \
+      --no-traffic
+  waitFor:
+  - '-'

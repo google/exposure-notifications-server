@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 # Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -eEuo pipefail
+FROM alpine AS builder
 
-IN="$(cat /dev/stdin)"
-LENGTH="${#IN}"
-for (( i = 0; i < $LENGTH; i++ )); do
-  c="${IN:i:1}"
-  case $c in
-    [a-zA-Z0-9.~_-]) printf "$c" ;;
-    *) printf '%s' "$c" | xxd -p -c1 |
-      while read c; do printf '%%%s' "$c"; done ;;
-  esac
-done
+FROM scratch
+ARG SERVICE
+COPY ./bin/${SERVICE} /server
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+ENV PORT 8080
+ENTRYPOINT ["/server"]

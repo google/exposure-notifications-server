@@ -54,8 +54,15 @@ const (
 	// ErrorInvalidRevisionToken indicates a revision token was passed, but is missing a
 	// key or has invalid metadata.
 	ErrorInvalidRevisionToken = "invalid_revision_token"
-	// ErrorPartialFailure indicates that some exposure keys in the publish request had invalid
-	// data (size, timing metadata) and were dropped. Other keys were saved.
+	// ErrorKeyAlreadyRevised indicates one of the uploaded TEKs was marked for
+	// revision, but it has already been revised.
+	ErrorKeyAlreadyRevised = "key_already_revised"
+	// ErrorInvalidReportTypeTransition indicates an uploaded TEK tried to
+	// transition to an invalid state (like "positive" -> "likely").
+	ErrorInvalidReportTypeTransition = "invalid_report_type_transition"
+	// ErrorPartialFailure indicates that some exposure keys in the publish
+	// request had invalid data (size, timing metadata) and were dropped. Other
+	// keys were saved.
 	ErrorPartialFailure = "partial_failure"
 )
 
@@ -85,7 +92,9 @@ const (
 //   again.
 //
 // Padding: random base64 encoded data to obscure the request size. The server will
-// not process this data in any way.
+// not process this data in any way. The recommendation is that padding be
+// at least 1kb in size with a random jitter of at least 1kb. Maximum overall
+// request size is capped at 64kb for the serialzied JSON.
 //
 // Partial success: If at least one of the Keys passed in is valid, then the publish
 // request will accept those keys, return a response code of 200 (OK) AND also

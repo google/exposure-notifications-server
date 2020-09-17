@@ -61,6 +61,9 @@ const (
 //   again.
 //
 // Padding: random base64 encoded data to obscure the request size.
+// The recommendation is that padding be at least 1kb in size with a random
+// jitter of at least 1kb. Maximum overall request size is capped at 64kb for
+// the serialzied JSON.
 //
 // The following fields are deprecated, but accepted for backwards-compatibility:
 // DeviceVerificationPayload: (attestation)

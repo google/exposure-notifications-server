@@ -19,7 +19,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 
+	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -31,7 +34,11 @@ import (
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
 
-	logger := logging.NewLogger(true)
+	debug, _ := strconv.ParseBool(os.Getenv("LOG_DEBUG"))
+	logger := logging.NewLogger(debug)
+	logger = logger.With("build_id", buildinfo.BuildID)
+	logger = logger.With("build_tag", buildinfo.BuildTag)
+
 	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)
@@ -40,9 +47,7 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	logger.Info("successful shutdown")
 }
-
 func realMain(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
@@ -54,15 +59,21 @@ func realMain(ctx context.Context) error {
 	defer env.Close(ctx)
 
 	mux := http.NewServeMux()
+	mux.Handle("/health", server.HandleHealthz(ctx))
 	handler, err := publish.NewHandler(ctx, &config, env)
 	if err != nil {
 		return fmt.Errorf("publish.NewHandler: %w", err)
 	}
+
+	// Handle v1 API - this route has to come before the v1alpha route because of
+	// path matching.
+	mux.Handle("/v1/publish", handler.Handle())
+	mux.Handle("/v1/publish/", http.NotFoundHandler())
+
 	// Serving of v1alpha1 is on by default, but can be disabled through env var.
 	if config.EnableV1Alpha1API {
 		mux.Handle("/", handler.HandleV1Alpha1())
 	}
-	mux.Handle("/v1/publish", handler.Handle())
 
 	srv, err := server.New(config.Port)
 	if err != nil {

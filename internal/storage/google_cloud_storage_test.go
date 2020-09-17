@@ -30,8 +30,22 @@ import (
 	"cloud.google.com/go/storage"
 )
 
+func maybeSkipCloudStorage(tb testing.TB) {
+	tb.Helper()
+
+	if testing.Short() {
+		tb.Skipf("🚧 Skipping Google Cloud Storage tests (short)!")
+	}
+
+	if skip, _ := strconv.ParseBool(os.Getenv("SKIP_GOOGLE_CLOUD_STORAGE_TESTS")); skip {
+		tb.Skipf("🚧 Skipping Google Cloud Storage tests (SKIP_GOOGLE_CLOUD_STORAGE_TESTS is set)!")
+	}
+}
+
 func testGoogleCloudStorageClient(tb testing.TB) *storage.Client {
 	tb.Helper()
+
+	maybeSkipCloudStorage(tb)
 
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
@@ -55,13 +69,7 @@ func testName(tb testing.TB) string {
 func testGoogleCloudStorageBucket(tb testing.TB) string {
 	tb.Helper()
 
-	if testing.Short() {
-		tb.Skipf("🚧 Skipping Google Cloud Storage tests (short!")
-	}
-
-	if skip, _ := strconv.ParseBool(os.Getenv("SKIP_GOOGLE_CLOUD_STORAGE_TESTS")); skip {
-		tb.Skipf("🚧 Skipping Google Cloud Storage tests (SKIP_GOOGLE_CLOUD_STORAGE_TESTS is set)!")
-	}
+	maybeSkipCloudStorage(tb)
 
 	bucketID := os.Getenv("GOOGLE_CLOUD_BUCKET")
 	if bucketID == "" {
@@ -73,6 +81,8 @@ func testGoogleCloudStorageBucket(tb testing.TB) string {
 
 func testGoogleCloudStorageObject(tb testing.TB, r io.Reader) string {
 	tb.Helper()
+
+	maybeSkipCloudStorage(tb)
 
 	ctx := context.Background()
 	client := testGoogleCloudStorageClient(tb)
@@ -145,7 +155,7 @@ func TestGoogleCloudStorage_CreateObject(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = gcsStorage.CreateObject(ctx, tc.bucket, tc.object, tc.contents, false)
+			err = gcsStorage.CreateObject(ctx, tc.bucket, tc.object, tc.contents, false, ContentTypeZip)
 			if (err != nil) != tc.err {
 				t.Fatal(err)
 			}

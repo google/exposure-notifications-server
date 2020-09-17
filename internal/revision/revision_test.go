@@ -16,9 +16,7 @@ package revision
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
-	"io"
 	"testing"
 	"time"
 
@@ -151,18 +149,8 @@ func TestEncryptDecrypt(t *testing.T) {
 	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
 
-	kms, err := keys.NewInMemory(ctx)
-	if err != nil {
-		t.Fatalf("unable to cerate in memory KMS")
-	}
-	keyID := "skeleton"
-	if _, err := kms.CreateEncryptionKey(keyID); err != nil {
-		t.Fatalf("unable to generate key: %v", err)
-	}
-	key := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, key); err != nil {
-		t.Fatalf("unable to generate AES key: %v", err)
-	}
+	kms := keys.TestKeyManager(t)
+	keyID := keys.TestEncryptionKey(t, kms)
 
 	cfg := revisiondb.KMSConfig{
 		WrapperKeyID: keyID,

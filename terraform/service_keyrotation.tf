@@ -81,7 +81,7 @@ resource "google_cloud_run_service" "key-rotation" {
       service_account_name = google_service_account.key-rotation.email
 
       containers {
-        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/key-rotation:initial"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/key-rotation:initial"
 
         resources {
           limits = {

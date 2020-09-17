@@ -14,16 +14,20 @@
 
 # This image is used to run ./scripts/presubmit.sh on CI
 
-FROM golang:1.14
+FROM golang:1.15.1
 
 # Install sudo
 RUN apt-get update -yqq && apt-get install -yqq sudo unzip
 
 # Install terraform
-RUN wget -q https://releases.hashicorp.com/terraform/0.13.0/terraform_0.13.0_linux_amd64.zip \
-  && unzip terraform_0.13.0_linux_amd64.zip \
+RUN wget -q https://releases.hashicorp.com/terraform/0.13.1/terraform_0.13.1_linux_amd64.zip \
+  && unzip terraform_0.13.1_linux_amd64.zip \
   && mv terraform /usr/bin \
-  && rm terraform_0.13.0_linux_amd64.zip
+  && rm terraform_0.13.1_linux_amd64.zip
+
+# Install jq
+RUN curl -o /usr/bin/jq http://stedolan.github.io/jq/download/linux64/jq \
+  && chmod +x /usr/bin/jq
 
 # Install gcloud
 WORKDIR /workspace
@@ -91,5 +95,7 @@ RUN curl -sfLo "/bin/runner.sh" "https://raw.githubusercontent.com/kubernetes/te
 RUN go get -u github.com/client9/misspell/cmd/misspell
 RUN go get -u golang.org/x/tools/cmd/goimports
 RUN go get -u honnef.co/go/tools/cmd/staticcheck
+# GCP projects pool manager
+RUN go get -u sigs.k8s.io/boskos/cmd/boskosctl
 
 ENTRYPOINT ["/bin/runner.sh"]

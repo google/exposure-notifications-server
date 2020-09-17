@@ -23,24 +23,34 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
+	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/mikehelmick/go-chaff"
 )
 
-func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) response {
+func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) *response {
 	ctx, span := trace.StartSpan(r.Context(), "(*publish.PublishHandler).handleRequest")
 	defer span.End()
+
+	metrics := h.serverenv.MetricsExporter(ctx)
+	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
+
+	w.Header().Set(HeaderAPIVersion, "v1alpha")
 
 	var data v1alpha1.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
 		message := fmt.Sprintf("error unmarshaling API call, code: %v: %v", code, err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		return response{
+		return &response{
 			status:      code,
 			pubResponse: &verifyapi.PublishResponse{ErrorMessage: message}, // will be down-converted in ServeHTTP
-			metric:      "publish-bad-json", count: 1}
+			metrics: func() {
+				metricsMiddleware.RecordBadJSON(ctx)
+			},
+		}
 	}
 
 	// Upconvert the exposure key records.
@@ -75,6 +85,15 @@ func (h *PublishHandler) HandleV1Alpha1() http.Handler {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			response := h.handleV1Apha1Request(w, r)
 
+			ctx := r.Context()
+			metrics := h.serverenv.MetricsExporter(ctx)
+			metricsMiddleware := metricsware.NewMiddleWare(&metrics)
+
+			if err := response.padResponse(h.config); err != nil {
+				metricsMiddleware.RecordPaddingFailure(ctx)
+				logging.FromContext(ctx).Errorw("failed to padd response", "error", err)
+			}
+
 			// Downgrade the v1 response to a v1alpha1 response.
 			alpha1Response := v1alpha1.PublishResponse{
 				RevisionToken:     response.pubResponse.RevisionToken,
@@ -83,10 +102,8 @@ func (h *PublishHandler) HandleV1Alpha1() http.Handler {
 				Padding:           response.pubResponse.Padding,
 			}
 
-			if response.metric != "" {
-				ctx := r.Context()
-				metrics := h.serverenv.MetricsExporter(ctx)
-				metrics.WriteInt(response.metric, true, response.count)
+			if response.metrics != nil {
+				response.metrics()
 			}
 
 			data, err := json.Marshal(&alpha1Response)

@@ -31,6 +31,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/federationin/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
@@ -57,7 +58,7 @@ var (
 
 type (
 	fetchFn               func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
-	insertExposuresFn     func(context.Context, []*publishmodel.Exposure, *pb.RevisionTokenData, bool) (int, error)
+	insertExposuresFn     func(context.Context, *publishdb.InsertAndReviseExposuresRequest) (*publishdb.InsertAndReviseExposuresResponse, error)
 	startFederationSyncFn func(context.Context, *model.FederationInQuery, time.Time) (int64, database.FinalizeSyncFn, error)
 )
 
@@ -91,21 +92,22 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	logger := logging.FromContext(ctx)
 	metrics := h.env.MetricsExporter(ctx)
+	metricsMiddleWare := metricsware.NewMiddleWare(&metrics)
 
 	queryIDs, ok := r.URL.Query()[queryParam]
 	if !ok {
-		metrics.WriteInt("federation-pull-invalid-request", true, 1)
+		metricsMiddleWare.RecordPullInvalidRequest(ctx)
 		badRequestf(ctx, w, "%s is required", queryParam)
 		return
 	}
 	if len(queryIDs) > 1 {
-		metrics.WriteInt("federation-pull-invalid-request", true, 1)
+		metricsMiddleWare.RecordPullInvalidRequest(ctx)
 		badRequestf(ctx, w, "only one %s allowed", queryParam)
 		return
 	}
 	queryID := queryIDs[0]
 	if queryID == "" {
-		metrics.WriteInt("federation-pull-invalid-request", true, 1)
+		metricsMiddleWare.RecordPullInvalidRequest(ctx)
 		badRequestf(ctx, w, "%s is required", queryParam)
 		return
 	}
@@ -115,7 +117,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	unlockFn, err := h.db.Lock(ctx, lock, h.config.Timeout)
 	if err != nil {
 		if errors.Is(err, coredb.ErrAlreadyLocked) {
-			metrics.WriteInt("federation-pull-lock-contention", true, 1)
+			metricsMiddleWare.RecordPullLockContention(ctx)
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
 			logger.Infof(msg)
 			fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
@@ -217,6 +219,8 @@ type pullOptions struct {
 }
 
 func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err error) {
+	metricsMiddleWare := metricsware.NewMiddleWare(&metrics)
+
 	ctx, span := trace.StartSpan(ctx, "federationin.pull")
 	defer func() {
 		if err != nil {
@@ -292,24 +296,28 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 					})
 
 					if len(exposures) == fetchBatchSize {
-						n := 0
-						if n, err = opts.deps.insertExposures(ctx, exposures, nil, false); err != nil {
-							metrics.WriteInt("federation-pull-inserts", false, len(exposures))
+						resp, err := opts.deps.insertExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+							Incoming: exposures,
+						})
+						if err != nil {
+							metricsMiddleWare.RecordPullInsertions(ctx, len(exposures))
 							return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 						}
-						total += n
+						total += int(resp.Inserted)
 						exposures = nil // Start a new batch.
 					}
 				}
 			}
 		}
 		if len(exposures) > 0 {
-			n := 0
-			if n, err = opts.deps.insertExposures(ctx, exposures, nil, false); err != nil {
-				metrics.WriteInt("federation-pull-inserts", false, len(exposures))
+			resp, err := opts.deps.insertExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+				Incoming: exposures,
+			})
+			if err != nil {
+				metricsMiddleWare.RecordPullInsertions(ctx, len(exposures))
 				return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
 			}
-			total += n
+			total += int(resp.Inserted)
 		}
 
 		partial = response.PartialResponse

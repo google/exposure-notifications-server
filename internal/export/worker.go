@@ -28,10 +28,12 @@ import (
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	publishdatabase "github.com/google/exposure-notifications-server/internal/publish/database"
+	"github.com/google/exposure-notifications-server/internal/storage"
 
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 
+	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
@@ -169,7 +171,9 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 
 	if droppedKeys > 0 {
 		logger.Errorf("Export found keys of invalid length, %v keys were dropped", droppedKeys)
-		s.env.MetricsExporter(ctx).WriteInt("export-bad-key-length", false, droppedKeys)
+		metricsExporter := s.env.MetricsExporter(ctx)
+		metricsMiddleWare := metricsware.NewMiddleWare(&metricsExporter)
+		metricsMiddleWare.RecordExportWorkerBadKeyLength(ctx, droppedKeys)
 	}
 
 	// If the last group has anything, add it to the list.
@@ -271,7 +275,7 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 	logger.Infof("Created file %v, signed with %v keys", objectName, len(signers))
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
-	if err := s.env.Blobstore().CreateObject(ctx, cfi.exportBatch.BucketName, objectName, data, true); err != nil {
+	if err := s.env.Blobstore().CreateObject(ctx, cfi.exportBatch.BucketName, objectName, data, true, storage.ContentTypeZip); err != nil {
 		return "", fmt.Errorf("creating file %s in bucket %s: %w", objectName, cfi.exportBatch.BucketName, err)
 	}
 	return objectName, nil
@@ -347,8 +351,8 @@ func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObje
 	indexObjectName := exportIndexFilename(eb)
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
-	if err := s.env.Blobstore().CreateObject(ctx, eb.BucketName, indexObjectName, data, false); err != nil {
-		return "", 0, fmt.Errorf("creating file %s in bucket %s: %w", indexObjectName, eb.BucketName, err)
+	if err := s.env.Blobstore().CreateObject(ctx, eb.BucketName, indexObjectName, data, false, storage.ContentTypeTextPlain); err != nil {
+		return "", 0, fmt.Errorf("creating index file %s in bucket %s: %w", indexObjectName, eb.BucketName, err)
 	}
 	return indexObjectName, len(objects), nil
 }

@@ -31,11 +31,13 @@ import (
 )
 
 var (
+	showSig        = flag.Bool("sig", true, "show signature information from export bundle")
 	filePath       = flag.String("file", "", "path to the export zip file.")
 	printJSON      = flag.Bool("json", true, "print a JSON representation of the output")
 	quiet          = flag.Bool("q", false, "run in quiet mode")
 	allowedTEKAge  = flag.Duration("tek-age", 14*24*time.Hour, "max TEK age in checks")
 	symptomDayLmit = flag.Int("symptom-days", 14, "magnitude of expected symptom onset day range")
+	fileAge        = flag.Duration("file-age", time.Duration(0), "file age is a positive duration that indicates how old a file is, this would be added to tek-age when validating the file and adjusts 'current time' for validing future keys.")
 )
 
 func main() {
@@ -49,10 +51,26 @@ func main() {
 	if *symptomDayLmit < 0 {
 		log.Fatalf("--symptom-days must be >=0, got: %v", *symptomDayLmit)
 	}
+	if *fileAge < time.Duration(0) {
+		log.Fatalf("--file-age must be a positive duration, got: %v", *fileAge)
+	}
 
 	blob, err := ioutil.ReadFile(*filePath)
 	if err != nil {
 		log.Fatalf("can't read export file: %v", err)
+	}
+
+	if *showSig {
+		sigExport, err := export.UnmarshalSignatureFile(blob)
+		if err != nil {
+			log.Fatalf("error unmarshaling export signature file: %v", err)
+		}
+
+		prettyJSON, err := json.MarshalIndent(sigExport, "", " ")
+		if err != nil {
+			log.Fatalf("error pretty printing export signature: %v", err)
+		}
+		log.Printf("Export signature file contents:\n%v", string(prettyJSON))
 	}
 
 	keyExport, err := export.UnmarshalExportFile(blob)
@@ -84,8 +102,8 @@ func main() {
 }
 
 func checkExportFile(export *exportpb.TemporaryExposureKeyExport) error {
-	now := time.Now().UTC()
-	floor := model.IntervalNumber(now.Add(*allowedTEKAge))
+	now := time.Now().UTC().Add(-1 * *fileAge)
+	floor := model.IntervalNumber(now.Add(-1 * *allowedTEKAge))
 	ceiling := model.IntervalNumber(now)
 
 	var errors *multierror.Error

@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+variable "create_env_file" {
+  type    = bool
+  default = false
+
+  description = "Create a .env file in the module directory with variables set to the configuration values."
+}
+
 # The default region for resources in the project, individual resources should
 # have more specific variables defined to specify their region/location which
 # increases the flexibility of deployments
@@ -28,6 +35,12 @@ variable "db_location" {
   default = "us-central1"
 }
 
+# The name of the database.
+variable "db_name" {
+  type    = string
+  default = "en-server"
+}
+
 # The region for the networking components.
 # https://cloud.google.com/compute/docs/regions-zones
 variable "network_location" {
@@ -40,6 +53,18 @@ variable "network_location" {
 variable "kms_location" {
   type    = string
   default = "us-central1"
+}
+
+# Name of the key ring for export signing keys.
+variable "kms_export_signing_key_ring_name" {
+  type    = string
+  default = "export-signing"
+}
+
+# Name of the key ring for revision tokens.
+variable "kms_revision_tokens_key_ring_name" {
+  type    = string
+  default = "revision-tokens"
 }
 
 # The location for the app engine; this implicitly defines the region for
@@ -157,9 +182,28 @@ variable "vpc_access_connector_max_throughput" {
 }
 
 terraform {
+  required_version = ">= 0.13"
+
   required_providers {
-    google = "~> 3.32"
-    null   = "~> 2.1"
-    random = "~> 2.3"
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 3.36"
+    }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "~> 3.36"
+    }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 1.4"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 2.1"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 2.3"
+    }
   }
 }

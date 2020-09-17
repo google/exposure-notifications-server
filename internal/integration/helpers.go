@@ -36,7 +36,6 @@ import (
 	revdb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
-	vdb "github.com/google/exposure-notifications-server/internal/verification/database"
 	vm "github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
@@ -51,88 +50,31 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
 
-var (
-	// ExportDir is the default export bucket of blob storage
-	ExportDir = "my-bucket"
-	// FileNameRoot is the default file path root under blob storage
-	FileNameRoot = "/"
-)
-
-// NewTestServer sets up clients used for integration tests
-func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.ServerEnv, *Client, *database.DB, testutil.JWTConfig) {
-	ctx := context.Background()
-	env, client, jwtCfg := testServer(tb)
-	db := env.Database()
-	enClient := &Client{client: client}
-
-	// Create an authorized app
-	aa := env.AuthorizedAppProvider()
-	if err := aa.Add(ctx, &authorizedappmodel.AuthorizedApp{
-		AppPackageName: "com.example.app",
-		AllowedRegions: map[string]struct{}{
-			"TEST": {},
-		},
-		AllowedHealthAuthorityIDs: map[int64]struct{}{
-			1: {},
-		},
-
-		// TODO: hook up verification, and disable
-		BypassHealthAuthorityVerification: false,
-	}); err != nil {
-		tb.Fatal(err)
-	}
-
-	// Create a signature info
-	si := &exportmodel.SignatureInfo{
-		SigningKey:        "signer",
-		SigningKeyVersion: "v1",
-		SigningKeyID:      "US",
-	}
-	if err := exportdatabase.New(db).AddSignatureInfo(ctx, si); err != nil {
-		tb.Fatal(err)
-	}
-
-	// Create an export config
-	ec := &exportmodel.ExportConfig{
-		BucketName:       ExportDir,
-		FilenameRoot:     FileNameRoot,
-		Period:           exportPeriod,
-		OutputRegion:     "TEST",
-		From:             time.Now().Add(-2 * time.Second),
-		Thru:             time.Now().Add(1 * time.Hour),
-		SignatureInfoIDs: []int64{},
-	}
-	if err := exportdatabase.New(db).AddExportConfig(ctx, ec); err != nil {
-		tb.Fatal(err)
-	}
-
-	return env, enClient, db, jwtCfg
-}
-
-// testServer sets up mocked local servers for running tests
-func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWTConfig) {
+// NewTestServer sets up mocked local servers for running tests
+func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.ServerEnv, *Client, *testutil.JWTConfig, string, string) {
 	tb.Helper()
 
-	var (
-		ctx    = context.Background()
-		jwtCfg = testutil.JWTConfig{}
-	)
+	ctx := context.Background()
 
-	aa, err := authorizedapp.NewMemoryProvider(ctx, nil)
+	aap, err := authorizedapp.NewMemoryProvider(ctx, nil)
 	if err != nil {
 		tb.Fatal(err)
 	}
 
-	if FileNameRoot, err = randomString(); err != nil {
-		tb.Fatal(err)
-	}
+	bucketName := testRandomID(tb, 32)
+	filenameRoot := testRandomID(tb, 32)
+
 	bs, err := storage.NewMemory(ctx)
-	if v := os.Getenv("GOOGLE_CLOUD_BUCKET"); v != "" && !testing.Short() {
-		ExportDir = os.Getenv("GOOGLE_CLOUD_BUCKET")
-		bs, err = storage.NewGoogleCloudStorage(ctx)
-	}
 	if err != nil {
 		tb.Fatal(err)
+	}
+
+	if v := os.Getenv("GOOGLE_CLOUD_BUCKET"); v != "" && !testing.Short() {
+		bs, err = storage.NewGoogleCloudStorage(ctx)
+		if err != nil {
+			tb.Fatal(err)
+		}
+		bucketName = v
 	}
 
 	db := database.NewTestDatabase(tb)
@@ -153,26 +95,17 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWT
 		}
 	}
 
-	km, err := keys.NewInMemory(ctx)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	if _, err := km.CreateEncryptionKey("tokenkey"); err != nil {
-		tb.Fatal(err)
-	}
-	if _, err := km.CreateSigningKey("signingkey"); err != nil {
-		tb.Fatal(err)
-	}
+	kms := keys.TestKeyManager(tb)
+	tokenKey := keys.TestEncryptionKey(tb, kms)
+
 	// create an initial revision key.
-	revisionDB, err := revdb.New(db, &revdb.KMSConfig{WrapperKeyID: "tokenkey", KeyManager: km})
+	revisionDB, err := revdb.New(db, &revdb.KMSConfig{WrapperKeyID: tokenKey, KeyManager: kms})
 	if err != nil {
 		tb.Fatal(err)
 	}
 	if _, err := revisionDB.CreateRevisionKey(ctx); err != nil {
 		tb.Fatal(err)
 	}
-
-	verifyDB := vdb.New(db)
 
 	// create a signing key
 	sk := testutil.GetSigningKey(tb)
@@ -187,16 +120,11 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWT
 		Version: "v1",
 		From:    time.Now().Add(-1 * time.Minute),
 	}
-	haKey.PublicKeyPEM = sk.PublicKey
-	verifyDB.AddHealthAuthority(ctx, ha)
-	verifyDB.AddHealthAuthorityKey(ctx, ha, haKey)
-
-	// jwt config to be used to get a verification certificate
-	jwtCfg = testutil.JWTConfig{
+	testutil.InitalizeVerificationDB(ctx, tb, db, ha, haKey, sk)
+	jwtCfg := &testutil.JWTConfig{
 		HealthAuthority:    ha,
 		HealthAuthorityKey: haKey,
 		Key:                sk.Key,
-		JWTWarp:            time.Duration(0),
 		ReportType:         verifyapi.ReportTypeConfirmed,
 	}
 
@@ -206,10 +134,10 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWT
 	}
 
 	env := serverenv.New(ctx,
-		serverenv.WithAuthorizedAppProvider(aa),
+		serverenv.WithAuthorizedAppProvider(aap),
 		serverenv.WithBlobStorage(bs),
 		serverenv.WithDatabase(db),
-		serverenv.WithKeyManager(km),
+		serverenv.WithKeyManager(kms),
 		serverenv.WithSecretManager(sm),
 	)
 	// Note: don't call env.Cleanup() because the database helper closes the
@@ -273,7 +201,7 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWT
 	// TODO: this is a grpc listener and requires a lot of setup.
 
 	revConfig := revision.Config{
-		KeyID:     "tokenkey",
+		KeyID:     tokenKey,
 		AAD:       []byte{1, 2, 3},
 		MinLength: 28,
 	}
@@ -329,7 +257,50 @@ func testServer(tb testing.TB) (*serverenv.ServerEnv, *http.Client, testutil.JWT
 	// Create a client
 	client := testClient(tb, srv)
 
-	return env, client, jwtCfg
+	enClient := &Client{client: client}
+
+	// Create an authorized app
+	aa := env.AuthorizedAppProvider()
+	if err := aa.Add(ctx, &authorizedappmodel.AuthorizedApp{
+		AppPackageName: "com.example.app",
+		AllowedRegions: map[string]struct{}{
+			"TEST": {},
+		},
+		AllowedHealthAuthorityIDs: map[int64]struct{}{
+			1: {},
+		},
+
+		// TODO: hook up verification, and disable
+		BypassHealthAuthorityVerification: false,
+	}); err != nil {
+		tb.Fatal(err)
+	}
+
+	// Create a signature info
+	si := &exportmodel.SignatureInfo{
+		SigningKey:        "signer",
+		SigningKeyVersion: "v1",
+		SigningKeyID:      "US",
+	}
+	if err := exportdatabase.New(db).AddSignatureInfo(ctx, si); err != nil {
+		tb.Fatal(err)
+	}
+
+	// Create an export config
+	ec := &exportmodel.ExportConfig{
+		BucketName:       bucketName,
+		FilenameRoot:     filenameRoot,
+		Period:           exportPeriod,
+		OutputRegion:     "TEST",
+		From:             time.Now().Add(-2 * time.Second),
+		Thru:             time.Now().Add(1 * time.Hour),
+		SignatureInfoIDs: []int64{},
+	}
+	if err := exportdatabase.New(db).AddExportConfig(ctx, ec); err != nil {
+		tb.Fatal(err)
+	}
+
+	return env, enClient, jwtCfg, bucketName, filenameRoot
 }
 
 type prefixRoundTripper struct {
@@ -363,13 +334,14 @@ func testClient(tb testing.TB, srv *server.Server) *http.Client {
 	}
 }
 
-func randomString() (string, error) {
-	var b [512]byte
+func testRandomID(tb testing.TB, size int) string {
+	tb.Helper()
+
+	b := make([]byte, size)
 	if _, err := rand.Read(b[:]); err != nil {
-		return "", fmt.Errorf("failed to generate random: %w", err)
+		tb.Fatalf("failed to generate random: %v", err)
 	}
-	digest := fmt.Sprintf("%x", sha256.Sum256(b[:]))
-	return digest[:32], nil
+	return fmt.Sprintf("%x", sha256.Sum256(b[:]))
 }
 
 // Eventually retries the given function n times, sleeping 1s between each
@@ -391,6 +363,6 @@ func Eventually(tb testing.TB, times uint64, f func() error) {
 }
 
 // IndexFilePath returns the filepath of index file under blob storage
-func IndexFilePath() string {
-	return path.Join(FileNameRoot, "index.txt")
+func IndexFilePath(root string) string {
+	return path.Join(root, "index.txt")
 }

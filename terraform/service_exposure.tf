@@ -81,7 +81,7 @@ resource "google_cloud_run_service" "exposure" {
       service_account_name = google_service_account.exposure.email
 
       containers {
-        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/exposure:initial"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/exposure:initial"
 
         resources {
           limits = {
@@ -153,4 +153,8 @@ resource "google_cloud_run_service_iam_member" "exposure-public" {
   service  = google_cloud_run_service.exposure.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+output "exposure_url" {
+  value = var.exposure_custom_domain != "" ? "https://${var.exposure_custom_domain}" : google_cloud_run_service.exposure.status.0.url
 }

@@ -69,7 +69,7 @@ resource "google_cloud_run_service" "federationout" {
       service_account_name = google_service_account.federationout.email
 
       containers {
-        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/cmd/federationout:initial"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/federationout:initial"
 
         resources {
           limits = {
@@ -137,4 +137,8 @@ resource "google_cloud_run_service_iam_member" "federationout-public" {
   service  = google_cloud_run_service.federationout.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+output "federationout_url" {
+  value = var.federationout_custom_domain != "" ? "https://${var.federationout_custom_domain}" : google_cloud_run_service.federationout.status.0.url
 }

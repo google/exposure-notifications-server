@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	maxSymptomOnsetDays = 21
+	maxSymptomOnsetDays = 14
 )
 
 type testConfig struct {
@@ -454,11 +454,12 @@ func TestTransform(t *testing.T) {
 	batchTimeRounded := TruncateWindow(batchTime, time.Hour)
 
 	cases := []struct {
-		Name    string
-		Publish *verifyapi.Publish
-		Regions []string
-		Claims  *verification.VerifiedClaims
-		Want    []*Exposure
+		Name         string
+		Publish      *verifyapi.Publish
+		Regions      []string
+		Claims       *verification.VerifiedClaims
+		Want         []*Exposure
+		PartialError string
 	}{
 		{
 			Name: "basic_v1_publish",
@@ -723,6 +724,59 @@ func TestTransform(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "symptom_onset_too_large",
+			Publish: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:            encodeKey(testKeys[6]),
+						IntervalNumber: intervalNumber - (4 * verifyapi.MaxIntervalCount),
+						IntervalCount:  verifyapi.MaxIntervalCount,
+					},
+					{
+						Key:            encodeKey(testKeys[7]),
+						IntervalNumber: intervalNumber - (1 * verifyapi.MaxIntervalCount),
+						IntervalCount:  verifyapi.MaxIntervalCount,
+					},
+				},
+				HealthAuthorityID: appPackage,
+			},
+			Regions: wantRegions,
+			Claims: &verification.VerifiedClaims{
+				HealthAuthorityID:    27,
+				ReportType:           verifyapi.ReportTypeClinical,
+				SymptomOnsetInterval: uint32(intervalNumber - 16*verifyapi.MaxIntervalCount),
+			},
+			Want: []*Exposure{
+				{
+					ExposureKey:           testKeys[6],
+					IntervalNumber:        intervalNumber - (4 * verifyapi.MaxIntervalCount),
+					IntervalCount:         verifyapi.MaxIntervalCount,
+					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
+					AppPackageName:        appPackage,
+					Regions:               wantRegions,
+					CreatedAt:             batchTimeRounded,
+					LocalProvenance:       true,
+					ReportType:            verifyapi.ReportTypeClinical,
+					DaysSinceSymptomOnset: int32Ptr(12),
+					HealthAuthorityID:     int64Ptr(27),
+				},
+				{
+					ExposureKey:           testKeys[7],
+					IntervalNumber:        intervalNumber - (1 * verifyapi.MaxIntervalCount),
+					IntervalCount:         verifyapi.MaxIntervalCount,
+					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
+					AppPackageName:        appPackage,
+					Regions:               wantRegions,
+					CreatedAt:             batchTimeRounded,
+					LocalProvenance:       true,
+					ReportType:            verifyapi.ReportTypeClinical,
+					DaysSinceSymptomOnset: nil, // dropped since it was too large.
+					HealthAuthorityID:     int64Ptr(27),
+				},
+			},
+			PartialError: "key 1 symptom onset is too large, 15 > 14 - saving without days since symptom onset",
+		},
 	}
 
 	allowedAge := 14 * 24 * time.Hour
@@ -735,8 +789,14 @@ func TestTransform(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			got, err := transformer.TransformPublish(ctx, tc.Publish, tc.Regions, tc.Claims, batchTime)
-			if err != nil {
+			if err != nil && tc.PartialError == "" {
 				t.Fatalf("TransformPublish returned unexpected error: %v", err)
+			} else if tc.PartialError != "" {
+				if err == nil {
+					t.Fatalf("TransformPublish didn't return expected error: %v", tc.PartialError)
+				} else if !strings.Contains(err.Error(), tc.PartialError) {
+					t.Fatalf("TransformPublish didn't return expected error: %q, got: %v", tc.PartialError, err)
+				}
 			}
 
 			if diff := cmp.Diff(tc.Want, got, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
@@ -1122,7 +1182,7 @@ func TestExposureReview(t *testing.T) {
 				ReportType: verifyapi.ReportTypeClinical,
 			},
 			needsRevision: false,
-			err:           "invalid report type transition, cannot transition from 'confirmed' to 'likely'",
+			err:           `invalid report type transition: cannot transition from "confirmed" to "likely"`,
 		},
 		{
 			name: "invalid_transition_from_empty_report_type",
@@ -1134,7 +1194,7 @@ func TestExposureReview(t *testing.T) {
 				ReportType: verifyapi.ReportTypeClinical,
 			},
 			needsRevision: false,
-			err:           "invalid report type transition, cannot transition from '' to 'likely'",
+			err:           `invalid report type transition: cannot transition from "" to "likely"`,
 		},
 		{
 			name: "valid_transition_from_empty_report_type",

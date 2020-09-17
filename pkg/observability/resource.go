@@ -15,62 +15,100 @@
 package observability
 
 import (
-	"encoding/base64"
+	"context"
+	"strings"
 
+	"github.com/google/exposure-notifications-server/pkg/logging"
+
+	"cloud.google.com/go/compute/metadata"
 	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource"
-	"contrib.go.opencensus.io/exporter/stackdriver/monitoredresource/gcp"
 	"github.com/google/uuid"
 )
 
-var _ monitoredresource.Interface = (*stackdriverMonitoredResource)(nil)
+var (
+	_ monitoredresource.Interface = (*stackdriverMonitoredResource)(nil)
+)
 
 type stackdriverMonitoredResource struct {
-	resource string
-	labels   map[string]string
+	Resource string
+	Labels   map[string]string
 }
 
-func NewStackdriverMonitoredResoruce(c *StackdriverConfig) monitoredresource.Interface {
+// NewStackdriverMonitoredResource returns a monitored resource with the
+// required labels filled out. This needs to be the correct resource type so we
+// can compared the default stackdriver metrics with the custom metrics we're
+// generating.
+//
+// NOTE: This code is focused on support GCP Cloud Run Managed. If you are
+// running in a different environment, you may see weird results.
+func NewStackdriverMonitoredResource(ctx context.Context, c *StackdriverConfig) monitoredresource.Interface {
+	logger := logging.FromContext(ctx).Named("stackdriver")
+
 	resource := "generic_task"
-	labels := make(map[string]string)
+	labels := map[string]string{}
 
-	// On GCP we can fill in some of the information.
-	detected := gcp.Autodetect()
-	providedLabels := make(map[string]string)
-	if detected != nil {
-		_, providedLabels = detected.MonitoredResource()
-	}
+	labels["project_id"] = c.ProjectID
 
-	if _, ok := providedLabels["project_id"]; !ok {
-		labels["project_id"] = c.ProjectID
-	} else {
-		labels["project_id"] = providedLabels["project_id"]
-	}
-	if c.Service != "" {
-		labels["job"] = c.Service
-	} else {
+	labels["job"] = c.Service
+	if labels["job"] == "" {
 		labels["job"] = "unknown"
 	}
-	// Transform "instance_id" to "task_id" or generate task_id
-	if iid, ok := providedLabels["instance_id"]; ok {
-		labels["task_id"] = iid
-	} else {
-		labels["task_id"] = base64.StdEncoding.EncodeToString(uuid.NodeID())
+
+	// Try to get task_id from metadata server.
+	iid, err := metadata.InstanceID()
+	if err != nil {
+		logger.Errorw("could not get instance id", "error", err)
 	}
-	if zone, ok := providedLabels["zone"]; ok {
-		labels["location"] = zone
-	} else if loc, ok := providedLabels["location"]; ok {
-		labels["location"] = loc
-	} else {
+	labels["task_id"] = iid
+
+	// Worse case task_id
+	if labels["task_id"] == "" {
+		labels["task_id"] = uuid.New().String()
+	}
+
+	region, err := metadata.Get("instance/region")
+	if err != nil {
+		logger.Errorw("could not get region", "error", err)
 		labels["location"] = "unknown"
 	}
+	labels["location"] = region
+
+	// Metadata often returns the following: "projects/111111111111/regions/us-central1"
+	pieces := strings.Split(region, "/")
+	if len(pieces) == 4 {
+		labels["location"] = pieces[3]
+	} else {
+		logger.Errorw("region did not match expected format", "region", region)
+	}
+
 	labels["namespace"] = c.Namespace
 
+	filteredLabels := removeUnusedLabels(resource, labels)
+
 	return &stackdriverMonitoredResource{
-		resource: resource,
-		labels:   labels,
+		Resource: resource,
+		Labels:   filteredLabels,
 	}
 }
 
 func (s *stackdriverMonitoredResource) MonitoredResource() (string, map[string]string) {
-	return s.resource, s.labels
+	return s.Resource, s.Labels
+}
+
+// removeUnusedLabels deletes unused labels to not flood stackdriver.
+func removeUnusedLabels(resource string, in map[string]string) map[string]string {
+	// The labels each resource type requires.
+	requiredLabels := map[string]map[string]bool{
+		// https://cloud.google.com/monitoring/api/resources#tag_generic_task
+		"generic_task": {"project_id": true, "location": true, "namespace": true, "job": true, "task_id": true},
+	}
+
+	ret := map[string]string{}
+	for k, v := range in {
+		if requiredLabels[resource][k] {
+			ret[k] = v
+		}
+	}
+
+	return ret
 }

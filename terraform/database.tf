@@ -12,18 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "random_string" "db-name" {
-  length  = 5
-  special = false
-  number  = false
-  upper   = false
-}
-
 resource "google_sql_database_instance" "db-inst" {
   project          = data.google_project.project.project_id
   region           = var.db_location
   database_version = "POSTGRES_11"
-  name             = "en-${random_string.db-name.result}"
+  name             = var.db_name
 
   settings {
     tier              = var.cloudsql_tier
@@ -155,16 +148,13 @@ resource "google_project_iam_member" "cloudbuild-sql" {
 resource "null_resource" "migrate" {
   provisioner "local-exec" {
     environment = {
-      PROJECT_ID     = data.google_project.project.project_id
-      DB_CONN        = google_sql_database_instance.db-inst.connection_name
-      DB_PASS_SECRET = google_secret_manager_secret_version.db-secret-version["password"].name
-      DB_NAME        = google_sql_database.db.name
-      DB_USER        = google_sql_user.user.name
-      COMMAND        = "up"
+      PROJECT_ID  = data.google_project.project.project_id
+      DB_CONN     = google_sql_database_instance.db-inst.connection_name
+      DB_PASSWORD = "secret://${google_secret_manager_secret_version.db-secret-version["password"].name}"
+      DB_NAME     = google_sql_database.db.name
+      DB_USER     = google_sql_user.user.name
 
-      REGION   = var.db_location
-      SERVICES = "all"
-      TAG      = "initial"
+      TAG = "initial"
     }
 
     command = "${path.module}/../scripts/migrate"
@@ -174,6 +164,7 @@ resource "null_resource" "migrate" {
     google_project_service.services["cloudbuild.googleapis.com"],
     google_secret_manager_secret_iam_member.cloudbuild-db-pwd,
     google_project_iam_member.cloudbuild-sql,
+    null_resource.build,
   ]
 }
 
@@ -189,6 +180,22 @@ output "db_user" {
   value = google_sql_user.user.name
 }
 
-output "db_pass_secret" {
+output "db_inst_name" {
+  value = google_sql_database_instance.db-inst.name
+}
+
+output "db_password" {
   value = google_secret_manager_secret_version.db-secret-version["password"].name
+}
+
+output "proxy_command" {
+  value = "cloud_sql_proxy -dir \"$${HOME}/sql\" -instances=${google_sql_database_instance.db-inst.connection_name}=tcp:5432"
+}
+
+output "proxy_env" {
+  value = "DB_SSLMODE=disable DB_HOST=127.0.0.1 DB_NAME=${google_sql_database.db.name} DB_PORT=5432 DB_USER=${google_sql_user.user.name} DB_PASSWORD=$(gcloud secrets versions access ${google_secret_manager_secret_version.db-secret-version["password"].name})"
+}
+
+output "psql_env" {
+  value = "PGHOST=127.0.0.1 PGPORT=5432 PGUSER=${google_sql_user.user.name} PGPASSWORD=$(gcloud secrets versions access ${google_secret_manager_secret_version.db-secret-version["password"].name})"
 }
