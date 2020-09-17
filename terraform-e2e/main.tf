@@ -33,6 +33,7 @@ module "en" {
   kms_revision_tokens_key_ring_name = "revision-tokens-${random_string.suffix.result}"
 
   create_env_file = true
+  deploy_debugger = true
 
   service_environment = {
     export = {
