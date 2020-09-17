@@ -108,8 +108,8 @@ func TestPublishEndpoint(t *testing.T) {
 	}
 	keys := util.GenerateExposureKeys(3, -1, false)
 
-	_, err = authorizedappdb.New(db).GetAuthorizedApp(context.Background(), "com.example.app")
-	if err != nil {
+	exist, err := authorizedappdb.New(db).GetAuthorizedApp(context.Background(), "com.example.app")
+	if exist == nil || err != nil {
 		if err := authorizedappdb.New(db).InsertAuthorizedApp(context.Background(), &authorizedappmodel.AuthorizedApp{
 			AppPackageName: "com.example.app",
 			AllowedRegions: map[string]struct{}{
