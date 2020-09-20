@@ -412,6 +412,9 @@ func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 // * 0 exposure Keys in the requests
 // * > Transformer.maxExposureKeys in the request
 //
+// The return params are the list of exposures, a list of warnings, and any
+// errors that occur.
+//
 func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, []string, error) {
 	logger := logging.FromContext(ctx)
 	if t.debugReleaseSameDay {
