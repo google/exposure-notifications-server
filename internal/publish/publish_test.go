@@ -517,6 +517,11 @@ func TestPublishWithBypass(t *testing.T) {
 					t.Fatal(err)
 				}
 
+				// Response content type should always be application/json
+				if got, want := resp.Header.Get("Content-Type"), "application/json"; got != want {
+					t.Errorf("expected %#v to be %#v", got, want)
+				}
+
 				// For non success status, check that they body contains the expected message
 				defer resp.Body.Close()
 				respBytes, err := ioutil.ReadAll(resp.Body)
