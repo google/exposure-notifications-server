@@ -382,6 +382,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: errorMessage,
 				Code:         errorCode,
+				Warnings:     transformWarnings,
 			},
 			metrics: func() {
 				metricsMiddleWare.RecordRevisionTokenIssue(ctx, metric)
@@ -419,6 +420,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	publishResponse := verifyapi.PublishResponse{
 		RevisionToken:     base64.StdEncoding.EncodeToString(newToken),
 		InsertedExposures: int(resp.Inserted),
+		Warnings:          transformWarnings,
 	}
 	// If there was a partial failure on transform, add that information back into the success response.
 	if transformError != nil {
