@@ -319,7 +319,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	}
 
 	batchTime := time.Now()
-	exposures, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
+	exposures, transformWarnings, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
 	// Check for non-recoverable error. It is possible that individual keys are dropped, but if there
 	// are any valid ones, we will try and move forward.
 	// If at the end, there is a success, the transformError will be returned as supplemental information.
@@ -332,6 +332,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         verifyapi.ErrorBadRequest,
+				Warnings:     transformWarnings,
 			},
 			metrics: func() {
 				metricsMiddleWare.RecordTransformFail(ctx)

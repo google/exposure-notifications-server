@@ -19,6 +19,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -121,7 +123,7 @@ func TestInvalidBase64(t *testing.T) {
 	regions := []string{"US"}
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
 
-	_, err = transformer.TransformPublish(ctx, source, regions, nil, batchTime)
+	_, _, err = transformer.TransformPublish(ctx, source, regions, nil, batchTime)
 	expErr := `key 0 cannot be imported: illegal base64 data at input byte 4`
 	if err == nil || !strings.Contains(err.Error(), expErr) {
 		t.Errorf("expected error '%v', got: %v", expErr, err)
@@ -312,7 +314,7 @@ func TestPublishValidation(t *testing.T) {
 				t.Fatalf("unepected error: %v", err)
 			}
 
-			_, err = tf.TransformPublish(ctx, c.p, []string{}, nil, captureStartTime)
+			_, _, err = tf.TransformPublish(ctx, c.p, []string{}, nil, captureStartTime)
 			if err == nil {
 				if c.m != "" {
 					t.Errorf("want error '%v', got nil", c.m)
@@ -392,7 +394,7 @@ func TestStillValidKey(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			tf, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
+			tf, _, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -460,6 +462,7 @@ func TestTransform(t *testing.T) {
 		Claims       *verification.VerifiedClaims
 		Want         []*Exposure
 		PartialError string
+		Warnings     []string
 	}{
 		{
 			Name: "basic_v1_publish",
@@ -775,7 +778,7 @@ func TestTransform(t *testing.T) {
 					HealthAuthorityID:     int64Ptr(27),
 				},
 			},
-			PartialError: "key 1 symptom onset is too large, 15 > 14 - saving without days since symptom onset",
+			Warnings: []string{"key 1 symptom onset is too large, 15 > 14 - saving without days since symptom onset"},
 		},
 	}
 
@@ -788,7 +791,7 @@ func TestTransform(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			got, err := transformer.TransformPublish(ctx, tc.Publish, tc.Regions, tc.Claims, batchTime)
+			got, warnings, err := transformer.TransformPublish(ctx, tc.Publish, tc.Regions, tc.Claims, batchTime)
 			if err != nil && tc.PartialError == "" {
 				t.Fatalf("TransformPublish returned unexpected error: %v", err)
 			} else if tc.PartialError != "" {
@@ -796,6 +799,15 @@ func TestTransform(t *testing.T) {
 					t.Fatalf("TransformPublish didn't return expected error: %v", tc.PartialError)
 				} else if !strings.Contains(err.Error(), tc.PartialError) {
 					t.Fatalf("TransformPublish didn't return expected error: %q, got: %v", tc.PartialError, err)
+				}
+			}
+
+			if exp := tc.Warnings; len(exp) > 0 {
+				sort.Strings(exp)
+				sort.Strings(warnings)
+
+				if !reflect.DeepEqual(exp, warnings) {
+					t.Errorf("expected %#v to be %#v", warnings, exp)
 				}
 			}
 
@@ -951,7 +963,7 @@ func TestTransformOverlapping(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewTransformer returned unexpected error: %v", err)
 			}
-			_, err = transformer.TransformPublish(ctx, &tc.source, tc.regions, nil, now)
+			_, _, err = transformer.TransformPublish(ctx, &tc.source, tc.regions, nil, now)
 			if err != nil && tc.error == "" {
 				t.Fatalf("unexpected error, want: nil, got: %v", err)
 			} else if err != nil && !strings.Contains(err.Error(), tc.error) {
