@@ -83,10 +83,13 @@ func (h *PublishHandler) Handle() http.Handler {
 
 			data, err := json.Marshal(response.pubResponse)
 			if err != nil {
+				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintf(w, "{\"error\": \"%v\"}", err.Error())
 				return
 			}
+
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(response.status)
 			fmt.Fprintf(w, "%s", data)
 		}))
