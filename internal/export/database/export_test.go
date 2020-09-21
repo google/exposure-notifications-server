@@ -83,7 +83,7 @@ func TestLookupSignatureInfos(t *testing.T) {
 	ctx := context.Background()
 
 	testTime := time.Now().UTC()
-	want := []*model.SignatureInfo{
+	create := []*model.SignatureInfo{
 		{
 			SigningKey:        "/kms/project/key/version/1",
 			SigningKeyVersion: "1",
@@ -102,10 +102,15 @@ func TestLookupSignatureInfos(t *testing.T) {
 			SigningKeyID:      "310",
 		},
 	}
-	for _, si := range want {
+	for _, si := range create {
 		if err := New(testDB).AddSignatureInfo(ctx, si); err != nil {
 			t.Fatalf("failed to add signature info %v: %v", si, err)
 		}
+	}
+	// create a 'reverse' order list.
+	want := make([]*model.SignatureInfo, len(create))
+	for i := 0; i < len(create); i++ {
+		want[i] = create[len(create)-1-i]
 	}
 
 	ids := []int64{want[0].ID, want[1].ID, want[2].ID}
@@ -114,8 +119,8 @@ func TestLookupSignatureInfos(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The first entry (want[0]) is expired and won't be returned.
-	want = want[1:]
+	// The last entry (want[len-1]) is expired and won't be returned.
+	want = want[:2]
 
 	if diff := cmp.Diff(want, got, approxTime); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%v", diff)

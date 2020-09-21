@@ -133,6 +133,10 @@ type TemporaryExposureKeyExport struct {
 	BatchNum  *int32 `protobuf:"varint,4,opt,name=batch_num,json=batchNum" json:"batch_num,omitempty"`
 	BatchSize *int32 `protobuf:"varint,5,opt,name=batch_size,json=batchSize" json:"batch_size,omitempty"`
 	// Information about signatures
+	// If there are multiple entries, they must be ordered in descending
+	// time order by signing key effective time (most recent one first).
+	// There is a limit of 10 signature infos per export file (mobile OS may
+	// not check anything after that).
 	SignatureInfos []*SignatureInfo `protobuf:"bytes,6,rep,name=signature_infos,json=signatureInfos" json:"signature_infos,omitempty"`
 	// The TemporaryExposureKeys for initial release of keys.
 	// Keys should be included in this list for initial release,
@@ -411,6 +415,11 @@ type TEKSignatureList struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// When their are multiple signatures, they must be sorted in time order
+	// by first effective date for the signing key in descending order.
+	// The most recent effective signing key must appear first.
+	// There is a limit of 10 signature infos per export file (mobile OS may
+	// not check anything after that).
 	Signatures []*TEKSignature `protobuf:"bytes,1,rep,name=signatures" json:"signatures,omitempty"`
 }
 

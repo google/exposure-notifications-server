@@ -106,10 +106,12 @@
 
 	<hr/>
 	<div class="alert alert-info" role="alert">
-	  Select the keys used to sign exports of this type. It is possible to have more than one
-		selected at a time. Having multiple signers is the correct way to rotate a signing key.
-		The old one should not be decomissions until Apple and Google have confirmed that the
-		new public key has been rolled out.
+	  <p>Select the keys used to sign exports of this type. It is possible to have more than one
+	  selected at a time. Having multiple signers is the correct way to rotate a signing key.
+	  The old one should not be decomissions until Apple and Google have confirmed that the
+	  new public key has been rolled out.
+	  </p>
+	  <p>There is a limit of 10 active signing keys per export configuration.</p>
 	</div>
 
 	{{if .siginfos}}
