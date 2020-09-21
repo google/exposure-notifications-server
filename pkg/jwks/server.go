@@ -33,9 +33,20 @@ type Server struct {
 
 // NewServer makes a new debugger server.
 func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
+	if env.Database() == nil {
+		return nil, fmt.Errorf("expected env to have database")
+	}
+
+	ctx := context.Background()
+	manager, err := NewManager(ctx, env.Database())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create manager: %w", err)
+	}
+
 	return &Server{
-		config: config,
-		env:    env,
+		config:  config,
+		manager: manager,
+		env:     env,
 	}, nil
 }
 
