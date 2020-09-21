@@ -37,10 +37,15 @@ module "en" {
 
   service_environment = {
     export = {
+      TRUNCATE_WINDOW = "1s"
+      MIN_WINDOW_AGE = "1s"
+
       LOG_DEBUG = "true"
     }
 
     exposure = {
+      TRUNCATE_WINDOW = "1s"
+      DEBUG_RELEASE_SAME_DAY_KEYS = true
       LOG_DEBUG = "true"
     }
 

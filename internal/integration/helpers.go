@@ -43,6 +43,7 @@ import (
 	"github.com/sethvargo/go-envconfig"
 	"github.com/sethvargo/go-retry"
 
+	authorizedappdb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	exportmodel "github.com/google/exposure-notifications-server/internal/export/model"
@@ -51,18 +52,10 @@ import (
 )
 
 // NewTestServer sets up mocked local servers for running tests
-func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.ServerEnv, *Client, *testutil.JWTConfig, string, string) {
+func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	tb.Helper()
 
 	ctx := context.Background()
-
-	aap, err := authorizedapp.NewMemoryProvider(ctx, nil)
-	if err != nil {
-		tb.Fatal(err)
-	}
-
-	bucketName := testRandomID(tb, 32)
-	filenameRoot := testRandomID(tb, 32)
 
 	bs, err := storage.NewMemory(ctx)
 	if err != nil {
@@ -74,7 +67,6 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 		if err != nil {
 			tb.Fatal(err)
 		}
-		bucketName = v
 	}
 
 	db := database.NewTestDatabase(tb)
@@ -95,6 +87,11 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 		}
 	}
 
+	aap, err := authorizedapp.NewDatabaseProvider(ctx, db, &authorizedapp.Config{CacheDuration: time.Nanosecond})
+	if err != nil {
+		tb.Fatal(err)
+	}
+
 	kms := keys.TestKeyManager(tb)
 	tokenKey := keys.TestEncryptionKey(tb, kms)
 
@@ -105,27 +102,6 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 	}
 	if _, err := revisionDB.CreateRevisionKey(ctx); err != nil {
 		tb.Fatal(err)
-	}
-
-	// create a signing key
-	sk := testutil.GetSigningKey(tb)
-
-	// create a health authority
-	ha := &vm.HealthAuthority{
-		Audience: "exposure-notifications-service",
-		Issuer:   "Department of Health",
-		Name:     "Integration Test HA",
-	}
-	haKey := &vm.HealthAuthorityKey{
-		Version: "v1",
-		From:    time.Now().Add(-1 * time.Minute),
-	}
-	testutil.InitalizeVerificationDB(ctx, tb, db, ha, haKey, sk)
-	jwtCfg := &testutil.JWTConfig{
-		HealthAuthority:    ha,
-		HealthAuthorityKey: haKey,
-		Key:                sk.Key,
-		ReportType:         verifyapi.ReportTypeConfirmed,
 	}
 
 	sm, err := secrets.NewInMemory(ctx)
@@ -142,7 +118,6 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 	)
 	// Note: don't call env.Cleanup() because the database helper closes the
 	// connection for us.
-
 	mux := http.NewServeMux()
 
 	// Cleanup export
@@ -259,21 +234,57 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 
 	enClient := &Client{client: client}
 
-	// Create an authorized app
-	aa := env.AuthorizedAppProvider()
-	if err := aa.Add(ctx, &authorizedappmodel.AuthorizedApp{
-		AppPackageName: "com.example.app",
-		AllowedRegions: map[string]struct{}{
-			"TEST": {},
-		},
-		AllowedHealthAuthorityIDs: map[int64]struct{}{
-			1: {},
-		},
+	return env, enClient
+}
 
-		// TODO: hook up verification, and disable
-		BypassHealthAuthorityVerification: false,
-	}); err != nil {
-		tb.Fatal(err)
+func Seed(tb testing.TB, ctx context.Context, db *database.DB, exportPeriod time.Duration) (*testutil.JWTConfig, string, string) {
+	bucketName := testRandomID(tb, 32)
+	filenameRoot := testRandomID(tb, 32)
+
+	if v := os.Getenv("GOOGLE_CLOUD_BUCKET"); v != "" && !testing.Short() {
+		bucketName = v
+	}
+
+	// create a signing key
+	sk := testutil.GetSigningKey(tb)
+
+	// create a health authority
+	ha := &vm.HealthAuthority{
+		Audience: "exposure-notifications-service",
+		Issuer:   "Department of Health",
+		Name:     "Integration Test HA",
+	}
+	haKey := &vm.HealthAuthorityKey{
+		Version: "v1",
+		From:    time.Now().Add(-1 * time.Minute),
+	}
+	testutil.InitalizeVerificationDB(ctx, tb, db, ha, haKey, sk)
+	jwtCfg := &testutil.JWTConfig{
+		HealthAuthority:    ha,
+		HealthAuthorityKey: haKey,
+		Key:                sk.Key,
+		ReportType:         verifyapi.ReportTypeConfirmed,
+	}
+
+	// Create an authorized app
+	exist, err := authorizedappdb.New(db).GetAuthorizedApp(context.Background(), "com.example.app")
+	if exist == nil || err != nil {
+		tb.Log("Creating a new authorized app")
+		if err := authorizedappdb.New(db).InsertAuthorizedApp(context.Background(), &authorizedappmodel.AuthorizedApp{
+			AppPackageName: "com.example.app",
+			AllowedRegions: map[string]struct{}{
+				"TEST": {},
+			},
+			AllowedHealthAuthorityIDs: map[int64]struct{}{
+				1: {},
+			},
+
+			// TODO: hook up verification and revision
+			BypassHealthAuthorityVerification: false,
+			BypassRevisionToken:               false,
+		}); err != nil {
+			tb.Fatal(err)
+		}
 	}
 
 	// Create a signature info
@@ -300,7 +311,7 @@ func NewTestServer(tb testing.TB, exportPeriod time.Duration) (*serverenv.Server
 		tb.Fatal(err)
 	}
 
-	return env, enClient, jwtCfg, bucketName, filenameRoot
+	return jwtCfg, bucketName, filenameRoot
 }
 
 type prefixRoundTripper struct {
