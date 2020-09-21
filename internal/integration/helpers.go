@@ -243,6 +243,7 @@ func Seed(tb testing.TB, ctx context.Context, db *database.DB, exportPeriod time
 
 	if v := os.Getenv("GOOGLE_CLOUD_BUCKET"); v != "" && !testing.Short() {
 		bucketName = v
+		tb.Logf("Bucket name is %q", bucketName)
 	}
 
 	// create a signing key
@@ -371,9 +372,9 @@ func testRandomID(tb testing.TB, size int) string {
 // Eventually retries the given function n times, sleeping 1s between each
 // invocation. To mark an error as retryable, wrap it in retry.RetryableError.
 // Non-retryable errors return immediately.
-func Eventually(tb testing.TB, times uint64, f func() error) {
+func Eventually(tb testing.TB, times uint64, interval time.Duration, f func() error) {
 	ctx := context.Background()
-	b, err := retry.NewConstant(1 * time.Second)
+	b, err := retry.NewConstant(interval)
 	if err != nil {
 		tb.Fatalf("failed to create retry: %v", err)
 	}

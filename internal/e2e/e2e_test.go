@@ -122,6 +122,12 @@ func TestPublishEndpoint(t *testing.T) {
 		Keys:              keys,
 		HealthAuthorityID: appName,
 	}
+
+	var wantExport []string
+	for _, key := range keys {
+		wantExport = append(wantExport, key.Key)
+	}
+
 	jwtCfg.ExposureKeys = keys
 	jwtCfg.JWTWarp = time.Duration(0)
 	verification, salt := testutil.IssueJWT(t, jwtCfg)
@@ -157,52 +163,12 @@ func TestPublishEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	gotExported := make(map[string]bool)
-	integration.Eventually(t, 30, func() error {
-		// // List batchfiles
-		// var exportedFiles []string
-		// if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		// 	rows, err := tx.Query(ctx, `
-		// 		SELECT
-		// 			filename
-		// 		FROM
-		// 			ExportFile
-		// 		LIMIT 100
-		// 	`)
-		// 	if err != nil {
-		// 		return fmt.Errorf("failed to list: %w", err)
-		// 	}
-		// 	defer rows.Close()
-
-		// 	for rows.Next() {
-		// 		if err := rows.Err(); err != nil {
-		// 			return fmt.Errorf("failed to iterate: %w", err)
-		// 		}
-
-		// 		var id string
-		// 		if err := rows.Scan(&id); err != nil {
-		// 			return err
-		// 		}
-		// 		exportedFiles = append(exportedFiles, id)
-		// 	}
-
-		// 	return nil
-		// }); err != nil {
-		// 	t.Fatalf("List batches: %v", err)
-		// }
-
-		// t.Logf("Batches: %v", exportedFiles)
-
-		// if l := len(exportedFiles); l > 0 {
-		// 	t.Log("Done")
-		// }
-
-		// time.Sleep(5 * time.Second)
-
+	integration.Eventually(t, 30, 5*time.Second, func() error {
 		// Attempt to get the index
 		index, err := blobStore.GetObject(ctx, bucketName, integration.IndexFilePath(filenameRoot))
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
-				return retry.RetryableError(fmt.Errorf("Can not find index file: %v", err))
+				return retry.RetryableError(fmt.Errorf("Can not find index file: %w", err))
 			}
 			return err
 		}
@@ -218,7 +184,7 @@ func TestPublishEndpoint(t *testing.T) {
 			}
 		}
 		if latest == "" {
-			return retry.RetryableError(fmt.Errorf("failed to find latest export"))
+			return retry.RetryableError(errors.New("failed to find latest export"))
 		}
 
 		// Download the latest export file contents
@@ -243,7 +209,6 @@ func TestPublishEndpoint(t *testing.T) {
 			}
 		}
 		if !allExported {
-			defer time.Sleep(5 * time.Second)
 			return retry.RetryableError(errors.New("Not all keys are exported yet, keep waiting"))
 		}
 
