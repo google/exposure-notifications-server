@@ -16,6 +16,7 @@
 package exports
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -62,6 +63,9 @@ func (f *formData) PopulateExportConfig(ec *model.ExportConfig) error {
 	ec.From = from
 	ec.Thru = thru
 	ec.SignatureInfoIDs = f.SigInfoIDs
+	if len(ec.SignatureInfoIDs) > 10 {
+		return fmt.Errorf("too many signing keys selected, there is a limit of 10")
+	}
 
 	return nil
 }

@@ -317,6 +317,8 @@ func (db *ExportDB) LookupSignatureInfos(ctx context.Context, ids []int64, valid
 				SignatureInfo
 			WHERE
 				id = any($1) AND (thru_timestamp is NULL OR thru_timestamp >= $2)
+			ORDER BY
+				id DESC
 		`, ids, validUntil)
 		if err != nil {
 			return fmt.Errorf("failed to list: %w", err)

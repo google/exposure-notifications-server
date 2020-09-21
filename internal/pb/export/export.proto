@@ -39,6 +39,10 @@ message TemporaryExposureKeyExport {
   optional int32 batch_size = 5;
 
   // Information about signatures
+  // If there are multiple entries, they must be ordered in descending
+  // time order by signing key effective time (most recent one first).
+  // There is a limit of 10 signature infos per export file (mobile OS may
+  // not check anything after that).
   repeated SignatureInfo signature_infos = 6;
 
   // The TemporaryExposureKeys for initial release of keys.
@@ -103,6 +107,11 @@ message TemporaryExposureKey {
 }
 
 message TEKSignatureList {
+  // When there are multiple signatures, they must be sorted in time order
+  // by first effective date for the signing key in descending order.
+  // The most recent effective signing key must appear first.
+  // There is a limit of 10 signature infos per export file (mobile OS may
+  // not check anything after that).
   repeated TEKSignature signatures = 1;
 }
 
