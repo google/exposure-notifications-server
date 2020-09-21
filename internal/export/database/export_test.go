@@ -107,20 +107,19 @@ func TestLookupSignatureInfos(t *testing.T) {
 			t.Fatalf("failed to add signature info %v: %v", si, err)
 		}
 	}
-	// create a 'reverse' order list.
-	want := make([]*model.SignatureInfo, len(create))
-	for i := 0; i < len(create); i++ {
-		want[i] = create[len(create)-1-i]
-	}
 
-	ids := []int64{want[0].ID, want[1].ID, want[2].ID}
+	ids := []int64{create[0].ID, create[1].ID, create[2].ID}
 	got, err := New(testDB).LookupSignatureInfos(ctx, ids, testTime)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// The last entry (want[len-1]) is expired and won't be returned.
-	want = want[:2]
+	// Specify the IDs we expect to be returned as effective based on
+	// what was just created.
+	want := []*model.SignatureInfo{
+		create[2],
+		create[1],
+	}
 
 	if diff := cmp.Diff(want, got, approxTime); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%v", diff)

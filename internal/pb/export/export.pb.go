@@ -415,7 +415,7 @@ type TEKSignatureList struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// When their are multiple signatures, they must be sorted in time order
+	// When there are multiple signatures, they must be sorted in time order
 	// by first effective date for the signing key in descending order.
 	// The most recent effective signing key must appear first.
 	// There is a limit of 10 signature infos per export file (mobile OS may
