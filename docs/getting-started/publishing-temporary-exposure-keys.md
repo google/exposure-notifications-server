@@ -72,6 +72,10 @@ The content of the revision token cannot be used to infer that a client ever upl
 what their diagnosis status is. It is recommended that clients fill this spot in memory
 with random data in advance of TEK publish.
 
+The publish response may also include a `warnings` field. These are not errors,
+but may indicate a client-side bug in key generation or processing. These
+warnings are primarily for app developers and not end-users.
+
 ## Chaff Requests
 
 It may be possible for a server operator or network observer to glean

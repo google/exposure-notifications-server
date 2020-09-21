@@ -151,7 +151,7 @@ func (h *generateHandler) generate(ctx context.Context, regions []string) error 
 			SymptomOnsetInterval: uint32(publish.Keys[intervalIdx].IntervalNumber),
 		}
 
-		exposures, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
+		exposures, _, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
 		if err != nil {
 			return fmt.Errorf("failed to transform generated exposures: %w", err)
 		}
@@ -174,7 +174,7 @@ func (h *generateHandler) generate(ctx context.Context, regions []string) error 
 			claims.ReportType = revisedReportType
 			batchTime = batchTime.Add(h.config.KeyRevisionDelay)
 
-			exposures, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
+			exposures, _, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
 			if err != nil {
 				return fmt.Errorf("failed to transform generated exposures: %w", err)
 			}

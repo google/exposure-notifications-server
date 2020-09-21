@@ -100,6 +100,7 @@ func (h *PublishHandler) HandleV1Alpha1() http.Handler {
 				InsertedExposures: response.pubResponse.InsertedExposures,
 				Error:             response.pubResponse.ErrorMessage,
 				Padding:           response.pubResponse.Padding,
+				Warnings:          response.pubResponse.Warnings,
 			}
 
 			if response.metrics != nil {

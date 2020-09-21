@@ -412,7 +412,10 @@ func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 // * 0 exposure Keys in the requests
 // * > Transformer.maxExposureKeys in the request
 //
-func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, error) {
+// The return params are the list of exposures, a list of warnings, and any
+// errors that occur.
+//
+func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, []string, error) {
 	logger := logging.FromContext(ctx)
 	if t.debugReleaseSameDay {
 		logger.Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
@@ -422,12 +425,12 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	if len(inData.Keys) == 0 {
 		msg := "no exposure keys in publish request"
 		logger.Debugf(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, nil, fmt.Errorf(msg)
 	}
 	if len(inData.Keys) > t.maxExposureKeys {
 		msg := fmt.Sprintf("too many exposure keys in publish: %v, max of %v is allowed", len(inData.Keys), t.maxExposureKeys)
 		logger.Debugf(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, nil, fmt.Errorf(msg)
 	}
 
 	onsetInterval := inData.SymptomOnsetInterval
@@ -459,11 +462,12 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		upcaseRegions[i] = strings.ToUpper(r)
 	}
 
+	var transformWarnings []string
 	var transformErrors *multierror.Error
 	for i, exposureKey := range inData.Keys {
 		exposure, err := TransformExposureKey(exposureKey, inData.HealthAuthorityID, upcaseRegions, &settings)
 		if err != nil {
-			logger.Debugf("individual key transform failed: %v", err)
+			logger.Debugw("individual key transform failed", "error", err)
 			transformErrors = multierror.Append(transformErrors, fmt.Errorf("key %d cannot be imported: %w", i, err))
 			continue
 		}
@@ -480,13 +484,21 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		// Set days since onset, either from the API or from the verified claims (see above).
 		if onsetInterval > 0 {
 			daysSince := DaysFromSymptomOnset(onsetInterval, exposure.IntervalNumber)
-			// Check if the magnitude of this value is too large. If it is too large, we won't want to set
-			// a days since symptom onset value ont he TEK itself, but we do want to warn the application devloper
-			// that this value (not TEK) was dropped.
-			// There are launched applications using this sever that rely on this behavior.
+			// Check if the magnitude of this value is too large. If it is too large,
+			// we won't want to set a days since symptom onset value on the TEK
+			// itself, but we do want to warn the application developer that this
+			// value (not TEK) was dropped.
+			//
+			// There are launched applications using this sever that rely on this
+			// behavior.
+			//
+			// Note that previously this returned an error, but this broke the iOS
+			// implementation since it is unable to handle partial success. As such,
+			// it was converted to a warning that's a separate field in the API
+			// response.
 			if abs := math.Abs(float64(daysSince)); abs > t.maxSymptomOnsetDays {
 				logger.Debugw("setting days since symptom onset to null on key due to symptom onset magnitude too high", "daysSince", daysSince)
-				transformErrors = multierror.Append(transformErrors, fmt.Errorf("key %d symptom onset is too large, %v > %v - saving without days since symptom onset", i, abs, t.maxSymptomOnsetDays))
+				transformWarnings = append(transformWarnings, fmt.Sprintf("key %d symptom onset is too large, %v > %v - saving without days since symptom onset", i, abs, t.maxSymptomOnsetDays))
 			} else {
 				// The value is within acceptable range, save it.
 				exposure.SetDaysSinceSymptomOnset(daysSince)
@@ -498,7 +510,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 
 	if len(entities) == 0 {
 		// All keys in the batch are valid.
-		return nil, transformErrors.ErrorOrNil()
+		return nil, transformWarnings, transformErrors.ErrorOrNil()
 	}
 
 	// Validate the uploaded data meets configuration parameters.
@@ -534,7 +546,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		if ex.IntervalNumber < nextInterval {
 			msg := fmt.Sprintf("exposure keys have non aligned overlapping intervals. %v overlaps with previous key that is good from %v to %v.", ex.IntervalNumber, lastInterval, nextInterval)
 			logger.Debugf(msg)
-			return nil, fmt.Errorf(msg)
+			return nil, transformWarnings, fmt.Errorf(msg)
 		}
 		// OK, current key starts at or after the end of the previous one. Advance both variables.
 		lastInterval = ex.IntervalNumber
@@ -545,9 +557,9 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		if v > t.maxSameDayKeys {
 			msg := fmt.Sprintf("too many overlapping keys for start interval: %v want: <= %v, got: %v", k, t.maxSameDayKeys, v)
 			logger.Debugf(msg)
-			return nil, fmt.Errorf(msg)
+			return nil, transformWarnings, fmt.Errorf(msg)
 		}
 	}
 
-	return entities, transformErrors.ErrorOrNil()
+	return entities, transformWarnings, transformErrors.ErrorOrNil()
 }

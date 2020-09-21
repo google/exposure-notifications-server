@@ -319,7 +319,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	}
 
 	batchTime := time.Now()
-	exposures, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
+	exposures, transformWarnings, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
 	// Check for non-recoverable error. It is possible that individual keys are dropped, but if there
 	// are any valid ones, we will try and move forward.
 	// If at the end, there is a success, the transformError will be returned as supplemental information.
@@ -332,6 +332,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         verifyapi.ErrorBadRequest,
+				Warnings:     transformWarnings,
 			},
 			metrics: func() {
 				metricsMiddleWare.RecordTransformFail(ctx)
@@ -381,6 +382,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: errorMessage,
 				Code:         errorCode,
+				Warnings:     transformWarnings,
 			},
 			metrics: func() {
 				metricsMiddleWare.RecordRevisionTokenIssue(ctx, metric)
@@ -418,6 +420,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	publishResponse := verifyapi.PublishResponse{
 		RevisionToken:     base64.StdEncoding.EncodeToString(newToken),
 		InsertedExposures: int(resp.Inserted),
+		Warnings:          transformWarnings,
 	}
 	// If there was a partial failure on transform, add that information back into the success response.
 	if transformError != nil {

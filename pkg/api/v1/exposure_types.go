@@ -125,12 +125,16 @@ type Publish struct {
 //
 // The Padding field may be populated with random data on both success and
 // error responses.
+//
+// The Warnings field may be populated with a list of warnings. These are not
+// errors, but may indicate the server mutated the response.
 type PublishResponse struct {
-	RevisionToken     string `json:"revisionToken,omitempty"`
-	InsertedExposures int    `json:"insertedExposures,omitempty"`
-	ErrorMessage      string `json:"error,omitempty"`
-	Code              string `json:"code,omitempty"`
-	Padding           string `json:"padding,omitempty"`
+	RevisionToken     string   `json:"revisionToken,omitempty"`
+	InsertedExposures int      `json:"insertedExposures,omitempty"`
+	ErrorMessage      string   `json:"error,omitempty"`
+	Code              string   `json:"code,omitempty"`
+	Padding           string   `json:"padding,omitempty"`
+	Warnings          []string `json:"warnings,omitempty"`
 }
 
 // ExposureKey is the 16 byte key, the start time of the key and the

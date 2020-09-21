@@ -83,19 +83,23 @@ type Publish struct {
 	DeviceVerificationPayload string `json:"deviceVerificationPayload"` // DEPRECATED
 }
 
-// PublishResponse is sent back to the client on a publish request.
-// If successful, the revisionToken indicates an opaque string that must be
-// passed back if the same devices wishes to publish TEKs again.
+// PublishResponse is sent back to the client on a publish request. If
+// successful, the revisionToken indicates an opaque string that must be passed
+// back if the same devices wishes to publish TEKs again.
 //
 // On error, the error field will contain the error details.
 //
-// The Padding field may be populated with random data on both success and
-// error responses.
+// The Padding field may be populated with random data on both success and error
+// responses.
+//
+// The Warnings field may be populated with a list of warnings. These are not
+// errors, but may indicate the server mutated the response.
 type PublishResponse struct {
-	RevisionToken     string `json:"revisionToken"`
-	InsertedExposures int    `json:"insertedExposures"`
-	Error             string `json:"error"`
-	Padding           string `json:"padding"`
+	RevisionToken     string   `json:"revisionToken"`
+	InsertedExposures int      `json:"insertedExposures"`
+	Error             string   `json:"error"`
+	Padding           string   `json:"padding"`
+	Warnings          []string `json:"warnings,omitempty"`
 }
 
 // ExposureKey is the 16 byte key, the start time of the key and the
