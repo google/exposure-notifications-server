@@ -34,21 +34,28 @@ import (
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/hashicorp/go-multierror"
 	"github.com/rakutentech/jwk-go/jwk"
 	"go.uber.org/zap"
 )
 
 var _ setup.DatabaseConfigProvider = (*Config)(nil)
+var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 
 type Config struct {
-	Database database.Config
+	Database      database.Config
+	SecretManager secrets.Config
 
 	Port string `env:"PORT, default=8080"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
 	return &c.Database
+}
+
+func (c *Config) SecretManagerConfig() *secrets.Config {
+	return &c.SecretManager
 }
 
 // Manager handles updating all HealthAuthorities if they've specified a JWKS
