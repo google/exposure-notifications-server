@@ -58,7 +58,7 @@ resource "google_project_iam_member" "jwks-observability" {
   member  = "serviceAccount:${google_service_account.jwks.email}"
 }
 
-resource "google_cloud_run_service" "jwks-export" {
+resource "google_cloud_run_service" "jwks" {
   name     = "jwks"
   location = var.cloudrun_location
 
@@ -104,7 +104,7 @@ resource "google_cloud_run_service" "jwks-export" {
 
   depends_on = [
     google_project_service.services["run.googleapis.com"],
-    google_secret_manager_secret_iam_member.jwkst-db,
+    google_secret_manager_secret_iam_member.jwks-db,
     null_resource.build,
   ]
 
