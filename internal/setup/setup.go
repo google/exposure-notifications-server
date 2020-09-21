@@ -24,7 +24,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
-	"github.com/google/exposure-notifications-server/pkg/jwks"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/observability"
@@ -66,12 +65,6 @@ type ObservabilityExporterConfigProvider interface {
 // secret manager.
 type SecretManagerConfigProvider interface {
 	SecretManagerConfig() *secrets.Config
-}
-
-// JWKSManagerConfigProvider signals that the config knows how to configure the
-// JWKS manager.
-type JWKSManagerConfigProvider interface {
-	JWKSManagerConfig() *jwks.Config
 }
 
 // Setup runs common initialization code for all servers. See SetupWith.
@@ -242,24 +235,6 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 			serverEnvOpts = append(serverEnvOpts, serverenv.WithAuthorizedAppProvider(aa))
 
 			logger.Infow("authorizedapp", "config", aaConfig)
-		}
-
-		// Start the JWKS key downloader.
-		if provider, ok := config.(JWKSManagerConfigProvider); ok {
-			logger.Info("configuring jwks manager")
-
-			jwksConfig := provider.JWKSManagerConfig()
-			jwks, err := jwks.NewFromEnv(ctx, logger, db, jwksConfig)
-			if err != nil {
-				// Ensure the db is closed on an error.
-				defer db.Close(ctx)
-				return nil, fmt.Errorf("unable to start jwks manager: %w", err)
-			}
-
-			// Update the serverEnv setup.
-			serverEnvOpts = append(serverEnvOpts, serverenv.WithJwksManager(jwks))
-
-			logger.Infow("jwks", "config", jwksConfig)
 		}
 	}
 

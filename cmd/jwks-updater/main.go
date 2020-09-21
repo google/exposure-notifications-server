@@ -27,6 +27,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/jwks"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	_ "github.com/google/exposure-notifications-server/pkg/observability"
+	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/sethvargo/go-signalcontext"
 )
 
@@ -49,6 +50,8 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
+	logger := logging.FromContext(ctx)
+
 	var config jwks.Config
 	env, err := setup.Setup(ctx, &config)
 	if err != nil {
@@ -56,6 +59,16 @@ func realMain(ctx context.Context) error {
 	}
 	defer env.Close(ctx)
 
-	env.JwksManager().UpdateAll()
-	return nil
+	jwksServer, err := jwks.NewServer(&config, env)
+	if err != nil {
+		return fmt.Errorf("jwks.NewServer: %w", err)
+	}
+
+	srv, err := server.New(config.Port)
+	if err != nil {
+		return fmt.Errorf("server.New: %w", err)
+	}
+	logger.Infof("listening on :%s", config.Port)
+
+	return srv.ServeHTTPHandler(ctx, jwksServer.Routes(ctx))
 }

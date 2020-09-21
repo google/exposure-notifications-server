@@ -27,7 +27,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
-	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
 var key1 = `{"kid":"r2v1","kty":"EC","crv":"P-256","x":"qcMMcLX1Z2afVAzypTMw1g3KN_OcdgvRDwOgpDWiswU","y":"RjK8Hc7pLLO_JADNhwZIxCXjCH95VHuWPoKVaCGkXiA"}`
@@ -127,17 +126,16 @@ func TestUpdateHA(t *testing.T) {
 			defer ts.Close()
 
 			// Set up the test.
-			cfg := &Config{}
+			ctx := context.Background()
 			testDB := database.NewTestDatabase(t)
-			logger := logging.NewLogger(true)
-			mgr, err := NewFromEnv(context.Background(), logger, testDB, cfg)
+			mgr, err := NewManager(ctx, testDB)
 			if err != nil {
 				t.Fatalf("[%d] unexpected error: %v", i, err)
 			}
 			ha := &model.HealthAuthority{JwksURI: ts.URL}
 
 			// Test networking.
-			rxKeys, err := mgr.getKeys(ha)
+			rxKeys, err := mgr.getKeys(ctx, ha)
 			if err != nil {
 				t.Fatalf("[%d] unexpected error: %v", i, err)
 			}
@@ -181,23 +179,23 @@ func TestUpdateHA(t *testing.T) {
 			keys, test.ha.Keys = test.ha.Keys, nil
 			haDB := hadb.New(mgr.db)
 			test.ha.Issuer, test.ha.Audience, test.ha.Name = "ISSUER", "AUDIENCE", "NAME"
-			if err := haDB.AddHealthAuthority(mgr.ctxt, &test.ha); err != nil {
+			if err := haDB.AddHealthAuthority(ctx, &test.ha); err != nil {
 				t.Fatalf("[%d] error adding the HealthAuthority, %v", i, err)
 			}
 			for _, key := range keys {
-				if err := haDB.AddHealthAuthorityKey(mgr.ctxt, &test.ha, key); err != nil {
+				if err := haDB.AddHealthAuthorityKey(ctx, &test.ha, key); err != nil {
 					t.Fatalf("[%d] error adding key: %v", i, err)
 				}
 			}
 			test.ha.Keys = keys
 
 			// Now, run the whole flow for a HealthAuthority.
-			if err := mgr.updateHA(haDB, &test.ha); err != nil {
+			if err := mgr.updateHA(ctx, &test.ha); err != nil {
 				t.Fatalf("[%d] error updating: %v", i, err)
 			}
 
 			// Check the DB.
-			if ha, err := haDB.GetHealthAuthorityByID(mgr.ctxt, test.ha.ID); err != nil {
+			if ha, err := haDB.GetHealthAuthorityByID(ctx, test.ha.ID); err != nil {
 				t.Fatalf("[%d] error retreiving HealthAuthority: %v", i, err)
 			} else {
 				// Check the resultant keys.

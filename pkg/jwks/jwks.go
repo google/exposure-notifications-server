@@ -30,39 +30,51 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/setup"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
+	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/hashicorp/go-multierror"
 	"github.com/rakutentech/jwk-go/jwk"
 	"go.uber.org/zap"
 )
 
+var _ setup.DatabaseConfigProvider = (*Config)(nil)
+
 type Config struct {
 	Database database.Config
+
+	Port string `env:"PORT, default=8080"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
 	return &c.Database
 }
 
-func (c *Config) JWKSManagerConfig() *Config {
-	return c
-}
-
 // Manager handles updating all HealthAuthorities if they've specified a JWKS
 // URI.
 type Manager struct {
-	ctxt   context.Context
-	logger *zap.SugaredLogger
 	db     *database.DB
+	logger *zap.SugaredLogger
+}
+
+// NewManager creates a new Manager.
+func NewManager(ctx context.Context, db *database.DB) (*Manager, error) {
+	logger := logging.FromContext(ctx).Named("jwks")
+
+	return &Manager{
+		logger: logger,
+		db:     db,
+	}, nil
 }
 
 // getKeys reads the keys for a single HealthAuthority from its jwks server.
-func (mgr Manager) getKeys(ha *model.HealthAuthority) ([]byte, error) {
+func (mgr *Manager) getKeys(ctx context.Context, ha *model.HealthAuthority) ([]byte, error) {
 	if len(ha.JwksURI) == 0 {
 		return nil, nil
 	}
 
-	reqCtxt, done := context.WithTimeout(mgr.ctxt, 5*time.Second)
+	reqCtxt, done := context.WithTimeout(ctx, 5*time.Second)
 	defer done()
 	req, err := http.NewRequestWithContext(reqCtxt, "GET", ha.JwksURI, nil)
 	if err != nil {
@@ -157,13 +169,18 @@ func findKeyMods(ha *model.HealthAuthority, rxKeys []string) (deadKeys []int, ne
 }
 
 // updateHA updates HealthAuthority's keys.
-func (mgr *Manager) updateHA(haDB *hadb.HealthAuthorityDB, ha *model.HealthAuthority) error {
+func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) error {
+	logger := mgr.logger.With("health_authority_name", ha.Name, "health_authority_id", ha.ID)
+
 	if len(ha.JwksURI) == 0 {
-		mgr.logger.Infof("Skipping JWKS, HealthAuthority: %q No URI specified.", ha.Name)
+		logger.Infow("skipping jwks, no URI specified")
 		return nil
 	}
 
-	resp, err := mgr.getKeys(ha)
+	// Create the hadb once to save allocations
+	haDB := hadb.New(mgr.db)
+
+	resp, err := mgr.getKeys(ctx, ha)
 	if err != nil {
 		return err
 	}
@@ -184,7 +201,7 @@ func (mgr *Manager) updateHA(haDB *hadb.HealthAuthorityDB, ha *model.HealthAutho
 	for _, i := range deadKeys {
 		hak := ha.Keys[i]
 		hak.Revoke()
-		if err := haDB.UpdateHealthAuthorityKey(mgr.ctxt, hak); err != nil {
+		if err := haDB.UpdateHealthAuthorityKey(ctx, hak); err != nil {
 			return fmt.Errorf("error updating key: %w", err)
 		}
 	}
@@ -197,53 +214,55 @@ func (mgr *Manager) updateHA(haDB *hadb.HealthAuthorityDB, ha *model.HealthAutho
 			From:         time.Now(),
 			PublicKeyPEM: key,
 		}
-		if err := haDB.AddHealthAuthorityKey(mgr.ctxt, ha, hak); err != nil {
+		if err := haDB.AddHealthAuthorityKey(ctx, ha, hak); err != nil {
 			return fmt.Errorf("error adding key: %w", err)
 		}
 		ha.Keys = append(ha.Keys, hak)
 	}
 
 	// And save the HealthAuthority.
-	haDB.UpdateHealthAuthority(mgr.ctxt, ha)
+	haDB.UpdateHealthAuthority(ctx, ha)
 
-	mgr.logger.Infof("Updated JWKS HealthAuthority: %q URI (%v): %d new, %d deleted", ha.Name, ha.JwksURI, len(newKeys), len(deadKeys))
+	logger.Infow("updated jwks",
+		"uri", ha.JwksURI,
+		"new", len(newKeys),
+		"deleted", len(deadKeys))
 
 	return nil
 }
 
 // UpdateAll reads the JWKS keys for all HealthAuthorities.
-func (mgr Manager) UpdateAll() {
-	mgr.logger.Info("Starting JWKS update")
+func (mgr *Manager) UpdateAll(ctx context.Context) error {
+	mgr.logger.Info("starting jwks update")
 
 	haDB := hadb.New(mgr.db)
-	healthAuthorities, err := haDB.ListAllHealthAuthoritiesWithoutKeys(mgr.ctxt)
+	healthAuthorities, err := haDB.ListAllHealthAuthoritiesWithoutKeys(ctx)
 	if err != nil {
-		mgr.logger.Errorf("error querying db %v", err)
-		return
+		return fmt.Errorf("failed to query db: %w", err)
 	}
+
+	var merr *multierror.Error
+	var merrLock sync.Mutex
 
 	var wg sync.WaitGroup
 	for _, ha := range healthAuthorities {
 		wg.Add(1)
 		go func(ha *model.HealthAuthority) {
 			defer wg.Done()
-			err := mgr.updateHA(haDB, ha)
+			err := mgr.updateHA(ctx, ha)
 			if err != nil {
-				mgr.logger.Errorf("error running JWKS HealthAuthority: %q error: %v", ha.Name, err)
-				return
+				merrLock.Lock()
+				merr = multierror.Append(merr, fmt.Errorf("failed to processes %v: %w", ha.Name, err))
+				merrLock.Unlock()
 			}
 		}(ha)
 	}
 	wg.Wait()
 
-	mgr.logger.Info("Done JWKS update")
-}
+	mgr.logger.Info("finished jwks update")
 
-// NewFromEnv creates a new JWKS configuration manager.
-func NewFromEnv(ctxt context.Context, logger *zap.SugaredLogger, db *database.DB, cfg *Config) (Manager, error) {
-	return Manager{
-		ctxt:   ctxt,
-		logger: logger,
-		db:     db,
-	}, nil
+	if err := merr.ErrorOrNil(); err != nil {
+		return fmt.Errorf("failed to update all: %w", err)
+	}
+	return nil
 }
