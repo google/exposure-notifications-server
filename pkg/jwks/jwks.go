@@ -228,7 +228,9 @@ func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) err
 	}
 
 	// And save the HealthAuthority.
-	haDB.UpdateHealthAuthority(ctx, ha)
+	if err := haDB.UpdateHealthAuthority(ctx, ha); err != nil {
+		return fmt.Errorf("failed to update health authority: %w", err)
+	}
 
 	logger.Infow("updated jwks",
 		"uri", ha.JwksURI,
