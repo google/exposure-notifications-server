@@ -77,5 +77,5 @@ type StackdriverConfig struct {
 	BundleDelayThreshold time.Duration `env:"STACKDRIVER_BUNDLE_DELAY_THRESHOLD, default=2s"`
 	BundleCountThreshold uint          `env:"STACKDRIVER_BUNDLE_COUNT_THRESHOLD, default=50"`
 	Timeout              time.Duration `env:"STACKDRIVER_TIMEOUT, default=5s"`
-	DebugLogging         bool          `env:"STACKDRIVER_DEBUG_LOGGING, default==false"`
+	DebugLogging         bool          `env:"STACKDRIVER_DEBUG_LOGGING, default=false"`
 }
