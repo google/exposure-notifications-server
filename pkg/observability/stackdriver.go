@@ -18,8 +18,10 @@ package observability
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"google.golang.org/api/option"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"go.opencensus.io/stats/view"
@@ -31,6 +33,18 @@ var _ Exporter = (*stackdriverExporter)(nil)
 type stackdriverExporter struct {
 	exporter *stackdriver.Exporter
 	config   *StackdriverConfig
+}
+
+type debugRoundTripper struct {
+	ctx context.Context
+	http.RoundTripper
+}
+
+func (r *debugRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	logger := logging.FromContext(r.ctx).Named("debugRoundTripper")
+	resp, err := r.RoundTripper.RoundTrip(req)
+	logger.Debugw("http debug", "request", req, "response", resp, "err", err)
+	return resp, err
 }
 
 // NewStackdriver creates a new metrics and trace exporter for Stackdriver.
@@ -45,6 +59,18 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 	monitoredResource := NewStackdriverMonitoredResource(ctx, config)
 	logger.Debugw("monitored resource", "resource", monitoredResource)
 
+	var opts []option.ClientOption
+
+	if config.DebugLogging {
+		c := &http.Client{
+			Transport: &debugRoundTripper{
+				ctx:          ctx,
+				RoundTripper: http.DefaultTransport,
+			},
+		}
+		opts = append(opts, option.WithHTTPClient(c))
+	}
+
 	exporter, err := stackdriver.NewExporter(stackdriver.Options{
 		Context:                 ctx,
 		ProjectID:               projectID,
@@ -54,6 +80,7 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 		BundleCountThreshold:    int(config.BundleCountThreshold),
 		MonitoredResource:       monitoredResource,
 		DefaultMonitoringLabels: &stackdriver.Labels{},
+		MonitoringClientOptions: opts,
 		OnError: func(err error) {
 			logger.Errorw("failed to export metric", "error", err, "resource", monitoredResource)
 		},
