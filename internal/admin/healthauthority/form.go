@@ -34,7 +34,7 @@ func (f *formData) PopulateHealthAuthority(ha *model.HealthAuthority) {
 	ha.Issuer = f.Issuer
 	ha.Audience = f.Audience
 	ha.Name = f.Name
-	ha.JwksURI = f.JwksURI
+	ha.SetJWKS(f.JwksURI)
 }
 
 type keyFormData struct {

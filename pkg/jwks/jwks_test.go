@@ -132,7 +132,8 @@ func TestUpdateHA(t *testing.T) {
 			if err != nil {
 				t.Fatalf("[%d] unexpected error: %v", i, err)
 			}
-			ha := &model.HealthAuthority{JwksURI: ts.URL}
+			jwksURI := ts.URL
+			ha := &model.HealthAuthority{JwksURI: &jwksURI}
 
 			// Test networking.
 			rxKeys, err := mgr.getKeys(ctx, ha)
@@ -170,7 +171,7 @@ func TestUpdateHA(t *testing.T) {
 			//
 			// Now test end-to-end.
 			//
-			test.ha.JwksURI = ts.URL
+			test.ha.JwksURI = &jwksURI
 
 			// Add the HealthAuthority & Keys to the DB. Note, we need to remove all
 			// keys from the testing HealthAuthority before adding it to the DB as it's
