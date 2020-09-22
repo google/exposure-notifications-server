@@ -77,13 +77,17 @@ func NewManager(ctx context.Context, db *database.DB) (*Manager, error) {
 
 // getKeys reads the keys for a single HealthAuthority from its jwks server.
 func (mgr *Manager) getKeys(ctx context.Context, ha *model.HealthAuthority) ([]byte, error) {
-	if len(ha.JwksURI) == 0 {
+	if ha.JwksURI == nil {
+		return nil, nil
+	}
+	jwksURI := *ha.JwksURI
+	if len(jwksURI) == 0 {
 		return nil, nil
 	}
 
 	reqCtxt, done := context.WithTimeout(ctx, 5*time.Second)
 	defer done()
-	req, err := http.NewRequestWithContext(reqCtxt, "GET", ha.JwksURI, nil)
+	req, err := http.NewRequestWithContext(reqCtxt, "GET", jwksURI, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
 	}
@@ -179,7 +183,7 @@ func findKeyMods(ha *model.HealthAuthority, rxKeys []string) (deadKeys []int, ne
 func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) error {
 	logger := mgr.logger.With("health_authority_name", ha.Name, "health_authority_id", ha.ID)
 
-	if len(ha.JwksURI) == 0 {
+	if ha.JwksURI == nil || len(*ha.JwksURI) == 0 {
 		logger.Infow("skipping jwks, no URI specified")
 		return nil
 	}

@@ -32,7 +32,15 @@ type HealthAuthority struct {
 	Audience string
 	Name     string
 	Keys     []*HealthAuthorityKey
-	JwksURI  string
+	JwksURI  *string
+}
+
+func (ha *HealthAuthority) SetJWKS(uri string) {
+	if uri == "" {
+		ha.JwksURI = nil
+		return
+	}
+	ha.JwksURI = &uri
 }
 
 // Validate returns an error if the HealthAuthority struct is not valid.

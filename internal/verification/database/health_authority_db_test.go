@@ -42,6 +42,7 @@ func TestAddRetrieveHealthAuthority(t *testing.T) {
 		Issuer:   "doh.mystate.gov",
 		Audience: "ens.usacovid.org",
 		Name:     "My State Department of Healthiness",
+		JwksURI:  nil,
 	}
 
 	haDB := New(testDB)
@@ -79,6 +80,7 @@ func TestAddRetrieveHealthAuthorityKeys(t *testing.T) {
 		Audience: "ens.usacovid.org",
 		Name:     "My State Department of Healthiness",
 	}
+	want.SetJWKS("https://www.example.com/.auth/keys.json")
 
 	haDB := New(testDB)
 	if err := haDB.AddHealthAuthority(ctx, want); err != nil {
