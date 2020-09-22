@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"go.uber.org/zap"
 	"google.golang.org/api/option"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
@@ -36,14 +37,13 @@ type stackdriverExporter struct {
 }
 
 type debugRoundTripper struct {
-	ctx context.Context
+	logger *zap.SugaredLogger
 	http.RoundTripper
 }
 
 func (r *debugRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	logger := logging.FromContext(r.ctx).Named("debugRoundTripper")
 	resp, err := r.RoundTripper.RoundTrip(req)
-	logger.Debugw("http debug", "request", req, "response", resp, "err", err)
+	r.logger.Debugw("http debug", "request", req, "response", resp, "err", err)
 	return resp, err
 }
 
@@ -64,8 +64,8 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 	if config.DebugLogging {
 		c := &http.Client{
 			Transport: &debugRoundTripper{
-				ctx:          ctx,
 				RoundTripper: http.DefaultTransport,
+				logger:       logging.FromContext(ctx).Named("debugRoundTripper"),
 			},
 		}
 		opts = append(opts, option.WithHTTPClient(c))
