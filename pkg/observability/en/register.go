@@ -4,31 +4,22 @@ package en
 import (
 	"fmt"
 
+	"github.com/google/exposure-notifications-server/pkg/observability/common"
+
 	"github.com/google/exposure-notifications-server/internal/metrics/cleanup"
 	"github.com/google/exposure-notifications-server/internal/metrics/export"
 	"github.com/google/exposure-notifications-server/internal/metrics/federationin"
 	"github.com/google/exposure-notifications-server/internal/metrics/federationout"
 	"github.com/google/exposure-notifications-server/internal/metrics/publish"
 	"github.com/google/exposure-notifications-server/internal/metrics/rotate"
-	"go.opencensus.io/plugin/ocgrpc"
-	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
 )
 
 // RegisterViews registers the necessary tracing views.
 func RegisterViews() error {
-	// Record the various HTTP view to collect metrics.
-	httpViews := append(ochttp.DefaultServerViews, ochttp.DefaultClientViews...)
-	if err := view.Register(httpViews...); err != nil {
-		return fmt.Errorf("failed to register http views: %w", err)
+	if err := common.RegisterViews(); err != nil {
+		return fmt.Errorf("failed to register common metrics: %w", err)
 	}
-
-	// Register the various gRPC views to collect metrics.
-	gRPCViews := append(ocgrpc.DefaultServerViews, ocgrpc.DefaultClientViews...)
-	if err := view.Register(gRPCViews...); err != nil {
-		return fmt.Errorf("failed to register grpc views: %w", err)
-	}
-
 	if err := view.Register(cleanup.Views...); err != nil {
 		return fmt.Errorf("failed to register cleanup metrics: %w", err)
 	}
