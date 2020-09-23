@@ -93,8 +93,8 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 }
 
 // StartExporter starts the exporter.
-func (e *stackdriverExporter) StartExporter() error {
-	if err := registerViews(); err != nil {
+func (e *stackdriverExporter) StartExporter(register func() error) error {
+	if err := register(); err != nil {
 		return fmt.Errorf("failed to register views: %w", err)
 	}
 

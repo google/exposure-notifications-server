@@ -27,6 +27,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/observability"
+	"github.com/google/exposure-notifications-server/pkg/observability/en"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/sethvargo/go-envconfig"
 )
@@ -176,7 +177,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		if err != nil {
 			return nil, fmt.Errorf("unable to create observability provider: %v", err)
 		}
-		if err := oe.StartExporter(); err != nil {
+		if err := oe.StartExporter(en.RegisterViews); err != nil {
 			return nil, fmt.Errorf("failed to start observability: %w", err)
 		}
 		exporter := serverenv.WithObservabilityExporter(oe)
