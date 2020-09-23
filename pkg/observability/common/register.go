@@ -1,3 +1,5 @@
+// Package common contains the code to register views that's shared between the
+// key server and the verification server.
 package common
 
 import (
