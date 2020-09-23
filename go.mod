@@ -101,3 +101,5 @@ require (
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 	honnef.co/go/tools v0.0.1-2020.1.5
 )
+
+replace github.com/jackc/puddle => github.com/jeremyfaller/puddle v1.1.2-0.20200821025810-91d0159cc97a
