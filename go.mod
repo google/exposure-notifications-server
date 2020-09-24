@@ -3,17 +3,17 @@ module github.com/google/exposure-notifications-server
 go 1.15
 
 require (
-	cloud.google.com/go v0.65.0
-	cloud.google.com/go/storage v1.11.0
+	cloud.google.com/go v0.66.0
+	cloud.google.com/go/storage v1.12.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	contrib.go.opencensus.io/exporter/prometheus v0.2.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.4
 	github.com/Azure/azure-pipeline-go v0.2.3 // indirect
-	github.com/Azure/azure-sdk-for-go v46.0.0+incompatible
+	github.com/Azure/azure-sdk-for-go v46.3.0+incompatible
 	github.com/Azure/azure-storage-blob-go v0.10.0
-	github.com/Azure/go-autorest/autorest v0.11.4
-	github.com/Azure/go-autorest/autorest/adal v0.9.2
-	github.com/Azure/go-autorest/autorest/azure/auth v0.5.1 // indirect
+	github.com/Azure/go-autorest/autorest v0.11.6
+	github.com/Azure/go-autorest/autorest/adal v0.9.4
+	github.com/Azure/go-autorest/autorest/azure/auth v0.5.2 // indirect
 	github.com/Azure/go-autorest/autorest/to v0.4.0 // indirect
 	github.com/Azure/go-autorest/autorest/validation v0.3.0 // indirect
 	github.com/DataDog/datadog-go v3.7.1+incompatible // indirect
@@ -22,7 +22,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.213 // indirect
 	github.com/armon/go-proxyproto v0.0.0-20200108142055-f0b8253b1507 // indirect
-	github.com/aws/aws-sdk-go v1.34.19
+	github.com/aws/aws-sdk-go v1.34.30
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/circonus-labs/circonusllhist v0.1.4 // indirect
 	github.com/client9/misspell v0.3.4
@@ -34,11 +34,12 @@ require (
 	github.com/go-test/deep v1.0.6 // indirect
 	github.com/golang-migrate/migrate/v4 v4.12.2
 	github.com/golang/protobuf v1.4.2
+	github.com/golang/snappy v0.0.2 // indirect
 	github.com/google/go-cmp v0.5.2
 	github.com/google/mako v0.2.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/websocket v1.4.2 // indirect
-	github.com/grpc-ecosystem/grpc-gateway v1.14.8 // indirect
+	github.com/grpc-ecosystem/grpc-gateway v1.15.0 // indirect
 	github.com/hashicorp/go-hclog v0.13.0
 	github.com/hashicorp/go-memdb v1.2.1 // indirect
 	github.com/hashicorp/go-msgpack v1.1.5 // indirect
@@ -72,10 +73,11 @@ require (
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/pierrec/lz4 v2.5.2+incompatible // indirect
 	github.com/posener/complete v1.2.3 // indirect
-	github.com/prometheus/common v0.13.0
+	github.com/prometheus/common v0.14.0
+	github.com/prometheus/procfs v0.2.0 // indirect
 	github.com/prometheus/statsd_exporter v0.18.0 // indirect
 	github.com/rakutentech/jwk-go v1.0.1
-	github.com/sethvargo/go-envconfig v0.3.1
+	github.com/sethvargo/go-envconfig v0.3.2
 	github.com/sethvargo/go-gcpkms v0.1.0
 	github.com/sethvargo/go-retry v0.1.0
 	github.com/sethvargo/go-signalcontext v0.1.0
@@ -85,16 +87,18 @@ require (
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.6.1 // indirect
 	github.com/tv42/httpunix v0.0.0-20191220191345-2ba4b9c3382c // indirect
+	github.com/ugorji/go v1.1.8 // indirect
 	go.opencensus.io v0.22.4
+	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
-	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
+	golang.org/x/net v0.0.0-20200923182212-328152dc79b1 // indirect
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
-	golang.org/x/sys v0.0.0-20200826173525-f9321e4c35a6 // indirect
-	golang.org/x/tools v0.0.0-20200908191908-acefd226e2cc
-	google.golang.org/api v0.30.0
-	google.golang.org/genproto v0.0.0-20200904004341-0bd0a958aa1d
-	google.golang.org/grpc v1.31.1
+	golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d // indirect
+	golang.org/x/tools v0.0.0-20200923182640-463111b69878
+	google.golang.org/api v0.32.0
+	google.golang.org/genproto v0.0.0-20200924141100-a14c0a98937d
+	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/ini.v1 v1.56.0 // indirect
@@ -103,3 +107,5 @@ require (
 )
 
 replace github.com/jackc/puddle => github.com/jeremyfaller/puddle v1.1.2-0.20200821025810-91d0159cc97a
+
+replace golang.org/x/sys => golang.org/x/sys v0.0.0-20200826173525-f9321e4c35a6
