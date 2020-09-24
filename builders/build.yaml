@@ -44,7 +44,7 @@ steps:
   - '-allow-failure'
 
 - id: 'download-modules'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'mod'
@@ -66,7 +66,7 @@ steps:
 # cleanup-export
 #
 - id: 'build-cleanup-export'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'build'
@@ -92,7 +92,7 @@ steps:
 # cleanup-exposure
 #
 - id: 'build-cleanup-exposure'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'build'
@@ -118,7 +118,7 @@ steps:
 # debugger
 #
 - id: 'build-debugger'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'build'
@@ -144,7 +144,7 @@ steps:
 # export
 #
 - id: 'build-export'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'build'
@@ -170,7 +170,7 @@ steps:
 # exposure
 #
 - id: 'build-exposure'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'build'
@@ -196,7 +196,7 @@ steps:
 # cleanup-export
 #
 - id: 'build-federationin'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'build'
@@ -222,7 +222,7 @@ steps:
 # federationout
 #
 - id: 'build-federationout'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'build'
@@ -248,7 +248,7 @@ steps:
 # generate
 #
 - id: 'build-generate'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'build'
@@ -274,7 +274,7 @@ steps:
 # key-rotation
 #
 - id: 'build-key-rotation'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'build'
@@ -300,7 +300,7 @@ steps:
 # migrate
 #
 - id: 'build-migrate'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'build'
@@ -325,7 +325,7 @@ steps:
 # jwks
 #
 - id: 'build-jwks'
-  name: 'golang:1.15.1'
+  name: 'golang:1.15.2'
   args:
   - 'go'
   - 'build'
