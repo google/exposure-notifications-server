@@ -40,7 +40,7 @@ Each binary will have its `main.go` file in a `/cmd/[bin-name]` folder.
 
 To run the server, you must install the following dependencies:
 
-1.  [Go 1.15.1 or newer](https://golang.org/dl/).
+1.  [Go 1.15.2 or newer](https://golang.org/dl/).
 
 1.  [Docker][docker].
 
