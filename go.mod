@@ -5,8 +5,8 @@ go 1.15
 require (
 	cloud.google.com/go v0.66.0
 	cloud.google.com/go/storage v1.12.0
-	contrib.go.opencensus.io/exporter/ocagent v0.7.0
-	contrib.go.opencensus.io/exporter/prometheus v0.2.0
+	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20200615190824-f8c219d2d895
+	contrib.go.opencensus.io/exporter/prometheus v0.2.1-0.20200609204449-6bcf6f8577f0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.4
 	github.com/Azure/azure-pipeline-go v0.2.3 // indirect
 	github.com/Azure/azure-sdk-for-go v46.3.0+incompatible
@@ -19,15 +19,18 @@ require (
 	github.com/DataDog/datadog-go v3.7.1+incompatible // indirect
 	github.com/Jeffail/gabs/v2 v2.5.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
+	github.com/Microsoft/go-winio v0.4.15-0.20190919025122-fc70bd9a86b5 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.213 // indirect
 	github.com/armon/go-proxyproto v0.0.0-20200108142055-f0b8253b1507 // indirect
+	github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496 // indirect
 	github.com/aws/aws-sdk-go v1.34.30
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/circonus-labs/circonusllhist v0.1.4 // indirect
 	github.com/client9/misspell v0.3.4
 	github.com/containerd/continuity v0.0.0-20200710164510-efbc4488d8fe // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/frankban/quicktest v1.8.1 // indirect
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-playground/validator/v10 v10.3.0 // indirect
@@ -38,6 +41,8 @@ require (
 	github.com/google/go-cmp v0.5.2
 	github.com/google/mako v0.2.0
 	github.com/google/uuid v1.1.2
+	github.com/gorilla/mux v1.8.0 // indirect
+	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.15.0 // indirect
 	github.com/hashicorp/go-hclog v0.13.0
@@ -55,6 +60,7 @@ require (
 	github.com/jackc/pgproto3/v2 v2.0.4 // indirect
 	github.com/jackc/pgx/v4 v4.8.1
 	github.com/jefferai/jsonx v1.0.1 // indirect
+	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/kelseyhightower/run v0.0.17
 	github.com/keybase/go-crypto v0.0.0-20200123153347-de78d2cb44f4 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -83,7 +89,7 @@ require (
 	github.com/sethvargo/go-signalcontext v0.1.0
 	github.com/shirou/gopsutil v2.20.4+incompatible // indirect
 	github.com/shopspring/decimal v0.0.0-20200419222939-1884f454f8ea // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/smartystreets/assertions v1.0.0 // indirect
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.6.1 // indirect
 	github.com/tv42/httpunix v0.0.0-20191220191345-2ba4b9c3382c // indirect
@@ -103,7 +109,10 @@ require (
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/ini.v1 v1.56.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 	honnef.co/go/tools v0.0.1-2020.1.5
+	k8s.io/api v0.18.7-rc.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v3 v3.0.1-0.20200706213357-43c19bbb7fba // indirect
 )
 
 replace github.com/jackc/puddle => github.com/jeremyfaller/puddle v1.1.2-0.20200821025810-91d0159cc97a
