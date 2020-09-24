@@ -145,7 +145,7 @@ resource "google_cloud_run_service_iam_member" "cleanup-export-invoker" {
 resource "google_cloud_scheduler_job" "cleanup-export-worker" {
   name             = "cleanup-export-worker"
   region           = var.cloudscheduler_location
-  schedule         = "0 */6 * * *"
+  schedule         = var.cleanup_export_worker_cron_schedule
   time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 

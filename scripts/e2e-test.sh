@@ -49,7 +49,6 @@ function incremental() {
   export_terraform_output db_user DB_USER
   export_terraform_output db_password DB_PASSWORD
   export_terraform_output exposure_url EXPOSURE_URL
-  
   export DB_PASSWORD="secret://${DB_PASSWORD}"
   export DB_SSLMODE=disable
 
