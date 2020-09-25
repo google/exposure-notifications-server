@@ -2,55 +2,175 @@
 <html>
 <head>
   <title>{{if .title}} {{.title}} {{else}} Exposure Notifications {{end}}</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/open-iconic/1.1.1/font/css/open-iconic-bootstrap.min.css"
+    integrity="sha256-BJ/G+e+y7bQdrYkS2RBTyNfBHpA9IuGaPmf9htub5MQ=" crossorigin="anonymous">
 
   <style>
-  #main {
-    padding-top: 10px;
-  }
+    #main {
+      padding-top: 10px;
+    }
+
+    .floating-form {
+      width: 100%;
+      height: 100%;
+      margin: auto;
+    }
+
+    .form-label-group {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .form-label-group input,
+    .form-label-group label {
+      height: 3.125rem;
+      padding: .75rem;
+    }
+
+    .form-label-group label {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: block;
+      width: 100%;
+      margin-bottom: 0;
+      /* Override default `<label>` margin */
+      line-height: 1.5;
+      color: #495057;
+      pointer-events: none;
+      cursor: text;
+      /* Match the input under the label */
+      border: 1px solid transparent;
+      border-radius: .25rem;
+      transition: all .1s ease-in-out;
+      z-index: 1000;
+    }
+
+    .form-label-group input::-webkit-input-placeholder,
+    .form-label-group textarea::-webkit-input-placeholder {
+      color: transparent;
+    }
+
+    .form-label-group input::-moz-placeholder,
+    .form-label-group textarea::-moz-placeholder {
+      color: transparent;
+    }
+
+    .form-label-group input:-ms-input-placeholder,
+    .form-label-group textarea:-ms-input-placeholder {
+      color: transparent;
+    }
+
+    .form-label-group input::-ms-input-placeholder,
+    .form-label-group textarea::-ms-input-placeholder {
+      color: transparent;
+    }
+
+    .form-label-group input::placeholder,
+    .form-label-group textarea::placeholder {
+      color: transparent;
+    }
+
+    .form-label-group input:not(:-moz-placeholder-shown),
+    .form-label-group textarea:not(:-moz-placeholder-shown) {
+      padding-top: 1.25rem;
+      padding-bottom: .25rem;
+    }
+
+    .form-label-group input:not(:-ms-input-placeholder),
+    .form-label-group textarea:not(:-ms-input-placeholder) {
+      padding-top: 1.25rem;
+      padding-bottom: .25rem;
+    }
+
+    .form-label-group input:not(:placeholder-shown),
+    .form-label-group textarea:not(:placeholder-shown) {
+      padding-top: 1.25rem;
+      padding-bottom: .25rem;
+    }
+
+    .form-label-group input:not(:-moz-placeholder-shown)~label,
+    .form-label-group textarea:not(:-moz-placeholder-shown)~label {
+      padding-top: .25rem;
+      padding-bottom: .25rem;
+      font-size: 12px;
+      color: #777;
+    }
+
+    .form-label-group input:not(:-ms-input-placeholder)~label,
+    .form-label-group textarea:not(:-ms-input-placeholder)~label {
+      padding-top: .25rem;
+      padding-bottom: .25rem;
+      font-size: 12px;
+      color: #777;
+    }
+
+    .form-label-group input:-webkit-autofill~label,
+    .form-label-group textarea:-webkit-autofill~label,
+    .form-label-group input:not(:placeholder-shown)~label,
+    .form-label-group textarea:not(:placeholder-shown)~label {
+      padding-top: .25rem;
+      padding-bottom: .25rem;
+      font-size: 12px;
+      color: #777;
+    }
+
+    /* Fallback for Edge
+    -------------------------------------------------- */
+    @supports (-ms-ime-align: auto) {
+      .form-label-group {
+        display: -ms-flexbox;
+        display: flex;
+        -ms-flex-direction: column-reverse;
+        flex-direction: column-reverse;
+      }
+
+      .form-label-group label {
+        position: static;
+      }
+
+      .form-label-group input::-ms-input-placeholder,
+      .form-label-group textarea::-ms-input-placeholder {
+        color: #777;
+      }
+    }
   </style>
 </head>
 
-<body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-   <a class="navbar-brand" href="#">Exposure Notification Key Server</a>
-   <div class="collapse navbar-collapse" id="navbarText">
-      <ul class="navbar-nav mr-auto">
-        <li class="nav-item">
-          <a class="nav-link" href="/">Home</a>
-        </li>
-      </ul>
-    </div>
-  </nav>
+<body class="bg-light">
+  <header class="mb-3">
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="/">Admin console</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#nav-content" aria-controls="nav-content" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="nav-content">
+          <ul class="navbar-nav mr-auto">
+            <li class="nav-item active">
+              <a class="nav-link" href="/">Home</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+  </header>
+
 <div class="container" id="main">
 
-{{if .jumbotron}}
-<div class="jumbotron">
-  <h1 class="display-4">{{.jumbotron}}</h1>
-	{{if .jumbotronsub}}
-  <h3 class="display-4">{{.jumbotronsub}}</h3>
-	{{end}}
-  <hr class="my-4"/>
-</div>
-{{end}}
-
 {{if .error}}
-<div class="alert alert-danger" role="alert">
-  <ul>
   {{range .error}}
-    <li>{{.}}</li>
+    <div class="alert alert-danger" role="alert">{{.}}</div>
   {{end}}
-  </ul>
-</div>
 {{end}}
 {{if .success}}
-<div class="alert alert-success" role="alert">
-  <ul>
   {{range .success}}
-    <li>{{.}}</li>
+    <div class="alert alert-success" role="alert">{{.}}</div>
   {{end}}
-  </ul>
-</div>
 {{end}}
 
 {{end}}

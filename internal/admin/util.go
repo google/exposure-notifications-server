@@ -20,13 +20,6 @@ func (t TemplateMap) AddTitle(title string) {
 	t["title"] = title
 }
 
-func (t TemplateMap) AddJumbotron(headline, subheader string) {
-	t["jumbotron"] = headline
-	if subheader != "" {
-		t["jumbotronsub"] = subheader
-	}
-}
-
 func (t TemplateMap) AddSubNav(name string) {
 	t["subnav"] = name
 }

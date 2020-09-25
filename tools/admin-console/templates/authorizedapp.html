@@ -1,76 +1,96 @@
 {{define "authorizedapp"}}
 {{template "top" .}}
 
-{{if .new}}
-<h2>Create New Authorized Health Authority</h2>
-{{else}}
-<h2>Edit Health Authority {{.app.AppPackageName}}</h2>
-{{end}}
-
-<form method="POST" action="/app" class="form-horizontal">
-  <input type="hidden" name="Key" value="{{.previousKey}}" />
-  <div class="alert alert-info" role="alert">Basic Information</div>
-  <div class="form-group row">
-    <label class="control-label col-sm-3" for="AppPackageName">Health Authority ID:</label>
-    <div class="col-sm-6">
-      <input type="text" id="AppPackageName" name="AppPackageName" size="50" value="{{.app.AppPackageName}}">
-      <small id="RegionsHelpBlock" class="form-text text-muted">This exact string must be passed by clients. Reverse DNS is recommended, but not required.</small>
-    </div>
+<div class="card shadow-sm">
+  <div class="card-header">
+    {{if .new}}
+      New Authorized Health Authority
+    {{else}}
+      Edit Health Authority <span class="font-weight-bold text-monospace">{{.app.AppPackageName}}</span>
+    {{end}}
   </div>
-  <div class="form-group row">
-    <label class="control-label col-sm-3" for="Regions">Regions:</label>
-    <div class="col-sm-6">
-      <textarea class="form-control" name="Regions" id="Regions" rows="3">{{.app.RegionsOnePerLine}}</textarea>
-      <small id="RegionsHelpBlock" class="form-text text-muted">One per line. TEKs uploaded by this health authority will be present in all configurd regions (v1 API)</small>
-    </div>
+  <div class="card-body">
+    <form method="POST" action="/app" class="floating-form">
+      <input type="hidden" name="Key" value="{{.previousKey}}" />
+
+      <div class="form-label-group">
+        <input type="text" name="AppPackageName" id="app-package-name" value="{{.app.AppPackageName}}" class="form-control" placeholder="Health Authority ID">
+        <label for="app-package-name">Health Authority ID</label>
+        <small class="form-text text-muted">
+          This exact string must be passed by clients. Reverse DNS is recommended,
+          but not required.
+        </small>
+      </div>
+
+      <div class="form-label-group">
+        <textarea name="Regions" id="regions" rows="3" class="form-control" placeholder="Regions">{{.app.RegionsOnePerLine}}</textarea>
+        <label for="regions">Regions</label>
+        <small class="form-text text-muted">
+          One per line. TEKs uploaded by this health authority will be present in
+          all configurd regions (v1 API).
+        </small>
+      </div>
+
+      <hr />
+
+      <div class="form-group">
+        <label for="bypass-revision-token">Disable Revision Token Enforcement</label>
+        <select name="BypassRevisionToken" id="bypass-revision-token" class="form-control custom-select">
+          <option value="false" {{if not .app.BypassRevisionToken}}selected{{end}}>false</option>
+          <option value="true" {{if .app.BypassRevisionToken}}selected{{end}}>true</option>
+        </select>
+        <small class="form-text text-muted">
+          If true, the server will accept revised keys without a token. <strong>You
+          should never disable this on a production system!</strong>
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="bypass-health-authority-verification">Disable Health Authority Verification</label>
+        <select name="BypassHealthAuthorityVerification" id="bypass-health-authority-verification" class="form-control custom-select">
+          <option value="false" {{if not .app.BypassHealthAuthorityVerification}}selected{{end}}>false</option>
+          <option value="true" {{if .app.BypassHealthAuthorityVerification}}selected{{end}}>true</option>
+        </select>
+        <small class="form-text text-muted">
+          If true, the server not verify that uploaded keys came from a health
+          authority. <strong>You should never disable this on a production
+          system!</strong>
+        </small>
+      </div>
+
+      {{if .has}}
+        <div class="form-group">
+          <label>Health Authority Certificates to accept</label>
+          <ul class="list-group">
+            {{range .has}}
+              <li class="list-group-item list-group-item-action">
+                <div class="custom-control custom-checkbox">
+                  <input type="checkbox" name="Healthauthorities" value="{{.ID}}" id="ha{{.ID}}"
+                    class="custom-control-input" {{if index $.usedHealthAuthorities .ID}}checked{{end}}>
+                  <label for="ha{{.ID}}" class="custom-control-label d-block user-select-none">
+                    {{.Name}} (<span class="text-monospace">id: {{.ID}}, iss: {{.Issuer}}, aud: {{.Audience}}</span>)
+                  </label>
+                </div>
+              </li>
+            {{end}}
+          </ul>
+        </div>
+      {{else}}
+        <div class="alert alert-danger" role="alert">
+          There are no health authorities configured.
+        </div>
+      {{end}}
+
+      <button type="submit" class="mt-5 btn btn-primary btn-block" name="Action" value="save">Save changes</button>
+
+      {{if not .new}}
+      <button type="submit" name="Action" value="delete" class="mt-3 btn btn-link btn-sm px-0 text-danger">
+        <span class="oi oi-trash" aria-hidden="true"></span> Delete
+      </button>
+      {{end}}
+    </form>
   </div>
-  <hr/>
-
-  <div class="form-group row">
-    <label class="control-label col-sm-3" for="BypassRevisionToken">Revision Token Enforcement Disabled:</label>
-    <div class="col-sm-6">
-      <select name="BypassRevisionToken" id="BypassRevisionToken">
-        <option value="false" {{if not .app.BypassRevisionToken}}selected{{end}}>false</option>
-        <option value="true" {{if .app.BypassRevisionToken}}selected{{end}}>true</option>
-      </select>
-    </div>
-    </div>
-
-  <div class="form-group row">
-  <label class="control-label col-sm-3" for="BypassHealthAuthorityVerification">Health Authority Verification Disabled:</label>
-  <div class="col-sm-6">
-    <select name="BypassHealthAuthorityVerification" id="BypassHealthAuthorityVerification">
-      <option value="false" {{if not .app.BypassHealthAuthorityVerification}}selected{{end}}>false</option>
-      <option value="true" {{if .app.BypassHealthAuthorityVerification}}selected{{end}}>true</option>
-    </select>
-  </div>
-  </div>
-
-  {{if .has}}
-  <div class="form-group row">
-		<label class="control-label col-sm-3" for="Healthauthorities">Health Authority Certifictes to Accept:</label>
-		<div class="col-sm-6">
-    {{range .has}}
-		<div class="form-check">
-      <input class="form-check-input" type="checkbox" name="Healthauthorities" value="{{.ID}}" id="ha{{.ID}}" {{if index $.usedHealthAuthorities .ID}}checked{{end}}>
-      <label class="form-check-label" for="ha{{.ID}}">
-				{{.ID}}: Iss: {{.Issuer}} Aud: {{.Audience}} Name: {{.Name}}
-      </label>
-    </div>
-		{{end}}
-		</div>
-	</div>
-  {{else}}
-  <div class="alert alert-danger" role="alert">
-  There are no health authorities configured.
-  </div>
-  {{end}}
-
-  <button type="submit" class="btn btn-outline-primary" name="Action" value="save">Save Changes</button>
-  <a href="/" class="btn btn-outline-secondary">Cancel</a>
-  <button type="submit" class="btn btn-outline-danger" name="Action" value="delete">Delete</button>
-
-</form>
+</div>
 
 {{template "bottom" .}}
 {{end}}

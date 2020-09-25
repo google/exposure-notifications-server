@@ -1,56 +1,139 @@
 {{define "index"}}
 {{template "top" .}}
 
-<h2>Authorized Health Authority Configuration</h2>
-<ul>
-  {{if .apps}}
-    {{range .apps}}
-      <li><a href="/app?apn={{.AppPackageName}}">{{.AppPackageName}}</a></li>
-    {{end}}
-  {{else}}
-    <li><i>There are no authorized health authorities</i></li>
-  {{end}}
-</ul>
-<a href="/app?apn=" class="btn btn-outline-primary">Create new Authorized Health Authority</a>
+<div class="row row-cols-1 row-cols-md-2">
+  <div class="col mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Authorized Health Authorities</h5>
+      </div>
 
-<hr/>
-<h2>Health Authority Verification Key Keys</h2>
-<ul>
-  {{if .healthauthorities}}
-    {{range .healthauthorities}}
-      <li><a href="/healthauthority/{{.ID}}">{{.Issuer}}</a> | {{.Name}}</li>
-    {{end}}
-  {{else}}
-    <li><i>There are no health authorities configured</i><li>
-  {{end}}
-</ul>
-<a href="/healthauthority/0" class="btn btn-outline-primary">Create new Health Authority Key Configuration</a>
+      {{if .apps}}
+        <div class="list-group list-group-flush">
+          {{range .apps}}
+            <a href="/app?apn={{.AppPackageName}}" class="list-group-item list-group-item-action">
+              <code>{{.AppPackageName}}</code>
+            </a>
+          {{end}}
+        </div>
+      {{else}}
+        <div class="card-body">
+          <p class="text-center mb-0"><em>There are no authorized health authorities.</em></p>
+        </div>
+      {{end}}
 
-<hr/>
-<h2>Export Configurations</h2>
-<ul>
- {{if .exports}}
-   {{range .exports}}
-     <li><a href="/exports/{{.ConfigID}}">{{.ConfigID}}</a> Region: {{.OutputRegion}} | Bucket: {{.BucketName}} | From: {{.FormattedFromTime}} | Thru: {{.FormattedThruTime}}</li>
-   {{end}}
- {{else}}
-   <li><i>There are no export configurations</i></li>
- {{end}}
-</ul>
-<a href="/exports/0" class="btn btn-outline-primary">Create new Export Config</a>
+      <div class="card-body">
+        <a href="/app?apn=" class="btn btn-block btn-primary">New Authorized Health Authority</a>
+      </div>
+    </div>
+  </div>
 
-<hr/>
-<h2>Signature Info</h2>
-<ul>
-  {{if .siginfos}}
-    {{range .siginfos}}
-      <li><a href="/siginfo/{{.ID}}">{{.ID}}: KeyID: {{.SigningKeyID}}</a> | Version: {{.SigningKeyVersion}} | Thru: {{.FormattedEndTimestamp}} <br/> SigningKey: {{.SigningKey}}</li>
-    {{end}}
-  {{else}}
-    <li><i>There are no signature info configurations.</i></li>
-  {{end}}
-</ul>
-<a href="/siginfo/0" class="btn btn-outline-primary">Create new Signature Info</a>
+  <div class="col mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Verification Keys</h5>
+      </div>
+
+      {{if .healthauthorities}}
+        <div class="list-group list-group-flush">
+          {{range .healthauthorities}}
+            <a href="/healthauthority/{{.ID}}" class="list-group-item list-group-item-action">
+              {{.Name}} (<code>{{.Issuer}}</code>)
+            </a>
+          {{end}}
+        </div>
+      {{else}}
+        <div class="card-body">
+          <p class="text-center mb-0"><em>There are no health authorities configured.</em></p>
+        </div>
+      {{end}}
+
+      <div class="card-body">
+        <div class="card-text">
+          <a href="/healthauthority/0" class="btn btn-block btn-primary">New Verification Key</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Export Configurations</h5>
+      </div>
+
+      {{if .exports}}
+        <div class="list-group list-group-flush">
+          {{range .exports}}
+            <a href="/exports/{{.ConfigID}}" class="list-group-item list-group-item-action">
+              <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">{{.OutputRegion}}</h5>
+                <small>ID: {{.ConfigID}}</small>
+              </div>
+              <p class="mb-1">
+                Bucket: {{.BucketName}}
+              </p>
+              {{with $t := .FormattedFromTime}}
+                <small class="d-block">Begins: {{$t}}</small>
+              {{end}}
+              {{with $t := .FormattedThruTime}}
+                <small class="d-block">Expires: {{$t}}</small>
+              {{end}}
+            </a>
+          {{end}}
+        </div>
+      {{else}}
+        <div class="card-body">
+          <p class="text-center mb-0"><em>There are no export configurations.</em></p>
+        </div>
+      {{end}}
+
+      <div class="card-body">
+        <div class="card-text">
+          <a href="/exports/0" class="btn btn-block btn-primary">Create new Export Config</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Signature Infos</h5>
+      </div>
+
+      {{if .siginfos}}
+        <div class="list-group list-group-flush">
+          {{range .siginfos}}
+            <a href="/siginfo/{{.ID}}" class="list-group-item list-group-item-action">
+              <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">{{.SigningKeyID}}</h5>
+                <small>ID: {{.ID}}</small>
+              </div>
+              <p class="mb-1">
+                SigningKey: {{.SigningKey}}<br />
+                Version: {{.SigningKeyVersion}}
+              </p>
+              {{with $t := .FormattedEndTimestamp}}
+                <small class="d-block">Expires: {{$t}}</small>
+              {{end}}
+            </a>
+          {{end}}
+        </div>
+      {{else}}
+        <div class="card-body">
+          <p class="text-center mb-0"><em>There are no signature info configurations.</em></p>
+        </div>
+      {{end}}
+
+      <div class="card-body">
+        <div class="card-text">
+          <a href="/siginfo/0" class="btn btn-block btn-primary">Create new Signature Info</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 {{template "bottom" .}}
 {{end}}
