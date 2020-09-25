@@ -88,11 +88,16 @@ function destroy() {
 
   init
 
-  local db_inst_name
-  db_inst_name="$(terraform output -json 'en' | jq '. | .db_inst_name' | tr -d \")"
-  # DB often failed to be destroyed by terraform due to "used by other process",
+  # DB always failed to be destroyed by terraform as it's set to not to destroy,
   # so delete it manually
-  gcloud sql instances delete ${db_inst_name} -q --project=${PROJECT_ID} || true
+  local db_inst_name
+  # Fetching databases from previous terraform deployment output is not always reliable,
+  # especially when previous terraform deployment failed. So grepping from terraform state instead.
+  db_inst_name="$(tf state show module.en.google_sql_database_instance.db-inst | grep -Eo 'en-verification-[a-zA-Z0-9]+' | uniq)"
+  if [[ -n "${db_inst_name}" ]]; then
+    echo "Delete DB ${db_inst_name}"
+    gcloud sql instances delete ${db_inst_name} -q --project=${PROJECT_ID}
+  fi
   # Clean up states after manual DB delete
   terraform state rm module.en.google_sql_user.user || true
   terraform state rm module.en.google_sql_ssl_cert.db-cert || true
