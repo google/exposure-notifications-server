@@ -122,25 +122,47 @@ func IssueJWT(t *testing.T, cfg *JWTConfig) (jwtText, hmacKey string) {
 }
 
 // InitalizeVerificationDB links the vdb, HA and SigningKeys together
-func InitalizeVerificationDB(ctx context.Context, tb testing.TB, db *database.DB, ha *vm.HealthAuthority, hak *vm.HealthAuthorityKey, sk *SigningKey) {
+func InitalizeVerificationDB(ctx context.Context, tb testing.TB, db *database.DB, ha *vm.HealthAuthority, hak *vm.HealthAuthorityKey, sk *SigningKey) int64 {
 	verDB := vdb.New(db)
 	exist, err := verDB.GetHealthAuthority(context.Background(), ha.Issuer)
 	if exist != nil && err == nil {
-		return
-	}
-
-	if err := verDB.AddHealthAuthority(ctx, ha); err != nil {
-		tb.Fatal(err)
-	}
-	if hak != nil {
-		if sk == nil {
-			tb.Fatal("test cases that have health authority keys registered must provide a signingKey as well")
-			return
+		ha.ID = exist.ID
+		if err := verDB.UpdateHealthAuthority(ctx, ha); err != nil {
+			tb.Fatal(err)
 		}
-		// Join in the public key.
-		hak.PublicKeyPEM = sk.PublicKey
-		if err := verDB.AddHealthAuthorityKey(ctx, ha, hak); err != nil {
+	} else {
+		if err := verDB.AddHealthAuthority(ctx, ha); err != nil {
 			tb.Fatal(err)
 		}
 	}
+
+	if hak != nil {
+		if sk == nil {
+			tb.Fatal("test cases that have health authority keys registered must provide a signingKey as well")
+			return -1
+		}
+		// Join in the public key.
+		hak.PublicKeyPEM = sk.PublicKey
+
+		keys, err := verDB.GetHealthAuthorityKeys(ctx, ha)
+		if err != nil {
+			tb.Fatal(err)
+		}
+
+		switch len(keys) {
+		case 0:
+			if err := verDB.AddHealthAuthorityKey(ctx, ha, hak); err != nil {
+				tb.Fatal(err)
+			}
+		case 1:
+			hak.AuthorityID = keys[0].AuthorityID
+			if err := verDB.UpdateHealthAuthorityKey(ctx, hak); err != nil {
+				tb.Fatal(err)
+			}
+		default:
+			tb.Fatal("Existing health authority keys shouldn't be more than 1")
+		}
+	}
+
+	return ha.ID
 }

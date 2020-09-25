@@ -72,7 +72,7 @@ func TestIntegration(t *testing.T) {
 			ctx := context.Background()
 			env, client := NewTestServer(t)
 			db := env.Database()
-			jwtCfg, exportDir, exportRoot := Seed(t, ctx, db, 2*time.Second)
+			jwtCfg, exportDir, exportRoot, appName := Seed(t, ctx, db, 2*time.Second)
 
 			// Set query criteria (used throughout)
 			criteria := publishdb.IterateExposuresCriteria{
@@ -84,7 +84,7 @@ func TestIntegration(t *testing.T) {
 			// Publish 3 keys
 			payload := &verifyapi.Publish{
 				Keys:              keys,
-				HealthAuthorityID: "com.example.app",
+				HealthAuthorityID: appName,
 			}
 			jwtCfg.ExposureKeys = keys
 			jwtCfg.JWTWarp = tc.JWTWrap

@@ -76,11 +76,11 @@ func TestExport(t *testing.T) {
 
 	env, client := integration.NewTestServer(t)
 	db := env.Database()
-	jwtCfg, exportDir, exportRoot := integration.Seed(t, ctx, db, exportPeriod)
+	jwtCfg, exportDir, exportRoot, appName := integration.Seed(t, ctx, db, exportPeriod)
 	keys := util.GenerateExposureKeys(keysPerPublish, -1, false)
 	payload := &verifyapi.Publish{
 		Keys:              keys,
-		HealthAuthorityID: "com.example.app",
+		HealthAuthorityID: appName,
 	}
 	jwtCfg.ExposureKeys = keys
 	verification, salt := testutil.IssueJWT(t, jwtCfg)
