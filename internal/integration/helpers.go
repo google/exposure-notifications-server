@@ -279,7 +279,6 @@ func Seed(tb testing.TB, ctx context.Context, db *database.DB, exportPeriod time
 				1: {},
 			},
 
-			// TODO: hook up verification and revision
 			BypassHealthAuthorityVerification: false,
 			BypassRevisionToken:               false,
 		}); err != nil {
