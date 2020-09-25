@@ -74,8 +74,9 @@ func TestExport(t *testing.T) {
 	makoQuickstore, cancel := setup(t)
 	defer cancel(context.Background())
 
-	env, client, jwtCfg, exportDir, exportRoot := integration.NewTestServer(t, exportPeriod)
+	env, client := integration.NewTestServer(t)
 	db := env.Database()
+	jwtCfg, exportDir, exportRoot := integration.Seed(t, ctx, db, 2*time.Second)
 	keys := util.GenerateExposureKeys(keysPerPublish, -1, false)
 	payload := &verifyapi.Publish{
 		Keys:              keys,

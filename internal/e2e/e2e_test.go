@@ -24,23 +24,26 @@ import (
 	"io/ioutil"
 	"net/http"
 	"testing"
+	"time"
 
-	authorizedappdb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
-	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/integration"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/sethvargo/go-envconfig"
 
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
+	testutil "github.com/google/exposure-notifications-server/internal/utils"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
 
 type testConfig struct {
-	DbName      string `env:"DB_NAME"`
-	ExposureURL string `env:"EXPOSURE_URL"`
-	DBConfig    *database.Config
+	DbName       string `env:"DB_NAME"`
+	ExposureURL  string `env:"EXPOSURE_URL"`
+	ExportBucket string `env:"EXPORT_BUCKET"`
+	ProjectID    string `env:"PROJECT_ID"`
+	DBConfig     *database.Config
 }
 
 func initConfig(tb testing.TB, ctx context.Context) *testConfig {
@@ -106,32 +109,19 @@ func TestPublishEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to connect to database: %v", err)
 	}
+	jwtCfg, _, _ := integration.Seed(t, ctx, db, 2*time.Second)
 	keys := util.GenerateExposureKeys(3, -1, false)
-
-	exist, err := authorizedappdb.New(db).GetAuthorizedApp(context.Background(), "com.example.app")
-	if exist == nil || err != nil {
-		if err := authorizedappdb.New(db).InsertAuthorizedApp(context.Background(), &authorizedappmodel.AuthorizedApp{
-			AppPackageName: "com.example.app",
-			AllowedRegions: map[string]struct{}{
-				"TEST": {},
-			},
-			AllowedHealthAuthorityIDs: map[int64]struct{}{
-				1: {},
-			},
-
-			// TODO: hook up verification and revision
-			BypassHealthAuthorityVerification: true,
-			BypassRevisionToken:               true,
-		}); err != nil {
-			t.Fatal(err)
-		}
-	}
 
 	// Publish 3 keys
 	payload := &verifyapi.Publish{
 		Keys:              keys,
 		HealthAuthorityID: "com.example.app",
 	}
+	jwtCfg.ExposureKeys = keys
+	jwtCfg.JWTWarp = time.Duration(0)
+	verification, salt := testutil.IssueJWT(t, jwtCfg)
+	payload.VerificationPayload = verification
+	payload.HMACKey = salt
 	resp, err := publishKeys(payload, tc.ExposureURL+"/v1/publish")
 	if err != nil {
 		t.Fatalf("Failed publishing keys: \n\tResp: %v\n\t%v", resp, err)
@@ -153,7 +143,7 @@ func TestPublishEndpoint(t *testing.T) {
 
 	for _, want := range keys {
 		if _, ok := keysPublished[want.Key]; !ok {
-			t.Logf("Want published key %q not exist in exposures", want.Key)
+			t.Fatalf("Want published key %q not exist in exposures", want.Key)
 		}
 	}
 }
