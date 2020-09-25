@@ -40,11 +40,8 @@ func (v *viewController) Execute(c *gin.Context) {
 
 	sigInfo := &model.SignatureInfo{}
 	if IDParam := c.Param("id"); IDParam == "0" {
-		m.AddJumbotron("Signature Info", "Create New Signature Info")
 		m["new"] = true
 	} else {
-		m.AddJumbotron("Signature Info", "Edit Signature Info")
-
 		sigID, err := strconv.ParseInt(IDParam, 10, 64)
 		if err != nil {
 			admin.ErrorPage(c, "Unable to parse `id` param.")

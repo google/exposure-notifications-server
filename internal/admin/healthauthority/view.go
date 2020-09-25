@@ -42,11 +42,8 @@ func (v *viewController) Execute(c *gin.Context) {
 
 	healthAuthority := &model.HealthAuthority{}
 	if IDParam := c.Param("id"); IDParam == "0" {
-		m.AddJumbotron("Health Authorities", "Create New Health Authority")
 		m["new"] = true
 	} else {
-		m.AddJumbotron("Health Authorities", "Edit Health Authority")
-
 		haID, err := strconv.ParseInt(IDParam, 10, 64)
 		if err != nil {
 			admin.ErrorPage(c, "Unable to parse `id` param.")

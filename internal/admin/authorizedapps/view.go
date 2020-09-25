@@ -62,7 +62,6 @@ func (h *viewController) Execute(c *gin.Context) {
 	authorizedApp := model.NewAuthorizedApp()
 
 	if appID == "" {
-		m.AddJumbotron("Authorized Health Authorities", "Create New Authorized Health Authority")
 		m["new"] = true
 	} else {
 		aadb := database.New(h.env.Database())
@@ -72,7 +71,6 @@ func (h *viewController) Execute(c *gin.Context) {
 			admin.ErrorPage(c, err.Error())
 			return
 		}
-		m.AddJumbotron("Authorized Health Authorities", fmt.Sprintf("Edit: `%v`", authorizedApp.AppPackageName))
 	}
 
 	// Load the health authorities.
