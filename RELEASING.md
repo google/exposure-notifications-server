@@ -58,7 +58,7 @@ database migrations, possible breaking changes, and new environment variables th
 
 ## Create a release branch
 
-Ensure that you are on `main`, that you are up to date (the commit you want to cut the release at). This requires repo admin privelages.
+Ensure that you are on `main`, that you are up to date (the commit you want to cut the release at). This requires repo admin privileges.
 
 ```shell
 git checkout -b release-${RELEASE_VERSION%??}
