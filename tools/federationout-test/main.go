@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
-	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/pb/federation"
 
 	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc"
@@ -65,7 +65,7 @@ func main() {
 		log.Fatalf("--audience %q must match %s", *audience, federationin.ValidAudienceStr)
 	}
 
-	request := &pb.FederationFetchRequest{
+	request := &federation.FederationFetchRequest{
 		RegionIdentifiers:             includeRegions,
 		ExcludeRegionIdentifiers:      excludeRegions,
 		NextFetchToken:                *cursor,
@@ -96,7 +96,7 @@ func main() {
 	defer conn.Close()
 
 	total := 0
-	response, err := pb.NewFederationClient(conn).Fetch(ctx, request)
+	response, err := federation.NewFederationClient(conn).Fetch(ctx, request)
 	if err != nil {
 		log.Fatalf("Error calling fetch: %v", err)
 	}
