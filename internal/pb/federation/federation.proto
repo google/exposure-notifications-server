@@ -51,7 +51,7 @@ message Cursor {
 
 message ExposureKey {
     bytes exposureKey = 1; // required
-    int32 transmissionRisk = 2 [deprecated = true];
+    int32 transmissionRisk = 2;
     int32 intervalNumber = 3; // required
     int32 intervalCount = 4; // required
  

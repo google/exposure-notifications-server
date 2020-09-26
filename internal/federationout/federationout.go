@@ -237,7 +237,7 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 			state.KeyCursor.Timestamp++
 		}
 	}
-	if !response.PartialResponse && len(response.RevisedKeys) > 0 {
+	if !response.PartialResponse && len(response.Keys) > 0 {
 		// If we got revised keys and a non partial response, and the window has advanced,
 		// bump the revised cursor.
 		if curWindow > state.RevisedKeyCursor.Timestamp {
@@ -257,7 +257,6 @@ type BuildIteratorRequest struct {
 	count          *int
 	includeRegions map[string]struct{}
 	excludeRegions map[string]struct{}
-	limit          uint32
 }
 
 func reportType(reportType string) federation.ExposureKey_ReportType {
@@ -401,15 +400,6 @@ func rawToken(ctx context.Context) (string, error) {
 	}
 	rawToken := strings.TrimSpace(strings.TrimPrefix(authHeader, bearer))
 	return rawToken, nil
-}
-
-func contains(arr []string, target string) bool {
-	for _, v := range arr {
-		if v == target {
-			return true
-		}
-	}
-	return false
 }
 
 func intersect(aa, bb []string) []string {

@@ -66,11 +66,6 @@ func setRegions(e *federation.ExposureKey, regions ...string) *federation.Exposu
 	return e
 }
 
-func makeTraveler(e *federation.ExposureKey) *federation.ExposureKey {
-	e.Traveler = true
-	return e
-}
-
 func setIntervalNumber(e *federation.ExposureKey, interval int32) *federation.ExposureKey {
 	e.IntervalNumber = interval
 	return e

@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/pb/federation"
-	"github.com/google/exposure-notifications-server/internal/publish/database"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -96,7 +95,7 @@ type testIterator struct {
 
 // A fetch request will make 2 separate calls to the iterator function. The first is for primary keys
 // and the second is for revised keys.
-func (t *testIterator) provideInput(_ context.Context, _ database.IterateExposuresCriteria, f publishdb.IteratorFunction) (string, error) {
+func (t *testIterator) provideInput(_ context.Context, _ publishdb.IterateExposuresCriteria, f publishdb.IteratorFunction) (string, error) {
 	t.t.Helper()
 
 	var elements []interface{}
@@ -146,7 +145,9 @@ func TestFetch(t *testing.T) {
 			excludeRegions: []string{},
 			want: &federation.FederationFetchResponse{
 				NextFetchState: &federation.FetchState{
-					KeyCursor:        &federation.Cursor{},
+					KeyCursor: &federation.Cursor{
+						Timestamp: 1,
+					},
 					RevisedKeyCursor: &federation.Cursor{},
 				},
 			},
@@ -212,11 +213,11 @@ func TestFetch(t *testing.T) {
 				PartialResponse: false,
 				NextFetchState: &federation.FetchState{
 					KeyCursor: &federation.Cursor{
-						Timestamp: 400,
+						Timestamp: 401,
 						NextToken: "",
 					},
 					RevisedKeyCursor: &federation.Cursor{
-						Timestamp: 0,
+						Timestamp: 1,
 						NextToken: "",
 					},
 				},
@@ -262,11 +263,11 @@ func TestFetch(t *testing.T) {
 				PartialResponse: false,
 				NextFetchState: &federation.FetchState{
 					KeyCursor: &federation.Cursor{
-						Timestamp: 100,
+						Timestamp: 101,
 						NextToken: "",
 					},
 					RevisedKeyCursor: &federation.Cursor{
-						Timestamp: 201,
+						Timestamp: 202,
 						NextToken: "",
 					},
 				},
@@ -312,11 +313,11 @@ func TestFetch(t *testing.T) {
 				PartialResponse: false,
 				NextFetchState: &federation.FetchState{
 					KeyCursor: &federation.Cursor{
-						Timestamp: 100,
+						Timestamp: 101,
 						NextToken: "",
 					},
 					RevisedKeyCursor: &federation.Cursor{
-						Timestamp: 101,
+						Timestamp: 102,
 						NextToken: "",
 					},
 				},
@@ -430,7 +431,7 @@ func TestFetch(t *testing.T) {
 				PartialResponse: true,
 				NextFetchState: &federation.FetchState{
 					KeyCursor: &federation.Cursor{
-						Timestamp: 200,
+						Timestamp: 201,
 						NextToken: "",
 					},
 					RevisedKeyCursor: &federation.Cursor{
@@ -489,11 +490,11 @@ func TestFetch(t *testing.T) {
 				PartialResponse: false,
 				NextFetchState: &federation.FetchState{
 					KeyCursor: &federation.Cursor{
-						Timestamp: 300,
+						Timestamp: 301,
 						NextToken: "",
 					},
 					RevisedKeyCursor: &federation.Cursor{
-						Timestamp: 0,
+						Timestamp: 1,
 						NextToken: "",
 					},
 				},
