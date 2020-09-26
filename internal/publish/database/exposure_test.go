@@ -209,6 +209,10 @@ func TestExposures(t *testing.T) {
 			[]int{0, 3},
 		},
 		{
+			IterateExposuresCriteria{IncludeRegions: []string{"US"}, Limit: 1},
+			[]int{0},
+		},
+		{
 			IterateExposuresCriteria{ExcludeRegions: []string{"US"}},
 			[]int{1, 2},
 		},

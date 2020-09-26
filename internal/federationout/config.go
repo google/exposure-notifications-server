@@ -35,6 +35,7 @@ type Config struct {
 	ObservabilityExporter observability.Config
 
 	Port           string        `env:"PORT, default=8080"`
+	MaxRecords     uint32        `env:"MAX_RECORDS, default=500"`
 	Timeout        time.Duration `env:"RPC_TIMEOUT, default=5m"`
 	TruncateWindow time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 

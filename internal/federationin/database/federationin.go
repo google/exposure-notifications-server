@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
+	"github.com/google/exposure-notifications-server/internal/pb/federation"
 	pgx "github.com/jackc/pgx/v4"
 )
 
@@ -36,7 +37,7 @@ func New(db *database.DB) *FederationInDB {
 }
 
 // FinalizeSyncFn is used to finalize a historical sync record.
-type FinalizeSyncFn func(maxTimestamp time.Time, totalInserted int) error
+type FinalizeSyncFn func(state *federation.FetchState, q *model.FederationInQuery, totalInserted int) error
 
 type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx.Row
 
@@ -63,21 +64,41 @@ func (db *FederationInDB) GetFederationInQuery(ctx context.Context, queryID stri
 func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRowFn) (*model.FederationInQuery, error) {
 	row := queryRow(ctx, `
 		SELECT
-			query_id, server_addr, oidc_audience, include_regions, exclude_regions, last_timestamp
+			query_id, server_addr, oidc_audience, include_regions, exclude_regions, 
+			only_local_provenance, only_travelers,
+			last_timestamp, primary_cursor, last_revised_timestamp, revised_cursor
 		FROM
 			FederationInQuery
 		WHERE
 			query_id=$1
 		`, queryID)
 
+	var lastTimestamp, revisedTimestamp *time.Time
+	var lastCursor, revisedCursor *string
+
 	// See https://www.opsdash.com/blog/postgres-arrays-golang.html for working with Postgres arrays in Go.
 	q := model.FederationInQuery{}
-	if err := row.Scan(&q.QueryID, &q.ServerAddr, &q.Audience, &q.IncludeRegions, &q.ExcludeRegions, &q.LastTimestamp); err != nil {
+	if err := row.Scan(&q.QueryID, &q.ServerAddr, &q.Audience, &q.IncludeRegions, &q.ExcludeRegions,
+		&q.OnlyLocalProvenance, &q.OnlyTravelers,
+		&lastTimestamp, &lastCursor, &revisedTimestamp, &revisedCursor); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, database.ErrNotFound
 		}
 		return nil, fmt.Errorf("scanning results: %w", err)
 	}
+	if lastTimestamp != nil {
+		q.LastTimestamp = *lastTimestamp
+	}
+	if lastCursor != nil {
+		q.LastCursor = *lastCursor
+	}
+	if revisedTimestamp != nil {
+		q.LastRevisedTimestamp = *revisedTimestamp
+	}
+	if revisedCursor != nil {
+		q.LastRevisedCursor = *revisedCursor
+	}
+
 	return &q, nil
 }
 
@@ -87,15 +108,15 @@ func (db *FederationInDB) AddFederationInQuery(ctx context.Context, q *model.Fed
 		query := `
 			INSERT INTO
 				FederationInQuery
-				(query_id, server_addr, oidc_audience, include_regions, exclude_regions, last_timestamp)
+				(query_id, server_addr, oidc_audience, include_regions, exclude_regions, only_local_provenance, only_travelers)
 			VALUES
-				($1, $2, $3, $4, $5, $6)
+				($1, $2, $3, $4, $5, $6, $7)
 			ON CONFLICT
 				(query_id)
 			DO UPDATE
-				SET server_addr = $2, oidc_audience = $3, include_regions = $4, exclude_regions = $5, last_timestamp = $6
+				SET server_addr = $2, oidc_audience = $3, include_regions = $4, exclude_regions = $5, only_local_provenance = $6, only_travelers = $7
 		`
-		_, err := tx.Exec(ctx, query, q.QueryID, q.ServerAddr, q.Audience, q.IncludeRegions, q.ExcludeRegions, q.LastTimestamp)
+		_, err := tx.Exec(ctx, query, q.QueryID, q.ServerAddr, q.Audience, q.IncludeRegions, q.ExcludeRegions, q.OnlyLocalProvenance, q.OnlyTravelers)
 		if err != nil {
 			return fmt.Errorf("upserting federation query: %w", err)
 		}
@@ -121,7 +142,7 @@ func (db *FederationInDB) GetFederationInSync(ctx context.Context, syncID int64)
 func getFederationInSync(ctx context.Context, syncID int64, queryRowContext queryRowFn) (*model.FederationInSync, error) {
 	row := queryRowContext(ctx, `
 		SELECT
-			sync_id, query_id, started, completed, insertions, max_timestamp
+			sync_id, query_id, started, completed, insertions, max_timestamp, max_revised_timestamp
 		FROM
 			FederationInSync
 		WHERE
@@ -130,10 +151,10 @@ func getFederationInSync(ctx context.Context, syncID int64, queryRowContext quer
 
 	s := model.FederationInSync{}
 	var (
-		completed, max *time.Time
-		insertions     *int
+		completed, max, maxRevised *time.Time
+		insertions                 *int
 	)
-	if err := row.Scan(&s.SyncID, &s.QueryID, &s.Started, &completed, &insertions, &max); err != nil {
+	if err := row.Scan(&s.SyncID, &s.QueryID, &s.Started, &completed, &insertions, &max, &maxRevised); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, database.ErrNotFound
 		}
@@ -145,10 +166,18 @@ func getFederationInSync(ctx context.Context, syncID int64, queryRowContext quer
 	if max != nil {
 		s.MaxTimestamp = *max
 	}
+	if maxRevised != nil {
+		s.MaxRevisedTimestamp = *maxRevised
+	}
 	if insertions != nil {
 		s.Insertions = *insertions
 	}
 	return &s, nil
+}
+
+func timestampPtr(unixTS int64) *time.Time {
+	ts := time.Unix(unixTS, 0).UTC().Truncate(time.Second)
+	return &ts
 }
 
 // StartFederationInSync stores a historical record of a query sync starting. It returns a FederationInSync key, and a FinalizeSyncFn that must be invoked to finalize the historical record.
@@ -176,29 +205,32 @@ func (db *FederationInDB) StartFederationInSync(ctx context.Context, q *model.Fe
 		return 0, nil, fmt.Errorf("fetching sync_id: %w", err)
 	}
 
-	finalize := func(maxTimestamp time.Time, totalInserted int) error {
+	finalize := func(state *federation.FetchState, q *model.FederationInQuery, totalInserted int) error {
 		completed := started.Add(time.Since(startedTimer))
 
 		return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			// Special case: when no keys are pulled, the maxTimestamp will be 0, so we don't update the
 			// FederationQuery in this case to prevent it from going back and fetching old keys from the past.
 			if totalInserted > 0 {
-				_, err = tx.Exec(ctx, `
+				q.UpdateFetchState(state)
+				_, err := tx.Exec(ctx, `
 					UPDATE
 						FederationInQuery
 					SET
-						last_timestamp = $1
+						last_timestamp = $1, primary_cursor = $2,
+						last_revised_timestamp = $3, revised_cursor = $4
 					WHERE
-						query_id = $2
-			`, maxTimestamp, q.QueryID)
+						query_id = $5
+					`, q.LastTimestamp, q.LastCursor, q.LastRevisedTimestamp, q.LastRevisedCursor, q.QueryID)
 				if err != nil {
-					return fmt.Errorf("updating federation query: %w", err)
+					return fmt.Errorf("updating federation query state: %w", err)
 				}
 			}
 
-			var max *time.Time
+			var max, maxRevised *time.Time
 			if totalInserted > 0 {
-				max = &maxTimestamp
+				max = timestampPtr(state.KeyCursor.Timestamp)
+				maxRevised = timestampPtr(state.RevisedKeyCursor.Timestamp)
 			}
 			_, err = tx.Exec(ctx, `
 				UPDATE
@@ -206,10 +238,11 @@ func (db *FederationInDB) StartFederationInSync(ctx context.Context, q *model.Fe
 				SET
 					completed = $1,
 					insertions = $2,
-					max_timestamp = $3
+					max_timestamp = $3,
+					max_revised_timestamp = $4
 				WHERE
-					sync_id = $4
-			`, completed, totalInserted, max, syncID)
+					sync_id = $5
+			`, completed, totalInserted, max, maxRevised, syncID)
 			if err != nil {
 				return fmt.Errorf("updating federation sync: %w", err)
 			}

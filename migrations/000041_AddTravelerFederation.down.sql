@@ -14,6 +14,17 @@
 
 BEGIN;
 
--- Author the migration here. 
+ALTER TABLE federationinquery
+    DROP COLUMN only_local_provenance,
+    DROP COLUMN only_travelers,
+    DROP COLUMN last_revised_timestamp,
+    DROP COLUMN primary_cursor,
+    DROP COLUMN revised_cursor;
+
+ALTER TABLE exposure
+    DROP COLUMN sync_query_id;
+
+ALTER TABLE federationinsync
+    DROP COLUMN max_revised_timestamp;
 
 END;

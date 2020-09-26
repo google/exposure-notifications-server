@@ -32,7 +32,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
-	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/pb/federation"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -57,7 +57,7 @@ var (
 )
 
 type (
-	fetchFn               func(context.Context, *pb.FederationFetchRequest, ...grpc.CallOption) (*pb.FederationFetchResponse, error)
+	fetchFn               func(context.Context, *federation.FederationFetchRequest, ...grpc.CallOption) (*federation.FederationFetchResponse, error)
 	insertExposuresFn     func(context.Context, *publishdb.InsertAndReviseExposuresRequest) (*publishdb.InsertAndReviseExposuresResponse, error)
 	startFederationSyncFn func(context.Context, *model.FederationInQuery, time.Time) (int64, database.FinalizeSyncFn, error)
 )
@@ -186,7 +186,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
-	client := pb.NewFederationClient(conn)
+	client := federation.NewFederationClient(conn)
 
 	timeoutContext, cancel := context.WithTimeout(ctx, h.config.Timeout)
 	defer cancel()
@@ -197,9 +197,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			insertExposures:     h.publishdb.InsertAndReviseExposures,
 			startFederationSync: h.db.StartFederationInSync,
 		},
-		query:          query,
-		batchStart:     time.Now(),
-		truncateWindow: h.config.TruncateWindow,
+		query:                        query,
+		batchStart:                   time.Now(),
+		truncateWindow:               h.config.TruncateWindow,
+		maxIntervalStartAge:          h.config.MaxIntervalAge,
+		maxMagnitudeSymptomOnsetDays: h.config.MaxMagnitudeSymptomOnsetDays,
+		debugReleaseSameDay:          h.config.ReleaseSameDayKeys,
 	}
 	if err := pull(timeoutContext, metrics, &opts); err != nil {
 		internalErrorf(ctx, w, "Federation query %q failed: %v", queryID, err)
@@ -212,10 +215,73 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type pullOptions struct {
-	deps           pullDependencies
-	query          *model.FederationInQuery
-	batchStart     time.Time
-	truncateWindow time.Duration
+	deps                         pullDependencies
+	query                        *model.FederationInQuery
+	batchStart                   time.Time
+	truncateWindow               time.Duration
+	maxIntervalStartAge          time.Duration
+	maxMagnitudeSymptomOnsetDays uint
+	debugReleaseSameDay          bool
+}
+
+func updateTimestamps(max, maxRevised time.Time, state *federation.FetchState) (time.Time, time.Time) {
+	if state == nil {
+		// Didn't get any response, don't advance timestamps.
+		return max, maxRevised
+	}
+
+	if state.KeyCursor != nil {
+		if timestamp := time.Unix(state.KeyCursor.Timestamp, 0).UTC(); timestamp.After(max) {
+			max = timestamp
+		}
+	}
+	if state.RevisedKeyCursor != nil {
+		if revisedTimestamp := time.Unix(state.RevisedKeyCursor.Timestamp, 0).UTC(); revisedTimestamp.After(maxRevised) {
+			maxRevised = revisedTimestamp
+		}
+	}
+	return max, maxRevised
+}
+
+// converts a federation ExposureKey to a model Exposure.
+func buildExposure(e *federation.ExposureKey) *publishmodel.Exposure {
+	upperRegions := make([]string, len(e.Regions))
+	for i, r := range e.Regions {
+		upperRegions[i] = strings.ToUpper(strings.TrimSpace(r))
+	}
+	sort.Strings(upperRegions)
+
+	exposure := publishmodel.Exposure{
+		ExposureKey:      e.ExposureKey,
+		TransmissionRisk: int(e.TransmissionRisk),
+		Regions:          upperRegions,
+		Traveler:         e.Traveler,
+		IntervalNumber:   e.IntervalNumber,
+		IntervalCount:    e.IntervalCount,
+		LocalProvenance:  false,
+	}
+	switch e.ReportType {
+	case federation.ExposureKey_CONFIRMED_TEST:
+		exposure.ReportType = verifyapi.ReportTypeConfirmed
+	case federation.ExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS:
+		exposure.ReportType = verifyapi.ReportTypeClinical
+	case federation.ExposureKey_REVOKED:
+		exposure.ReportType = verifyapi.ReportTypeNegative
+	case federation.ExposureKey_SELF_REPORT:
+		exposure.ReportType = verifyapi.ReportTypeClinical
+	case federation.ExposureKey_RECURSIVE:
+		exposure.ReportType = verifyapi.ReportTypeClinical
+	}
+	// Maybe backfill transmission risk
+	exposure.TransmissionRisk = publishmodel.ReportTypeTransmissionRisk(exposure.ReportType, exposure.TransmissionRisk)
+
+	if e.HasSymptomOnset {
+		if ds := e.DaysSinceOnsetOfSymptoms; ds >= -14 && ds <= 14 {
+			exposure.SetDaysSinceSymptomOnset(ds)
+		}
+	}
+
+	return &exposure
 }
 
 func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err error) {
@@ -232,10 +298,13 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 	logger := logging.FromContext(ctx)
 	logger.Infof("Processing query %q", opts.query.QueryID)
 
-	request := &pb.FederationFetchRequest{
-		RegionIdentifiers:             opts.query.IncludeRegions,
-		ExcludeRegionIdentifiers:      opts.query.ExcludeRegions,
-		LastFetchResponseKeyTimestamp: opts.query.LastTimestamp.Unix(),
+	request := &federation.FederationFetchRequest{
+		IncludeRegions:      opts.query.IncludeRegions,
+		ExcludeRegions:      opts.query.ExcludeRegions,
+		OnlyTravelers:       opts.query.OnlyTravelers,
+		OnlyLocalProvenance: opts.query.OnlyLocalProvenance,
+		MaxExposureKeys:     uint32(fetchBatchSize),
+		State:               opts.query.FetchState(),
 	}
 
 	syncID, finalizeFn, err := opts.deps.startFederationSync(ctx, opts.query, opts.batchStart)
@@ -243,89 +312,117 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 		return fmt.Errorf("starting federation sync for query %s: %w", opts.query.QueryID, err)
 	}
 
-	var maxTimestamp time.Time
+	var maxTimestamp, maxRevisedTimestamp time.Time
 	total := 0
 	defer func() {
 		logger.Infof("Inserted %d keys", total)
 	}()
 
 	createdAt := publishmodel.TruncateWindow(opts.batchStart, opts.truncateWindow)
+	// Create the transform / validation settings
+	transformSettings := publishmodel.KeyTransform{
+		// An exposure key must have an interval >= minInterval (max configured age)
+		MinStartInterval: publishmodel.IntervalNumber(opts.batchStart.Add(-1 * opts.maxIntervalStartAge)),
+		// A key must have been issued on the device in the current interval or earlier.
+		MaxStartInterval: publishmodel.IntervalNumber(opts.batchStart),
+		// And the max valid interval is the maxStartInterval + 144
+		MaxEndInteral:         publishmodel.IntervalNumber(opts.batchStart) + verifyapi.MaxIntervalCount,
+		CreatedAt:             createdAt,
+		ReleaseStillValidKeys: opts.debugReleaseSameDay,
+		BatchWindow:           opts.truncateWindow,
+	}
+
 	partial := true
 	nPartials := int64(0)
 	for partial {
 		nPartials++
 		span.AddAttributes(trace.Int64Attribute("n_partial", nPartials))
 
-		// TODO(squee1945): react to the context timeout and complete a chunk of work so next invocation can pick up where left off.
+		// TODO(mikehelmick): react to the context timeout and complete a chunk of work so next invocation can pick up where left off.
 
 		response, err := opts.deps.fetch(ctx, request)
 		if err != nil {
 			return fmt.Errorf("fetching query %s: %w", opts.query.QueryID, err)
 		}
 
-		responseTimestamp := time.Unix(response.FetchResponseKeyTimestamp, 0)
-		if responseTimestamp.After(maxTimestamp) {
-			maxTimestamp = responseTimestamp
-		}
+		// Advance timestamps based on cursors.
+		maxTimestamp, maxRevisedTimestamp = updateTimestamps(maxTimestamp, maxRevisedTimestamp, response.NextFetchState)
 
-		// Loop through the result set, storing in publishdb.
-		var exposures []*publishmodel.Exposure
-		for _, ctr := range response.Response {
-			var upperRegions []string
-			for _, region := range ctr.RegionIdentifiers {
-				upperRegions = append(upperRegions, strings.ToUpper(strings.TrimSpace(region)))
-			}
-			sort.Strings(upperRegions)
+		if len(response.Keys) > 0 {
+			// Build state for new inserts.
+			newExposures := make([]*publishmodel.Exposure, 0, len(response.Keys))
+			for _, key := range response.Keys {
+				exposure := buildExposure(key)
+				// Fill in federation specific items.
+				exposure.FederationSyncID = syncID
+				exposure.FederationQueryID = opts.query.QueryID
 
-			for _, cti := range ctr.ContactTracingInfo {
-				for _, key := range cti.ExposureKeys {
-					if cti.TransmissionRisk < verifyapi.MinTransmissionRisk || cti.TransmissionRisk > verifyapi.MaxTransmissionRisk {
-						logger.Errorf("invalid transmission risk %v - dropping record.", cti.TransmissionRisk)
-						continue
-					}
-
-					exposures = append(exposures, &publishmodel.Exposure{
-						TransmissionRisk: int(cti.TransmissionRisk),
-						ExposureKey:      key.ExposureKey,
-						Regions:          upperRegions,
-						FederationSyncID: syncID,
-						IntervalNumber:   key.IntervalNumber,
-						IntervalCount:    key.IntervalCount,
-						CreatedAt:        createdAt,
-						LocalProvenance:  false,
-					})
-
-					if len(exposures) == fetchBatchSize {
-						resp, err := opts.deps.insertExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
-							Incoming: exposures,
-						})
-						if err != nil {
-							metricsMiddleWare.RecordPullInsertions(ctx, len(exposures))
-							return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
-						}
-						total += int(resp.Inserted)
-						exposures = nil // Start a new batch.
-					}
+				if err := exposure.AdjustAndValidate(&transformSettings); err != nil {
+					logger.Errorw("invalid key on federation, skipping", "error", err)
+					continue
 				}
+
+				newExposures = append(newExposures, exposure)
 			}
-		}
-		if len(exposures) > 0 {
 			resp, err := opts.deps.insertExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
-				Incoming: exposures,
+				Incoming:     newExposures,
+				SkipRevions:  true,
+				RequireToken: false,
 			})
 			if err != nil {
-				metricsMiddleWare.RecordPullInsertions(ctx, len(exposures))
-				return fmt.Errorf("inserting %d exposures: %w", len(exposures), err)
+				return fmt.Errorf("inserting %d exposures: %w", len(newExposures), err)
 			}
+			// Success, update metrics
+			metricsMiddleWare.RecordPullInsertions(ctx, int(resp.Inserted))
+			metricsMiddleWare.RecordPullDroped(ctx, int(resp.Dropped))
+
 			total += int(resp.Inserted)
+		} else {
+			logger.Info("no primary keys in response")
+		}
+
+		// Handle any revised keys.
+		if len(response.RevisedKeys) > 0 {
+			// Build state for new inserts.
+			revisedExposures := make([]*publishmodel.Exposure, 0, len(response.Keys))
+			for _, key := range response.RevisedKeys {
+				exposure := buildExposure(key)
+				// Fill in federation specific items.
+				exposure.FederationSyncID = syncID
+				exposure.FederationQueryID = opts.query.QueryID
+
+				if err := exposure.AdjustAndValidate(&transformSettings); err != nil {
+					logger.Errorw("invalid key on federation, skipping", "error", err)
+					continue
+				}
+
+				revisedExposures = append(revisedExposures, exposure)
+			}
+			resp, err := opts.deps.insertExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+				Incoming:              revisedExposures,
+				OnlyRevisions:         true,
+				RequireToken:          false,
+				RequireQueryID:        true,
+				AllowPartialRevisions: true,
+			})
+			if err != nil {
+				return fmt.Errorf("revising %d exposures: %w", len(revisedExposures), err)
+			}
+			// Success, update metrics
+			metricsMiddleWare.RecordPullRevisions(ctx, int(resp.Revised))
+			metricsMiddleWare.RecordPullDroped(ctx, int(resp.Dropped))
+
+			total += int(resp.Revised)
+		} else {
+			logger.Info("no revised keys in response")
 		}
 
 		partial = response.PartialResponse
-		request.NextFetchToken = response.NextFetchToken
+		request.State = response.NextFetchState
 	}
 
-	if err := finalizeFn(maxTimestamp, total); err != nil {
-		// TODO(squee1945): how do we clean up here? Just leave the records in and have the exporter eliminate them? Other?
+	if err := finalizeFn(request.State, opts.query, total); err != nil {
+		// TODO(mikehelmick): how do we clean up here? Just leave the records in and have the exporter eliminate them? Other?
 		return fmt.Errorf("finalizing federation sync for query %s: %w", opts.query.QueryID, err)
 	}
 

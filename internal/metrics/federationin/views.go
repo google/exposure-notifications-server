@@ -25,5 +25,17 @@ var (
 			Measure:     PullInserts,
 			Aggregation: view.LastValue(),
 		},
+		{
+			Name:        metrics.MetricRoot + "pull_revisions_latest",
+			Description: "Last value of exposure revisions",
+			Measure:     PullRevisions,
+			Aggregation: view.LastValue(),
+		},
+		{
+			Name:        metrics.MetricRoot + "pull_droped_latest",
+			Description: "Last value of exposure droped",
+			Measure:     PullDroped,
+			Aggregation: view.LastValue(),
+		},
 	}
 )

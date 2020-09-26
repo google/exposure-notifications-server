@@ -19,19 +19,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"sort"
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/federationin/model"
-	"github.com/google/exposure-notifications-server/internal/pb/federation"
-	"github.com/google/exposure-notifications-server/pkg/logging"
-
 	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/federationout/database"
 	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
+	"github.com/google/exposure-notifications-server/internal/pb/federation"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"google.golang.org/api/idtoken"
@@ -91,16 +92,34 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 	metrics := s.env.MetricsExporter(ctx)
 	metricsMiddleWare := metricsware.NewMiddleWare(&metrics)
 
-	req.Region = strings.ToUpper(req.Region)
-	metricsMiddleWare.RecordFetchRegionsRequested(ctx, 1)
+	if in := intersect(req.IncludeRegions, req.ExcludeRegions); len(in) > 0 {
+		logger.Errorw("overlap in included and excluded regions", "intersection", in)
+		return nil, fmt.Errorf("overlap in include and exclude region set: %v", in)
+	}
+
+	for i, region := range req.IncludeRegions {
+		req.IncludeRegions[i] = strings.ToUpper(region)
+	}
+	for i, exRegion := range req.ExcludeRegions {
+		req.ExcludeRegions[i] = strings.ToUpper(exRegion)
+	}
+	metricsMiddleWare.RecordFetchRegionsRequested(ctx, len(req.IncludeRegions))
+	metricsMiddleWare.RecordFetchRegionsExcluded(ctx, len(req.ExcludeRegions))
+
+	// Use configuration max or user provided max.
+	maxRecords := s.config.MaxRecords
+	if req.MaxExposureKeys > 0 && req.MaxExposureKeys < maxRecords {
+		maxRecords = req.MaxExposureKeys
+	}
 
 	logger.Infof("Processing client request %#v", req)
 
 	// If there is a FederationAuthorization on the context, set the query to operate within its limits.
 	if auth, ok := ctx.Value(authKey{}).(*model.FederationOutAuthorization); ok {
-		if !contains(auth.IncludeRegions, req.Region) {
-			return nil, fmt.Errorf("unauthorized region requested")
-		}
+		// For included regions, we INTERSECT the requested included regions with the configured included regions.
+		req.IncludeRegions = intersect(req.IncludeRegions, auth.IncludeRegions)
+		// For excluded regions, we UNION the the requested excluded regions with the configured excluded regions.
+		req.ExcludeRegions = union(req.ExcludeRegions, auth.ExcludeRegions)
 	}
 
 	state := req.GetState()
@@ -113,17 +132,31 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 
 	// Primary (non-revised) keys are read first.
 	criteria := publishdb.IterateExposuresCriteria{
-		IncludeRegions:      []string{req.Region},
+		IncludeRegions:      req.IncludeRegions,
+		ExcludeRegions:      req.ExcludeRegions,
 		SinceTimestamp:      time.Unix(state.KeyCursor.Timestamp, 0),
 		UntilTimestamp:      fetchUntil,
 		LastCursor:          state.KeyCursor.NextToken,
-		IncludeTravelers:    req.IncludeTravelers,
+		IncludeTravelers:    true,
 		OnlyTravelers:       req.OnlyTravelers,
 		OnlyLocalProvenance: req.OnlyLocalProvenance, // Include re-federation?
+		Limit:               maxRecords,
 	}
+	// The next token wil be set during the read if the read is incomplete.
 	state.KeyCursor.NextToken = ""
 
-	logger.Infof("Query criteria: %#v", criteria)
+	logger.Infow("query", "criteria", criteria)
+
+	// Filter included countries in memory.
+	includedRegions := make(map[string]struct{}, len(req.IncludeRegions))
+	for _, region := range req.IncludeRegions {
+		includedRegions[region] = struct{}{}
+	}
+	// Filter excluded countries in memory, using a map for efficiency.
+	excludedRegions := make(map[string]struct{}, len(req.ExcludeRegions))
+	for _, region := range req.ExcludeRegions {
+		excludedRegions[region] = struct{}{}
+	}
 
 	response := &federation.FederationFetchResponse{
 		Keys:           []*federation.ExposureKey{},
@@ -132,10 +165,12 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 	}
 	count := 0
 	cursor, err := itFunc(ctx, criteria, buildIteratorFunction(&BuildIteratorRequest{
-		destination: response.Keys,
-		revised:     false,
-		state:       state,
-		count:       &count,
+		destination:    &response.Keys,
+		revised:        false,
+		state:          state,
+		count:          &count,
+		includeRegions: includedRegions,
+		excludeRegions: excludedRegions,
 	}))
 	keepGoing := true
 	if err != nil {
@@ -149,18 +184,26 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 			return nil, err
 		}
 	}
+	maxRecords = maxRecords - uint32(count)
+	if maxRecords <= 0 {
+		logger.Infof("Max records on primary keys, skipping revised.")
+		keepGoing = false
+	}
 
 	if keepGoing {
 		criteria.OnlyRevisedKeys = true
 		criteria.SinceTimestamp = time.Unix(state.RevisedKeyCursor.Timestamp, 0)
 		criteria.LastCursor = state.RevisedKeyCursor.NextToken
+		criteria.Limit = maxRecords
 		state.RevisedKeyCursor.NextToken = ""
 
 		cursor, err := itFunc(ctx, criteria, buildIteratorFunction(&BuildIteratorRequest{
-			destination: response.RevisedKeys,
-			revised:     true,
-			state:       state,
-			count:       &count,
+			destination:    &response.RevisedKeys,
+			revised:        true,
+			state:          state,
+			count:          &count,
+			includeRegions: includedRegions,
+			excludeRegions: excludedRegions,
 		}))
 		if err != nil {
 			metricsMiddleWare.RecordFetchError(ctx)
@@ -175,15 +218,18 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 	}
 
 	metricsMiddleWare.RecordFetchCount(ctx, count)
-	logger.Infof("Sent %d keys", count)
+	logger.Infow("sent key", "keys", count)
 	return response, nil
 }
 
 type BuildIteratorRequest struct {
-	destination []*federation.ExposureKey
-	revised     bool
-	state       *federation.FetchState
-	count       *int
+	destination    *[]*federation.ExposureKey
+	revised        bool
+	state          *federation.FetchState
+	count          *int
+	includeRegions map[string]struct{}
+	excludeRegions map[string]struct{}
+	limit          uint32
 }
 
 func reportType(reportType string) federation.ExposureKey_ReportType {
@@ -206,10 +252,24 @@ func buildIteratorFunction(request *BuildIteratorRequest) publishdb.IteratorFunc
 			return nil
 		}
 
+		// Determine which regions to return for this TEK.
+		reportRegions := make([]string, 0, len(exp.Regions))
+		for _, region := range exp.Regions {
+			if _, ok := request.excludeRegions[region]; ok {
+				continue
+			}
+			if _, ok := request.includeRegions[region]; ok {
+				reportRegions = append(reportRegions, region)
+			}
+		}
+		log.Printf("USING REGIONS: %v from %+v", reportRegions, exp)
+
 		key := federation.ExposureKey{
 			ExposureKey:    exp.ExposureKey,
 			IntervalNumber: exp.IntervalNumber,
 			IntervalCount:  exp.IntervalCount,
+			Traveler:       exp.Traveler,
+			Regions:        reportRegions,
 		}
 
 		if !request.revised {
@@ -217,6 +277,7 @@ func buildIteratorFunction(request *BuildIteratorRequest) publishdb.IteratorFunc
 			key.TransmissionRisk = int32(exp.TransmissionRisk)
 			key.ReportType = reportType(exp.ReportType)
 			if exp.HasDaysSinceSymptomOnset() {
+				key.HasSymptomOnset = true
 				key.DaysSinceOnsetOfSymptoms = *exp.DaysSinceSymptomOnset
 			}
 
@@ -226,9 +287,12 @@ func buildIteratorFunction(request *BuildIteratorRequest) publishdb.IteratorFunc
 			}
 		} else {
 			// Revised keys get different fields
-			key.TransmissionRisk = int32(*exp.RevisedTransmissionRisk)
 			key.ReportType = reportType(*exp.RevisedReportType)
+			if exp.RevisedTransmissionRisk != nil {
+				key.TransmissionRisk = int32(*exp.RevisedTransmissionRisk)
+			}
 			if exp.RevisedDaysSinceSymptomOnset != nil {
+				key.HasSymptomOnset = true
 				key.DaysSinceOnsetOfSymptoms = *exp.RevisedDaysSinceSymptomOnset
 			}
 
@@ -238,7 +302,7 @@ func buildIteratorFunction(request *BuildIteratorRequest) publishdb.IteratorFunc
 			}
 		}
 
-		request.destination = append(request.destination, &key)
+		*request.destination = append(*request.destination, &key)
 
 		*request.count++
 		return nil
@@ -318,4 +382,42 @@ func contains(arr []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func intersect(aa, bb []string) []string {
+	if len(aa) == 0 || len(bb) == 0 {
+		return nil
+	}
+	var result []string
+	for _, a := range aa {
+		for _, b := range bb {
+			if a == b {
+				result = append(result, a)
+				break
+			}
+		}
+	}
+	return result
+}
+
+func union(aa, bb []string) []string {
+	if len(aa) == 0 {
+		return bb
+	}
+	if len(bb) == 0 {
+		return aa
+	}
+	m := map[string]struct{}{}
+	for _, a := range aa {
+		m[a] = struct{}{}
+	}
+	for _, b := range bb {
+		m[b] = struct{}{}
+	}
+	result := make([]string, 0, len(m))
+	for k := range m {
+		result = append(result, k)
+	}
+	sort.Strings(result)
+	return result
 }

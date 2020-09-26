@@ -14,6 +14,21 @@
 
 BEGIN;
 
--- Author the migration here. 
+ALTER TABLE federationinquery
+    ADD COLUMN only_local_provenance BOOL DEFAULT TRUE,
+    ADD COLUMN only_travelers BOOL DEFAULT FALSE,
+    ADD COLUMN last_revised_timestamp TIMESTAMPTZ,
+    ADD COLUMN primary_cursor VARCHAR(100),
+    ADD COLUMN revised_cursor VARCHAR(100);
+
+ALTER TABLE federationinquery
+    ALTER COLUMN only_local_provenance SET NOT NULL,
+    ALTER COLUMN only_travelers SET NOT NULL;    
+
+ALTER TABLE exposure
+    ADD COLUMN sync_query_id VARCHAR(50);
+
+ALTER TABLE federationinsync
+    ADD COLUMN max_revised_timestamp TIMESTAMPTZ;
 
 END;

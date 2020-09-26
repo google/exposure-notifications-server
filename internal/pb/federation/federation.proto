@@ -17,22 +17,26 @@ syntax = "proto3";
 option go_package = "github.com/google/exposure-notifications-server/internal/pb/federation;federation";
 
 message FederationFetchRequest {
-    string region = 1;
-    bool includeTravelers = 2;
+    repeated string includeRegions = 1;
+    repeated string excludeRegions = 2;
     bool onlyTravelers = 3;
     bool onlyLocalProvenance = 4;
 
+    // Max overall exposure keys to fetch.
+    // Upper limit is 500.
+    uint32 maxExposureKeys = 5;
+
     // region, includeTravelers, onlyTravelers must be stable to send a fetchToken.
     // initial query should send an empty fetch state token.
-	FetchState state = 5;
+    FetchState state = 6;
 }
 
 message FederationFetchResponse {
     repeated ExposureKey keys = 1;
     repeated ExposureKey revisedKeys = 2;
 
-	bool partialResponse = 3; // required
-	FetchState nextFetchState = 4; // nextFetchState allows the query to be continued. 
+    bool partialResponse = 3; // required
+    FetchState nextFetchState = 4; // nextFetchState allows the query to be continued. 
 }
 
 message FetchState {
@@ -48,7 +52,7 @@ message Cursor {
 message ExposureKey {
     bytes exposureKey = 1; // required
     int32 transmissionRisk = 2 [deprecated = true];
-	int32 intervalNumber = 3; // required
+    int32 intervalNumber = 3; // required
     int32 intervalCount = 4; // required
  
     enum ReportType {
@@ -61,9 +65,13 @@ message ExposureKey {
     }
 
     ReportType reportType = 5;
-    sint32 daysSinceOnsetOfSymptoms = 6;
+    sint32 daysSinceOnsetOfSymptoms = 6; // Valid values are -14 ... 14
+    bool hasSymptomOnset = 7; // Used to disambiguate between 0 and missing.
+    
+    bool traveler = 8;
+    repeated string regions = 9;
 }
 
 service Federation {
-	rpc Fetch (FederationFetchRequest) returns (FederationFetchResponse) {}
+    rpc Fetch (FederationFetchRequest) returns (FederationFetchResponse) {}
 }

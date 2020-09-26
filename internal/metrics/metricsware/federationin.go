@@ -19,5 +19,15 @@ func (m Middleware) RecordPullLockContention(ctx context.Context) {
 
 func (m Middleware) RecordPullInsertions(ctx context.Context, numExposures int) {
 	(*m.exporter).WriteInt("federation-pull-inserts", false, numExposures)
-	stats.Record(ctx, federationin.PullLockContention.M(int64(numExposures)))
+	stats.Record(ctx, federationin.PullInserts.M(int64(numExposures)))
+}
+
+func (m Middleware) RecordPullRevisions(ctx context.Context, numRevised int) {
+	(*m.exporter).WriteInt("federation-pull-revisions", false, numRevised)
+	stats.Record(ctx, federationin.PullRevisions.M(int64(numRevised)))
+}
+
+func (m Middleware) RecordPullDroped(ctx context.Context, numDroped int) {
+	(*m.exporter).WriteInt("federation-pull-droped", false, numDroped)
+	stats.Record(ctx, federationin.PullDroped.M(int64(numDroped)))
 }
