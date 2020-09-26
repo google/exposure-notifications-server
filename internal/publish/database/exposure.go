@@ -116,6 +116,8 @@ func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExpos
 		return "", fmt.Errorf("generating where: %v", err)
 	}
 
+	logging.FromContext(ctx).Infow("iterator query", "query", query, "args", args)
+
 	// TODO: this is a pretty weak cursor solution, but not too bad since we'll
 	// typically have queries ahead of the cleanup and before the current
 	// ingestion window, and those should be stable.

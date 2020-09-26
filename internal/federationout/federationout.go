@@ -184,6 +184,11 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 			return nil, err
 		}
 	}
+	if len(response.Keys) == int(maxRecords) {
+		response.PartialResponse = true
+		state.KeyCursor.NextToken = cursor
+	}
+
 	maxRecords = maxRecords - uint32(count)
 	if maxRecords <= 0 {
 		logger.Infof("Max records on primary keys, skipping revised.")
@@ -214,6 +219,29 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 			} else {
 				return nil, err
 			}
+		}
+		if len(response.RevisedKeys) == int(maxRecords) {
+			response.PartialResponse = true
+			state.RevisedKeyCursor.NextToken = cursor
+		}
+	}
+
+	// See if the timestamp should be bumped by 1.
+	// Start of the current window.
+	curWindow := publishmodel.TruncateWindow(time.Now().UTC(), s.config.TruncateWindow).Unix()
+	if !response.PartialResponse || len(response.RevisedKeys) > 0 {
+		// If the set was exhaused, and time has already advanced into the next window, we know that
+		// the previous window will not have any additional records.
+		// This can happen if not a partial response, or if we got any revised keys, the cur cursor should advance.
+		if curWindow > state.KeyCursor.Timestamp {
+			state.KeyCursor.Timestamp++
+		}
+	}
+	if !response.PartialResponse && len(response.RevisedKeys) > 0 {
+		// If we got revised keys and a non partial response, and the window has advanced,
+		// bump the revised cursor.
+		if curWindow > state.RevisedKeyCursor.Timestamp {
+			state.RevisedKeyCursor.Timestamp++
 		}
 	}
 
@@ -262,7 +290,6 @@ func buildIteratorFunction(request *BuildIteratorRequest) publishdb.IteratorFunc
 				reportRegions = append(reportRegions, region)
 			}
 		}
-		log.Printf("USING REGIONS: %v from %+v", reportRegions, exp)
 
 		key := federation.ExposureKey{
 			ExposureKey:    exp.ExposureKey,
@@ -297,6 +324,7 @@ func buildIteratorFunction(request *BuildIteratorRequest) publishdb.IteratorFunc
 			}
 
 			revisedAt := *exp.RevisedAt
+			log.Printf("REVISED AT: %v", revisedAt)
 			if ts := revisedAt.Unix(); ts > request.state.RevisedKeyCursor.Timestamp {
 				request.state.RevisedKeyCursor.Timestamp = ts
 			}

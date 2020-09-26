@@ -35,15 +35,21 @@ import (
 )
 
 const (
-	timeout = 30 * time.Second
+	timeout = 60 * time.Second
 )
 
 var (
 	// See https://github.com/grpc/grpc-go/blob/master/examples/route_guide/client/client.go
-	serverAddr    = flag.String("server-addr", "localhost:8080", "The server address in the format of host:port")
-	audience      = flag.String("audience", federationin.DefaultAudience, "The OIDC audience to use when creating client tokens.")
-	lastTimestamp = flag.String("last-timestamp", "", "The last timestamp (RFC3339) to set; queries start from this point and go forward.")
-	cursor        = flag.String("cursor", "", "Cursor from previous partial response.")
+	serverAddr           = flag.String("server-addr", "localhost:8080", "The server address in the format of host:port")
+	audience             = flag.String("audience", federationin.DefaultAudience, "The OIDC audience to use when creating client tokens.")
+	lastTimestamp        = flag.Int64("last-timestamp", 0, "The last timestamp, UTC seconds since the Epoch")
+	cursor               = flag.String("cursor", "", "Cursor from previous partial response.")
+	lastRevisedTimestamp = flag.Int64("last-revised-timestamp", 0, "The last revised timestamp, UTC seconds since the Epoch")
+	revisedCursor        = flag.String("revised-cursor", "", "Cursor for revised keys from previous partial response")
+	onlyTravelers        = flag.Bool("only-travelers", false, "only include travlers in fetch")
+	onlyLocalProvenance  = flag.Bool("only-local-provenance", true, "only inclue local provenance keys")
+
+	skipAuth = flag.Bool("skip-auth", false, "skip all auth and TLS")
 )
 
 func main() {
@@ -52,42 +58,51 @@ func main() {
 	flag.Var(&excludeRegions, "exclude-regions", "A comma-separated list fo regions to exclude from the query.")
 	flag.Parse()
 
-	var lastTime time.Time
-	var err error
-	if *lastTimestamp != "" {
-		lastTime, err = time.Parse(time.RFC3339, *lastTimestamp)
-		if err != nil {
-			log.Fatalf("Failed to parse --last-timestamp (use RFC3339): %v", err)
-		}
-	}
+	lastTime := time.Unix(*lastTimestamp, 0)
+	lastRevisedTime := time.Unix(*lastRevisedTimestamp, 0)
 
 	if *audience != "" && !federationin.ValidAudienceRegexp.MatchString(*audience) {
 		log.Fatalf("--audience %q must match %s", *audience, federationin.ValidAudienceStr)
 	}
 
 	request := &federation.FederationFetchRequest{
-		RegionIdentifiers:             includeRegions,
-		ExcludeRegionIdentifiers:      excludeRegions,
-		NextFetchToken:                *cursor,
-		LastFetchResponseKeyTimestamp: lastTime.Unix(),
+		IncludeRegions:      includeRegions,
+		ExcludeRegions:      excludeRegions,
+		OnlyTravelers:       *onlyTravelers,
+		OnlyLocalProvenance: *onlyLocalProvenance,
+		State: &federation.FetchState{
+			KeyCursor: &federation.Cursor{
+				Timestamp: lastTime.Unix(),
+				NextToken: *cursor,
+			},
+			RevisedKeyCursor: &federation.Cursor{
+				Timestamp: lastRevisedTime.Unix(),
+				NextToken: *revisedCursor,
+			},
+		},
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
+	// Build dial opts, optionally with security (recommended of course)
 	dialOpts := []grpc.DialOption{
 		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
-		grpc.WithTransportCredentials(creds),
 	}
+	if *skipAuth {
+		dialOpts = append(dialOpts, grpc.WithInsecure())
+	} else {
+		creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
 
-	idTokenSource, err := idtoken.NewTokenSource(ctx, *audience)
-	if err != nil {
-		log.Fatalf("Failed to create token source: %v", err)
+		idTokenSource, err := idtoken.NewTokenSource(ctx, *audience)
+		if err != nil {
+			log.Fatalf("Failed to create token source: %v", err)
+		}
+		dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{
+			TokenSource: idTokenSource,
+		}))
 	}
-	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{
-		TokenSource: idTokenSource,
-	}))
 
 	conn, err := grpc.Dial(*serverAddr, dialOpts...)
 	if err != nil {
@@ -101,18 +116,22 @@ func main() {
 		log.Fatalf("Error calling fetch: %v", err)
 	}
 
-	for _, ctr := range response.Response {
-		log.Printf("%v", ctr.RegionIdentifiers)
-		for _, cti := range ctr.ContactTracingInfo {
-			log.Printf("    (%v)", cti.TransmissionRisk)
-			for _, dk := range cti.ExposureKeys {
-				total++
-				log.Printf("        {[bytes] number %d count %d}", dk.IntervalNumber, dk.IntervalCount)
-			}
-		}
+	log.Printf("PRIMARY KEYS")
+	for _, key := range response.Keys {
+		log.Printf("p: %3d [bytes] interval: %d + %d traveler: %v regions: %v onset: %3d report: %v ",
+			total, key.IntervalNumber, key.IntervalCount,
+			key.Traveler, key.Regions, key.DaysSinceOnsetOfSymptoms, key.ReportType.String())
+		total++
 	}
+	log.Printf("REVISED KEYS")
+	for _, key := range response.RevisedKeys {
+		log.Printf("r: %3d [bytes] interval: %d + %d traveler: %v regions: %v onset: %3d report: %v ",
+			total, key.IntervalNumber, key.IntervalCount,
+			key.Traveler, key.Regions, key.DaysSinceOnsetOfSymptoms, key.ReportType.String())
+		total++
+	}
+
 	log.Printf("partialResponse: %t", response.PartialResponse)
-	log.Printf("nextFetchToken:  %s", response.NextFetchToken)
-	log.Printf("fetchResponseKeyTimestamp: %d", response.FetchResponseKeyTimestamp)
+	log.Printf("nextFetchState:  %+v", response.NextFetchState)
 	log.Printf("number records:  %d", total)
 }
