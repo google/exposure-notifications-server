@@ -25,7 +25,6 @@ import (
 	"google.golang.org/api/option"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
-	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 )
 
@@ -107,8 +106,6 @@ func (e *stackdriverExporter) StartExporter() error {
 	})
 	trace.RegisterExporter(e.exporter)
 
-	view.RegisterExporter(e.exporter)
-
 	return nil
 }
 
@@ -122,7 +119,6 @@ func (e *stackdriverExporter) Close() error {
 
 	// Unregister the exporter
 	trace.UnregisterExporter(e.exporter)
-	view.UnregisterExporter(e.exporter)
 
 	return nil
 }
