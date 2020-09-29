@@ -82,7 +82,12 @@ type IterateExposuresCriteria struct {
 
 	// OnlyLocalProvenance indicates that only exposures with LocalProvenance=true will be returned.
 	OnlyLocalProvenance bool
+
+	// If limit is > 0, a limit query will be set on the database query.
+	Limit uint32
 }
+
+type IteratorFunction func(*model.Exposure) error
 
 // IterateExposures calls f on each Exposure in the database that matches the
 // given criteria. If f returns an error, the iteration stops, and the returned
@@ -93,7 +98,7 @@ type IterateExposuresCriteria struct {
 // criteria.LastCursor in a subsequent call to IterateExposures, will continue
 // the iteration at the failed row. If IterateExposures returns a nil error,
 // the first return value will be the empty string.
-func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f func(*model.Exposure) error) (cur string, err error) {
+func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExposuresCriteria, f IteratorFunction) (cur string, err error) {
 	offset := 0
 	if criteria.LastCursor != "" {
 		offsetStr, err := decodeCursor(criteria.LastCursor)
@@ -110,6 +115,8 @@ func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExpos
 	if err != nil {
 		return "", fmt.Errorf("generating where: %v", err)
 	}
+
+	logging.FromContext(ctx).Debugw("iterator query", "query", query, "args", args)
 
 	// TODO: this is a pretty weak cursor solution, but not too bad since we'll
 	// typically have queries ahead of the cleanup and before the current
@@ -135,8 +142,9 @@ func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExpos
 			var m model.Exposure
 			var encodedKey string
 			var syncID *int64
+			var queryID *string
 			if err := rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.Traveler,
-				&m.IntervalNumber, &m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &syncID, &m.HealthAuthorityID,
+				&m.IntervalNumber, &m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &syncID, &queryID, &m.HealthAuthorityID,
 				&m.ReportType, &m.DaysSinceSymptomOnset, &m.RevisedReportType, &m.RevisedAt, &m.RevisedDaysSinceSymptomOnset); err != nil {
 				return fmt.Errorf("failed to parse: %w", err)
 			}
@@ -148,6 +156,9 @@ func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExpos
 			}
 			if syncID != nil {
 				m.FederationSyncID = *syncID
+			}
+			if queryID != nil {
+				m.FederationQueryID = *queryID
 			}
 			if err := f(&m); err != nil {
 				return err
@@ -169,7 +180,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 		SELECT
 			exposure_key, transmission_risk, LOWER(app_package_name), regions, traveler,
 			interval_number, interval_count,
-			created_at, local_provenance, sync_id, health_authority_id, report_type,
+			created_at, local_provenance, sync_id, sync_query_id, health_authority_id, report_type,
 			days_since_symptom_onset, revised_report_type, revised_at, revised_days_since_symptom_onset
 		FROM
 			Exposure
@@ -239,6 +250,11 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 		args = append(args, decoded)
 		q += fmt.Sprintf(" OFFSET $%d", len(args))
 	}
+
+	if criteria.Limit > 0 {
+		q += fmt.Sprintf(" LIMIT %d", criteria.Limit)
+	}
+
 	q = strings.ReplaceAll(q, "\n", " ")
 
 	return q, args, nil
@@ -316,9 +332,9 @@ func prepareInsertExposure(ctx context.Context, tx pgx.Tx) (string, error) {
 		INSERT INTO
 			Exposure
 				(exposure_key, transmission_risk, app_package_name, regions, traveler, interval_number, interval_count,
-				 created_at, local_provenance, sync_id, health_authority_id, report_type, days_since_symptom_onset)
+				 created_at, local_provenance, sync_id, sync_query_id, health_authority_id, report_type, days_since_symptom_onset)
 		VALUES
-			($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+			($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		ON CONFLICT (exposure_key) DO NOTHING
 	`)
 	return stmtName, err
@@ -326,12 +342,17 @@ func prepareInsertExposure(ctx context.Context, tx pgx.Tx) (string, error) {
 
 func executeInsertExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp *model.Exposure) error {
 	var syncID *int64
+	var queryID *string
 	if exp.FederationSyncID != 0 {
 		syncID = &exp.FederationSyncID
 	}
+	if exp.FederationQueryID != "" {
+		queryID = &exp.FederationQueryID
+	}
+
 	_, err := tx.Exec(ctx, stmtName, encodeExposureKey(exp.ExposureKey), exp.TransmissionRisk,
 		exp.AppPackageName, exp.Regions, exp.Traveler, exp.IntervalNumber, exp.IntervalCount,
-		exp.CreatedAt, exp.LocalProvenance, syncID,
+		exp.CreatedAt, exp.LocalProvenance, syncID, queryID,
 		exp.HealthAuthorityID, exp.ReportType, exp.DaysSinceSymptomOnset)
 	if err != nil {
 		return fmt.Errorf("inserting exposure: %v", err)
@@ -380,6 +401,15 @@ type InsertAndReviseExposuresRequest struct {
 	// exposures are included that are not part of the revision token. This exists
 	// to support roaming scenarios. This is only used if RequireToken is true.
 	AllowPartialRevisions bool
+
+	// The following operations are for federation.
+
+	// If true, if a key is determined to be a revsion, it is skipped.
+	SkipRevions bool
+	// If true, only revisions will be processed.
+	OnlyRevisions bool
+	// Require matching Sync QueryID only allows revisions if they originated from the same query ID.
+	RequireQueryID bool
 }
 
 // InsertAndReviseExposuresResponse is the response from an
@@ -410,6 +440,9 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 	if req == nil {
 		return nil, fmt.Errorf("missing request")
 	}
+	if req.SkipRevions && req.OnlyRevisions {
+		return nil, fmt.Errorf("configuration paradox: skipRevisions and onlyRevisions are both set to true")
+	}
 
 	// Maintain a record of the number of exposures inserted and updated, and a
 	// record of the exposures that were actually inserted/updated after merge
@@ -438,6 +471,15 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 			existingMap[v.ExposureKeyBase64()] = v
 		}
 
+		// For federation - if we ONLY want to process revisions.
+		if req.OnlyRevisions {
+			for k := range incomingMap {
+				if _, ok := existingMap[k]; !ok {
+					delete(incomingMap, k)
+				}
+			}
+		}
+
 		// See if the revision token is relevant. We only need to check it if keys
 		// are being revised.
 		if len(existing) > 0 {
@@ -461,6 +503,24 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 
 			// Check that any existing exposures are present in the token.
 			for k, ex := range existing {
+				// For federation, if a key is rquested for insert.
+				if req.SkipRevions {
+					logger.Warnw("skipping key: would be revised but revision disabled for request")
+					delete(incomingMap, k)
+					continue
+				}
+
+				// For federation. If the exposure is inbound on the same query, it is allowed.
+				if req.RequireQueryID {
+					if in, ok := incomingMap[k]; ok {
+						if in.FederationQueryID != ex.FederationQueryID {
+							logger.Warnw("key revision attempted on federated key with wrong origin", "queryID", ex.FederationQueryID, "proposedQueryID", in.FederationQueryID)
+							delete(incomingMap, k)
+							continue
+						}
+					}
+				}
+
 				// Check the incoming values first.
 				if in, ok := incomingMap[k]; ok {
 					if ex.IntervalNumber != in.IntervalNumber || ex.IntervalCount != in.IntervalCount {

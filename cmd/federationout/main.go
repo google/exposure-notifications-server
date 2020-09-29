@@ -28,7 +28,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/federationout"
-	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/pb/federation"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	_ "github.com/google/exposure-notifications-server/pkg/observability"
@@ -81,7 +81,7 @@ func realMain(ctx context.Context) error {
 
 	sopts = append(sopts, grpc.StatsHandler(&ocgrpc.ServerHandler{}))
 	grpcServer := grpc.NewServer(sopts...)
-	pb.RegisterFederationServer(grpcServer, federationServer)
+	federation.RegisterFederationServer(grpcServer, federationServer)
 
 	srv, err := server.New(config.Port)
 	if err != nil {

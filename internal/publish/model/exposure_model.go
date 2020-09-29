@@ -37,6 +37,8 @@ var (
 	ErrorExposureKeyMismatch = fmt.Errorf("attempted to revise a key with a different key")
 	// ErrorNonLocalProvenance - key revision attempted on federated key, which is not allowed
 	ErrorNonLocalProvenance = fmt.Errorf("key not origionally uploaded to this server, cannot revise")
+	// ErrorNotSameFederationSource - if a key arrived by federation, it can onlybe be revised by the same query (same source)
+	ErrorNotSameFederationSource = fmt.Errorf("key cannot be revised by a different federation query")
 	// ErrorKeyAlreadyRevised - attempt to revise a key that has already been revised.
 	ErrorKeyAlreadyRevised = fmt.Errorf("key has already been revised and cannot be revised again")
 )
@@ -57,16 +59,17 @@ func (e *ErrorKeyInvalidReportTypeTransition) Error() string {
 
 // Exposure represents the record as stored in the database
 type Exposure struct {
-	ExposureKey      []byte
-	TransmissionRisk int
-	AppPackageName   string
-	Regions          []string
-	Traveler         bool
-	IntervalNumber   int32
-	IntervalCount    int32
-	CreatedAt        time.Time
-	LocalProvenance  bool
-	FederationSyncID int64
+	ExposureKey       []byte
+	TransmissionRisk  int
+	AppPackageName    string
+	Regions           []string
+	Traveler          bool
+	IntervalNumber    int32
+	IntervalCount     int32
+	CreatedAt         time.Time
+	LocalProvenance   bool
+	FederationSyncID  int64
+	FederationQueryID string
 
 	// These fields are nullable to maintain backwards compatibility with
 	// older versions that predate their existence.
@@ -94,7 +97,11 @@ func (e *Exposure) Revise(in *Exposure) (bool, error) {
 		return false, nil
 	}
 	if !e.LocalProvenance {
-		return false, ErrorNonLocalProvenance
+		if e.FederationQueryID == "" {
+			return false, ErrorNonLocalProvenance
+		} else if e.FederationQueryID != in.FederationQueryID {
+			return false, ErrorNotSameFederationSource
+		}
 	}
 	// make sure key hasn't been revised already.
 	if e.RevisedAt != nil {
@@ -204,6 +211,38 @@ func (e *Exposure) ExposureKeyBase64() string {
 	return e.base64Key
 }
 
+func (e *Exposure) AdjustAndValidate(settings *KeyTransform) error {
+	// Validate individual pieces of the exposure key
+	if l := len(e.ExposureKey); l != verifyapi.KeyLength {
+		return fmt.Errorf("invalid key length, %v, must be %v", l, verifyapi.KeyLength)
+	}
+	if ic := e.IntervalCount; ic < verifyapi.MinIntervalCount || ic > verifyapi.MaxIntervalCount {
+		return fmt.Errorf("invalid interval count, %v, must be >= %v && <= %v", ic, verifyapi.MinIntervalCount, verifyapi.MaxIntervalCount)
+	}
+
+	// Validate the IntervalNumber, if the key was ever valid during this period, we'll accept it.
+	if validUntil := e.IntervalNumber + e.IntervalCount; validUntil <= settings.MinStartInterval {
+		return fmt.Errorf("key expires before minimum window; %v + %v = %v which is too old, must be >= %v", e.IntervalNumber, e.IntervalCount, validUntil, settings.MinStartInterval)
+	}
+	if e.IntervalNumber > settings.MaxStartInterval {
+		return fmt.Errorf("interval number %v is in the future, must be <= %v", e.IntervalNumber, settings.MaxStartInterval)
+	}
+
+	// If the key is valid beyond the current interval number. Adjust the createdAt time for the key.
+	if e.IntervalNumber+e.IntervalCount > settings.MaxStartInterval {
+		// key is still valid. The created At for this key needs to be adjusted unless debugging is enabled.
+		if !settings.ReleaseStillValidKeys {
+			e.CreatedAt = TimeForIntervalNumber(e.IntervalNumber + e.IntervalCount).Truncate(settings.BatchWindow)
+		}
+	}
+
+	if tr := e.TransmissionRisk; tr < verifyapi.MinTransmissionRisk || tr > verifyapi.MaxTransmissionRisk {
+		return fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, verifyapi.MinTransmissionRisk, verifyapi.MaxTransmissionRisk)
+	}
+
+	return nil
+}
+
 // IntervalNumber calculates the exposure notification system interval
 // number based on the input time.
 func IntervalNumber(t time.Time) int32 {
@@ -305,45 +344,21 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 		return nil, err
 	}
 
-	// Validate individual pieces of the exposure key
-	if len(binKey) != verifyapi.KeyLength {
-		return nil, fmt.Errorf("invalid key length, %v, must be %v", len(binKey), verifyapi.KeyLength)
-	}
-	if ic := exposureKey.IntervalCount; ic < verifyapi.MinIntervalCount || ic > verifyapi.MaxIntervalCount {
-		return nil, fmt.Errorf("invalid interval count, %v, must be >= %v && <= %v", ic, verifyapi.MinIntervalCount, verifyapi.MaxIntervalCount)
-	}
-
-	// Validate the IntervalNumber, if the key was ever valid during this period, we'll accept it.
-	if validUntil := exposureKey.IntervalNumber + exposureKey.IntervalCount; validUntil <= settings.MinStartInterval {
-		return nil, fmt.Errorf("key expires before minimum window; %v + %v = %v which is too old, must be >= %v", exposureKey.IntervalNumber, exposureKey.IntervalCount, validUntil, settings.MinStartInterval)
-	}
-	if exposureKey.IntervalNumber > settings.MaxStartInterval {
-		return nil, fmt.Errorf("interval number %v is in the future, must be <= %v", exposureKey.IntervalNumber, settings.MaxStartInterval)
-	}
-
-	createdAt := settings.CreatedAt
-	// If the key is valid beyond the current interval number. Adjust the createdAt time for the key.
-	if exposureKey.IntervalNumber+exposureKey.IntervalCount > settings.MaxStartInterval {
-		// key is still valid. The created At for this key needs to be adjusted unless debugging is enabled.
-		if !settings.ReleaseStillValidKeys {
-			createdAt = TimeForIntervalNumber(exposureKey.IntervalNumber + exposureKey.IntervalCount).Truncate(settings.BatchWindow)
-		}
-	}
-
-	if tr := exposureKey.TransmissionRisk; tr < verifyapi.MinTransmissionRisk || tr > verifyapi.MaxTransmissionRisk {
-		return nil, fmt.Errorf("invalid transmission risk: %v, must be >= %v && <= %v", tr, verifyapi.MinTransmissionRisk, verifyapi.MaxTransmissionRisk)
-	}
-
-	return &Exposure{
+	e := &Exposure{
 		ExposureKey:      binKey,
 		TransmissionRisk: exposureKey.TransmissionRisk,
 		AppPackageName:   appPackageName,
 		Regions:          upcaseRegions,
 		IntervalNumber:   exposureKey.IntervalNumber,
 		IntervalCount:    exposureKey.IntervalCount,
-		CreatedAt:        createdAt,
+		CreatedAt:        settings.CreatedAt,
 		LocalProvenance:  true,
-	}, nil
+	}
+
+	if err := e.AdjustAndValidate(settings); err != nil {
+		return nil, err
+	}
+	return e, nil
 }
 
 // ReviseKeys takes a set of existing keys, and a list of keys currently being uploaded.

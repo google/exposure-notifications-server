@@ -20,15 +20,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/publish/database"
-
+	"github.com/google/exposure-notifications-server/internal/pb/federation"
+	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
-
-	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"google.golang.org/grpc/metadata"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -36,210 +35,469 @@ var (
 	// listsAsSets are cmp.Options to remove list ordering from diffs of protos.
 	listsAsSets = []cmp.Option{
 		protocmp.Transform(),
-		protocmp.SortRepeatedFields(&pb.FederationFetchResponse{}, "response"),
-		protocmp.SortRepeatedFields(&pb.ContactTracingResponse{}, "contactTracingInfo"),
-		protocmp.SortRepeatedFields(&pb.ContactTracingInfo{}, "exposureKeys"),
+		protocmp.SortRepeatedFields(&federation.FederationFetchResponse{}, "keys"),
+		protocmp.SortRepeatedFields(&federation.FederationFetchResponse{}, "revisedKeys"),
 	}
 
-	aaa = &pb.ExposureKey{ExposureKey: []byte("aaa"), IntervalNumber: 1}
-	bbb = &pb.ExposureKey{ExposureKey: []byte("bbb"), IntervalNumber: 2}
-	ccc = &pb.ExposureKey{ExposureKey: []byte("ccc"), IntervalNumber: 3}
-	ddd = &pb.ExposureKey{ExposureKey: []byte("ddd"), IntervalNumber: 4}
+	aaa = &federation.ExposureKey{ExposureKey: []byte("aaaaaaaaaaaaaaaa"), IntervalNumber: 1}
+	bbb = &federation.ExposureKey{ExposureKey: []byte("bbbbbbbbbbbbbbbb"), IntervalNumber: 2}
+	ccc = &federation.ExposureKey{ExposureKey: []byte("cccccccccccccccc"), IntervalNumber: 3}
+	ddd = &federation.ExposureKey{ExposureKey: []byte("dddddddddddddddd"), IntervalNumber: 4}
 )
 
 // makeExposure returns a mock model.Exposure.
-func makeExposure(diagKey *pb.ExposureKey, diagStatus int, regions ...string) *model.Exposure {
+func makeExposure(diagKey *federation.ExposureKey, reportType string, region string, traveler bool) *model.Exposure {
 	return &model.Exposure{
-		Regions:          regions,
-		TransmissionRisk: diagStatus,
 		ExposureKey:      diagKey.ExposureKey,
+		TransmissionRisk: model.ReportTypeTransmissionRisk(reportType, 0),
+		AppPackageName:   "default",
+		Regions:          []string{region},
+		Traveler:         traveler,
 		IntervalNumber:   diagKey.IntervalNumber,
+		IntervalCount:    144,
 		CreatedAt:        time.Unix(int64(diagKey.IntervalNumber*100), 0), // Make unique from IntervalNumber.
 		LocalProvenance:  true,
+		ReportType:       reportType,
 	}
+}
+
+func addRegions(e *model.Exposure, regions ...string) *model.Exposure {
+	e.AddMissingRegions(regions)
+	return e
+}
+
+func addDaysSinceOnset(e *model.Exposure, daysSince int32) *model.Exposure {
+	e.SetDaysSinceSymptomOnset(daysSince)
+	return e
+}
+
+func reviseExposure(e *model.Exposure, newReportType string, clearOnset bool) *model.Exposure {
+	e.SetRevisedReportType(newReportType)
+	if e.HasDaysSinceSymptomOnset() && !clearOnset {
+		e.SetRevisedDaysSinceSymptomOnset(*e.DaysSinceSymptomOnset)
+	}
+	e.SetRevisedTransmissionRisk(model.ReportTypeTransmissionRisk(newReportType, 0))
+	e.SetRevisedAt(e.CreatedAt.Add(time.Second))
+	return e
 }
 
 // timeout is used by testIterator to indicate that a timeout signal should be sent.
 type timeout struct{}
 
-func iterFunc(elements []interface{}) iterateExposuresFunc {
-	return func(_ context.Context, _ database.IterateExposuresCriteria, f func(*model.Exposure) error) (string, error) {
-		var cursor string
-		for _, el := range elements {
-			switch v := el.(type) {
-			case *model.Exposure:
-				// Set the cursor to the most recent diagnosis key, suffixed with "_cursor".
-				cursor = string(v.ExposureKey) + "_cursor"
-				if err := f(v); err != nil {
-					return cursor, err
-				}
-			case timeout:
-				return cursor, context.Canceled
-			default:
-				panic("bad element")
-			}
-		}
-		return cursor, nil
+type testIterator struct {
+	t *testing.T
+
+	primary []interface{}
+	revised []interface{}
+
+	stage uint
+}
+
+// A fetch request will make 2 separate calls to the iterator function. The first is for primary keys
+// and the second is for revised keys.
+func (t *testIterator) provideInput(_ context.Context, _ publishdb.IterateExposuresCriteria, f publishdb.IteratorFunction) (string, error) {
+	t.t.Helper()
+
+	var elements []interface{}
+	if t.stage == 0 {
+		elements = make([]interface{}, len(t.primary))
+		copy(elements, t.primary)
+		t.t.Logf("providing %v primary keys", len(elements))
+	} else if t.stage == 1 {
+		elements = make([]interface{}, len(t.revised))
+		copy(elements, t.revised)
+		t.t.Logf("providing %v revised keys", len(elements))
 	}
+	t.stage++
+
+	var cursor string
+	for _, el := range elements {
+		switch v := el.(type) {
+		case *model.Exposure:
+			// Set the cursor to the most recent diagnosis key, suffixed with "_cursor".
+			cursor = string(v.ExposureKey) + "_cursor"
+			if err := f(v); err != nil {
+				return cursor, err
+			}
+		case timeout:
+			return cursor, context.Canceled
+		default:
+			panic("bad element")
+		}
+	}
+	return cursor, nil
 }
 
 // TestFetch tests the fetch() function.
 func TestFetch(t *testing.T) {
 	testCases := []struct {
-		name           string
-		excludeRegions []string
-		iterations     []interface{}
-		want           *pb.FederationFetchResponse
+		name              string
+		includeRegions    []string
+		excludeRegions    []string
+		onlyTravelers     bool
+		iterations        []interface{}
+		revisedIterations []interface{}
+		want              *federation.FederationFetchResponse
 	}{
 		{
-			name: "no results",
-			want: &pb.FederationFetchResponse{},
+			name:           "no_results",
+			includeRegions: []string{"US"},
+			excludeRegions: []string{},
+			want: &federation.FederationFetchResponse{
+				NextFetchState: &federation.FetchState{
+					KeyCursor: &federation.Cursor{
+						Timestamp: 1,
+					},
+					RevisedKeyCursor: &federation.Cursor{},
+				},
+			},
 		},
 		{
-			name: "basic results",
+			name:           "basic_primary_results",
+			includeRegions: []string{"US"},
+			excludeRegions: []string{},
 			iterations: []interface{}{
-				makeExposure(aaa, 1, "US"),
-				makeExposure(bbb, 1, "US"),
-				makeExposure(ccc, 3, "GB"),
-				makeExposure(ddd, 4, "US", "GB"),
+				addDaysSinceOnset(makeExposure(aaa, "confirmed", "US", false), 1),
+				makeExposure(bbb, "confirmed", "US", true),
+				makeExposure(ccc, "likely", "US", false),
+				addDaysSinceOnset(makeExposure(ddd, "likely", "US", true), 1),
 			},
-			want: &pb.FederationFetchResponse{
-				Response: []*pb.ContactTracingResponse{
+			revisedIterations: []interface{}{},
+			want: &federation.FederationFetchResponse{
+				Keys: []*federation.ExposureKey{
 					{
-						RegionIdentifiers: []string{"US"},
-						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{TransmissionRisk: 1, ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
-						},
+						ExposureKey:              aaa.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskConfirmedStandard,
+						IntervalNumber:           aaa.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_TEST,
+						DaysSinceOnsetOfSymptoms: 1,
+						HasSymptomOnset:          true,
+						Traveler:                 false,
+						Regions:                  []string{"US"},
 					},
 					{
-						RegionIdentifiers: []string{"GB"},
-						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{TransmissionRisk: 3, ExposureKeys: []*pb.ExposureKey{ccc}},
-						},
+						ExposureKey:              bbb.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskConfirmedStandard,
+						IntervalNumber:           bbb.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_TEST,
+						DaysSinceOnsetOfSymptoms: 0,
+						HasSymptomOnset:          false,
+						Traveler:                 true,
+						Regions:                  []string{"US"},
 					},
 					{
-						RegionIdentifiers: []string{"GB", "US"},
-						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{TransmissionRisk: 4, ExposureKeys: []*pb.ExposureKey{ddd}},
-						},
+						ExposureKey:              ccc.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskClinical,
+						IntervalNumber:           ccc.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS,
+						DaysSinceOnsetOfSymptoms: 0,
+						HasSymptomOnset:          false,
+						Traveler:                 false,
+						Regions:                  []string{"US"},
+					},
+					{
+						ExposureKey:              ddd.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskClinical,
+						IntervalNumber:           ddd.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS,
+						DaysSinceOnsetOfSymptoms: 1,
+						HasSymptomOnset:          true,
+						Traveler:                 true,
+						Regions:                  []string{"US"},
 					},
 				},
-				FetchResponseKeyTimestamp: 400,
-			},
-		},
-		{
-			name: "results combined on status",
-			iterations: []interface{}{
-				makeExposure(aaa, 8, "US"),
-				makeExposure(bbb, 8, "US"),
-				makeExposure(ccc, 6, "US"),
-				makeExposure(ddd, 5, "CA"),
-			},
-			want: &pb.FederationFetchResponse{
-				Response: []*pb.ContactTracingResponse{
-					{
-						RegionIdentifiers: []string{"US"},
-						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{TransmissionRisk: 8, ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
-							{TransmissionRisk: 6, ExposureKeys: []*pb.ExposureKey{ccc}},
-						},
+				PartialResponse: false,
+				NextFetchState: &federation.FetchState{
+					KeyCursor: &federation.Cursor{
+						Timestamp: 401,
+						NextToken: "",
 					},
-					{
-						RegionIdentifiers: []string{"CA"},
-						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{TransmissionRisk: 5, ExposureKeys: []*pb.ExposureKey{ddd}},
-						},
+					RevisedKeyCursor: &federation.Cursor{
+						Timestamp: 1,
+						NextToken: "",
 					},
 				},
-				FetchResponseKeyTimestamp: 400,
 			},
 		},
 		{
-			name: "results combined on status and verification",
+			name:           "primary_and_revised",
+			includeRegions: []string{"US"},
+			excludeRegions: []string{},
 			iterations: []interface{}{
-				makeExposure(aaa, 1, "US"),
-				makeExposure(bbb, 1, "US"),
-				makeExposure(ccc, 2, "US"),
-				makeExposure(ddd, 3, "US"),
+				addDaysSinceOnset(makeExposure(aaa, "confirmed", "US", false), 2),
 			},
-			want: &pb.FederationFetchResponse{
-				Response: []*pb.ContactTracingResponse{
+			revisedIterations: []interface{}{
+				reviseExposure(addDaysSinceOnset(makeExposure(bbb, "likely", "US", true), 1), "confirmed", false),
+			},
+			want: &federation.FederationFetchResponse{
+				Keys: []*federation.ExposureKey{
 					{
-						RegionIdentifiers: []string{"US"},
-						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{TransmissionRisk: 1, ExposureKeys: []*pb.ExposureKey{aaa, bbb}},
-							{TransmissionRisk: 2, ExposureKeys: []*pb.ExposureKey{ccc}},
-							{TransmissionRisk: 3, ExposureKeys: []*pb.ExposureKey{ddd}},
-						},
+						ExposureKey:              aaa.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskConfirmedStandard,
+						IntervalNumber:           aaa.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_TEST,
+						DaysSinceOnsetOfSymptoms: 2,
+						HasSymptomOnset:          true,
+						Traveler:                 false,
+						Regions:                  []string{"US"},
 					},
 				},
-				FetchResponseKeyTimestamp: 400,
-			},
-		},
-		{
-			name:           "exclude regions",
-			excludeRegions: []string{"US", "CA"},
-			iterations: []interface{}{
-				makeExposure(aaa, 8, "US"),
-				makeExposure(bbb, 8, "CA"),
-				makeExposure(ccc, 2, "GB"),
-				makeExposure(ddd, 1, "US", "GB"),
-			},
-			want: &pb.FederationFetchResponse{
-				Response: []*pb.ContactTracingResponse{
+				RevisedKeys: []*federation.ExposureKey{
 					{
-						RegionIdentifiers: []string{"GB"},
-						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{TransmissionRisk: 2, ExposureKeys: []*pb.ExposureKey{ccc}},
-						},
-					},
-					{
-						RegionIdentifiers: []string{"GB", "US"},
-						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{TransmissionRisk: 1, ExposureKeys: []*pb.ExposureKey{ddd}},
-						},
+						ExposureKey:              bbb.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskConfirmedStandard,
+						IntervalNumber:           bbb.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_TEST,
+						DaysSinceOnsetOfSymptoms: 1,
+						HasSymptomOnset:          true,
+						Traveler:                 true,
+						Regions:                  []string{"US"},
 					},
 				},
-				FetchResponseKeyTimestamp: 400,
+				PartialResponse: false,
+				NextFetchState: &federation.FetchState{
+					KeyCursor: &federation.Cursor{
+						Timestamp: 101,
+						NextToken: "",
+					},
+					RevisedKeyCursor: &federation.Cursor{
+						Timestamp: 202,
+						NextToken: "",
+					},
+				},
 			},
 		},
 		{
-			name:           "exclude all regions",
-			excludeRegions: []string{"US", "CA", "GB"},
+			name:           "revoke_key",
+			includeRegions: []string{"US"},
+			excludeRegions: []string{},
 			iterations: []interface{}{
-				makeExposure(aaa, 1, "US"),
-				makeExposure(bbb, 1, "CA"),
-				makeExposure(ccc, 1, "GB"),
-				makeExposure(ddd, 1, "US", "CA", "GB"),
+				addDaysSinceOnset(makeExposure(aaa, "likely", "US", false), 2),
 			},
-			want: &pb.FederationFetchResponse{},
+			revisedIterations: []interface{}{
+				reviseExposure(addDaysSinceOnset(makeExposure(aaa, "likely", "US", false), 2), "negative", true),
+			},
+			want: &federation.FederationFetchResponse{
+				Keys: []*federation.ExposureKey{
+					{
+						ExposureKey:              aaa.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskClinical,
+						IntervalNumber:           aaa.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS,
+						DaysSinceOnsetOfSymptoms: 2,
+						HasSymptomOnset:          true,
+						Traveler:                 false,
+						Regions:                  []string{"US"},
+					},
+				},
+				RevisedKeys: []*federation.ExposureKey{
+					{
+						ExposureKey:              aaa.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskNegative,
+						IntervalNumber:           aaa.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_REVOKED,
+						DaysSinceOnsetOfSymptoms: 0,
+						HasSymptomOnset:          false,
+						Traveler:                 false,
+						Regions:                  []string{"US"},
+					},
+				},
+				PartialResponse: false,
+				NextFetchState: &federation.FetchState{
+					KeyCursor: &federation.Cursor{
+						Timestamp: 101,
+						NextToken: "",
+					},
+					RevisedKeyCursor: &federation.Cursor{
+						Timestamp: 102,
+						NextToken: "",
+					},
+				},
+			},
 		},
 		{
-			name: "partial result",
+			name:           "partial_primary_result",
+			includeRegions: []string{"US"},
+			excludeRegions: []string{},
 			iterations: []interface{}{
-				makeExposure(aaa, 1, "US"),
-				makeExposure(bbb, 2, "CA"),
+				addDaysSinceOnset(makeExposure(aaa, "likely", "US", true), -1),
+				addDaysSinceOnset(makeExposure(bbb, "confirmed", "US", false), -2),
 				timeout{},
-				makeExposure(ccc, 3, "GB"),
+				addDaysSinceOnset(makeExposure(ccc, "confirmed", "US", false), 2),
 			},
-			want: &pb.FederationFetchResponse{
-				Response: []*pb.ContactTracingResponse{
+			revisedIterations: []interface{}{
+				// In this test, we shouldn't get here because of the timeout in the initial set.
+				reviseExposure(addDaysSinceOnset(makeExposure(aaa, "likely", "US", true), 2), "confirmed", true),
+			},
+			want: &federation.FederationFetchResponse{
+				Keys: []*federation.ExposureKey{
 					{
-						RegionIdentifiers: []string{"US"},
-						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{TransmissionRisk: 1, ExposureKeys: []*pb.ExposureKey{aaa}},
-						},
+						ExposureKey:              aaa.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskClinical,
+						IntervalNumber:           aaa.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS,
+						DaysSinceOnsetOfSymptoms: -1,
+						HasSymptomOnset:          true,
+						Traveler:                 true,
+						Regions:                  []string{"US"},
 					},
 					{
-						RegionIdentifiers: []string{"CA"},
-						ContactTracingInfo: []*pb.ContactTracingInfo{
-							{TransmissionRisk: 2, ExposureKeys: []*pb.ExposureKey{bbb}},
-						},
+						ExposureKey:              bbb.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskConfirmedStandard,
+						IntervalNumber:           bbb.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_TEST,
+						DaysSinceOnsetOfSymptoms: -2,
+						HasSymptomOnset:          true,
+						Traveler:                 false,
+						Regions:                  []string{"US"},
 					},
 				},
-				PartialResponse:           true,
-				FetchResponseKeyTimestamp: 200,
-				NextFetchToken:            "bbb_cursor",
+				RevisedKeys:     []*federation.ExposureKey{},
+				PartialResponse: true,
+				NextFetchState: &federation.FetchState{
+					KeyCursor: &federation.Cursor{
+						Timestamp: 200,
+						NextToken: "bbbbbbbbbbbbbbbb_cursor",
+					},
+					RevisedKeyCursor: &federation.Cursor{
+						Timestamp: 0,
+						NextToken: "",
+					},
+				},
+			},
+		},
+		{
+			name:           "partial_revised_result",
+			includeRegions: []string{"US"},
+			excludeRegions: []string{},
+			iterations: []interface{}{
+				addDaysSinceOnset(makeExposure(aaa, "likely", "US", true), -1),
+				addDaysSinceOnset(makeExposure(bbb, "likely", "US", false), -2),
+			},
+			revisedIterations: []interface{}{
+				// In this test, we shouldn't get here because of the timeout in the initial set.
+				reviseExposure(addDaysSinceOnset(makeExposure(aaa, "likely", "US", true), -1), "confirmed", false),
+				timeout{},
+				reviseExposure(addDaysSinceOnset(makeExposure(bbb, "likely", "US", true), -1), "confirmed", false),
+			},
+			want: &federation.FederationFetchResponse{
+				Keys: []*federation.ExposureKey{
+					{
+						ExposureKey:              aaa.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskClinical,
+						IntervalNumber:           aaa.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS,
+						DaysSinceOnsetOfSymptoms: -1,
+						HasSymptomOnset:          true,
+						Traveler:                 true,
+						Regions:                  []string{"US"},
+					},
+					{
+						ExposureKey:              bbb.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskClinical,
+						IntervalNumber:           bbb.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS,
+						DaysSinceOnsetOfSymptoms: -2,
+						HasSymptomOnset:          true,
+						Traveler:                 false,
+						Regions:                  []string{"US"},
+					},
+				},
+				RevisedKeys: []*federation.ExposureKey{
+					{
+						ExposureKey:              aaa.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskConfirmedStandard,
+						IntervalNumber:           aaa.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_TEST,
+						DaysSinceOnsetOfSymptoms: -1,
+						HasSymptomOnset:          true,
+						Traveler:                 true,
+						Regions:                  []string{"US"},
+					},
+				},
+				PartialResponse: true,
+				NextFetchState: &federation.FetchState{
+					KeyCursor: &federation.Cursor{
+						Timestamp: 201,
+						NextToken: "",
+					},
+					RevisedKeyCursor: &federation.Cursor{
+						Timestamp: 101,
+						NextToken: "aaaaaaaaaaaaaaaa_cursor",
+					},
+				},
+			},
+		},
+		{
+			name:           "multiple_regions",
+			includeRegions: []string{"US", "CA"},
+			excludeRegions: []string{"CH"},
+			iterations: []interface{}{
+				addDaysSinceOnset(addRegions(makeExposure(aaa, "confirmed", "US", false), "CA"), 1),
+				addRegions(makeExposure(bbb, "confirmed", "US", true), "CH"),
+				addRegions(makeExposure(ccc, "likely", "US", false), "CA", "CH", "MX"),
+			},
+			revisedIterations: []interface{}{},
+			want: &federation.FederationFetchResponse{
+				Keys: []*federation.ExposureKey{
+					{
+						ExposureKey:              aaa.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskConfirmedStandard,
+						IntervalNumber:           aaa.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_TEST,
+						DaysSinceOnsetOfSymptoms: 1,
+						HasSymptomOnset:          true,
+						Traveler:                 false,
+						Regions:                  []string{"US", "CA"},
+					},
+					{
+						ExposureKey:              bbb.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskConfirmedStandard,
+						IntervalNumber:           bbb.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_TEST,
+						DaysSinceOnsetOfSymptoms: 0,
+						HasSymptomOnset:          false,
+						Traveler:                 true,
+						Regions:                  []string{"US"},
+					},
+					{
+						ExposureKey:              ccc.ExposureKey,
+						TransmissionRisk:         verifyapi.TransmissionRiskClinical,
+						IntervalNumber:           ccc.IntervalNumber,
+						IntervalCount:            144,
+						ReportType:               federation.ExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS,
+						DaysSinceOnsetOfSymptoms: 0,
+						HasSymptomOnset:          false,
+						Traveler:                 false,
+						Regions:                  []string{"US", "CA"},
+					},
+				},
+				PartialResponse: false,
+				NextFetchState: &federation.FetchState{
+					KeyCursor: &federation.Cursor{
+						Timestamp: 301,
+						NextToken: "",
+					},
+					RevisedKeyCursor: &federation.Cursor{
+						Timestamp: 1,
+						NextToken: "",
+					},
+				},
 			},
 		},
 	}
@@ -248,9 +506,26 @@ func TestFetch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			env := serverenv.New(ctx)
-			server := Server{env: env}
-			req := &pb.FederationFetchRequest{ExcludeRegionIdentifiers: tc.excludeRegions}
-			got, err := server.fetch(context.Background(), req, iterFunc(tc.iterations), time.Now())
+			server := Server{
+				env: env,
+				config: &Config{
+					MaxRecords: 100,
+				},
+			}
+			req := &federation.FederationFetchRequest{
+				IncludeRegions:      tc.includeRegions,
+				ExcludeRegions:      tc.excludeRegions,
+				OnlyLocalProvenance: true,
+				State:               nil,
+			}
+
+			fakeDB := testIterator{
+				t:       t,
+				primary: tc.iterations,
+				revised: tc.revisedIterations,
+			}
+
+			got, err := server.fetch(context.Background(), req, fakeDB.provideInput, time.Now())
 			if err != nil {
 				t.Fatalf("fetch() returned err=%v, want err=nil", err)
 			}

@@ -14,4 +14,8 @@ var (
 		"Lock contention during pull operation", stats.UnitDimensionless)
 	PullInserts = stats.Int64(publishMetricsPrefix+"pull_insertions",
 		"Pull insertion", stats.UnitDimensionless)
+	PullRevisions = stats.Int64(publishMetricsPrefix+"pull_revision",
+		"Pull revision", stats.UnitDimensionless)
+	PullDropped = stats.Int64(publishMetricsPrefix+"pull_dropped",
+		"Pull dropped", stats.UnitDimensionless)
 )

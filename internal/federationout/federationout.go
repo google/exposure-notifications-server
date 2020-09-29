@@ -19,19 +19,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/federationin/model"
-	"github.com/google/exposure-notifications-server/internal/pb"
-	"github.com/google/exposure-notifications-server/pkg/logging"
-
 	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/federationout/database"
 	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
+	"github.com/google/exposure-notifications-server/internal/pb/federation"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"google.golang.org/api/idtoken"
@@ -47,12 +48,12 @@ const (
 )
 
 // Compile time assert that this server implements the required grpc interface.
-var _ pb.FederationServer = (*Server)(nil)
+var _ federation.FederationServer = (*Server)(nil)
 
-type iterateExposuresFunc func(context.Context, publishdb.IterateExposuresCriteria, func(*publishmodel.Exposure) error) (string, error)
+type iterateExposuresFunc func(context.Context, publishdb.IterateExposuresCriteria, publishdb.IteratorFunction) (string, error)
 
 // NewServer builds a new FederationServer.
-func NewServer(env *serverenv.ServerEnv, config *Config) pb.FederationServer {
+func NewServer(env *serverenv.ServerEnv, config *Config) federation.FederationServer {
 	return &Server{
 		env:       env,
 		db:        database.New(env.Database()),
@@ -71,7 +72,7 @@ type Server struct {
 type authKey struct{}
 
 // Fetch implements the FederationServer Fetch endpoint.
-func (s Server) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.FederationFetchResponse, error) {
+func (s Server) Fetch(ctx context.Context, req *federation.FederationFetchRequest) (*federation.FederationFetchResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 	logger := logging.FromContext(ctx)
@@ -86,153 +87,253 @@ func (s Server) Fetch(ctx context.Context, req *pb.FederationFetchRequest) (*pb.
 	return response, nil
 }
 
-func (s Server) fetch(ctx context.Context, req *pb.FederationFetchRequest, itFunc iterateExposuresFunc, fetchUntil time.Time) (*pb.FederationFetchResponse, error) {
+func (s Server) fetch(ctx context.Context, req *federation.FederationFetchRequest, itFunc iterateExposuresFunc, fetchUntil time.Time) (*federation.FederationFetchResponse, error) {
 	logger := logging.FromContext(ctx)
 	metrics := s.env.MetricsExporter(ctx)
 	metricsMiddleWare := metricsware.NewMiddleWare(&metrics)
 
-	for i := range req.RegionIdentifiers {
-		req.RegionIdentifiers[i] = strings.ToUpper(req.RegionIdentifiers[i])
+	if in := intersect(req.IncludeRegions, req.ExcludeRegions); len(in) > 0 {
+		logger.Errorw("overlap in included and excluded regions", "intersection", in)
+		return nil, fmt.Errorf("overlap in include and exclude region set: %v", in)
 	}
-	for i := range req.ExcludeRegionIdentifiers {
-		req.ExcludeRegionIdentifiers[i] = strings.ToUpper(req.ExcludeRegionIdentifiers[i])
+
+	for i, region := range req.IncludeRegions {
+		req.IncludeRegions[i] = strings.ToUpper(region)
 	}
-	metricsMiddleWare.RecordFetchRegionsRequested(ctx, len(req.RegionIdentifiers))
-	metricsMiddleWare.RecordFetchRegionsExcluded(ctx, len(req.ExcludeRegionIdentifiers))
+	for i, exRegion := range req.ExcludeRegions {
+		req.ExcludeRegions[i] = strings.ToUpper(exRegion)
+	}
+	metricsMiddleWare.RecordFetchRegionsRequested(ctx, len(req.IncludeRegions))
+	metricsMiddleWare.RecordFetchRegionsExcluded(ctx, len(req.ExcludeRegions))
+
+	// Use configuration max or user provided max.
+	maxRecords := s.config.MaxRecords
+	if req.MaxExposureKeys > 0 && req.MaxExposureKeys < maxRecords {
+		maxRecords = req.MaxExposureKeys
+	}
 
 	logger.Infof("Processing client request %#v", req)
 
 	// If there is a FederationAuthorization on the context, set the query to operate within its limits.
 	if auth, ok := ctx.Value(authKey{}).(*model.FederationOutAuthorization); ok {
 		// For included regions, we INTERSECT the requested included regions with the configured included regions.
-		req.RegionIdentifiers = intersect(req.RegionIdentifiers, auth.IncludeRegions)
+		req.IncludeRegions = intersect(req.IncludeRegions, auth.IncludeRegions)
 		// For excluded regions, we UNION the the requested excluded regions with the configured excluded regions.
-		req.ExcludeRegionIdentifiers = union(req.ExcludeRegionIdentifiers, auth.ExcludeRegions)
+		req.ExcludeRegions = union(req.ExcludeRegions, auth.ExcludeRegions)
 	}
 
+	state := req.GetState()
+	if state == nil {
+		state = &federation.FetchState{
+			KeyCursor:        &federation.Cursor{},
+			RevisedKeyCursor: &federation.Cursor{},
+		}
+	}
+
+	// Primary (non-revised) keys are read first.
 	criteria := publishdb.IterateExposuresCriteria{
-		IncludeRegions:      req.RegionIdentifiers,
-		ExcludeRegions:      req.ExcludeRegionIdentifiers,
-		SinceTimestamp:      time.Unix(req.LastFetchResponseKeyTimestamp, 0),
+		IncludeRegions:      req.IncludeRegions,
+		ExcludeRegions:      req.ExcludeRegions,
+		SinceTimestamp:      time.Unix(state.KeyCursor.Timestamp, 0),
 		UntilTimestamp:      fetchUntil,
-		LastCursor:          req.NextFetchToken,
-		OnlyLocalProvenance: true, // Do not return results that came from other federation partners.
+		LastCursor:          state.KeyCursor.NextToken,
+		IncludeTravelers:    true,
+		OnlyTravelers:       req.OnlyTravelers,
+		OnlyLocalProvenance: req.OnlyLocalProvenance, // Include re-federation?
+		Limit:               maxRecords,
 	}
+	// The next token wil be set during the read if the read is incomplete.
+	state.KeyCursor.NextToken = ""
 
-	logger.Infof("Query criteria: %#v", criteria)
+	logger.Infow("query", "criteria", criteria)
 
 	// Filter included countries in memory.
-	includedRegions := make(map[string]struct{}, len(req.RegionIdentifiers))
-	for _, region := range req.RegionIdentifiers {
+	includedRegions := make(map[string]struct{}, len(req.IncludeRegions))
+	for _, region := range req.IncludeRegions {
 		includedRegions[region] = struct{}{}
 	}
-
 	// Filter excluded countries in memory, using a map for efficiency.
-	excludedRegions := make(map[string]struct{}, len(req.ExcludeRegionIdentifiers))
-	for _, region := range req.ExcludeRegionIdentifiers {
+	excludedRegions := make(map[string]struct{}, len(req.ExcludeRegions))
+	for _, region := range req.ExcludeRegions {
 		excludedRegions[region] = struct{}{}
 	}
 
-	ctrMap := map[string]*pb.ContactTracingResponse{} // local index into the response being assembled; keyed on unique set of regions.
-	ctiMap := map[string]*pb.ContactTracingInfo{}     // local index into the response being assembled; keys on unique set of (ctrMap key, transmissionRisk, verificationAuthorityName)
-	response := &pb.FederationFetchResponse{}
+	response := &federation.FederationFetchResponse{
+		Keys:           []*federation.ExposureKey{},
+		RevisedKeys:    []*federation.ExposureKey{},
+		NextFetchState: state,
+	}
 	count := 0
-	cursor, err := itFunc(ctx, criteria, func(inf *publishmodel.Exposure) error {
-		// If the diagnosis key is empty, it's malformed, so skip it.
-		if len(inf.ExposureKey) == 0 {
-			logger.Debugf("Exposure %s missing ExposureKey, skipping.", inf.ExposureKey)
-			return nil
-		}
-
-		// If there are no regions on the exposure, it's malformed, so skip it.
-		if len(inf.Regions) == 0 {
-			logger.Debugf("Exposure %s missing Regions, skipping.", inf.ExposureKey)
-			return nil
-		}
-
-		// Filter out non-LocalProvenance results; we should not re-federate.
-		// This may already be handled by the database query and is included here for completeness.
-		if !inf.LocalProvenance {
-			logger.Debugf("Exposure %s not LocalProvenance, skipping.", inf.ExposureKey)
-			return nil
-		}
-
-		// If all the regions on the record are excluded, skip it.
-		skip := true
-		for _, region := range inf.Regions {
-			if _, excluded := excludedRegions[region]; !excluded {
-				// At least one region for the exposure is NOT excluded, so we don't skip this record.
-				skip = false
-				break
-			}
-		}
-		if skip {
-			logger.Debugf("Exposure %s contains only excluded regions, skipping.", inf.ExposureKey)
-			return nil
-		}
-
-		// If filtering on a region (len(includedRegions) > 0) and none of the regions on the record are included, skip it.
-		if len(includedRegions) > 0 {
-			skip = true
-			for _, region := range inf.Regions {
-				if _, included := includedRegions[region]; included {
-					skip = false
-					break
-				}
-			}
-			if skip {
-				logger.Debugf("Exposure %s does not contain requested regions, skipping.", inf.ExposureKey)
-				return nil
-			}
-		}
-
-		// Find, or create, the ContactTracingResponse based on the unique set of regions.
-		sort.Strings(inf.Regions)
-		ctrKey := strings.Join(inf.Regions, "::")
-		ctr := ctrMap[ctrKey]
-		if ctr == nil {
-			ctr = &pb.ContactTracingResponse{RegionIdentifiers: inf.Regions}
-			ctrMap[ctrKey] = ctr
-			response.Response = append(response.Response, ctr)
-		}
-
-		// Find, or create, the ContactTracingInfo for (ctrKey, transmissionRisk).
-		ctiKey := fmt.Sprintf("%s::%d", ctrKey, inf.TransmissionRisk)
-		cti := ctiMap[ctiKey]
-		if cti == nil {
-			cti = &pb.ContactTracingInfo{TransmissionRisk: int32(inf.TransmissionRisk)}
-			ctiMap[ctiKey] = cti
-			ctr.ContactTracingInfo = append(ctr.ContactTracingInfo, cti)
-		}
-
-		// Add the key to the ContactTracingInfo.
-		cti.ExposureKeys = append(cti.ExposureKeys, &pb.ExposureKey{
-			ExposureKey:    inf.ExposureKey,
-			IntervalNumber: inf.IntervalNumber,
-			IntervalCount:  inf.IntervalCount,
-		})
-
-		created := inf.CreatedAt.Unix()
-		if created > response.FetchResponseKeyTimestamp {
-			response.FetchResponseKeyTimestamp = created
-		}
-
-		count++
-		return nil
-	})
+	cursor, err := itFunc(ctx, criteria, buildIteratorFunction(&BuildIteratorRequest{
+		destination:    &response.Keys,
+		revised:        false,
+		state:          state,
+		count:          &count,
+		includeRegions: includedRegions,
+		excludeRegions: excludedRegions,
+	}))
+	keepGoing := true
 	if err != nil {
 		metricsMiddleWare.RecordFetchError(ctx)
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 			logger.Infof("Fetch request reached time out, returning partial response.")
 			response.PartialResponse = true
-			response.NextFetchToken = cursor
+			state.KeyCursor.NextToken = cursor
+			keepGoing = false
 		} else {
 			return nil, err
 		}
 	}
+	if len(response.Keys) == int(maxRecords) {
+		response.PartialResponse = true
+		state.KeyCursor.NextToken = cursor
+	}
+
+	maxRecords = maxRecords - uint32(count)
+	if maxRecords <= 0 {
+		logger.Infof("Max records on primary keys, skipping revised.")
+		keepGoing = false
+	}
+
+	if keepGoing {
+		criteria.OnlyRevisedKeys = true
+		criteria.SinceTimestamp = time.Unix(state.RevisedKeyCursor.Timestamp, 0)
+		criteria.LastCursor = state.RevisedKeyCursor.NextToken
+		criteria.Limit = maxRecords
+		state.RevisedKeyCursor.NextToken = ""
+
+		cursor, err := itFunc(ctx, criteria, buildIteratorFunction(&BuildIteratorRequest{
+			destination:    &response.RevisedKeys,
+			revised:        true,
+			state:          state,
+			count:          &count,
+			includeRegions: includedRegions,
+			excludeRegions: excludedRegions,
+		}))
+		if err != nil {
+			metricsMiddleWare.RecordFetchError(ctx)
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				logger.Infof("Fetch request reached time out, returning partial response.")
+				response.PartialResponse = true
+				state.RevisedKeyCursor.NextToken = cursor
+			} else {
+				return nil, err
+			}
+		}
+		if len(response.RevisedKeys) == int(maxRecords) {
+			response.PartialResponse = true
+			state.RevisedKeyCursor.NextToken = cursor
+		}
+	}
+
+	// See if the timestamp should be bumped by 1.
+	// Start of the current window.
+	curWindow := publishmodel.TruncateWindow(time.Now().UTC(), s.config.TruncateWindow).Unix()
+	if !response.PartialResponse || len(response.RevisedKeys) > 0 {
+		// If the set was exhaused, and time has already advanced into the next window, we know that
+		// the previous window will not have any additional records.
+		// This can happen if not a partial response, or if we got any revised keys, the cur cursor should advance.
+		if curWindow > state.KeyCursor.Timestamp {
+			state.KeyCursor.Timestamp++
+		}
+	}
+	if !response.PartialResponse && len(response.Keys) > 0 {
+		// If we got revised keys and a non partial response, and the window has advanced,
+		// bump the revised cursor.
+		if curWindow > state.RevisedKeyCursor.Timestamp {
+			state.RevisedKeyCursor.Timestamp++
+		}
+	}
+
 	metricsMiddleWare.RecordFetchCount(ctx, count)
-	logger.Infof("Sent %d keys", count)
+	logger.Infow("sent key", "keys", count)
 	return response, nil
+}
+
+type BuildIteratorRequest struct {
+	destination    *[]*federation.ExposureKey
+	revised        bool
+	state          *federation.FetchState
+	count          *int
+	includeRegions map[string]struct{}
+	excludeRegions map[string]struct{}
+}
+
+func reportType(reportType string) federation.ExposureKey_ReportType {
+	switch reportType {
+	case verifyapi.ReportTypeConfirmed:
+		return federation.ExposureKey_CONFIRMED_TEST
+	case verifyapi.ReportTypeClinical:
+		return federation.ExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS
+	case verifyapi.ReportTypeNegative:
+		return federation.ExposureKey_REVOKED
+	default:
+		return federation.ExposureKey_UNKNOWN
+	}
+}
+
+func buildIteratorFunction(request *BuildIteratorRequest) publishdb.IteratorFunction {
+	return func(exp *publishmodel.Exposure) error {
+		// If the diagnosis key is empty, it's malformed, so skip it.
+		if len(exp.ExposureKey) != 16 {
+			return nil
+		}
+
+		// Determine which regions to return for this TEK.
+		reportRegions := make([]string, 0, len(exp.Regions))
+		for _, region := range exp.Regions {
+			if _, ok := request.excludeRegions[region]; ok {
+				continue
+			}
+			if _, ok := request.includeRegions[region]; ok {
+				reportRegions = append(reportRegions, region)
+			}
+		}
+
+		key := federation.ExposureKey{
+			ExposureKey:    exp.ExposureKey,
+			IntervalNumber: exp.IntervalNumber,
+			IntervalCount:  exp.IntervalCount,
+			Traveler:       exp.Traveler,
+			Regions:        reportRegions,
+		}
+
+		if !request.revised {
+			// primary keys first
+			key.TransmissionRisk = int32(exp.TransmissionRisk)
+			key.ReportType = reportType(exp.ReportType)
+			if exp.HasDaysSinceSymptomOnset() {
+				key.HasSymptomOnset = true
+				key.DaysSinceOnsetOfSymptoms = *exp.DaysSinceSymptomOnset
+			}
+
+			created := exp.CreatedAt
+			if ts := created.Unix(); ts > request.state.KeyCursor.Timestamp {
+				request.state.KeyCursor.Timestamp = ts
+			}
+		} else {
+			// Revised keys get different fields
+			key.ReportType = reportType(*exp.RevisedReportType)
+			if exp.RevisedTransmissionRisk != nil {
+				key.TransmissionRisk = int32(*exp.RevisedTransmissionRisk)
+			}
+			if exp.RevisedDaysSinceSymptomOnset != nil {
+				key.HasSymptomOnset = true
+				key.DaysSinceOnsetOfSymptoms = *exp.RevisedDaysSinceSymptomOnset
+			}
+
+			revisedAt := *exp.RevisedAt
+			log.Printf("REVISED AT: %v", revisedAt)
+			if ts := revisedAt.Unix(); ts > request.state.RevisedKeyCursor.Timestamp {
+				request.state.RevisedKeyCursor.Timestamp = ts
+			}
+		}
+
+		*request.destination = append(*request.destination, &key)
+
+		*request.count++
+		return nil
+	}
 }
 
 // AuthInterceptor validates incoming OIDC bearer token and adds corresponding FederationAuthorization record to the context.

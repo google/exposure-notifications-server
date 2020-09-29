@@ -47,9 +47,16 @@ type Config struct {
 	SecretManager         secrets.Config
 	ObservabilityExporter observability.Config
 
-	Port           string        `env:"PORT, default=8080"`
-	Timeout        time.Duration `env:"RPC_TIMEOUT, default=10m"`
-	TruncateWindow time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
+	Port                         string        `env:"PORT, default=8080"`
+	Timeout                      time.Duration `env:"RPC_TIMEOUT, default=10m"`
+	TruncateWindow               time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
+	MaxIntervalAge               time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
+	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=14"`
+
+	// Flags for local development and testing. This will cause still valid keys
+	// to not be embargoed.
+	// Normally "still valid" keys can be accepted, but are embargoed.
+	ReleaseSameDayKeys bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
 
 	// TLSSkipVerify, if set to true, causes the server certificate to not be
 	// verified. This is typically used when testing locally with self-signed
@@ -64,6 +71,12 @@ type Config struct {
 	// Cloud Run, or if using $GOOGLE_APPLICATION_CREDENTIALS, leave this value
 	// empty.
 	CredentialsFile string `env:"CREDENTIALS_FILE"`
+
+	// Sync configuration.
+	// If accepted, both self report and recursive will be sent as clinical,
+	// otherwise they will be dropped.
+	AcceptSelfReport bool `env:"ACCEPT_SELF_REPORT, default=false"`
+	AcceptRecursive  bool `env:"ACCEPT_RECURSIVE, default=false"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
