@@ -100,7 +100,7 @@ so that it references the exposure-notifications-server version that was just re
 
 ```text
 # From github.com/google/exposure-notifications-verification-server
-go get -u github.com/google/exposure-notifications-server@${RELEASE_VERSION}
+go get -u github.com/google/exposure-notifications-server@v${RELEASE_VERSION}
 
 # Cleanup
 go mod tidy
