@@ -285,12 +285,12 @@ func Seed(tb testing.TB, ctx context.Context, db *database.DB, exportPeriod time
 	if exist == nil || err != nil {
 		tb.Log("Creating a new authorized app")
 		if err := authorizedappdb.New(db).InsertAuthorizedApp(context.Background(), &authorizedappmodel.AuthorizedApp{
-			AppPackageName: "com.example.app",
+			AppPackageName: appName,
 			AllowedRegions: map[string]struct{}{
 				"TEST": {},
 			},
 			AllowedHealthAuthorityIDs: map[int64]struct{}{
-				1: {},
+				haID: {},
 			},
 
 			BypassHealthAuthorityVerification: false,
