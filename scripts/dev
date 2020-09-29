@@ -25,22 +25,17 @@ MIGRATE_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notificat
 PROTOC_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notifications/protoc:latest"
 
 # Database parameters
-DB_HOST="${DB_HOST:-127.0.0.1}"
-DB_PORT="${DB_PORT:-5432}"
-DB_USER="${DB_USER:-en-server}"
-DB_PASSWORD="${DB_PASSWORD:-BjrvWmjQPXykPu}"
-DB_SSLMODE="${DB_SSLMODE:-require}"
-DB_NAME="${DB_NAME:-en-server-db}"
+DB_HOST="${DB_HOST:-"127.0.0.1"}"
+DB_NAME="${DB_NAME:-"en-server-db"}"
+DB_PASSWORD="${DB_PASSWORD:-"6f50ecd73c7668c2"}"
+DB_PORT="${DB_PORT:-"5432"}"
+DB_USER="${DB_USER:-"en-server"}"
+DB_SSLMODE="${DB_SSLMODE:-"require"}"
 DB_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}"
 
 MD5CMD="$(command -v md5 || command -v md5sum)"
 DB_SHA="$(echo -n "${DB_NAME}|${DB_PORT}" | ${MD5CMD} | cut -d' ' -f1)"
 CERTS_DIR="${ROOT}/local/db-tls/${DB_SHA}"
-
-# Other configuration parameters
-CONFIG_REFRESH_DURATION="${CONFIG_REFRESH_DURATION:-1m}"
-TARGET_REFRESH_DURATION="${TARGET_REFRESH_DURATION:-50ms}"
-EXPORT_FILE_MAX_RECORDS="${EXPORT_FILE_MAX_RECORDS:-30000}"
 
 # error prints a message on stderr and exits immediately.
 function error() {
@@ -50,16 +45,12 @@ function error() {
 
 function init() {
   echo "export DB_HOST=\"${DB_HOST}\""
-  echo "export DB_PORT=\"${DB_PORT}\""
-  echo "export DB_USER=\"${DB_USER}\""
-  echo "export DB_SSLMODE=\"${DB_SSLMODE}\""
-  echo "export DB_PASSWORD=\"${DB_PASSWORD}\""
   echo "export DB_NAME=\"${DB_NAME}\""
+  echo "export DB_USER=\"${DB_USER}\""
+  echo "export DB_PASSWORD=\"${DB_PASSWORD}\""
+  echo "export DB_PORT=\"${DB_PORT}\""
+  echo "export DB_SSLMODE=\"${DB_SSLMODE}\""
   echo "export DB_URL=\"${DB_URL}\""
-
-  echo "export CONFIG_REFRESH_DURATION=\"${CONFIG_REFRESH_DURATION}\""
-  echo "export TARGET_REFRESH_DURATION=\"${TARGET_REFRESH_DURATION}\""
-  echo "export EXPORT_FILE_MAX_RECORDS=\"${EXPORT_FILE_MAX_RECORDS}\""
 }
 
 # gencerts creates the postgres SSL certificates if they do not already exist.
@@ -153,49 +144,12 @@ function psql() {
 
 # migrate runs the migrations against the database.
 function migrate() {
-  if [ $# -eq 0 ]; then
-    set -- "up"
-  fi
-
-  docker pull --quiet "${MIGRATE_CONTAINER_IMAGE}" > /dev/null
-  docker run \
-    --rm \
-    --interactive \
-    --network "host" \
-    --volume "${ROOT}/migrations:/migrations:ro" \
-    "${MIGRATE_CONTAINER_IMAGE}" \
-      -database "${DB_URL}" \
-      -path "/migrations" \
-      "$@"
+  go run ./cmd/migrate
 }
 
 # seed inserts test data.
 function seed() {
-  docker exec \
-    --interactive \
-    --env "PGPASSWORD=${DB_PASSWORD}" \
-    "${DB_NAME}" \
-    /usr/local/bin/psql \
-      --dbname "${DB_NAME}" \
-      --username "${DB_USER}" \
-      --port "5432" \
-      < "${ROOT}/testdata/config.sql"
-
-  echo "Database seeded (OK)"
-}
-
-function dbclear() {
-  docker exec \
-    --interactive \
-    --env "PGPASSWORD=${DB_PASSWORD}" \
-    "${DB_NAME}" \
-    /usr/local/bin/psql \
-      --dbname "${DB_NAME}" \
-      --username "${DB_USER}" \
-      --port "5432" \
-      < "${ROOT}/testdata/clear-export.sql"
-
-  echo "Database cleared (OK)"
+  go run ./tools/seed
 }
 
 # dburl returns the full connection url.
@@ -234,7 +188,6 @@ function help() {
   echo 1>&2 "  dbstop       stop the dev server"
   echo 1>&2 "  dbmigrate    run migrations"
   echo 1>&2 "  dbseed       seed dev data"
-  echo 1>&2 "  dbclear      clear export data and exposure keys"
   echo 1>&2 "  dburl        print url"
   echo 1>&2 "  dbshell      attach a psql session"
   echo 1>&2 "  protoc       re-compile protos"
@@ -274,11 +227,6 @@ case "${SUBCOMMAND}" in
   "dbseed" )
     shift
     seed "$@"
-    ;;
-
-  "dbclear" )
-    shift
-    dbclear "$@"
     ;;
 
   "dburl" )
