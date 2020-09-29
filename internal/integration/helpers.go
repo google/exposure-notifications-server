@@ -237,7 +237,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	return env, enClient
 }
 
-func Seed(tb testing.TB, ctx context.Context, db *database.DB, exportPeriod time.Duration) (*testutil.JWTConfig, string, string) {
+func Seed(tb testing.TB, ctx context.Context, db *database.DB, exportPeriod time.Duration) (*testutil.JWTConfig, string, string, string) {
 	bucketName := testRandomID(tb, 32)
 	filenameRoot := testRandomID(tb, 32)
 
@@ -251,14 +251,14 @@ func Seed(tb testing.TB, ctx context.Context, db *database.DB, exportPeriod time
 	// create a health authority
 	ha := &vm.HealthAuthority{
 		Audience: "exposure-notifications-service",
-		Issuer:   "Department of Health",
+		Issuer:   fmt.Sprintf("Department of Health %s", testRandomID(tb, 32)[:6]),
 		Name:     "Integration Test HA",
 	}
 	haKey := &vm.HealthAuthorityKey{
 		Version: "v1",
 		From:    time.Now().Add(-1 * time.Minute),
 	}
-	testutil.InitalizeVerificationDB(ctx, tb, db, ha, haKey, sk)
+	haID := testutil.InitalizeVerificationDB(ctx, tb, db, ha, haKey, sk)
 	jwtCfg := &testutil.JWTConfig{
 		HealthAuthority:    ha,
 		HealthAuthorityKey: haKey,
@@ -266,17 +266,31 @@ func Seed(tb testing.TB, ctx context.Context, db *database.DB, exportPeriod time
 		ReportType:         verifyapi.ReportTypeConfirmed,
 	}
 
+	appName := fmt.Sprintf("com.%s.app", testRandomID(tb, 32)[:6])
 	// Create an authorized app
-	exist, err := authorizedappdb.New(db).GetAuthorizedApp(context.Background(), "com.example.app")
+	authorizedapp := &authorizedappmodel.AuthorizedApp{
+		AppPackageName: appName,
+		AllowedRegions: map[string]struct{}{
+			"TEST": {},
+		},
+		AllowedHealthAuthorityIDs: map[int64]struct{}{
+			haID: {},
+		},
+
+		// TODO: hook up verification and revision
+		BypassHealthAuthorityVerification: false,
+		BypassRevisionToken:               false,
+	}
+	exist, err := authorizedappdb.New(db).GetAuthorizedApp(context.Background(), authorizedapp.AppPackageName)
 	if exist == nil || err != nil {
 		tb.Log("Creating a new authorized app")
 		if err := authorizedappdb.New(db).InsertAuthorizedApp(context.Background(), &authorizedappmodel.AuthorizedApp{
-			AppPackageName: "com.example.app",
+			AppPackageName: appName,
 			AllowedRegions: map[string]struct{}{
 				"TEST": {},
 			},
 			AllowedHealthAuthorityIDs: map[int64]struct{}{
-				1: {},
+				haID: {},
 			},
 
 			BypassHealthAuthorityVerification: false,
@@ -310,7 +324,7 @@ func Seed(tb testing.TB, ctx context.Context, db *database.DB, exportPeriod time
 		tb.Fatal(err)
 	}
 
-	return jwtCfg, bucketName, filenameRoot
+	return jwtCfg, bucketName, filenameRoot, appName
 }
 
 type prefixRoundTripper struct {

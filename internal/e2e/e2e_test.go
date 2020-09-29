@@ -109,13 +109,13 @@ func TestPublishEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to connect to database: %v", err)
 	}
-	jwtCfg, _, _ := integration.Seed(t, ctx, db, 2*time.Second)
+	jwtCfg, _, _, appName := integration.Seed(t, ctx, db, 2*time.Second)
 	keys := util.GenerateExposureKeys(3, -1, false)
 
 	// Publish 3 keys
 	payload := &verifyapi.Publish{
 		Keys:              keys,
-		HealthAuthorityID: "com.example.app",
+		HealthAuthorityID: appName,
 	}
 	jwtCfg.ExposureKeys = keys
 	jwtCfg.JWTWarp = time.Duration(0)
