@@ -46,6 +46,7 @@ Key Server here:
 * [Deployment guide](getting-started/deploying.md)
 * [Contributor guide](https://github.com/google/exposure-notifications-server/blob/main/CONTRIBUTING.md)
 * [Server Functional Requirements](server_functional_requirements.md)
+* [Data validation guide](tek_validation.md)
 * [Server Deployment Options](server_deployment_options.md)
 * [Reference documentation](https://pkg.go.dev/mod/github.com/google/exposure-notifications-server)
 * [API Definitions](https://github.com/google/exposure-notifications-server/tree/main/pkg/api/v1alpha1)
