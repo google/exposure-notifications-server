@@ -54,6 +54,8 @@ const (
 
 var (
 	fetchBatchSize = publishdb.InsertExposuresBatchSize
+
+	ErrInvalidReportType = errors.New("invalid report type")
 )
 
 type (
@@ -222,8 +224,12 @@ type pullOptions struct {
 	maxIntervalStartAge          time.Duration
 	maxMagnitudeSymptomOnsetDays uint
 	debugReleaseSameDay          bool
+	config                       *Config
 }
 
+// updateTimestamps takes the current known max[revised] timestamps and compares them
+// to the state in the fetch response. If the state in the fetch response has a newer time,
+// then the known max(es) are adjusted forward.
 func updateTimestamps(max, maxRevised time.Time, state *federation.FetchState) (time.Time, time.Time) {
 	if state == nil {
 		// Didn't get any response, don't advance timestamps.
@@ -244,7 +250,7 @@ func updateTimestamps(max, maxRevised time.Time, state *federation.FetchState) (
 }
 
 // converts a federation ExposureKey to a model Exposure.
-func buildExposure(e *federation.ExposureKey) *publishmodel.Exposure {
+func buildExposure(e *federation.ExposureKey, config *Config) (*publishmodel.Exposure, error) {
 	upperRegions := make([]string, len(e.Regions))
 	for i, r := range e.Regions {
 		upperRegions[i] = strings.ToUpper(strings.TrimSpace(r))
@@ -268,20 +274,30 @@ func buildExposure(e *federation.ExposureKey) *publishmodel.Exposure {
 	case federation.ExposureKey_REVOKED:
 		exposure.ReportType = verifyapi.ReportTypeNegative
 	case federation.ExposureKey_SELF_REPORT:
-		exposure.ReportType = verifyapi.ReportTypeClinical
+		if config.AcceptSelfReport {
+			exposure.ReportType = verifyapi.ReportTypeClinical
+		} else {
+			return nil, ErrInvalidReportType
+		}
 	case federation.ExposureKey_RECURSIVE:
-		exposure.ReportType = verifyapi.ReportTypeClinical
+		if config.AcceptRecursive {
+			exposure.ReportType = verifyapi.ReportTypeClinical
+		} else {
+			return nil, ErrInvalidReportType
+		}
+	default:
+		return nil, ErrInvalidReportType
 	}
 	// Maybe backfill transmission risk
 	exposure.TransmissionRisk = publishmodel.ReportTypeTransmissionRisk(exposure.ReportType, exposure.TransmissionRisk)
 
 	if e.HasSymptomOnset {
-		if ds := e.DaysSinceOnsetOfSymptoms; ds >= -14 && ds <= 14 {
+		if ds := e.DaysSinceOnsetOfSymptoms; ds >= -1*int32(config.MaxMagnitudeSymptomOnsetDays) && ds <= int32(config.MaxMagnitudeSymptomOnsetDays) {
 			exposure.SetDaysSinceSymptomOnset(ds)
 		}
 	}
 
-	return &exposure
+	return &exposure, nil
 }
 
 func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err error) {
@@ -352,13 +368,17 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 			// Build state for new inserts.
 			newExposures := make([]*publishmodel.Exposure, 0, len(response.Keys))
 			for _, key := range response.Keys {
-				exposure := buildExposure(key)
+				exposure, err := buildExposure(key, opts.config)
+				if err != nil {
+					logger.Debugw("invalid key on federation, skipping", "error", err)
+					continue
+				}
 				// Fill in federation specific items.
 				exposure.FederationSyncID = syncID
 				exposure.FederationQueryID = opts.query.QueryID
 
 				if err := exposure.AdjustAndValidate(&transformSettings); err != nil {
-					logger.Errorw("invalid key on federation, skipping", "error", err)
+					logger.Debugw("invalid key on federation, skipping", "error", err)
 					continue
 				}
 
@@ -374,7 +394,7 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 			}
 			// Success, update metrics
 			metricsMiddleWare.RecordPullInsertions(ctx, int(resp.Inserted))
-			metricsMiddleWare.RecordPullDroped(ctx, int(resp.Dropped))
+			metricsMiddleWare.RecordPullDropped(ctx, int(resp.Dropped))
 
 			total += int(resp.Inserted)
 		} else {
@@ -386,7 +406,10 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 			// Build state for new inserts.
 			revisedExposures := make([]*publishmodel.Exposure, 0, len(response.Keys))
 			for _, key := range response.RevisedKeys {
-				exposure := buildExposure(key)
+				exposure, err := buildExposure(key, opts.config)
+				if err != nil {
+					return ErrInvalidReportType
+				}
 				// Fill in federation specific items.
 				exposure.FederationSyncID = syncID
 				exposure.FederationQueryID = opts.query.QueryID
@@ -399,18 +422,17 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 				revisedExposures = append(revisedExposures, exposure)
 			}
 			resp, err := opts.deps.insertExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
-				Incoming:              revisedExposures,
-				OnlyRevisions:         true,
-				RequireToken:          false,
-				RequireQueryID:        true,
-				AllowPartialRevisions: true,
+				Incoming:       revisedExposures,
+				OnlyRevisions:  true,
+				RequireToken:   false,
+				RequireQueryID: true,
 			})
 			if err != nil {
 				return fmt.Errorf("revising %d exposures: %w", len(revisedExposures), err)
 			}
 			// Success, update metrics
 			metricsMiddleWare.RecordPullRevisions(ctx, int(resp.Revised))
-			metricsMiddleWare.RecordPullDroped(ctx, int(resp.Dropped))
+			metricsMiddleWare.RecordPullDropped(ctx, int(resp.Dropped))
 
 			total += int(resp.Revised)
 		} else {

@@ -175,7 +175,8 @@ func getFederationInSync(ctx context.Context, syncID int64, queryRowContext quer
 	return &s, nil
 }
 
-func timestampPtr(unixTS int64) *time.Time {
+// unixToTimestamp converts a unix timestamp into a time.Time
+func unixToTimestamp(unixTS int64) *time.Time {
 	ts := time.Unix(unixTS, 0).UTC().Truncate(time.Second)
 	return &ts
 }
@@ -229,8 +230,8 @@ func (db *FederationInDB) StartFederationInSync(ctx context.Context, q *model.Fe
 
 			var max, maxRevised *time.Time
 			if totalInserted > 0 {
-				max = timestampPtr(state.KeyCursor.Timestamp)
-				maxRevised = timestampPtr(state.RevisedKeyCursor.Timestamp)
+				max = unixToTimestamp(state.KeyCursor.Timestamp)
+				maxRevised = unixToTimestamp(state.RevisedKeyCursor.Timestamp)
 			}
 			_, err = tx.Exec(ctx, `
 				UPDATE

@@ -73,7 +73,8 @@ type Config struct {
 	CredentialsFile string `env:"CREDENTIALS_FILE"`
 
 	// Sync configuration.
-	// If accepted, both self report and rescurvie will be sent as clinical.
+	// If accepted, both self report and recursive will be sent as clinical,
+	// otherwise they will be dropped.
 	AcceptSelfReport bool `env:"ACCEPT_SELF_REPORT, default=false"`
 	AcceptRecursive  bool `env:"ACCEPT_RECURSIVE, default=false"`
 }

@@ -27,7 +27,7 @@ func (m Middleware) RecordPullRevisions(ctx context.Context, numRevised int) {
 	stats.Record(ctx, federationin.PullRevisions.M(int64(numRevised)))
 }
 
-func (m Middleware) RecordPullDroped(ctx context.Context, numDroped int) {
+func (m Middleware) RecordPullDropped(ctx context.Context, numDroped int) {
 	(*m.exporter).WriteInt("federation-pull-droped", false, numDroped)
-	stats.Record(ctx, federationin.PullDroped.M(int64(numDroped)))
+	stats.Record(ctx, federationin.PullDropped.M(int64(numDroped)))
 }

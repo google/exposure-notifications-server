@@ -116,7 +116,7 @@ func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExpos
 		return "", fmt.Errorf("generating where: %v", err)
 	}
 
-	logging.FromContext(ctx).Infow("iterator query", "query", query, "args", args)
+	logging.FromContext(ctx).Debugw("iterator query", "query", query, "args", args)
 
 	// TODO: this is a pretty weak cursor solution, but not too bad since we'll
 	// typically have queries ahead of the cleanup and before the current
@@ -440,6 +440,9 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 	if req == nil {
 		return nil, fmt.Errorf("missing request")
 	}
+	if req.SkipRevions && req.OnlyRevisions {
+		return nil, fmt.Errorf("configuration paradox: skipRevisions and onlyRevisions are both set to true")
+	}
 
 	// Maintain a record of the number of exposures inserted and updated, and a
 	// record of the exposures that were actually inserted/updated after merge
@@ -511,7 +514,7 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 				if req.RequireQueryID {
 					if in, ok := incomingMap[k]; ok {
 						if in.FederationQueryID != ex.FederationQueryID {
-							logger.Errorw("key revisionion attempted on federated key with wrong origin", "queryID", ex.FederationQueryID, "proposedQueryID", in.FederationQueryID)
+							logger.Warnw("key revision attempted on federated key with wrong origin", "queryID", ex.FederationQueryID, "proposedQueryID", in.FederationQueryID)
 							delete(incomingMap, k)
 							continue
 						}

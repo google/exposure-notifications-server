@@ -34,7 +34,7 @@ var (
 		{
 			Name:        metrics.MetricRoot + "pull_droped_latest",
 			Description: "Last value of exposure droped",
-			Measure:     PullDroped,
+			Measure:     PullDropped,
 			Aggregation: view.LastValue(),
 		},
 	}
