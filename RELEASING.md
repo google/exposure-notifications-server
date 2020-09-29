@@ -33,13 +33,12 @@ This is a diff from the last time a release was generated.
 export LAST_RELEASE_TAG="TODO" # e.g. v0.2.2
 
 release-notes \
-  --github-org "google" \
-  --github-repo "exposure-notifications-server" \
+  --org "google" \
+  --repo "exposure-notifications-server" \
   --branch "main" \
   --required-author ""  \
   --start-rev "${LAST_RELEASE_TAG}" \
   --end-rev "main" \
-  --release-version "${RELEASE_VERSION}" \
   --output "/tmp/relnotes-${RELEASE_VERSION}.md" \
   --repo-path "/tmp/relnotes-repo" \
   --dependencies true
