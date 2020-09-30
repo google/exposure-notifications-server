@@ -44,10 +44,6 @@ function incremental() {
 
   ${ROOT}/scripts/terraform.sh init
 
-  ${ROOT}/scripts/build
-  ${ROOT}/scripts/deploy
-  ${ROOT}/scripts/promote
-
   export_terraform_output db_conn DB_CONN
   export_terraform_output db_name DB_NAME
   export_terraform_output db_user DB_USER
@@ -56,6 +52,11 @@ function incremental() {
   
   export DB_PASSWORD="secret://${DB_PASSWORD}"
   export DB_SSLMODE=disable
+
+  ${ROOT}/scripts/build
+  ${ROOT}/scripts/deploy
+  ${ROOT}/scripts/promote
+  ${ROOT}/scripts/migrate
 
   run_e2e_test
 }
