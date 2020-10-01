@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	approxTime = cmp.Options{cmpopts.EquateApproxTime(time.Millisecond * 250)}
+	approxTime = cmp.Options{cmpopts.EquateApproxTime(time.Second)}
 )
 
 func TestAddGetUpdateExportConfig(t *testing.T) {
