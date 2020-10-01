@@ -54,7 +54,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 	logger := logging.FromContext(ctx)
 	// Download zip file.
 	client := &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: s.config.ExportFileDownloadTimeout,
 	}
 	resp, err := client.Get(ir.file.ZipFilename)
 	if err != nil {
@@ -102,12 +102,12 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 	valid := false
 	for k, sig := range signatures {
 		if sig.publicKey == nil {
-			logger.Infow("no public key for signature", "signature", sig)
+			logger.Warnw("no public key for signature", "signature", sig)
 			continue
 		}
 		if ecdsa.VerifyASN1(sig.publicKey, digest[:], sig.signature) {
 			valid = true
-			logger.Infow("validated signature", "file", ir.file, "kid.version", k)
+			logger.Debugw("validated signature", "file", ir.file, "kid.version", k)
 			break
 		}
 	}
@@ -135,7 +135,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 		template := pubdb.InsertAndReviseExposuresRequest{
 			SkipRevions: true,
 		}
-		if err := s.insertAndReviseKeys(ctx, inserts, &template, &response); err != nil {
+		if err := s.insertAndReviseKeys(ctx, "primary", inserts, &template, &response); err != nil {
 			return nil, fmt.Errorf("insert primary keys: %w", err)
 		}
 	}
@@ -145,11 +145,11 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 		revisions, dropped := exKeyTransform.transform(tekExport.RevisedKeys)
 		response.droppedKeys = response.droppedKeys + dropped
 		template := pubdb.InsertAndReviseExposuresRequest{
-			OnlyRevisions:        true,
-			RequireToken:         false,
-			RequireExortImportID: true,
+			OnlyRevisions:         true,
+			RequireToken:          false,
+			RequireExportImportID: true,
 		}
-		if err := s.insertAndReviseKeys(ctx, revisions, &template, &response); err != nil {
+		if err := s.insertAndReviseKeys(ctx, "revised", revisions, &template, &response); err != nil {
 			return nil, fmt.Errorf("insert revised keys: %w", err)
 		}
 	}
@@ -157,7 +157,8 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 	return &response, nil
 }
 
-func (s *Server) insertAndReviseKeys(ctx context.Context, exposures []*pubmodel.Exposure, template *pubdb.InsertAndReviseExposuresRequest, response *ImportResposne) error {
+func (s *Server) insertAndReviseKeys(ctx context.Context, mode string, exposures []*pubmodel.Exposure, template *pubdb.InsertAndReviseExposuresRequest, response *ImportResposne) error {
+	logger := logging.FromContext(ctx)
 	length := len(exposures)
 	for i := 0; i < length; i = i + s.config.MaxInsertBatchSize {
 		upper := i + s.config.MaxInsertBatchSize
@@ -171,6 +172,7 @@ func (s *Server) insertAndReviseKeys(ctx context.Context, exposures []*pubmodel.
 		if err != nil {
 			return fmt.Errorf("publishDB.InsertAndReviseExposures: %w", err)
 		}
+		logger.Infow("insertAndRevise", "mode", mode, "candidates", len(template.Incoming), "inserted", insertResponse.Inserted, "revised", insertResponse.Revised, "dropped", insertResponse.Dropped)
 
 		response.insertedKeys = response.insertedKeys + insertResponse.Inserted
 		response.droppedKeys = response.droppedKeys + insertResponse.Dropped

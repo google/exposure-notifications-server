@@ -415,7 +415,7 @@ type InsertAndReviseExposuresRequest struct {
 	// Require matching Sync QueryID only allows revisions if they originated from the same query ID.
 	RequireQueryID bool
 	// When revising, require matching export-import-ID. For export file based import federation.
-	RequireExortImportID bool
+	RequireExportImportID bool
 }
 
 // InsertAndReviseExposuresResponse is the response from an
@@ -527,7 +527,7 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 					}
 				}
 				// For export file based federation. Revisions must come from the same export lineage.
-				if req.RequireExortImportID {
+				if req.RequireExportImportID {
 					if in, ok := incomingMap[k]; ok {
 						inID := in.ExportImportID
 						pID := ex.ExportImportID

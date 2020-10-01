@@ -34,7 +34,7 @@ type ImportFilePublicKey struct {
 
 func (pk *ImportFilePublicKey) PublicKey() (*ecdsa.PublicKey, error) {
 	block, _ := pem.Decode([]byte(pk.PublicKeyPEM))
-	if block == nil || block.Type != "PUBLIC KEY" {
+	if block == nil {
 		return nil, errors.New("unable to decode PEM block containing PUBLIC KEY")
 	}
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)

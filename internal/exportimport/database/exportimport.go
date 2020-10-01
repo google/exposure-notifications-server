@@ -45,9 +45,9 @@ func (db *ExportImportDB) ActiveConfigs(ctx context.Context) ([]*model.ExportImp
 			FROM
 				exportimport
 			WHERE
-				from_timestamp < $1
+				from_timestamp <= $1
 			AND
-				(thru_timestamp IS NULL OR thru_timestamp > $1)
+				(thru_timestamp IS NULL OR thru_timestamp >= $1)
 		`, time.Now().UTC())
 		if err != nil {
 			return fmt.Errorf("failed to list: %w", err)
@@ -67,7 +67,7 @@ func (db *ExportImportDB) ActiveConfigs(ctx context.Context) ([]*model.ExportImp
 		}
 		return nil
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listing active exportimport configs: %w", err)
 	}
 
 	return configs, nil
@@ -269,7 +269,7 @@ func (db *ExportImportDB) CreateFiles(ctx context.Context, ei *model.ExportImpor
 		}
 		return nil
 	}); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("creating import files: %w", err)
 	}
 
 	return insertedFiles, nil

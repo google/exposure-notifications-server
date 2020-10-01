@@ -51,7 +51,7 @@ func (s *Server) handleImport(ctx context.Context) http.HandlerFunc {
 		for _, config := range configs {
 			// Check how we're doing on max runtime.
 			if deadlinePassed(ctx) {
-				logger.Errorf("deadline passed, still work to do")
+				logger.Warnf("deadline passed, still work to do")
 				return
 			}
 
@@ -73,7 +73,7 @@ func (s *Server) handleImport(ctx context.Context) http.HandlerFunc {
 			// Get the list of files that needs to be processed.
 			openFiles, err := s.exportImportDB.GetOpenImportFiles(ctx, s.config.ImportLockTime, config)
 			if err != nil {
-				logger.Errorf("unable to read open export files", "config", config, "error", err)
+				logger.Errorw("unable to read open export files", "config", config, "error", err)
 			}
 			if len(openFiles) == 0 {
 				logger.Infow("no work to do", "config", config)
@@ -83,19 +83,20 @@ func (s *Server) handleImport(ctx context.Context) http.HandlerFunc {
 			// Read in public keys.
 			keys, err := s.exportImportDB.AllowedKeys(ctx, config)
 			if err != nil {
-				logger.Errorf("unable to read public keys", "config", config, "error", err)
+				logger.Errorw("unable to read public keys", "config", config, "error", err)
+				continue
 			}
 			logger.Debugw("allowed public keys for file", "publicKeys", keys)
 
 			for _, file := range openFiles {
 				// Check how we're doing on max runtime.
 				if deadlinePassed(ctx) {
-					logger.Errorf("deadline passed, still work to do", "config", config)
+					logger.Warnw("deadline passed, still work to do", "config", config)
 					return
 				}
 
 				if err := s.exportImportDB.LeaseImportFile(ctx, s.config.ImportLockTime, file); err != nil {
-					logger.Errorf("unexpected race condition, file already locked", "file", file, "error", err)
+					logger.Warnw("unexpected race condition, file already locked", "file", file, "error", err)
 					continue
 				}
 

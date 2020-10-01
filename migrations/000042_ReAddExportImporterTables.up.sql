@@ -25,6 +25,9 @@ CREATE TABLE ExportImport(
 	thru_timestamp TIMESTAMPTZ
 );
 
+CREATE INDEX export_import_from_timestamp ON ExportImport USING BRIN(from_timestamp);
+CREATE INDEX export_import_thru_timestamp ON ExportImport USING BRIN(thru_timestamp);
+
 -- Public key information for an import config.
 CREATE TABLE ImportFilePublicKey(
     export_import_id INT NOT NULL REFERENCES ExportImport(id),
@@ -36,6 +39,10 @@ CREATE TABLE ImportFilePublicKey(
     PRIMARY KEY(export_import_id, key_id, key_version)
 );
 
+
+CREATE INDEX import_file_public_key_from ON ImportFilePublicKey USING BRIN(from_timestamp);
+CREATE INDEX import_file_public_key_thru ON ImportFilePublicKey USING BRIN(thru_timestamp);
+
 -- Individual .zip export files that are being imported into this serever.
 CREATE TYPE ImportFileStatus AS ENUM ('OPEN', 'PENDING', 'COMPLETE', 'FAILED');
 CREATE TABLE ImportFile (
@@ -46,6 +53,8 @@ CREATE TABLE ImportFile (
     processed_at TIMESTAMPTZ,
     status ImportFileStatus NOT NULL DEFAULT 'OPEN' 
 );
+
+CREATE INDEX import_file_status_processed ON ImportFile (status, processed_at);
 
 -- Allows us to link where an imported TEK came from
 -- and marks when we saw the revision as well.

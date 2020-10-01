@@ -31,13 +31,23 @@ type Config struct {
 
 	Port string `env:"PORT, default=8080"`
 
+	IndexFileDownloadTimeout  time.Duration `env:"INDEX_FILE_DOWNLOAD_TIMEOUT, default=30s"`
+	ExportFileDownloadTimeout time.Duration `env:"EXPORT_FILE_DOWNLOAD_TIMEOUT, default=2m"`
+
 	MaxInsertBatchSize           int           `env:"MAX_INSERT_BATCH_SIZE, default=100"`
 	MaxIntervalAge               time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
 	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=14"`
 	CreatedAtTruncateWindow      time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
-	ImportLockTime               time.Duration `env:"IMPORT_LOCK_TIME, default=13m"`
-	MaxRuntime                   time.Duration `env:"MAX_RUNTIME, default=12m"`
-	ImportAPKName                string        `env:"IMPORT_APP_PACKAGE_NAME, default=exportimport"`
+	// Each import config is locked while file are being imported. This is to prevent starvation in
+	// the event that there are multiple exportimport configurations. If a worker fails
+	// during processing, this defines the lock timeout.
+	ImportLockTime time.Duration `env:"IMPORT_LOCK_TIME, default=13m"`
+	// Maximum amount of time that an import worker should be allowed to run. This should be set
+	// lower that infrastructure level request timeouts and lower than the lock time.
+	MaxRuntime time.Duration `env:"MAX_RUNTIME, default=12m"`
+	// Each exposure is inserted with the app_package_name / healthAuthorityID that it was published with
+	// Use this string to signal that a key came from the export-importer job.
+	ImportAPKName string `env:"IMPORT_APP_PACKAGE_NAME, default=exportimport"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {

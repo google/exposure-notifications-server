@@ -54,10 +54,11 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 		configs, err := s.exportImportDB.ActiveConfigs(ctx)
 		if err != nil {
 			logger.Errorw("unable to read active configs", "error", err)
+			return
 		}
 
 		client := &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: s.config.IndexFileDownloadTimeout,
 		}
 
 		anyErrors := false
@@ -67,7 +68,7 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 			resp, err := client.Get(config.IndexFile)
 			if err != nil {
 				anyErrors = true
-				logger.Errorf("error downloading index file", "file", config.IndexFile, "error", err)
+				logger.Errorw("error downloading index file", "file", config.IndexFile, "error", err)
 				continue
 			}
 
@@ -75,7 +76,7 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 			bytes, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				anyErrors = true
-				logger.Errorf("unable to read index file", "file", config.IndexFile, "error", err)
+				logger.Errorw("unable to read index file", "file", config.IndexFile, "error", err)
 				continue
 			}
 			zipNames := strings.Split(string(bytes), "\n")
@@ -89,10 +90,10 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 			n, err := s.exportImportDB.CreateFiles(ctx, config, currentFiles)
 			if err != nil {
 				anyErrors = true
-				logger.Errorf("unable to write new files", "error", err)
+				logger.Errorw("unable to write new files", "error", err)
 			}
 			if n != 0 {
-				logger.Infof("found new files for export import config", "file", config.IndexFile, "newCount", n)
+				logger.Infow("found new files for export import config", "file", config.IndexFile, "newCount", n)
 			}
 		}
 
@@ -100,7 +101,7 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 		if anyErrors {
 			status = http.StatusInternalServerError
 		}
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(status)
 		w.Write([]byte(http.StatusText(status)))
 	}
 }

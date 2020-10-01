@@ -43,7 +43,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 
 	fromTime := time.Now().UTC().Add(-1 * time.Second)
 	want := []*model.ExportImport{
-		&model.ExportImport{
+		{
 			IndexFile:  "https://mysever/exports/index.txt",
 			ExportRoot: "https://myserver/",
 			Region:     "US",

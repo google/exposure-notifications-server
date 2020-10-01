@@ -91,8 +91,10 @@ func MarshalExportFile(eb *model.ExportBatch, exposures, revisedExposures []*pub
 }
 
 // UnmarshalExportFile extracts the protobuf encoded exposure key present in the zip archived payload.
-// Returns the parsed TemporaryExposureKeyExport protocol buffer message, the digest of the signed content
+// Returns the parsed TemporaryExposureKeyExport protocol buffer message, the SHA256 digest of the signed content
 // and/or an error if error.
+// The digest is useful in validating the signature as it returns the deigest of the content that
+// was signed when the archive was created.
 func UnmarshalExportFile(zippedProtoPayload []byte) (*export.TemporaryExposureKeyExport, []byte, error) {
 	zp, err := zip.NewReader(bytes.NewReader(zippedProtoPayload), int64(len(zippedProtoPayload)))
 	if err != nil {
