@@ -122,6 +122,7 @@ resource "google_cloud_run_service" "key-rotation" {
     google_project_service.services["run.googleapis.com"],
     google_secret_manager_secret_iam_member.key-rotation-db,
     null_resource.build,
+    null_resource.migrate,
   ]
 
   lifecycle {
@@ -179,7 +180,5 @@ resource "google_cloud_scheduler_job" "key-rotation-worker" {
     google_app_engine_application.app,
     google_cloud_run_service_iam_member.key-rotation-invoker,
     google_project_service.services["cloudscheduler.googleapis.com"],
-    null_resource.build,
-    null_resource.migrate,
   ]
 }

@@ -112,6 +112,7 @@ resource "google_cloud_run_service" "cleanup-export" {
     google_project_service.services["run.googleapis.com"],
     google_secret_manager_secret_iam_member.cleanup-export-db,
     null_resource.build,
+    null_resource.migrate,
   ]
 
   lifecycle {
@@ -165,7 +166,5 @@ resource "google_cloud_scheduler_job" "cleanup-export-worker" {
     google_app_engine_application.app,
     google_cloud_run_service_iam_member.cleanup-export-invoker,
     google_project_service.services["cloudscheduler.googleapis.com"],
-    null_resource.build,
-    null_resource.migrate,
   ]
 }
