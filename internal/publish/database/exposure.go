@@ -274,7 +274,7 @@ func (db *PublishDB) ReadExposures(ctx context.Context, tx pgx.Tx, b64keys []str
 				interval_number, interval_count, created_at, local_provenance, sync_id,
 				health_authority_id, report_type, days_since_symptom_onset,
 				revised_report_type, revised_at, revised_days_since_symptom_onset,
-				revised_transmission_risk
+				revised_transmission_risk, export_import_id
 			FROM
 				Exposure
 			WHERE exposure_key = ANY($1)
@@ -300,7 +300,7 @@ func (db *PublishDB) ReadExposures(ctx context.Context, tx pgx.Tx, b64keys []str
 				&exposure.CreatedAt, &exposure.LocalProvenance, &syncID,
 				&exposure.HealthAuthorityID, &exposure.ReportType, &exposure.DaysSinceSymptomOnset,
 				&exposure.RevisedReportType, &exposure.RevisedAt, &exposure.RevisedDaysSinceSymptomOnset,
-				&exposure.RevisedTransmissionRisk,
+				&exposure.RevisedTransmissionRisk, &exposure.ExportImportID,
 			); err != nil {
 				return fmt.Errorf("failed to parse: %w", err)
 			}
@@ -332,9 +332,10 @@ func prepareInsertExposure(ctx context.Context, tx pgx.Tx) (string, error) {
 		INSERT INTO
 			Exposure
 				(exposure_key, transmission_risk, app_package_name, regions, traveler, interval_number, interval_count,
-				 created_at, local_provenance, sync_id, sync_query_id, health_authority_id, report_type, days_since_symptom_onset)
+				 created_at, local_provenance, sync_id, sync_query_id, health_authority_id, report_type, days_since_symptom_onset,
+				 export_import_id, import_file_id)
 		VALUES
-			($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+			($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		ON CONFLICT (exposure_key) DO NOTHING
 	`)
 	return stmtName, err
@@ -353,7 +354,8 @@ func executeInsertExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 	_, err := tx.Exec(ctx, stmtName, encodeExposureKey(exp.ExposureKey), exp.TransmissionRisk,
 		exp.AppPackageName, exp.Regions, exp.Traveler, exp.IntervalNumber, exp.IntervalCount,
 		exp.CreatedAt, exp.LocalProvenance, syncID, queryID,
-		exp.HealthAuthorityID, exp.ReportType, exp.DaysSinceSymptomOnset)
+		exp.HealthAuthorityID, exp.ReportType, exp.DaysSinceSymptomOnset,
+		exp.ExportImportID, exp.ImportFileID)
 	if err != nil {
 		return fmt.Errorf("inserting exposure: %v", err)
 	}
@@ -367,9 +369,10 @@ func prepareReviseExposure(ctx context.Context, tx pgx.Tx) (string, error) {
 			Exposure
 		SET
 			health_authority_id = $1, revised_report_type = $2, revised_at = $3,
-			revised_days_since_symptom_onset = $4, revised_transmission_risk = $5
+			revised_days_since_symptom_onset = $4, revised_transmission_risk = $5,
+			revised_import_file_id = $6
 		WHERE
-			exposure_key = $6 AND revised_at IS NULL
+			exposure_key = $7 AND revised_at IS NULL
 		`)
 	return stmtName, err
 }
@@ -378,6 +381,7 @@ func executeReviseExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 	result, err := tx.Exec(ctx, stmtName,
 		exp.HealthAuthorityID, exp.RevisedReportType, exp.RevisedAt,
 		exp.RevisedDaysSinceSymptomOnset, exp.RevisedTransmissionRisk,
+		exp.RevisedImportFileID,
 		encodeExposureKey(exp.ExposureKey))
 	if err != nil {
 		return fmt.Errorf("revising exposure: %v", err)
@@ -410,6 +414,8 @@ type InsertAndReviseExposuresRequest struct {
 	OnlyRevisions bool
 	// Require matching Sync QueryID only allows revisions if they originated from the same query ID.
 	RequireQueryID bool
+	// When revising, require matching export-import-ID. For export file based import federation.
+	RequireExortImportID bool
 }
 
 // InsertAndReviseExposuresResponse is the response from an
@@ -485,8 +491,8 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 		if len(existing) > 0 {
 			// Check if a revision token is required.
 			if req.Token == nil {
-				logger.Errorw("attempted to revise keys, but revision token is missing")
 				if req.RequireToken {
+					logger.Warnw("attempted to revise keys, but revision token is missing")
 					return ErrNoRevisionToken
 				}
 			}
@@ -515,6 +521,18 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 					if in, ok := incomingMap[k]; ok {
 						if in.FederationQueryID != ex.FederationQueryID {
 							logger.Warnw("key revision attempted on federated key with wrong origin", "queryID", ex.FederationQueryID, "proposedQueryID", in.FederationQueryID)
+							delete(incomingMap, k)
+							continue
+						}
+					}
+				}
+				// For export file based federation. Revisions must come from the same export lineage.
+				if req.RequireExortImportID {
+					if in, ok := incomingMap[k]; ok {
+						inID := in.ExportImportID
+						pID := ex.ExportImportID
+						if inID == nil || pID == nil || *inID != *pID {
+							logger.Warnw("key revision attempted on import with wrong origin", "exportImportID", ex.ExportImportID, "proposedexportImportID", in.ExportImportID)
 							delete(incomingMap, k)
 							continue
 						}

@@ -25,9 +25,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/pb/export"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -1282,6 +1284,124 @@ func TestExposureReview(t *testing.T) {
 			}
 
 			if diff := cmp.Diff(tc.want, tc.previous, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestExposureFromExportFile(t *testing.T) {
+	validTEK := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	invalidTEK := []byte{0, 1}
+
+	validInterval := int32(IntervalNumber(time.Now().UTC().Truncate(24 * time.Hour).Add(-24 * time.Hour)))
+
+	maxSymptomOnsetDays := int32(14)
+	cases := []struct {
+		name      string
+		key       *export.TemporaryExposureKey
+		want      *Exposure
+		wantError string
+	}{
+		{
+			name: "valid_key",
+			key: &export.TemporaryExposureKey{
+				KeyData:                    validTEK,
+				TransmissionRiskLevel:      proto.Int32(verifyapi.TransmissionRiskConfirmedStandard),
+				RollingStartIntervalNumber: proto.Int32(validInterval),
+				RollingPeriod:              proto.Int32(verifyapi.MaxIntervalCount),
+				ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
+				DaysSinceOnsetOfSymptoms:   proto.Int32(2),
+			},
+			want: &Exposure{
+				ExposureKey:           validTEK,
+				TransmissionRisk:      verifyapi.TransmissionRiskConfirmedStandard,
+				IntervalNumber:        validInterval,
+				IntervalCount:         verifyapi.MaxIntervalCount,
+				LocalProvenance:       false,
+				ReportType:            verifyapi.ReportTypeConfirmed,
+				DaysSinceSymptomOnset: proto.Int32(2),
+			},
+		},
+		{
+			name: "invalid_key_length",
+			key: &export.TemporaryExposureKey{
+				KeyData:                    invalidTEK,
+				TransmissionRiskLevel:      proto.Int32(verifyapi.TransmissionRiskConfirmedStandard),
+				RollingStartIntervalNumber: proto.Int32(validInterval),
+				RollingPeriod:              proto.Int32(verifyapi.MaxIntervalCount),
+				ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
+				DaysSinceOnsetOfSymptoms:   proto.Int32(2),
+			},
+			wantError: "invalid key length",
+		},
+		{
+			name: "trisk_too_low",
+			key: &export.TemporaryExposureKey{
+				KeyData:                    validTEK,
+				TransmissionRiskLevel:      proto.Int32(-1),
+				RollingStartIntervalNumber: proto.Int32(validInterval),
+				RollingPeriod:              proto.Int32(verifyapi.MaxIntervalCount),
+				ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
+				DaysSinceOnsetOfSymptoms:   proto.Int32(2),
+			},
+			wantError: "transmission risk too low",
+		},
+		{
+			name: "trisk_too_high",
+			key: &export.TemporaryExposureKey{
+				KeyData:                    validTEK,
+				TransmissionRiskLevel:      proto.Int32(verifyapi.MaxTransmissionRisk + 1),
+				RollingStartIntervalNumber: proto.Int32(validInterval),
+				RollingPeriod:              proto.Int32(verifyapi.MaxIntervalCount),
+				ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
+				DaysSinceOnsetOfSymptoms:   proto.Int32(2),
+			},
+			wantError: "transmission risk too high",
+		},
+		{
+			name: "unsupported_report_type",
+			key: &export.TemporaryExposureKey{
+				KeyData:                    validTEK,
+				TransmissionRiskLevel:      proto.Int32(verifyapi.MaxTransmissionRisk),
+				RollingStartIntervalNumber: proto.Int32(validInterval),
+				RollingPeriod:              proto.Int32(verifyapi.MaxIntervalCount),
+				ReportType:                 export.TemporaryExposureKey_RECURSIVE.Enum(),
+				DaysSinceOnsetOfSymptoms:   proto.Int32(2),
+			},
+			wantError: "unsupported report type",
+		},
+		{
+			name: "invalid_symptom_onset",
+			key: &export.TemporaryExposureKey{
+				KeyData:                    validTEK,
+				TransmissionRiskLevel:      proto.Int32(verifyapi.TransmissionRiskConfirmedStandard),
+				RollingStartIntervalNumber: proto.Int32(validInterval),
+				RollingPeriod:              proto.Int32(verifyapi.MaxIntervalCount),
+				ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
+				DaysSinceOnsetOfSymptoms:   proto.Int32(56),
+			},
+			wantError: "days since onset of symptoms is out of range",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := FromExportKey(tc.key, maxSymptomOnsetDays)
+
+			if err != nil && tc.wantError == "" {
+				t.Fatalf("unexpected error: %v", err)
+			} else if err == nil && tc.wantError != "" {
+				t.Fatalf("missing expected error: %q", tc.wantError)
+			} else if err != nil && tc.wantError != "" && !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("wrong error, want: %q, got: %v", tc.wantError, err)
+			}
+
+			if tc.wantError != "" {
+				return
+			}
+
+			if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})

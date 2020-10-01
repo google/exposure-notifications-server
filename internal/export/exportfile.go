@@ -91,10 +91,12 @@ func MarshalExportFile(eb *model.ExportBatch, exposures, revisedExposures []*pub
 }
 
 // UnmarshalExportFile extracts the protobuf encoded exposure key present in the zip archived payload.
-func UnmarshalExportFile(zippedProtoPayload []byte) (*export.TemporaryExposureKeyExport, error) {
+// Returns the parsed TemporaryExposureKeyExport protocol buffer message, the digest of the signed content
+// and/or an error if error.
+func UnmarshalExportFile(zippedProtoPayload []byte) (*export.TemporaryExposureKeyExport, []byte, error) {
 	zp, err := zip.NewReader(bytes.NewReader(zippedProtoPayload), int64(len(zippedProtoPayload)))
 	if err != nil {
-		return nil, fmt.Errorf("can't read payload: %v", err)
+		return nil, nil, fmt.Errorf("can't read payload: %v", err)
 	}
 
 	for _, file := range zp.File {
@@ -103,33 +105,35 @@ func UnmarshalExportFile(zippedProtoPayload []byte) (*export.TemporaryExposureKe
 		}
 	}
 
-	return nil, fmt.Errorf("payload is invalid: no %v file was found", exportBinaryName)
+	return nil, nil, fmt.Errorf("payload is invalid: no %v file was found", exportBinaryName)
 }
 
-func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, error) {
+func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, []byte, error) {
 	f, err := file.Open()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer f.Close()
 
 	content, err := ioutil.ReadAll(f)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
+	digest := sha256.Sum256(content)
 
 	prefix := content[:fixedHeaderWidth]
 	if !bytes.Equal(prefix, fixedHeader) {
-		return nil, fmt.Errorf("unknown prefix: %v", string(prefix))
+		return nil, nil, fmt.Errorf("unknown prefix: %v", string(prefix))
 	}
 
 	message := new(export.TemporaryExposureKeyExport)
 	err = proto.Unmarshal(content[fixedHeaderWidth:], message)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return message, nil
+	return message, digest[:], nil
 }
 
 func sortExposures(exposures []*publishmodel.Exposure) {
