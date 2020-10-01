@@ -231,7 +231,7 @@ func TestImportFilePublicKey(t *testing.T) {
 		t.Fatalf("error reading public keys: %v", err)
 	}
 
-	if diff := cmp.Diff(&want, got[0]); diff != "" {
+	if diff := cmp.Diff(&want, got[0], approxTime); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 
