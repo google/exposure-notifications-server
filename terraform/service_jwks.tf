@@ -159,5 +159,7 @@ resource "google_cloud_scheduler_job" "jwks-worker" {
     google_app_engine_application.app,
     google_cloud_run_service_iam_member.jwks-invoker,
     google_project_service.services["cloudscheduler.googleapis.com"],
+    null_resource.build,
+    null_resource.migrate,
   ]
 }

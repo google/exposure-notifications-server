@@ -161,5 +161,7 @@ resource "google_cloud_scheduler_job" "generate-worker" {
   depends_on = [
     google_app_engine_application.app,
     google_cloud_run_service_iam_member.generate-invoker,
+    null_resource.build,
+    null_resource.migrate,
   ]
 }
