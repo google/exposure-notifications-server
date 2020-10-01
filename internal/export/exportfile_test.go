@@ -16,6 +16,7 @@ package export
 
 import (
 	"crypto"
+	"encoding/base64"
 	"io"
 	"testing"
 	"time"
@@ -101,9 +102,14 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 		t.Fatalf("Can't marshal export file, %v", err)
 	}
 
-	got, err := UnmarshalExportFile(blob)
+	got, digest, err := UnmarshalExportFile(blob)
 	if err != nil {
 		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	wantDigest := "jN+W9DnqfXx5hp+6LaI8JuilsFWoiyF8DE/73OGZMJM="
+	if b64digest := base64.StdEncoding.EncodeToString(digest); b64digest != wantDigest {
+		t.Errorf("wrong message digest want: %v, got: %v", wantDigest, b64digest)
 	}
 
 	infos := []*export.SignatureInfo{

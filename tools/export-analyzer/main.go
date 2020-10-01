@@ -73,7 +73,7 @@ func main() {
 		log.Printf("Export signature file contents:\n%v", string(prettyJSON))
 	}
 
-	keyExport, err := export.UnmarshalExportFile(blob)
+	keyExport, _, err := export.UnmarshalExportFile(blob)
 	if err != nil {
 		log.Fatalf("error unmarshaling export file: %v", err)
 	}

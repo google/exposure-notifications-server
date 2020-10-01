@@ -163,7 +163,7 @@ func TestIntegration(t *testing.T) {
 				}
 
 				// Process contents as an export
-				key, err := exportapi.UnmarshalExportFile(data)
+				key, _, err := exportapi.UnmarshalExportFile(data)
 				if err != nil {
 					return fmt.Errorf("failed to extract export data: %w", err)
 				}

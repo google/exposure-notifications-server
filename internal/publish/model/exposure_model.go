@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/pb/export"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -70,6 +71,10 @@ type Exposure struct {
 	LocalProvenance   bool
 	FederationSyncID  int64
 	FederationQueryID string
+	// Export file based Federation
+	ExportImportID      *int64
+	ImportFileID        *int64
+	RevisedImportFileID *int64
 
 	// These fields are nullable to maintain backwards compatibility with
 	// older versions that predate their existence.
@@ -87,6 +92,77 @@ type Exposure struct {
 	base64Key string
 }
 
+// FromExportKey is used to read a key from an export file and convert it back to the
+// internal database format.
+func FromExportKey(key *export.TemporaryExposureKey, maxSymptomOnsetDays int32) (*Exposure, error) {
+	exp := &Exposure{
+		ExposureKey: make([]byte, verifyapi.KeyLength),
+	}
+	if len(key.KeyData) != verifyapi.KeyLength {
+		return nil, fmt.Errorf("invalid key length")
+	}
+	copy(exp.ExposureKey, key.KeyData)
+
+	//lint:ignore SA1019 may be set on v1 files.
+	if key.TransmissionRiskLevel != nil {
+		//lint:ignore SA1019 may be set on v1 files.
+		if tr := *key.TransmissionRiskLevel; tr < verifyapi.MinTransmissionRisk {
+			return nil, fmt.Errorf("transmission risk too low: %d, must be >= %d", tr, verifyapi.MinTransmissionRisk)
+		} else if tr > verifyapi.MaxTransmissionRisk {
+			return nil, fmt.Errorf("transmission risk too high: %d, must be <= %d", tr, verifyapi.MaxTransmissionRisk)
+		} else {
+			exp.TransmissionRisk = int(tr)
+		}
+	}
+
+	if key.RollingStartIntervalNumber == nil {
+		return nil, fmt.Errorf("missing rolling_start_interval_number")
+	}
+	exp.IntervalNumber = *key.RollingStartIntervalNumber
+
+	if key.RollingPeriod == nil {
+		exp.IntervalCount = verifyapi.MaxIntervalCount
+	} else {
+		if rp := *key.RollingPeriod; rp < verifyapi.MinIntervalCount {
+			return nil, fmt.Errorf("rolling period too low: %d must be >= %d", rp, verifyapi.MinIntervalCount)
+		} else if rp > verifyapi.MaxIntervalCount {
+			return nil, fmt.Errorf("rolling period too low: %d must be <= %d", rp, verifyapi.MaxIntervalCount)
+		} else {
+			exp.IntervalCount = rp
+		}
+	}
+
+	if key.ReportType != nil {
+		rt := *key.ReportType
+		switch rt {
+		case export.TemporaryExposureKey_CONFIRMED_TEST:
+			exp.ReportType = verifyapi.ReportTypeConfirmed
+		case export.TemporaryExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS:
+			exp.ReportType = verifyapi.ReportTypeClinical
+		case export.TemporaryExposureKey_REVOKED:
+			exp.ReportType = verifyapi.ReportTypeNegative
+		case export.TemporaryExposureKey_UNKNOWN:
+			exp.ReportType = ""
+		default:
+			return nil, fmt.Errorf("unsupported report type: %s",
+				export.TemporaryExposureKey_ReportType_name[int32(rt)])
+		}
+	}
+
+	if key.DaysSinceOnsetOfSymptoms != nil {
+		dsos := *key.DaysSinceOnsetOfSymptoms
+		if dsos >= (-1*maxSymptomOnsetDays) && dsos <= maxSymptomOnsetDays {
+			exp.DaysSinceSymptomOnset = &dsos
+		} else {
+			return nil, fmt.Errorf("days since onset of symptoms is out of range: %d must be within: %d", dsos, maxSymptomOnsetDays)
+		}
+	}
+
+	exp.LocalProvenance = false
+
+	return exp, nil
+}
+
 // Revise updates the Revised fields of a key
 func (e *Exposure) Revise(in *Exposure) (bool, error) {
 	if e.ExposureKeyBase64() != in.ExposureKeyBase64() {
@@ -97,10 +173,21 @@ func (e *Exposure) Revise(in *Exposure) (bool, error) {
 		return false, nil
 	}
 	if !e.LocalProvenance {
-		if e.FederationQueryID == "" {
+		nonLocalOK := false
+		if e.ExportImportID != nil {
+			if in.ExportImportID == nil || *e.ExportImportID != *in.ExportImportID {
+				return false, ErrorNotSameFederationSource
+			}
+			nonLocalOK = true
+		} else if e.FederationQueryID != "" {
+			if e.FederationQueryID != in.FederationQueryID {
+				return false, ErrorNotSameFederationSource
+			}
+			nonLocalOK = true
+		}
+
+		if !nonLocalOK {
 			return false, ErrorNonLocalProvenance
-		} else if e.FederationQueryID != in.FederationQueryID {
-			return false, ErrorNotSameFederationSource
 		}
 	}
 	// make sure key hasn't been revised already.
@@ -131,6 +218,9 @@ func (e *Exposure) Revise(in *Exposure) (bool, error) {
 	e.RevisedDaysSinceSymptomOnset = in.DaysSinceSymptomOnset
 	tr := ReportTypeTransmissionRisk(in.ReportType, in.TransmissionRisk)
 	e.RevisedTransmissionRisk = &tr
+
+	e.HealthAuthorityID = in.HealthAuthorityID
+	e.RevisedImportFileID = in.ImportFileID
 
 	return true, nil
 }
