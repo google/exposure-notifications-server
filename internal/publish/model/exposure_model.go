@@ -103,9 +103,9 @@ func FromExportKey(key *export.TemporaryExposureKey, maxSymptomOnsetDays int32) 
 	}
 	copy(exp.ExposureKey, key.KeyData)
 
-	//lint:ignore - field is reprecated, but may still be set.
+	//lint:ignore SA1019 may be set on v1 files.
 	if key.TransmissionRiskLevel != nil {
-		//lint:ignore
+		//lint:ignore SA1019 may be set on v1 files.
 		if tr := *key.TransmissionRiskLevel; tr < verifyapi.MinTransmissionRisk {
 			return nil, fmt.Errorf("transmission risk too low: %d, must be >= %d", tr, verifyapi.MinTransmissionRisk)
 		} else if tr > verifyapi.MaxTransmissionRisk {
