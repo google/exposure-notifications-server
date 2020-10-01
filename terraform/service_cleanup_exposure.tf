@@ -106,6 +106,7 @@ resource "google_cloud_run_service" "cleanup-exposure" {
     google_project_service.services["run.googleapis.com"],
     google_secret_manager_secret_iam_member.cleanup-exposure-db,
     null_resource.build,
+    null_resource.migrate,
   ]
 
   lifecycle {

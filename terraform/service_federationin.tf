@@ -106,6 +106,7 @@ resource "google_cloud_run_service" "federationin" {
     google_project_service.services["run.googleapis.com"],
     google_secret_manager_secret_iam_member.federationin,
     null_resource.build,
+    null_resource.migrate,
   ]
 
   lifecycle {
