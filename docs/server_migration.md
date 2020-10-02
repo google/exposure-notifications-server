@@ -22,7 +22,7 @@ outlines the process that needds to be done to achieve this.
 
 * __Read-only migration__: The goal of such a migration is to have a state's client
   application reading from the national exports, but continuing to upload
-  to the state server. This could be because of a custom verificaiton protocol.
+  to the state server. This could be because of a custom verification protocol.
   In this case, decomissioning the state's key sever infrastructure is a non goal.
 
 ## Assumptions
@@ -34,7 +34,7 @@ outlines the process that needds to be done to achieve this.
 
 * The __state__ key server has a text file index of available zip files that is
   sorted in ascending time order (newest files last). If a state server does
-  not have this, it needs to be added before migration can occurr.
+  not have this, it needs to be added before migration can occur.
 
 # Migration Process
 
@@ -85,5 +85,5 @@ job turned down.
 
 If this is being down through an App Store / Play Store application update,
 this may take a while and it is up to the state to determine
-what an appropraite amount of time to run in this exprort-import-mirror state is.
+what an appropriate amount of time to run in this exprort-import-mirror state is.
 
