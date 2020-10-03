@@ -3,9 +3,10 @@ layout: default
 ---
 # Migration to Google Exposure Notifications Server
 
-If you are running an exposure notifications server (based on this codebase or not)
-and want to migrate to another installation that is running this codebase, this document
-outlines the process that needds to be done to achieve this.
+This document outlines the process for migrating an existing
+Exposure Notifications server to the Google Exposure Notifications
+server. This process applies regardless of whether your Exposure
+Notifications server uses this codebase.
 
 ## Definitions
 
@@ -27,8 +28,9 @@ outlines the process that needds to be done to achieve this.
 
 ## Assumptions
 
-* The application is live, and requires an update in order to switch servers. This update
-  could be done via dynamic configuration or new mobile app version.
+* The client / mobile application is live, and requires an update in order
+  to switch servers. This update could be done via dynamic configuration
+  or require a new mobile app version.
 
 * There can only be one active export signing key for the application.
 
@@ -40,8 +42,11 @@ outlines the process that needds to be done to achieve this.
 
 ## Configure state exports for a second location
 
-The state server must generate export files in a second location (for consuption by the
-national sever).
+The state server must generate export files in a second location
+(for consuption by the national sever). This is necessary because the
+state sever will need to continue to produce state-level exports
+for migration reasons, but will need to keep client-facing exports
+in their current location.
 
 It is recommended to use a separate signing key for these exports than the one already used
 for exports destined for clients. This is only a recommendation and is not necessary since
