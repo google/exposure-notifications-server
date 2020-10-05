@@ -32,6 +32,11 @@ module "en" {
   kms_export_signing_key_ring_name  = "export-signing-${random_string.suffix.result}"
   kms_revision_tokens_key_ring_name = "revision-tokens-${random_string.suffix.result}"
 
+  cleanup_export_worker_cron_schedule = "* * * * *"
+  cleanup_exposure_worker_cron_schedule = "* * * * *"
+  export_worker_cron_schedule = "* * * * *"
+  export_create_batches_cron_schedule = "* * * * *"
+
   create_env_file = true
   deploy_debugger = true
 

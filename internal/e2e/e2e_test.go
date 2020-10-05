@@ -20,18 +20,23 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	exportapi "github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/integration"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/sethvargo/go-envconfig"
+	"github.com/sethvargo/go-retry"
 
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	testutil "github.com/google/exposure-notifications-server/internal/utils"
@@ -39,11 +44,10 @@ import (
 )
 
 type testConfig struct {
-	DbName       string `env:"DB_NAME"`
-	ExposureURL  string `env:"EXPOSURE_URL"`
-	ExportBucket string `env:"EXPORT_BUCKET"`
-	ProjectID    string `env:"PROJECT_ID"`
-	DBConfig     *database.Config
+	DbName      string `env:"DB_NAME"`
+	ExposureURL string `env:"EXPOSURE_URL"`
+	ProjectID   string `env:"PROJECT_ID"`
+	DBConfig    *database.Config
 }
 
 func initConfig(tb testing.TB, ctx context.Context) *testConfig {
@@ -109,7 +113,8 @@ func TestPublishEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to connect to database: %v", err)
 	}
-	jwtCfg, _, _, appName := integration.Seed(t, ctx, db, 2*time.Second)
+	jwtCfg, bucketName, filenameRoot, appName := integration.Seed(t, ctx, db, 2*time.Minute)
+
 	keys := util.GenerateExposureKeys(3, -1, false)
 
 	// Publish 3 keys
@@ -117,6 +122,12 @@ func TestPublishEndpoint(t *testing.T) {
 		Keys:              keys,
 		HealthAuthorityID: appName,
 	}
+
+	var wantExport []string
+	for _, key := range keys {
+		wantExport = append(wantExport, key.Key)
+	}
+
 	jwtCfg.ExposureKeys = keys
 	jwtCfg.JWTWarp = time.Duration(0)
 	verification, salt := testutil.IssueJWT(t, jwtCfg)
@@ -146,6 +157,63 @@ func TestPublishEndpoint(t *testing.T) {
 			t.Fatalf("Want published key %q not exist in exposures", want.Key)
 		}
 	}
+
+	blobStore, err := storage.NewGoogleCloudStorage(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotExported := make(map[string]bool)
+	integration.Eventually(t, 30, 5*time.Second, func() error {
+		// Attempt to get the index
+		index, err := blobStore.GetObject(ctx, bucketName, integration.IndexFilePath(filenameRoot))
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				return retry.RetryableError(fmt.Errorf("Can not find index file: %w", err))
+			}
+			return err
+		}
+
+		// Find the latest file in the index
+		lines := strings.Split(string(index), "\n")
+		latest := ""
+		for _, entry := range lines {
+			if strings.HasSuffix(entry, "zip") {
+				if entry > latest {
+					latest = entry
+				}
+			}
+		}
+		if latest == "" {
+			return retry.RetryableError(errors.New("failed to find latest export"))
+		}
+
+		// Download the latest export file contents
+		data, err := blobStore.GetObject(ctx, bucketName, latest)
+		if err != nil {
+			return fmt.Errorf("failed to open %s/%s: %w", bucketName, latest, err)
+		}
+
+		// Process contents as an export
+		key, _, err := exportapi.UnmarshalExportFile(data)
+		if err != nil {
+			return fmt.Errorf("failed to extract export data: %w", err)
+		}
+
+		for _, k := range key.Keys {
+			gotExported[base64.StdEncoding.EncodeToString(k.KeyData)] = true
+		}
+		allExported := true
+		for _, want := range wantExport {
+			if _, ok := gotExported[want]; !ok {
+				allExported = false
+			}
+		}
+		if !allExported {
+			return retry.RetryableError(errors.New("Not all keys are exported yet, keep waiting"))
+		}
+
+		return nil
+	})
 }
 
 // getExposures finds the exposures that match the given criteria.

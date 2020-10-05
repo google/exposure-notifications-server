@@ -132,6 +132,34 @@ variable "cloudsql_backup_location" {
   description = "Location in which to backup the database."
 }
 
+variable "export_worker_cron_schedule" {
+  type    = string
+  default = "* * * * *"
+
+  description = "Schedule to execute the export worker service."
+}
+
+variable "export_create_batches_cron_schedule" {
+  type    = string
+  default = "*/5 * * * *"
+
+  description = "Schedule to execute the export create batches service."
+}
+
+variable "cleanup_exposure_worker_cron_schedule" {
+  type    = string
+  default = "0 */4 * * *"
+
+  description = "Schedule to execute the cleanup exposure worker service."
+}
+
+variable "cleanup_export_worker_cron_schedule" {
+  type    = string
+  default = "0 */6 * * *"
+
+  description = "Schedule to execute the cleanup export worker service."
+}
+
 variable "generate_cron_schedule" {
   type    = string
   default = "0 0 1 1 0"

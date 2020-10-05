@@ -122,7 +122,7 @@ func TestIntegration(t *testing.T) {
 
 			// Get the exported exposures
 			var exported *export.TemporaryExposureKeyExport
-			Eventually(t, 30, func() error {
+			Eventually(t, 30, time.Second, func() error {
 				// Trigger an export
 				if err := client.ExportBatches(); err != nil {
 					return err
@@ -290,7 +290,7 @@ func TestIntegration(t *testing.T) {
 
 			// Wait for the export to be created and get the list of files
 			var batchFiles []string
-			Eventually(t, 30, func() error {
+			Eventually(t, 30, time.Second, func() error {
 				// Trigger an export
 				if err := client.ExportBatches(); err != nil {
 					return err
@@ -358,7 +358,7 @@ func TestIntegration(t *testing.T) {
 			}
 
 			// Ensure the export was deleted
-			Eventually(t, 30, func() error {
+			Eventually(t, 30, time.Second, func() error {
 				// Trigger cleanup
 				if err := client.CleanupExports(); err != nil {
 					return err

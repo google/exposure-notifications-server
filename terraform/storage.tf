@@ -46,3 +46,7 @@ resource "google_storage_bucket_iam_member" "public" {
   role   = "roles/storage.objectViewer"
   member = "allUsers"
 }
+
+output "export_bucket" {
+  value = google_storage_bucket.export.name
+}

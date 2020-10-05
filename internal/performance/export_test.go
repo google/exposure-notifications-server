@@ -165,7 +165,7 @@ func TestExport(t *testing.T) {
 
 	// Start measurement
 	startTime := time.Now()
-	integration.Eventually(t, 30, func() error {
+	integration.Eventually(t, 30, time.Second, func() error {
 		// Export batch again to make the rest of batches
 		if err := client.ExportBatches(); err != nil {
 			t.Fatal(err)
@@ -245,7 +245,7 @@ func TestExport(t *testing.T) {
 	}
 
 	var remainings []string
-	integration.Eventually(t, 30, func() error {
+	integration.Eventually(t, 30, time.Second, func() error {
 		index, err := env.Blobstore().GetObject(ctx, exportDir,
 			path.Join(exportRoot, "index.txt"))
 		if err != nil {
