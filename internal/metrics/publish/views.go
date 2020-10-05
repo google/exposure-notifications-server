@@ -2,11 +2,12 @@ package publish
 
 import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/pkg/observability"
 	"go.opencensus.io/stats/view"
 )
 
-var (
-	Views = []*view.View{
+func init() {
+	observability.CollectViews([]*view.View{
 		{
 			Name:        metrics.MetricRoot + "pha_not_authorized_count",
 			Description: "Total count of authorization failures for the Public Health Authority",
@@ -87,5 +88,5 @@ var (
 			Measure:     PaddingFailed,
 			Aggregation: view.Sum(),
 		},
-	}
-)
+	}...)
+}

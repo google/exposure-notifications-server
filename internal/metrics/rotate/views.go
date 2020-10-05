@@ -2,11 +2,12 @@ package rotate
 
 import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/pkg/observability"
 	"go.opencensus.io/stats/view"
 )
 
-var (
-	Views = []*view.View{
+func init() {
+	observability.CollectViews([]*view.View{
 		{
 			Name:        metrics.MetricRoot + "revision_keys_created_count",
 			Description: "Total count of revision key creation instances",
@@ -19,5 +20,5 @@ var (
 			Measure:     RevisionKeysDeleted,
 			Aggregation: view.Sum(),
 		},
-	}
-)
+	}...)
+}

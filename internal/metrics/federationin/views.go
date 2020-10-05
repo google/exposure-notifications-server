@@ -2,11 +2,12 @@ package federationin
 
 import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/pkg/observability"
 	"go.opencensus.io/stats/view"
 )
 
-var (
-	Views = []*view.View{
+func init() {
+	observability.CollectViews([]*view.View{
 		{
 			Name:        metrics.MetricRoot + "pull_invalid_request_count",
 			Description: "Total count of errors in pulling query IDs",
@@ -37,5 +38,5 @@ var (
 			Measure:     PullDropped,
 			Aggregation: view.LastValue(),
 		},
-	}
-)
+	}...)
+}

@@ -2,11 +2,12 @@ package cleanup
 
 import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/pkg/observability"
 	"go.opencensus.io/stats/view"
 )
 
-var (
-	Views = []*view.View{
+func init() {
+	observability.CollectViews([]*view.View{
 		{
 			Name:        metrics.MetricRoot + "exposures_setup_failed_count",
 			Description: "Total count of exposures setup failures",
@@ -55,5 +56,5 @@ var (
 			Measure:     ExportsDeleted,
 			Aggregation: view.Sum(),
 		},
-	}
-)
+	}...)
+}

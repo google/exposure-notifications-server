@@ -2,11 +2,12 @@ package export
 
 import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/pkg/observability"
 	"go.opencensus.io/stats/view"
 )
 
-var (
-	Views = []*view.View{
+func init() {
+	observability.CollectViews([]*view.View{
 		{
 			Name:        metrics.MetricRoot + "export_batcher_lock_contention_count",
 			Description: "Total count of lock contention instances",
@@ -37,5 +38,5 @@ var (
 			Measure:     WorkerBadKeyLength,
 			Aggregation: view.LastValue(),
 		},
-	}
-)
+	}...)
+}
