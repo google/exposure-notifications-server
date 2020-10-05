@@ -19,13 +19,48 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
+
+	"go.opencensus.io/plugin/ocgrpc"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/stats/view"
 )
+
+var collectedViews = struct {
+	views []*view.View
+	sync.Mutex
+}{
+	views: append(append(append(append([]*view.View{}, ochttp.DefaultClientViews...), ochttp.DefaultServerViews...), ocgrpc.DefaultClientViews...), ocgrpc.DefaultServerViews...),
+}
+
+// CollectViews collects all the OpenCensus views and register at a later time
+// when we setup the metric exporter.
+// This is mainly to be able to "register" the views in a module's init(), but
+// still be able to handle the errors correctly.
+// Typical usage:
+// var v = view.View{...}
+// func init() {
+//   observability.ColectViews(v)
+// }
+// // Actual view registration happens in exporter.StartExporter().
+func CollectViews(views ...*view.View) {
+	collectedViews.Lock()
+	defer collectedViews.Unlock()
+	collectedViews.views = append(collectedViews.views, views...)
+}
+
+// AllViews returns the collected OpenCensus views.
+func AllViews() []*view.View {
+	collectedViews.Lock()
+	defer collectedViews.Unlock()
+	return collectedViews.views
+}
 
 // Exporter defines the minimum shared functionality for an observability exporter
 // used by this application.
 type Exporter interface {
 	io.Closer
-	StartExporter(func() error) error
+	StartExporter() error
 }
 
 // NewFromEnv returns the observability exporter given the provided configuration, or an error

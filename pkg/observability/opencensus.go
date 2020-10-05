@@ -48,15 +48,17 @@ func NewOpenCensus(ctx context.Context, config *OpenCensusConfig) (Exporter, err
 }
 
 // StartExporter starts the exporter.
-func (e *opencensusExporter) StartExporter(register func() error) error {
+func (e *opencensusExporter) StartExporter() error {
 	trace.ApplyConfig(trace.Config{
 		DefaultSampler: trace.ProbabilitySampler(e.config.SampleRate),
 	})
 	trace.RegisterExporter(e.exporter)
 	view.RegisterExporter(e.exporter)
 
-	if err := register(); err != nil {
-		return fmt.Errorf("failed to start opencensus exporter: %w", err)
+	for _, v := range AllViews() {
+		if err := view.Register(v); err != nil {
+			return fmt.Errorf("failed to start opencensus exporter: view registration failed: %w", err)
+		}
 	}
 
 	return nil

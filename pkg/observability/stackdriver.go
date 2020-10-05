@@ -22,6 +22,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
+	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 )
 
@@ -65,9 +66,11 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 }
 
 // StartExporter starts the exporter.
-func (e *stackdriverExporter) StartExporter(register func() error) error {
-	if err := register(); err != nil {
-		return fmt.Errorf("failed to register views: %w", err)
+func (e *stackdriverExporter) StartExporter() error {
+	for _, v := range AllViews() {
+		if err := view.Register(v); err != nil {
+			return fmt.Errorf("failed to start stackdriver exporter: view registration failed: %w", err)
+		}
 	}
 
 	if err := e.exporter.StartMetricsExporter(); err != nil {
