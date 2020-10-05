@@ -167,6 +167,32 @@ steps:
   - 'build-export'
 
 #
+# export-importer
+#
+- id: 'build-export-importer'
+  name: 'golang:1.15.2'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/export-importer'
+  - './cmd/export-importer'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-export-importer'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/export-importer:${_TAG}'
+  - '--build-arg=SERVICE=export-importer'
+  - '.'
+  waitFor:
+  - 'build-export-importer'
+
+#
 # exposure
 #
 - id: 'build-exposure'
