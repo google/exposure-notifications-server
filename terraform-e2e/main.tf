@@ -39,6 +39,11 @@ module "en" {
 
   create_env_file = true
 
+  debugger_hosts      = ["debugger.todo"]
+  export_hosts        = ["export.todo"]
+  exposure_hosts      = ["exposure.todo"]
+  federationout_hosts = ["federationout.todo"]
+
   service_environment = {
     export = {
       TRUNCATE_WINDOW = "1s"
