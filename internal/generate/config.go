@@ -50,6 +50,8 @@ type Config struct {
 	DefaultRegion                string        `env:"DEFAULT_REGION, default=US"`
 	ChanceOfKeyRevision          int           `env:"CHANCE_OF_KEY_REVISION, default=30"` // 0-100 are valid values.
 	KeyRevisionDelay             time.Duration `env:"KEY_REVISION_DELAY, default=2h"`     // key revision will be forward dates this amount.
+	UseDefaultSymptomOnset       bool          `env:"USE_DEFAULT_SYMPTOM_ONSET_DAYS, default true"`
+	SymptomOnsetDays             uint          `env:"DEFAULT_SYMPTOM_ONSET_DAYS, default=10"`
 }
 
 func (c *Config) MaxExposureKeys() uint {
@@ -70,6 +72,14 @@ func (c *Config) TruncateWindow() time.Duration {
 
 func (c *Config) MaxSymptomOnsetDays() uint {
 	return c.MaxMagnitudeSymptomOnsetDays
+}
+
+func (c *Config) UseDefaultSymptomOnsetDays() bool {
+	return c.UseDefaultSymptomOnset
+}
+
+func (c *Config) DefaultSymptomOnsetDays() int32 {
+	return int32(c.SymptomOnsetDays)
 }
 
 func (c *Config) DebugReleaseSameDayKeys() bool {
