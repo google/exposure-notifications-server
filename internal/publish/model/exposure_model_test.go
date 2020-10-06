@@ -40,12 +40,14 @@ const (
 )
 
 type testConfig struct {
-	maxExposureKeys     uint
-	maxSameDayKeys      uint
-	maxIntervalStartAge time.Duration
-	truncateWindow      time.Duration
-	maxSymptomOnsetDays uint
-	debugReleaseSameDay bool
+	maxExposureKeys            uint
+	maxSameDayKeys             uint
+	maxIntervalStartAge        time.Duration
+	truncateWindow             time.Duration
+	maxSymptomOnsetDays        uint
+	useDefaultSymptomOnsetDays bool
+	defaultSymptomOnsetDays    int32
+	debugReleaseSameDay        bool
 }
 
 func (c *testConfig) MaxExposureKeys() uint {
@@ -66,6 +68,14 @@ func (c *testConfig) TruncateWindow() time.Duration {
 
 func (c *testConfig) MaxSymptomOnsetDays() uint {
 	return c.maxSymptomOnsetDays
+}
+
+func (c *testConfig) UseDefaultSymptomOnsetDays() bool {
+	return c.useDefaultSymptomOnsetDays
+}
+
+func (c *testConfig) DefaultSymptomOnsetDays() int32 {
+	return c.defaultSymptomOnsetDays
 }
 
 func (c *testConfig) DebugReleaseSameDayKeys() bool {
@@ -98,7 +108,13 @@ func TestInvalidNew(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		_, err := NewTransformer(&testConfig{c.maxKeys, c.maxSameDayKeys, time.Hour, time.Hour, maxSymptomOnsetDays, false})
+		_, err := NewTransformer(&testConfig{
+			maxExposureKeys:     c.maxKeys,
+			maxSameDayKeys:      c.maxSameDayKeys,
+			maxIntervalStartAge: time.Hour,
+			truncateWindow:      time.Hour,
+			maxSymptomOnsetDays: maxSymptomOnsetDays,
+		})
 		if err != nil && errMsg == "" {
 			t.Errorf("%v unexpected error: %v", i, err)
 		} else if err != nil && !strings.Contains(err.Error(), c.message) {
@@ -109,7 +125,13 @@ func TestInvalidNew(t *testing.T) {
 
 func TestInvalidBase64(t *testing.T) {
 	ctx := context.Background()
-	transformer, err := NewTransformer(&testConfig{1, 1, time.Hour * 24, time.Hour, maxSymptomOnsetDays, false})
+	transformer, err := NewTransformer(&testConfig{
+		maxExposureKeys:     1,
+		maxSameDayKeys:      1,
+		maxIntervalStartAge: time.Hour * 24,
+		truncateWindow:      time.Hour,
+		maxSymptomOnsetDays: maxSymptomOnsetDays,
+	})
 	if err != nil {
 		t.Fatalf("error creating transformer: %v", err)
 	}
@@ -311,7 +333,13 @@ func TestPublishValidation(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
-			tf, err := NewTransformer(&testConfig{2, 1, maxAge, time.Hour, maxSymptomOnsetDays, c.sameDay})
+			tf, err := NewTransformer(&testConfig{
+				maxExposureKeys:     2,
+				maxSameDayKeys:      1,
+				maxIntervalStartAge: maxAge,
+				truncateWindow:      time.Hour,
+				maxSymptomOnsetDays: maxSymptomOnsetDays,
+				debugReleaseSameDay: c.sameDay})
 			if err != nil {
 				t.Fatalf("unepected error: %v", err)
 			}
@@ -390,7 +418,14 @@ func TestStillValidKey(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			allowedAge := 2 * 24 * time.Hour
-			transformer, err := NewTransformer(&testConfig{10, 1, allowedAge, time.Minute, maxSymptomOnsetDays, tc.releaseSameDayKeys})
+			transformer, err := NewTransformer(&testConfig{
+				maxExposureKeys:     10,
+				maxSameDayKeys:      1,
+				maxIntervalStartAge: allowedAge,
+				truncateWindow:      time.Minute,
+				maxSymptomOnsetDays: maxSymptomOnsetDays,
+				debugReleaseSameDay: tc.releaseSameDayKeys,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -785,7 +820,13 @@ func TestTransform(t *testing.T) {
 	}
 
 	allowedAge := 14 * 24 * time.Hour
-	transformer, err := NewTransformer(&testConfig{10, 1, allowedAge, time.Hour, maxSymptomOnsetDays, false})
+	transformer, err := NewTransformer(&testConfig{
+		maxExposureKeys:     10,
+		maxSameDayKeys:      1,
+		maxIntervalStartAge: allowedAge,
+		truncateWindow:      time.Hour,
+		maxSymptomOnsetDays: maxSymptomOnsetDays,
+	})
 	if err != nil {
 		t.Fatalf("NewTransformer returned unexpected error: %v", err)
 	}
@@ -815,6 +856,85 @@ func TestTransform(t *testing.T) {
 
 			if diff := cmp.Diff(tc.Want, got, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
 				t.Errorf("TransformPublish mismatch (-want +got):\n%v", diff)
+			}
+		})
+	}
+}
+
+func TestDefaultSymptomOnset(t *testing.T) {
+	now := time.Now()
+	intervalNumber := IntervalNumber(now) - 1
+
+	cases := []struct {
+		name               string
+		source             verifyapi.Publish
+		useOnsetDefault    bool
+		onsetDefault       int32
+		wantDaysSinceOnset *int32
+	}{
+		{
+			name: "use_default_when_not_set",
+			source: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   intervalNumber,
+						IntervalCount:    verifyapi.MaxIntervalCount,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			useOnsetDefault:    true,
+			onsetDefault:       10,
+			wantDaysSinceOnset: proto.Int32(10),
+		},
+		{
+			name: "do_not_set_default",
+			source: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   intervalNumber,
+						IntervalCount:    verifyapi.MaxIntervalCount,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			useOnsetDefault:    false,
+			onsetDefault:       12,
+			wantDaysSinceOnset: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			allowedAge := 2 * 24 * time.Hour
+			transformer, err := NewTransformer(&testConfig{
+				maxExposureKeys:            10,
+				maxSameDayKeys:             1,
+				maxIntervalStartAge:        allowedAge,
+				truncateWindow:             time.Minute,
+				maxSymptomOnsetDays:        maxSymptomOnsetDays,
+				debugReleaseSameDay:        false,
+				useDefaultSymptomOnsetDays: tc.useOnsetDefault,
+				defaultSymptomOnsetDays:    tc.onsetDefault,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx := context.Background()
+			tf, _, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(tf) != 1 {
+				t.Fatalf("wrong number of keys, want: 1 got :%v", len(tf))
+			}
+
+			if diff := cmp.Diff(tf[0].DaysSinceSymptomOnset, tc.wantDaysSinceOnset); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})
 	}
@@ -961,7 +1081,13 @@ func TestTransformOverlapping(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			transformer, err := NewTransformer(&testConfig{10, tc.maxSameIntervalKeys, allowedAge, time.Hour, maxSymptomOnsetDays, false})
+			transformer, err := NewTransformer(&testConfig{
+				maxExposureKeys:     10,
+				maxSameDayKeys:      tc.maxSameIntervalKeys,
+				maxIntervalStartAge: allowedAge,
+				truncateWindow:      time.Hour,
+				maxSymptomOnsetDays: maxSymptomOnsetDays,
+			})
 			if err != nil {
 				t.Fatalf("NewTransformer returned unexpected error: %v", err)
 			}
