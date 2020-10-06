@@ -53,8 +53,13 @@ type Config struct {
 	// Provides compatibility w/ 1.5 release.
 	MaxSameStartIntervalKeys     uint          `env:"MAX_SAME_START_INTERVAL_KEYS, default=3"`
 	MaxIntervalAge               time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
-	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=14"`
+	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=10"`
 	CreatedAtTruncateWindow      time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
+
+	// If set, TEKs that arrive without a days since symptom onset (i.e. no symptom onset date)
+	// will be set to the default symptom onset days.
+	UseDefaultSymptomOnset bool `env:"USE_DEFAULT_SYMPTOM_ONSET_DAYS, default true"`
+	SymptomOnsetDays       uint `env:"DEFAULT_SYMPTOM_ONSET_DAYS, default=10"`
 
 	ResponsePaddingMinBytes int64 `env:"RESPONSE_PADDING_MIN_BYTES, default=1024"`
 	ResponsePaddingRange    int64 `env:"RESPONSE_PADDING_RANGE, default=1024"`
@@ -101,6 +106,14 @@ func (c *Config) TruncateWindow() time.Duration {
 
 func (c *Config) MaxSymptomOnsetDays() uint {
 	return c.MaxMagnitudeSymptomOnsetDays
+}
+
+func (c *Config) UseDefaultSymptomOnsetDays() bool {
+	return c.UseDefaultSymptomOnset
+}
+
+func (c *Config) DefaultSymptomOnsetDays() int32 {
+	return int32(c.SymptomOnsetDays)
 }
 
 func (c *Config) DebugReleaseSameDayKeys() bool {

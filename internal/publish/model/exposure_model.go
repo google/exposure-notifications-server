@@ -379,17 +379,21 @@ type TransformerConfig interface {
 	MaxIntervalStartAge() time.Duration
 	TruncateWindow() time.Duration
 	MaxSymptomOnsetDays() uint
+	UseDefaultSymptomOnsetDays() bool
+	DefaultSymptomOnsetDays() int32
 	DebugReleaseSameDayKeys() bool
 }
 
 // Transformer represents a configured Publish -> Exposure[] transformer.
 type Transformer struct {
-	maxExposureKeys     int           // Overall maximum number of keys.
-	maxSameDayKeys      int           // Number of keys that are allowed to have the same start interval.
-	maxIntervalStartAge time.Duration // How many intervals old does this server accept?
-	truncateWindow      time.Duration
-	maxSymptomOnsetDays float64 // to avoid casting in comparisons
-	debugReleaseSameDay bool    // If true, still valid keys are not embargoed.
+	maxExposureKeys            int           // Overall maximum number of keys.
+	maxSameDayKeys             int           // Number of keys that are allowed to have the same start interval.
+	maxIntervalStartAge        time.Duration // How many intervals old does this server accept?
+	truncateWindow             time.Duration
+	maxSymptomOnsetDays        float64 // to avoid casting in comparisons
+	useDefaultSymptomOnsetDays bool
+	defaultSymptomOnsetDays    int32
+	debugReleaseSameDay        bool // If true, still valid keys are not embargoed.
 }
 
 // NewTransformer creates a transformer for turning publish API requests into
@@ -403,12 +407,14 @@ func NewTransformer(config TransformerConfig) (*Transformer, error) {
 		return nil, fmt.Errorf("maxSameDayKeys must be >= 1, got %v", config.MaxSameDayKeys())
 	}
 	return &Transformer{
-		maxExposureKeys:     int(config.MaxExposureKeys()),
-		maxSameDayKeys:      int(config.MaxSameDayKeys()),
-		maxIntervalStartAge: config.MaxIntervalStartAge(),
-		truncateWindow:      config.TruncateWindow(),
-		maxSymptomOnsetDays: float64(config.MaxSymptomOnsetDays()),
-		debugReleaseSameDay: config.DebugReleaseSameDayKeys(),
+		maxExposureKeys:            int(config.MaxExposureKeys()),
+		maxSameDayKeys:             int(config.MaxSameDayKeys()),
+		maxIntervalStartAge:        config.MaxIntervalStartAge(),
+		truncateWindow:             config.TruncateWindow(),
+		maxSymptomOnsetDays:        float64(config.MaxSymptomOnsetDays()),
+		useDefaultSymptomOnsetDays: config.UseDefaultSymptomOnsetDays(),
+		defaultSymptomOnsetDays:    config.DefaultSymptomOnsetDays(),
+		debugReleaseSameDay:        config.DebugReleaseSameDayKeys(),
 	}, nil
 }
 
@@ -609,6 +615,11 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 				exposure.SetDaysSinceSymptomOnset(daysSince)
 			}
 		}
+		// See if a default symptom onset days should be applied.
+		if exposure.DaysSinceSymptomOnset == nil && t.useDefaultSymptomOnsetDays {
+			exposure.SetDaysSinceSymptomOnset(t.defaultSymptomOnsetDays)
+		}
+
 		exposure.Traveler = inData.Traveler
 		entities = append(entities, exposure)
 	}
