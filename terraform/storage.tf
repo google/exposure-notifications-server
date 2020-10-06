@@ -47,6 +47,14 @@ resource "google_storage_bucket_iam_member" "public" {
   member = "allUsers"
 }
 
+resource "google_compute_backend_bucket" "export" {
+  count = length(var.export_hosts) > 0 ? 1 : 0
+
+  name        = "export-backend-bucket"
+  bucket_name = google_storage_bucket.export.name
+  enable_cdn  = var.enable_cdn_for_exports
+}
+
 output "export_bucket" {
   value = google_storage_bucket.export.name
 }

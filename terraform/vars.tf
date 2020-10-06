@@ -174,11 +174,18 @@ variable "generate_regions" {
   description = "List of regions for which to generate data."
 }
 
-variable "deploy_debugger" {
+variable "enable_cdn_for_exports" {
   type    = bool
   default = false
 
-  description = "Deploy the service debugger. Use only in testing."
+  description = "Enable Cloud CDN on the export bucket."
+}
+
+variable "debugger_invokers" {
+  type    = list(string)
+  default = []
+
+  description = "List of IAM entities that can invoke the debugger. This should be of the form user:[email], serviceAccount:[email], or group:[email]."
 }
 
 variable "service_environment" {
@@ -188,18 +195,32 @@ variable "service_environment" {
   description = "Per-service environment overrides."
 }
 
-variable "exposure_custom_domain" {
-  type    = string
-  default = ""
+variable "debugger_hosts" {
+  type    = list(string)
+  default = []
 
-  description = "Custom domain to map for exposures. This domain must already be verified by Google, and you must have a DNS CNAME record pointing to ghs.googlehosted.com in advance. If not provided, no domain mapping is created."
+  description = "List of domains upon which the debugger is served."
 }
 
-variable "federationout_custom_domain" {
-  type    = string
-  default = ""
+variable "export_hosts" {
+  type    = list(string)
+  default = []
 
-  description = "Custom domain to map for federationin. This domain must already be verified by Google, and you must have a DNS CNAME record pointing to ghs.googlehosted.com in advance. If not provided, no domain mapping is created."
+  description = "List of domains upon which exports should be served."
+}
+
+variable "exposure_hosts" {
+  type    = list(string)
+  default = []
+
+  description = "List of domains upon which the exposure uploads are served."
+}
+
+variable "federationout_hosts" {
+  type    = list(string)
+  default = []
+
+  description = "List of domains upon which the federationout service is served."
 }
 
 variable "vpc_access_connector_max_throughput" {
