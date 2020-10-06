@@ -35,6 +35,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/google/exposure-notifications-server/pkg/util"
+	"github.com/jackc/pgx"
 	"github.com/sethvargo/go-envconfig"
 	"github.com/sethvargo/go-retry"
 
@@ -212,6 +213,70 @@ func TestPublishEndpoint(t *testing.T) {
 		}
 		if !allExported {
 			return retry.RetryableError(errors.New("Not all keys are exported yet, keep waiting"))
+		}
+
+		return nil
+	})
+
+	// Mark the export in the past to force a cleanup
+	if err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+		UPDATE
+			ExportBatch
+		SET
+			start_timestamp = $1,
+			end_timestamp = $2
+		WHERE
+			batch_id = $3
+	`,
+			time.Now().Add(-30*24*time.Hour),
+			time.Now().Add(-29*24*time.Hour),
+			exportFile.BatchID,
+		)
+		if err != nil {
+			return err
+		}
+		if got, want := result.RowsAffected(), int64(1); got != want {
+			return fmt.Errorf("expected %v to be %v", got, want)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure the export was deleted
+	Eventually(t, 30, time.Second, func() error {
+		// Trigger cleanup
+		if err := client.CleanupExports(); err != nil {
+			return err
+		}
+
+		// Attempt to get the index
+		index, err := env.Blobstore().GetObject(ctx, exportDir, IndexFilePath(exportRoot))
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				return retry.RetryableError(err)
+			}
+			return err
+		}
+
+		// Ensure the new export is created
+		batchFiles = strings.Split(string(index), "\n")
+		for _, f := range batchFiles {
+			if f != exportFile.Filename {
+				continue
+			}
+
+			// Lookup the file, hope it's gone
+			if _, err := env.Blobstore().GetObject(ctx, exportDir, f); err != nil {
+				if errors.Is(err, storage.ErrNotFound) {
+					return nil // expected
+				} else {
+					return err
+				}
+			}
+
+			return retry.RetryableError(fmt.Errorf("export file still exists"))
 		}
 
 		return nil
