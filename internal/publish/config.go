@@ -58,7 +58,7 @@ type Config struct {
 
 	// If set, TEKs that arrive without a days since symptom onset (i.e. no symptom onset date)
 	// will be set to the default symptom onset days.
-	UseDefaultSymptomOnset bool `env:"USE_DEFAULT_SYMPTOM_ONSET_DAYS, default true"`
+	UseDefaultSymptomOnset bool `env:"USE_DEFAULT_SYMPTOM_ONSET_DAYS, default=true"`
 	SymptomOnsetDays       uint `env:"DEFAULT_SYMPTOM_ONSET_DAYS, default=10"`
 
 	ResponsePaddingMinBytes int64 `env:"RESPONSE_PADDING_MIN_BYTES, default=1024"`
