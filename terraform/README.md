@@ -100,6 +100,14 @@ operation**, Terraform will also migrate the database schema and build/deploy
 the initial set of services on Cloud Run. Terraform does not manage the
 lifecycle of those resources beyond their initial creation.
 
+### Custom hosts
+
+Using custom hosts (domains) for the services requires a manual step of updating
+DNS entries. Run Terraform once and get the `lb_ip` entry. Then, update your DNS
+provider to point the A records to that IP address. Give DNS time to propagate
+and then re-apply Terraform. DNS must be working for the certificates to
+provision.
+
 ### Local development and testing example deployment
 
 The default Terraform deployment is a production-ready, high traffic deployment.

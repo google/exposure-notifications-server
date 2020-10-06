@@ -65,8 +65,6 @@ resource "google_project_iam_member" "debugger-observability" {
 }
 
 resource "google_cloud_run_service" "debugger" {
-  count = var.deploy_debugger ? 1 : 0
-
   name     = "debugger"
   location = var.cloudrun_location
 
@@ -125,4 +123,49 @@ resource "google_cloud_run_service" "debugger" {
       template[0].spec[0].containers[0].image,
     ]
   }
+}
+
+resource "google_cloud_run_service_iam_member" "debugger-invoker" {
+  for_each = toset(var.debugger_invokers)
+
+  project  = google_cloud_run_service.debugger.project
+  location = google_cloud_run_service.debugger.location
+  service  = google_cloud_run_service.debugger.name
+  role     = "roles/run.invoker"
+  member   = each.key
+}
+
+#
+# Custom domains and load balancer
+#
+
+resource "google_compute_region_network_endpoint_group" "debugger" {
+  count = length(var.debugger_hosts) > 0 ? 1 : 0
+
+  name     = "debugger"
+  provider = google-beta
+  project  = var.project
+  region   = var.region
+
+  network_endpoint_type = "SERVERLESS"
+
+  cloud_run {
+    service = google_cloud_run_service.debugger.name
+  }
+}
+
+resource "google_compute_backend_service" "debugger" {
+  count = length(var.debugger_hosts) > 0 ? 1 : 0
+
+  provider = google-beta
+  name     = "debugger"
+  project  = var.project
+
+  backend {
+    group = google_compute_region_network_endpoint_group.debugger[0].id
+  }
+}
+
+output "debugger_urls" {
+  value = concat([google_cloud_run_service.debugger.status.0.url], formatlist("https://%s", var.debugger_hosts))
 }

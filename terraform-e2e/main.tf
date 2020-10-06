@@ -32,26 +32,25 @@ module "en" {
   kms_export_signing_key_ring_name  = "export-signing-${random_string.suffix.result}"
   kms_revision_tokens_key_ring_name = "revision-tokens-${random_string.suffix.result}"
 
-  cleanup_export_worker_cron_schedule = "* * * * *"
+  cleanup_export_worker_cron_schedule   = "* * * * *"
   cleanup_exposure_worker_cron_schedule = "* * * * *"
-  export_worker_cron_schedule = "* * * * *"
-  export_create_batches_cron_schedule = "* * * * *"
+  export_worker_cron_schedule           = "* * * * *"
+  export_create_batches_cron_schedule   = "* * * * *"
 
   create_env_file = true
-  deploy_debugger = true
 
   service_environment = {
     export = {
       TRUNCATE_WINDOW = "1s"
-      MIN_WINDOW_AGE = "1s"
+      MIN_WINDOW_AGE  = "1s"
 
       LOG_DEBUG = "true"
     }
 
     exposure = {
-      TRUNCATE_WINDOW = "1s"
+      TRUNCATE_WINDOW             = "1s"
       DEBUG_RELEASE_SAME_DAY_KEYS = true
-      LOG_DEBUG = "true"
+      LOG_DEBUG                   = "true"
     }
 
     generate = {

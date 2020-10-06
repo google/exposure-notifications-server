@@ -117,21 +117,6 @@ resource "google_cloud_run_service" "federationout" {
   }
 }
 
-resource "google_cloud_run_domain_mapping" "federationout" {
-  count    = var.federationout_custom_domain != "" ? 1 : 0
-  location = var.cloudrun_location
-  name     = var.federationout_custom_domain
-
-  metadata {
-    namespace = var.project
-  }
-
-  spec {
-    route_name     = google_cloud_run_service.federationout.name
-    force_override = true
-  }
-}
-
 resource "google_cloud_run_service_iam_member" "federationout-public" {
   location = google_cloud_run_service.federationout.location
   project  = google_cloud_run_service.federationout.project
@@ -140,6 +125,37 @@ resource "google_cloud_run_service_iam_member" "federationout-public" {
   member   = "allUsers"
 }
 
-output "federationout_url" {
-  value = var.federationout_custom_domain != "" ? "https://${var.federationout_custom_domain}" : google_cloud_run_service.federationout.status.0.url
+#
+# Custom domains and load balancer
+#
+
+resource "google_compute_region_network_endpoint_group" "federationout" {
+  count = length(var.federationout_hosts) > 0 ? 1 : 0
+
+  name     = "federationout"
+  provider = google-beta
+  project  = var.project
+  region   = var.region
+
+  network_endpoint_type = "SERVERLESS"
+
+  cloud_run {
+    service = google_cloud_run_service.federationout.name
+  }
+}
+
+resource "google_compute_backend_service" "federationout" {
+  count = length(var.federationout_hosts) > 0 ? 1 : 0
+
+  provider = google-beta
+  name     = "federationout"
+  project  = var.project
+
+  backend {
+    group = google_compute_region_network_endpoint_group.federationout[0].id
+  }
+}
+
+output "federationout_urls" {
+  value = concat([google_cloud_run_service.federationout.status.0.url], formatlist("https://%s", var.federationout_hosts))
 }
