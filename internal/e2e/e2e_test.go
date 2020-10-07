@@ -108,6 +108,8 @@ func TestPublishEndpoint(t *testing.T) {
 	if tc.ExposureURL == "" {
 		t.Skip()
 	}
+	// Increase this so that the db connection won't be canceled while polling for exported files
+	tc.DBConfig.PoolMaxConnIdle = 5 * time.Minute
 
 	db, err := database.NewFromEnv(ctx, tc.DBConfig)
 	if err != nil {
