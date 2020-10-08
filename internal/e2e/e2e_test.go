@@ -165,7 +165,7 @@ func TestPublishEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	gotExported := make(map[string]bool)
-	integration.Eventually(t, 30, 5*time.Second, func() error {
+	integration.Eventually(t, 30, 10*time.Second, func() error {
 		// Attempt to get the index
 		index, err := blobStore.GetObject(ctx, bucketName, integration.IndexFilePath(filenameRoot))
 		if err != nil {
