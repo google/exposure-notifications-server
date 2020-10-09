@@ -17,6 +17,7 @@ package database
 import (
 	"context"
 	"errors"
+	"reflect"
 	"sort"
 	"testing"
 	"time"
@@ -142,6 +143,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 		OutputRegion:     "i1",
 		InputRegions:     []string{"US"},
 		IncludeTravelers: true,
+		ExcludeRegions:   []string{"EU"},
 		From:             fromTime,
 		Thru:             thruTime,
 		SignatureInfoIDs: []int64{42, 84},
@@ -538,6 +540,130 @@ func TestTravelerKeys(t *testing.T) {
 	want := []byte("aaa")
 	if string(got[0].ExposureKey) != string(want) {
 		t.Fatalf("Incorrect exposure key in batch, got %q, want %q", got[0].ExposureKey, want)
+	}
+}
+
+// TestExcludeRegions ensures excluded regions are excluded.
+func TestExcludeRegions(t *testing.T) {
+	inclRegion, exclRegion := "US", "EU"
+	now := time.Now()
+	startTimestamp := now.Truncate(time.Hour).Add(-2 * time.Hour)
+	endTimestamp := startTimestamp.Add(time.Hour)
+
+	// Create person in main region.
+	mainUser := &publishmodel.Exposure{
+		ExposureKey: []byte("aaa"),
+		Regions:     []string{inclRegion},
+		CreatedAt:   startTimestamp,
+	}
+
+	// Create traveler&nonTraveler key out of the main region.
+	extTravUser := &publishmodel.Exposure{
+		ExposureKey: []byte("bbb"),
+		Regions:     []string{exclRegion},
+		CreatedAt:   startTimestamp,
+		Traveler:    true,
+	}
+	extUser := &publishmodel.Exposure{
+		ExposureKey: []byte("ccc"),
+		Regions:     []string{exclRegion},
+		CreatedAt:   startTimestamp,
+	}
+
+	tests := []struct {
+		name  string
+		users []*publishmodel.Exposure
+		want  []string
+	}{
+		{"1main,1ext", []*publishmodel.Exposure{mainUser, extUser}, []string{"aaa"}},
+		{"1main,2ext", []*publishmodel.Exposure{mainUser, extUser, extTravUser}, []string{"aaa"}},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			testDB := database.NewTestDatabase(t)
+			ctx := context.Background()
+
+			// Add a config.
+			ec := &model.ExportConfig{
+				BucketName:     "bucket-name",
+				FilenameRoot:   "filename-root",
+				Period:         3600 * time.Second,
+				OutputRegion:   inclRegion,
+				From:           now.Add(-24 * time.Hour),
+				ExcludeRegions: []string{exclRegion},
+			}
+			if err := New(testDB).AddExportConfig(ctx, ec); err != nil {
+				t.Fatal(err)
+			}
+
+			// Create a batch for two hours ago to one hour ago.
+			eb := &model.ExportBatch{
+				ConfigID:       ec.ConfigID,
+				BucketName:     ec.BucketName,
+				FilenameRoot:   ec.FilenameRoot,
+				StartTimestamp: startTimestamp,
+				EndTimestamp:   endTimestamp,
+				OutputRegion:   ec.OutputRegion,
+				Status:         model.ExportBatchOpen,
+				ExcludeRegions: ec.ExcludeRegions,
+			}
+			if err := New(testDB).AddExportBatches(ctx, []*model.ExportBatch{eb}); err != nil {
+				t.Fatal(err)
+			}
+
+			// Add the keys to the database.
+			if _, err := publishdb.New(testDB).InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+				Incoming:     []*publishmodel.Exposure{mainUser, extUser, extTravUser},
+				RequireToken: true,
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			// Re-fetch the ExposureBatch by leasing it; this is important to this test which is trying
+			// to ensure our dates are going in-and-out of the database correctly.
+			leased, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Check that the batch times from the database are *exactly* what we started with.
+			if eb.StartTimestamp.UnixNano() != leased.StartTimestamp.UnixNano() {
+				t.Errorf("Start timestamps did not align original: %d, leased: %d", eb.StartTimestamp.UnixNano(), leased.StartTimestamp.UnixNano())
+			}
+			if eb.EndTimestamp.UnixNano() != leased.EndTimestamp.UnixNano() {
+				t.Errorf("End timestamps did not align original: %d, leased: %d", eb.EndTimestamp.UnixNano(), leased.EndTimestamp.UnixNano())
+			}
+
+			// Lookup the keys; they must be only the key created_at the startTimestamp
+			// (because start is inclusive, end is exclusive).
+			criteria := publishdb.IterateExposuresCriteria{
+				IncludeRegions: []string{inclRegion},
+				SinceTimestamp: leased.StartTimestamp,
+				UntilTimestamp: leased.EndTimestamp,
+				ExcludeRegions: []string{exclRegion},
+			}
+
+			var got []*publishmodel.Exposure
+			_, err = publishdb.New(testDB).IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
+				got = append(got, exp)
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			keys := []string{}
+			for _, exp := range got {
+				keys = append(keys, string(exp.ExposureKey))
+			}
+			if !reflect.DeepEqual(test.want, keys) {
+				t.Fatalf("%v got = %v, want %v", test.name, keys, test.want)
+			}
+		})
 	}
 }
 

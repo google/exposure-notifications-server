@@ -59,6 +59,16 @@
       </div>
 
       <div class="form-label-group">
+        <textarea name="ExcludeRegions" id="exclude-regions" rows="3"
+          placeholder="Exclude regions" class="form-control">{{.export.ExcludeRegionsOnePerLine}}</textarea>
+        <label for="exclude-regions">Exclude regions</label>
+        <small class="form-text text-muted">
+          One per line, leave blank for only using the output region (above).
+		  Allows you to exclude travelers from certain regions.
+        </small>
+      </div>
+
+      <div class="form-label-group">
         <input type="text" name="BucketName" id="bucket-name" value="{{.export.BucketName}}"
           placeholder="Cloud storage bucket" class="form-control">
         <label for="bucket-name">Cloud Storage bucket</label>
