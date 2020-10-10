@@ -30,6 +30,7 @@ require (
 	github.com/client9/misspell v0.3.4
 	github.com/containerd/continuity v0.0.0-20200710164510-efbc4488d8fe // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/docker/docker-credential-helpers v0.6.3
 	github.com/frankban/quicktest v1.8.1 // indirect
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-ole/go-ole v1.2.4 // indirect
@@ -58,6 +59,7 @@ require (
 	github.com/hashicorp/vault/sdk v0.1.14-0.20200519221838-e0cfd64bc267
 	github.com/hashicorp/yamux v0.0.0-20190923154419-df201c70410d // indirect
 	github.com/jackc/pgproto3/v2 v2.0.4 // indirect
+	github.com/jackc/pgx v3.3.0+incompatible
 	github.com/jackc/pgx/v4 v4.8.1
 	github.com/jefferai/jsonx v1.0.1 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
