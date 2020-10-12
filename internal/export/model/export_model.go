@@ -39,6 +39,7 @@ type ExportConfig struct {
 	Period           time.Duration
 	OutputRegion     string
 	InputRegions     []string
+	ExcludeRegions   []string
 	IncludeTravelers bool
 	From             time.Time
 	Thru             time.Time
@@ -53,6 +54,10 @@ func (ec *ExportConfig) EffectiveInputRegions() []string {
 
 func (ec *ExportConfig) InputRegionsOnePerLine() string {
 	return strings.Join(ec.InputRegions, "\n")
+}
+
+func (ec *ExportConfig) ExcludeRegionsOnePerLine() string {
+	return strings.Join(ec.ExcludeRegions, "\n")
 }
 
 func (ec *ExportConfig) Validate() error {
@@ -105,6 +110,7 @@ type ExportBatch struct {
 	OutputRegion     string
 	InputRegions     []string
 	IncludeTravelers bool
+	ExcludeRegions   []string
 	Status           string
 	LeaseExpires     time.Time
 	SignatureInfoIDs []int64
@@ -123,6 +129,7 @@ type ExportFile struct {
 	OutputRegion     string
 	InputRegions     []string
 	IncludeTravelers bool
+	ExcludeRegions   []string
 	BatchNum         int
 	BatchSize        int
 	Status           string

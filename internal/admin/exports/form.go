@@ -17,6 +17,7 @@ package exports
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ type formData struct {
 	OutputRegion     string        `form:"OutputRegion"`
 	InputRegions     string        `form:"InputRegions"`
 	IncludeTravelers bool          `form:"IncludeTravelers"`
+	ExcludeRegions   string        `form:"ExcludeRegions"`
 	BucketName       string        `form:"BucketName"`
 	FilenameRoot     string        `form:"FilenameRoot"`
 	Period           time.Duration `form:"Period"`
@@ -36,6 +38,20 @@ type formData struct {
 	ThruDate         string        `form:"thrudate"`
 	ThruTime         string        `form:"thrutime"`
 	SigInfoIDs       []int64       `form:"siginfo"`
+}
+
+// splitRegions turns a string of regions (generally separated by newlines), and
+// breaks them up into an alphabetically sorted slice of strings.
+func splitRegions(regions string) []string {
+	ret := make([]string, 0, 20)
+	for _, s := range strings.Split(regions, "\n") {
+		s := strings.TrimSpace(s)
+		if s != "" {
+			ret = append(ret, s)
+		}
+	}
+	sort.Strings(ret)
+	return ret
 }
 
 func (f *formData) PopulateExportConfig(ec *model.ExportConfig) error {
@@ -52,14 +68,9 @@ func (f *formData) PopulateExportConfig(ec *model.ExportConfig) error {
 	ec.FilenameRoot = strings.TrimSpace(f.FilenameRoot)
 	ec.Period = f.Period
 	ec.OutputRegion = strings.TrimSpace(f.OutputRegion)
-	ec.InputRegions = make([]string, 0)
-	for _, s := range strings.Split(f.InputRegions, "\n") {
-		s := strings.TrimSpace(s)
-		if s != "" {
-			ec.InputRegions = append(ec.InputRegions, strings.TrimSpace(s))
-		}
-	}
+	ec.InputRegions = splitRegions(f.InputRegions)
 	ec.IncludeTravelers = f.IncludeTravelers
+	ec.ExcludeRegions = splitRegions(f.ExcludeRegions)
 	ec.From = from
 	ec.Thru = thru
 	ec.SignatureInfoIDs = f.SigInfoIDs

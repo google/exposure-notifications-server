@@ -120,7 +120,8 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		UntilTimestamp:      eb.EndTimestamp,
 		IncludeRegions:      eb.EffectiveInputRegions(),
 		IncludeTravelers:    eb.IncludeTravelers, // Travelers are included from "any" region.
-		OnlyLocalProvenance: false,               // include federated ids
+		ExcludeRegions:      eb.ExcludeRegions,
+		OnlyLocalProvenance: false, // include federated ids
 		OnlyRevisedKeys:     false,
 	}
 
