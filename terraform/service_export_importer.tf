@@ -93,7 +93,9 @@ resource "google_cloud_run_service" "export-importer" {
         }
       }
 
-      container_concurrency = 10
+      container_concurrency = 5
+      // 30 seconds less than cloud scheduler maximum.
+      timeout_seconds = 570
     }
 
     metadata {
@@ -131,9 +133,9 @@ resource "google_service_account" "export-importer-invoker" {
 }
 
 resource "google_cloud_run_service_iam_member" "export-importer-invoker" {
-  project  = google_cloud_run_service.export.project
-  location = google_cloud_run_service.export.location
-  service  = google_cloud_run_service.export.name
+  project  = google_cloud_run_service.export-importer.project
+  location = google_cloud_run_service.export-importer.location
+  service  = google_cloud_run_service.export-importer.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.export-importer-invoker.email}"
 }

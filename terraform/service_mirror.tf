@@ -16,14 +16,14 @@
 # Create and deploy the service
 #
 
-resource "google_service_account" "export" {
+resource "google_service_account" "mirror" {
   project      = data.google_project.project.project_id
-  account_id   = "en-export-sa"
-  display_name = "Exposure Notification Export"
+  account_id   = "en-mirror-sa"
+  display_name = "Exposure Notification Mirror"
 }
 
-resource "google_service_account_iam_member" "cloudbuild-deploy-export" {
-  service_account_id = google_service_account.export.id
+resource "google_service_account_iam_member" "cloudbuild-deploy-mirror" {
+  service_account_id = google_service_account.mirror.id
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 
@@ -32,7 +32,7 @@ resource "google_service_account_iam_member" "cloudbuild-deploy-export" {
   ]
 }
 
-resource "google_secret_manager_secret_iam_member" "export-db" {
+resource "google_secret_manager_secret_iam_member" "mirror-db" {
   for_each = toset([
     "sslcert",
     "sslkey",
@@ -42,22 +42,10 @@ resource "google_secret_manager_secret_iam_member" "export-db" {
 
   secret_id = google_secret_manager_secret.db-secret[each.key].id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.export.email}"
+  member    = "serviceAccount:${google_service_account.mirror.email}"
 }
 
-resource "google_storage_bucket_iam_member" "export-objectadmin" {
-  bucket = google_storage_bucket.export.name
-  role   = "roles/storage.objectAdmin" // overwrite is not included in objectCreator
-  member = "serviceAccount:${google_service_account.export.email}"
-}
-
-resource "google_kms_key_ring_iam_member" "export-signerverifier" {
-  key_ring_id = google_kms_key_ring.export-signing.self_link
-  role        = "roles/cloudkms.signerVerifier"
-  member      = "serviceAccount:${google_service_account.export.email}"
-}
-
-resource "google_project_iam_member" "export-observability" {
+resource "google_project_iam_member" "mirror-observability" {
   for_each = toset([
     "roles/cloudtrace.agent",
     "roles/logging.logWriter",
@@ -67,21 +55,21 @@ resource "google_project_iam_member" "export-observability" {
 
   project = var.project
   role    = each.key
-  member  = "serviceAccount:${google_service_account.export.email}"
+  member  = "serviceAccount:${google_service_account.mirror.email}"
 }
 
-resource "google_cloud_run_service" "export" {
-  name     = "export"
+resource "google_cloud_run_service" "mirror" {
+  name     = "mirror"
   location = var.cloudrun_location
 
   autogenerate_revision_name = true
 
   template {
     spec {
-      service_account_name = google_service_account.export.email
+      service_account_name = google_service_account.mirror.email
 
       containers {
-        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/export:initial"
+        image = "gcr.io/${data.google_project.project.project_id}/github.com/google/exposure-notifications-server/mirror:initial"
 
         resources {
           limits = {
@@ -95,7 +83,7 @@ resource "google_cloud_run_service" "export" {
             local.common_cloudrun_env_vars,
 
             // This MUST come last to allow overrides!
-            lookup(var.service_environment, "export", {}),
+            lookup(var.service_environment, "mirror", {}),
           )
 
           content {
@@ -105,7 +93,7 @@ resource "google_cloud_run_service" "export" {
         }
       }
 
-      container_concurrency = 10
+      container_concurrency = 5
       // 30 seconds less than cloud scheduler maximum.
       timeout_seconds = 570
     }
@@ -120,7 +108,7 @@ resource "google_cloud_run_service" "export" {
 
   depends_on = [
     google_project_service.services["run.googleapis.com"],
-    google_secret_manager_secret_iam_member.export-db,
+    google_secret_manager_secret_iam_member.mirror-db,
     null_resource.build,
     null_resource.migrate,
   ]
@@ -138,24 +126,24 @@ resource "google_cloud_run_service" "export" {
 # Create scheduler job to invoke the service on a fixed interval.
 #
 
-resource "google_service_account" "export-invoker" {
+resource "google_service_account" "mirror-invoker" {
   project      = data.google_project.project.project_id
-  account_id   = "en-export-invoker-sa"
-  display_name = "Exposure Notification Export Invoker"
+  account_id   = "en-mirror-invoker-sa"
+  display_name = "Exposure Notification Mirror Invoker"
 }
 
-resource "google_cloud_run_service_iam_member" "export-invoker" {
-  project  = google_cloud_run_service.export.project
-  location = google_cloud_run_service.export.location
-  service  = google_cloud_run_service.export.name
+resource "google_cloud_run_service_iam_member" "mirror-invoker" {
+  project  = google_cloud_run_service.mirror.project
+  location = google_cloud_run_service.mirror.location
+  service  = google_cloud_run_service.mirror.name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.export-invoker.email}"
+  member   = "serviceAccount:${google_service_account.mirror-invoker.email}"
 }
 
-resource "google_cloud_scheduler_job" "export-worker" {
-  name             = "export-worker"
+resource "google_cloud_scheduler_job" "mirror-worker" {
+  name             = "mirror-worker"
   region           = var.cloudscheduler_location
-  schedule         = var.export_worker_cron_schedule
+  schedule         = "* * * * *"
   time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 
@@ -165,24 +153,24 @@ resource "google_cloud_scheduler_job" "export-worker" {
 
   http_target {
     http_method = "POST"
-    uri         = "${google_cloud_run_service.export.status.0.url}/do-work"
+    uri         = "${google_cloud_run_service.mirror.status.0.url}/"
     oidc_token {
-      audience              = google_cloud_run_service.export.status.0.url
-      service_account_email = google_service_account.export-invoker.email
+      audience              = google_cloud_run_service.mirror.status.0.url
+      service_account_email = google_service_account.mirror-invoker.email
     }
   }
 
   depends_on = [
     google_app_engine_application.app,
-    google_cloud_run_service_iam_member.export-invoker,
+    google_cloud_run_service_iam_member.mirror-invoker,
     google_project_service.services["cloudscheduler.googleapis.com"],
   ]
 }
 
-resource "google_cloud_scheduler_job" "export-create-batches" {
-  name             = "export-create-batches"
+resource "google_cloud_scheduler_job" "mirror-schedule" {
+  name             = "mirror-cschedule"
   region           = var.cloudscheduler_location
-  schedule         = var.export_create_batches_cron_schedule
+  schedule         = "*/5 * * * *"
   time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 
@@ -192,16 +180,16 @@ resource "google_cloud_scheduler_job" "export-create-batches" {
 
   http_target {
     http_method = "GET"
-    uri         = "${google_cloud_run_service.export.status.0.url}/create-batches"
+    uri         = "${google_cloud_run_service.mirror.status.0.url}/schedule"
     oidc_token {
-      audience              = google_cloud_run_service.export.status.0.url
-      service_account_email = google_service_account.export-invoker.email
+      audience              = google_cloud_run_service.mirror.status.0.url
+      service_account_email = google_service_account.mirror-invoker.email
     }
   }
 
   depends_on = [
     google_app_engine_application.app,
-    google_cloud_run_service_iam_member.export-invoker,
+    google_cloud_run_service_iam_member.mirror-invoker,
     google_project_service.services["cloudscheduler.googleapis.com"],
   ]
 }
