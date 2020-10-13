@@ -66,7 +66,7 @@ func (s *Server) handleImport(ctx context.Context) http.HandlerFunc {
 			}
 			defer func() {
 				if err := unlock(); err != nil {
-					logger.Errorf("failed to unlock: %v", err)
+					logger.Errorw("failed to unlock", "error", err)
 				}
 			}()
 
@@ -108,13 +108,13 @@ func (s *Server) handleImport(ctx context.Context) http.HandlerFunc {
 					file:         file,
 				})
 				if err != nil {
-					logger.Errorf("error processing import file", "error", err)
+					logger.Errorw("error processing import file", "error", err)
 					continue
 				}
 				logger.Infow("completed file import", "inserted", result.insertedKeys, "revised", result.revisedKeys, "dropped", result.droppedKeys)
 
 				if err := s.exportImportDB.CompleteImportFile(ctx, file); err != nil {
-					logger.Errorf("failed to mark file completed", "file", file, "error", err)
+					logger.Errorw("failed to mark file completed", "file", file, "error", err)
 				}
 			}
 		}
