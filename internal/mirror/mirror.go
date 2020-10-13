@@ -178,7 +178,7 @@ func (s *Server) processMirror(ctx context.Context, w http.ResponseWriter, deadl
 		}
 	}
 
-	// save for convienence.
+	// save for convenience.
 	blobstore := s.env.Blobstore()
 
 	// delete any files we no longer have
