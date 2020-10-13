@@ -76,10 +76,9 @@ func (s *Server) downloadIndex(w http.ResponseWriter, mirror *model.Mirror) ([]s
 
 func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
 	logger := logging.FromContext(ctx).Named("mirror.handleMirror")
-	ctx = logging.WithLogger(ctx, logger)
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx := logging.WithLogger(r.Context(), logger)
 		_, span := trace.StartSpan(ctx, "(*mirror.handleMirror).ServeHTTP")
 		defer span.End()
 
