@@ -274,7 +274,7 @@ func (db *ExportImportDB) CreateFiles(ctx context.Context, ei *model.ExportImpor
 				logger.Warnw("attempted to insert duplicate file", "exportImportID", ei.ID)
 				continue
 			}
-			logger.Debugw("scheduled new epxort file for importing", "exportImportID", ei.ID, "filename", fname)
+			logger.Debugw("scheduled new export file for importing", "exportImportID", ei.ID, "filename", fname)
 			insertedFiles++
 		}
 		return nil
