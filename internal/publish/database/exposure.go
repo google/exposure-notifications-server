@@ -73,6 +73,7 @@ func New(db *database.DB) *PublishDB {
 type IterateExposuresCriteria struct {
 	IncludeRegions   []string
 	IncludeTravelers bool // Include records in the IncludeRegions OR travalers
+	OnlyNonTravelers bool
 	OnlyTravelers    bool // Only includes records marked as travelers.
 	ExcludeRegions   []string
 	SinceTimestamp   time.Time
@@ -233,6 +234,11 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 
 	if criteria.OnlyTravelers {
 		args = append(args, true)
+		q += fmt.Sprintf(" AND traveler = $%d", len(args))
+	}
+
+	if criteria.OnlyNonTravelers {
+		args = append(args, false)
 		q += fmt.Sprintf(" AND traveler = $%d", len(args))
 	}
 

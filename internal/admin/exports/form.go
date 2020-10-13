@@ -16,6 +16,7 @@
 package exports
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -25,10 +26,13 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/model"
 )
 
+var ErrCannotSetBothTravelers = errors.New("cannot have both 'include travelers', and 'only non-travelers' set")
+
 type formData struct {
 	OutputRegion     string        `form:"OutputRegion"`
 	InputRegions     string        `form:"InputRegions"`
 	IncludeTravelers bool          `form:"IncludeTravelers"`
+	OnlyNonTravelers bool          `form:"OnlyNonTravelers"`
 	ExcludeRegions   string        `form:"ExcludeRegions"`
 	BucketName       string        `form:"BucketName"`
 	FilenameRoot     string        `form:"FilenameRoot"`
@@ -63,6 +67,9 @@ func (f *formData) PopulateExportConfig(ec *model.ExportConfig) error {
 	if err != nil {
 		return err
 	}
+	if f.IncludeTravelers && f.OnlyNonTravelers {
+		return ErrCannotSetBothTravelers
+	}
 
 	ec.BucketName = strings.TrimSpace(f.BucketName)
 	ec.FilenameRoot = strings.TrimSpace(f.FilenameRoot)
@@ -70,6 +77,7 @@ func (f *formData) PopulateExportConfig(ec *model.ExportConfig) error {
 	ec.OutputRegion = strings.TrimSpace(f.OutputRegion)
 	ec.InputRegions = splitRegions(f.InputRegions)
 	ec.IncludeTravelers = f.IncludeTravelers
+	ec.OnlyNonTravelers = f.OnlyNonTravelers
 	ec.ExcludeRegions = splitRegions(f.ExcludeRegions)
 	ec.From = from
 	ec.Thru = thru
