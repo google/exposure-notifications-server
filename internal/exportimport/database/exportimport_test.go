@@ -166,7 +166,7 @@ func TestLeaseAndCompleteImportFile(t *testing.T) {
 		t.Fatalf("unable to lock file where lock has expired: %v", err)
 	}
 
-	if err := exportImportDB.CompleteImportFile(ctx, testFile); err != nil {
+	if err := exportImportDB.CompleteImportFile(ctx, testFile, model.ImportFileComplete); err != nil {
 		t.Fatalf("unable to complete import file: %v", err)
 	}
 
