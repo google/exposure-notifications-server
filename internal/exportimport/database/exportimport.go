@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -218,12 +219,14 @@ func prepareInsertImportFile(ctx context.Context, tx pgx.Tx) (string, error) {
 				(export_import_id, zip_filename, discovered_at)
 		VALUES
 			($1, $2, $3)
-		RETURNING id
+		ON CONFLICT DO NOTHING
+		RETURNING id		
 	`)
 	return stmtName, err
 }
 
 func (db *ExportImportDB) CreateFiles(ctx context.Context, ei *model.ExportImport, filenames []string) (int, error) {
+	logger := logging.FromContext(ctx)
 	insertedFiles := 0
 
 	now := time.Now().UTC()
@@ -258,13 +261,20 @@ func (db *ExportImportDB) CreateFiles(ctx context.Context, ei *model.ExportImpor
 		}
 
 		for _, fname := range filenames {
+			if _, ok := existing[fname]; ok {
+				// we've already scheduled this file previously, skip.
+				continue
+			}
+
 			result, err := tx.Exec(ctx, insertStmt, ei.ID, fname, now)
 			if err != nil {
 				return fmt.Errorf("error inserting filename: %v, %w", fname, err)
 			}
 			if result.RowsAffected() != 1 {
-				return fmt.Errorf("filename isnert failed: %v", fname)
+				logger.Warnw("attempted to insert duplicate file", "exportImportID", ei.ID)
+				continue
 			}
+			logger.Debugw("scheduled new epxort file for importing", "exportImportID", ei.ID, "filename", fname)
 			insertedFiles++
 		}
 		return nil
@@ -275,7 +285,7 @@ func (db *ExportImportDB) CreateFiles(ctx context.Context, ei *model.ExportImpor
 	return insertedFiles, nil
 }
 
-func (db *ExportImportDB) CompleteImportFile(ctx context.Context, ef *model.ImportFile) error {
+func (db *ExportImportDB) CompleteImportFile(ctx context.Context, ef *model.ImportFile, status string) error {
 	now := time.Now().UTC()
 	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
@@ -306,7 +316,7 @@ func (db *ExportImportDB) CompleteImportFile(ctx context.Context, ef *model.Impo
 		}
 		rows.Close()
 
-		ef.Status = model.ImportFileComplete
+		ef.Status = status
 		ef.ProcessedAt = &now
 		result, err := tx.Exec(ctx, `
 			UPDATE

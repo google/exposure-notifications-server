@@ -18,6 +18,7 @@ package exportimport
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -30,6 +31,10 @@ import (
 	pubmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"go.uber.org/zap"
+)
+
+var (
+	ErrArchiveNotFound = errors.New("archive file not found")
 )
 
 type ImportRequest struct {
@@ -51,6 +56,17 @@ type SignatureAndKey struct {
 }
 
 func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*ImportResposne, error) {
+	// Special case - previous versions may have inserted the filename root as a file.
+	// If we find that, skip attempted processing and just mark as successful.
+	logging.FromContext(ctx).Debugw("does it float", "exportRoot", ir.exportImport.ExportRoot, "zipFilename", ir.file.ZipFilename)
+	if ir.exportImport.ExportRoot == ir.file.ZipFilename {
+		return &ImportResposne{
+			insertedKeys: 0,
+			revisedKeys:  0,
+			droppedKeys:  0,
+		}, nil
+	}
+
 	logger := logging.FromContext(ctx)
 	// Download zip file.
 	client := &http.Client{
@@ -59,6 +75,13 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 	resp, err := client.Get(ir.file.ZipFilename)
 	if err != nil {
 		return nil, fmt.Errorf("error downloading export file: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, ErrArchiveNotFound
+		}
+		return nil, fmt.Errorf("unable to download file, code: %d", resp.StatusCode)
 	}
 
 	defer resp.Body.Close()

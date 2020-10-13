@@ -16,12 +16,14 @@ package exportimport
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"go.opencensus.io/trace"
 )
@@ -37,6 +39,10 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 
 		unlock, err := s.db.Lock(ctx, schedulerLockID, s.config.MaxRuntime)
 		if err != nil {
+			if errors.Is(err, database.ErrAlreadyLocked) {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
 			logger.Warn(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -82,8 +88,11 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 			zipNames := strings.Split(string(bytes), "\n")
 			currentFiles := make([]string, 0, len(zipNames))
 			for _, zipFile := range zipNames {
+				if zipFile == "" {
+					// drop blank lines.
+					continue
+				}
 				fullZipFile := fmt.Sprintf("%s%s", config.ExportRoot, strings.TrimSpace(zipFile))
-				logger.Debugw("found new export file", "zipFile", fullZipFile)
 				currentFiles = append(currentFiles, fullZipFile)
 			}
 
@@ -93,7 +102,9 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 				logger.Errorw("unable to write new files", "error", err)
 			}
 			if n != 0 {
-				logger.Infow("found new files for export import config", "file", config.IndexFile, "newCount", n)
+				logger.Infow("found new files for export import config", "exportImportID", config.ID, "file", config.IndexFile, "newCount", n)
+			} else {
+				logger.Infow("no new export files", "exportImportID", config.ID, "file", config.IndexFile)
 			}
 		}
 
