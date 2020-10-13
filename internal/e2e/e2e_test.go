@@ -30,11 +30,14 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	exportapi "github.com/google/exposure-notifications-server/internal/export"
+	exportdb "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/integration"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/google/exposure-notifications-server/pkg/util"
+	"github.com/google/go-cmp/cmp"
+	pgx "github.com/jackc/pgx/v4"
 	"github.com/sethvargo/go-envconfig"
 	"github.com/sethvargo/go-retry"
 
@@ -109,7 +112,7 @@ func TestPublishEndpoint(t *testing.T) {
 		t.Skip()
 	}
 	// Increase this so that the db connection won't be canceled while polling for exported files
-	tc.DBConfig.PoolMaxConnIdle = 5 * time.Minute
+	tc.DBConfig.PoolMaxConnIdle = 10 * time.Minute
 
 	db, err := database.NewFromEnv(ctx, tc.DBConfig)
 	if err != nil {
@@ -125,9 +128,9 @@ func TestPublishEndpoint(t *testing.T) {
 		HealthAuthorityID: appName,
 	}
 
-	var wantExport []string
+	wantExport := make(map[string]bool)
 	for _, key := range keys {
-		wantExport = append(wantExport, key.Key)
+		wantExport[key.Key] = true
 	}
 
 	jwtCfg.ExposureKeys = keys
@@ -165,6 +168,7 @@ func TestPublishEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	gotExported := make(map[string]bool)
+	var expectedFile string
 	integration.Eventually(t, 30, 10*time.Second, func() error {
 		// Attempt to get the index
 		index, err := blobStore.GetObject(ctx, bucketName, integration.IndexFilePath(filenameRoot))
@@ -202,16 +206,79 @@ func TestPublishEndpoint(t *testing.T) {
 		}
 
 		for _, k := range key.Keys {
-			gotExported[base64.StdEncoding.EncodeToString(k.KeyData)] = true
-		}
-		allExported := true
-		for _, want := range wantExport {
-			if _, ok := gotExported[want]; !ok {
-				allExported = false
+			sk := base64.StdEncoding.EncodeToString(k.KeyData)
+			if _, ok := wantExport[sk]; ok {
+				expectedFile = latest
+				gotExported[sk] = true
 			}
 		}
-		if !allExported {
+		if diff := cmp.Diff(wantExport, gotExported); diff != "" {
 			return retry.RetryableError(errors.New("Not all keys are exported yet, keep waiting"))
+		}
+
+		return nil
+	})
+
+	// Mark the export in the past to force a cleanup
+	t.Logf("Exposure was exported: %q. Modify the date to 14 days earlier", expectedFile)
+	exportFile, err := exportdb.New(db).LookupExportFile(ctx, expectedFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+		UPDATE
+			ExportBatch
+		SET
+			start_timestamp = $1,
+			end_timestamp = $2
+		WHERE
+			batch_id = $3
+	`,
+			time.Now().Add(-30*24*time.Hour),
+			time.Now().Add(-29*24*time.Hour),
+			exportFile.BatchID,
+		)
+		if err != nil {
+			return err
+		}
+		if got, want := result.RowsAffected(), int64(1); got != want {
+			return fmt.Errorf("expected %v to be %v", got, want)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure the export was deleted
+	// Cloud scheduler runs every minute, waiting 2.5 minutes should be sufficient
+	t.Logf("Wait until export %q is cleaned up", expectedFile)
+	integration.Eventually(t, 30, 10*time.Second, func() error {
+		// Attempt to get the index
+		index, err := blobStore.GetObject(ctx, bucketName, integration.IndexFilePath(filenameRoot))
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				return retry.RetryableError(err)
+			}
+			return err
+		}
+
+		// Ensure the new export is created
+		batchFiles := strings.Split(string(index), "\n")
+		for _, f := range batchFiles {
+			if f != exportFile.Filename {
+				continue
+			}
+
+			// Lookup the file, hope it's gone
+			if _, err := blobStore.GetObject(ctx, bucketName, f); err != nil {
+				if errors.Is(err, storage.ErrNotFound) {
+					return nil // expected
+				}
+				return err
+			}
+
+			return retry.RetryableError(fmt.Errorf("export file still exists"))
 		}
 
 		return nil
