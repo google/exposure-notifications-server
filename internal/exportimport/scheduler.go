@@ -88,7 +88,7 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 			zipNames := strings.Split(string(bytes), "\n")
 			currentFiles := make([]string, 0, len(zipNames))
 			for _, zipFile := range zipNames {
-				if zipFile == "" {
+				if len(strings.TrimSpace(zipFile)) == 0 {
 					// drop blank lines.
 					continue
 				}
