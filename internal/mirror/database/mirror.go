@@ -86,6 +86,7 @@ func (db *MirrorDB) Mirrors(ctx context.Context) ([]*model.Mirror, error) {
 				id, index_file, export_root, cloud_storage_bucket, filename_root
 			FROM
 				mirror
+			ORDER BY id
 		`)
 		if err != nil {
 			return fmt.Errorf("failed to list: %w", err)
@@ -111,6 +112,7 @@ func (db *MirrorDB) Mirrors(ctx context.Context) ([]*model.Mirror, error) {
 	return mirrors, nil
 }
 
+// SaveFiles makes the list of filenames passed in the only files that are saved on that mirrorID.
 func (db *MirrorDB) SaveFiles(ctx context.Context, mirrorID int64, filenames []string) error {
 	const deleteName = "delete mirror file"
 	const insertName = "insert mirror file"
@@ -121,13 +123,14 @@ func (db *MirrorDB) SaveFiles(ctx context.Context, mirrorID int64, filenames []s
 	}
 
 	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		// Read files selects all of the existing known files FOR UPDATE.
 		knownFiles, err := readFiles(ctx, tx, mirrorID)
 		if err != nil {
 			return err
 		}
 
 		toDelete := make([]*model.MirrorFile, 0)
-
+		// if any filenames were read that aren't in the 'filenames' list, add them to the toDelete
 		for _, mirrorFile := range knownFiles {
 			if _, ok := wantFiles[mirrorFile.Filename]; ok {
 				delete(wantFiles, mirrorFile.Filename)
@@ -136,6 +139,8 @@ func (db *MirrorDB) SaveFiles(ctx context.Context, mirrorID int64, filenames []s
 			}
 		}
 
+		// if any filenames need removing, delete them.
+		// toDelete contains items in 'knownFiles' that weren't in 'filenames'
 		if len(toDelete) > 0 {
 			if _, err := tx.Prepare(ctx, deleteName, `
 				DELETE FROM
@@ -147,13 +152,16 @@ func (db *MirrorDB) SaveFiles(ctx context.Context, mirrorID int64, filenames []s
 			}
 
 			for _, mf := range toDelete {
-				if _, err := tx.Exec(ctx, deleteName, mf.MirrorID, mf.Filename); err != nil {
+				if result, err := tx.Exec(ctx, deleteName, mf.MirrorID, mf.Filename); err != nil {
 					return fmt.Errorf("failed to delete mirrofile: %w", err)
+				} else if result.RowsAffected() != 1 {
+					return fmt.Errorf("delete of locked row failed")
 				}
 			}
 		}
 
 		// Create files if they still need to be created.
+		// wantFiles contains items from 'filenames' that weren't in 'knownFiles'
 		if len(wantFiles) > 0 {
 			if _, err := tx.Prepare(ctx, insertName, `
 				INSERT INTO
@@ -201,6 +209,7 @@ func readFiles(ctx context.Context, tx pgx.Tx, mirrorID int64) ([]*model.MirrorF
 				MirrorFile
 			WHERE
 				mirror_id = $1
+			FOR UPDATE
 		`, mirrorID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list: %w", err)

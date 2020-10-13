@@ -37,6 +37,10 @@ type Config struct {
 
 	Port string `env:"PORT, default=8080"`
 
+	// Max file sizes for download. 1mb for index files, 20mb for zip files.
+	MaxIndexBytes int64 `env:"MAX_INDEX_BYTES, default=1048576"`
+	MaxZipBytes   int64 `env:"MAX_ZIP_BYTES, default=20971520"`
+
 	IndexFileDownloadTimeout  time.Duration `env:"INDEX_FILE_DOWNLOAD_TIMEOUT, default=30s"`
 	ExportFileDownloadTimeout time.Duration `env:"EXPORT_FILE_DOWNLOAD_TIMEOUT, default=2m"`
 
