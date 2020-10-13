@@ -106,6 +106,8 @@ resource "google_cloud_run_service" "export" {
       }
 
       container_concurrency = 10
+      // 30 seconds less than cloud scheduler maximum.
+      timeout_seconds = 570
     }
 
     metadata {
