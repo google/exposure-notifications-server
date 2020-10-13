@@ -140,35 +140,8 @@ resource "google_cloud_run_service_iam_member" "mirror-invoker" {
   member   = "serviceAccount:${google_service_account.mirror-invoker.email}"
 }
 
-resource "google_cloud_scheduler_job" "mirror-worker" {
-  name             = "mirror-worker"
-  region           = var.cloudscheduler_location
-  schedule         = "* * * * *"
-  time_zone        = "America/Los_Angeles"
-  attempt_deadline = "600s"
-
-  retry_config {
-    retry_count = 1
-  }
-
-  http_target {
-    http_method = "POST"
-    uri         = "${google_cloud_run_service.mirror.status.0.url}/"
-    oidc_token {
-      audience              = google_cloud_run_service.mirror.status.0.url
-      service_account_email = google_service_account.mirror-invoker.email
-    }
-  }
-
-  depends_on = [
-    google_app_engine_application.app,
-    google_cloud_run_service_iam_member.mirror-invoker,
-    google_project_service.services["cloudscheduler.googleapis.com"],
-  ]
-}
-
-resource "google_cloud_scheduler_job" "mirror-schedule" {
-  name             = "mirror-cschedule"
+resource "google_cloud_scheduler_job" "mirror-invoke" {
+  name             = "mirror-invoke"
   region           = var.cloudscheduler_location
   schedule         = "*/5 * * * *"
   time_zone        = "America/Los_Angeles"
@@ -180,7 +153,7 @@ resource "google_cloud_scheduler_job" "mirror-schedule" {
 
   http_target {
     http_method = "GET"
-    uri         = "${google_cloud_run_service.mirror.status.0.url}/schedule"
+    uri         = "${google_cloud_run_service.mirror.status.0.url}/"
     oidc_token {
       audience              = google_cloud_run_service.mirror.status.0.url
       service_account_email = google_service_account.mirror-invoker.email
@@ -189,6 +162,7 @@ resource "google_cloud_scheduler_job" "mirror-schedule" {
 
   depends_on = [
     google_app_engine_application.app,
+    google_cloud_run_service.mirror,
     google_cloud_run_service_iam_member.mirror-invoker,
     google_project_service.services["cloudscheduler.googleapis.com"],
   ]
