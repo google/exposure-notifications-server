@@ -58,7 +58,6 @@ type SignatureAndKey struct {
 func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*ImportResposne, error) {
 	// Special case - previous versions may have inserted the filename root as a file.
 	// If we find that, skip attempted processing and just mark as successful.
-	logging.FromContext(ctx).Debugw("does it float", "exportRoot", ir.exportImport.ExportRoot, "zipFilename", ir.file.ZipFilename)
 	if ir.exportImport.ExportRoot == ir.file.ZipFilename {
 		return &ImportResposne{
 			insertedKeys: 0,
