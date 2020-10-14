@@ -253,3 +253,24 @@ steps:
       --no-traffic
   waitFor:
   - '-'
+
+#
+# mirror
+#
+- id: 'deploy-mirror'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run deploy "mirror" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --image "gcr.io/${PROJECT_ID}/${_REPO}/mirror:${_TAG}" \
+      --no-traffic
+  waitFor:
+  - '-'
