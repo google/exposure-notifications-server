@@ -17,6 +17,11 @@ Notifications server uses this codebase.
   reading signed export files from other servers and importing those TEKs to the
   local storage for re-exporting. We use this in the migration process.
 
+* __mirror__: This server contains a job (`./cmd/mirror`) that is capable
+  of mirriong export files from another server onto your CDN. The files to be mirrored
+  must be available without authentication, and you will not be able to
+  re-sign those files with a different signing key.
+
 * __Full migration__: The goal of such a migration is to have a state's client
   application write to and read from the national key server and to _decomission_
   the state's key server infrastructure.
@@ -72,6 +77,8 @@ rotation if available.
 
 Configure the __state__ server to mirror the __national__ exports on the currently
 known client CDN / download location.
+
+This can be done via the mirror job (`./cmd/mirror`) located in this repository.
 
 ### End state
 
