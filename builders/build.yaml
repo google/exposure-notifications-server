@@ -413,3 +413,5 @@ images:
 - 'gcr.io/${PROJECT_ID}/${_REPO}/key-rotation:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/migrate:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/mirror:${_TAG}'
+
+timeout: '900s'
