@@ -20,10 +20,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"path"
 	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	exportimportdb "github.com/google/exposure-notifications-server/internal/exportimport/database"
+	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"go.opencensus.io/trace"
 )
@@ -85,26 +89,12 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 				logger.Errorw("unable to read index file", "file", config.IndexFile, "error", err)
 				continue
 			}
-			zipNames := strings.Split(string(bytes), "\n")
-			currentFiles := make([]string, 0, len(zipNames))
-			for _, zipFile := range zipNames {
-				if len(strings.TrimSpace(zipFile)) == 0 {
-					// drop blank lines.
-					continue
-				}
-				fullZipFile := fmt.Sprintf("%s%s", config.ExportRoot, strings.TrimSpace(zipFile))
-				currentFiles = append(currentFiles, fullZipFile)
-			}
 
-			n, err := s.exportImportDB.CreateFiles(ctx, config, currentFiles)
-			if err != nil {
+			if n, err := syncFilesFromIndex(ctx, s.exportImportDB, config, string(bytes)); err != nil {
+				logger.Errorw("error syncing index file contents", "exportImportID", config.ID, "error", err)
 				anyErrors = true
-				logger.Errorw("unable to write new files", "error", err)
-			}
-			if n != 0 {
-				logger.Infow("found new files for export import config", "exportImportID", config.ID, "file", config.IndexFile, "newCount", n)
 			} else {
-				logger.Infow("no new export files", "exportImportID", config.ID, "file", config.IndexFile)
+				logger.Infow("import index sync result", "exportImportID", config.ID, "index", config.IndexFile, "newFiles", n)
 			}
 		}
 
@@ -115,4 +105,28 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 		w.WriteHeader(status)
 		w.Write([]byte(http.StatusText(status)))
 	}
+}
+
+func syncFilesFromIndex(ctx context.Context, db *exportimportdb.ExportImportDB, config *model.ExportImport, index string) (int, error) {
+	zipNames := strings.Split(index, "\n")
+	currentFiles := make([]string, 0, len(zipNames))
+	for _, zipFile := range zipNames {
+		if len(strings.TrimSpace(zipFile)) == 0 {
+			// drop blank lines.
+			continue
+		}
+		proposedPath := fmt.Sprintf("%s%s", config.ExportRoot, strings.TrimSpace(zipFile))
+		url, err := url.Parse(proposedPath)
+		if err != nil {
+			return 0, fmt.Errorf("invalid URL constructed: %s: %w", proposedPath, err)
+		}
+		url.Path = path.Clean(url.Path)
+		currentFiles = append(currentFiles, url.String())
+	}
+
+	n, err := db.CreateFiles(ctx, config, currentFiles)
+	if err != nil {
+		return 0, fmt.Errorf("error syncing export filenames to database: %w", err)
+	}
+	return n, nil
 }
