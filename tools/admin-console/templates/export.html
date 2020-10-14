@@ -58,6 +58,19 @@
         </small>
       </div>
 
+      <div class="form-group">
+        <label for="only-non-travelers">Only Non Travelers</label>
+        <select name="OnlyNonTravelers" id="only-non-travelers" class="form-control custom-select">
+          <option value="true" {{if .export.OnlyNonTravelers}}selected{{end}}>Yes</option>
+          <option value="false" {{if not .export.OnlyNonTravelers}}selected{{end}}>No</option>
+        </select>
+        <small class="form-text text-muted">
+		  Should only federeated-in non-traveler keys be included in this
+		  export. Note, setting this with 'Include Travelers' will result in an
+		  error.
+        </small>
+      </div>
+
       <div class="form-label-group">
         <textarea name="ExcludeRegions" id="exclude-regions" rows="3"
           placeholder="Exclude regions" class="form-control">{{.export.ExcludeRegionsOnePerLine}}</textarea>

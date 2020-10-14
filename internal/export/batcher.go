@@ -132,6 +132,8 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 			OutputRegion:     ec.OutputRegion,
 			InputRegions:     ec.InputRegions,
 			IncludeTravelers: ec.IncludeTravelers,
+			OnlyNonTravelers: ec.OnlyNonTravelers,
+			ExcludeRegions:   ec.ExcludeRegions,
 			Status:           model.ExportBatchOpen,
 			SignatureInfoIDs: infoIds,
 		})

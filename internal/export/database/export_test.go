@@ -546,6 +546,7 @@ func TestTravelerKeys(t *testing.T) {
 // TestExcludeRegions ensures excluded regions are excluded.
 func TestExcludeRegions(t *testing.T) {
 	inclRegion, exclRegion := "US", "EU"
+	inclRegions, exclRegions, bothRegions := []string{inclRegion}, []string{exclRegion}, []string{inclRegion, exclRegion}
 	now := time.Now()
 	startTimestamp := now.Truncate(time.Hour).Add(-2 * time.Hour)
 	endTimestamp := startTimestamp.Add(time.Hour)
@@ -571,12 +572,17 @@ func TestExcludeRegions(t *testing.T) {
 	}
 
 	tests := []struct {
-		name  string
-		users []*publishmodel.Exposure
-		want  []string
+		name        string
+		users       []*publishmodel.Exposure
+		inclRegions []string
+		exclRegions []string
+		nonTraveler bool
+		want        []string
 	}{
-		{"1main,1ext", []*publishmodel.Exposure{mainUser, extUser}, []string{"aaa"}},
-		{"1main,2ext", []*publishmodel.Exposure{mainUser, extUser, extTravUser}, []string{"aaa"}},
+		{"1main,1ext", []*publishmodel.Exposure{mainUser, extUser}, inclRegions, exclRegions, false, []string{"aaa"}},
+		{"1main,2ext", []*publishmodel.Exposure{mainUser, extUser, extTravUser}, inclRegions, exclRegions, false, []string{"aaa"}},
+		{"1main,2ext,notravel", []*publishmodel.Exposure{mainUser, extUser, extTravUser}, inclRegions, nil, true, []string{"aaa"}},
+		{"1main,2ext,notravel,2regions", []*publishmodel.Exposure{mainUser, extUser, extTravUser}, bothRegions, nil, true, []string{"aaa", "ccc"}},
 	}
 
 	for _, test := range tests {
@@ -641,10 +647,11 @@ func TestExcludeRegions(t *testing.T) {
 			// Lookup the keys; they must be only the key created_at the startTimestamp
 			// (because start is inclusive, end is exclusive).
 			criteria := publishdb.IterateExposuresCriteria{
-				IncludeRegions: []string{inclRegion},
-				SinceTimestamp: leased.StartTimestamp,
-				UntilTimestamp: leased.EndTimestamp,
-				ExcludeRegions: []string{exclRegion},
+				IncludeRegions:   test.inclRegions,
+				SinceTimestamp:   leased.StartTimestamp,
+				UntilTimestamp:   leased.EndTimestamp,
+				ExcludeRegions:   test.exclRegions,
+				OnlyNonTravelers: test.nonTraveler,
 			}
 
 			var got []*publishmodel.Exposure
@@ -660,6 +667,7 @@ func TestExcludeRegions(t *testing.T) {
 			for _, exp := range got {
 				keys = append(keys, string(exp.ExposureKey))
 			}
+			sort.Strings(keys)
 			if !reflect.DeepEqual(test.want, keys) {
 				t.Fatalf("%v got = %v, want %v", test.name, keys, test.want)
 			}

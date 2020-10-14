@@ -41,6 +41,7 @@ type ExportConfig struct {
 	InputRegions     []string
 	ExcludeRegions   []string
 	IncludeTravelers bool
+	OnlyNonTravelers bool
 	From             time.Time
 	Thru             time.Time
 	SignatureInfoIDs []int64
@@ -110,6 +111,7 @@ type ExportBatch struct {
 	OutputRegion     string
 	InputRegions     []string
 	IncludeTravelers bool
+	OnlyNonTravelers bool
 	ExcludeRegions   []string
 	Status           string
 	LeaseExpires     time.Time
@@ -129,6 +131,7 @@ type ExportFile struct {
 	OutputRegion     string
 	InputRegions     []string
 	IncludeTravelers bool
+	OnlyNonTravelers bool
 	ExcludeRegions   []string
 	BatchNum         int
 	BatchSize        int
