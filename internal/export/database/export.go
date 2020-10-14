@@ -427,7 +427,7 @@ func (db *ExportDB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportCo
 // ListLatestExportBatchEnds returns a map of export config IDs to their latest
 // batch end times.
 func (db *ExportDB) ListLatestExportBatchEnds(ctx context.Context) (map[int64]*time.Time, error) {
-	var ts map[int64]*time.Time
+	ts := make(map[int64]*time.Time, 8)
 
 	if err := db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
