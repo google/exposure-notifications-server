@@ -16,8 +16,7 @@
 # Builds a container image.
 #
 options:
-  # N1_HIGHCPU_32 builds faster, but takes much longer to provision.
-  machineType: 'N1_HIGHCPU_8'
+  machineType: 'N1_HIGHCPU_32'
   env:
   - 'GOPATH=/go'
   - 'GO111MODULE=on'
