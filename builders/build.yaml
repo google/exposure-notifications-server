@@ -358,7 +358,7 @@ steps:
   - '-trimpath'
   - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
   - '-o=./bin/mirror'
-  - './cmd/mirror-updater'
+  - './cmd/mirror'
   waitFor:
   - 'download-modules'
 
