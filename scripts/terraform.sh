@@ -43,7 +43,7 @@ function init() {
   # Preparing for deployment
   echo "project = \"${PROJECT_ID}\"" > ./terraform.tfvars
   # Don't fail if it already exists
-  gsutil mb -p ${PROJECT_ID} gs://${PROJECT_ID}-tf-state 2>/dev/null || true
+  gsutil mb -p ${PROJECT_ID} gs://${PROJECT_ID}-tf-state 2>/dev/null || best_effort
   cat <<EOF > "${ROOT}/terraform-e2e/state.tf"
 terraform {
   backend "gcs" {
@@ -66,12 +66,12 @@ function deploy() {
   # google_app_engine_application.app is global, cannot be deleted once created,
   # if this project already has it created then terraform apply will fail,
   # importing it can solve this problem
-  terraform import module.en.google_app_engine_application.app ${PROJECT_ID} || true
+  terraform import module.en.google_app_engine_application.app ${PROJECT_ID} || best_effort
 
   # Terraform deployment might fail intermittently with certain cloud run 
   # services not up, retry to make it more resilient
   local failed=1
-  for i in 1 2 3; do
+  for i in 1; do
     if [[ "${failed}" == "0" ]]; then
       break
     fi
@@ -85,26 +85,20 @@ function deploy() {
 
 function destroy() {
   pushd "${ROOT}/terraform-e2e" > /dev/null
-
   init
-
-  local db_inst_name
-  db_inst_name="$(terraform output -json 'en' | jq '. | .db_inst_name' | tr -d \")"
-  # DB often failed to be destroyed by terraform due to "used by other process",
-  # so delete it manually
-  gcloud sql instances delete ${db_inst_name} -q --project=${PROJECT_ID} || true
-  # Clean up states after manual DB delete
-  terraform state rm module.en.google_sql_user.user || true
-  terraform state rm module.en.google_sql_ssl_cert.db-cert || true
   terraform destroy -auto-approve
   popd > /dev/null
 }
 
 function smoke() {
   # Best effort destroy before applying
-  destroy || true
+  destroy || best_effort
   trap "destroy || true" EXIT
   deploy
+}
+
+function best_effort() {
+  echo "💁🏽 Please disregard error message above, this is best effort"
 }
 
 # help prints help.
