@@ -16,8 +16,7 @@
 # Builds a container image.
 #
 options:
-  # N1_HIGHCPU_32 builds faster, but takes much longer to provision.
-  machineType: 'N1_HIGHCPU_8'
+  machineType: 'N1_HIGHCPU_32'
   env:
   - 'GOPATH=/go'
   - 'GO111MODULE=on'
@@ -413,3 +412,5 @@ images:
 - 'gcr.io/${PROJECT_ID}/${_REPO}/key-rotation:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/migrate:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/mirror:${_TAG}'
+
+timeout: '900s'
