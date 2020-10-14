@@ -348,6 +348,32 @@ steps:
   - 'build-migrate'
 
 #
+# mirror
+#
+- id: 'build-mirror'
+  name: 'golang:1.15.2'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/mirror'
+  - './cmd/mirror-updater'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-mirror'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/mirror:${_TAG}'
+  - '--build-arg=SERVICE=mirror'
+  - '.'
+  waitFor:
+  - 'build-mirror'
+
+#
 # jwks
 #
 - id: 'build-jwks'
@@ -377,8 +403,8 @@ images:
 - 'gcr.io/${PROJECT_ID}/${_REPO}/cleanup-export:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/cleanup-exposure:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/debugger:${_TAG}'
-- 'gcr.io/${PROJECT_ID}/${_REPO}/export:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/export-importer:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/export:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/exposure:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/federationin:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/federationout:${_TAG}'
@@ -386,3 +412,4 @@ images:
 - 'gcr.io/${PROJECT_ID}/${_REPO}/jwks:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/key-rotation:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/migrate:${_TAG}'
+- 'gcr.io/${PROJECT_ID}/${_REPO}/mirror:${_TAG}'

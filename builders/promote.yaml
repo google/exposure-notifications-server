@@ -243,3 +243,22 @@ steps:
   waitFor:
   - '-'
 
+#
+# mirror
+#
+- id: 'promote-mirror'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run services update-traffic "mirror" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'
