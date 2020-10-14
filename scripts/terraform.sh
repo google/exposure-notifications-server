@@ -71,7 +71,7 @@ function deploy() {
   # Terraform deployment might fail intermittently with certain cloud run 
   # services not up, retry to make it more resilient
   local failed=1
-  for i in 1 2 3; do
+  for i in 1; do
     if [[ "${failed}" == "0" ]]; then
       break
     fi
@@ -93,7 +93,7 @@ function destroy() {
   local db_inst_name
   # Fetching databases from previous terraform deployment output is not always reliable,
   # especially when previous terraform deployment failed. So grepping from terraform state instead.
-  db_inst_name="$(terraform state show module.en.google_sql_database_instance.db-inst | grep -Eo 'en-server-[a-zA-Z0-9]+' | uniq)"
+  db_inst_name="$(terraform state show module.en.google_sql_database_instance.db-inst | grep -Eo 'en-server-[a-zA-Z0-9]+' | uniq || true)"
   if [[ -n "${db_inst_name}" ]]; then
     gcloud sql instances delete ${db_inst_name} -q --project=${PROJECT_ID}
   fi
