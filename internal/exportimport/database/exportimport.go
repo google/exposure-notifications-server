@@ -41,8 +41,8 @@ func (db *ExportImportDB) GetConfig(ctx context.Context, id int64) (*model.Expor
 	var config *model.ExportImport
 
 	if err := db.db.InTx(ctx, pgx.RepeatableRead, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx,
-			`SELECT
+		row := tx.QueryRow(ctx, `
+			SELECT
 				id, index_file, export_root, region, from_timestamp, thru_timestamp
 			FROM
 				exportimport
