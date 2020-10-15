@@ -73,10 +73,10 @@
               <p class="mb-1">
                 Bucket: {{.BucketName}}
               </p>
-              {{with $t := .FormattedFromTime}}
+              {{with $t := .From | htmlDatetime}}
                 <small class="d-block">Begins: {{$t}}</small>
               {{end}}
-              {{with $t := .FormattedThruTime}}
+              {{with $t := .Thru | htmlDatetime}}
                 <small class="d-block">Expires: {{$t}}</small>
               {{end}}
             </a>
@@ -129,6 +129,49 @@
       <div class="card-body">
         <div class="card-text">
           <a href="/siginfo/0" class="btn btn-block btn-primary">Create new Signature Info</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Export Importer Configurations</h5>
+      </div>
+
+      {{if .exportImporters}}
+        <div class="list-group list-group-flush">
+          {{range .exportImporters}}
+            <a href="/export-importers/{{.ID}}" class="list-group-item list-group-item-action">
+              <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">{{.Region}}</h5>
+                <small>ID: {{.ID}}</small>
+              </div>
+              <p class="mb-0">
+                Root: {{.ExportRoot}}
+              </p>
+              <p class="mb-1">
+                Index: {{.IndexFile}}
+              </p>
+              {{with $t := .From | htmlDatetime}}
+                <small class="d-block">Begins: {{$t}}</small>
+              {{end}}
+              {{with $t := .Thru | htmlDatetime}}
+                <small class="d-block">Expires: {{$t}}</small>
+              {{end}}
+            </a>
+          {{end}}
+        </div>
+      {{else}}
+        <div class="card-body">
+          <p class="text-center mb-0"><em>There are no export importer configurations.</em></p>
+        </div>
+      {{end}}
+
+      <div class="card-body">
+        <div class="card-text">
+          <a href="/export-importers/0" class="btn btn-block btn-primary">Create new Export Importer Config</a>
         </div>
       </div>
     </div>
