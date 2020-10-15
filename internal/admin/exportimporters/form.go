@@ -16,13 +16,9 @@
 package exportimporters
 
 import (
-	"errors"
-
 	"github.com/google/exposure-notifications-server/internal/admin"
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 )
-
-var ErrCannotSetBothTravelers = errors.New("cannot have both 'include travelers', and 'only non-travelers' set")
 
 type formData struct {
 	IndexFile  string `form:"index_file"`
