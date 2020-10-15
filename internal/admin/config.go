@@ -69,7 +69,10 @@ func (c *Config) RenderTemplate(w http.ResponseWriter, tmpl string, p TemplateMa
 		fmt.Sprintf("%s/%s.html", c.TemplatePath, c.BotFile),
 	}
 
-	t, err := template.ParseFiles(files...)
+	t, err := template.
+		New(tmpl).
+		Funcs(TemplateFuncMap).
+		ParseFiles(files...)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprint(w, err)
