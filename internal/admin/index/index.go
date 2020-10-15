@@ -22,6 +22,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/admin"
 	aadb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	exdb "github.com/google/exposure-notifications-server/internal/export/database"
+	exportimportdatabase "github.com/google/exposure-notifications-server/internal/exportimport/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 )
@@ -39,9 +40,10 @@ func (h *indexHandler) Execute(c *gin.Context) {
 	ctx := c.Request.Context()
 	m := admin.TemplateMap{}
 
+	db := h.env.Database()
+
 	// Load authorized apps for index.
-	db := aadb.New(h.env.Database())
-	apps, err := db.ListAuthorizedApps(ctx)
+	apps, err := aadb.New(db).ListAuthorizedApps(ctx)
 	if err != nil {
 		admin.ErrorPage(c, err.Error())
 		return
@@ -49,8 +51,7 @@ func (h *indexHandler) Execute(c *gin.Context) {
 	m["apps"] = apps
 
 	// Load health authorities.
-	haDB := hadb.New(h.env.Database())
-	has, err := haDB.ListAllHealthAuthoritiesWithoutKeys(ctx)
+	has, err := hadb.New(db).ListAllHealthAuthoritiesWithoutKeys(ctx)
 	if err != nil {
 		admin.ErrorPage(c, err.Error())
 		return
@@ -58,16 +59,23 @@ func (h *indexHandler) Execute(c *gin.Context) {
 	m["healthauthorities"] = has
 
 	// Load export configurations.
-	exportDB := exdb.New(h.env.Database())
-	exports, err := exportDB.GetAllExportConfigs(ctx)
+	exports, err := exdb.New(db).GetAllExportConfigs(ctx)
 	if err != nil {
 		admin.ErrorPage(c, err.Error())
 		return
 	}
 	m["exports"] = exports
 
+	// Load export importer configurations.
+	exportImporters, err := exportimportdatabase.New(db).ListConfigs(ctx)
+	if err != nil {
+		admin.ErrorPage(c, err.Error())
+		return
+	}
+	m["exportImporters"] = exportImporters
+
 	// Load SignatureInfos
-	sigInfos, err := exportDB.ListAllSigntureInfos(ctx)
+	sigInfos, err := exdb.New(db).ListAllSigntureInfos(ctx)
 	if err != nil {
 		admin.ErrorPage(c, err.Error())
 		return

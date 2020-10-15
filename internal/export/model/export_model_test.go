@@ -16,7 +16,6 @@ package model
 
 import (
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -51,64 +50,6 @@ func TestExportRegions(t *testing.T) {
 			got := ec.EffectiveInputRegions()
 			if diff := cmp.Diff(tc.effective, got); diff != "" {
 				t.Fatalf("mismatch (-want, +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestExportConfigFormatting(t *testing.T) {
-	cases := []struct {
-		name              string
-		ec                *ExportConfig
-		formattedFromTime string
-		formattedThruTime string
-		fromHTMLDate      string
-		fromHTMLTime      string
-		thruHTMLDate      string
-		thruHTMLTime      string
-	}{
-		{
-			name: "both empty",
-			ec: &ExportConfig{
-				From: time.Time{},
-				Thru: time.Time{},
-			},
-			formattedFromTime: "Mon Jan  1 00:00:00 UTC 0001",
-		},
-		{
-			name: "not data",
-			ec: &ExportConfig{
-				From: time.Date(2020, 05, 01, 12, 01, 02, 0, time.UTC),
-				Thru: time.Date(2020, 06, 01, 12, 01, 02, 0, time.UTC),
-			},
-			formattedFromTime: "Fri May  1 12:01:02 UTC 2020",
-			formattedThruTime: "Mon Jun  1 12:01:02 UTC 2020",
-			fromHTMLDate:      "2020-05-01",
-			fromHTMLTime:      "12:01",
-			thruHTMLDate:      "2020-06-01",
-			thruHTMLTime:      "12:01",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := tc.ec.FormattedFromTime(); tc.formattedFromTime != got {
-				t.Errorf("FormattedFromTime want: '%v' got '%v'", tc.formattedFromTime, got)
-			}
-			if got := tc.ec.FormattedThruTime(); tc.formattedThruTime != got {
-				t.Errorf("FormattedThruTime want: '%v' got '%v'", tc.formattedThruTime, got)
-			}
-			if got := tc.ec.FromHTMLDate(); tc.fromHTMLDate != got {
-				t.Errorf("FromHTMLDate want: '%v' got '%v'", tc.fromHTMLDate, got)
-			}
-			if got := tc.ec.FromHTMLTime(); tc.fromHTMLTime != got {
-				t.Errorf("FromHTMLTime want: '%v' got '%v'", tc.fromHTMLTime, got)
-			}
-			if got := tc.ec.ThruHTMLDate(); tc.thruHTMLDate != got {
-				t.Errorf("ThruHTMLDate want: '%v' got '%v'", tc.thruHTMLDate, got)
-			}
-			if got := tc.ec.ThruHTMLTime(); tc.thruHTMLTime != got {
-				t.Errorf("ThruHTMLTime want: '%v' got '%v'", tc.thruHTMLTime, got)
 			}
 		})
 	}

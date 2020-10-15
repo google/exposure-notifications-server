@@ -36,6 +36,67 @@ func New(db *database.DB) *ExportImportDB {
 	}
 }
 
+// GetConfig gets the configuration for the given id.
+func (db *ExportImportDB) GetConfig(ctx context.Context, id int64) (*model.ExportImport, error) {
+	var config *model.ExportImport
+
+	if err := db.db.InTx(ctx, pgx.RepeatableRead, func(tx pgx.Tx) error {
+		row := tx.QueryRow(ctx,
+			`SELECT
+				id, index_file, export_root, region, from_timestamp, thru_timestamp
+			FROM
+				exportimport
+			WHERE
+				id = $1`, id)
+
+		var err error
+		config, err = scanOneConfig(row)
+		if err != nil {
+			return fmt.Errorf("failed to scan: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to lookup export importer config: %w", err)
+	}
+
+	return config, nil
+}
+
+func (db *ExportImportDB) ListConfigs(ctx context.Context) ([]*model.ExportImport, error) {
+	var configs []*model.ExportImport
+
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT
+				id, index_file, export_root, region, from_timestamp, thru_timestamp
+			FROM
+				exportimport
+			ORDER BY id DESC
+		`)
+		if err != nil {
+			return fmt.Errorf("failed to list: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("failed to iterate: %w", err)
+			}
+
+			cfg, err := scanOneConfig(rows)
+			if err != nil {
+				return err
+			}
+			configs = append(configs, cfg)
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to list export importer configs: %w", err)
+	}
+
+	return configs, nil
+}
+
 func (db *ExportImportDB) ActiveConfigs(ctx context.Context) ([]*model.ExportImport, error) {
 	var configs []*model.ExportImport
 
@@ -49,6 +110,7 @@ func (db *ExportImportDB) ActiveConfigs(ctx context.Context) ([]*model.ExportImp
 				from_timestamp <= $1
 			AND
 				(thru_timestamp IS NULL OR thru_timestamp >= $1)
+			ORDER BY id DESC
 		`, time.Now().UTC())
 		if err != nil {
 			return fmt.Errorf("failed to list: %w", err)
@@ -109,6 +171,36 @@ func (db *ExportImportDB) AddConfig(ctx context.Context, ei *model.ExportImport)
 			return fmt.Errorf("fetching exportimport.ID: %w", err)
 		}
 		return nil
+	})
+}
+
+// UpdateConfig updates an existing ExportImporter.
+func (db *ExportImportDB) UpdateConfig(ctx context.Context, c *model.ExportImport) error {
+	if err := c.Validate(); err != nil {
+		return err
+	}
+
+	from := db.db.NullableTime(c.From)
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			UPDATE
+				ExportImport
+			SET
+				index_file = $1, export_root = $2, region = $3, from_timestamp = $4, thru_timestamp = $5
+			WHERE id = $6
+		`, c.IndexFile, c.ExportRoot, c.Region, from, c.Thru, c.ID)
+		if err != nil {
+			return fmt.Errorf("failed to update export importer config: %w", err)
+		}
+
+		switch v := result.RowsAffected(); v {
+		case 0:
+			return fmt.Errorf("no rows updated (does the record exist?)")
+		case 1:
+			return nil
+		default:
+			return fmt.Errorf("only 1 row should have been updated, but %d were", v)
+		}
 	})
 }
 
@@ -220,7 +312,7 @@ func prepareInsertImportFile(ctx context.Context, tx pgx.Tx) (string, error) {
 		VALUES
 			($1, $2, $3)
 		ON CONFLICT DO NOTHING
-		RETURNING id		
+		RETURNING id
 	`)
 	return stmtName, err
 }

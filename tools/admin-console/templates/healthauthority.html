@@ -92,11 +92,13 @@
 
             <p>
               <strong>Version:</strong> {{.Version}}
-              <br />
-              <strong>Start:</strong> {{.FormattedFromTime}}
-              <br />
-              {{if not .Thru.IsZero}}
-                <strong>End:</strong> {{.FormattedThruTime}}
+              {{with $t := .From | htmlDatetime}}
+                <br />
+                <strong>Start:</strong> {{$t}}
+              {{end}}
+              {{with $t := .Thru | htmlDatetime}}
+                <br />
+                <strong>End:</strong> {{$t}}
               {{end}}
             </p>
 
@@ -154,11 +156,11 @@
         <label for="enddate">Start Date/Time</label>
         <div class="form-row">
           <div class="col-md-6">
-            <input type="date" name="FromDate" id="from-date" value="{{.hak.FromHTMLDate}}"
+            <input type="date" name="FromDate" id="from-date" value="{{.hak.From | htmlDate}}"
               min="2020-05-01" max="2029-12-21" class="form-control" />
           </div>
           <div class="col-md-6 input-group">
-            <input type="time" name="FromTime" id="from-time" value="{{.hak.FromHTMLTime}}"
+            <input type="time" name="FromTime" id="from-time" value="{{.hak.From | htmlTime}}"
               class="form-control" />
             <div class="input-group-append">
               <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
@@ -174,11 +176,11 @@
         <label for="enddate">End Date/Time</label>
         <div class="form-row">
           <div class="col-md-6">
-            <input type="date" name="ThruDate" id="thru-date" value="{{.hak.ThruHTMLDate}}"
+            <input type="date" name="ThruDate" id="thru-date" value="{{.hak.Thru | htmlDate}}"
               min="2020-05-01" max="2029-12-21" class="form-control" />
           </div>
           <div class="col-md-6 input-group">
-            <input type="time" name="ThruTime" id="thru-time" value="{{.hak.ThruHTMLTime}}"
+            <input type="time" name="ThruTime" id="thru-time" value="{{.hak.Thru | htmlTime}}"
               class="form-control" />
             <div class="input-group-append">
               <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>

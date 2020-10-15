@@ -74,33 +74,6 @@ func (ec *ExportConfig) Validate() error {
 	return nil
 }
 
-func (ec *ExportConfig) FormattedFromTime() string {
-	return ec.From.Format(time.UnixDate)
-}
-
-func (ec *ExportConfig) FormattedThruTime() string {
-	if ec.Thru.IsZero() {
-		return ""
-	}
-	return ec.Thru.Format(time.UnixDate)
-}
-
-func (ec *ExportConfig) FromHTMLDate() string {
-	return toHTMLDate(ec.From)
-}
-
-func (ec *ExportConfig) FromHTMLTime() string {
-	return toHTMLTime(ec.From)
-}
-
-func (ec *ExportConfig) ThruHTMLDate() string {
-	return toHTMLDate(ec.Thru)
-}
-
-func (ec *ExportConfig) ThruHTMLTime() string {
-	return toHTMLTime(ec.Thru)
-}
-
 type ExportBatch struct {
 	BatchID          int64
 	ConfigID         int64

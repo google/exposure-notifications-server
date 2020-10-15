@@ -115,11 +115,11 @@
         <label for="fromdate">Valid from Date/Time</label>
         <div class="form-row">
           <div class="col-md-6">
-            <input type="date" id="fromdate" name="fromdate" value="{{.export.FromHTMLDate}}"
+            <input type="date" id="fromdate" name="fromdate" value="{{.export.From | htmlDate}}"
               min="2020-05-01" max="2029-12-21" class="form-control" />
           </div>
           <div class="col-md-6 input-group">
-            <input type="time" id="fromtime" name="fromtime" value="{{.export.FromHTMLTime}}"
+            <input type="time" id="fromtime" name="fromtime" value="{{.export.From | htmlTime}}"
               class="form-control" />
             <div class="input-group-append">
               <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
@@ -135,11 +135,11 @@
         <label for="thrudate">Valid thru Date/Time</label>
         <div class="form-row">
           <div class="col-md-6">
-            <input type="date" id="thrudate" name="thrudate" value="{{.export.ThruHTMLDate}}"
+            <input type="date" id="thrudate" name="thrudate" value="{{.export.Thru | htmlDate}}"
               min="2020-05-01" max="2029-12-21" class="form-control" />
           </div>
           <div class="col-md-6 input-group">
-            <input type="time" id="thrutime" name="thrutime" value="{{.export.ThruHTMLTime}}"
+            <input type="time" id="thrutime" name="thrutime" value="{{.export.Thru | htmlTime}}"
               class="form-control" />
             <div class="input-group-append">
               <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>

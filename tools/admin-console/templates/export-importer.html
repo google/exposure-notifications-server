@@ -1,0 +1,103 @@
+{{define "export-importer"}}
+{{template "top" .}}
+
+{{$model := .model}}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    {{if .model.ID}}
+      Edit Export Importer Config {{.model.ID}}
+    {{else}}
+      New Export Importer Config
+    {{end}}
+  </div>
+  <div class="card-body">
+    {{if .model.ID}}
+      <div class="alert alert-warning" role="alert">
+        You are editing an export importer config. Any changes will only impact
+        future batches.
+      </div>
+      <div class="alert alert-info" role="alert">
+        Export importer configurations cannot be deleted. Instead they are
+        expired by setting and end date and time.
+      </div>
+    {{end}}
+
+    <form method="POST" action="/export-importers/{{.model.ID}}" class="floating-form">
+      <div class="form-label-group">
+        <input type="text" name="index_file" id="index-file" value="{{.model.IndexFile}}"
+          placeholder="Index file" class="form-control">
+        <label for="index-file">Index file</label>
+        <small class="form-text text-muted">
+          Absolute URL of the index.txt file containing the listing of export
+          zip files.
+        </small>
+      </div>
+
+      <div class="form-label-group">
+        <input type="text" name="export_root" id="export-root" value="{{.model.ExportRoot}}"
+          placeholder="Export root" class="form-control">
+        <label for="export-root">Export root</label>
+        <small class="form-text text-muted">
+          Common prefix for the relative paths of zip files contained in the
+          index.
+        </small>
+      </div>
+
+      <div class="form-label-group">
+        <input type="text" name="region" id="region" value="{{.model.Region}}"
+          placeholder="Region" class="form-control">
+        <label for="region">Region</label>
+        <small class="form-text text-muted">
+          Region to use when inserting the imported TEKs into this server's
+          database.
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="from-date">Valid from Date/Time</label>
+        <div class="form-row">
+          <div class="col-md-6">
+            <input type="date" name="from_date" id="from-date" value="{{.model.From | htmlDate}}"
+              min="2020-05-01" max="2029-12-21" class="form-control" />
+          </div>
+          <div class="col-md-6 input-group">
+            <input type="time" name="from_time" id="from-time" value="{{.model.From | htmlTime}}"
+              class="form-control" />
+            <div class="input-group-append">
+              <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
+            </div>
+          </div>
+        </div>
+        <small class="form-text text-muted">
+          Time when the exporter importer should start.
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label for="thru-date">Valid thru Date/Time</label>
+        <div class="form-row">
+          <div class="col-md-6">
+            <input type="date" name="thru_date" id="thru-date" value="{{.model.Thru | htmlDate}}"
+              min="2020-05-01" max="2029-12-21" class="form-control" />
+          </div>
+          <div class="col-md-6 input-group">
+            <input type="time" name="thru_time" id="thru-time" value="{{.model.Thru | htmlTime}}"
+              class="form-control" />
+            <div class="input-group-append">
+              <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
+            </div>
+          </div>
+        </div>
+        <small class="form-text text-muted">
+          Import other exports until this time. Normally left blank at the
+          start, can be set to stop importing an export.
+        </small>
+      </div>
+
+      <button type="submit" class="mt-5 btn btn-block btn-primary" value="save">Save changes</button>
+    </form>
+  </div>
+</div>
+{{template "bottom" .}}
+{{end}}

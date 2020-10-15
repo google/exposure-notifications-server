@@ -21,10 +21,12 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/exposure-notifications-server/internal/admin"
 	"github.com/google/exposure-notifications-server/internal/admin/authorizedapps"
+	"github.com/google/exposure-notifications-server/internal/admin/exportimporters"
 	"github.com/google/exposure-notifications-server/internal/admin/exports"
 	"github.com/google/exposure-notifications-server/internal/admin/healthauthority"
 	"github.com/google/exposure-notifications-server/internal/admin/index"
@@ -70,6 +72,12 @@ func main() {
 	saveExportConfigController := exports.NewSave(&config, env)
 	router.POST("/exports/:id", saveExportConfigController.Execute)
 
+	// Export importer configuration
+	exportImporterController := exportimporters.NewView(&config, env)
+	router.GET("/export-importers/:id", exportImporterController.Execute)
+	saveExportImporterController := exportimporters.NewSave(&config, env)
+	router.POST("/export-importers/:id", saveExportImporterController.Execute)
+
 	// Signature Info.
 	sigInfoController := siginfo.NewView(&config, env)
 	router.GET("/siginfo/:id", sigInfoController.Execute)
@@ -84,7 +92,33 @@ func main() {
 
 func funcMap() template.FuncMap {
 	return map[string]interface{}{
-		"deref": deref,
+		"deref":        deref,
+		"htmlDate":     timestampFormatter("2006-01-02"),
+		"htmlTime":     timestampFormatter("15:04"),
+		"htmlDatetime": timestampFormatter(time.UnixDate),
+	}
+}
+
+func timestampFormatter(f string) func(i interface{}) (string, error) {
+	return func(i interface{}) (string, error) {
+		switch t := i.(type) {
+		case nil:
+			return "", nil
+		case time.Time:
+			if t.IsZero() {
+				return "", nil
+			}
+			return t.UTC().Format(f), nil
+		case *time.Time:
+			if t == nil || t.IsZero() {
+				return "", nil
+			}
+			return t.UTC().Format(f), nil
+		case string:
+			return t, nil
+		default:
+			return "", fmt.Errorf("unknown type %v", t)
+		}
 	}
 }
 
