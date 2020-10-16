@@ -44,14 +44,15 @@ function incremental() {
 
   ${ROOT}/scripts/terraform.sh init
 
-  export_terraform_output db_conn DB_CONN
-  export_terraform_output db_name DB_NAME
-  export_terraform_output db_user DB_USER
-  export_terraform_output db_password DB_PASSWORD
-  export_terraform_output export_bucket GOOGLE_CLOUD_BUCKET
-  export_terraform_output exposure_urls[0] EXPOSURE_URL
-  export DB_PASSWORD="secret://${DB_PASSWORD}"
-  export DB_SSLMODE=disable
+  export_terraform_output project_id E2E_PROJECT_ID
+  export_terraform_output db_conn E2E_DB_CONN
+  export_terraform_output db_name E2E_DB_NAME
+  export_terraform_output db_user E2E_DB_USER
+  export_terraform_output db_password E2E_DB_PASSWORD
+  export_terraform_output export_bucket E2E_GOOGLE_CLOUD_BUCKET
+  export_terraform_output exposure_urls[0] E2E_EXPOSURE_URL
+  export E2E_DB_PASSWORD="secret://${E2E_DB_PASSWORD}"
+  export E2E_DB_SSLMODE=disable
 
   ${ROOT}/scripts/build
   ${ROOT}/scripts/deploy

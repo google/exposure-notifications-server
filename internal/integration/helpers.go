@@ -55,23 +55,32 @@ import (
 func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	tb.Helper()
 
-	ctx := context.Background()
-
-	bs, err := storage.NewMemory(ctx)
-	if err != nil {
-		tb.Fatal(err)
+	// Do not start the server when running short tests.
+	if testing.Short() {
+		tb.SkipNow()
 	}
 
-	if v := os.Getenv("GOOGLE_CLOUD_BUCKET"); v != "" && !testing.Short() {
+	ctx := context.Background()
+
+	var bs storage.Blobstore
+	var err error
+	if v := os.Getenv("E2E_GOOGLE_CLOUD_BUCKET"); v != "" {
+		// Use a real Cloud Storage bucket if this envvar is set.
 		bs, err = storage.NewGoogleCloudStorage(ctx)
+		if err != nil {
+			tb.Fatal(err)
+		}
+	} else {
+		bs, err = storage.NewMemory(ctx)
 		if err != nil {
 			tb.Fatal(err)
 		}
 	}
 
-	db := database.NewTestDatabase(tb)
-	if v := os.Getenv("DB_NAME"); v != "" && !testing.Short() {
-		dbConfig := &database.Config{}
+	var db *database.DB
+	if v := os.Getenv("E2E_DB_NAME"); v != "" {
+		// Use the real database if this envvar is set.
+		var dbConfig database.Config
 		sm, err := secrets.SecretManagerFor(ctx, secrets.SecretManagerTypeGoogleSecretManager)
 		if err != nil {
 			tb.Fatalf("unable to connect to secret manager: %v", err)
@@ -81,10 +90,12 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 			tb.Fatalf("error loading environment variables: %v", err)
 		}
 
-		db, err = database.NewFromEnv(ctx, dbConfig)
+		db, err = database.NewFromEnv(ctx, &dbConfig)
 		if err != nil {
 			tb.Fatalf("unable to connect to database: %v", err)
 		}
+	} else {
+		db = database.NewTestDatabase(tb)
 	}
 
 	aap, err := authorizedapp.NewDatabaseProvider(ctx, db, &authorizedapp.Config{CacheDuration: time.Nanosecond})

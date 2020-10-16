@@ -47,10 +47,10 @@ import (
 )
 
 type testConfig struct {
-	DbName      string `env:"DB_NAME"`
-	ExposureURL string `env:"EXPOSURE_URL"`
-	ProjectID   string `env:"PROJECT_ID"`
-	DBConfig    *database.Config
+	Database *database.Config `env:",prefix=E2E_"`
+
+	ExposureURL string `env:"E2E_EXPOSURE_URL"`
+	ProjectID   string `env:"E2E_PROJECT_ID"`
 }
 
 func initConfig(tb testing.TB, ctx context.Context) *testConfig {
@@ -112,9 +112,9 @@ func TestPublishEndpoint(t *testing.T) {
 		t.Skip()
 	}
 	// Increase this so that the db connection won't be canceled while polling for exported files
-	tc.DBConfig.PoolMaxConnIdle = 10 * time.Minute
+	tc.Database.PoolMaxConnIdle = 10 * time.Minute
 
-	db, err := database.NewFromEnv(ctx, tc.DBConfig)
+	db, err := database.NewFromEnv(ctx, tc.Database)
 	if err != nil {
 		t.Fatalf("unable to connect to database: %v", err)
 	}

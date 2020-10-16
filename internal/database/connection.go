@@ -33,7 +33,6 @@ type DB struct {
 // NewFromEnv sets up the database connections using the configuration in the
 // process's environment variables. This should be called just once per server
 // instance.
-
 func NewFromEnv(ctx context.Context, config *Config) (*DB, error) {
 	logger := logging.FromContext(ctx)
 	logger.Infof("Creating connection pool.")
