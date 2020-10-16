@@ -43,6 +43,11 @@ function incremental() {
   fi
 
   ${ROOT}/scripts/terraform.sh init
+  pushd "${ROOT}/terraform-e2e" >/dev/null 2>&1
+  terraform taint module.en.null_resource.build
+  terraform taint module.en.null_resource.migrate
+  popd >/dev/null 2>&1
+  ${ROOT}/scripts/terraform.sh deploy
 
   export_terraform_output project_id E2E_PROJECT_ID
   export_terraform_output db_conn E2E_DB_CONN
@@ -54,11 +59,6 @@ function incremental() {
   export E2E_DB_PASSWORD="secret://${E2E_DB_PASSWORD}"
   export E2E_DB_SSLMODE=disable
 
-  ${ROOT}/scripts/build
-  ${ROOT}/scripts/deploy
-  ${ROOT}/scripts/promote
-  ${ROOT}/scripts/migrate
-
   run_e2e_test
 }
 
@@ -67,7 +67,7 @@ function run_e2e_test() {
     wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O /usr/bin/cloud_sql_proxy
     chmod +x /usr/bin/cloud_sql_proxy
   }
-  cloud_sql_proxy -instances=${DB_CONN}=tcp:5432 &
+  cloud_sql_proxy -instances=${E2E_DB_CONN}=tcp:5432 &
   last_thread_pid=$!
   trap "kill ${last_thread_pid} || true" EXIT
 
