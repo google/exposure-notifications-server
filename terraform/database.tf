@@ -64,6 +64,11 @@ resource "google_sql_database_instance" "db-inst" {
 
   depends_on = [
     google_project_service.services["sql-component.googleapis.com"],
+    # Explicitly label dependencies of db instance, so that destroy won't
+    # delete db instance first, and leave the following resources orphaned.
+    google_sql_database.db,
+    google_sql_ssl_cert.db-cert,
+    google_sql_user.user,
   ]
 }
 
