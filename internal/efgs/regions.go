@@ -17,6 +17,7 @@ package efgs
 
 var (
 	// TravelerRegions represents regions a key has been in, if the traveler flag is true.
+	// Data source: https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
 	TravelerRegions = []string{
 		"AD", //	Andorra
 		"AE", //	United Arab Emirates
