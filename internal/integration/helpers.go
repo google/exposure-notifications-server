@@ -252,7 +252,7 @@ func Seed(tb testing.TB, ctx context.Context, db *database.DB, exportPeriod time
 	bucketName := testRandomID(tb, 32)
 	filenameRoot := testRandomID(tb, 32)
 
-	if v := os.Getenv("GOOGLE_CLOUD_BUCKET"); v != "" && !testing.Short() {
+	if v := os.Getenv("E2E_GOOGLE_CLOUD_BUCKET"); v != "" && !testing.Short() {
 		bucketName = v
 		tb.Logf("Bucket name is %q", bucketName)
 	}
