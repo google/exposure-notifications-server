@@ -32,6 +32,16 @@ const (
 	oneDay = 24 * time.Hour
 )
 
+// EFGSUploadConfig ties a specific export config to EFGS Upload Config
+type EFGSUploadConfig struct {
+	Enabled           bool
+	UploadHost        string
+	MTLSCertSecret    string
+	MTLSKeySecret     string
+	SigningCertSecret string
+	SigningKeySecret  string
+}
+
 type ExportConfig struct {
 	ConfigID         int64
 	BucketName       string
@@ -45,6 +55,8 @@ type ExportConfig struct {
 	From             time.Time
 	Thru             time.Time
 	SignatureInfoIDs []int64
+	// Data related to EFGS
+	EFGSConfig EFGSUploadConfig
 }
 
 // EffectiveInputRegions either returns `InputRegions` or if that array is

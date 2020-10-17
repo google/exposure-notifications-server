@@ -49,20 +49,27 @@ func (db *ExportDB) AddExportConfig(ctx context.Context, ec *model.ExportConfig)
 
 	thru := db.db.NullableTime(ec.Thru)
 	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		efgs := &ec.EFGSConfig
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				ExportConfig
-				(bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp, signature_info_ids, input_regions, include_travelers, exclude_regions, only_non_travelers)
+				(bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp,
+				 signature_info_ids, input_regions, include_travelers, exclude_regions, only_non_travelers,
+				  efgs_export, efgs_upload_host, efgs_mtls_cert_secret, efgs_mtls_key_secret,
+				  efgs_signing_cert_secret, efgs_signing_key_secret)
 			VALUES
-				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 			RETURNING config_id
 		`, ec.BucketName, ec.FilenameRoot, int(ec.Period.Seconds()), ec.OutputRegion,
 			ec.From, thru, ec.SignatureInfoIDs, ec.InputRegions, ec.IncludeTravelers,
-			ec.ExcludeRegions, ec.OnlyNonTravelers)
+			ec.ExcludeRegions, ec.OnlyNonTravelers,
+			efgs.Enabled, efgs.UploadHost, efgs.MTLSCertSecret, efgs.MTLSKeySecret,
+			efgs.SigningCertSecret, efgs.SigningKeySecret)
 
 		if err := row.Scan(&ec.ConfigID); err != nil {
 			return fmt.Errorf("fetching config_id: %w", err)
 		}
+
 		return nil
 	})
 }
@@ -79,11 +86,18 @@ func (db *ExportDB) UpdateExportConfig(ctx context.Context, ec *model.ExportConf
 			UPDATE
 				ExportConfig
 			SET
-				bucket_name = $1, filename_root = $2, period_seconds = $3, output_region = $4, from_timestamp = $5, thru_timestamp = $6, signature_info_ids = $7, input_regions = $8, include_travelers = $9, exclude_regions = $10, only_non_travelers = $11
-			WHERE config_id = $12
+				bucket_name = $1, filename_root = $2, period_seconds = $3, output_region = $4, from_timestamp = $5,
+				thru_timestamp = $6, signature_info_ids = $7, input_regions = $8, include_travelers = $9,
+				exclude_regions = $10, only_non_travelers = $11,
+				efgs_export = $12, efgs_upload_host = $13, efgs_mtls_cert_secret = $14, efgs_mtls_key_secret = $15,
+				efgs_signing_cert_secret = $16, efgs_signing_key_secret = $17
+			WHERE config_id = $18
 		`, ec.BucketName, ec.FilenameRoot, int(ec.Period.Seconds()), ec.OutputRegion,
 			ec.From, thru, ec.SignatureInfoIDs, ec.InputRegions, ec.IncludeTravelers,
-			ec.ExcludeRegions, ec.OnlyNonTravelers, ec.ConfigID)
+			ec.ExcludeRegions, ec.OnlyNonTravelers, ec.EFGSConfig.Enabled, ec.EFGSConfig.UploadHost,
+			ec.EFGSConfig.MTLSCertSecret, ec.EFGSConfig.MTLSKeySecret,
+			ec.EFGSConfig.SigningCertSecret, ec.EFGSConfig.SigningKeySecret,
+			ec.ConfigID)
 		if err != nil {
 			return fmt.Errorf("updating signatureinfo: %w", err)
 		}
@@ -99,7 +113,11 @@ func (db *ExportDB) GetExportConfig(ctx context.Context, id int64) (*model.Expor
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			SELECT
-				config_id, bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp, signature_info_ids, input_regions, include_travelers, exclude_regions, only_non_travelers
+				config_id, bucket_name, filename_root, period_seconds, output_region,
+				from_timestamp, thru_timestamp, signature_info_ids, input_regions,
+				include_travelers, exclude_regions, only_non_travelers,
+				efgs_export, efgs_upload_host, efgs_mtls_cert_secret, efgs_mtls_key_secret,
+				efgs_signing_cert_secret, efgs_signing_key_secret
 			FROM
 				ExportConfig
 			WHERE
@@ -125,7 +143,11 @@ func (db *ExportDB) GetAllExportConfigs(ctx context.Context) ([]*model.ExportCon
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT
-				config_id, bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp, signature_info_ids, input_regions, include_travelers, exclude_regions, only_non_travelers
+				config_id, bucket_name, filename_root, period_seconds, output_region,
+				from_timestamp, thru_timestamp, signature_info_ids, input_regions, include_travelers,
+				exclude_regions, only_non_travelers,
+				efgs_export, efgs_upload_host, efgs_mtls_cert_secret, efgs_mtls_key_secret,
+				efgs_signing_cert_secret, efgs_signing_key_secret	
 			FROM
 				ExportConfig
 			ORDER BY config_id
@@ -162,7 +184,11 @@ func (db *ExportDB) IterateExportConfigs(ctx context.Context, t time.Time, f fun
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT
-				config_id, bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp, signature_info_ids, input_regions, include_travelers, exclude_regions, only_non_travelers
+				config_id, bucket_name, filename_root, period_seconds, output_region,
+				from_timestamp, thru_timestamp, signature_info_ids, input_regions, include_travelers,
+				exclude_regions, only_non_travelers,
+				efgs_export, efgs_upload_host, efgs_mtls_cert_secret, efgs_mtls_key_secret,
+				efgs_signing_cert_secret, efgs_signing_key_secret
 			FROM
 				ExportConfig
 			WHERE
@@ -204,7 +230,10 @@ func scanOneExportConfig(row pgx.Row) (*model.ExportConfig, error) {
 		periodSeconds int
 		thru          *time.Time
 	)
-	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &outputRegion, &m.From, &thru, &m.SignatureInfoIDs, &m.InputRegions, &m.IncludeTravelers, &m.ExcludeRegions, &m.OnlyNonTravelers); err != nil {
+	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &outputRegion, &m.From, &thru,
+		&m.SignatureInfoIDs, &m.InputRegions, &m.IncludeTravelers, &m.ExcludeRegions, &m.OnlyNonTravelers,
+		&m.EFGSConfig.Enabled, &m.EFGSConfig.UploadHost, &m.EFGSConfig.MTLSCertSecret, &m.EFGSConfig.MTLSKeySecret,
+		&m.EFGSConfig.SigningCertSecret, &m.EFGSConfig.SigningKeySecret); err != nil {
 		return nil, err
 	}
 
