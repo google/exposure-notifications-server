@@ -24,6 +24,7 @@ import (
 
 	v1 "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/google/exposure-notifications-server/pkg/timeutils"
 )
 
 const (
@@ -116,7 +117,7 @@ func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1.ExposureKey
 		}
 	}
 	// Keys will normally align to UTC day boundries.
-	utcDay := time.Now().UTC().Truncate(24 * time.Hour)
+	utcDay := timeutils.UTCMidnight(time.Now())
 	intervalNumber := int32(utcDay.Unix()/600) - intervalCount
 	exposureKeys := make([]v1.ExposureKey, numKeys)
 	for i := 0; i < numKeys; i++ {

@@ -29,6 +29,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/google/go-cmp/cmp"
@@ -321,7 +322,7 @@ func TestPublishValidation(t *testing.T) {
 				Keys: []verifyapi.ExposureKey{
 					{
 						Key:            encodeKey(generateKey(t)),
-						IntervalNumber: IntervalNumber(captureStartTime.UTC().Truncate(24 * time.Hour)),
+						IntervalNumber: IntervalNumber(timeutils.UTCMidnight(captureStartTime)),
 						IntervalCount:  144,
 					},
 				},
@@ -1420,7 +1421,7 @@ func TestExposureFromExportFile(t *testing.T) {
 	validTEK := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	invalidTEK := []byte{0, 1}
 
-	validInterval := int32(IntervalNumber(time.Now().UTC().Truncate(24 * time.Hour).Add(-24 * time.Hour)))
+	validInterval := int32(IntervalNumber(timeutils.UTCMidnight(time.Now()).Add(-24 * time.Hour)))
 
 	maxSymptomOnsetDays := int32(14)
 	cases := []struct {

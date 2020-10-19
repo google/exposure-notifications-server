@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	"github.com/google/exposure-notifications-server/pkg/timeutils"
 )
 
 func main() {
@@ -41,7 +42,7 @@ func main() {
 		fmt.Printf(" Current Interval: %v\n", model.IntervalNumber(now))
 
 		// Truncate to beginning of day.
-		now = now.Truncate(24 * time.Hour)
+		now = timeutils.Midnight(now)
 		fmt.Println("Interval Chart")
 		for d := -20; d <= 20; d++ {
 			adj := now.Add(time.Duration(d) * (24 * time.Hour))
