@@ -43,15 +43,22 @@ for protected_project_id in ${PROTECTED_PROJECT_IDS[@]}; do
   fi
 done
 
-readonly PROTECTED_DB_INSTANCE_NAMES="en-verification en-server"
-LIST_PROJECTED_DB="$(gcloud sql instances list --project=${PROJECT_ID} --filter="name=( ${PROTECTED_DB_INSTANCE_NAMES} )")"
-if [[ -n "${LIST_PROJECTED_DB}" ]]; then
-  # The output will only exist when the database exist
-  echo "✋ Running this script is prohibited when database below exist:"
-  echo "${LIST_PROJECTED_DB}"
-  echo "${COMMON_ERROR_MESSAGE}"
-  exit 100
-fi
+readonly PROTECTED_DB_INSTANCE_NAMES=(
+  "en-verification"
+  "en-server"
+)
+EXISTING_DB_INSTANCES="$(gcloud sql instances list --project=${PROJECT_ID} --format="value(name)")"
+for existing_db_instance in ${EXISTING_DB_INSTANCES[@]}; do
+  for protected_db_instance_name in ${PROTECTED_DB_INSTANCE_NAMES[@]}; do
+    if [[ "${existing_db_instance}" == "${protected_db_instance_name}" ]]; then
+      # The output will only exist when the database exist
+      echo "✋ Running this script is prohibited when database below exist:"
+      echo "${existing_db_instance}"
+      echo "${COMMON_ERROR_MESSAGE}"
+      exit 100
+    fi
+  done
+done
 
 
 if [[ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
