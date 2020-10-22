@@ -131,6 +131,8 @@ function destroy() {
   if [[ -n "${db_inst_name}" ]]; then
     echo "Deleting db ${db_inst_name}"
     gcloud sql instances delete ${db_inst_name} -q --project=${PROJECT_ID}
+    # There still might be open connection between vpc and db, wait to improve destroy
+    sleep 120
   fi
   # Clean up states after manual DB delete
   terraform state rm module.en.google_sql_user.user || best_effort
