@@ -766,6 +766,77 @@ func TestTransform(t *testing.T) {
 			},
 		},
 		{
+			Name: "user_provided_symptom_onset",
+			Publish: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:            encodeKey(testKeys[3]),
+						IntervalNumber: intervalNumber,
+						IntervalCount:  verifyapi.MaxIntervalCount,
+					},
+					{
+						Key:            encodeKey(testKeys[4]),
+						IntervalNumber: intervalNumber + verifyapi.MaxIntervalCount,
+						IntervalCount:  verifyapi.MaxIntervalCount,
+					},
+					{
+						Key:            encodeKey(testKeys[5]),
+						IntervalNumber: intervalNumber + 2*verifyapi.MaxIntervalCount,
+						IntervalCount:  verifyapi.MaxIntervalCount,
+					},
+				},
+				HealthAuthorityID:    appPackage,
+				SymptomOnsetInterval: int32(intervalNumber + 1*verifyapi.MaxIntervalCount),
+			},
+			Regions: wantRegions,
+			Claims: &verification.VerifiedClaims{
+				HealthAuthorityID:    27,
+				ReportType:           verifyapi.ReportTypeClinical,
+				SymptomOnsetInterval: uint32(intervalNumber + 2*verifyapi.MaxIntervalCount),
+			},
+			Want: []*Exposure{
+				{
+					ExposureKey:           testKeys[3],
+					IntervalNumber:        intervalNumber,
+					IntervalCount:         verifyapi.MaxIntervalCount,
+					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
+					AppPackageName:        appPackage,
+					Regions:               wantRegions,
+					CreatedAt:             batchTimeRounded,
+					LocalProvenance:       true,
+					ReportType:            verifyapi.ReportTypeClinical,
+					DaysSinceSymptomOnset: int32Ptr(-1),
+					HealthAuthorityID:     int64Ptr(27),
+				},
+				{
+					ExposureKey:           testKeys[4],
+					IntervalNumber:        intervalNumber + verifyapi.MaxIntervalCount,
+					IntervalCount:         verifyapi.MaxIntervalCount,
+					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
+					AppPackageName:        appPackage,
+					Regions:               wantRegions,
+					CreatedAt:             batchTimeRounded,
+					LocalProvenance:       true,
+					ReportType:            verifyapi.ReportTypeClinical,
+					DaysSinceSymptomOnset: int32Ptr(0),
+					HealthAuthorityID:     int64Ptr(27),
+				},
+				{
+					ExposureKey:           testKeys[5],
+					IntervalNumber:        intervalNumber + 2*verifyapi.MaxIntervalCount,
+					IntervalCount:         verifyapi.MaxIntervalCount,
+					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
+					AppPackageName:        appPackage,
+					Regions:               wantRegions,
+					CreatedAt:             batchTimeRounded,
+					LocalProvenance:       true,
+					ReportType:            verifyapi.ReportTypeClinical,
+					DaysSinceSymptomOnset: int32Ptr(1),
+					HealthAuthorityID:     int64Ptr(27),
+				},
+			},
+		},
+		{
 			Name: "symptom_onset_too_large",
 			Publish: &verifyapi.Publish{
 				Keys: []verifyapi.ExposureKey{

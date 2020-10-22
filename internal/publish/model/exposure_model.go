@@ -544,11 +544,6 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		return nil, nil, fmt.Errorf(msg)
 	}
 
-	onsetInterval := inData.SymptomOnsetInterval
-	if claims != nil && claims.SymptomOnsetInterval > 0 {
-		onsetInterval = int32(claims.SymptomOnsetInterval)
-	}
-
 	defaultCreatedAt := TruncateWindow(batchTime, t.truncateWindow)
 	entities := make([]*Exposure, 0, len(inData.Keys))
 
@@ -562,6 +557,13 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		CreatedAt:             defaultCreatedAt,
 		ReleaseStillValidKeys: t.debugReleaseSameDay,
 		BatchWindow:           t.truncateWindow,
+	}
+
+	onsetInterval := inData.SymptomOnsetInterval
+	// If the symtom onset interval provided on publish is too old to be relevant
+	// and one was provided in the verification certificate, take that one.
+	if onsetInterval < settings.MinStartInterval && claims != nil && claims.SymptomOnsetInterval > 0 {
+		onsetInterval = int32(claims.SymptomOnsetInterval)
 	}
 
 	// Regions are a multi-value property, uppercase them for storage.
