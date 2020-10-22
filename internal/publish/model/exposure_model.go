@@ -561,7 +561,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 
 	onsetInterval := inData.SymptomOnsetInterval
 	// If the symtom onset interval provided on publish is too old to be relevant
-	// and one was provided in the verificaiton certificate, take that one.
+	// and one was provided in the verification certificate, take that one.
 	if onsetInterval < settings.MinStartInterval && claims != nil && claims.SymptomOnsetInterval > 0 {
 		onsetInterval = int32(claims.SymptomOnsetInterval)
 	}
