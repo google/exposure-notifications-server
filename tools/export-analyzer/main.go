@@ -31,13 +31,13 @@ import (
 )
 
 var (
-	showSig        = flag.Bool("sig", true, "show signature information from export bundle")
-	filePath       = flag.String("file", "", "path to the export zip file.")
-	printJSON      = flag.Bool("json", true, "print a JSON representation of the output")
-	quiet          = flag.Bool("q", false, "run in quiet mode")
-	allowedTEKAge  = flag.Duration("tek-age", 14*24*time.Hour, "max TEK age in checks")
-	symptomDayLmit = flag.Int("symptom-days", 14, "magnitude of expected symptom onset day range")
-	fileAge        = flag.Duration("file-age", time.Duration(0), "file age is a positive duration that indicates how old a file is, this would be added to tek-age when validating the file and adjusts 'current time' for validing future keys.")
+	showSig         = flag.Bool("sig", true, "show signature information from export bundle")
+	filePath        = flag.String("file", "", "path to the export zip file.")
+	printJSON       = flag.Bool("json", true, "print a JSON representation of the output")
+	quiet           = flag.Bool("q", false, "run in quiet mode")
+	allowedTEKAge   = flag.Duration("tek-age", 14*24*time.Hour, "max TEK age in checks")
+	symptomDayLimit = flag.Int("symptom-days", 14, "magnitude of expected symptom onset day range")
+	fileAge         = flag.Duration("file-age", time.Duration(0), "file age is a positive duration that indicates how old a file is, this would be added to tek-age when validating the file and adjusts 'current time' for validing future keys.")
 )
 
 func main() {
@@ -48,8 +48,8 @@ func main() {
 	if *allowedTEKAge < time.Duration(0) {
 		log.Fatalf("--tek-age must be a positive duration, got: %v", *allowedTEKAge)
 	}
-	if *symptomDayLmit < 0 {
-		log.Fatalf("--symptom-days must be >=0, got: %v", *symptomDayLmit)
+	if *symptomDayLimit < 0 {
+		log.Fatalf("--symptom-days must be >=0, got: %v", *symptomDayLimit)
 	}
 	if *fileAge < time.Duration(0) {
 		log.Fatalf("--file-age must be a positive duration, got: %v", *fileAge)
@@ -121,7 +121,7 @@ func checkExportFile(export *exportpb.TemporaryExposureKeyExport) error {
 }
 
 func checkKeys(kType string, keys []*exportpb.TemporaryExposureKey, floor, ceiling int32) error {
-	symptomDays := int32(*symptomDayLmit)
+	symptomDays := int32(*symptomDayLimit)
 	var errors *multierror.Error
 	for i, k := range keys {
 		if l := len(k.KeyData); l != 16 {
@@ -141,5 +141,5 @@ func checkKeys(kType string, keys []*exportpb.TemporaryExposureKey, floor, ceili
 			}
 		}
 	}
-	return errors
+	return errors.ErrorOrNil()
 }
