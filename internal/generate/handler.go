@@ -94,13 +94,31 @@ func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *generateHandler) generate(ctx context.Context, regions []string) error {
-	logger := h.logger.Named("generate")
+	for _, r := range regions {
+		if err := h.generateKeysInRegion(ctx, r); err != nil {
+			return fmt.Errorf("generateKeysInRegion: %w", err)
+		}
+	}
+	return nil
+}
 
+func (h *generateHandler) generateKeysInRegion(ctx context.Context, region string) error {
 	// We require at least 2 keys because revision only revises a subset of keys,
 	// and that subset selects a random sample from (0-len(keys)], and rand panics
 	// if you try to generate a random number between 0 and 0 :).
 	if h.config.KeysPerExposure < 2 {
 		return fmt.Errorf("number of keys to publish must be at least 2")
+	}
+
+	logger := h.logger.Named("generate")
+	// API calls treat region as a list, for legacy regions.
+	regions := []string{region}
+
+	traveler := false
+	if val, err := util.RandomInt(100); err != nil {
+		return fmt.Errorf("failed to determien traveler status: %w", err)
+	} else if val < h.config.ChanceOfTraveler {
+		traveler = true
 	}
 
 	batchTime := time.Now().UTC()
@@ -110,6 +128,7 @@ func (h *generateHandler) generate(ctx context.Context, regions []string) error 
 		publish := &verifyapi.Publish{
 			Keys:              util.GenerateExposureKeys(h.config.KeysPerExposure, 0, false),
 			HealthAuthorityID: "generated.data",
+			Traveler:          traveler,
 		}
 
 		if h.config.SimulateSameDayRelease {
