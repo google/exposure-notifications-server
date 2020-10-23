@@ -75,7 +75,7 @@ func (h *indexHandler) Execute(c *gin.Context) {
 	m["exportImporters"] = exportImporters
 
 	// Load SignatureInfos
-	sigInfos, err := exdb.New(db).ListAllSigntureInfos(ctx)
+	sigInfos, err := exdb.New(db).ListAllSignatureInfos(ctx)
 	if err != nil {
 		admin.ErrorPage(c, err.Error())
 		return

@@ -149,7 +149,7 @@ func TestLeaseAndCompleteImportFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	if l := len(openFiles); l != 1 {
-		t.Fatalf("did't get expected files, want 1: got: %v", l)
+		t.Fatalf("didn't get expected files, want 1: got: %v", l)
 	}
 
 	testFile := openFiles[0]

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This tool attempts to sign a string with all configurd export signing keys
+// This tool attempts to sign a string with all configured export signing keys
 // in the system.
 package main
 
@@ -74,7 +74,7 @@ func realMain(ctx context.Context) error {
 	defer env.Close(ctx)
 
 	exportDB := database.New(env.Database())
-	allSigInfos, err := exportDB.ListAllSigntureInfos(ctx)
+	allSigInfos, err := exportDB.ListAllSignatureInfos(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to list signature infos, %w", err)
 	}
@@ -91,7 +91,7 @@ func realMain(ctx context.Context) error {
 
 		signer, err := env.GetSignerForKey(ctx, sigInfo.SigningKey)
 		if err != nil {
-			logger.Errorw("error accessing signing key", "sigInfio", sigInfo, "error", err)
+			logger.Errorw("error accessing signing key", "sigInfo", sigInfo, "error", err)
 			continue
 		}
 
