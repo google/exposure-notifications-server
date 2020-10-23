@@ -19,6 +19,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -359,7 +360,20 @@ func (p *prefixRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) 
 func testClient(tb testing.TB, srv *server.Server) *http.Client {
 	prt := &prefixRoundTripper{
 		addr: srv.Addr(),
-		rt:   http.DefaultTransport,
+		rt: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          100,
+			MaxIdleConnsPerHost:   100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
 	}
 
 	return &http.Client{
