@@ -16,7 +16,7 @@
 *.terraform/
 *.tfvars
 terraform/state.tf
-terraform-e2e/state.tf
+terraform-e2e-ci/state.tf
 
 # Test stuff
 /local/

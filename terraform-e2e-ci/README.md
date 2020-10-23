@@ -1,13 +1,13 @@
-# terraform-e2e
+# terraform-e2e-ci
 
 This directory contains terraform configuration to be used for deploying key servers with terraform, while being able to reuse a project to deploy repeatedly. Should only be used for running e2e tests.
 
 ## Prerequisite
 
-Follow steps from [Terrafrom instructions](https://github.com/google/exposure-notifications-server/tree/main/terraform), going through from top until finishing `Instructions` section, then change into `terraform-e2e` directory:
+Follow steps from [Terrafrom instructions](https://github.com/google/exposure-notifications-server/tree/main/terraform), going through from top until finishing `Instructions` section, then change into `terraform-e2e-ci` directory:
 
 ```shell
-cd terraform-e2e/
+cd terraform-e2e-ci/
 echo "project = \"${PROJECT_ID}\"" >> ./terraform.tfvars
 ```
 
