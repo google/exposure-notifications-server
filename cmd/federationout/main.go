@@ -83,7 +83,7 @@ func realMain(ctx context.Context) error {
 	grpcServer := grpc.NewServer(sopts...)
 	federation.RegisterFederationServer(grpcServer, federationServer)
 
-	srv, err := server.New(config.Port)
+	srv, err := server.New(":" + config.Port)
 	if err != nil {
 		return fmt.Errorf("server.New: %w", err)
 	}

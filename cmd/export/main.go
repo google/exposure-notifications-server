@@ -63,7 +63,7 @@ func realMain(ctx context.Context) error {
 		return fmt.Errorf("export.NewServer: %w", err)
 	}
 
-	srv, err := server.New(config.Port)
+	srv, err := server.New(":" + config.Port)
 	if err != nil {
 		return fmt.Errorf("server.New: %w", err)
 	}

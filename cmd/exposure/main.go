@@ -75,7 +75,7 @@ func realMain(ctx context.Context) error {
 		mux.Handle("/", handler.HandleV1Alpha1())
 	}
 
-	srv, err := server.New(config.Port)
+	srv, err := server.New(":" + config.Port)
 	if err != nil {
 		return fmt.Errorf("server.New: %w", err)
 	}

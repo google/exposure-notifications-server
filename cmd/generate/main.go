@@ -69,7 +69,7 @@ func realMain(ctx context.Context) error {
 	mux.Handle("/", handler)
 	mux.Handle("/health", server.HandleHealthz(ctx))
 
-	srv, err := server.New(config.Port)
+	srv, err := server.New(":" + config.Port)
 	if err != nil {
 		return fmt.Errorf("server.New: %w", err)
 	}

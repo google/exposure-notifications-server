@@ -45,19 +45,35 @@ type Server struct {
 
 // New creates a new server listening on the provided address that responds to
 // the http.Handler. It starts the listener, but does not start the server. If
-// an empty port is given, the server randomly chooses one.
-func New(port string) (*Server, error) {
+// an empty port or a port of 0 is given, the server randomly chooses one.
+func New(hostport string) (*Server, error) {
 	// Create the net listener first, so the connection ready when we return. This
 	// guarantees that it can accept requests.
-	addr := fmt.Sprintf(":" + port)
-	listener, err := net.Listen("tcp", addr)
+	listener, err := net.Listen("tcp", hostport)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create listener on %s: %w", addr, err)
+		return nil, fmt.Errorf("failed to create listener: %w", err)
+	}
+
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return nil, fmt.Errorf("listener is not a TCPAddr")
+	}
+
+	// If the caller did not specify a host, the default behavior is to bind to
+	// all available interfaces. This works fine until you need to set a cookie -
+	// cookies cannot be set on an unspecified interface. To make things easier,
+	// fallback to the loopback interface in that case.
+	ip := addr.IP
+	switch {
+	case ip.Equal(net.IPv4zero):
+		ip = net.IPv4(127, 0, 0, 1)
+	case ip.Equal(net.IPv6zero):
+		ip = net.IPv6loopback
 	}
 
 	return &Server{
-		ip:       listener.Addr().(*net.TCPAddr).IP.String(),
-		port:     strconv.Itoa(listener.Addr().(*net.TCPAddr).Port),
+		ip:       ip.String(),
+		port:     strconv.Itoa(addr.Port),
 		listener: listener,
 	}, nil
 }
