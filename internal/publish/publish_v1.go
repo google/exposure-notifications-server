@@ -41,7 +41,7 @@ func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) *
 	var data verifyapi.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
-		message := fmt.Sprintf("error unmarshaling API call, code: %v: %v", code, err)
+		message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		errorCode := verifyapi.ErrorBadRequest
 		if code == http.StatusInternalServerError {

@@ -31,7 +31,7 @@ const (
 	maxBodyBytes = 64_000
 )
 
-// Unmarshal provides a common implementation of JSON unmarshaling with well defined error handling.
+// Unmarshal provides a common implementation of JSON unmarshalling with well defined error handling.
 func Unmarshal(w http.ResponseWriter, r *http.Request, data interface{}) (int, error) {
 	if t := r.Header.Get("content-type"); len(t) < 16 || t[:16] != "application/json" {
 		return http.StatusUnsupportedMediaType, fmt.Errorf("content-type is not application/json")

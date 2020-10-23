@@ -130,7 +130,7 @@ func (s *Server) handleDebug(ctx context.Context) http.HandlerFunc {
 		})
 
 		queue(&wg, errCh, func() error {
-			signatureInfos, err := exportDB.ListAllSigntureInfos(ctx)
+			signatureInfos, err := exportDB.ListAllSignatureInfos(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to list signature infos: %w", err)
 			}

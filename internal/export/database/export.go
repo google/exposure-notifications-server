@@ -147,7 +147,7 @@ func (db *ExportDB) GetAllExportConfigs(ctx context.Context) ([]*model.ExportCon
 				from_timestamp, thru_timestamp, signature_info_ids, input_regions, include_travelers,
 				exclude_regions, only_non_travelers,
 				efgs_export, efgs_upload_host, efgs_mtls_cert_secret, efgs_mtls_key_secret,
-				efgs_signing_cert_secret, efgs_signing_key_secret	
+				efgs_signing_cert_secret, efgs_signing_key_secret
 			FROM
 				ExportConfig
 			ORDER BY config_id
@@ -301,7 +301,7 @@ func (db *ExportDB) UpdateSignatureInfo(ctx context.Context, si *model.Signature
 	})
 }
 
-func (db *ExportDB) ListAllSigntureInfos(ctx context.Context) ([]*model.SignatureInfo, error) {
+func (db *ExportDB) ListAllSignatureInfos(ctx context.Context) ([]*model.SignatureInfo, error) {
 	var sigs []*model.SignatureInfo
 
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {

@@ -82,7 +82,7 @@ func (v *saveController) Execute(c *gin.Context) {
 		usedSigInfos[id] = true
 	}
 
-	sigInfos, err := exportDB.ListAllSigntureInfos(ctx)
+	sigInfos, err := exportDB.ListAllSignatureInfos(ctx)
 	if err != nil {
 		admin.ErrorPage(c, fmt.Sprintf("Error reading the database: %v", err))
 	}

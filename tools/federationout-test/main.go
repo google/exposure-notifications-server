@@ -46,7 +46,7 @@ var (
 	cursor               = flag.String("cursor", "", "Cursor from previous partial response.")
 	lastRevisedTimestamp = flag.Int64("last-revised-timestamp", 0, "The last revised timestamp, UTC seconds since the Epoch")
 	revisedCursor        = flag.String("revised-cursor", "", "Cursor for revised keys from previous partial response")
-	onlyTravelers        = flag.Bool("only-travelers", false, "only include travlers in fetch")
+	onlyTravelers        = flag.Bool("only-travelers", false, "only include travelers in fetch")
 	onlyLocalProvenance  = flag.Bool("only-local-provenance", true, "only inclue local provenance keys")
 
 	skipAuth = flag.Bool("skip-auth", false, "skip all auth and TLS")
