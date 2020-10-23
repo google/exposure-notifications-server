@@ -30,7 +30,7 @@ function smoke() {
       export PROJECT_ID
   fi
 
-  ${ROOT}/scripts/terraform.sh smoke
+  ${ROOT}/scripts/ci-terraform.sh smoke
 }
 
 
@@ -42,12 +42,12 @@ function incremental() {
       export PROJECT_ID
   fi
 
-  ${ROOT}/scripts/terraform.sh init
-  pushd "${ROOT}/terraform-e2e" >/dev/null 2>&1
+  ${ROOT}/scripts/ci-terraform.sh init
+  pushd "${ROOT}/terraform-e2e-ci" >/dev/null 2>&1
   terraform taint module.en.null_resource.build
   terraform taint module.en.null_resource.migrate
   popd >/dev/null 2>&1
-  ${ROOT}/scripts/terraform.sh deploy
+  ${ROOT}/scripts/ci-terraform.sh deploy
 
   export_terraform_output project_id E2E_PROJECT_ID
   export_terraform_output db_conn E2E_DB_CONN
@@ -79,7 +79,7 @@ function run_e2e_test() {
 # $2 ... exported variable name
 function export_terraform_output() {
   local output
-  pushd "${ROOT}/terraform-e2e" >/dev/null 2>&1
+  pushd "${ROOT}/terraform-e2e-ci" >/dev/null 2>&1
   output="$(terraform output -json "en" | jq ". | .${1}" | tr -d \")"
   popd >/dev/null 2>&1
   eval "export ${2}=${output}"

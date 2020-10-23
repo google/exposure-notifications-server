@@ -73,13 +73,13 @@ else
 fi
 
 function init() {
-  pushd "${ROOT}/terraform-e2e" > /dev/null
+  pushd "${ROOT}/terraform-e2e-ci" > /dev/null
 
   # Preparing for deployment
   echo "project = \"${PROJECT_ID}\"" > ./terraform.tfvars
   # Don't fail if it already exists
   gsutil mb -p ${PROJECT_ID} gs://${PROJECT_ID}-tf-state 2>/dev/null || best_effort
-  cat <<EOF > "${ROOT}/terraform-e2e/state.tf"
+  cat <<EOF > "${ROOT}/terraform-e2e-ci/state.tf"
 terraform {
   backend "gcs" {
     bucket = "${PROJECT_ID}-tf-state"
@@ -94,7 +94,7 @@ EOF
 }
 
 function deploy() {
-  pushd "${ROOT}/terraform-e2e" > /dev/null
+  pushd "${ROOT}/terraform-e2e-ci" > /dev/null
 
   init
 
@@ -119,7 +119,7 @@ function deploy() {
 }
 
 function destroy() {
-  pushd "${ROOT}/terraform-e2e" > /dev/null
+  pushd "${ROOT}/terraform-e2e-ci" > /dev/null
   init
   terraform destroy -auto-approve
   popd > /dev/null
