@@ -233,3 +233,106 @@ func TestEncryptDecrypt(t *testing.T) {
 		t.Fatalf("want error: %v, got: %v", wantErr, err)
 	}
 }
+
+func TestExpandRevisionToken(t *testing.T) {
+	t.Parallel()
+	testDB := database.NewTestDatabase(t)
+	ctx := context.Background()
+
+	kms := keys.TestKeyManager(t)
+	keyID := keys.TestEncryptionKey(t, kms)
+
+	cfg := revisiondb.KMSConfig{
+		WrapperKeyID: keyID,
+		KeyManager:   kms,
+	}
+	revDB, err := revisiondb.New(testDB, &cfg)
+	if err != nil {
+		t.Fatalf("unable to provision revision DB: %v", err)
+	}
+
+	// Add an allowed key.
+	_, err = revDB.CreateRevisionKey(ctx)
+	if err != nil {
+		t.Fatalf("unable to create a revision key: %v", err)
+	}
+
+	tm, err := New(ctx, revDB, time.Second, 28)
+	if err != nil {
+		t.Fatalf("unable to build token manager: %v", err)
+	}
+
+	// Create a token where there is a previous but no new keys.
+	previousToken := &pb.RevisionTokenData{
+		RevisableKeys: []*pb.RevisableKey{
+			{
+				TemporaryExposureKey: []byte{1, 2, 3, 4},
+				IntervalNumber:       254321,
+				IntervalCount:        144,
+			},
+		},
+	}
+	source := []*model.Exposure{}
+	aad := []byte{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
+	// Expected result in the end
+	want := &pb.RevisionTokenData{
+		RevisableKeys: []*pb.RevisableKey{
+			{
+				TemporaryExposureKey: []byte{1, 2, 3, 4},
+				IntervalNumber:       254321,
+				IntervalCount:        144,
+			},
+		},
+	}
+
+	encrypted, err := tm.MakeRevisionToken(ctx, previousToken, source, aad)
+	if err != nil {
+		t.Fatalf("error encrypting and serializing data: %v", err)
+	}
+
+	got, err := tm.UnmarshalRevisionToken(ctx, encrypted, aad)
+	if err != nil {
+		t.Fatalf("error decrypting token: %v", err)
+	}
+
+	if diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(pb.RevisionTokenData{}), cmpopts.IgnoreUnexported(pb.RevisableKey{})); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	// Create it again, this time merging in new keys.
+	source = []*model.Exposure{
+		{
+			ExposureKey:    []byte{5, 6, 7, 8},
+			IntervalNumber: 254465,
+			IntervalCount:  144,
+		},
+	}
+	want = &pb.RevisionTokenData{
+		RevisableKeys: []*pb.RevisableKey{
+			{
+				TemporaryExposureKey: []byte{1, 2, 3, 4},
+				IntervalNumber:       254321,
+				IntervalCount:        144,
+			},
+			{
+				TemporaryExposureKey: []byte{5, 6, 7, 8},
+				IntervalNumber:       254465,
+				IntervalCount:        144,
+			},
+		},
+	}
+
+	encrypted, err = tm.MakeRevisionToken(ctx, previousToken, source, aad)
+	if err != nil {
+		t.Fatalf("error encrypting and serializing data: %v", err)
+	}
+
+	got, err = tm.UnmarshalRevisionToken(ctx, encrypted, aad)
+	if err != nil {
+		t.Fatalf("error decrypting token: %v", err)
+	}
+
+	if diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(pb.RevisionTokenData{}), cmpopts.IgnoreUnexported(pb.RevisableKey{})); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+}

@@ -685,6 +685,12 @@ func PublishIdentity(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Pu
 	return true, data
 }
 
+type ReportTypeChanger func(reportType string) string
+
+func ReportTypeIdentity(reportType string) string {
+	return reportType
+}
+
 func TestKeyRevision(t *testing.T) {
 	t.Parallel()
 
@@ -781,7 +787,9 @@ func TestKeyRevision(t *testing.T) {
 		RevErrorCode       string
 		RevTokenMesser     RevisionTokenChanger
 		PublishMesser      PublishDataChanger
+		ReportTypeMesser   ReportTypeChanger
 		VerificationMesser func(c *testutil.JWTConfig)
+		NoopRevision       bool
 	}{
 		{
 			Name: "normal_revision",
@@ -791,8 +799,9 @@ func TestKeyRevision(t *testing.T) {
 				HealthAuthorityID:   haName,
 				VerificationPayload: "totally not a JWT",
 			},
-			RevTokenMesser: TokenIdentity,
-			PublishMesser:  PublishIdentity,
+			RevTokenMesser:   TokenIdentity,
+			PublishMesser:    PublishIdentity,
+			ReportTypeMesser: ReportTypeIdentity,
 		},
 		{
 			Name: "missing_revision_token",
@@ -806,7 +815,8 @@ func TestKeyRevision(t *testing.T) {
 			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
 				return ""
 			},
-			PublishMesser: PublishIdentity,
+			PublishMesser:    PublishIdentity,
+			ReportTypeMesser: ReportTypeIdentity,
 		},
 		{
 			Name: "key_already_revised",
@@ -851,6 +861,7 @@ func TestKeyRevision(t *testing.T) {
 
 				return PublishIdentity(t, data)
 			},
+			ReportTypeMesser: ReportTypeIdentity,
 		},
 		{
 			Name: "invalid_report_type_transition",
@@ -866,6 +877,7 @@ func TestKeyRevision(t *testing.T) {
 			VerificationMesser: func(c *testutil.JWTConfig) {
 				c.ReportType = "totally_not_valid"
 			},
+			ReportTypeMesser: ReportTypeIdentity,
 		},
 		{
 			Name: "token_missing_keys",
@@ -900,7 +912,8 @@ func TestKeyRevision(t *testing.T) {
 				}
 				return base64.StdEncoding.EncodeToString(tokenBytes)
 			},
-			PublishMesser: PublishIdentity,
+			PublishMesser:    PublishIdentity,
+			ReportTypeMesser: ReportTypeIdentity,
 		},
 		{
 			Name: "bad_token_doesnt_matter",
@@ -942,6 +955,23 @@ func TestKeyRevision(t *testing.T) {
 					VerificationPayload: "totally not a JWT",
 				}
 			},
+			ReportTypeMesser: ReportTypeIdentity,
+		},
+		{
+			Name: "no_revision_no_new_keys",
+			Publish: verifyapi.Publish{
+				Keys:                util.GenerateExposureKeys(2, 0, false),
+				Traveler:            false,
+				HealthAuthorityID:   haName,
+				VerificationPayload: "totally not a JWT",
+			},
+			RevTokenMesser: TokenIdentity,
+			PublishMesser:  PublishIdentity,
+			ReportTypeMesser: func(rt string) string {
+				// make it so the revision doesn't actually change anything.
+				return verifyapi.ReportTypeClinical
+			},
+			NoopRevision: true,
 		},
 	}
 
@@ -1009,7 +1039,7 @@ func TestKeyRevision(t *testing.T) {
 					HealthAuthorityKey: healthAuthorityKey,
 					ExposureKeys:       tc.Publish.Keys,
 					Key:                signingKey.Key,
-					ReportType:         verifyapi.ReportTypeConfirmed,
+					ReportType:         tc.ReportTypeMesser(verifyapi.ReportTypeConfirmed),
 				}
 
 				if messer := tc.VerificationMesser; messer != nil {
@@ -1047,10 +1077,16 @@ func TestKeyRevision(t *testing.T) {
 				if response.Code != tc.RevErrorCode {
 					t.Fatalf("wrong code on revision, want %#v, got %#v", tc.RevErrorCode, response.Code)
 				}
+
+				if tc.RevErrorCode == "" {
+					if response.RevisionToken == "" {
+						t.Fatalf("no revision token returned")
+					}
+				}
 			}
 
 			// If the test case expects revision to be successful, read back the TEKs.
-			if tc.RevErrorCode == "" {
+			if tc.RevErrorCode == "" && !tc.NoopRevision {
 				expectedKeys := make([]string, len(tc.Publish.Keys))
 				want := make(map[string]*model.Exposure)
 				revisedReportType := verifyapi.ReportTypeConfirmed

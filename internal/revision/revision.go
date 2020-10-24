@@ -214,7 +214,7 @@ func buildTokenBufer(previous *pb.RevisionTokenData, eKeys []*model.Exposure) *p
 // into an encrypted protocol buffer revision token.
 // This is using envelope encryption, based on the currently active revision key.
 func (tm *TokenManager) MakeRevisionToken(ctx context.Context, previous *pb.RevisionTokenData, eKeys []*model.Exposure, aad []byte) ([]byte, error) {
-	if len(eKeys) == 0 {
+	if len(eKeys) == 0 && len(previous.RevisableKeys) == 0 {
 		return nil, fmt.Errorf("no keys to build token for")
 	}
 
