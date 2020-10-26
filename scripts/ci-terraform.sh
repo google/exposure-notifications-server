@@ -121,6 +121,23 @@ function deploy() {
 function destroy() {
   pushd "${ROOT}/terraform-e2e-ci" > /dev/null
   init
+
+  # DB always failed to be destroyed by terraform as it's set to not to destroy,
+  # so delete it manually
+  local db_inst_name
+  # Fetching databases from previous terraform deployment output is not always reliable,
+  # especially when previous terraform deployment failed. So grepping from terraform state instead.
+  db_inst_name="$(terraform state show module.en.google_sql_database_instance.db-inst | grep -Eo 'en-server-[a-zA-Z0-9]+' | uniq)"
+  if [[ -n "${db_inst_name}" ]]; then
+    echo "Deleting db ${db_inst_name}"
+    gcloud sql instances delete ${db_inst_name} -q --project=${PROJECT_ID}
+    # There still might be open connection between vpc and db, wait to improve destroy
+    sleep 120
+  fi
+  # Clean up states after manual DB delete
+  terraform state rm module.en.google_sql_user.user || best_effort
+  terraform state rm module.en.google_sql_ssl_cert.db-cert || best_effort
+
   terraform destroy -auto-approve
   popd > /dev/null
 }
