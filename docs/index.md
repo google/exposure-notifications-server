@@ -55,5 +55,5 @@ Key Server here:
 
 You can open a
 [GitHub Issue](https://github.com/google/exposure-notifications-server/issues/new).
-or reach out privately by emailing exposure-notifications-feedback@google.com.
+Or reach out privately by emailing exposure-notifications-feedback@google.com.
 Please include as much detail as you can to help in addressing your concern.
