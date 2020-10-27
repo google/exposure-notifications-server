@@ -105,9 +105,9 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 	logger := logging.FromContext(ctx)
 	metrics := s.env.MetricsExporter(ctx)
 	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
-	db := s.env.Database()
+	exportDB := exportdatabase.New(s.env.Database())
 
-	latestEnd, err := exportdatabase.New(db).LatestExportBatchEnd(ctx, ec)
+	latestEnd, err := exportDB.LatestExportBatchEnd(ctx, ec)
 	if err != nil {
 		return 0, fmt.Errorf("fetching most recent batch for config %d: %w", ec.ConfigID, err)
 	}
@@ -139,7 +139,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 		})
 	}
 
-	if err := exportdatabase.New(db).AddExportBatches(ctx, batches); err != nil {
+	if err := exportDB.AddExportBatches(ctx, batches); err != nil {
 		return 0, fmt.Errorf("creating export batches for config %d: %w", ec.ConfigID, err)
 	}
 

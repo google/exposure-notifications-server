@@ -135,7 +135,8 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	totalNewKeys, totalRevisedKeys := 0, 0
 	droppedKeys := 0
 
-	_, err := publishdatabase.New(db).IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
+	publishDB := publishdatabase.New(db)
+	_, err := publishDB.IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
 		if len(exp.ExposureKey) != verifyapi.KeyLength {
 			droppedKeys++
 			return nil
@@ -154,7 +155,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 
 	// go get the revised keys.
 	criteria.OnlyRevisedKeys = true
-	_, err = publishdatabase.New(db).IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
+	_, err = publishDB.IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
 		if len(exp.ExposureKey) != verifyapi.KeyLength {
 			droppedKeys++
 			return nil
@@ -198,8 +199,9 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		}
 	}
 
+	exportDB := exportdatabase.New(db)
 	// Load the non-expired signature infos associated with this export batch.
-	sigInfos, err := exportdatabase.New(db).LookupSignatureInfos(ctx, eb.SignatureInfoIDs, time.Now())
+	sigInfos, err := exportDB.LookupSignatureInfos(ctx, eb.SignatureInfoIDs, time.Now())
 	if err != nil {
 		return fmt.Errorf("error loading signature info for batch %d, %w", eb.BatchID, err)
 	}
@@ -239,7 +241,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	}
 
 	// Write the files records in database and complete the batch.
-	if err := exportdatabase.New(db).FinalizeBatch(ctx, eb, objectNames, batchSize); err != nil {
+	if err := exportDB.FinalizeBatch(ctx, eb, objectNames, batchSize); err != nil {
 		return fmt.Errorf("completing batch: %w", err)
 	}
 	logger.Infof("Batch %d completed", eb.BatchID)
