@@ -14,7 +14,7 @@
 
 // Package verification provides the ability to verify the diagnosis certificates
 // (JWTs) coming from public health authorities that are responsible for verifying
-// diagnosis pin codes and verifying the TEKs.
+// diagnosis pin codes and certifying the TEKs.
 package verification
 
 import (
