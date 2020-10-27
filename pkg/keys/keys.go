@@ -42,7 +42,7 @@ type KeyManager interface {
 	// The Azure Key Vault implementation does not.
 	Encrypt(ctx context.Context, keyID string, plaintext []byte, aad []byte) ([]byte, error)
 
-	// Decrypt will descrypt a previously encrypted byte array along with accompanying Additional
+	// Decrypt will decrypt a previously encrypted byte array along with accompanying Additional
 	// Authenticated Data (AAD).
 	// If AAD was passed in on the encryption, the same AAD must be passed in to decrypt.
 	//
