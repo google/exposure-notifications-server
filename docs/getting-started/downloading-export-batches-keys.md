@@ -4,7 +4,7 @@ layout: default
 
 # Temporary Exposure Key (TEK) Downloading via Batches
 
-This page explains how to retrieve publihsed temporary exposure keys (TEKs)
+This page explains how to retrieve published temporary exposure keys (TEKs)
 from the server by generating batches that can be downloaded by a mobile
 application. These batches are logical groupings of TEKs published to the
 server. Keys can be grouped by region and the frequency of batching is

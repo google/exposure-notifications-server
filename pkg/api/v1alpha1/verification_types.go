@@ -53,7 +53,7 @@ const (
 )
 
 // TransmissionRiskVector is an additional set of claims that can be
-// included in the verification certificatin for a diagnosis as received
+// included in the verification / certification for a diagnosis as received
 // from a trusted public health authority.
 // DEPRECATED - If received at a server, these values are ignored. Will be removed in v0.3
 type TransmissionRiskVector []TransmissionRiskOverride
@@ -61,7 +61,7 @@ type TransmissionRiskVector []TransmissionRiskOverride
 // Compile time check that TransmissionRiskVector implements the sort interface.
 var _ sort.Interface = TransmissionRiskVector{}
 
-// TransmissionRiskOverride is an indvidual transmission risk override.
+// TransmissionRiskOverride is an individual transmission risk override.
 type TransmissionRiskOverride struct {
 	TransmissionRisk     int   `json:"tr"`
 	SinceRollingInterval int32 `json:"sinceRollingInterval"`

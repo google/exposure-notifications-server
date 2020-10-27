@@ -81,7 +81,7 @@ Base64 encoded string property.
   server, if no transmission risk values are set, the report type is used to
   assign transmission risk for compatibility with older apps/clients.
   This is the __only__ way set reportType on TEKs is through a verification certificate.
-* `symptomOnsetInterval` : _OPTIONAL_ uses the same 10 minute interval timing as TEKs use. If an interval is provided that isn not the start of a UTC day, then it will be rounded down to the beginning of that UTC day. And from there the days +/- symptom onset will be calculated. Int property.
+* `symptomOnsetInterval` : _OPTIONAL_ uses the same 10 minute interval timing as TEKs use. If an interval is provided that is not the start of a UTC day, then it will be rounded down to the beginning of that UTC day. And from there the days +/- symptom onset will be calculated. Int property.
 
 Standard JWT headers must be provided.
 
@@ -114,7 +114,7 @@ key1.rp1.rpc1.tr1,key2.rp2.rpc2.tr2
 For newer clients that are not assigning transmission risk values, the 4th
 segment of the per-TEK segment can be omitted. If this is done, then a value
 of 0 (zero) must be passed on the publish request at the key server, or the
-transmission risk must be omitted entirerly. That would make the clear text
+transmission risk must be omitted entirely. That would make the clear text
 portion look like:
 
 ```
