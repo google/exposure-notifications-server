@@ -94,7 +94,7 @@ const (
 // Padding: random base64 encoded data to obscure the request size. The server will
 // not process this data in any way. The recommendation is that padding be
 // at least 1kb in size with a random jitter of at least 1kb. Maximum overall
-// request size is capped at 64kb for the serialzied JSON.
+// request size is capped at 64kb for the serialized JSON.
 //
 // Partial success: If at least one of the Keys passed in is valid, then the publish
 // request will accept those keys, return a response code of 200 (OK) AND also

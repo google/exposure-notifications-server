@@ -40,7 +40,7 @@ var _ crypto.Signer = (*HashiCorpVaultSigner)(nil)
 // HashiCorpVault implements the keys.KeyManager interface and can be used to
 // sign export files and encrypt/decrypt data.
 //
-// For encryption keys, when using valut, the keys must be created with
+// For encryption keys, when using value, the keys must be created with
 //   `derived=true`
 type HashiCorpVault struct {
 	client *vaultapi.Client

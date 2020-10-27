@@ -130,7 +130,7 @@ There are two bypass settings that can make development easier for your app deve
 * Health Authority Verification Disabled: Must be set to _false_ in production environments. Can
   be set to _true_ for testing
 
-_Health Authority Certifictes to Accept:_ Check the certificate you configured earlier. This allows
+_Health Authority Certificates to Accept:_ Check the certificate you configured earlier. This allows
 this health authority to trust verification certificates from that verification server.
 
 For more information on diagnosis verification, see:
