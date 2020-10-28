@@ -44,8 +44,10 @@ function incremental() {
 
   ${ROOT}/scripts/ci-terraform.sh init
   pushd "${ROOT}/terraform-e2e-ci" >/dev/null 2>&1
-  terraform taint module.en.null_resource.build
-  terraform taint module.en.null_resource.migrate
+  # Force terraform to redo build and migrate. This step might fail when the previous e2e run failed,
+  # as build or migrate was destroyed but not restalled in terraform state.
+  terraform taint module.en.null_resource.build || best_effort
+  terraform taint module.en.null_resource.migrate || best_effort
   popd >/dev/null 2>&1
   ${ROOT}/scripts/ci-terraform.sh deploy
 
@@ -107,6 +109,10 @@ function boskos_acquire() {
   # Send a heartbeat in the background to keep the lease while using the resource.
   boskosctl_wrapper heartbeat --resource "${resource}" >/dev/null 2>&1 &
   echo "${resource_name}"
+}
+
+function best_effort() {
+  echo "💁🏽 Please disregard error message above, this is best effort"
 }
 
 
