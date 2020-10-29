@@ -19,6 +19,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net/http"
 	"sort"
@@ -42,6 +43,9 @@ import (
 const (
 	filenameSuffix       = ".zip"
 	blobOperationTimeout = 50 * time.Second
+
+	travelerLockID       = "TRAVELERS"
+	exportAppPackageName = "export-generated"
 )
 
 // handleDoWork is a handler to iterate the rows of ExportBatch, and creates
@@ -76,6 +80,24 @@ func (s *Server) handleDoWork(ctx context.Context) http.HandlerFunc {
 				return
 			}
 
+			// Obtain the necessary locks for this export batch. Ensure that only
+			// one export worker is operating over a region at a time.
+			locks := make([]string, len(batch.EffectiveInputRegions()))
+			copy(locks, batch.EffectiveInputRegions())
+			if batch.IncludeTravelers {
+				locks = append(locks, travelerLockID)
+			}
+			unlockFn, err := db.MultiLock(ctx, locks, s.config.WorkerTimeout)
+			if err != nil {
+				logger.Errorw("unable to obtain region locks", "config", batch.ConfigID, "batch", batch.BatchID, "regions", locks, "error", err)
+				continue
+			}
+			unlock := func() {
+				if err := unlockFn(); err != nil {
+					logger.Errorw("failed to unlock region locks", batch.ConfigID, "batch", batch.BatchID, "regions", locks, "error", err)
+				}
+			}
+
 			// We re-write the index file for empty batches for self-healing so that the
 			// index file reflects the ExportFile table in database. However, if a
 			// single worker processes a number of empty batches quickly, we want to
@@ -88,10 +110,13 @@ func (s *Server) handleDoWork(ctx context.Context) http.HandlerFunc {
 				indexWrittenForConfig[batch.ConfigID] = struct{}{}
 			}
 
+			// Ensure that the locks are released on either success or failure path.
 			if err = s.exportBatch(ctx, batch, emitIndexForEmptyBatch); err != nil {
 				logger.Errorf("Failed to create files for batch: %v.", err)
+				unlock()
 				continue
 			}
+			unlock()
 
 			fmt.Fprintf(w, "Batch %d marked completed. \n", batch.BatchID)
 		}
@@ -105,6 +130,115 @@ type group struct {
 
 func (g *group) Length() int {
 	return len(g.exposures) + len(g.revised)
+}
+
+func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.IterateExposuresCriteria, outputRegion string) ([]*group, error) {
+	logger := logging.FromContext(ctx)
+	db := s.env.Database()
+
+	// Build up groups of exposures in memory. We need to use memory so we can
+	// determine the total number of groups (which is embedded in each export
+	// file). This technique avoids SELECT COUNT which would lock the database
+	// slowing new uploads.
+	groups := []*group{}
+	nextGroup := group{}
+	totalNewKeys, totalRevisedKeys := 0, 0
+	droppedKeys := 0
+
+	publishDB := publishdatabase.New(db)
+
+	maxCreatedAt := time.Time{}
+	_, err := publishDB.IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
+		if len(exp.ExposureKey) != verifyapi.KeyLength {
+			droppedKeys++
+			return nil
+		}
+		// see if assigned time for generated data should be moved up.
+		if exp.CreatedAt.After(maxCreatedAt) {
+			maxCreatedAt = exp.CreatedAt
+		}
+		nextGroup.exposures = append(nextGroup.exposures, exp)
+		totalNewKeys++
+		if nextGroup.Length() == s.config.MaxRecords {
+			groups = append(groups, &nextGroup)
+			nextGroup = group{}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("iterating exposures: %w", err)
+	}
+
+	// go get the revised keys.
+	criteria.OnlyRevisedKeys = true
+	_, err = publishDB.IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
+		if len(exp.ExposureKey) != verifyapi.KeyLength {
+			droppedKeys++
+			return nil
+		}
+		nextGroup.revised = append(nextGroup.revised, exp)
+		totalRevisedKeys++
+		if nextGroup.Length() == s.config.MaxRecords {
+			groups = append(groups, &nextGroup)
+			nextGroup = group{}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("iterating revised exposures: %w", err)
+	}
+
+	if droppedKeys > 0 {
+		logger.Errorf("Export found keys of invalid length, %v keys were dropped", droppedKeys)
+		metricsExporter := s.env.MetricsExporter(ctx)
+		metricsMiddleWare := metricsware.NewMiddleWare(&metricsExporter)
+		metricsMiddleWare.RecordExportWorkerBadKeyLength(ctx, droppedKeys)
+	}
+
+	// If the last group has anything, add it to the list.
+	if nextGroup.Length() > 0 {
+		groups = append(groups, &nextGroup)
+	}
+
+	if len(groups) == 0 {
+		logger.Infof("No records for export batch")
+	} else {
+
+		lastGroup := groups[len(groups)-1]
+		var generated []*publishmodel.Exposure
+		lastGroup.exposures, generated, err = ensureMinNumExposures(lastGroup.exposures, outputRegion, s.config.MinRecords, s.config.PaddingRange, maxCreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("ensureMinNumExposures: %w", err)
+		}
+		// padding revised keys doesn't provide any useful protection as one can work backwords and figure out which
+		// keys appeared as primary keys in a previous export.
+
+		if length := len(generated); length > 0 {
+			log.Printf("generated %+v", generated)
+			// we generated some data in order to pad out this export. This data needs to be persisted.
+			insertRequest := &publishdatabase.InsertAndReviseExposuresRequest{
+				RequireToken: false,
+				SkipRevions:  true,
+			}
+			// Insert the generated data in batches.
+			for i := 0; i < length; i = i + s.config.MaxInsertBatchSize {
+				upper := i + s.config.MaxInsertBatchSize
+				if upper > length {
+					upper = length
+				}
+				insertRequest.Incoming = generated[i:upper]
+				insertResponse, err := publishDB.InsertAndReviseExposures(ctx, insertRequest)
+				if err != nil {
+					// If this fails, the batch will be retried.
+					return nil, fmt.Errorf("writing generated data, publishDB.InsertAndReviseExposures: %w", err)
+				}
+				logger.Debugw("persisting generated keys", "num", insertResponse.Inserted)
+				i = i + upper
+			}
+		}
+	}
+
+	return groups, nil
 }
 
 func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitIndexForEmptyBatch bool) error {
@@ -126,77 +260,9 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		OnlyRevisedKeys:     false,
 	}
 
-	// Build up groups of exposures in memory. We need to use memory so we can
-	// determine the total number of groups (which is embedded in each export
-	// file). This technique avoids SELECT COUNT which would lock the database
-	// slowing new uploads.
-	groups := []*group{}
-	nextGroup := group{}
-	totalNewKeys, totalRevisedKeys := 0, 0
-	droppedKeys := 0
-
-	publishDB := publishdatabase.New(db)
-	_, err := publishDB.IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
-		if len(exp.ExposureKey) != verifyapi.KeyLength {
-			droppedKeys++
-			return nil
-		}
-		nextGroup.exposures = append(nextGroup.exposures, exp)
-		totalNewKeys++
-		if nextGroup.Length() == s.config.MaxRecords {
-			groups = append(groups, &nextGroup)
-			nextGroup = group{}
-		}
-		return nil
-	})
+	groups, err := s.batchExposures(ctx, criteria, eb.OutputRegion)
 	if err != nil {
-		return fmt.Errorf("iterating exposures: %w", err)
-	}
-
-	// go get the revised keys.
-	criteria.OnlyRevisedKeys = true
-	_, err = publishDB.IterateExposures(ctx, criteria, func(exp *publishmodel.Exposure) error {
-		if len(exp.ExposureKey) != verifyapi.KeyLength {
-			droppedKeys++
-			return nil
-		}
-		nextGroup.revised = append(nextGroup.revised, exp)
-		totalRevisedKeys++
-		if nextGroup.Length() == s.config.MaxRecords {
-			groups = append(groups, &nextGroup)
-			nextGroup = group{}
-		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("iterating revised exposures: %w", err)
-	}
-
-	if droppedKeys > 0 {
-		logger.Errorf("Export found keys of invalid length, %v keys were dropped", droppedKeys)
-		metricsExporter := s.env.MetricsExporter(ctx)
-		metricsMiddleWare := metricsware.NewMiddleWare(&metricsExporter)
-		metricsMiddleWare.RecordExportWorkerBadKeyLength(ctx, droppedKeys)
-	}
-
-	// If the last group has anything, add it to the list.
-	if nextGroup.Length() > 0 {
-		groups = append(groups, &nextGroup)
-	}
-
-	if len(groups) == 0 {
-		logger.Infof("No records for export batch %d", eb.BatchID)
-	} else {
-
-		lastGroup := groups[len(groups)-1]
-		lastGroup.exposures, err = ensureMinNumExposures(lastGroup.exposures, eb.OutputRegion, s.config.MinRecords, s.config.PaddingRange)
-		if err != nil {
-			return fmt.Errorf("ensureMinNumExposures: %w", err)
-		}
-		lastGroup.revised, err = ensureMinNumExposures(lastGroup.revised, eb.OutputRegion, s.config.MinRecords, s.config.PaddingRange)
-		if err != nil {
-			return fmt.Errorf("ensureMinNumExposures: %w", err)
-		}
+		return fmt.Errorf("reading exposures for batch: %w", err)
 	}
 
 	exportDB := exportdatabase.New(db)
@@ -378,14 +444,16 @@ func randomInt(min, max int) (int, error) {
 	return int(n.Int64()) + min, nil
 }
 
-func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, minLength, jitter int) ([]*publishmodel.Exposure, error) {
-	if len(exposures) == 0 {
-		return exposures, nil
-	}
-
+func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, minLength, jitter int, createdAt time.Time) ([]*publishmodel.Exposure, []*publishmodel.Exposure, error) {
 	extra, _ := randomInt(0, jitter)
 	target := minLength + extra
+
+	if l := len(exposures); l == 0 || l >= target {
+		return exposures, make([]*publishmodel.Exposure, 0), nil
+	}
+
 	sourceLen := len(exposures) - 1
+	generated := make([]*publishmodel.Exposure, 0, target-len(exposures))
 
 	for len(exposures) < target {
 		// Pieces needed are
@@ -394,29 +462,35 @@ func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, mi
 		eKey := make([]byte, verifyapi.KeyLength)
 		_, err := rand.Read(eKey)
 		if err != nil {
-			return nil, fmt.Errorf("rand.Read: %w", err)
+			return nil, nil, fmt.Errorf("rand.Read: %w", err)
 		}
 
 		// Copy timing and report data from a key.
 		fromIdx, err := randomInt(0, sourceLen)
 		if err != nil {
-			return nil, fmt.Errorf("randomInt: %w", err)
+			return nil, nil, fmt.Errorf("randomInt: %w", err)
 		}
 
 		ek := &publishmodel.Exposure{
 			ExposureKey:                  eKey,
 			TransmissionRisk:             exposures[fromIdx].TransmissionRisk,
-			Regions:                      []string{region},
+			AppPackageName:               exportAppPackageName,
+			Regions:                      exposures[fromIdx].Regions,
+			Traveler:                     exposures[fromIdx].Traveler,
 			IntervalNumber:               exposures[fromIdx].IntervalNumber,
 			IntervalCount:                exposures[fromIdx].IntervalCount,
+			CreatedAt:                    createdAt,
+			LocalProvenance:              true,
 			ReportType:                   exposures[fromIdx].ReportType,
 			DaysSinceSymptomOnset:        exposures[fromIdx].DaysSinceSymptomOnset,
+			RevisedAt:                    exposures[fromIdx].RevisedAt,
 			RevisedReportType:            exposures[fromIdx].RevisedReportType,
 			RevisedDaysSinceSymptomOnset: exposures[fromIdx].RevisedDaysSinceSymptomOnset,
 			// The rest of the publishmodel.Exposure fields are not used in the export file.
 		}
+		generated = append(generated, ek)
 		exposures = append(exposures, ek)
 	}
 
-	return exposures, nil
+	return exposures, generated, nil
 }

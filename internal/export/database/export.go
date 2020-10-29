@@ -522,6 +522,9 @@ func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, batchMaxC
 	var openBatchIDs []int64
 
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		// batches are ordered by end time. We try to fill the "oldest"
+		// batches first so that padding written will be covered by
+		// "newer" export batches.
 		rows, err := tx.Query(ctx, `
 			SELECT
 				batch_id
@@ -535,6 +538,8 @@ func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, batchMaxC
 				)
 			AND
 				end_timestamp < $3
+			ORDER BY
+				end_timestamp ASC
 			LIMIT 100
 		`, model.ExportBatchOpen, model.ExportBatchPending, batchMaxCloseTime)
 		if err != nil {

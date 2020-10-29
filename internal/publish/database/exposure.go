@@ -273,8 +273,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 func (db *PublishDB) ReadExposures(ctx context.Context, tx pgx.Tx, b64keys []string) (map[string]*model.Exposure, error) {
 	exposures := make(map[string]*model.Exposure)
 
-	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `
+	rows, err := tx.Query(ctx, `
 			SELECT
 				exposure_key, transmission_risk, app_package_name, regions, traveler,
 				interval_number, interval_count, created_at, local_provenance, sync_id,
@@ -286,47 +285,42 @@ func (db *PublishDB) ReadExposures(ctx context.Context, tx pgx.Tx, b64keys []str
 			WHERE exposure_key = ANY($1)
 			FOR UPDATE
 		`, b64keys)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("failed to iterate: %w", err)
+		}
+
+		var encodedKey string
+		var syncID sql.NullInt64
+
+		var exposure model.Exposure
+		if err := rows.Scan(
+			&encodedKey, &exposure.TransmissionRisk, &exposure.AppPackageName,
+			&exposure.Regions, &exposure.Traveler, &exposure.IntervalNumber, &exposure.IntervalCount,
+			&exposure.CreatedAt, &exposure.LocalProvenance, &syncID,
+			&exposure.HealthAuthorityID, &exposure.ReportType, &exposure.DaysSinceSymptomOnset,
+			&exposure.RevisedReportType, &exposure.RevisedAt, &exposure.RevisedDaysSinceSymptomOnset,
+			&exposure.RevisedTransmissionRisk, &exposure.ExportImportID,
+		); err != nil {
+			return nil, fmt.Errorf("failed to parse: %w", err)
+		}
+
+		// Base64 decode the exposure key
+		exposure.ExposureKey, err = decodeExposureKey(encodedKey)
 		if err != nil {
-			return fmt.Errorf("failed to list: %w", err)
+			return nil, fmt.Errorf("failed to decode key: %w", err)
 		}
-		defer rows.Close()
-
-		for rows.Next() {
-			if err := rows.Err(); err != nil {
-				return fmt.Errorf("failed to iterate: %w", err)
-			}
-
-			var encodedKey string
-			var syncID sql.NullInt64
-
-			var exposure model.Exposure
-			if err := rows.Scan(
-				&encodedKey, &exposure.TransmissionRisk, &exposure.AppPackageName,
-				&exposure.Regions, &exposure.Traveler, &exposure.IntervalNumber, &exposure.IntervalCount,
-				&exposure.CreatedAt, &exposure.LocalProvenance, &syncID,
-				&exposure.HealthAuthorityID, &exposure.ReportType, &exposure.DaysSinceSymptomOnset,
-				&exposure.RevisedReportType, &exposure.RevisedAt, &exposure.RevisedDaysSinceSymptomOnset,
-				&exposure.RevisedTransmissionRisk, &exposure.ExportImportID,
-			); err != nil {
-				return fmt.Errorf("failed to parse: %w", err)
-			}
-
-			// Base64 decode the exposure key
-			exposure.ExposureKey, err = decodeExposureKey(encodedKey)
-			if err != nil {
-				return fmt.Errorf("failed to decode key: %w", err)
-			}
-			// Optionally set all of the nullable columns.
-			if syncID.Valid {
-				exposure.FederationSyncID = syncID.Int64
-			}
-
-			exposures[exposure.ExposureKeyBase64()] = &exposure
+		// Optionally set all of the nullable columns.
+		if syncID.Valid {
+			exposure.FederationSyncID = syncID.Int64
 		}
 
-		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("read exposures: %w", err)
+		exposures[exposure.ExposureKeyBase64()] = &exposure
 	}
 
 	return exposures, nil

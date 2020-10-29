@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -34,6 +35,59 @@ var (
 
 // UnlockFn can be deferred to release a lock.
 type UnlockFn func() error
+
+func (db *DB) MultiLock(ctx context.Context, lockIDs []string, ttl time.Duration) (UnlockFn, error) {
+	if len(lockIDs) == 0 {
+		return nil, fmt.Errorf("no lockIDs presented")
+	}
+
+	lockOrder := make([]string, len(lockIDs))
+	copy(lockOrder, lockIDs)
+	sort.Strings(lockOrder)
+
+	var expires time.Time
+	err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		for _, lockID := range lockOrder {
+			row := tx.QueryRow(ctx, `
+			SELECT AcquireLock($1, $2)
+		`, lockID, int(ttl.Seconds()))
+			if err := row.Scan(&expires); err != nil {
+				return err
+			}
+			if expires.Before(thePast) {
+				return ErrAlreadyLocked
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	logging.FromContext(ctx).Debugf("Acquired locks %v", lockOrder)
+	return makeMultiUnlockFn(ctx, db, lockOrder, expires), nil
+}
+
+func makeMultiUnlockFn(ctx context.Context, db *DB, lockIDs []string, expires time.Time) UnlockFn {
+	return func() error {
+		return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+			for i := len(lockIDs) - 1; i >= 0; i-- {
+				lockID := lockIDs[i]
+				row := tx.QueryRow(ctx, `
+				SELECT ReleaseLock($1, $2)
+			`, lockID, expires)
+				var released bool
+				if err := row.Scan(&released); err != nil {
+					return err
+				}
+				if !released {
+					return fmt.Errorf("cannot delete lock %q that no longer belongs to you; it likely expired and was taken by another process", lockID)
+				}
+				logging.FromContext(ctx).Debugf("Released lock %q", lockID)
+			}
+			return nil
+		})
+	}
+}
 
 // Lock acquires lock with given name that times out after ttl. Returns an UnlockFn that can be used to unlock the lock. ErrAlreadyLocked will be returned if there is already a lock in use.
 func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (UnlockFn, error) {
