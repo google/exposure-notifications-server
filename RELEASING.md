@@ -1,8 +1,11 @@
 # Exposure Notifications Servers Release Process
 
-  * Releases are cut every Tuesday (target time 9am, US Pacific Time)
+  * Releases are cut every other Tuesday (target time 9am, US Pacific Time)
   * All releases will have a release branch and a corresponding tag
   * Both the exposure-notifications-sever and exposure-notifications-verification-server will follow the same release numbering
+
+Most issues will not be backported to previous releases. It is recommended that server
+operators keep up with the release cadence of the open source project as much as possible.
 
 # Dependencies
 
