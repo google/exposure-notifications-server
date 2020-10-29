@@ -19,7 +19,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"net/http"
 	"sort"
@@ -82,6 +81,14 @@ func (s *Server) handleDoWork(ctx context.Context) http.HandlerFunc {
 
 			// Obtain the necessary locks for this export batch. Ensure that only
 			// one export worker is operating over a region at a time.
+			//
+			// In the event that more than one exportconfig covers the same region (and travelers), it
+			// is important that only one export worker be allowed to generate keys for that region.
+			// An exclusive lock is taken before processing the batch over the input regions.
+			//
+			// In the export lease selection, we attempt to order export batch filling such that
+			// earlier batches are filled before later batches. This helps to reduce the possibility
+			// of non-overlapping generated data.
 			locks := make([]string, len(batch.EffectiveInputRegions()))
 			copy(locks, batch.EffectiveInputRegions())
 			if batch.IncludeTravelers {
@@ -214,7 +221,6 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 		// keys appeared as primary keys in a previous export.
 
 		if length := len(generated); length > 0 {
-			log.Printf("generated %+v", generated)
 			// we generated some data in order to pad out this export. This data needs to be persisted.
 			insertRequest := &publishdatabase.InsertAndReviseExposuresRequest{
 				RequireToken: false,
