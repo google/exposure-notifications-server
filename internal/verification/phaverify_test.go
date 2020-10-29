@@ -53,6 +53,7 @@ func TestVerifyCertificate(t *testing.T) {
 		MacKeyAdjustment string
 		ChangeIssuer     string
 		ChangeAudience   string
+		EnforceAudience  bool // TODO(mikehelmick) Remove when removing feature flag
 		Error            string
 	}{
 		{
@@ -64,10 +65,15 @@ func TestVerifyCertificate(t *testing.T) {
 			Error:        "issuer not found",
 		},
 		{
-			Name:           "bad_audience",
-			ChangeAudience: "bar",
-			// Currently a warning, hard error will start in next release.
-			// Error:          "audience mismatch for issuer",
+			Name:            "bad_audience_off",
+			ChangeAudience:  "bar",
+			EnforceAudience: false,
+		},
+		{
+			Name:            "bad_audience",
+			ChangeAudience:  "bar",
+			Error:           "audience mismatch for issuer",
+			EnforceAudience: true,
 		},
 		{
 			Name:  "past",
@@ -249,7 +255,7 @@ func TestVerifyCertificate(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					verifiedClaims, err := verifier.VerifyDiagnosisCertificate(ctx, authApp, &publish)
+					verifiedClaims, err := verifier.VerifyDiagnosisCertificate(ctx, authApp, &publish, tc.EnforceAudience)
 					if err != nil {
 						if tc.Error == "" {
 							t.Fatalf("unexpected error: %v", err)

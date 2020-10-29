@@ -61,7 +61,7 @@ type VerifiedClaims struct {
 // VerifyDiagnosisCertificate accepts a publish request (from which is extracts the JWT),
 // fully verifies the JWT and signture against what the passed in authorrized app is allowed
 // to use. Returns any transmission risk overrides if they are present.
-func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamodel.AuthorizedApp, publish *verifyapi.Publish) (*VerifiedClaims, error) {
+func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamodel.AuthorizedApp, publish *verifyapi.Publish, enforceAudienceMatch bool) (*VerifiedClaims, error) {
 	logger := logging.FromContext(ctx)
 	// These get assigned during the ParseWithClaims closure.
 	var healthAuthorityID int64
@@ -110,9 +110,12 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 
 		// Advisory check the aud.
 		if claims.Audience != ha.Audience {
+			// TODO(mikehelmick) - clean up feature flag casing.
 			logger.Errorw("certifice audience mismatch - will be a failure in the next release", "claims.Aud", claims.Audience, "allowed", ha.Audience, "iss", ha.Issuer)
-			// Hard error will start in next release.
-			// return nil, fmt.Errorf("audience mismatch for issuer: %v", ha.Issuer)
+			if enforceAudienceMatch {
+				// This flag guarding will be removed in a future release.
+				return nil, fmt.Errorf("audience mismatch for issuer: %v", ha.Issuer)
+			}
 		}
 
 		// Find a key version.
