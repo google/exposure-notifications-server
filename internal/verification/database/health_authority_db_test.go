@@ -47,7 +47,6 @@ func TestMissingHealthAuthority(t *testing.T) {
 	if !errors.Is(err, ErrHealthAuthorityNotFound) {
 		t.Fatalf("wrong error want: %v got: %v", ErrHealthAuthorityNotFound, err)
 	}
-
 }
 
 func TestAddRetrieveHealthAuthority(t *testing.T) {
