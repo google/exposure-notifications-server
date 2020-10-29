@@ -14,9 +14,6 @@
 
 # This image is used to run ./scripts/presubmit.sh on CI
 
-# Stable as of 10/22/2020
-FROM chromedp/headless-shell:86.0.4240.111 as headlessshell
-
 FROM golang:1.15.2
 
 # Install sudo
@@ -49,6 +46,12 @@ RUN wget -q https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.ta
         --usage-reporting=false && \
     gcloud components install alpha beta kubectl && \
     gcloud info | tee /workspace/gcloud-info.txt
+
+# Install Chrome - used for browser tests
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - && \
+  sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' && \
+  apt-get update && apt-get install -yqq google-chrome-stable
+
 
 #
 # BEGIN: DOCKER IN DOCKER SETUP
@@ -100,13 +103,5 @@ RUN go get -u golang.org/x/tools/cmd/goimports
 RUN go get -u honnef.co/go/tools/cmd/staticcheck
 # GCP projects pool manager
 RUN go get -u sigs.k8s.io/boskos/cmd/boskosctl
-
-# Copy headless-shell and add it to PATH
-WORKDIR /headless-shell
-RUN mkdir -p /headless-shell
-COPY --from=headlessshell /headless-shell/headless-shell /headless-shell/headless-shell
-# "libnss3.so" under /usr/lib is required by headless-shell, also copy this
-COPY --from=headlessshell /usr/lib/* /usr/lib/
-ENV PATH=/headless-shell:/workspace:${PATH}
 
 ENTRYPOINT ["/bin/runner.sh"]
