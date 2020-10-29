@@ -52,9 +52,7 @@ func (db *DB) MultiLock(ctx context.Context, lockIDs []string, ttl time.Duration
 	var expires time.Time
 	err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		for _, lockID := range lockOrder {
-			row := tx.QueryRow(ctx, `
-			SELECT AcquireLock($1, $2)
-		`, lockID, int(ttl.Seconds()))
+			row := tx.QueryRow(ctx, `SELECT AcquireLock($1, $2)`, lockID, int(ttl.Seconds()))
 			if err := row.Scan(&expires); err != nil {
 				return err
 			}
@@ -76,9 +74,7 @@ func makeMultiUnlockFn(ctx context.Context, db *DB, lockIDs []string, expires ti
 		return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 			for i := len(lockIDs) - 1; i >= 0; i-- {
 				lockID := lockIDs[i]
-				row := tx.QueryRow(ctx, `
-				SELECT ReleaseLock($1, $2)
-			`, lockID, expires)
+				row := tx.QueryRow(ctx, `SELECT ReleaseLock($1, $2)`, lockID, expires)
 				var released bool
 				if err := row.Scan(&released); err != nil {
 					return err
