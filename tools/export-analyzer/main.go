@@ -114,7 +114,7 @@ func checkExportFile(export *exportpb.TemporaryExposureKeyExport) error {
 		errors = multierror.Append(errors, err)
 	}
 
-	if len(errors.Errors) != 0 {
+	if errors != nil && len(errors.Errors) != 0 {
 		return errors
 	}
 	return nil
