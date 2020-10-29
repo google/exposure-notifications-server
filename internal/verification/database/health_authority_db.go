@@ -27,6 +27,10 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
+var (
+	ErrHealthAuthorityNotFound = errors.New("health authority not found")
+)
+
 // HealthAuthorityDB allows for opreations against authorized health authorities
 // for diagnosis signature verification.
 type HealthAuthorityDB struct {
@@ -141,10 +145,13 @@ func (db *HealthAuthorityDB) GetHealthAuthority(ctx context.Context, issuer stri
 		var err error
 		ha, err = scanOneHealthAuthority(row)
 		if err != nil {
-			return fmt.Errorf("failed to parse: %w", err)
+			return err
 		}
 		return nil
 	}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrHealthAuthorityNotFound
+		}
 		return nil, fmt.Errorf("get health authority: %w", err)
 	}
 
