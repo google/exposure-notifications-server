@@ -86,7 +86,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 		previousCreated = allowed[0].CreatedAt
 	}
 
-	var result error
+	var result *multierror.Error
 	deleted := 0
 	for _, key := range allowed {
 		if did, err := s.maybeDeleteKey(ctx, key, effectiveID, previousCreated); err != nil {
@@ -100,7 +100,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 		logger.Infof("Deleted %d old revision keys.", deleted)
 		metricsMiddleware.RecordRevisionKeyDeletion(ctx, deleted)
 	}
-	return result
+	return result.ErrorOrNil()
 }
 
 func (s *Server) maybeDeleteKey(
