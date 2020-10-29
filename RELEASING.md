@@ -1,8 +1,6 @@
 # Exposure Notifications Servers Release Process
 
-  * Releases are cut every other 
-    * Monday for this server (target time 9am, US Pacific Time)
-    * Tuesday for the verification server
+  * Releases are cut every other Tuesday (target time 9am, US Pacific Time)
   * All releases will have a release branch and a corresponding tag
   * Both the exposure-notifications-sever and exposure-notifications-verification-server will follow the same release numbering
 
