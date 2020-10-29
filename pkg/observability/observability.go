@@ -67,7 +67,7 @@ type Exporter interface {
 // if it failed to be created.
 func NewFromEnv(config *Config) (Exporter, error) {
 	// Create a separate ctx.
-	// The main ctx will be cancelled when the server is shutting down. Sharing
+	// The main ctx will be canceled when the server is shutting down. Sharing
 	// the main ctx prevent the last batch of the metrics to be uploaded.
 	ctx := context.Background()
 	switch config.ExporterType {
