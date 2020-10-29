@@ -25,6 +25,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -50,10 +51,23 @@ func TestVerifyCertificate(t *testing.T) {
 		Warp             time.Duration
 		MacAdjustment    string
 		MacKeyAdjustment string
+		ChangeIssuer     string
+		ChangeAudience   string
 		Error            string
 	}{
 		{
 			Name: "happy path, valid cert",
+		},
+		{
+			Name:         "bad_issuer",
+			ChangeIssuer: "foo",
+			Error:        "issuer not found",
+		},
+		{
+			Name:           "bad_audience",
+			ChangeAudience: "bar",
+			// Currently a warning, hard error will start in next release.
+			// Error:          "audience mismatch for issuer",
 		},
 		{
 			Name:  "past",
@@ -76,6 +90,11 @@ func TestVerifyCertificate(t *testing.T) {
 			Error:            "HMAC mismatch, publish request does not match disgnosis verification certificate",
 		},
 	}
+
+	// Set up database. Create HealthAuthority + HAKey for the test.
+	testDB := coredb.NewTestDatabase(t)
+	ctx := context.Background()
+	haDB := database.New(testDB)
 
 	for iteration := 0; iteration < 2; iteration++ {
 		for version := 0; version <= 1; version++ {
@@ -109,14 +128,11 @@ func TestVerifyCertificate(t *testing.T) {
 					pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509EncodedPub})
 					pemPublicKey := string(pemEncodedPub)
 
-					// Set up database. Create HealthAuthority + HAKey for the test.
-					testDB := coredb.NewTestDatabase(t)
-					ctx := context.Background()
-					haDB := database.New(testDB)
-
+					issuer := fmt.Sprintf("issuer-%s-%s-%s", vname, mod, t.Name())
+					audience := fmt.Sprintf("aud-%s-%s-%s", vname, mod, t.Name())
 					healthAuthority := model.HealthAuthority{
-						Issuer:   "doh.my.gov",
-						Audience: "exposure-notifications-server",
+						Issuer:   issuer,
+						Audience: audience,
 						Name:     "Very Real Health Authority",
 					}
 					if err := haDB.AddHealthAuthority(ctx, &healthAuthority); err != nil {
@@ -186,11 +202,18 @@ func TestVerifyCertificate(t *testing.T) {
 						hmac = allHMACs[1]
 					}
 
+					if tc.ChangeIssuer != "" {
+						issuer = tc.ChangeIssuer
+					}
+					if tc.ChangeAudience != "" {
+						audience = tc.ChangeAudience
+					}
+
 					var claims jwt.Claims
 					if version == 0 {
 						v1alpha1claims := v1alpha1.NewVerificationClaims()
-						v1alpha1claims.Audience = "exposure-notifications-server"
-						v1alpha1claims.Issuer = "doh.my.gov"
+						v1alpha1claims.Audience = audience
+						v1alpha1claims.Issuer = issuer
 						v1alpha1claims.IssuedAt = time.Now().Add(tc.Warp).Unix()
 						v1alpha1claims.ExpiresAt = time.Now().Add(tc.Warp).Add(5 * time.Minute).Unix()
 						v1alpha1claims.SignedMAC = tc.MacAdjustment + base64.StdEncoding.EncodeToString(hmac) // would be generated on the client and passed through.
@@ -200,8 +223,8 @@ func TestVerifyCertificate(t *testing.T) {
 						claims = v1alpha1claims
 					} else {
 						v1claims := verifyapi.NewVerificationClaims()
-						v1claims.Audience = "exposure-notifications-server"
-						v1claims.Issuer = "doh.my.gov"
+						v1claims.Audience = audience
+						v1claims.Issuer = issuer
 						v1claims.IssuedAt = time.Now().Add(tc.Warp).Unix()
 						v1claims.ExpiresAt = time.Now().Add(tc.Warp).Add(5 * time.Minute).Unix()
 						v1claims.SignedMAC = tc.MacAdjustment + base64.StdEncoding.EncodeToString(hmac)
@@ -228,7 +251,9 @@ func TestVerifyCertificate(t *testing.T) {
 					}
 					verifiedClaims, err := verifier.VerifyDiagnosisCertificate(ctx, authApp, &publish)
 					if err != nil {
-						if !strings.Contains(err.Error(), tc.Error) {
+						if tc.Error == "" {
+							t.Fatalf("unexpected error: %v", err)
+						} else if !strings.Contains(err.Error(), tc.Error) {
 							t.Fatalf("wanted error '%v', got error '%v'", tc.Error, err.Error())
 						}
 					} else if tc.Error != "" {

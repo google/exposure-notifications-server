@@ -20,6 +20,7 @@ package verification
 import (
 	"context"
 	"crypto/hmac"
+	"errors"
 	"fmt"
 
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
@@ -28,6 +29,7 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/cache"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"
 
 	"github.com/dgrijalva/jwt-go"
@@ -60,6 +62,7 @@ type VerifiedClaims struct {
 // fully verifies the JWT and signture against what the passed in authorrized app is allowed
 // to use. Returns any transmission risk overrides if they are present.
 func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamodel.AuthorizedApp, publish *verifyapi.Publish) (*VerifiedClaims, error) {
+	logger := logging.FromContext(ctx)
 	// These get assigned during the ParseWithClaims closure.
 	var healthAuthorityID int64
 	var claims *verifyapi.VerificationClaims
@@ -84,6 +87,11 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 		lookup := func() (interface{}, error) {
 			// Based on issuer, load the key versions.
 			ha, err := v.db.GetHealthAuthority(ctx, claims.Issuer)
+			// Special case not found so that we can cache it.
+			if errors.Is(err, database.ErrHealthAuthorityNotFound) {
+				logger.Warnw("requested issuer not found", "iss", claims.Issuer)
+				return nil, nil
+			}
 			if err != nil {
 				return nil, fmt.Errorf("error looking up issuer: %v : %w", claims.Issuer, err)
 			}
@@ -94,7 +102,18 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 			return nil, err
 		}
 
+		if cacheVal == nil {
+			return nil, fmt.Errorf("issuer not found: %v", claims.Issuer)
+		}
+
 		ha := cacheVal.(*model.HealthAuthority)
+
+		// Advisory check the aud.
+		if claims.Audience != ha.Audience {
+			logger.Errorw("certifice audience mismatch - will be a failure in the next release", "claims.Aud", claims.Audience, "allowed", ha.Audience, "iss", ha.Issuer)
+			// Hard error will start in next release.
+			// return nil, fmt.Errorf("audience mismatch for issuer: %v", ha.Issuer)
+		}
 
 		// Find a key version.
 		for _, hak := range ha.Keys {

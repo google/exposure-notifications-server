@@ -16,6 +16,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -31,6 +32,23 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEA+k9YktDK3UpOhBIy+O17biuwd/g
 IBSEEHOdgpAynz0yrHpkWL6vxjNHxRdWcImZxPgL0NVHMdY4TlsL7qaxBQ==
 -----END PUBLIC KEY-----`
 )
+
+func TestMissingHealthAuthority(t *testing.T) {
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
+	haDB := New(testDB)
+	ctx := context.Background()
+
+	_, err := haDB.GetHealthAuthority(ctx, "does-not-exist")
+	if err == nil {
+		t.Fatal("missing error")
+	}
+	if !errors.Is(err, ErrHealthAuthorityNotFound) {
+		t.Fatalf("wrong error want: %v got: %v", ErrHealthAuthorityNotFound, err)
+	}
+
+}
 
 func TestAddRetrieveHealthAuthority(t *testing.T) {
 	t.Parallel()
