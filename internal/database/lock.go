@@ -36,12 +36,16 @@ var (
 // UnlockFn can be deferred to release a lock.
 type UnlockFn func() error
 
+// MultiLock obtains multiple locks in a single transaction. Either all locks are obtained, or
+// the transaction is rolled back.
+// The lockIDs are sorted by normal ascending string sort order before obtaining the locks.
 func (db *DB) MultiLock(ctx context.Context, lockIDs []string, ttl time.Duration) (UnlockFn, error) {
 	if len(lockIDs) == 0 {
 		return nil, fmt.Errorf("no lockIDs presented")
 	}
 
 	lockOrder := make([]string, len(lockIDs))
+	// Make a copy of the slice so that we have a stable slice in the unlcok function.
 	copy(lockOrder, lockIDs)
 	sort.Strings(lockOrder)
 
