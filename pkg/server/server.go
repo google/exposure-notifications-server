@@ -62,6 +62,22 @@ func New(port string) (*Server, error) {
 	}, nil
 }
 
+// NewFromListener creates a new server on the given listener. This is useful if
+// you want to customize the listener type (e.g. udp or tcp) or bind network
+// more than `New` allows.
+func NewFromListener(listener net.Listener) (*Server, error) {
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return nil, fmt.Errorf("listener is not tcp")
+	}
+
+	return &Server{
+		ip:       addr.IP.String(),
+		port:     strconv.Itoa(addr.Port),
+		listener: listener,
+	}, nil
+}
+
 // ServeHTTP starts the server and blocks until the provided context is closed.
 // When the provided context is closed, the server is gracefully stopped with a
 // timeout of 5 seconds.
