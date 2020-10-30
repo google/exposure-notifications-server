@@ -45,7 +45,8 @@ type Config struct {
 	MaxSameStartIntervalKeys     uint          `env:"MAX_SAME_START_INTERVAL_KEYS, default=2"`
 	SimulateSameDayRelease       bool          `env:"SIMULATE_SAME_DAY_RELEASE, default=false"`
 	MaxIntervalAge               time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
-	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=21"`
+	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=14"`
+	MaxSypmtomOnsetReportDays    uint          `env:"MAX_VALID_SYMPOTOM_ONSET_REPORT_DAYS, default=28"`
 	CreatedAtTruncateWindow      time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 	DefaultRegion                string        `env:"DEFAULT_REGION, default=US"`
 	ChanceOfKeyRevision          int           `env:"CHANCE_OF_KEY_REVISION, default=30"` // 0-100 are valid values.
@@ -73,6 +74,10 @@ func (c *Config) TruncateWindow() time.Duration {
 
 func (c *Config) MaxSymptomOnsetDays() uint {
 	return c.MaxMagnitudeSymptomOnsetDays
+}
+
+func (c *Config) MaxValidSymptomOnsetReportDays() uint {
+	return c.MaxSypmtomOnsetReportDays
 }
 
 func (c *Config) UseDefaultSymptomOnsetDays() bool {

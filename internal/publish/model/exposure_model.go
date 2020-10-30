@@ -28,6 +28,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"github.com/hashicorp/go-multierror"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
@@ -379,6 +380,7 @@ type TransformerConfig interface {
 	MaxIntervalStartAge() time.Duration
 	TruncateWindow() time.Duration
 	MaxSymptomOnsetDays() uint
+	MaxValidSymptomOnsetReportDays() uint
 	UseDefaultSymptomOnsetDays() bool
 	DefaultSymptomOnsetDays() int32
 	DebugReleaseSameDayKeys() bool
@@ -386,14 +388,15 @@ type TransformerConfig interface {
 
 // Transformer represents a configured Publish -> Exposure[] transformer.
 type Transformer struct {
-	maxExposureKeys            int           // Overall maximum number of keys.
-	maxSameDayKeys             int           // Number of keys that are allowed to have the same start interval.
-	maxIntervalStartAge        time.Duration // How many intervals old does this server accept?
-	truncateWindow             time.Duration
-	maxSymptomOnsetDays        float64 // to avoid casting in comparisons
-	useDefaultSymptomOnsetDays bool
-	defaultSymptomOnsetDays    int32
-	debugReleaseSameDay        bool // If true, still valid keys are not embargoed.
+	maxExposureKeys                int           // Overall maximum number of keys.
+	maxSameDayKeys                 int           // Number of keys that are allowed to have the same start interval.
+	maxIntervalStartAge            time.Duration // How many intervals old does this server accept?
+	truncateWindow                 time.Duration
+	maxSymptomOnsetDays            float64 // to avoid casting in comparisons
+	maxValidSymptomOnsetReportDays uint
+	useDefaultSymptomOnsetDays     bool
+	defaultSymptomOnsetDays        int32
+	debugReleaseSameDay            bool // If true, still valid keys are not embargoed.
 }
 
 // NewTransformer creates a transformer for turning publish API requests into
@@ -407,14 +410,15 @@ func NewTransformer(config TransformerConfig) (*Transformer, error) {
 		return nil, fmt.Errorf("maxSameDayKeys must be >= 1, got %v", config.MaxSameDayKeys())
 	}
 	return &Transformer{
-		maxExposureKeys:            int(config.MaxExposureKeys()),
-		maxSameDayKeys:             int(config.MaxSameDayKeys()),
-		maxIntervalStartAge:        config.MaxIntervalStartAge(),
-		truncateWindow:             config.TruncateWindow(),
-		maxSymptomOnsetDays:        float64(config.MaxSymptomOnsetDays()),
-		useDefaultSymptomOnsetDays: config.UseDefaultSymptomOnsetDays(),
-		defaultSymptomOnsetDays:    config.DefaultSymptomOnsetDays(),
-		debugReleaseSameDay:        config.DebugReleaseSameDayKeys(),
+		maxExposureKeys:                int(config.MaxExposureKeys()),
+		maxSameDayKeys:                 int(config.MaxSameDayKeys()),
+		maxIntervalStartAge:            config.MaxIntervalStartAge(),
+		truncateWindow:                 config.TruncateWindow(),
+		maxSymptomOnsetDays:            float64(config.MaxSymptomOnsetDays()),
+		maxValidSymptomOnsetReportDays: config.MaxValidSymptomOnsetReportDays(),
+		useDefaultSymptomOnsetDays:     config.UseDefaultSymptomOnsetDays(),
+		defaultSymptomOnsetDays:        config.DefaultSymptomOnsetDays(),
+		debugReleaseSameDay:            config.DebugReleaseSameDayKeys(),
 	}, nil
 }
 
@@ -559,11 +563,21 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		BatchWindow:           t.truncateWindow,
 	}
 
-	onsetInterval := inData.SymptomOnsetInterval
-	// If the symtom onset interval provided on publish is too old to be relevant
-	// and one was provided in the verification certificate, take that one.
-	if onsetInterval < settings.MinStartInterval && claims != nil && claims.SymptomOnsetInterval > 0 {
-		onsetInterval = int32(claims.SymptomOnsetInterval)
+	// For validating the
+	currentInterval := IntervalNumber(batchTime)
+	minSymptomInterval := IntervalNumber(
+		timeutils.UTCMidnight(timeutils.SubtractDays(batchTime, t.maxValidSymptomOnsetReportDays)))
+
+	// Base level, assume there is no symptom onset interval present.
+	onsetInterval := int32(0)
+	if pubInt := inData.SymptomOnsetInterval; pubInt < currentInterval && pubInt >= minSymptomInterval {
+		onsetInterval = pubInt
+	} else if claims != nil {
+		if vcInt := int32(claims.SymptomOnsetInterval); vcInt < currentInterval && vcInt >= minSymptomInterval {
+			// If the symtom onset interval provided on publish is too old to be relevant
+			// and one was provided in the verification certificate, take that one.
+			onsetInterval = int32(claims.SymptomOnsetInterval)
+		}
 	}
 
 	// Regions are a multi-value property, uppercase them for storage.
@@ -598,12 +612,14 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		if onsetInterval > 0 {
 			daysSince := DaysFromSymptomOnset(onsetInterval, exposure.IntervalNumber)
 			// Check if the magnitude of this value is too large. If it is too large,
-			// we won't want to set a days since symptom onset value on the TEK
-			// itself, but we do want to warn the application developer that this
-			// value (not TEK) was dropped.
+			// the key is skipped. The onsetInterval was already checked and timeboxed.
+			//
+			// If we reach this point, and onsetInterval is 0, then keys will be subject
+			// to default symptom onset parameters (below).
 			//
 			// There are launched applications using this sever that rely on this
-			// behavior.
+			// behavior - that are passing invalid symotom onset interviews, those
+			// are screened about above when the onsetInterval is set.
 			//
 			// Note that previously this returned an error, but this broke the iOS
 			// implementation since it is unable to handle partial success. As such,
@@ -611,7 +627,8 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 			// response.
 			if abs := math.Abs(float64(daysSince)); abs > t.maxSymptomOnsetDays {
 				logger.Debugw("setting days since symptom onset to null on key due to symptom onset magnitude too high", "daysSince", daysSince)
-				transformWarnings = append(transformWarnings, fmt.Sprintf("key %d symptom onset is too large, %v > %v - saving without days since symptom onset", i, abs, t.maxSymptomOnsetDays))
+				transformWarnings = append(transformWarnings, fmt.Sprintf("key %d symptom onset is too large, %v > %v - saving without this key", i, abs, t.maxSymptomOnsetDays))
+				continue
 			} else {
 				// The value is within acceptable range, save it.
 				exposure.SetDaysSinceSymptomOnset(daysSince)

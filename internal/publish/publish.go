@@ -94,6 +94,10 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("revision.New: %w", err)
 	}
 
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation: %w", err)
+	}
+
 	return &PublishHandler{
 		serverenv:             env,
 		transformer:           transformer,

@@ -431,6 +431,8 @@ func TestPublishWithBypass(t *testing.T) {
 				config.RevisionToken.KeyID = keyID
 				config.ResponsePaddingMinBytes = 100
 				config.ResponsePaddingRange = 100
+				config.MaxMagnitudeSymptomOnsetDays = 14
+				config.MaxSypmtomOnsetReportDays = 28
 				env := serverenv.New(ctx,
 					serverenv.WithDatabase(testDB),
 					serverenv.WithAuthorizedAppProvider(aaProvider),
