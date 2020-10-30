@@ -427,8 +427,7 @@ func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey) []*export.Tem
 			KeyData:                    decoded,
 			TransmissionRiskLevel:      proto.Int32(int32(key.TransmissionRisk)),
 			RollingStartIntervalNumber: proto.Int32(key.IntervalNumber),
-			ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
-		}
+			ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum()}
 	}
 
 	sortTEKs(s)

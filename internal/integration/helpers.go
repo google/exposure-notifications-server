@@ -207,18 +207,20 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	}
 	mux.Handle("/key-rotation/", http.StripPrefix("/key-rotation", rotationServer.Routes(ctx)))
 
-	// Publish
-	publishConfig := &publish.Config{
-		RevisionToken:            revConfig,
-		MaxKeysOnPublish:         15,
-		MaxSameStartIntervalKeys: 2,
-		MaxIntervalAge:           360 * time.Hour,
-		CreatedAtTruncateWindow:  1 * time.Second,
-		ReleaseSameDayKeys:       true,
-		RevisionKeyCacheDuration: time.Second,
-	}
+	// Parse the config to load default values.
+	publishConfig := publish.Config{}
+	envconfig.ProcessWith(ctx, &publishConfig, envconfig.OsLookuper())
+	// Make overrides.
+	publishConfig.RevisionToken = revConfig
+	publishConfig.MaxKeysOnPublish = 15
+	publishConfig.MaxSameStartIntervalKeys = 2
+	publishConfig.MaxIntervalAge = 360 * time.Hour
+	publishConfig.CreatedAtTruncateWindow = 1 * time.Second
+	publishConfig.ReleaseSameDayKeys = true
+	publishConfig.RevisionKeyCacheDuration = time.Second
+	publishConfig.UseDefaultSymptomOnset = false
 
-	publishHandler, err := publish.NewHandler(ctx, publishConfig, env)
+	publishHandler, err := publish.NewHandler(ctx, &publishConfig, env)
 	if err != nil {
 		tb.Fatal(err)
 	}

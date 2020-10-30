@@ -45,6 +45,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/jackc/pgx/v4"
+	"github.com/sethvargo/go-envconfig"
 
 	testutil "github.com/google/exposure-notifications-server/internal/utils"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
@@ -743,6 +744,7 @@ func TestKeyRevision(t *testing.T) {
 
 	// And set up publish handler up front.
 	config := Config{}
+	envconfig.ProcessWith(ctx, &config, envconfig.OsLookuper())
 	config.AuthorizedApp.CacheDuration = time.Nanosecond
 	config.CreatedAtTruncateWindow = time.Second
 	config.MaxKeysOnPublish = 20
@@ -750,6 +752,7 @@ func TestKeyRevision(t *testing.T) {
 	config.MaxIntervalAge = 14 * 24 * time.Hour
 	config.ResponsePaddingMinBytes = 100
 	config.ResponsePaddingRange = 100
+	config.UseDefaultSymptomOnset = false
 	aaProvider, err := authorizedapp.NewDatabaseProvider(ctx, testDB, config.AuthorizedAppConfig())
 	if err != nil {
 		t.Fatal(err)
