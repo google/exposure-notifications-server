@@ -24,12 +24,18 @@ data "google_project" "project" {
   project_id = var.project
 }
 
+# Cloud Resource Manager needs to be enabled first, before other services.
+resource "google_project_service" "resourcemanager" {
+  project            = var.project
+  service            = "cloudresourcemanager.googleapis.com"
+  disable_on_destroy = false
+}
+
 resource "google_project_service" "services" {
   project = data.google_project.project.project_id
   for_each = toset([
     "cloudbuild.googleapis.com",
     "cloudkms.googleapis.com",
-    "cloudresourcemanager.googleapis.com",
     "cloudscheduler.googleapis.com",
     "compute.googleapis.com",
     "containerregistry.googleapis.com",
@@ -43,6 +49,10 @@ resource "google_project_service" "services" {
   ])
   service            = each.value
   disable_on_destroy = false
+
+  depends_on = [
+    google_project_service.resourcemanager,
+  ]
 }
 
 resource "google_compute_global_address" "private_ip_address" {
