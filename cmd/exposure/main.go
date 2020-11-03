@@ -28,6 +28,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	_ "github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/server"
+	"github.com/gorilla/handlers"
 	"github.com/sethvargo/go-signalcontext"
 )
 
@@ -81,5 +82,5 @@ func realMain(ctx context.Context) error {
 	}
 	logger.Infof("listening on :%s", config.Port)
 
-	return srv.ServeHTTPHandler(ctx, mux)
+	return srv.ServeHTTPHandler(ctx, handlers.CombinedLoggingHandler(os.Stdout, mux))
 }
