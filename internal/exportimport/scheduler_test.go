@@ -28,6 +28,35 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
+func TestSyncFileFromIndexErrors(t *testing.T) {
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
+	ctx := context.Background()
+	exportImportDB := exportimportdb.New(testDB)
+
+	fromTime := time.Now().UTC().Add(-1 * time.Second)
+	config := &model.ExportImport{
+		IndexFile:  "index.txt",
+		ExportRoot: "%zzzzz",
+		Region:     "US",
+		From:       fromTime,
+		Thru:       nil,
+	}
+	if err := exportImportDB.AddConfig(ctx, config); err != nil {
+		t.Fatal(err)
+	}
+
+	// test data ensures that URL parsing stripps extra slashes.
+	index := strings.Join([]string{"a.zip", "/b.zip", "//c.zip", ""}, "\n")
+
+	if _, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err == nil {
+		t.Fatalf("expected error")
+	} else if !strings.Contains(err.Error(), "invalid URL escape") {
+		t.Fatalf("wrong error, wanted: invalid URL escape, got: %v", err)
+	}
+}
+
 func TestSyncFileFromIndex(t *testing.T) {
 	t.Parallel()
 
