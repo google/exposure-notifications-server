@@ -25,7 +25,10 @@ resource "google_monitoring_alert_policy" "LatencyTooHigh" {
     display_name = "p50 request latency"
     condition_monitoring_query_language {
       duration = "180s"
-      query    = <<-EOT
+      # NOTE: this is a bit complex because we want to have a single latency
+      # alert (not two alerts one for slow and one for normal), and we can only
+      # have one mql query in a conditions block.
+      query = <<-EOT
       fetch
       cloud_run_revision :: run.googleapis.com/request_latencies
       | add
