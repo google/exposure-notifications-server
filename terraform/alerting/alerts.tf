@@ -52,4 +52,7 @@ resource "google_monitoring_alert_policy" "LatencyTooHigh" {
     EOT
     mime_type = "text/markdown"
   }
+  notification_channels = [
+    google_monitoring_notification_channel.email.id
+  ]
 }

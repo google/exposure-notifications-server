@@ -12,28 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-variable "project" {
-  type        = string
-  description = "GCP project for key server. Required."
-}
-
-variable "notification-email" {
-  type        = string
-  default     = "nobody@example.com"
-  description = "Email address for alerts to go to."
-}
-
-terraform {
-  required_version = ">= 0.13"
-
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 3.46"
-    }
-    google-beta = {
-      source  = "hashicorp/google-beta"
-      version = "~> 3.46"
-    }
+resource "google_monitoring_notification_channel" "email" {
+  provider     = google-beta
+  display_name = "Email Notification Channel"
+  type         = "email"
+  labels = {
+    email_address = var.notification-email
   }
 }
