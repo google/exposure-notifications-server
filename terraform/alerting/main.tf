@@ -22,6 +22,7 @@ provider "google-beta" {
 
 resource "google_project_service" "services" {
   for_each = toset([
+    "monitoring.googleapis.com",
   ])
   service            = each.value
   disable_on_destroy = false
