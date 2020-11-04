@@ -28,42 +28,15 @@ resource "google_monitoring_alert_policy" "LatencyTooHigh" {
       query    = <<-EOT
       fetch
       cloud_run_revision :: run.googleapis.com/request_latencies
-      | filter resource.service_name !~ '${local.slow_services}'
+      | add
+      [type: if(resource.service_name =~ '${local.slow_services}', 'SLOW', 'NORMAL')]
       | align delta(1m)
       | every 1m
-      | group_by [resource.service_name],
+      | group_by [resource.service_name, type],
       [val: percentile(value.request_latencies, 50)]
-      | condition val > 10000 'ms'
-      EOT
-      trigger {
-        count = 1
-      }
-    }
-  }
-  documentation {
-    content   = <<-EOT
-    Our latency is too high for one or more Cloud Run services!
-    EOT
-    mime_type = "text/markdown"
-  }
-}
-
-resource "google_monitoring_alert_policy" "LatencyTooHighSlowServices" {
-  combiner     = "OR"
-  display_name = "LatencyTooHighSlowServices"
-  conditions {
-    display_name = "p50 request latency"
-    condition_monitoring_query_language {
-      duration = "180s"
-      query    = <<-EOT
-      fetch
-      cloud_run_revision :: run.googleapis.com/request_latencies
-      | filter resource.service_name =~ '${local.slow_services}'
-      | align delta(1m)
-      | every 1m
-      | group_by [resource.service_name],
-      [val: percentile(value.request_latencies, 50)]
-      | condition val > 20000 'ms'
+      | condition
+          (type == 'SLOW' && val > 20000 'ms')
+        ||(type == 'NORMAL' && val > 10000 'ms')
       EOT
       trigger {
         count = 1
