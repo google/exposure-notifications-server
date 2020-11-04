@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-local {
+locals {
   slow_services = format("(%s)", join("|", [
     "export",
   ]))
@@ -28,7 +28,7 @@ resource "google_monitoring_alert_policy" "LatencyTooHigh" {
       query    = <<-EOT
       fetch
       cloud_run_revision :: run.googleapis.com/request_latencies
-      | filter resource.service_name !~ '${locals.slow_services}'
+      | filter resource.service_name !~ '${local.slow_services}'
       | align delta(1m)
       | every 1m
       | group_by [resource.service_name],
@@ -58,7 +58,7 @@ resource "google_monitoring_alert_policy" "LatencyTooHighSlowServices" {
       query    = <<-EOT
       fetch
       cloud_run_revision :: run.googleapis.com/request_latencies
-      | filter resource.service_name ~= '${locals.slow_services}'
+      | filter resource.service_name =~ '${local.slow_services}'
       | align delta(1m)
       | every 1m
       | group_by [resource.service_name],
