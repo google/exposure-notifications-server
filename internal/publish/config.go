@@ -70,7 +70,7 @@ type Config struct {
 	// revision token where only a subset of the keys are in the token. In that
 	// case, only the incoming exposure keys that match the revision token are
 	// uploaded and the remainder are discarded.
-	AllowPartialRevisions bool `env:"ALLOW_PARTIAL_REVISIONS, default=false"`
+	AllowPartialRevisions bool `env:"ALLOW_PARTIAL_REVISIONS, default=true"`
 
 	// API Versions.
 	EnableV1Alpha1API bool `env:"ENABLE_V1ALPHA1_API, default=true"`
