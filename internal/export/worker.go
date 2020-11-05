@@ -478,20 +478,18 @@ func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, mi
 		}
 
 		ek := &publishmodel.Exposure{
-			ExposureKey:                  eKey,
-			TransmissionRisk:             exposures[fromIdx].TransmissionRisk,
-			AppPackageName:               exportAppPackageName,
-			Regions:                      exposures[fromIdx].Regions,
-			Traveler:                     exposures[fromIdx].Traveler,
-			IntervalNumber:               exposures[fromIdx].IntervalNumber,
-			IntervalCount:                exposures[fromIdx].IntervalCount,
-			CreatedAt:                    createdAt,
-			LocalProvenance:              true,
-			ReportType:                   exposures[fromIdx].ReportType,
-			DaysSinceSymptomOnset:        exposures[fromIdx].DaysSinceSymptomOnset,
-			RevisedAt:                    exposures[fromIdx].RevisedAt,
-			RevisedReportType:            exposures[fromIdx].RevisedReportType,
-			RevisedDaysSinceSymptomOnset: exposures[fromIdx].RevisedDaysSinceSymptomOnset,
+			ExposureKey:           eKey,
+			TransmissionRisk:      exposures[fromIdx].TransmissionRisk,
+			AppPackageName:        exportAppPackageName,
+			Regions:               exposures[fromIdx].Regions,
+			Traveler:              exposures[fromIdx].Traveler,
+			IntervalNumber:        exposures[fromIdx].IntervalNumber,
+			IntervalCount:         exposures[fromIdx].IntervalCount,
+			CreatedAt:             createdAt,
+			LocalProvenance:       true,
+			ReportType:            exposures[fromIdx].ReportType,
+			DaysSinceSymptomOnset: exposures[fromIdx].DaysSinceSymptomOnset,
+			// key revision fields are not used here - generated data only covers primary keys.
 			// The rest of the publishmodel.Exposure fields are not used in the export file.
 		}
 		generated = append(generated, ek)
