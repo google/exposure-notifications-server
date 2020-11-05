@@ -492,7 +492,7 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 			// Check if a revision token is required.
 			if req.Token == nil {
 				if req.RequireToken {
-					logger.Warnw("attempted to revise keys, but revision token is missing")
+					logger.Warnw("attempted to revise keys, but revision token is missing", "existing_keys", existing)
 					return ErrNoRevisionToken
 				}
 			}
