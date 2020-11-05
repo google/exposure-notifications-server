@@ -47,7 +47,7 @@ type Config struct {
 	WorkerTimeout      time.Duration `env:"WORKER_TIMEOUT, default=5m"`
 	MinRecords         int           `env:"EXPORT_FILE_MIN_RECORDS, default=1000"`
 	PaddingRange       int           `env:"EXPORT_FILE_PADDING_RANGE, default=100"`
-	MaxRecords         int           `env:"EXPORT_FILE_MAX_RECORDS, default=30000"`
+	MaxRecords         int           `env:"EXPORT_FILE_MAX_RECORDS, default=500000"`
 	MaxInsertBatchSize int           `env:"MAX_INSERT_BATCH_SIZE, default=100"`
 	TruncateWindow     time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 	MinWindowAge       time.Duration `env:"MIN_WINDOW_AGE, default=2h"`
