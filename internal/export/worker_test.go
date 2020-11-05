@@ -172,6 +172,7 @@ func TestBatchExposures(t *testing.T) {
 			CreatedAt:       baseTime.Add(time.Duration(i) * time.Hour),
 			LocalProvenance: true,
 			Traveler:        false,
+			ReportType:      verifyapi.ReportTypeClinical,
 		}
 		// foreign country traveler
 		exposures[i*3+1] = &publishmodel.Exposure{
@@ -182,6 +183,7 @@ func TestBatchExposures(t *testing.T) {
 			CreatedAt:       baseTime.Add(time.Duration(i) * time.Hour),
 			LocalProvenance: false,
 			Traveler:        true,
+			ReportType:      verifyapi.ReportTypeConfirmed,
 		}
 		// foreign country non-traveler
 		exposures[i*3+2] = &publishmodel.Exposure{
@@ -192,13 +194,39 @@ func TestBatchExposures(t *testing.T) {
 			CreatedAt:       baseTime.Add(time.Duration(i) * time.Hour),
 			LocalProvenance: false,
 			Traveler:        false,
+			ReportType:      verifyapi.ReportTypeConfirmed,
 		}
 	}
 	if _, err := testPublishDB.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
 		Incoming:     exposures,
-		RequireToken: true,
+		RequireToken: false,
 	}); err != nil {
-		t.Fatal(err)
+		t.Fatalf("inserting exposures: %v", err)
+	}
+	// Make sure there are some revisions.
+	revisions := make([]*publishmodel.Exposure, 0, 12)
+	for i, exp := range exposures {
+		if exp.ReportType == verifyapi.ReportTypeClinical {
+			revExp := &publishmodel.Exposure{
+				ExposureKey:     exp.ExposureKey,
+				Regions:         exp.Regions,
+				IntervalNumber:  exp.IntervalNumber,
+				IntervalCount:   exp.IntervalCount,
+				CreatedAt:       baseTime.Add(time.Duration(i) * time.Hour).Add(time.Minute),
+				LocalProvenance: exp.LocalProvenance,
+				Traveler:        exp.Traveler,
+				ReportType:      verifyapi.ReportTypeConfirmed,
+			}
+			revisions = append(revisions, revExp)
+		}
+	}
+	if len(revisions) > 0 {
+		if _, err := testPublishDB.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+			Incoming:     revisions,
+			RequireToken: false,
+		}); err != nil {
+			t.Fatalf("revising exposures: %v", err)
+		}
 	}
 
 	homePlusTraveler := make(map[string]struct{})
