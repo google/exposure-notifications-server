@@ -115,7 +115,15 @@ func syncFilesFromIndex(ctx context.Context, db *exportimportdb.ExportImportDB, 
 			// drop blank lines.
 			continue
 		}
-		proposedURL := fmt.Sprintf("%s%s", config.ExportRoot, strings.TrimSpace(zipFile))
+
+		// Parse the export root to see if there is a defined path element.
+		base, err := url.Parse(config.ExportRoot)
+		if err != nil {
+			return 0, fmt.Errorf("config.ExportRoot is invalid: %s: %w", config.ExportRoot, err)
+		}
+		relativePath := path.Join(base.Path, "/", strings.TrimSpace(zipFile))
+		// Build and parse the proposed absolute path.
+		proposedURL := fmt.Sprintf("%s%s", config.ExportRoot, relativePath)
 		url, err := url.Parse(proposedURL)
 		if err != nil {
 			return 0, fmt.Errorf("invalid URL constructed: %s: %w", proposedURL, err)
