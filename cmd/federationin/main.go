@@ -63,7 +63,7 @@ func realMain(ctx context.Context) error {
 
 	mux := http.NewServeMux()
 	mux.Handle("/", handler)
-	mux.Handle("/health", server.HandleHealthz(ctx))
+	mux.Handle("/health", server.HandleHealthz)
 
 	srv, err := server.New(config.Port)
 	if err != nil {

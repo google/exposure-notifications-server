@@ -62,7 +62,7 @@ func (s *Server) Routes(ctx context.Context) *http.ServeMux {
 
 	mux.HandleFunc("/schedule", s.handleSchedule(ctx))
 	mux.HandleFunc("/import", s.handleImport(ctx))
-	mux.Handle("/health", server.HandleHealthz(ctx))
+	mux.Handle("/health", server.HandleHealthz)
 
 	return mux
 }

@@ -57,7 +57,7 @@ func (s *Server) Routes(ctx context.Context) *http.ServeMux {
 
 	mux.HandleFunc("/create-batches", s.handleCreateBatches(ctx))
 	mux.HandleFunc("/do-work", s.handleDoWork(ctx))
-	mux.Handle("/health", server.HandleHealthz(ctx))
+	mux.Handle("/health", server.HandleHealthz)
 
 	return mux
 }

@@ -15,13 +15,11 @@
 package server
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 )
 
-func HandleHealthz(hctx context.Context) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, `{"status": "ok"}`)
-	})
-}
+// HandleHealthz is an http.Handler to respond to health check request.
+var HandleHealthz http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, `{"status": "ok"}`)
+})

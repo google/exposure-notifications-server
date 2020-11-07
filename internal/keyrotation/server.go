@@ -67,7 +67,7 @@ func (s *Server) Routes(ctx context.Context) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/rotate-keys", s.handleRotateKeys(ctx))
-	mux.Handle("/health", server.HandleHealthz(ctx))
+	mux.Handle("/health", server.HandleHealthz)
 
 	return mux
 }

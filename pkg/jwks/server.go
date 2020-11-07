@@ -52,7 +52,7 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 
 func (s *Server) Routes(ctx context.Context) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.Handle("/health", server.HandleHealthz(ctx))
+	mux.Handle("/health", server.HandleHealthz)
 	mux.Handle("/", s.handleUpdateAll(ctx))
 
 	return mux
