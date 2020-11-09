@@ -57,6 +57,13 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 		OnError: func(err error) {
 			logger.Errorw("failed to export metric", "error", err, "resource", monitoredResource)
 		},
+		// Do not call CreateMetricDescriptor method.
+		// If SkipCMD=false, metric will be automatically created each time the
+		// library need to export data points to a non-exit metric descriptor.
+		// Some of our metric descriptors are managed by Terraform, and update
+		// to these metrics requires a destroy and recreate. The create step
+		// will most likely fail if SkipCMD=false.
+		SkipCMD: true,
 	})
 
 	if err != nil {
