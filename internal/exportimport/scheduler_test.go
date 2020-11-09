@@ -57,7 +57,7 @@ func TestSyncFileFromIndexErrorsInExportRoot(t *testing.T) {
 	}
 }
 
-func TestSyncFileFromIndexErrorsInFilename(t *testing.T) {
+func TestSyncFilenameShapes(t *testing.T) {
 	t.Parallel()
 
 	testDB := database.NewTestDatabase(t)
@@ -65,24 +65,169 @@ func TestSyncFileFromIndexErrorsInFilename(t *testing.T) {
 	exportImportDB := exportimportdb.New(testDB)
 
 	fromTime := time.Now().UTC().Add(-1 * time.Second)
-	config := &model.ExportImport{
-		IndexFile:  "index.txt",
-		ExportRoot: "http://foo/",
-		Region:     "US",
-		From:       fromTime,
-		Thru:       nil,
-	}
-	if err := exportImportDB.AddConfig(ctx, config); err != nil {
-		t.Fatal(err)
+
+	cases := []struct {
+		name   string
+		config *model.ExportImport
+		index  []string
+		want   []string
+	}{
+		{
+			name: "shallow_root_no_path",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/index.txt",
+				ExportRoot: "https://cdn.example.com",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"/export-a.zip",
+				"/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/export-a.zip",
+				"https://cdn.example.com/export-b.zip",
+			},
+		},
+		{
+			name: "shallow_root_no_path_trailing_slash",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/index.txt",
+				ExportRoot: "https://cdn.example.com/",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"/export-a.zip",
+				"/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/export-a.zip",
+				"https://cdn.example.com/export-b.zip",
+			},
+		},
+		{
+			name: "nested_paths",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/folder/region-us/index.txt",
+				ExportRoot: "https://cdn.example.com/folder/",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"region-us/export-a.zip",
+				"region-us/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/folder/region-us/export-a.zip",
+				"https://cdn.example.com/folder/region-us/export-b.zip",
+			},
+		},
+		{
+			name: "nested_paths_missing_slash",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/folder/region-us/index.txt",
+				ExportRoot: "https://cdn.example.com/folder",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"region-us/export-a.zip",
+				"region-us/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/folder/region-us/export-a.zip",
+				"https://cdn.example.com/folder/region-us/export-b.zip",
+			},
+		},
+		{
+			name: "deeply_nested_paths",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/folder/a/b/c/region-us/index.txt",
+				ExportRoot: "https://cdn.example.com/folder/a/b",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"c/region-us/export-a.zip",
+				"c/region-us/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/folder/a/b/c/region-us/export-a.zip",
+				"https://cdn.example.com/folder/a/b/c/region-us/export-b.zip",
+			},
+		},
+		{
+			name: "one_folder",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/region-us/index.txt",
+				ExportRoot: "https://cdn.example.com/",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"region-us/export-a.zip",
+				"region-us/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/region-us/export-a.zip",
+				"https://cdn.example.com/region-us/export-b.zip",
+			},
+		},
+		{
+			name: "one_folder_without_slash",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/region-us/index.txt",
+				ExportRoot: "https://cdn.example.com",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"region-us/export-a.zip",
+				"region-us/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/region-us/export-a.zip",
+				"https://cdn.example.com/region-us/export-b.zip",
+			},
+		},
 	}
 
-	// test data ensures that URL parsing stripps extra slashes.
-	index := strings.Join([]string{"%zzzzz", "/b.zip", "//c.zip", ""}, "\n")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := tc.config
+			if err := exportImportDB.AddConfig(ctx, config); err != nil {
+				t.Fatal(err)
+			}
 
-	if _, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err == nil {
-		t.Fatalf("expected error")
-	} else if !strings.Contains(err.Error(), "invalid URL escape") {
-		t.Fatalf("wrong error, wanted: invalid URL escape, got: %v", err)
+			index := strings.Join(tc.index, "\n")
+
+			wantN := len(tc.want)
+			if n, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
+				t.Fatal(err)
+			} else if n != wantN {
+				t.Fatalf("wanted sync result of %d, got: %d", wantN, n)
+			}
+
+			files, err := exportImportDB.GetOpenImportFiles(ctx, time.Second, config)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got := make([]string, len(files))
+			for i, f := range files {
+				got[i] = f.ZipFilename
+			}
+
+			options := cmp.Options{
+				cmpopts.SortSlices(func(a, b string) bool {
+					return strings.Compare(a, b) <= 0
+				}),
+			}
+			if diff := cmp.Diff(tc.want, got, options); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
+			}
+		})
 	}
 }
 
