@@ -90,11 +90,11 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 				continue
 			}
 
-			if n, err := syncFilesFromIndex(ctx, s.exportImportDB, config, string(bytes)); err != nil {
+			if n, f, err := syncFilesFromIndex(ctx, s.exportImportDB, config, string(bytes)); err != nil {
 				logger.Errorw("error syncing index file contents", "exportImportID", config.ID, "error", err)
 				anyErrors = true
 			} else {
-				logger.Infow("import index sync result", "exportImportID", config.ID, "index", config.IndexFile, "newFiles", n)
+				logger.Infow("import index sync result", "exportImportID", config.ID, "index", config.IndexFile, "newFiles", n, "failedFiles", f)
 			}
 		}
 
@@ -134,15 +134,15 @@ func buildArchiveURLs(ctx context.Context, config *model.ExportImport, index str
 	return currentFiles, nil
 }
 
-func syncFilesFromIndex(ctx context.Context, db *exportimportdb.ExportImportDB, config *model.ExportImport, index string) (int, error) {
+func syncFilesFromIndex(ctx context.Context, db *exportimportdb.ExportImportDB, config *model.ExportImport, index string) (int, int, error) {
 	currentFiles, err := buildArchiveURLs(ctx, config, index)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
-	n, err := db.CreateFiles(ctx, config, currentFiles)
+	n, f, err := db.CreateNewFilesAndFailOld(ctx, config, currentFiles)
 	if err != nil {
-		return 0, fmt.Errorf("error syncing export filenames to database: %w", err)
+		return 0, 0, fmt.Errorf("error syncing export filenames to database: %w", err)
 	}
-	return n, nil
+	return n, f, nil
 }

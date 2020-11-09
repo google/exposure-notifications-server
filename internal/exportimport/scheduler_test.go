@@ -50,7 +50,7 @@ func TestSyncFileFromIndexErrorsInExportRoot(t *testing.T) {
 	// test data ensures that URL parsing stripps extra slashes.
 	index := strings.Join([]string{"a.zip", "/b.zip", "//c.zip", ""}, "\n")
 
-	if _, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err == nil {
+	if _, _, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err == nil {
 		t.Fatalf("expected error")
 	} else if !strings.Contains(err.Error(), "invalid URL escape") {
 		t.Fatalf("wrong error, wanted: invalid URL escape, got: %v", err)
@@ -203,13 +203,15 @@ func TestSyncFilenameShapes(t *testing.T) {
 			index := strings.Join(tc.index, "\n")
 
 			wantN := len(tc.want)
-			if n, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
+			if n, f, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
 				t.Fatal(err)
 			} else if n != wantN {
-				t.Fatalf("wanted sync result of %d, got: %d", wantN, n)
+				t.Fatalf("wanted sync result of %d new files, got: %d", wantN, n)
+			} else if f != 0 {
+				t.Fatalf("wanted sync result of 0 failed files, got: %d", f)
 			}
 
-			files, err := exportImportDB.GetOpenImportFiles(ctx, time.Second, config)
+			files, err := exportImportDB.GetOpenImportFiles(ctx, time.Second, time.Hour, config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -272,13 +274,15 @@ func TestSyncFileFromIndex(t *testing.T) {
 			// test data ensures that URL parsing stripps extra slashes.
 			index := strings.Join([]string{"a.zip", "/b.zip", "//c.zip", ""}, "\n")
 
-			if n, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
+			if n, f, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
 				t.Fatal(err)
 			} else if n != 3 {
 				t.Fatalf("wanted sync result of 3, got: %d", n)
+			} else if f != 0 {
+				t.Fatalf("wanted sync result of 0 failed, got: %d", f)
 			}
 
-			files, err := exportImportDB.GetOpenImportFiles(ctx, time.Second, config)
+			files, err := exportImportDB.GetOpenImportFiles(ctx, time.Second, time.Hour, config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -314,23 +318,20 @@ func TestSyncFileFromIndex(t *testing.T) {
 			// shift the index
 			index = strings.Join([]string{"/b.zip", "/c.zip", "/d.zip"}, "\n")
 
-			if n, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
+			if n, f, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
 				t.Fatal(err)
 			} else if n != 1 {
 				t.Fatalf("wanted sync result of 1, got: %d", n)
+			} else if f != 1 {
+				t.Fatalf("wanted sync result of 1 failed, got: %d", f)
 			}
 
-			files, err = exportImportDB.GetOpenImportFiles(ctx, time.Second, config)
+			files, err = exportImportDB.GetOpenImportFiles(ctx, time.Second, time.Hour, config)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			want = []*model.ImportFile{
-				{
-					ExportImportID: config.ID,
-					ZipFilename:    fmt.Sprintf("https://myserver/%s", "a.zip"),
-					Status:         model.ImportFileOpen,
-				},
 				{
 					ExportImportID: config.ID,
 					ZipFilename:    fmt.Sprintf("https://myserver/%s", "b.zip"),

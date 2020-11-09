@@ -51,6 +51,9 @@ type Config struct {
 	// Each exposure is inserted with the app_package_name / healthAuthorityID that it was published with
 	// Use this string to signal that a key came from the export-importer job.
 	ImportAPKName string `env:"IMPORT_APP_PACKAGE_NAME, default=exportimport"`
+	// ImportRetryRate is the rate at which files that encounter an error while
+	// importing are retried.
+	ImportRetryRate time.Duration `env:"IMPORT_RETRY_RATE, default=6h"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
