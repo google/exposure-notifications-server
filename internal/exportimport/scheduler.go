@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -123,9 +122,7 @@ func buildArchiveURLs(ctx context.Context, config *model.ExportImport, index str
 			return nil, fmt.Errorf("config.ExportRoot is invalid: %s: %w", config.ExportRoot, err)
 		}
 		base.Path = path.Join(base.Path, "/", strings.TrimSpace(zipFile))
-		log.Printf("%v", base.Path)
 		proposedURL := base.String()
-		log.Printf("%v", proposedURL)
 		// Re-parse combined URL in case there are issues with the filename in the index file.
 		url, err := url.Parse(proposedURL)
 		if err != nil {
