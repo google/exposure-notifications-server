@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -107,7 +108,7 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 	}
 }
 
-func syncFilesFromIndex(ctx context.Context, db *exportimportdb.ExportImportDB, config *model.ExportImport, index string) (int, error) {
+func buildArchiveURLs(ctx context.Context, config *model.ExportImport, index string) ([]string, error) {
 	zipNames := strings.Split(index, "\n")
 	currentFiles := make([]string, 0, len(zipNames))
 	for _, zipFile := range zipNames {
@@ -119,17 +120,27 @@ func syncFilesFromIndex(ctx context.Context, db *exportimportdb.ExportImportDB, 
 		// Parse the export root to see if there is a defined path element.
 		base, err := url.Parse(config.ExportRoot)
 		if err != nil {
-			return 0, fmt.Errorf("config.ExportRoot is invalid: %s: %w", config.ExportRoot, err)
+			return nil, fmt.Errorf("config.ExportRoot is invalid: %s: %w", config.ExportRoot, err)
 		}
-		relativePath := path.Join(base.Path, "/", strings.TrimSpace(zipFile))
-		// Build and parse the proposed absolute path.
-		proposedURL := fmt.Sprintf("%s%s", config.ExportRoot, relativePath)
+		base.Path = path.Join(base.Path, "/", strings.TrimSpace(zipFile))
+		log.Printf("%v", base.Path)
+		proposedURL := base.String()
+		log.Printf("%v", proposedURL)
+		// Re-parse combined URL in case there are issues with the filename in the index file.
 		url, err := url.Parse(proposedURL)
 		if err != nil {
-			return 0, fmt.Errorf("invalid URL constructed: %s: %w", proposedURL, err)
+			return nil, fmt.Errorf("invalid URL constructed: %s: %w", proposedURL, err)
 		}
 		url.Path = path.Clean(url.Path)
 		currentFiles = append(currentFiles, url.String())
+	}
+	return currentFiles, nil
+}
+
+func syncFilesFromIndex(ctx context.Context, db *exportimportdb.ExportImportDB, config *model.ExportImport, index string) (int, error) {
+	currentFiles, err := buildArchiveURLs(ctx, config, index)
+	if err != nil {
+		return 0, err
 	}
 
 	n, err := db.CreateFiles(ctx, config, currentFiles)
