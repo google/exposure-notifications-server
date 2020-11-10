@@ -215,7 +215,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	publishConfig.MaxKeysOnPublish = 15
 	publishConfig.MaxSameStartIntervalKeys = 2
 	publishConfig.MaxIntervalAge = 360 * time.Hour
-	publishConfig.CreatedAtTruncateWindow = 1 * time.Second
+	publishConfig.CreatedAtTruncateWindow = time.Second
 	publishConfig.ReleaseSameDayKeys = true
 	publishConfig.RevisionKeyCacheDuration = time.Second
 

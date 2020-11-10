@@ -560,8 +560,9 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		BatchWindow:           t.truncateWindow,
 	}
 
-	// For validating the
+	// For validating key timing information, can't be newer than now.
 	currentInterval := IntervalNumber(batchTime)
+	// For validating the passed in symptom interval, relative to current time.
 	minSymptomInterval := IntervalNumber(
 		timeutils.UTCMidnight(timeutils.SubtractDays(batchTime, t.maxValidSymptomOnsetReportDays)))
 

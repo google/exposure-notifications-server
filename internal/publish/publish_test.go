@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -1110,7 +1109,6 @@ func TestKeyRevision(t *testing.T) {
 				sort.Slice(tc.Publish.Keys, func(i, j int) bool {
 					return tc.Publish.Keys[i].IntervalNumber >= tc.Publish.Keys[j].IntervalNumber
 				})
-				log.Printf("KEYS %+v", tc.Publish.Keys)
 				for i, k := range tc.Publish.Keys {
 					expectedKeys[i] = k.Key
 					keyBytes, err := base64util.DecodeString(k.Key)
