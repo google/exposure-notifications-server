@@ -381,8 +381,7 @@ type TransformerConfig interface {
 	TruncateWindow() time.Duration
 	MaxSymptomOnsetDays() uint
 	MaxValidSymptomOnsetReportDays() uint
-	UseDefaultSymptomOnsetDays() bool
-	DefaultSymptomOnsetDays() int32
+	DefaultSymptomOnsetDaysAgo() uint
 	DebugReleaseSameDayKeys() bool
 }
 
@@ -394,8 +393,7 @@ type Transformer struct {
 	truncateWindow                 time.Duration
 	maxSymptomOnsetDays            float64 // to avoid casting in comparisons
 	maxValidSymptomOnsetReportDays uint
-	useDefaultSymptomOnsetDays     bool
-	defaultSymptomOnsetDays        int32
+	defaultSymptomOnsetDaysAgo     uint
 	debugReleaseSameDay            bool // If true, still valid keys are not embargoed.
 }
 
@@ -416,8 +414,7 @@ func NewTransformer(config TransformerConfig) (*Transformer, error) {
 		truncateWindow:                 config.TruncateWindow(),
 		maxSymptomOnsetDays:            float64(config.MaxSymptomOnsetDays()),
 		maxValidSymptomOnsetReportDays: config.MaxValidSymptomOnsetReportDays(),
-		useDefaultSymptomOnsetDays:     config.UseDefaultSymptomOnsetDays(),
-		defaultSymptomOnsetDays:        config.DefaultSymptomOnsetDays(),
+		defaultSymptomOnsetDaysAgo:     config.DefaultSymptomOnsetDaysAgo(),
 		debugReleaseSameDay:            config.DebugReleaseSameDayKeys(),
 	}, nil
 }
@@ -579,6 +576,17 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 			onsetInterval = int32(claims.SymptomOnsetInterval)
 		}
 	}
+	// If we reach this point, and onsetInterval is 0 OR if the onset interval
+	// is "unreasonable" then we default the onsetInterval to 4 (*configurable)
+	// days ago to approximate symptom onset.
+	//
+	// There are launched applications using this sever that rely on this
+	// behavior - that are passing invalid symotom onset interviews, those
+	// are screened about above when the onsetInterval is set.
+	if daysSince := math.Abs(float64(DaysFromSymptomOnset(onsetInterval, currentInterval))); onsetInterval == 0 || daysSince > float64(t.maxValidSymptomOnsetReportDays) {
+		logger.Debugw("defaulting days since symptom onset")
+		onsetInterval = IntervalNumber(timeutils.SubtractDays(batchTime, t.defaultSymptomOnsetDaysAgo))
+	}
 
 	// Regions are a multi-value property, uppercase them for storage.
 	// There is no set of "valid" regions overall, but it is defined
@@ -611,16 +619,6 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		// Set days since onset, either from the API or from the verified claims (see above).
 		if onsetInterval > 0 {
 			daysSince := DaysFromSymptomOnset(onsetInterval, exposure.IntervalNumber)
-			// Check if the magnitude of this value is too large. If it is too large,
-			// the key is skipped. The onsetInterval was already checked and timeboxed.
-			//
-			// If we reach this point, and onsetInterval is 0, then keys will be subject
-			// to default symptom onset parameters (below).
-			//
-			// There are launched applications using this sever that rely on this
-			// behavior - that are passing invalid symotom onset interviews, those
-			// are screened about above when the onsetInterval is set.
-			//
 			// Note that previously this returned an error, but this broke the iOS
 			// implementation since it is unable to handle partial success. As such,
 			// it was converted to a warning that's a separate field in the API
@@ -629,14 +627,10 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 				logger.Debugw("setting days since symptom onset to null on key due to symptom onset magnitude too high", "daysSince", daysSince)
 				transformWarnings = append(transformWarnings, fmt.Sprintf("key %d symptom onset is too large, %v > %v - saving without this key", i, abs, t.maxSymptomOnsetDays))
 				continue
-			} else {
-				// The value is within acceptable range, save it.
-				exposure.SetDaysSinceSymptomOnset(daysSince)
 			}
-		}
-		// See if a default symptom onset days should be applied.
-		if exposure.DaysSinceSymptomOnset == nil && t.useDefaultSymptomOnsetDays {
-			exposure.SetDaysSinceSymptomOnset(t.defaultSymptomOnsetDays)
+
+			// The value is within acceptable range, save it.
+			exposure.SetDaysSinceSymptomOnset(daysSince)
 		}
 
 		exposure.Traveler = inData.Traveler

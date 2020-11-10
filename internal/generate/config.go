@@ -52,8 +52,7 @@ type Config struct {
 	ChanceOfKeyRevision          int           `env:"CHANCE_OF_KEY_REVISION, default=30"` // 0-100 are valid values.
 	ChanceOfTraveler             int           `env:"CHANCE_OF_TRAVELER, default=20"`     // 0-100 are valid values
 	KeyRevisionDelay             time.Duration `env:"KEY_REVISION_DELAY, default=2h"`     // key revision will be forward dates this amount.
-	UseDefaultSymptomOnset       bool          `env:"USE_DEFAULT_SYMPTOM_ONSET_DAYS, default=true"`
-	SymptomOnsetDays             uint          `env:"DEFAULT_SYMPTOM_ONSET_DAYS, default=10"`
+	SymptomOnsetDaysAgo          uint          `env:"DEFAULT_SYMPTOM_ONSET_DAYS_AGO, default=4"`
 }
 
 func (c *Config) MaxExposureKeys() uint {
@@ -80,12 +79,8 @@ func (c *Config) MaxValidSymptomOnsetReportDays() uint {
 	return c.MaxSypmtomOnsetReportDays
 }
 
-func (c *Config) UseDefaultSymptomOnsetDays() bool {
-	return c.UseDefaultSymptomOnset
-}
-
-func (c *Config) DefaultSymptomOnsetDays() int32 {
-	return int32(c.SymptomOnsetDays)
+func (c *Config) DefaultSymptomOnsetDaysAgo() uint {
+	return c.SymptomOnsetDaysAgo
 }
 
 func (c *Config) DebugReleaseSameDayKeys() bool {

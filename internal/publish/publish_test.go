@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -43,6 +44,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/jackc/pgx/v4"
 	"github.com/sethvargo/go-envconfig"
@@ -53,6 +55,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/proto"
 )
 
 type version int
@@ -631,7 +634,7 @@ func TestPublishWithBypass(t *testing.T) {
 							})
 							return out
 						})
-						ignoreCreatedAt := cmpopts.IgnoreFields(*want[0], "CreatedAt")
+						ignoreCreatedAt := cmpopts.IgnoreFields(*want[0], "CreatedAt", "DaysSinceSymptomOnset")
 
 						if diff := cmp.Diff(want, got, sorter, ignoreCreatedAt, cmpopts.IgnoreUnexported(model.Exposure{})); diff != "" {
 							t.Errorf("mismatch (-want, +got):\n%s", diff)
@@ -742,6 +745,7 @@ func TestKeyRevision(t *testing.T) {
 	signingKey := testutil.GetSigningKey(t)
 	testutil.InitalizeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, signingKey)
 
+	defaultSymptomOnsetDaysAgo := uint(1)
 	// And set up publish handler up front.
 	config := Config{}
 	envconfig.ProcessWith(ctx, &config, envconfig.OsLookuper())
@@ -752,7 +756,7 @@ func TestKeyRevision(t *testing.T) {
 	config.MaxIntervalAge = 14 * 24 * time.Hour
 	config.ResponsePaddingMinBytes = 100
 	config.ResponsePaddingRange = 100
-	config.UseDefaultSymptomOnset = false
+	config.SymptomOnsetDaysAgo = defaultSymptomOnsetDaysAgo
 	aaProvider, err := authorizedapp.NewDatabaseProvider(ctx, testDB, config.AuthorizedAppConfig())
 	if err != nil {
 		t.Fatal(err)
@@ -784,6 +788,10 @@ func TestKeyRevision(t *testing.T) {
 	defer server.Close()
 
 	pubDB := pubdb.New(testDB)
+
+	// the first key in each publish will be at this time.
+	utcDay := timeutils.UTCMidnight(time.Now())
+	intervalNumber := uint32(utcDay.Unix()/600) - verifyapi.MaxIntervalCount
 
 	cases := []struct {
 		Name               string
@@ -988,11 +996,12 @@ func TestKeyRevision(t *testing.T) {
 			// Do the initial insert
 			{
 				cfg := &testutil.JWTConfig{
-					HealthAuthority:    healthAuthority,
-					HealthAuthorityKey: healthAuthorityKey,
-					ExposureKeys:       tc.Publish.Keys,
-					Key:                signingKey.Key,
-					ReportType:         verifyapi.ReportTypeClinical,
+					HealthAuthority:      healthAuthority,
+					HealthAuthorityKey:   healthAuthorityKey,
+					ExposureKeys:         tc.Publish.Keys,
+					Key:                  signingKey.Key,
+					SymptomOnsetInterval: intervalNumber,
+					ReportType:           verifyapi.ReportTypeClinical,
 				}
 				verification, salt := testutil.IssueJWT(t, cfg)
 				tc.Publish.VerificationPayload = verification
@@ -1040,11 +1049,12 @@ func TestKeyRevision(t *testing.T) {
 				tc.Publish = *publishData
 
 				cfg := &testutil.JWTConfig{
-					HealthAuthority:    healthAuthority,
-					HealthAuthorityKey: healthAuthorityKey,
-					ExposureKeys:       tc.Publish.Keys,
-					Key:                signingKey.Key,
-					ReportType:         tc.ReportTypeMesser(verifyapi.ReportTypeConfirmed),
+					HealthAuthority:      healthAuthority,
+					HealthAuthorityKey:   healthAuthorityKey,
+					ExposureKeys:         tc.Publish.Keys,
+					Key:                  signingKey.Key,
+					SymptomOnsetInterval: intervalNumber,
+					ReportType:           tc.ReportTypeMesser(verifyapi.ReportTypeConfirmed),
 				}
 
 				if messer := tc.VerificationMesser; messer != nil {
@@ -1096,6 +1106,10 @@ func TestKeyRevision(t *testing.T) {
 				want := make(map[string]*model.Exposure)
 				revisedReportType := verifyapi.ReportTypeConfirmed
 				revisedTransmissionRisk := verifyapi.TransmissionRiskConfirmedStandard
+				sort.Slice(tc.Publish.Keys, func(i, j int) bool {
+					return tc.Publish.Keys[i].IntervalNumber >= tc.Publish.Keys[j].IntervalNumber
+				})
+				log.Printf("KEYS %+v", tc.Publish.Keys)
 				for i, k := range tc.Publish.Keys {
 					expectedKeys[i] = k.Key
 					keyBytes, err := base64util.DecodeString(k.Key)
@@ -1103,19 +1117,20 @@ func TestKeyRevision(t *testing.T) {
 						t.Fatalf("unable to decode exposure key: %v", err)
 					}
 					want[k.Key] = &model.Exposure{
-						ExposureKey:             keyBytes,
-						TransmissionRisk:        verifyapi.TransmissionRiskClinical,
-						AppPackageName:          haName,
-						Regions:                 []string{region},
-						Traveler:                false,
-						IntervalNumber:          k.IntervalNumber,
-						IntervalCount:           k.IntervalCount,
-						LocalProvenance:         true,
-						HealthAuthorityID:       &healthAuthority.ID,
-						ReportType:              verifyapi.ReportTypeClinical,
-						DaysSinceSymptomOnset:   nil,
-						RevisedReportType:       &revisedReportType,
-						RevisedTransmissionRisk: &revisedTransmissionRisk,
+						ExposureKey:                  keyBytes,
+						TransmissionRisk:             verifyapi.TransmissionRiskClinical,
+						AppPackageName:               haName,
+						Regions:                      []string{region},
+						Traveler:                     false,
+						IntervalNumber:               k.IntervalNumber,
+						IntervalCount:                k.IntervalCount,
+						LocalProvenance:              true,
+						HealthAuthorityID:            &healthAuthority.ID,
+						ReportType:                   verifyapi.ReportTypeClinical,
+						DaysSinceSymptomOnset:        proto.Int32(int32(-1 * i)),
+						RevisedReportType:            &revisedReportType,
+						RevisedTransmissionRisk:      &revisedTransmissionRisk,
+						RevisedDaysSinceSymptomOnset: proto.Int32(int32(-1 * i)),
 					}
 					if !keysAreRevisions {
 						ex := want[k.Key]
@@ -1123,6 +1138,7 @@ func TestKeyRevision(t *testing.T) {
 						ex.RevisedReportType = nil
 						ex.TransmissionRisk = *ex.RevisedTransmissionRisk
 						ex.RevisedTransmissionRisk = nil
+						ex.RevisedDaysSinceSymptomOnset = nil
 					}
 				}
 

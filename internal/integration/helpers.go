@@ -218,7 +218,6 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	publishConfig.CreatedAtTruncateWindow = 1 * time.Second
 	publishConfig.ReleaseSameDayKeys = true
 	publishConfig.RevisionKeyCacheDuration = time.Second
-	publishConfig.UseDefaultSymptomOnset = false
 
 	publishHandler, err := publish.NewHandler(ctx, &publishConfig, env)
 	if err != nil {

@@ -48,8 +48,7 @@ type testConfig struct {
 	truncateWindow                 time.Duration
 	maxSymptomOnsetDays            uint
 	maxValidSymptomOnsetReportDays uint
-	useDefaultSymptomOnsetDays     bool
-	defaultSymptomOnsetDays        int32
+	defaultSymptomOnsetDays        uint
 	debugReleaseSameDay            bool
 }
 
@@ -77,11 +76,7 @@ func (c *testConfig) MaxValidSymptomOnsetReportDays() uint {
 	return c.maxValidSymptomOnsetReportDays
 }
 
-func (c *testConfig) UseDefaultSymptomOnsetDays() bool {
-	return c.useDefaultSymptomOnsetDays
-}
-
-func (c *testConfig) DefaultSymptomOnsetDays() int32 {
+func (c *testConfig) DefaultSymptomOnsetDaysAgo() uint {
 	return c.defaultSymptomOnsetDays
 }
 
@@ -498,7 +493,7 @@ func TestTransform(t *testing.T) {
 	wantRegions := []string{"US", "CA", "MX"}
 	batchTime := captureStartTime.Add(time.Hour * 24 * 7)
 	batchTimeRounded := TruncateWindow(batchTime, time.Hour)
-	defaultSymptomOnset := int32(10)
+	defaultSymptomOnset := uint(4)
 
 	cases := []struct {
 		Name         string
@@ -552,7 +547,7 @@ func TestTransform(t *testing.T) {
 					Regions:               wantRegions,
 					CreatedAt:             batchTimeRounded,
 					LocalProvenance:       true,
-					DaysSinceSymptomOnset: &defaultSymptomOnset,
+					DaysSinceSymptomOnset: int32Ptr(-3),
 				},
 				{
 					ExposureKey:           testKeys[1],
@@ -563,7 +558,7 @@ func TestTransform(t *testing.T) {
 					Regions:               wantRegions,
 					CreatedAt:             batchTimeRounded,
 					LocalProvenance:       true,
-					DaysSinceSymptomOnset: &defaultSymptomOnset,
+					DaysSinceSymptomOnset: int32Ptr(-2),
 				},
 				{
 					ExposureKey:           testKeys[2],
@@ -574,7 +569,7 @@ func TestTransform(t *testing.T) {
 					Regions:               wantRegions,
 					CreatedAt:             batchTimeRounded,
 					LocalProvenance:       true,
-					DaysSinceSymptomOnset: &defaultSymptomOnset,
+					DaysSinceSymptomOnset: int32Ptr(-1),
 				},
 				{
 					ExposureKey:           testKeys[3],
@@ -585,7 +580,7 @@ func TestTransform(t *testing.T) {
 					Regions:               wantRegions,
 					CreatedAt:             batchTimeRounded,
 					LocalProvenance:       true,
-					DaysSinceSymptomOnset: &defaultSymptomOnset,
+					DaysSinceSymptomOnset: int32Ptr(0),
 				},
 			},
 		},
@@ -623,7 +618,7 @@ func TestTransform(t *testing.T) {
 					CreatedAt:             batchTimeRounded,
 					LocalProvenance:       true,
 					ReportType:            verifyapi.ReportTypeConfirmed,
-					DaysSinceSymptomOnset: &defaultSymptomOnset,
+					DaysSinceSymptomOnset: int32Ptr(-3),
 				},
 				{
 					ExposureKey:           testKeys[1],
@@ -635,7 +630,7 @@ func TestTransform(t *testing.T) {
 					CreatedAt:             batchTimeRounded,
 					LocalProvenance:       true,
 					ReportType:            verifyapi.ReportTypeConfirmed,
-					DaysSinceSymptomOnset: &defaultSymptomOnset,
+					DaysSinceSymptomOnset: int32Ptr(-2),
 				},
 			},
 		},
@@ -799,7 +794,7 @@ func TestTransform(t *testing.T) {
 					},
 				},
 				HealthAuthorityID:    appPackage,
-				SymptomOnsetInterval: int32(intervalNumber + 1*verifyapi.MaxIntervalCount),
+				SymptomOnsetInterval: int32(intervalNumber + +verifyapi.MaxIntervalCount),
 			},
 			Regions: wantRegions,
 			Claims: &verification.VerifiedClaims{
@@ -855,17 +850,17 @@ func TestTransform(t *testing.T) {
 				Keys: []verifyapi.ExposureKey{
 					{
 						Key:            encodeKey(testKeys[3]),
-						IntervalNumber: intervalNumber,
+						IntervalNumber: intervalNumber + 2*verifyapi.MaxIntervalCount,
 						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 					{
 						Key:            encodeKey(testKeys[4]),
-						IntervalNumber: intervalNumber + verifyapi.MaxIntervalCount,
+						IntervalNumber: intervalNumber + 3*verifyapi.MaxIntervalCount,
 						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 					{
 						Key:            encodeKey(testKeys[5]),
-						IntervalNumber: intervalNumber + 2*verifyapi.MaxIntervalCount,
+						IntervalNumber: intervalNumber + 4*verifyapi.MaxIntervalCount,
 						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 				},
@@ -880,32 +875,6 @@ func TestTransform(t *testing.T) {
 			Want: []*Exposure{
 				{
 					ExposureKey:           testKeys[3],
-					IntervalNumber:        intervalNumber,
-					IntervalCount:         verifyapi.MaxIntervalCount,
-					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
-					AppPackageName:        appPackage,
-					Regions:               wantRegions,
-					CreatedAt:             batchTimeRounded,
-					LocalProvenance:       true,
-					ReportType:            verifyapi.ReportTypeClinical,
-					DaysSinceSymptomOnset: &defaultSymptomOnset,
-					HealthAuthorityID:     int64Ptr(27),
-				},
-				{
-					ExposureKey:           testKeys[4],
-					IntervalNumber:        intervalNumber + verifyapi.MaxIntervalCount,
-					IntervalCount:         verifyapi.MaxIntervalCount,
-					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
-					AppPackageName:        appPackage,
-					Regions:               wantRegions,
-					CreatedAt:             batchTimeRounded,
-					LocalProvenance:       true,
-					ReportType:            verifyapi.ReportTypeClinical,
-					DaysSinceSymptomOnset: &defaultSymptomOnset,
-					HealthAuthorityID:     int64Ptr(27),
-				},
-				{
-					ExposureKey:           testKeys[5],
 					IntervalNumber:        intervalNumber + 2*verifyapi.MaxIntervalCount,
 					IntervalCount:         verifyapi.MaxIntervalCount,
 					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
@@ -914,7 +883,33 @@ func TestTransform(t *testing.T) {
 					CreatedAt:             batchTimeRounded,
 					LocalProvenance:       true,
 					ReportType:            verifyapi.ReportTypeClinical,
-					DaysSinceSymptomOnset: &defaultSymptomOnset,
+					DaysSinceSymptomOnset: int32Ptr(-1),
+					HealthAuthorityID:     int64Ptr(27),
+				},
+				{
+					ExposureKey:           testKeys[4],
+					IntervalNumber:        intervalNumber + 3*verifyapi.MaxIntervalCount,
+					IntervalCount:         verifyapi.MaxIntervalCount,
+					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
+					AppPackageName:        appPackage,
+					Regions:               wantRegions,
+					CreatedAt:             batchTimeRounded,
+					LocalProvenance:       true,
+					ReportType:            verifyapi.ReportTypeClinical,
+					DaysSinceSymptomOnset: int32Ptr(0),
+					HealthAuthorityID:     int64Ptr(27),
+				},
+				{
+					ExposureKey:           testKeys[5],
+					IntervalNumber:        intervalNumber + 4*verifyapi.MaxIntervalCount,
+					IntervalCount:         verifyapi.MaxIntervalCount,
+					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
+					AppPackageName:        appPackage,
+					Regions:               wantRegions,
+					CreatedAt:             batchTimeRounded,
+					LocalProvenance:       true,
+					ReportType:            verifyapi.ReportTypeClinical,
+					DaysSinceSymptomOnset: int32Ptr(1),
 					HealthAuthorityID:     int64Ptr(27),
 				},
 			},
@@ -925,12 +920,12 @@ func TestTransform(t *testing.T) {
 				Keys: []verifyapi.ExposureKey{
 					{
 						Key:            encodeKey(testKeys[6]),
-						IntervalNumber: intervalNumber - (4 * verifyapi.MaxIntervalCount),
+						IntervalNumber: intervalNumber,
 						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 					{
 						Key:            encodeKey(testKeys[7]),
-						IntervalNumber: intervalNumber - (1 * verifyapi.MaxIntervalCount),
+						IntervalNumber: intervalNumber + 1*verifyapi.MaxIntervalCount,
 						IntervalCount:  verifyapi.MaxIntervalCount,
 					},
 				},
@@ -940,12 +935,12 @@ func TestTransform(t *testing.T) {
 			Claims: &verification.VerifiedClaims{
 				HealthAuthorityID:    27,
 				ReportType:           verifyapi.ReportTypeClinical,
-				SymptomOnsetInterval: uint32(intervalNumber - 16*verifyapi.MaxIntervalCount),
+				SymptomOnsetInterval: uint32(intervalNumber - 14*verifyapi.MaxIntervalCount),
 			},
 			Want: []*Exposure{
 				{
 					ExposureKey:           testKeys[6],
-					IntervalNumber:        intervalNumber - (4 * verifyapi.MaxIntervalCount),
+					IntervalNumber:        intervalNumber,
 					IntervalCount:         verifyapi.MaxIntervalCount,
 					TransmissionRisk:      verifyapi.TransmissionRiskClinical,
 					AppPackageName:        appPackage,
@@ -953,7 +948,7 @@ func TestTransform(t *testing.T) {
 					CreatedAt:             batchTimeRounded,
 					LocalProvenance:       true,
 					ReportType:            verifyapi.ReportTypeClinical,
-					DaysSinceSymptomOnset: int32Ptr(12),
+					DaysSinceSymptomOnset: int32Ptr(14),
 					HealthAuthorityID:     int64Ptr(27),
 				},
 			},
@@ -969,7 +964,6 @@ func TestTransform(t *testing.T) {
 		truncateWindow:                 time.Hour,
 		maxSymptomOnsetDays:            maxSymptomOnsetDays,
 		maxValidSymptomOnsetReportDays: maxValidSymptomOnsetReportDays,
-		useDefaultSymptomOnsetDays:     true,
 		defaultSymptomOnsetDays:        defaultSymptomOnset,
 	})
 	if err != nil {
@@ -1008,61 +1002,68 @@ func TestTransform(t *testing.T) {
 
 func TestDefaultSymptomOnset(t *testing.T) {
 	now := time.Now()
-	intervalNumber := IntervalNumber(now) - 1
+	onsetDaysAgo := uint(4)
 
 	cases := []struct {
 		name               string
 		source             verifyapi.Publish
-		useOnsetDefault    bool
-		onsetDefault       int32
 		wantDaysSinceOnset *int32
 	}{
 		{
-			name: "use_default_when_not_set",
+			name: "more_than_onset_days_ago",
 			source: verifyapi.Publish{
 				Keys: []verifyapi.ExposureKey{
 					{
 						Key:              encodeKey(generateKey(t)),
-						IntervalNumber:   intervalNumber,
+						IntervalNumber:   IntervalNumber(timeutils.SubtractDays(now, onsetDaysAgo+1)),
 						IntervalCount:    verifyapi.MaxIntervalCount,
 						TransmissionRisk: 1,
 					},
 				},
 			},
-			useOnsetDefault:    true,
-			onsetDefault:       10,
-			wantDaysSinceOnset: proto.Int32(10),
+			wantDaysSinceOnset: int32Ptr(-1),
 		},
 		{
-			name: "do_not_set_default",
+			name: "exactly_onset_days_ago",
 			source: verifyapi.Publish{
 				Keys: []verifyapi.ExposureKey{
 					{
 						Key:              encodeKey(generateKey(t)),
-						IntervalNumber:   intervalNumber,
+						IntervalNumber:   IntervalNumber(timeutils.SubtractDays(now, onsetDaysAgo)),
 						IntervalCount:    verifyapi.MaxIntervalCount,
 						TransmissionRisk: 1,
 					},
 				},
 			},
-			useOnsetDefault:    false,
-			onsetDefault:       12,
-			wantDaysSinceOnset: nil,
+			wantDaysSinceOnset: int32Ptr(0),
+		},
+		{
+			name: "less_than_onset_days_ago",
+			source: verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:              encodeKey(generateKey(t)),
+						IntervalNumber:   IntervalNumber(timeutils.SubtractDays(now, onsetDaysAgo-1)),
+						IntervalCount:    verifyapi.MaxIntervalCount,
+						TransmissionRisk: 1,
+					},
+				},
+			},
+			wantDaysSinceOnset: int32Ptr(1),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			allowedAge := 2 * 24 * time.Hour
+			allowedAge := 6 * 24 * time.Hour
 			transformer, err := NewTransformer(&testConfig{
-				maxExposureKeys:            10,
-				maxSameDayKeys:             1,
-				maxIntervalStartAge:        allowedAge,
-				truncateWindow:             time.Minute,
-				maxSymptomOnsetDays:        maxSymptomOnsetDays,
-				debugReleaseSameDay:        false,
-				useDefaultSymptomOnsetDays: tc.useOnsetDefault,
-				defaultSymptomOnsetDays:    tc.onsetDefault,
+				maxExposureKeys:         10,
+				maxSameDayKeys:          1,
+				maxIntervalStartAge:     allowedAge,
+				truncateWindow:          time.Minute,
+				maxSymptomOnsetDays:     maxSymptomOnsetDays,
+				debugReleaseSameDay:     false,
+				defaultSymptomOnsetDays: onsetDaysAgo,
 			})
 			if err != nil {
 				t.Fatal(err)

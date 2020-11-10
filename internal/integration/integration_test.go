@@ -417,6 +417,9 @@ func getExposures(db *database.DB, criteria publishdb.IterateExposuresCriteria) 
 // output).
 func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey) []*export.TemporaryExposureKey {
 	s := make([]*export.TemporaryExposureKey, len(keys))
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i].IntervalNumber >= keys[j].IntervalNumber
+	})
 	for i, key := range keys {
 		decoded, err := base64util.DecodeString(key.Key)
 		if err != nil {
@@ -427,7 +430,10 @@ func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey) []*export.Tem
 			KeyData:                    decoded,
 			TransmissionRiskLevel:      proto.Int32(int32(key.TransmissionRisk)),
 			RollingStartIntervalNumber: proto.Int32(key.IntervalNumber),
-			ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum()}
+			ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
+			// Keys are generated 1 day ago and then -1 day for each additional.
+			DaysSinceOnsetOfSymptoms: proto.Int32(int32(3 - i)),
+		}
 	}
 
 	sortTEKs(s)

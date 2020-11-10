@@ -65,10 +65,9 @@ type Config struct {
 	// that range would be subject to the default symptom onset flags (see below).
 	MaxSypmtomOnsetReportDays uint `env:"MAX_VALID_SYMPOTOM_ONSET_REPORT_DAYS, default=28"`
 
-	// If set, TEKs that arrive without a days since symptom onset (i.e. no symptom onset date)
-	// will be set to the default symptom onset days.
-	UseDefaultSymptomOnset bool `env:"USE_DEFAULT_SYMPTOM_ONSET_DAYS, default=true"`
-	SymptomOnsetDays       uint `env:"DEFAULT_SYMPTOM_ONSET_DAYS, default=10"`
+	// TEKs that arrive without a days since symptom onset (i.e. no symptom onset date),
+	// then the upload date minus DEFAULT_SYMPTOM_ONSET_DAYS_AGO is used.
+	SymptomOnsetDaysAgo uint `env:"DEFAULT_SYMPTOM_ONSET_DAYS_AGO, default=4"`
 
 	ResponsePaddingMinBytes int64 `env:"RESPONSE_PADDING_MIN_BYTES, default=1024"`
 	ResponsePaddingRange    int64 `env:"RESPONSE_PADDING_RANGE, default=1024"`
@@ -139,12 +138,8 @@ func (c *Config) MaxValidSymptomOnsetReportDays() uint {
 	return c.MaxSypmtomOnsetReportDays
 }
 
-func (c *Config) UseDefaultSymptomOnsetDays() bool {
-	return c.UseDefaultSymptomOnset
-}
-
-func (c *Config) DefaultSymptomOnsetDays() int32 {
-	return int32(c.SymptomOnsetDays)
+func (c *Config) DefaultSymptomOnsetDaysAgo() uint {
+	return c.SymptomOnsetDaysAgo
 }
 
 func (c *Config) DebugReleaseSameDayKeys() bool {
