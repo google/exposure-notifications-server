@@ -757,6 +757,7 @@ func TestKeyRevision(t *testing.T) {
 	config.ResponsePaddingMinBytes = 100
 	config.ResponsePaddingRange = 100
 	config.SymptomOnsetDaysAgo = defaultSymptomOnsetDaysAgo
+	config.AllowPartialRevisions = false
 	aaProvider, err := authorizedapp.NewDatabaseProvider(ctx, testDB, config.AuthorizedAppConfig())
 	if err != nil {
 		t.Fatal(err)
@@ -1090,7 +1091,7 @@ func TestKeyRevision(t *testing.T) {
 				}
 
 				if response.Code != tc.RevErrorCode {
-					t.Fatalf("wrong code on revision, want %#v, got %#v", tc.RevErrorCode, response.Code)
+					t.Fatalf("wrong code on revision, want %#v, got %#v", tc.RevErrorCode, response)
 				}
 
 				if tc.RevErrorCode == "" {
