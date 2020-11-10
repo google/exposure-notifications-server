@@ -172,7 +172,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		logger.Info("configuring observability exporter")
 
 		oeConfig := provider.ObservabilityExporterConfig()
-		oe, err := observability.NewFromEnv(ctx, oeConfig)
+		oe, err := observability.NewFromEnv(oeConfig)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create observability provider: %v", err)
 		}

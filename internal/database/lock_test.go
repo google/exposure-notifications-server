@@ -83,3 +83,46 @@ func TestLock(t *testing.T) {
 		t.Fatalf("got %d rows from Lock table, wanted zero", count)
 	}
 }
+
+func TestMultiLock(t *testing.T) {
+	t.Parallel()
+
+	testDB := NewTestDatabase(t)
+	ctx := context.Background()
+
+	neededLocks := []string{"traveler", "US", "CA", "MX"}
+
+	unlock1, err := testDB.MultiLock(ctx, neededLocks, time.Minute)
+	if err != nil {
+		t.Fatalf("failed to obtain locks, %v, err: %v", neededLocks, err)
+	}
+
+	overlappingLocks := []string{"CA", "CH", "UK"}
+
+	if _, err := testDB.MultiLock(ctx, overlappingLocks, time.Minute); err == nil {
+		t.Fatalf("expected lock acquisition to fail, but didn't.")
+	} else if !errors.Is(err, ErrAlreadyLocked) {
+		t.Fatalf("wong error want: %v, got: %v", ErrAlreadyLocked, err)
+	}
+
+	nonoverlappingLocks := []string{"CH", "UK"}
+	unlock2, err := testDB.MultiLock(ctx, nonoverlappingLocks, time.Minute)
+	if err != nil {
+		t.Fatalf("failed to obtain locks, %v, err: %v", nonoverlappingLocks, err)
+	}
+
+	if err := unlock1(); err != nil {
+		t.Fatalf("failed to release locks: %v", err)
+	}
+
+	// should still fail, because there is still ovelap w/ the second lock.
+	if _, err := testDB.MultiLock(ctx, overlappingLocks, time.Minute); err == nil {
+		t.Fatalf("expected lock acquisition to fail, but didn't.")
+	} else if !errors.Is(err, ErrAlreadyLocked) {
+		t.Fatalf("wong error want: %v, got: %v", ErrAlreadyLocked, err)
+	}
+
+	if err := unlock2(); err != nil {
+		t.Fatalf("failed to release locks: %v", err)
+	}
+}

@@ -167,12 +167,6 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 	want.Thru = time.Time{}
 	want.SignatureInfoIDs = []int64{1, 2, 3, 4, 5}
 	want.InputRegions = []string{"US", "CA"}
-	want.EFGSConfig.Enabled = true
-	want.EFGSConfig.UploadHost = "https://somwehere.else.com/"
-	want.EFGSConfig.MTLSCertSecret = "secret-ref/mtls/cert"
-	want.EFGSConfig.MTLSKeySecret = "secret-ref/mtls/key"
-	want.EFGSConfig.SigningCertSecret = "secret-ref/signing/cert"
-	want.EFGSConfig.SigningKeySecret = "secret-ref/signing/key"
 
 	if err := exportDB.UpdateExportConfig(ctx, want); err != nil {
 		t.Fatal(err)

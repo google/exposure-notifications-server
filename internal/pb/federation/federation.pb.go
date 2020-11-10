@@ -116,8 +116,7 @@ type FederationFetchRequest struct {
 	MaxExposureKeys uint32 `protobuf:"varint,5,opt,name=maxExposureKeys,proto3" json:"maxExposureKeys,omitempty"`
 	// region, includeTravelers, onlyTravelers must be stable to send a fetchToken.
 	// initial query should send an empty fetch state token.
-	State            *FetchState `protobuf:"bytes,6,opt,name=state,proto3" json:"state,omitempty"`
-	OnlyNonTravelers bool        `protobuf:"varint,7,opt,name=onlyNonTravelers,proto3" json:"onlyNonTravelers,omitempty"`
+	State *FetchState `protobuf:"bytes,6,opt,name=state,proto3" json:"state,omitempty"`
 }
 
 func (x *FederationFetchRequest) Reset() {

@@ -175,7 +175,8 @@ func TestUpdateHA(t *testing.T) {
 
 			// Add the HealthAuthority & Keys to the DB. Note, we need to remove all
 			// keys from the testing HealthAuthority before adding it to the DB as it's
-			// checked for empty.
+			// checked for empty. Also the function we're calling below (updateHA)
+			// expects the keys to be empty in the HealthAuthority.
 			var keys []*model.HealthAuthorityKey
 			keys, test.ha.Keys = test.ha.Keys, nil
 			haDB := hadb.New(mgr.db)
@@ -188,7 +189,6 @@ func TestUpdateHA(t *testing.T) {
 					t.Fatalf("[%d] error adding key: %v", i, err)
 				}
 			}
-			test.ha.Keys = keys
 
 			// Now, run the whole flow for a HealthAuthority.
 			if err := mgr.updateHA(ctx, &test.ha); err != nil {
