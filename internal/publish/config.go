@@ -16,6 +16,7 @@
 package publish
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
@@ -27,6 +28,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
+	"github.com/hashicorp/go-multierror"
 )
 
 // Compile-time check to assert this config matches requirements.
@@ -51,15 +53,21 @@ type Config struct {
 	Port             string `env:"PORT, default=8080"`
 	MaxKeysOnPublish uint   `env:"MAX_KEYS_ON_PUBLISH, default=30"`
 	// Provides compatibility w/ 1.5 release.
-	MaxSameStartIntervalKeys     uint          `env:"MAX_SAME_START_INTERVAL_KEYS, default=3"`
-	MaxIntervalAge               time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
-	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=10"`
-	CreatedAtTruncateWindow      time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
+	MaxSameStartIntervalKeys uint          `env:"MAX_SAME_START_INTERVAL_KEYS, default=3"`
+	MaxIntervalAge           time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
+	CreatedAtTruncateWindow  time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 
-	// If set, TEKs that arrive without a days since symptom onset (i.e. no symptom onset date)
-	// will be set to the default symptom onset days.
-	UseDefaultSymptomOnset bool `env:"USE_DEFAULT_SYMPTOM_ONSET_DAYS, default=true"`
-	SymptomOnsetDays       uint `env:"DEFAULT_SYMPTOM_ONSET_DAYS, default=10"`
+	// Symptom onset settings.
+	// Maximum valid range. TEKs presneted with values outside this range, but still "reasonable" will not be saved.
+	MaxMagnitudeSymptomOnsetDays uint `env:"MAX_SYMPTOM_ONSET_DAYS, default=14"`
+	// MaxValidSypmtomOnsetReportDays indicates how many days would be considered
+	// a valid symptom onset report (-val..+val). Anything outside
+	// that range would be subject to the default symptom onset flags (see below).
+	MaxSypmtomOnsetReportDays uint `env:"MAX_VALID_SYMPOTOM_ONSET_REPORT_DAYS, default=28"`
+
+	// TEKs that arrive without a days since symptom onset (i.e. no symptom onset date),
+	// then the upload date minus DEFAULT_SYMPTOM_ONSET_DAYS_AGO is used.
+	SymptomOnsetDaysAgo uint `env:"DEFAULT_SYMPTOM_ONSET_DAYS_AGO, default=4"`
 
 	ResponsePaddingMinBytes int64 `env:"RESPONSE_PADDING_MIN_BYTES, default=1024"`
 	ResponsePaddingRange    int64 `env:"RESPONSE_PADDING_RANGE, default=1024"`
@@ -91,6 +99,21 @@ type Config struct {
 	DebugLogBadCertificates bool `env:"DEBUG_LOG_BAD_CERTIFICATES"`
 }
 
+func (c *Config) Validate() error {
+	var result *multierror.Error
+
+	if c.MaxMagnitudeSymptomOnsetDays == 0 {
+		result = multierror.Append(result,
+			fmt.Errorf("env var `MAX_SYMPTOM_ONSET_DAYS` must be > 0, got: %v", c.MaxMagnitudeSymptomOnsetDays))
+	}
+	if c.MaxSypmtomOnsetReportDays == 0 {
+		result = multierror.Append(result,
+			fmt.Errorf("env var `MAX_VALID_SYMPOTOM_ONSET_REPORT_DAYS` must be > 0, got: %v", c.MaxSypmtomOnsetReportDays))
+	}
+
+	return result.ErrorOrNil()
+}
+
 func (c *Config) MaxExposureKeys() uint {
 	return c.MaxKeysOnPublish
 }
@@ -111,12 +134,12 @@ func (c *Config) MaxSymptomOnsetDays() uint {
 	return c.MaxMagnitudeSymptomOnsetDays
 }
 
-func (c *Config) UseDefaultSymptomOnsetDays() bool {
-	return c.UseDefaultSymptomOnset
+func (c *Config) MaxValidSymptomOnsetReportDays() uint {
+	return c.MaxSypmtomOnsetReportDays
 }
 
-func (c *Config) DefaultSymptomOnsetDays() int32 {
-	return int32(c.SymptomOnsetDays)
+func (c *Config) DefaultSymptomOnsetDaysAgo() uint {
+	return c.SymptomOnsetDaysAgo
 }
 
 func (c *Config) DebugReleaseSameDayKeys() bool {
