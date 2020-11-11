@@ -69,7 +69,7 @@ require (
 	github.com/lib/pq v1.8.0 // indirect
 	github.com/lstoll/awskms v0.0.0-20200603175638-a388516467f1
 	github.com/mattn/go-colorable v0.1.7 // indirect
-	github.com/mikehelmick/go-chaff v0.3.0
+	github.com/mikehelmick/go-chaff v0.4.1
 	github.com/mitchellh/cli v1.1.1 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/mapstructure v1.3.3
