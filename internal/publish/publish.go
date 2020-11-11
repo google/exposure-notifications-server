@@ -94,6 +94,10 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("revision.New: %w", err)
 	}
 
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation: %w", err)
+	}
+
 	return &PublishHandler{
 		serverenv:             env,
 		transformer:           transformer,
@@ -277,7 +281,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	}
 
 	// Perform health authority certificate verification.
-	verifiedClaims, err := h.verifier.VerifyDiagnosisCertificate(ctx, appConfig, data)
+	verifiedClaims, err := h.verifier.VerifyDiagnosisCertificate(ctx, appConfig, data, h.config.FailOnCertificateAudienceMismatch)
 	if err != nil {
 		if appConfig.BypassHealthAuthorityVerification {
 			logger.Warnf("bypassing health authority certificate verification health authority: %v", appConfig.AppPackageName)

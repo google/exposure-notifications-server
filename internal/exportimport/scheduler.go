@@ -107,7 +107,7 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 	}
 }
 
-func syncFilesFromIndex(ctx context.Context, db *exportimportdb.ExportImportDB, config *model.ExportImport, index string) (int, error) {
+func buildArchiveURLs(ctx context.Context, config *model.ExportImport, index string) ([]string, error) {
 	zipNames := strings.Split(index, "\n")
 	currentFiles := make([]string, 0, len(zipNames))
 	for _, zipFile := range zipNames {
@@ -115,13 +115,29 @@ func syncFilesFromIndex(ctx context.Context, db *exportimportdb.ExportImportDB, 
 			// drop blank lines.
 			continue
 		}
-		proposedURL := fmt.Sprintf("%s%s", config.ExportRoot, strings.TrimSpace(zipFile))
+
+		// Parse the export root to see if there is a defined path element.
+		base, err := url.Parse(config.ExportRoot)
+		if err != nil {
+			return nil, fmt.Errorf("config.ExportRoot is invalid: %s: %w", config.ExportRoot, err)
+		}
+		base.Path = path.Join(base.Path, "/", strings.TrimSpace(zipFile))
+		proposedURL := base.String()
+		// Re-parse combined URL in case there are issues with the filename in the index file.
 		url, err := url.Parse(proposedURL)
 		if err != nil {
-			return 0, fmt.Errorf("invalid URL constructed: %s: %w", proposedURL, err)
+			return nil, fmt.Errorf("invalid URL constructed: %s: %w", proposedURL, err)
 		}
 		url.Path = path.Clean(url.Path)
 		currentFiles = append(currentFiles, url.String())
+	}
+	return currentFiles, nil
+}
+
+func syncFilesFromIndex(ctx context.Context, db *exportimportdb.ExportImportDB, config *model.ExportImport, index string) (int, error) {
+	currentFiles, err := buildArchiveURLs(ctx, config, index)
+	if err != nil {
+		return 0, err
 	}
 
 	n, err := db.CreateFiles(ctx, config, currentFiles)

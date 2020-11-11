@@ -14,8 +14,6 @@
 
 BEGIN;
 
-DROP TABLE EFGSUploadConfig;
-
 ALTER TABLE ExportConfig
     DROP COLUMN efgs_export,
     DROP COLUMN efgs_upload_host,
@@ -23,5 +21,8 @@ ALTER TABLE ExportConfig
     DROP COLUMN efgs_mtls_key_secret,
     DROP COLUMN efgs_signing_cert_secret,
     DROP COLUMN efgs_signing_key_secret;
+
+ALTER TABLE ExportBatch
+    DROP COLUMN efgs_status exportbatchstatus;
 
 END;

@@ -28,7 +28,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestSyncFileFromIndex(t *testing.T) {
+func TestSyncFileFromIndexErrorsInExportRoot(t *testing.T) {
 	t.Parallel()
 
 	testDB := database.NewTestDatabase(t)
@@ -37,97 +37,320 @@ func TestSyncFileFromIndex(t *testing.T) {
 
 	fromTime := time.Now().UTC().Add(-1 * time.Second)
 	config := &model.ExportImport{
-		IndexFile:  "https://mysever/exports/index.txt",
-		ExportRoot: "https://myserver/",
+		IndexFile:  "index.txt",
+		ExportRoot: "%zzzzz",
 		Region:     "US",
 		From:       fromTime,
 		Thru:       nil,
 	}
 	if err := exportImportDB.AddConfig(ctx, config); err != nil {
 		t.Fatal(err)
-
 	}
 
 	// test data ensures that URL parsing stripps extra slashes.
 	index := strings.Join([]string{"a.zip", "/b.zip", "//c.zip", ""}, "\n")
 
-	if n, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
-		t.Fatal(err)
-	} else if n != 3 {
-		t.Fatalf("wanted sync result of 3, got: %d", n)
+	if _, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err == nil {
+		t.Fatalf("expected error")
+	} else if !strings.Contains(err.Error(), "invalid URL escape") {
+		t.Fatalf("wrong error, wanted: invalid URL escape, got: %v", err)
 	}
+}
 
-	files, err := exportImportDB.GetOpenImportFiles(ctx, time.Second, config)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestSyncFilenameShapes(t *testing.T) {
+	t.Parallel()
 
-	want := []*model.ImportFile{
+	testDB := database.NewTestDatabase(t)
+	ctx := context.Background()
+	exportImportDB := exportimportdb.New(testDB)
+
+	fromTime := time.Now().UTC().Add(-1 * time.Second)
+
+	cases := []struct {
+		name   string
+		config *model.ExportImport
+		index  []string
+		want   []string
+	}{
 		{
-			ExportImportID: config.ID,
-			ZipFilename:    fmt.Sprintf("%s%s", config.ExportRoot, "a.zip"),
-			Status:         model.ImportFileOpen,
+			name: "shallow_root_no_path",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/index.txt",
+				ExportRoot: "https://cdn.example.com",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"/export-a.zip",
+				"/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/export-a.zip",
+				"https://cdn.example.com/export-b.zip",
+			},
 		},
 		{
-			ExportImportID: config.ID,
-			ZipFilename:    fmt.Sprintf("%s%s", config.ExportRoot, "b.zip"),
-			Status:         model.ImportFileOpen,
+			name: "shallow_root_no_path_trailing_slash",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/index.txt",
+				ExportRoot: "https://cdn.example.com/",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"/export-a.zip",
+				"/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/export-a.zip",
+				"https://cdn.example.com/export-b.zip",
+			},
 		},
 		{
-			ExportImportID: config.ID,
-			ZipFilename:    fmt.Sprintf("%s%s", config.ExportRoot, "c.zip"),
-			Status:         model.ImportFileOpen,
-		},
-	}
-
-	options := cmp.Options{
-		cmpopts.IgnoreFields(model.ImportFile{}, "ID", "DiscoveredAt", "ProcessedAt"),
-		cmpopts.SortSlices(func(a, b *model.ImportFile) bool {
-			return strings.Compare(a.ZipFilename, b.ZipFilename) <= 0
-		}),
-	}
-	if diff := cmp.Diff(want, files, options); diff != "" {
-		t.Errorf("mismatch (-want, +got):\n%s", diff)
-	}
-
-	// shift the index
-	index = strings.Join([]string{"/b.zip", "/c.zip", "/d.zip"}, "\n")
-
-	if n, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
-		t.Fatal(err)
-	} else if n != 1 {
-		t.Fatalf("wanted sync result of 1, got: %d", n)
-	}
-
-	files, err = exportImportDB.GetOpenImportFiles(ctx, time.Second, config)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want = []*model.ImportFile{
-		{
-			ExportImportID: config.ID,
-			ZipFilename:    fmt.Sprintf("%s%s", config.ExportRoot, "a.zip"),
-			Status:         model.ImportFileOpen,
+			name: "nested_paths",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/folder/region-us/index.txt",
+				ExportRoot: "https://cdn.example.com/folder/",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"region-us/export-a.zip",
+				"region-us/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/folder/region-us/export-a.zip",
+				"https://cdn.example.com/folder/region-us/export-b.zip",
+			},
 		},
 		{
-			ExportImportID: config.ID,
-			ZipFilename:    fmt.Sprintf("%s%s", config.ExportRoot, "b.zip"),
-			Status:         model.ImportFileOpen,
+			name: "nested_paths_missing_slash",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/folder/region-us/index.txt",
+				ExportRoot: "https://cdn.example.com/folder",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"region-us/export-a.zip",
+				"region-us/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/folder/region-us/export-a.zip",
+				"https://cdn.example.com/folder/region-us/export-b.zip",
+			},
 		},
 		{
-			ExportImportID: config.ID,
-			ZipFilename:    fmt.Sprintf("%s%s", config.ExportRoot, "c.zip"),
-			Status:         model.ImportFileOpen,
+			name: "deeply_nested_paths",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/folder/a/b/c/region-us/index.txt",
+				ExportRoot: "https://cdn.example.com/folder/a/b",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"c/region-us/export-a.zip",
+				"c/region-us/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/folder/a/b/c/region-us/export-a.zip",
+				"https://cdn.example.com/folder/a/b/c/region-us/export-b.zip",
+			},
 		},
 		{
-			ExportImportID: config.ID,
-			ZipFilename:    fmt.Sprintf("%s%s", config.ExportRoot, "d.zip"),
-			Status:         model.ImportFileOpen,
+			name: "one_folder",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/region-us/index.txt",
+				ExportRoot: "https://cdn.example.com/",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"region-us/export-a.zip",
+				"region-us/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/region-us/export-a.zip",
+				"https://cdn.example.com/region-us/export-b.zip",
+			},
+		},
+		{
+			name: "one_folder_without_slash",
+			config: &model.ExportImport{
+				IndexFile:  "https://cdn.example.com/region-us/index.txt",
+				ExportRoot: "https://cdn.example.com",
+				Region:     "US",
+				From:       fromTime,
+			},
+			index: []string{
+				"region-us/export-a.zip",
+				"region-us/export-b.zip",
+			},
+			want: []string{
+				"https://cdn.example.com/region-us/export-a.zip",
+				"https://cdn.example.com/region-us/export-b.zip",
+			},
 		},
 	}
 
-	if diff := cmp.Diff(want, files, options); diff != "" {
-		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := tc.config
+			if err := exportImportDB.AddConfig(ctx, config); err != nil {
+				t.Fatal(err)
+			}
+
+			index := strings.Join(tc.index, "\n")
+
+			wantN := len(tc.want)
+			if n, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
+				t.Fatal(err)
+			} else if n != wantN {
+				t.Fatalf("wanted sync result of %d, got: %d", wantN, n)
+			}
+
+			files, err := exportImportDB.GetOpenImportFiles(ctx, time.Second, config)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got := make([]string, len(files))
+			for i, f := range files {
+				got[i] = f.ZipFilename
+			}
+
+			options := cmp.Options{
+				cmpopts.SortSlices(func(a, b string) bool {
+					return strings.Compare(a, b) <= 0
+				}),
+			}
+			if diff := cmp.Diff(tc.want, got, options); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSyncFileFromIndex(t *testing.T) {
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
+	ctx := context.Background()
+	exportImportDB := exportimportdb.New(testDB)
+
+	fromTime := time.Now().UTC().Add(-1 * time.Second)
+
+	cases := []struct {
+		name       string
+		exportRoot string
+	}{
+		{
+			name:       "with_slash",
+			exportRoot: "https://myserver/",
+		},
+		{
+			name:       "without_slash",
+			exportRoot: "https://myserver",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			config := &model.ExportImport{
+				IndexFile:  "https://mysever/exports/index.txt",
+				ExportRoot: tc.exportRoot,
+				Region:     "US",
+				From:       fromTime,
+				Thru:       nil,
+			}
+			if err := exportImportDB.AddConfig(ctx, config); err != nil {
+				t.Fatal(err)
+
+			}
+
+			// test data ensures that URL parsing stripps extra slashes.
+			index := strings.Join([]string{"a.zip", "/b.zip", "//c.zip", ""}, "\n")
+
+			if n, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
+				t.Fatal(err)
+			} else if n != 3 {
+				t.Fatalf("wanted sync result of 3, got: %d", n)
+			}
+
+			files, err := exportImportDB.GetOpenImportFiles(ctx, time.Second, config)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			want := []*model.ImportFile{
+				{
+					ExportImportID: config.ID,
+					ZipFilename:    fmt.Sprintf("https://myserver/%s", "a.zip"),
+					Status:         model.ImportFileOpen,
+				},
+				{
+					ExportImportID: config.ID,
+					ZipFilename:    fmt.Sprintf("https://myserver/%s", "b.zip"),
+					Status:         model.ImportFileOpen,
+				},
+				{
+					ExportImportID: config.ID,
+					ZipFilename:    fmt.Sprintf("https://myserver/%s", "c.zip"),
+					Status:         model.ImportFileOpen,
+				},
+			}
+
+			options := cmp.Options{
+				cmpopts.IgnoreFields(model.ImportFile{}, "ID", "DiscoveredAt", "ProcessedAt"),
+				cmpopts.SortSlices(func(a, b *model.ImportFile) bool {
+					return strings.Compare(a.ZipFilename, b.ZipFilename) <= 0
+				}),
+			}
+			if diff := cmp.Diff(want, files, options); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
+			}
+
+			// shift the index
+			index = strings.Join([]string{"/b.zip", "/c.zip", "/d.zip"}, "\n")
+
+			if n, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {
+				t.Fatal(err)
+			} else if n != 1 {
+				t.Fatalf("wanted sync result of 1, got: %d", n)
+			}
+
+			files, err = exportImportDB.GetOpenImportFiles(ctx, time.Second, config)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			want = []*model.ImportFile{
+				{
+					ExportImportID: config.ID,
+					ZipFilename:    fmt.Sprintf("https://myserver/%s", "a.zip"),
+					Status:         model.ImportFileOpen,
+				},
+				{
+					ExportImportID: config.ID,
+					ZipFilename:    fmt.Sprintf("https://myserver/%s", "b.zip"),
+					Status:         model.ImportFileOpen,
+				},
+				{
+					ExportImportID: config.ID,
+					ZipFilename:    fmt.Sprintf("https://myserver/%s", "c.zip"),
+					Status:         model.ImportFileOpen,
+				},
+				{
+					ExportImportID: config.ID,
+					ZipFilename:    fmt.Sprintf("https://myserver/%s", "d.zip"),
+					Status:         model.ImportFileOpen,
+				},
+			}
+
+			if diff := cmp.Diff(want, files, options); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
+			}
+		})
 	}
 }
