@@ -8,6 +8,7 @@ require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20200615190824-f8c219d2d895
 	contrib.go.opencensus.io/exporter/prometheus v0.2.1-0.20200609204449-6bcf6f8577f0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.4
+	contrib.go.opencensus.io/integrations/ocsql v0.1.6
 	github.com/Azure/azure-pipeline-go v0.2.3 // indirect
 	github.com/Azure/azure-sdk-for-go v46.3.0+incompatible
 	github.com/Azure/azure-storage-blob-go v0.10.0
