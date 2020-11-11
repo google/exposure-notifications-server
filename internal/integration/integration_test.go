@@ -29,11 +29,13 @@ import (
 	exportdb "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+	"github.com/google/exposure-notifications-server/internal/publish/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	testutil "github.com/google/exposure-notifications-server/internal/utils"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -80,6 +82,7 @@ func TestIntegration(t *testing.T) {
 			}
 
 			keys := util.GenerateExposureKeys(3, -1, false)
+			onsetTime := timeutils.UTCMidnight(timeutils.SubtractDays(time.Now().UTC(), 2))
 
 			// Publish 3 keys
 			payload := &verifyapi.Publish{
@@ -88,6 +91,7 @@ func TestIntegration(t *testing.T) {
 			}
 			jwtCfg.ExposureKeys = keys
 			jwtCfg.JWTWarp = tc.JWTWrap
+			jwtCfg.SymptomOnsetInterval = uint32(model.IntervalNumber(onsetTime))
 			verification, salt := testutil.IssueJWT(t, jwtCfg)
 			payload.VerificationPayload = verification
 			payload.HMACKey = salt
@@ -418,8 +422,9 @@ func getExposures(db *database.DB, criteria publishdb.IterateExposuresCriteria) 
 func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey) []*export.TemporaryExposureKey {
 	s := make([]*export.TemporaryExposureKey, len(keys))
 	sort.Slice(keys, func(i, j int) bool {
-		return keys[i].IntervalNumber >= keys[j].IntervalNumber
+		return keys[i].IntervalNumber < keys[j].IntervalNumber
 	})
+	daysSince := int32(-1)
 	for i, key := range keys {
 		decoded, err := base64util.DecodeString(key.Key)
 		if err != nil {
@@ -432,8 +437,9 @@ func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey) []*export.Tem
 			RollingStartIntervalNumber: proto.Int32(key.IntervalNumber),
 			ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
 			// Keys are generated 1 day ago and then -1 day for each additional.
-			DaysSinceOnsetOfSymptoms: proto.Int32(int32(3 - i)),
+			DaysSinceOnsetOfSymptoms: proto.Int32(daysSince),
 		}
+		daysSince++
 	}
 
 	sortTEKs(s)
