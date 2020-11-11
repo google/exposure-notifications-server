@@ -17,21 +17,41 @@ package observability
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"sync"
 
+	"contrib.go.opencensus.io/integrations/ocsql"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
 )
 
+// OCSQLDriverName is the name of the SQL driver wrapped by OpenCensus
+// instrumentation code.
+const OCSQLDriverName = "ocsql"
+
+func defaultViews() []*view.View {
+	var ret []*view.View
+	ret = append(ret, ochttp.DefaultClientViews...)
+	ret = append(ret, ochttp.DefaultServerViews...)
+	ret = append(ret, ocgrpc.DefaultClientViews...)
+	ret = append(ret, ocgrpc.DefaultServerViews...)
+
+	for _, d := range sql.Drivers() {
+		if d == OCSQLDriverName {
+			ret = append(ret, ocsql.DefaultViews...)
+			break
+		}
+	}
+	return ret
+}
+
 var collectedViews = struct {
 	views []*view.View
 	sync.Mutex
-}{
-	views: append(append(append(append([]*view.View{}, ochttp.DefaultClientViews...), ochttp.DefaultServerViews...), ocgrpc.DefaultClientViews...), ocgrpc.DefaultServerViews...),
-}
+}{}
 
 // CollectViews collects all the OpenCensus views and register at a later time
 // when we setup the metric exporter.
@@ -53,7 +73,7 @@ func CollectViews(views ...*view.View) {
 func AllViews() []*view.View {
 	collectedViews.Lock()
 	defer collectedViews.Unlock()
-	return collectedViews.views
+	return append(collectedViews.views, defaultViews()...)
 }
 
 // Exporter defines the minimum shared functionality for an observability exporter
