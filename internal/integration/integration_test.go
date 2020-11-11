@@ -29,7 +29,6 @@ import (
 	exportdb "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
-	"github.com/google/exposure-notifications-server/internal/publish/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	testutil "github.com/google/exposure-notifications-server/internal/utils"
@@ -91,7 +90,7 @@ func TestIntegration(t *testing.T) {
 			}
 			jwtCfg.ExposureKeys = keys
 			jwtCfg.JWTWarp = tc.JWTWrap
-			jwtCfg.SymptomOnsetInterval = uint32(model.IntervalNumber(onsetTime))
+			jwtCfg.SymptomOnsetInterval = uint32(publishmodel.IntervalNumber(onsetTime))
 			verification, salt := testutil.IssueJWT(t, jwtCfg)
 			payload.VerificationPayload = verification
 			payload.HMACKey = salt
