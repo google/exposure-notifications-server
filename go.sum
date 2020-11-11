@@ -896,8 +896,8 @@ github.com/michaelklishin/rabbit-hole v0.0.0-20191008194146-93d9988f0cd5/go.mod 
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/miekg/dns v1.1.15 h1:CSSIDtllwGLMoA6zjdKnaE6Tx6eVUxQ29LUgGetiDCI=
 github.com/miekg/dns v1.1.15/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
-github.com/mikehelmick/go-chaff v0.3.0 h1:bnU5oF8onKCoe9B/iQ22dvhtzSlEcLJ1R82b97T4BAU=
-github.com/mikehelmick/go-chaff v0.3.0/go.mod h1:mFry3zNW17oxNGmZpQV3PEOmzTNyly3nLDYawCT/iCE=
+github.com/mikehelmick/go-chaff v0.4.1 h1:0UsypkU2XcsROrwvL+mN7mgRiiB6oEwt+iNVOHlXO0M=
+github.com/mikehelmick/go-chaff v0.4.1/go.mod h1:mFry3zNW17oxNGmZpQV3PEOmzTNyly3nLDYawCT/iCE=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=
 github.com/mitchellh/cli v1.1.1 h1:J64v/xD7Clql+JVKSvkYojLOXu1ibnY9ZjGLwSt/89w=
 github.com/mitchellh/cli v1.1.1/go.mod h1:xcISNoH86gajksDmfB23e/pu+B+GeFRMYmoHXxx3xhI=

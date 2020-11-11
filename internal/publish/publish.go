@@ -98,12 +98,17 @@ func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (
 		return nil, fmt.Errorf("config validation: %w", err)
 	}
 
+	chaffer, err := chaff.NewTracker(chaff.NewJSONResponder(chaffPublishResponse), chaff.DefaultCapacity)
+	if err != nil {
+		return nil, fmt.Errorf("error making chaffer: %v", err)
+	}
+
 	return &PublishHandler{
 		serverenv:             env,
 		transformer:           transformer,
 		config:                config,
 		database:              database.New(env.Database()),
-		tracker:               chaff.New(),
+		tracker:               chaffer,
 		tokenManager:          tm,
 		tokenAAD:              aadBytes,
 		authorizedAppProvider: env.AuthorizedAppProvider(),
@@ -443,4 +448,9 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 			metricsMiddleWare.RecordDrops(ctx, int(resp.Dropped))
 		},
 	}
+}
+
+// chaffPushResponse takes a chaffing string, and builds a chaff response.
+func chaffPublishResponse(s string) interface{} {
+	return verifyapi.PublishResponse{Padding: s}
 }
