@@ -147,7 +147,7 @@ func TestCutoffDate(t *testing.T) {
 			} else if err != nil {
 				t.Errorf("%q: got error %v", test.d, err)
 			} else {
-				want := now.Add(-test.wantDur)
+				want := now.Add(-(test.wantDur + exportTTLGrace))
 				diff := got.Sub(want)
 				if diff < 0 {
 					diff = -diff

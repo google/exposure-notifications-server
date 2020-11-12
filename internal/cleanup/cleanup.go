@@ -34,6 +34,10 @@ import (
 
 const (
 	minTTL = 10 * 24 * time.Hour
+
+	// exportTTLGrace is the window of time between when a file will be listed in
+	// the export batch, and when it will actually be deleted.
+	exportTTLGrace = 1 * time.Hour
 )
 
 // NewExposureHandler creates a http.Handler for deleting exposure keys
@@ -167,5 +171,5 @@ func cutoffDate(ctx context.Context, d time.Duration, overrideMinTTL bool) (time
 			return time.Time{}, fmt.Errorf("cleanup ttl is less than configured minimum ttl")
 		}
 	}
-	return time.Now().Add(-d), nil
+	return time.Now().Add(-(d + exportTTLGrace)), nil
 }
