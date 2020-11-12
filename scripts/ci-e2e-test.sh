@@ -43,6 +43,10 @@ function incremental() {
   fi
 
   ${ROOT}/scripts/ci-terraform.sh init
+
+  # Running "${ROOT}/scripts/deploy" would fail when a service doesn't not exist,
+  # e.g. a new cloud run service introduced, due to `--no-traffic` not allowed for
+  # newly created service. So let terraform create the service first.
   pushd "${ROOT}/terraform-e2e-ci" >/dev/null 2>&1
   # Force terraform to redo build and migrate. This step might fail when the previous e2e run failed,
   # as build or migrate was destroyed but not restalled in terraform state.
@@ -60,6 +64,10 @@ function incremental() {
   export_terraform_output exposure_urls[0] E2E_EXPOSURE_URL
   export E2E_DB_PASSWORD="secret://${E2E_DB_PASSWORD}"
   export E2E_DB_SSLMODE=disable
+
+  ${ROOT}/scripts/build
+  ${ROOT}/scripts/deploy
+  ${ROOT}/scripts/promote
 
   run_e2e_test
 }
