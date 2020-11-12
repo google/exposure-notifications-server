@@ -13,9 +13,10 @@
 # limitations under the License.
 
 locals {
-  slow_services = format("(%s)", join("|", [
-    "export",
-  ]))
+  slow_services = format("(%s)", join("|", sort([
+    "cleanup-export",
+    "cleanup-exposure",
+  ])))
 }
 
 resource "google_monitoring_alert_policy" "LatencyTooHigh" {
