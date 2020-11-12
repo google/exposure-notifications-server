@@ -577,6 +577,9 @@ func TestReviseExposures(t *testing.T) {
 			t.Errorf("expected %d to be %d: %#v", got, want, reviseResp)
 		}
 
+		// Change report, type, attempt to revise again.
+		exposure.ReportType = verifyapi.ReportTypeNegative
+
 		// Attempt to revise the same key again - this should fail.
 		if _, err := pubDB.InsertAndReviseExposures(ctx, &InsertAndReviseExposuresRequest{
 			Incoming:     []*model.Exposure{exposure},
