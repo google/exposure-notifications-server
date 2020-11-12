@@ -1536,6 +1536,42 @@ func TestExposureReview(t *testing.T) {
 			needsRevision: true,
 			err:           "",
 		},
+		{
+			name: "double_revise",
+			previous: &Exposure{
+				ReportType:            verifyapi.ReportTypeClinical,
+				LocalProvenance:       true,
+				HealthAuthorityID:     int64Ptr(2),
+				Regions:               []string{"US", "CA"},
+				TransmissionRisk:      4,
+				CreatedAt:             createdAt,
+				DaysSinceSymptomOnset: int32Ptr(-1),
+				RevisedAt:             &createdAt,
+				RevisedReportType:     stringPtr(verifyapi.ReportTypeConfirmed),
+			},
+			incoming: &Exposure{
+				ReportType:            verifyapi.ReportTypeConfirmed,
+				HealthAuthorityID:     int64Ptr(3),
+				Regions:               []string{"MX"},
+				TransmissionRisk:      5,
+				CreatedAt:             revisedAt,
+				DaysSinceSymptomOnset: int32Ptr(0),
+			},
+			want: &Exposure{
+				ReportType:                   verifyapi.ReportTypeClinical,
+				LocalProvenance:              true,
+				HealthAuthorityID:            int64Ptr(3),
+				Regions:                      []string{"US", "CA", "MX"},
+				TransmissionRisk:             4,
+				CreatedAt:                    createdAt,
+				DaysSinceSymptomOnset:        int32Ptr(-1),
+				RevisedReportType:            stringPtr(verifyapi.ReportTypeConfirmed),
+				RevisedAt:                    &revisedAt,
+				RevisedDaysSinceSymptomOnset: int32Ptr(0),
+				RevisedTransmissionRisk:      intPtr(5),
+			},
+			needsRevision: false,
+		},
 	}
 
 	for _, tc := range cases {

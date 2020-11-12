@@ -862,9 +862,9 @@ func TestKeyRevision(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				// Revise them
+				// Revise them to negative - test will try to revise to positive.
 				for _, key := range incoming {
-					key.ReportType = verifyapi.ReportTypeConfirmed
+					key.ReportType = verifyapi.ReportTypeNegative
 				}
 				if _, err := pubDB.InsertAndReviseExposures(ctx, &pubdb.InsertAndReviseExposuresRequest{
 					Incoming: incoming,
