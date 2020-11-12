@@ -173,6 +173,10 @@ func (e *Exposure) Revise(in *Exposure) (bool, error) {
 	if e.ReportType == in.ReportType {
 		return false, nil
 	}
+	// Key is being published again, but has already been revised to target report type.
+	if e.RevisedAt != nil && e.RevisedReportType != nil && *e.RevisedReportType == in.ReportType {
+		return false, nil
+	}
 	if !e.LocalProvenance {
 		nonLocalOK := false
 		if e.ExportImportID != nil {
