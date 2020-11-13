@@ -13,9 +13,12 @@
 # limitations under the License.
 
 locals {
-  slow_services = format("(%s)", join("|", sort([
+  slower_services = format("(%s)", join("|", sort([
     "cleanup-export",
     "cleanup-exposure",
+  ])))
+  slowest_services = format("(%s)", join("|", sort([
+    "export",
   ])))
 }
 
@@ -33,13 +36,18 @@ resource "google_monitoring_alert_policy" "LatencyTooHigh" {
       fetch
       cloud_run_revision :: run.googleapis.com/request_latencies
       | add
-      [type: if(resource.service_name =~ '${local.slow_services}', 'SLOW', 'NORMAL')]
+      [type:
+      if(resource.service_name =~ '${local.slowest_services}', 'SLOWEST'
+      if(resource.service_name =~ '${local.slower_services}', 'SLOWER',
+      'NORMAL'
+      ))]
       | align delta(1m)
       | every 1m
       | group_by [resource.service_name, type],
       [val: percentile(value.request_latencies, 50)]
       | condition
-          (type == 'SLOW' && val > 20000 'ms')
+          (type == 'SLOWEST' && val > 60000 'ms')
+        ||(type == 'SLOWER' && val > 20000 'ms')
         ||(type == 'NORMAL' && val > 10000 'ms')
       EOT
       trigger {
