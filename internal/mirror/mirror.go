@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	mirrordb "github.com/google/exposure-notifications-server/internal/mirror/database"
 	"github.com/google/exposure-notifications-server/internal/mirror/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -34,12 +35,13 @@ import (
 const mirrorLockPrefix = "mirror-lock"
 
 type FileStatus struct {
-	Order        int
-	MirrorFile   *model.MirrorFile
-	DownloadPath string
-	Filename     string
-	Failed       bool
-	Saved        bool
+	Order         int
+	MirrorFile    *model.MirrorFile
+	DownloadPath  string
+	Filename      string
+	LocalFilename string
+	Failed        bool
+	Saved         bool
 }
 
 func (f *FileStatus) needsDelete() bool {
@@ -48,6 +50,12 @@ func (f *FileStatus) needsDelete() bool {
 
 func (f *FileStatus) needsDownload() bool {
 	return f.MirrorFile == nil
+}
+
+func sortFileStatus(fs []*FileStatus) {
+	sort.Slice(fs, func(i, j int) bool {
+		return fs[i].Order < fs[j].Order
+	})
 }
 
 func (s *Server) downloadIndex(w http.ResponseWriter, mirror *model.Mirror) ([]string, error) {
@@ -85,7 +93,7 @@ func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
 		ctx, cancelFn := context.WithTimeout(ctx, s.config.MaxRuntime)
 		defer cancelFn()
 
-		// Chop of 30 seconds to save state at the end.
+		// Chop off 30 seconds to save state at the end.
 		runtime := s.config.MaxRuntime
 		if runtime > time.Minute {
 			runtime = runtime - (30 * time.Second)
@@ -168,6 +176,10 @@ func (s *Server) processMirror(ctx context.Context, w http.ResponseWriter, deadl
 		if cur, ok := actions[fileName]; ok {
 			cur.DownloadPath = curFile
 			cur.Filename = fileName
+			cur.LocalFilename = fileName
+			if cur.MirrorFile.LocalFilename != nil {
+				cur.LocalFilename = *cur.MirrorFile.LocalFilename
+			}
 			cur.Order = i
 		} else {
 			actions[fileName] = &FileStatus{
@@ -186,11 +198,16 @@ func (s *Server) processMirror(ctx context.Context, w http.ResponseWriter, deadl
 		if status.needsDelete() {
 			logger.Infow("deleting stale export file", "file", filename)
 
+			delFilename := filename
+			if status.MirrorFile != nil && status.MirrorFile.LocalFilename != nil {
+				delFilename = *status.MirrorFile.LocalFilename
+			}
+
 			bsCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
 			// If there's a race and the file was already deleted, no error is returned.
-			if err := blobstore.DeleteObject(bsCtx, mirror.CloudStorageBucket, filename); err != nil {
-				logger.Errorw("unable to delete file", "bucket", mirror.CloudStorageBucket, "file", filename, "error", err)
+			if err := blobstore.DeleteObject(bsCtx, mirror.CloudStorageBucket, delFilename); err != nil {
+				logger.Errorw("unable to delete file", "bucket", mirror.CloudStorageBucket, "upstrteamFile", filename, "mirroredFiled", delFilename, "error", err)
 				return nil
 			}
 			// Remove from map, so will be deleted from db.
@@ -210,61 +227,86 @@ func (s *Server) processMirror(ctx context.Context, w http.ResponseWriter, deadl
 	}
 	logger.Infow("mirror state", "mirrorID", mirror.ID, "total", len(actions), "existing", len(indexObjects), "remaining", len(actions)-len(indexObjects))
 
+	// Convert actions to an array, so we can process files in order.
+	// This is necessary if files are being renamed and using timestamps, and if clients are depending on
+	// monotonically increaing timestamps.
+	remainingWork := make([]*FileStatus, 0, len(actions))
+	for _, status := range actions {
+		if status.needsDownload() {
+			remainingWork = append(remainingWork, status)
+		}
+	}
+	sortFileStatus(remainingWork)
+
 	// go through again and process downloads.
-	for filename, status := range actions {
+	for _, status := range remainingWork {
+		filename := status.Filename
 		if deadlinePassed(deadline) {
 			logger.Warnw("mirror didn't complete processing before timeout", "mirrorID", mirror.ID)
 			break
 		}
 
-		if status.needsDownload() {
-			logger.Infow("mirroring export file", "mirrorID", mirror.ID, "file", filename)
+		logger.Infow("mirroring export file", "mirrorID", mirror.ID, "file", filename)
 
-			client := &http.Client{
-				Timeout: s.config.ExportFileDownloadTimeout,
-			}
-			resp, err := client.Get(status.DownloadPath)
-			if err != nil {
-				logger.Errorw("unable to download file", "filename", filename, "error", err)
-				status.Failed = true
-				return nil
-			}
-
-			defer resp.Body.Close()
-			resp.Body = http.MaxBytesReader(w, resp.Body, s.config.MaxZipBytes)
-			bytes, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				logger.Errorw("unable to read file", "filename", filename, "error", err)
-				status.Failed = true
-				return nil
-			}
-
-			// Write this file to the blob store.
-			bsCtx, cancel := context.WithTimeout(ctx, time.Minute)
-			defer cancel()
-			objName := fmt.Sprintf("%s/%s", mirror.FilenameRoot, status.Filename)
-			if err := blobstore.CreateObject(bsCtx, mirror.CloudStorageBucket, objName, bytes, true, storage.ContentTypeZip); err != nil {
-				logger.Errorw("unable to write file to blobstore", "filename", filename, "error", err)
-				status.Failed = true
-				return nil
-			}
-
-			status.Saved = true
-			indexObjects = append(indexObjects, status)
+		client := &http.Client{
+			Timeout: s.config.ExportFileDownloadTimeout,
 		}
+		resp, err := client.Get(status.DownloadPath)
+		if err != nil {
+			logger.Errorw("unable to download file", "filename", filename, "error", err)
+			status.Failed = true
+			return nil
+		}
+
+		defer resp.Body.Close()
+		resp.Body = http.MaxBytesReader(w, resp.Body, s.config.MaxZipBytes)
+		bytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			logger.Errorw("unable to read file", "filename", filename, "error", err)
+			status.Failed = true
+			return nil
+		}
+
+		// See if we need to rewrite the filename
+		writeFilename, err := mirror.RewriteFilename(filename)
+		if err != nil {
+			logger.Errorw("unable to rewrite filename", "filename", filename, "error", err)
+			status.Failed = true
+			return nil
+		}
+		status.LocalFilename = writeFilename
+
+		// Write this file to the blob store.
+		bsCtx, cancel := context.WithTimeout(ctx, time.Minute)
+		defer cancel()
+		objName := fmt.Sprintf("%s/%s", mirror.FilenameRoot, writeFilename)
+		if err := blobstore.CreateObject(bsCtx, mirror.CloudStorageBucket, objName, bytes, true, storage.ContentTypeZip); err != nil {
+			logger.Errorw("unable to write file to blobstore", "filename", filename, "error", err)
+			status.Failed = true
+			return nil
+		}
+		logger.Infow("wrote mirrored archive", "filename", filename, "localFilename", writeFilename)
+
+		status.Saved = true
+		indexObjects = append(indexObjects, status)
 	}
 
 	// Write new index file
 	sort.Slice(indexObjects, func(i, j int) bool {
 		return indexObjects[i].Order < indexObjects[j].Order
 	})
-	shortFilenames := make([]string, 0, len(indexObjects))
+	logger.Infof("index %+v", indexObjects)
+	syncFilenames := make([]*mirrordb.SyncFile, 0, len(indexObjects))
 	filenames := make([]string, 0, len(indexObjects))
 	for _, obj := range indexObjects {
 		// Only persist state of the files we got to.
 		if obj.Saved {
-			shortFilenames = append(shortFilenames, obj.Filename)
-			filenames = append(filenames, fmt.Sprintf("%s/%s", mirror.FilenameRoot, obj.Filename))
+			syncFilenames = append(syncFilenames,
+				&mirrordb.SyncFile{
+					RemoteFile: obj.Filename,
+					LocalFile:  obj.LocalFilename,
+				})
+			filenames = append(filenames, fmt.Sprintf("%s/%s", mirror.FilenameRoot, obj.LocalFilename))
 		}
 	}
 	data := []byte(strings.Join(filenames, "\n"))
@@ -277,7 +319,7 @@ func (s *Server) processMirror(ctx context.Context, w http.ResponseWriter, deadl
 	}
 
 	// sync state to DB.
-	if err := s.mirrorDB.SaveFiles(ctx, mirror.ID, shortFilenames); err != nil {
+	if err := s.mirrorDB.SaveFiles(ctx, mirror.ID, syncFilenames); err != nil {
 		logger.Errorw("error saving index state to database", "mirrorID", mirror.ID, "error", err)
 	}
 	logger.Infow("finished mirror", "mirrorID", mirror.ID, "index", mirror.IndexFile)
