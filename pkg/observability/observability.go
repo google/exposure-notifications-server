@@ -80,7 +80,7 @@ func AllViews() []*view.View {
 // used by this application.
 type Exporter interface {
 	io.Closer
-	StartExporter() error
+	StartExporter(ctx context.Context) error
 }
 
 // NewFromEnv returns the observability exporter given the provided configuration, or an error

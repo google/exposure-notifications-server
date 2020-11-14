@@ -48,7 +48,7 @@ func NewOpenCensus(ctx context.Context, config *OpenCensusConfig) (Exporter, err
 }
 
 // StartExporter starts the exporter.
-func (e *opencensusExporter) StartExporter() error {
+func (e *opencensusExporter) StartExporter(_ context.Context) error {
 	trace.ApplyConfig(trace.Config{
 		DefaultSampler: trace.ProbabilitySampler(e.config.SampleRate),
 	})

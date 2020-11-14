@@ -18,6 +18,7 @@ package observability
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
@@ -66,8 +67,20 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 }
 
 // StartExporter starts the exporter.
-func (e *stackdriverExporter) StartExporter() error {
+func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
+	logger := logging.FromContext(ctx).Named("stackdriver")
 	for _, v := range AllViews() {
+		shouldSkip := false
+		for _, prefix := range e.config.ExcludedMetricPrefixes {
+			if strings.HasPrefix(v.Name, prefix) {
+				logger.Infof("skip registering view %q as it matches the prefix to exclude: %q", v.Name, prefix)
+				shouldSkip = true
+				break
+			}
+		}
+		if shouldSkip {
+			continue
+		}
 		if err := view.Register(v); err != nil {
 			return fmt.Errorf("failed to start stackdriver exporter: view registration failed: %w", err)
 		}
