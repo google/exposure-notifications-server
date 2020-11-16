@@ -56,7 +56,8 @@ func TestAddListDeleteMirror(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	ignore := cmpopts.IgnoreUnexported(model.Mirror{})
+	if diff := cmp.Diff(want, got, ignore); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 
@@ -94,7 +95,11 @@ func TestFileLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	filenames := []string{"a", "b", "c"}
+	filenames := []*SyncFile{
+		{RemoteFile: "a", LocalFile: "a"},
+		{RemoteFile: "b", LocalFile: "b"},
+		{RemoteFile: "c", LocalFile: "c"},
+	}
 	if err := mirrorDB.SaveFiles(ctx, mirror.ID, filenames); err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +108,7 @@ func TestFileLifecycle(t *testing.T) {
 	for i, fname := range filenames {
 		want[i] = &model.MirrorFile{
 			MirrorID: mirror.ID,
-			Filename: fname,
+			Filename: fname.RemoteFile,
 		}
 	}
 
@@ -121,7 +126,11 @@ func TestFileLifecycle(t *testing.T) {
 	}
 
 	// Change the files
-	filenames = []string{"c", "d", "e"}
+	filenames = []*SyncFile{
+		{RemoteFile: "c", LocalFile: "c"},
+		{RemoteFile: "d", LocalFile: "d"},
+		{RemoteFile: "e", LocalFile: "e"},
+	}
 
 	if err := mirrorDB.SaveFiles(ctx, mirror.ID, filenames); err != nil {
 		t.Fatal(err)
@@ -131,7 +140,88 @@ func TestFileLifecycle(t *testing.T) {
 	for i, fname := range filenames {
 		want[i] = &model.MirrorFile{
 			MirrorID: mirror.ID,
-			Filename: fname,
+			Filename: fname.RemoteFile,
+		}
+	}
+
+	got, err = mirrorDB.ListFiles(ctx, mirror.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if diff := cmp.Diff(want, got, sorter); diff != "" {
+		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+}
+
+func TestFileLifecycleWithRewrite(t *testing.T) {
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
+	ctx := context.Background()
+	mirrorDB := New(testDB)
+
+	mirror := model.Mirror{
+		IndexFile:          "https://mysever/exports/index.txt",
+		ExportRoot:         "https://myserver/",
+		CloudStorageBucket: "b1",
+		FilenameRoot:       "/storage/is/awesome/",
+	}
+
+	if err := mirrorDB.AddMirror(ctx, &mirror); err != nil {
+		t.Fatal(err)
+	}
+
+	filenames := []*SyncFile{
+		{RemoteFile: "a.zip", LocalFile: "1234-0001.zip"},
+		{RemoteFile: "b.zip", LocalFile: "2345-0001.zip"},
+		{RemoteFile: "c.zip", LocalFile: "3456-0001.zip"},
+	}
+	if err := mirrorDB.SaveFiles(ctx, mirror.ID, filenames); err != nil {
+		t.Fatal(err)
+	}
+
+	want := make([]*model.MirrorFile, len(filenames))
+	for i, fname := range filenames {
+		localFname := fname.LocalFile
+		want[i] = &model.MirrorFile{
+			MirrorID:      mirror.ID,
+			Filename:      fname.RemoteFile,
+			LocalFilename: &localFname,
+		}
+	}
+
+	got, err := mirrorDB.ListFiles(ctx, mirror.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sorter := cmpopts.SortSlices(
+		func(a, b *model.MirrorFile) bool {
+			return a.Filename < b.Filename
+		})
+	if diff := cmp.Diff(want, got, sorter); diff != "" {
+		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	// Change the files
+	filenames = []*SyncFile{
+		{RemoteFile: "c.zip", LocalFile: "3456-0001.zip"},
+		{RemoteFile: "d.zip", LocalFile: "4567-0001.zip"},
+		{RemoteFile: "e.zip", LocalFile: "25678-0001.zip"},
+	}
+
+	if err := mirrorDB.SaveFiles(ctx, mirror.ID, filenames); err != nil {
+		t.Fatal(err)
+	}
+
+	want = make([]*model.MirrorFile, len(filenames))
+	for i, fname := range filenames {
+		localFname := fname.LocalFile
+		want[i] = &model.MirrorFile{
+			MirrorID:      mirror.ID,
+			Filename:      fname.RemoteFile,
+			LocalFilename: &localFname,
 		}
 	}
 
