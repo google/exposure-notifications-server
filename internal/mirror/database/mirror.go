@@ -38,11 +38,11 @@ func (db *MirrorDB) AddMirror(ctx context.Context, m *model.Mirror) error {
 	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
-				Mirror (index_file, export_root, cloud_storage_bucket, filename_root)
+				Mirror (index_file, export_root, cloud_storage_bucket, filename_root, filename_rewrite)
 			VALUES
-				($1, $2, $3, $4)
+				($1, $2, $3, $4, $5)
 			RETURNING id
-		`, m.IndexFile, m.ExportRoot, m.CloudStorageBucket, m.FilenameRoot)
+		`, m.IndexFile, m.ExportRoot, m.CloudStorageBucket, m.FilenameRoot, m.FilenameRewrite)
 
 		if err := row.Scan(&m.ID); err != nil {
 			return fmt.Errorf("fetching mirror.ID: %w", err)
@@ -83,7 +83,7 @@ func (db *MirrorDB) Mirrors(ctx context.Context) ([]*model.Mirror, error) {
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT
-				id, index_file, export_root, cloud_storage_bucket, filename_root
+				id, index_file, export_root, cloud_storage_bucket, filename_root, filename_rewrite
 			FROM
 				mirror
 			ORDER BY id
@@ -99,7 +99,7 @@ func (db *MirrorDB) Mirrors(ctx context.Context) ([]*model.Mirror, error) {
 			}
 
 			var m model.Mirror
-			if err := rows.Scan(&m.ID, &m.IndexFile, &m.ExportRoot, &m.CloudStorageBucket, &m.FilenameRoot); err != nil {
+			if err := rows.Scan(&m.ID, &m.IndexFile, &m.ExportRoot, &m.CloudStorageBucket, &m.FilenameRoot, &m.FilenameRewrite); err != nil {
 				return fmt.Errorf("reading row: %w", err)
 			}
 			mirrors = append(mirrors, &m)
@@ -112,14 +112,20 @@ func (db *MirrorDB) Mirrors(ctx context.Context) ([]*model.Mirror, error) {
 	return mirrors, nil
 }
 
+type SyncFile struct {
+	RemoteFile string
+	LocalFile  string
+}
+
 // SaveFiles makes the list of filenames passed in the only files that are saved on that mirrorID.
-func (db *MirrorDB) SaveFiles(ctx context.Context, mirrorID int64, filenames []string) error {
+// filenames is a map of the upstream->local filenames. They may be the same.
+func (db *MirrorDB) SaveFiles(ctx context.Context, mirrorID int64, filenames []*SyncFile) error {
 	const deleteName = "delete mirror file"
 	const insertName = "insert mirror file"
 
-	wantFiles := make(map[string]struct{}, len(filenames))
-	for _, fname := range filenames {
-		wantFiles[fname] = struct{}{}
+	wantFiles := make(map[string]string, len(filenames))
+	for _, sf := range filenames {
+		wantFiles[sf.RemoteFile] = sf.LocalFile
 	}
 
 	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
@@ -165,16 +171,20 @@ func (db *MirrorDB) SaveFiles(ctx context.Context, mirrorID int64, filenames []s
 		if len(wantFiles) > 0 {
 			if _, err := tx.Prepare(ctx, insertName, `
 				INSERT INTO
-					MirrorFile (mirror_id, filename)
+					MirrorFile (mirror_id, filename, local_filename)
 				VALUES
-					($1, $2)
+					($1, $2, $3)
 				ON CONFLICT (mirror_id, filename) DO NOTHING
 			`); err != nil {
 				return fmt.Errorf("failed to prepare insert statement: %w", err)
 			}
 
-			for fName := range wantFiles {
-				if _, err := tx.Exec(ctx, insertName, mirrorID, fName); err != nil {
+			for fName, rewrittenFilename := range wantFiles {
+				var localFilename *string
+				if fName != rewrittenFilename {
+					localFilename = &rewrittenFilename
+				}
+				if _, err := tx.Exec(ctx, insertName, mirrorID, fName, localFilename); err != nil {
 					return fmt.Errorf("failed to insert mirrorfile: %w", err)
 				}
 			}
@@ -204,7 +214,7 @@ func readFiles(ctx context.Context, tx pgx.Tx, mirrorID int64) ([]*model.MirrorF
 	var mirrorFiles []*model.MirrorFile
 	rows, err := tx.Query(ctx, `
 			SELECT
-				mirror_id, filename
+				mirror_id, filename, local_filename
 			FROM
 				MirrorFile
 			WHERE
@@ -222,7 +232,7 @@ func readFiles(ctx context.Context, tx pgx.Tx, mirrorID int64) ([]*model.MirrorF
 		}
 
 		var f model.MirrorFile
-		if err := rows.Scan(&f.MirrorID, &f.Filename); err != nil {
+		if err := rows.Scan(&f.MirrorID, &f.Filename, &f.LocalFilename); err != nil {
 			return nil, fmt.Errorf("reading row: %w", err)
 		}
 		mirrorFiles = append(mirrorFiles, &f)

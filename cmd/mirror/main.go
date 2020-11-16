@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This binary provides a server that can import export files from a trusted partner.
+// This binary provides a server that can mirror export files.
 package main
 
 import (
@@ -57,7 +57,7 @@ func realMain(ctx context.Context) error {
 	}
 	defer env.Close(ctx)
 
-	rotationServer, err := mirror.NewServer(&config, env)
+	mirrorServer, err := mirror.NewServer(&config, env)
 	if err != nil {
 		return fmt.Errorf("mirror.NewServer: %w", err)
 	}
@@ -68,5 +68,5 @@ func realMain(ctx context.Context) error {
 	}
 	logger.Info("listening on: ", config.Port)
 
-	return srv.ServeHTTPHandler(ctx, rotationServer.Routes(ctx))
+	return srv.ServeHTTPHandler(ctx, mirrorServer.Routes(ctx))
 }
