@@ -88,14 +88,17 @@ func TestAddImportFiles(t *testing.T) {
 
 	filenames := []string{"a.zip", "b.zip", "c.zip"}
 
-	if n, err := exportImportDB.CreateFiles(ctx, &config, filenames); err != nil {
+	if n, f, err := exportImportDB.CreateNewFilesAndFailOld(ctx, &config, filenames); err != nil {
 		t.Fatal(err)
 	} else if n != len(filenames) {
 		t.Fatalf("incorrect number of files, want: %v, got: %v", len(filenames), n)
+	} else if f != 0 {
+		t.Fatalf("incorrect number of failed files, want: 0, got: %v", f)
 	}
 
 	lockDuration := 15 * time.Minute
-	got, err := exportImportDB.GetOpenImportFiles(ctx, lockDuration, &config)
+	retryRate := time.Hour
+	got, err := exportImportDB.GetOpenImportFiles(ctx, lockDuration, retryRate, &config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +126,7 @@ func TestLeaseAndCompleteImportFile(t *testing.T) {
 	ctx := context.Background()
 	exportImportDB := New(testDB)
 
-	lockDuration := 2 * time.Second
+	lockDuration, retryRate := 2*time.Second, time.Hour
 	now := time.Now().UTC()
 	config := model.ExportImport{
 		IndexFile:  "https://mysever/exports/index.txt",
@@ -138,13 +141,15 @@ func TestLeaseAndCompleteImportFile(t *testing.T) {
 
 	filenames := []string{"a.zip"}
 
-	if n, err := exportImportDB.CreateFiles(ctx, &config, filenames); err != nil {
+	if n, f, err := exportImportDB.CreateNewFilesAndFailOld(ctx, &config, filenames); err != nil {
 		t.Fatal(err)
 	} else if n != len(filenames) {
 		t.Fatalf("incorrect number of files, want: %v, got: %v", len(filenames), n)
+	} else if f != 0 {
+		t.Fatalf("incorrect number of failed files, want: 0, got: %v", f)
 	}
 
-	openFiles, err := exportImportDB.GetOpenImportFiles(ctx, lockDuration, &config)
+	openFiles, err := exportImportDB.GetOpenImportFiles(ctx, lockDuration, retryRate, &config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +175,7 @@ func TestLeaseAndCompleteImportFile(t *testing.T) {
 		t.Fatalf("unable to complete import file: %v", err)
 	}
 
-	openFiles, err = exportImportDB.GetOpenImportFiles(ctx, lockDuration, &config)
+	openFiles, err = exportImportDB.GetOpenImportFiles(ctx, lockDuration, retryRate, &config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,5 +250,70 @@ func TestImportFilePublicKey(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Fatalf("want 0 public keys, got: %v", got)
+	}
+}
+
+func TestRetryToClose(t *testing.T) {
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
+	ctx := context.Background()
+	exportImportDB := New(testDB)
+
+	now := time.Now().UTC()
+	config := model.ExportImport{
+		IndexFile:  "https://mysever/exports/index.txt",
+		ExportRoot: "https://myserver/",
+		Region:     "US",
+		From:       now,
+		Thru:       nil,
+	}
+	if err := exportImportDB.AddConfig(ctx, &config); err != nil {
+		t.Fatal(err)
+	}
+
+	filenames := []string{"a.zip", "b.zip", "c.zip"}
+
+	if n, f, err := exportImportDB.CreateNewFilesAndFailOld(ctx, &config, filenames); err != nil {
+		t.Fatalf("error creating files %v", err)
+	} else if n != len(filenames) {
+		t.Fatalf("error, only created %d files, expected %d", n, len(filenames))
+	} else if f != 0 {
+		t.Fatalf("error, failed %d files, expected 0", f)
+	}
+
+	// Make sure we get enough files.
+	lockDuration := 15 * time.Minute
+	retryRate := time.Hour
+	if got, err := exportImportDB.GetOpenImportFiles(ctx, lockDuration, retryRate, &config); err != nil {
+		t.Errorf("error getting open files; %v", err)
+	} else if len(got) != len(filenames) {
+		t.Errorf("got %d filenames, expected: %v", len(got), len(filenames))
+	}
+
+	if n, f, err := exportImportDB.CreateNewFilesAndFailOld(ctx, &config, []string{}); err != nil {
+		t.Fatalf("error creating files")
+	} else if n != 0 {
+		t.Fatalf("error, only creating files, expected 0, got: %d", n)
+	} else if f != 3 {
+		t.Fatalf("error, got: %d failed, expected 3", f)
+	}
+
+	if got, err := exportImportDB.GetOpenImportFiles(ctx, lockDuration, retryRate, &config); err != nil {
+		t.Errorf("error getting open files: %v", err)
+	} else if len(got) != 0 {
+		t.Errorf("expected all files deleted:, len = %d, expected 0", len(got))
+	}
+
+	if got, err := exportImportDB.GetAllImportFiles(ctx, lockDuration, &config); err != nil {
+		t.Errorf("error getting open files; %v", err)
+	} else if len(got) != len(filenames) {
+		t.Errorf("got %d filenames, expected: %v", len(got), len(filenames))
+	} else {
+		for _, file := range got {
+			if file.Status != model.ImportFileFailed {
+				t.Errorf("input file status = %v, expected %v", file.Status, model.ImportFileFailed)
+			}
+		}
 	}
 }

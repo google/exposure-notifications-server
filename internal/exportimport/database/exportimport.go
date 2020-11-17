@@ -317,9 +317,11 @@ func prepareInsertImportFile(ctx context.Context, tx pgx.Tx) (string, error) {
 	return stmtName, err
 }
 
-func (db *ExportImportDB) CreateFiles(ctx context.Context, ei *model.ExportImport, filenames []string) (int, error) {
+// CreateNewFilesAndFailOld creates all the specified files named, returning
+// the number of created files, and the number moved to an failed state.
+func (db *ExportImportDB) CreateNewFilesAndFailOld(ctx context.Context, ei *model.ExportImport, filenames []string) (int, int, error) {
 	logger := logging.FromContext(ctx)
-	insertedFiles := 0
+	insertedFiles, failedFiles := 0, 0
 
 	now := time.Now().UTC()
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
@@ -369,12 +371,26 @@ func (db *ExportImportDB) CreateFiles(ctx context.Context, ei *model.ExportImpor
 			logger.Debugw("scheduled new export file for importing", "exportImportID", ei.ID, "filename", fname)
 			insertedFiles++
 		}
+
+		// Close any files that aren't in the list that are retrying.
+		failed, err := tx.Exec(ctx, `
+				UPDATE
+					ImportFile
+				SET
+					status = $1
+				WHERE export_import_id=$2 AND NOT zip_filename = ANY($3) AND status != $4
+			`, model.ImportFileFailed, ei.ID, filenames, model.ImportFileComplete)
+		if err != nil {
+			return fmt.Errorf("failed to update retries: %w", err)
+		}
+		failedFiles = int(failed.RowsAffected())
+
 		return nil
 	}); err != nil {
-		return 0, fmt.Errorf("creating import files: %w", err)
+		return 0, 0, fmt.Errorf("creating import files: %w", err)
 	}
 
-	return insertedFiles, nil
+	return insertedFiles, failedFiles, nil
 }
 
 func (db *ExportImportDB) CompleteImportFile(ctx context.Context, ef *model.ImportFile, status string) error {
@@ -414,10 +430,10 @@ func (db *ExportImportDB) CompleteImportFile(ctx context.Context, ef *model.Impo
 			UPDATE
 				ImportFile
 			SET
-				status=$1, processed_at=$2
+				status=$1, processed_at=$2, retries=$3
 			WHERE
-				id=$3
-			`, ef.Status, ef.ProcessedAt, ef.ID)
+				id=$4
+			`, ef.Status, ef.ProcessedAt, ef.Retries, ef.ID)
 		if err != nil {
 			return fmt.Errorf("unable to mark complete: %w", err)
 		}
@@ -483,14 +499,14 @@ func (db *ExportImportDB) LeaseImportFile(ctx context.Context, lockDuration time
 	})
 }
 
-func (db *ExportImportDB) GetOpenImportFiles(ctx context.Context, lockDuration time.Duration, ei *model.ExportImport) ([]*model.ImportFile, error) {
+func (db *ExportImportDB) GetOpenImportFiles(ctx context.Context, lockDuration, retryRate time.Duration, ei *model.ExportImport) ([]*model.ImportFile, error) {
 	var importFiles []*model.ImportFile
 
 	lockOverrideTime := time.Now().UTC().Add(-1 * lockDuration)
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT
-				id, zip_filename, discovered_at, status
+				id, zip_filename, discovered_at, processed_at, status, retries
 			FROM
 				ImportFile
 			WHERE
@@ -511,9 +527,58 @@ func (db *ExportImportDB) GetOpenImportFiles(ctx context.Context, lockDuration t
 			file := model.ImportFile{
 				ExportImportID: ei.ID,
 			}
-			if err := rows.Scan(&file.ID, &file.ZipFilename, &file.DiscoveredAt, &file.Status); err != nil {
-				return err
+			if err := rows.Scan(&file.ID, &file.ZipFilename, &file.DiscoveredAt, &file.ProcessedAt, &file.Status, &file.Retries); err != nil {
+				return fmt.Errorf("failed to scan rows: %w", err)
 			}
+
+			// Do some backoff on the retrying ImportFiles.
+			if file.ShouldTry(retryRate) {
+				importFiles = append(importFiles, &file)
+			} else {
+				fmt.Println("SKIP:", file)
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("unable to read open import files: %w", err)
+	}
+
+	return importFiles, nil
+}
+
+// GetAllImportFiles returns all input files for a config, regardless of their state.
+// This function is used for testing.
+func (db *ExportImportDB) GetAllImportFiles(ctx context.Context, lockDuration time.Duration, ei *model.ExportImport) ([]*model.ImportFile, error) {
+	var importFiles []*model.ImportFile
+
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT
+				id, zip_filename, discovered_at, status, retries
+			FROM
+				ImportFile
+			WHERE
+				export_import_id = $1
+			ORDER BY
+				id ASC
+		`, ei.ID)
+		if err != nil {
+			return fmt.Errorf("failed to list: %w", err)
+		}
+
+		defer rows.Close()
+		for rows.Next() {
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("failed to iterate: %w", err)
+			}
+
+			file := model.ImportFile{
+				ExportImportID: ei.ID,
+			}
+			if err := rows.Scan(&file.ID, &file.ZipFilename, &file.DiscoveredAt, &file.Status, &file.Retries); err != nil {
+				return fmt.Errorf("failed to scan rows: %w", err)
+			}
+
 			importFiles = append(importFiles, &file)
 		}
 		return nil

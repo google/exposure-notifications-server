@@ -14,7 +14,9 @@
 
 package model
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	ImportFileOpen     = "OPEN"
@@ -30,4 +32,16 @@ type ImportFile struct {
 	DiscoveredAt   time.Time
 	ProcessedAt    *time.Time
 	Status         string
+	Retries        uint
+}
+
+// ShouldTry performs some introspection on an import file from the DB, and
+// returns true if that file should be tried for download.
+func (f *ImportFile) ShouldTry(retryRate time.Duration) bool {
+	if f.Status == ImportFileOpen {
+		now := time.Now().UTC()
+		d := f.DiscoveredAt.Add(time.Duration(f.Retries) * retryRate)
+		return now.After(d)
+	}
+	return false
 }

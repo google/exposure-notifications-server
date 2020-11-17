@@ -85,9 +85,9 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 	}()
 
 	// Get the list of files that needs to be processed.
-	openFiles, err := s.exportImportDB.GetOpenImportFiles(ctx, s.config.ImportLockTime, config)
+	openFiles, err := s.exportImportDB.GetOpenImportFiles(ctx, s.config.ImportLockTime, s.config.ImportRetryRate, config)
 	if err != nil {
-		logger.Errorw("unable to read open export files", "config", config, "error", err)
+		logger.Errorw("unable to read open import files", "config", config, "error", err)
 	}
 	if len(openFiles) == 0 {
 		logger.Infow("no work to do", "config", config)
@@ -102,6 +102,7 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 	}
 	logger.Debugw("allowed public keys for file", "publicKeys", keys)
 
+	errs := []error{}
 	for _, file := range openFiles {
 		// Check how we're doing on max runtime.
 		if deadlinePassed(ctx) {
@@ -122,12 +123,15 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 			file:         file,
 		})
 		if err != nil {
+			errs = append(errs, err)
+			str := fmt.Sprintf("import file error [retry %d]", file.Retries)
+			file.Retries += 1
 			if errors.Is(err, ErrArchiveNotFound) {
-				logger.Errorw("export file not found, marking failed", "exportImportID", config.ID, "filename", file.ZipFilename)
-				status = model.ImportFileFailed
-			} else {
-				return fmt.Errorf("error processing export file: %w", err)
+				str += ", file not found"
 			}
+
+			// Check the retries.
+			logger.Errorw(str, "exportImportID", config.ID, "filename", file.ZipFilename)
 		}
 		// the not found error is passed through.
 		if result != nil {
@@ -138,9 +142,11 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 			logger.Errorf("failed to mark file completed", "file", file, "error", err)
 		}
 	}
+	if len(errs) != 0 {
+		return fmt.Errorf("%d errors processing import file: %v", len(errs), errs)
+	}
 	return nil
 }
-
 func deadlinePassed(ctx context.Context) bool {
 	deadline, ok := ctx.Deadline()
 	if !ok {
