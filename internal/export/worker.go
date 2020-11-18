@@ -384,6 +384,11 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 			return err
 		}
 
+		// Mark files that we've previously cared about as expired.
+		if err := s.markExpiredFiles(ctx, eb); err != nil {
+			return fmt.Errorf("marking expired: %v", err)
+		}
+
 		indexName, entries, err := s.createIndex(ctx, eb, objectNames)
 		if err != nil {
 			if err1 := unlock(); err1 != nil {
@@ -391,12 +396,26 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 			}
 			return fmt.Errorf("creating index file for batch %d: %w", eb.BatchID, err)
 		}
+
 		logger.Infof("Wrote index file %q with %d entries (triggered by batch %d)", indexName, entries, eb.BatchID)
 		if err := unlock(); err != nil {
 			return fmt.Errorf("releasing lock: %w", err)
 		}
 		break
 	}
+	return nil
+}
+
+// markExpiredFiles marks previously created files for deletion where the TTL has expired.
+// These get cleaned up in the cleanup task.
+func (s *Server) markExpiredFiles(ctx context.Context, eb *model.ExportBatch) error {
+	db := s.env.Database()
+	logger := logging.FromContext(ctx)
+	num, err := exportdatabase.New(db).MarkExpiredFiles(ctx, eb.ConfigID, s.config.TTL)
+	if err != nil {
+		return err
+	}
+	logger.Infof("marking %d files for deletion", num)
 	return nil
 }
 
