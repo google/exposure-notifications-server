@@ -15,7 +15,7 @@
 resource "google_sql_database_instance" "db-inst" {
   project          = data.google_project.project.project_id
   region           = var.db_location
-  database_version = "POSTGRES_11"
+  database_version = var.db_version
   name             = var.db_name
 
   settings {
