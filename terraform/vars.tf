@@ -41,6 +41,13 @@ variable "db_name" {
   default = "en-server"
 }
 
+variable "db_version" {
+  type    = string
+  default = "POSTGRES_11"
+
+  description = "Version of the database to use. Must be at least 11 or higher."
+}
+
 # The region for the networking components.
 # https://cloud.google.com/compute/docs/regions-zones
 variable "network_location" {
