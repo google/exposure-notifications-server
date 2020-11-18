@@ -35,17 +35,18 @@ variable "db_location" {
   default = "us-central1"
 }
 
-# The name of the database.
-variable "db_name" {
-  type    = string
-  default = "en-server"
-}
-
 variable "db_version" {
   type    = string
-  default = "POSTGRES_11"
+  default = "POSTGRES_13"
 
   description = "Version of the database to use. Must be at least 11 or higher."
+}
+
+variable "db_failover_replica_regions" {
+  type    = list(string)
+  default = []
+
+  description = "List of regions in which to create failover replicas. The default configuration is resistant to zonal outages. This will increase costs."
 }
 
 # The region for the networking components.
