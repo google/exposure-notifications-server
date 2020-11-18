@@ -28,7 +28,6 @@ module "en" {
 
   project                           = var.project
   cloudsql_disk_size_gb             = 500
-  db_name                           = "en-server-${random_string.suffix.result}"
   kms_export_signing_key_ring_name  = "export-signing-${random_string.suffix.result}"
   kms_revision_tokens_key_ring_name = "revision-tokens-${random_string.suffix.result}"
 

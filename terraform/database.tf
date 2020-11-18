@@ -16,7 +16,6 @@ resource "google_sql_database_instance" "db-inst" {
   project          = data.google_project.project.project_id
   region           = var.db_location
   database_version = var.db_version
-  name             = var.db_name
 
   settings {
     tier              = var.cloudsql_tier
@@ -51,18 +50,51 @@ resource "google_sql_database_instance" "db-inst" {
     }
   }
 
-  lifecycle {
-    # This prevents accidental deletion of the database.
-    prevent_destroy = true
+  depends_on = [
+    google_project_service.services["sql-component.googleapis.com"],
+  ]
+}
 
-    # Earlier versions of the database had a different name, and its not
-    # possible to rename Cloud SQL instances.
-    ignore_changes = [
-      name,
-    ]
+resource "google_sql_database_instance" "replicas" {
+  for_each = toset(var.db_failover_replica_regions)
+
+  project          = var.project
+  region           = each.key
+  database_version = var.db_version
+
+  master_instance_name = google_sql_database_instance.db-inst.name
+
+  // These are REGIONAL replicas, which cannot auto-failover. The default
+  // configuration has auto-failover in zones. This is for super disaster
+  // recovery in which an entire region is down for an extended period of time.
+  replica_configuration {
+    failover_target = false
+  }
+
+  settings {
+    tier              = var.cloudsql_tier
+    disk_size         = var.cloudsql_disk_size_gb
+    availability_type = "ZONAL"
+    pricing_plan      = "PACKAGE"
+
+    database_flags {
+      name  = "autovacuum"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "max_connections"
+      value = var.cloudsql_max_connections
+    }
+
+    ip_configuration {
+      require_ssl     = true
+      private_network = google_service_networking_connection.private_vpc_connection.network
+    }
   }
 
   depends_on = [
+    google_project_service.services["sqladmin.googleapis.com"],
     google_project_service.services["sql-component.googleapis.com"],
   ]
 }
@@ -70,7 +102,7 @@ resource "google_sql_database_instance" "db-inst" {
 resource "google_sql_database" "db" {
   project  = data.google_project.project.project_id
   instance = google_sql_database_instance.db-inst.name
-  name     = "main"
+  name     = "key"
 }
 
 resource "google_sql_ssl_cert" "db-cert" {
@@ -86,7 +118,7 @@ resource "random_password" "db-password" {
 
 resource "google_sql_user" "user" {
   instance = google_sql_database_instance.db-inst.name
-  name     = "notification"
+  name     = "key"
   password = random_password.db-password.result
 }
 
