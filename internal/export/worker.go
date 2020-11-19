@@ -148,7 +148,7 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 	// file). This technique avoids SELECT COUNT which would lock the database
 	// slowing new uploads.
 	groups := []*group{}
-	nextGroup := group{}
+	nextGroup := &group{}
 	totalNewKeys, totalRevisedKeys := 0, 0
 	droppedKeys := 0
 
@@ -167,8 +167,8 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 		nextGroup.exposures = append(nextGroup.exposures, exp)
 		totalNewKeys++
 		if nextGroup.Length() == s.config.MaxRecords {
-			groups = append(groups, &nextGroup)
-			nextGroup = group{}
+			groups = append(groups, nextGroup)
+			nextGroup = &group{}
 		}
 		return nil
 	})
@@ -186,8 +186,8 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 		nextGroup.revised = append(nextGroup.revised, exp)
 		totalRevisedKeys++
 		if nextGroup.Length() == s.config.MaxRecords {
-			groups = append(groups, &nextGroup)
-			nextGroup = group{}
+			groups = append(groups, nextGroup)
+			nextGroup = &group{}
 		}
 		return nil
 	})
@@ -204,7 +204,7 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 
 	// If the last group has anything, add it to the list.
 	if nextGroup.Length() > 0 {
-		groups = append(groups, &nextGroup)
+		groups = append(groups, nextGroup)
 	}
 
 	if len(groups) == 0 {
