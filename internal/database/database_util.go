@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -65,11 +66,14 @@ func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
 		tb.Fatalf("failed to create Docker pool: %s", err)
 	}
 
+	// Determine the container image to use.
+	repo, tag := postgresRepo(tb)
+
 	// Start the container.
 	dbname, username, password := "en-server", "my-username", "abcd1234"
 	container, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "postgres",
-		Tag:        "12-alpine",
+		Repository: repo,
+		Tag:        tag,
 		Env: []string{
 			"LANG=C",
 			"POSTGRES_DB=" + dbname,
@@ -79,6 +83,11 @@ func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
 	})
 	if err != nil {
 		tb.Fatalf("failed to start postgres container: %s", err)
+	}
+
+	// Force the database container to stop.
+	if err := container.Expire(120); err != nil {
+		tb.Fatalf("failed to force-stop container: %v", err)
 	}
 
 	// Ensure container is cleaned up.
@@ -105,16 +114,12 @@ func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
 	q.Add("sslmode", "disable")
 	connURL.RawQuery = q.Encode()
 
-	// Wait for the container to start - we'll retry connections in a loop below,
-	// but there's no point in trying immediately.
-	time.Sleep(1 * time.Second)
-
-	b, err := retry.NewFibonacci(500 * time.Millisecond)
+	// Wait for the container to start.
+	b, err := retry.NewConstant(1 * time.Second)
 	if err != nil {
 		tb.Fatalf("failed to configure backoff: %v", err)
 	}
-	b = retry.WithMaxRetries(10, b)
-	b = retry.WithCappedDuration(10*time.Second, b)
+	b = retry.WithMaxRetries(30, b)
 
 	// Establish a connection to the database. Use a Fibonacci backoff instead of
 	// exponential so wait times scale appropriately.
@@ -191,4 +196,17 @@ func dbMigrationsDir() string {
 		return ""
 	}
 	return filepath.Join(filepath.Dir(filename), "../../migrations")
+}
+
+func postgresRepo(tb testing.TB) (string, string) {
+	postgresImageRef := os.Getenv("CI_POSTGRES_IMAGE")
+	if postgresImageRef == "" {
+		postgresImageRef = "postgres:13-alpine"
+	}
+
+	parts := strings.SplitN(postgresImageRef, ":", 2)
+	if len(parts) != 2 {
+		tb.Fatalf("invalid postgres ref %v", postgresImageRef)
+	}
+	return parts[0], parts[1]
 }
