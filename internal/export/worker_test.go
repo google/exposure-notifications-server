@@ -147,8 +147,9 @@ func TestBatchExposures(t *testing.T) {
 	ctx := context.Background()
 
 	config := Config{
-		MinRecords:         5,
+		MinRecords:         1,
 		PaddingRange:       0,
+		MaxRecords:         1,
 		TruncateWindow:     time.Hour,
 		MaxInsertBatchSize: 100,
 	}
@@ -353,6 +354,86 @@ func TestBatchExposures(t *testing.T) {
 		}
 
 		if diff := cmp.Diff(foreignNonTraveler, foreignNonTravelerRollup); diff != "" {
+			t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
+		}
+	}
+}
+
+func TestVariableBatchMaxSize(t *testing.T) {
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
+	testPublishDB := publishdb.New(testDB)
+	ctx := context.Background()
+
+	// Using a 1 hour truncate window
+	baseTime := time.Date(2020, 10, 28, 1, 0, 0, 0, time.UTC).Truncate(time.Hour)
+	exposures := make([]*publishmodel.Exposure, 20)
+	want := make(map[string]struct{})
+	for i := 0; i < 20; i++ {
+		// All keys alignd to the same hour.
+		exposures[i] = &publishmodel.Exposure{
+			ExposureKey:     getKey(t),
+			Regions:         []string{"US"},
+			IntervalNumber:  100,
+			IntervalCount:   144,
+			CreatedAt:       baseTime,
+			LocalProvenance: true,
+			Traveler:        false,
+			ReportType:      verifyapi.ReportTypeClinical,
+		}
+		want[exposures[i].ExposureKeyBase64()] = struct{}{}
+	}
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+		Incoming:     exposures,
+		RequireToken: false,
+	}); err != nil {
+		t.Fatalf("inserting exposures: %v", err)
+	}
+
+	for batchSize := 1; batchSize <= len(exposures); batchSize++ {
+		config := Config{
+			MinRecords:         1,
+			PaddingRange:       0,
+			MaxRecords:         batchSize,
+			TruncateWindow:     time.Hour,
+			MaxInsertBatchSize: 100,
+		}
+		server := Server{
+			config: &config,
+			env:    serverenv.New(ctx, serverenv.WithDatabase(testDB)),
+		}
+
+		// Build the iteration criteria for the incremental batches.
+		criteria := publishdb.IterateExposuresCriteria{
+			SinceTimestamp:      baseTime,
+			UntilTimestamp:      baseTime.Add(time.Hour),
+			IncludeRegions:      []string{"US"}, // current list of foreign countries
+			IncludeTravelers:    true,
+			OnlyNonTravelers:    false,
+			OnlyLocalProvenance: true,
+		}
+
+		groups, err := server.batchExposures(ctx, criteria, "REMOTE")
+		if err != nil {
+			t.Fatalf("failed to read exposures: %v", err)
+		}
+		if len(groups) == 0 {
+			t.Fatalf("export batch should have found some keys")
+		}
+
+		got := make(map[string]struct{})
+		for _, group := range groups {
+			for _, exp := range group.exposures {
+				b64 := exp.ExposureKeyBase64()
+				if _, ok := got[b64]; ok {
+					t.Fatalf("hourly batch included duplicate key")
+				}
+				got[b64] = struct{}{}
+			}
+		}
+
+		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
 		}
 	}
