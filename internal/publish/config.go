@@ -89,9 +89,6 @@ type Config struct {
 	// Should only be set if a server is being operated in a single region.
 	DefaultRegion string `env:"DEFAULT_REGION"`
 
-	// Feature flags - eventually these are removed as features become default behavior
-	FailOnCertificateAudienceMismatch bool `env:"FEATURE_FAIL_ON_CERTIFICATE_AUDIENCE_MISMATCH, default=true"`
-
 	// Flags for local development and testing. This will cause still valid keys
 	// to not be embargoed.
 	// Normally "still valid" keys can be accepted, but are embargoed.
