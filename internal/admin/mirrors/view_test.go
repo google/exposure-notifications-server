@@ -12,29 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package exports
+package mirrors
 
 import (
-	"reflect"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/google/exposure-notifications-server/internal/admin"
+	mirrormodel "github.com/google/exposure-notifications-server/internal/mirror/model"
 )
 
-func TestSplitRegions(t *testing.T) {
-	tests := []struct {
-		r string
-		e []string
-	}{
-		{"", []string{}},
-		{"  test  ", []string{"test"}},
-		{"test\n\rfoo", []string{"foo", "test"}},
-		{"test\n\rfoo bar\n\r", []string{"foo bar", "test"}},
-		{"test\n\rfoo bar\n\r  ", []string{"foo bar", "test"}},
-		{"test\nfoo\n", []string{"foo", "test"}},
-	}
+func TestRender(t *testing.T) {
+	m := admin.TemplateMap{}
+	mirror := &mirrormodel.Mirror{}
+	m["mirror"] = mirror
 
-	for i, test := range tests {
-		if res := splitRegions(test.r); !reflect.DeepEqual(res, test.e) {
-			t.Errorf("[%d] splitRegions(%v) = %v, expected %v", i, test.r, res, test.e)
-		}
+	recorder := httptest.NewRecorder()
+	config := admin.Config{
+		TemplatePath: "../../../tools/admin-console/templates",
+		TopFile:      "top",
+		BotFile:      "bottom",
+	}
+	err := config.RenderTemplate(recorder, "mirror", m)
+	if err != nil {
+		t.Fatalf("error rendering template: %v", err)
 	}
 }

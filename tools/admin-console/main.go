@@ -27,6 +27,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/admin/exports"
 	"github.com/google/exposure-notifications-server/internal/admin/healthauthority"
 	"github.com/google/exposure-notifications-server/internal/admin/index"
+	"github.com/google/exposure-notifications-server/internal/admin/mirrors"
 	"github.com/google/exposure-notifications-server/internal/admin/siginfo"
 	"github.com/google/exposure-notifications-server/internal/setup"
 )
@@ -74,6 +75,12 @@ func main() {
 	router.GET("/export-importers/:id", exportImporterController.Execute)
 	saveExportImporterController := exportimporters.NewSave(&config, env)
 	router.POST("/export-importers/:id", saveExportImporterController.Execute)
+
+	// Mirror handling.
+	mirrorController := mirrors.NewView(&config, env)
+	router.GET("/mirrors/:id", mirrorController.Execute)
+	saveMirrorController := mirrors.NewSave(&config, env)
+	router.POST("/mirrors/:id", saveMirrorController.Execute)
 
 	// Signature Info.
 	sigInfoController := siginfo.NewView(&config, env)

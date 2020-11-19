@@ -176,6 +176,46 @@
       </div>
     </div>
   </div>
+
+  <div class="col mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Mirrors</h5>
+      </div>
+
+      {{if .mirrors}}
+        <div class="list-group list-group-flush">
+          {{range .mirrors}}
+            <a href="/mirrors/{{.ID}}" class="list-group-item list-group-item-action">
+              <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">{{.CloudStorageBucket}}</h5>
+                <small>ID: {{.ID}}</small>
+              </div>
+              <p class="mb-0">
+                Filename Root: {{.FilenameRoot}}
+              </p>
+              <p class="mb-0">
+                Export Root: {{.ExportRoot}}
+              </p>
+              <p class="mb-1">
+                Index File: {{.IndexFile}}
+              </p>
+            </a>
+          {{end}}
+        </div>
+      {{else}}
+        <div class="card-body">
+          <p class="text-center mb-0"><em>There are no mirrors.</em></p>
+        </div>
+      {{end}}
+
+      <div class="card-body">
+        <div class="card-text">
+          <a href="/mirrors/0" class="btn btn-block btn-primary">Create new Mirror</a>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 {{template "bottom" .}}

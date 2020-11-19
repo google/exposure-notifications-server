@@ -24,7 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestAddListDeleteMirror(t *testing.T) {
+func TestMirror_Lifecycle(t *testing.T) {
 	t.Parallel()
 
 	testDB := database.NewTestDatabase(t)
@@ -51,14 +51,41 @@ func TestAddListDeleteMirror(t *testing.T) {
 		}
 	}
 
-	got, err := mirrorDB.Mirrors(ctx)
+	// List
+	mirrors, err := mirrorDB.Mirrors(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(mirrors) < 1 {
+		t.Fatal("no mirrors")
+	}
 
 	ignore := cmpopts.IgnoreUnexported(model.Mirror{})
-	if diff := cmp.Diff(want, got, ignore); diff != "" {
+	if diff := cmp.Diff(want, mirrors, ignore); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	// Get and update
+	{
+		mirror, err := mirrorDB.GetMirror(ctx, mirrors[0].ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mirror.ID != 1 {
+			t.Fatalf("expected %d to be 1", mirror.ID)
+		}
+
+		mirror.IndexFile = "foo"
+		if err := mirrorDB.UpdateMirror(ctx, mirror); err != nil {
+			t.Fatal(err)
+		}
+		mirror, err = mirrorDB.GetMirror(ctx, mirrors[0].ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := mirror.IndexFile, "foo"; got != want {
+			t.Fatalf("expected %q to be %q", got, want)
+		}
 	}
 
 	for _, w := range want {
@@ -67,11 +94,10 @@ func TestAddListDeleteMirror(t *testing.T) {
 		}
 	}
 
-	got, err = mirrorDB.Mirrors(ctx)
+	got, err := mirrorDB.Mirrors(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if len(got) != 0 {
 		t.Fatalf("got back deleted mirrors")
 	}

@@ -1,0 +1,96 @@
+{{define "mirror"}}
+{{template "top" .}}
+
+<div class="card shadow-sm mb-3">
+  <div class="card-header">
+    {{if not .mirror.ID}}
+      New Mirror
+    {{else}}
+      Update mirror <span class="font-weight-bold text-monospace">{{.mirror.ID}}</span>
+    {{end}}
+  </div>
+  <div class="card-body">
+    <form method="POST" action="/mirrors/{{.mirror.ID}}" class="floating-form">
+      <div class="form-label-group">
+        <input type="text" name="IndexFile" id="index-file" value="{{.mirror.IndexFile}}" class="form-control" placeholder="Index File">
+        <label for="index-file">Index File</label>
+        <small class="form-text text-muted">
+          Full URL of the index file from which to read. Example: <code>https://mysever/exports/index.txt</code>.
+        </small>
+      </div>
+
+      <div class="form-label-group">
+        <input type="text" name="ExportRoot" id="export-root" value="{{.mirror.ExportRoot}}" class="form-control" placeholder="Export Root">
+        <label for="export-root">Export Root</label>
+        <small class="form-text text-muted">
+          Full URL to the export root. Example: <code>https://myserver/</code>.
+        </small>
+      </div>
+
+      <div class="form-label-group">
+        <input type="text" name="CloudStorageBucket" id="cloud-storage-bucket" value="{{.mirror.CloudStorageBucket}}" class="form-control" placeholder="Cloud Storage Bucket">
+        <label for="cloud-storage-bucket">Cloud Storage Bucket</label>
+        <small class="form-text text-muted">
+          Name of the destination storage bucket. Example: <code>my-bucket</code>.
+        </small>
+      </div>
+
+      <div class="form-label-group">
+        <input type="text" name="FilenameRoot" id="filename-root" value="{{.mirror.FilenameRoot}}" class="form-control" placeholder="Filename Root">
+        <label for="filename-root">Filename Root</label>
+        <small class="form-text text-muted">
+          Root where the new file should be written. Example: <code>/path/to/new</code>
+        </small>
+      </div>
+
+      <div class="form-label-group">
+        <input type="text" name="FilenameRewrite" id="filename-rewrite" value="{{.mirror.FilenameRewrite | deref}}" class="form-control" placeholder="Filename Rewrite">
+        <label for="filename-rewrite">Filename Rewrite</label>
+        <small class="form-text text-muted">
+          Optional regular expression for rewriting imports.
+        </small>
+      </div>
+
+      <button type="submit" class="mt-5 btn btn-primary btn-block" name="Action" value="save">Save changes</button>
+
+      {{if .mirror.ID}}
+        <button type="submit" name="Action" value="delete" class="mt-3 btn btn-link btn-sm px-0 text-danger">
+          <span class="oi oi-trash" aria-hidden="true"></span> Delete
+        </button>
+      {{end}}
+    </form>
+  </div>
+</div>
+
+{{if .mirror.ID}}
+  <div class="card shadow-sm">
+    <div class="card-header">Mirror Files</div>
+    {{if .mirrorFiles}}
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th scope="col">Filename</th>
+            <th scope="col">Local Filename</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .mirrorFiles}}
+            <tr>
+              <td class="text-monospace">{{.Filename}}</td>
+              <td class="text-monospace">{{.LocalFilename}}</td>
+            </tr>
+          {{end}}
+        </tbody>
+      </table>
+    {{else}}
+      <div class="card-body">
+        <div class="alert alert-warning" role="alert">
+          There are currently no mirror files.
+        </div>
+      </div>
+    {{end}}
+  </div>
+{{end}}
+
+{{template "bottom" .}}
+{{end}}
