@@ -23,6 +23,7 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
+	"github.com/google/exposure-notifications-server/internal/maintenance"
 	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
@@ -81,42 +82,44 @@ func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Req
 }
 
 func (h *PublishHandler) HandleV1Alpha1() http.Handler {
+	mResponder := maintenance.New(h.config)
 	return h.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			response := h.handleV1Apha1Request(w, r)
+		mResponder.Handle(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				response := h.handleV1Apha1Request(w, r)
 
-			ctx := r.Context()
-			metrics := h.serverenv.MetricsExporter(ctx)
-			metricsMiddleware := metricsware.NewMiddleWare(&metrics)
+				ctx := r.Context()
+				metrics := h.serverenv.MetricsExporter(ctx)
+				metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 
-			if err := response.padResponse(h.config); err != nil {
-				metricsMiddleware.RecordPaddingFailure(ctx)
-				logging.FromContext(ctx).Errorw("failed to padd response", "error", err)
-			}
+				if err := response.padResponse(h.config); err != nil {
+					metricsMiddleware.RecordPaddingFailure(ctx)
+					logging.FromContext(ctx).Errorw("failed to padd response", "error", err)
+				}
 
-			// Downgrade the v1 response to a v1alpha1 response.
-			alpha1Response := v1alpha1.PublishResponse{
-				RevisionToken:     response.pubResponse.RevisionToken,
-				InsertedExposures: response.pubResponse.InsertedExposures,
-				Error:             response.pubResponse.ErrorMessage,
-				Padding:           response.pubResponse.Padding,
-				Warnings:          response.pubResponse.Warnings,
-			}
+				// Downgrade the v1 response to a v1alpha1 response.
+				alpha1Response := v1alpha1.PublishResponse{
+					RevisionToken:     response.pubResponse.RevisionToken,
+					InsertedExposures: response.pubResponse.InsertedExposures,
+					Error:             response.pubResponse.ErrorMessage,
+					Padding:           response.pubResponse.Padding,
+					Warnings:          response.pubResponse.Warnings,
+				}
 
-			if response.metrics != nil {
-				response.metrics()
-			}
+				if response.metrics != nil {
+					response.metrics()
+				}
 
-			data, err := json.Marshal(&alpha1Response)
-			if err != nil {
+				data, err := json.Marshal(&alpha1Response)
+				if err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					fmt.Fprintf(w, "{\"error\": \"%v\"}", err.Error())
+					return
+				}
+
 				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "{\"error\": \"%v\"}", err.Error())
-				return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(response.status)
-			fmt.Fprintf(w, "%s", data)
-		}))
+				w.WriteHeader(response.status)
+				fmt.Fprintf(w, "%s", data)
+			})))
 }

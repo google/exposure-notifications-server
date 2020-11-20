@@ -23,6 +23,7 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
+	"github.com/google/exposure-notifications-server/internal/maintenance"
 	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -64,33 +65,35 @@ func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) *
 
 // Handle returns an http.Handler that can process V1 publish requests.
 func (h *PublishHandler) Handle() http.Handler {
+	mResponder := maintenance.New(h.config)
 	return h.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			response := h.handleRequest(w, r)
+		mResponder.Handle(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				response := h.handleRequest(w, r)
 
-			ctx := r.Context()
-			metrics := h.serverenv.MetricsExporter(ctx)
-			metricsMiddleware := metricsware.NewMiddleWare(&metrics)
+				ctx := r.Context()
+				metrics := h.serverenv.MetricsExporter(ctx)
+				metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 
-			if err := response.padResponse(h.config); err != nil {
-				metricsMiddleware.RecordPaddingFailure(ctx)
-				logging.FromContext(ctx).Errorw("failed to pad response", "error", err)
-			}
+				if err := response.padResponse(h.config); err != nil {
+					metricsMiddleware.RecordPaddingFailure(ctx)
+					logging.FromContext(ctx).Errorw("failed to pad response", "error", err)
+				}
 
-			if response.metrics != nil {
-				response.metrics()
-			}
+				if response.metrics != nil {
+					response.metrics()
+				}
 
-			data, err := json.Marshal(response.pubResponse)
-			if err != nil {
+				data, err := json.Marshal(response.pubResponse)
+				if err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					fmt.Fprintf(w, "{\"error\": \"%v\"}", err.Error())
+					return
+				}
+
 				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "{\"error\": \"%v\"}", err.Error())
-				return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(response.status)
-			fmt.Fprintf(w, "%s", data)
-		}))
+				w.WriteHeader(response.status)
+				fmt.Fprintf(w, "%s", data)
+			})))
 }
