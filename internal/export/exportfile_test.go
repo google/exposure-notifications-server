@@ -95,7 +95,7 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 
 	signer := &customTestSigner{}
 
-	blob, err := MarshalExportFile(batch, exposures, revisedExposures, 1, 1, []*Signer{
+	blob, pbHexSHA, err := MarshalExportFile(batch, exposures, revisedExposures, 1, 1, []*Signer{
 		{SignatureInfo: signatureInfo, Signer: signer},
 	})
 	if err != nil {
@@ -110,6 +110,11 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 	wantDigest := "jN+W9DnqfXx5hp+6LaI8JuilsFWoiyF8DE/73OGZMJM="
 	if b64digest := base64.StdEncoding.EncodeToString(digest); b64digest != wantDigest {
 		t.Errorf("wrong message digest want: %v, got: %v", wantDigest, b64digest)
+	}
+
+	wantHexSHA := "8cdf96f439ea7d7c79869fba2da23c26e8a5b055a88b217c0c4ffbdce1993093"
+	if wantHexSHA != pbHexSHA {
+		t.Errorf("want PB hex sha to be: %v, got: %v", wantHexSHA, pbHexSHA)
 	}
 
 	infos := []*export.SignatureInfo{
