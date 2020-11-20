@@ -147,8 +147,8 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 	// determine the total number of groups (which is embedded in each export
 	// file). This technique avoids SELECT COUNT which would lock the database
 	// slowing new uploads.
-	groups := []*group{}
-	nextGroup := &group{}
+	primaryKeys := make([]*publishmodel.Exposure, 0, s.config.MinRecords)
+	revisedKeys := make([]*publishmodel.Exposure, 0, s.config.MinRecords)
 	totalNewKeys, totalRevisedKeys := 0, 0
 	droppedKeys := 0
 
@@ -164,12 +164,8 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 		if exp.CreatedAt.After(maxCreatedAt) {
 			maxCreatedAt = exp.CreatedAt
 		}
-		nextGroup.exposures = append(nextGroup.exposures, exp)
+		primaryKeys = append(primaryKeys, exp)
 		totalNewKeys++
-		if nextGroup.Length() == s.config.MaxRecords {
-			groups = append(groups, nextGroup)
-			nextGroup = &group{}
-		}
 		return nil
 	})
 	if err != nil {
@@ -183,12 +179,8 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 			droppedKeys++
 			return nil
 		}
-		nextGroup.revised = append(nextGroup.revised, exp)
+		revisedKeys = append(revisedKeys, exp)
 		totalRevisedKeys++
-		if nextGroup.Length() == s.config.MaxRecords {
-			groups = append(groups, nextGroup)
-			nextGroup = &group{}
-		}
 		return nil
 	})
 	if err != nil {
@@ -202,6 +194,29 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 		metricsMiddleWare.RecordExportWorkerBadKeyLength(ctx, droppedKeys)
 	}
 
+	// Sort all the keys that we got so that if the batch is re-run, the contents are stable IFF
+	// the sizing information is the same.
+	sortExposures(primaryKeys)
+	sortExposures(revisedKeys)
+
+	// Break these into groups according to the max records per file.
+	groups := make([]*group, 0, 1)
+	nextGroup := &group{}
+	for _, exp := range primaryKeys {
+		nextGroup.exposures = append(nextGroup.exposures, exp)
+		if nextGroup.Length() >= s.config.MaxRecords {
+			groups = append(groups, nextGroup)
+			nextGroup = &group{}
+		}
+	}
+	for _, exp := range revisedKeys {
+		nextGroup.revised = append(nextGroup.revised, exp)
+		if nextGroup.Length() >= s.config.MaxRecords {
+			groups = append(groups, nextGroup)
+			nextGroup = &group{}
+		}
+	}
+
 	// If the last group has anything, add it to the list.
 	if nextGroup.Length() > 0 {
 		groups = append(groups, nextGroup)
@@ -209,8 +224,9 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 
 	if len(groups) == 0 {
 		logger.Infof("No records for export batch")
-	} else {
-
+	} else if len(primaryKeys) < s.config.MinRecords {
+		// only drop into the padding code if the overall sum of groups is less than requested. Otherwise the pre-sorting
+		// will give away the generated data.
 		lastGroup := groups[len(groups)-1]
 		var generated []*publishmodel.Exposure
 		lastGroup.exposures, generated, err = ensureMinNumExposures(lastGroup.exposures, outputRegion, s.config.MinRecords, s.config.PaddingRange, maxCreatedAt)
@@ -287,16 +303,17 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 			return nil
 		}
 
-		// TODO(squee1945): Uploading in parallel (to a point) probably makes better
-		// use of network.
+		// 20201120 - Batch num/size changed to always be 1/1.
+		// The batch numbering being deemed unnecessary.
 		objectName, err := s.createFile(ctx,
 			createFileInfo{
 				exposures:        group.exposures,
 				revisedExposures: group.revised,
 				exportBatch:      eb,
 				signatureInfos:   sigInfos,
-				batchNum:         i + 1,
-				batchSize:        batchSize,
+				batchNum:         1,
+				batchSize:        1,
+				groupNum:         1,
 			})
 		if err != nil {
 			return fmt.Errorf("creating export file %d for batch %d: %w", i+1, eb.BatchID, err)
@@ -327,6 +344,7 @@ type createFileInfo struct {
 	signatureInfos   []*model.SignatureInfo
 	batchNum         int
 	batchSize        int
+	groupNum         int
 }
 
 func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, error) {
@@ -342,12 +360,12 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 	}
 
 	// Generate exposure key export file.
-	data, err := MarshalExportFile(cfi.exportBatch, cfi.exposures, cfi.revisedExposures, cfi.batchNum, cfi.batchSize, signers)
+	data, pbHexSHA, err := MarshalExportFile(cfi.exportBatch, cfi.exposures, cfi.revisedExposures, cfi.batchNum, cfi.batchSize, signers)
 	if err != nil {
 		return "", fmt.Errorf("marshaling export file: %w", err)
 	}
 
-	objectName := exportFilename(cfi.exportBatch, cfi.batchNum)
+	objectName := exportFilename(cfi.exportBatch, cfi.groupNum, pbHexSHA)
 	logger.Infof("Created file %v, signed with %v keys", objectName, len(signers))
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
@@ -433,8 +451,12 @@ func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObje
 	return indexObjectName, len(objects), nil
 }
 
-func exportFilename(eb *model.ExportBatch, batchNum int) string {
-	return fmt.Sprintf("%s/%d-%d-%05d%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), eb.EndTimestamp.Unix(), batchNum, filenameSuffix)
+func exportFilename(eb *model.ExportBatch, groupNum int, pbHexSHA string) string {
+	first6 := pbHexSHA
+	if len(pbHexSHA) >= 6 {
+		first6 = pbHexSHA[0:6]
+	}
+	return fmt.Sprintf("%s/%d-%d-%04d-%s%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), eb.EndTimestamp.Unix(), groupNum, first6, filenameSuffix)
 }
 
 func exportIndexFilename(eb *model.ExportBatch) string {
