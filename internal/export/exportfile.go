@@ -52,16 +52,13 @@ type Signer struct {
 	Signer        crypto.Signer
 }
 
-// MarshalExportFile converts the inputs into an encoded byte array and sha256 (base64) of the marshalled protobuf contents.
+// MarshalExportFile converts the inputs into an encoded byte array and sha256 (base64) of the marshaled protobuf contents.
 func MarshalExportFile(eb *model.ExportBatch, exposures, revisedExposures []*publishmodel.Exposure, batchNum, batchSize int, signers []*Signer) ([]byte, string, error) {
 	// create main exposure key export binary
 	expContents, err := marshalContents(eb, exposures, revisedExposures, int32(batchNum), int32(batchSize), signers)
 	if err != nil {
 		return nil, "", fmt.Errorf("unable to marshal exposure keys: %w", err)
 	}
-
-	digest := sha256.Sum256(expContents)
-	pbSHA := hex.EncodeToString(digest[:])
 
 	// create signature file
 	sigContents, err := marshalSignature(expContents, int32(batchNum), int32(batchSize), signers)
@@ -91,6 +88,9 @@ func MarshalExportFile(eb *model.ExportBatch, exposures, revisedExposures []*pub
 	if err := zw.Close(); err != nil {
 		return nil, "", fmt.Errorf("unable to close archive: %w", err)
 	}
+
+	digest := sha256.Sum256(expContents)
+	pbSHA := hex.EncodeToString(digest[:])
 	return buf.Bytes(), pbSHA, nil
 }
 

@@ -452,7 +452,10 @@ func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObje
 }
 
 func exportFilename(eb *model.ExportBatch, groupNum int, pbHexSHA string) string {
-	first6 := pbHexSHA[0:6]
+	first6 := pbHexSHA
+	if len(pbHexSHA) >= 6 {
+		first6 = pbHexSHA[0:6]
+	}
 	return fmt.Sprintf("%s/%d-%d-%04d-%s%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), eb.EndTimestamp.Unix(), groupNum, first6, filenameSuffix)
 }
 
