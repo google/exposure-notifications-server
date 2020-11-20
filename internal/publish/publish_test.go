@@ -115,6 +115,7 @@ func TestPublishWithBypass(t *testing.T) {
 		ErrorCode          string
 		SkipVersions       map[version]bool
 		SkipKeys           map[int]bool // which keys should be skipped (partial success)
+		MaintenanceMode    bool
 	}{
 		{
 			Name:       "successful_insert_bypass_ha_verification",
@@ -380,6 +381,34 @@ func TestPublishWithBypass(t *testing.T) {
 			Code:      http.StatusUnauthorized,
 			Error:     "unable to validate diagnosis verification: token is expired by 1m",
 		},
+		{
+			Name: "maintenance_mode",
+			HealthAuthority: &vermodel.HealthAuthority{
+				Issuer:   issNames.next(),
+				Audience: "unit.test.server",
+				Name:     "Unit Test Gov DOH",
+			},
+			HealthAuthorityKey: &vermodel.HealthAuthorityKey{
+				Version: "v1",
+				From:    time.Now().Add(-1 * time.Minute),
+			},
+			TestRegion: regions.next(),
+			AuthorizedApp: func() *aamodel.AuthorizedApp {
+				authApp := aamodel.NewAuthorizedApp()
+				authApp.AppPackageName = names.next()
+				authApp.AllowedRegions[regions.current()] = struct{}{}
+				return authApp
+			}(),
+			Publish: verifyapi.Publish{
+				Keys:                util.GenerateExposureKeys(2, 5, false),
+				HealthAuthorityID:   names.current(),
+				VerificationPayload: "totally not a JWT",
+			},
+			Regions:         []string{regions.current()},
+			Code:            http.StatusTooManyRequests,
+			Error:           "try again",
+			MaintenanceMode: true,
+		},
 	}
 
 	for _, ver := range versions {
@@ -436,6 +465,7 @@ func TestPublishWithBypass(t *testing.T) {
 				config.ResponsePaddingRange = 100
 				config.MaxMagnitudeSymptomOnsetDays = 14
 				config.MaxSypmtomOnsetReportDays = 28
+				config.Maintenance = tc.MaintenanceMode
 				env := serverenv.New(ctx,
 					serverenv.WithDatabase(testDB),
 					serverenv.WithAuthorizedAppProvider(aaProvider),
@@ -541,7 +571,7 @@ func TestPublishWithBypass(t *testing.T) {
 				if resp.StatusCode != tc.Code {
 					t.Fatalf("http response code want: %v, got %v.", tc.Code, resp.StatusCode)
 				}
-				if len(response.Padding) == 0 {
+				if !tc.MaintenanceMode && len(response.Padding) == 0 {
 					t.Errorf("padding is empty on response: %+v", response)
 				}
 

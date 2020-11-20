@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/maintenance"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/setup"
@@ -38,6 +39,7 @@ var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
 var _ model.TransformerConfig = (*Config)(nil)
 var _ setup.KeyManagerConfigProvider = (*Config)(nil)
+var _ maintenance.MaintenanceConfig = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.
@@ -50,8 +52,10 @@ type Config struct {
 	ObservabilityExporter observability.Config
 	RevisionToken         revision.Config
 
-	Port             string `env:"PORT, default=8080"`
-	MaxKeysOnPublish uint   `env:"MAX_KEYS_ON_PUBLISH, default=30"`
+	Port        string `env:"PORT, default=8080"`
+	Maintenance bool   `env:"MAINTENANCE_MODE, default=false"`
+
+	MaxKeysOnPublish uint `env:"MAX_KEYS_ON_PUBLISH, default=30"`
 	// Provides compatibility w/ 1.5 release.
 	MaxSameStartIntervalKeys uint          `env:"MAX_SAME_START_INTERVAL_KEYS, default=3"`
 	MaxIntervalAge           time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
@@ -97,6 +101,10 @@ type Config struct {
 	// Normally "still valid" keys can be accepted, but are embargoed.
 	ReleaseSameDayKeys      bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
 	DebugLogBadCertificates bool `env:"DEBUG_LOG_BAD_CERTIFICATES"`
+}
+
+func (c *Config) MaintenanceMode() bool {
+	return c.Maintenance
 }
 
 func (c *Config) Validate() error {
