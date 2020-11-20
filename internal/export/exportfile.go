@@ -20,6 +20,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"sort"
@@ -51,18 +52,21 @@ type Signer struct {
 	Signer        crypto.Signer
 }
 
-// MarshalExportFile converts the inputs into an encoded byte array.
-func MarshalExportFile(eb *model.ExportBatch, exposures, revisedExposures []*publishmodel.Exposure, batchNum, batchSize int, signers []*Signer) ([]byte, error) {
+// MarshalExportFile converts the inputs into an encoded byte array and sha256 (base64) of the marshalled protobuf contents.
+func MarshalExportFile(eb *model.ExportBatch, exposures, revisedExposures []*publishmodel.Exposure, batchNum, batchSize int, signers []*Signer) ([]byte, string, error) {
 	// create main exposure key export binary
 	expContents, err := marshalContents(eb, exposures, revisedExposures, int32(batchNum), int32(batchSize), signers)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal exposure keys: %w", err)
+		return nil, "", fmt.Errorf("unable to marshal exposure keys: %w", err)
 	}
+
+	digest := sha256.Sum256(expContents)
+	pbSHA := hex.EncodeToString(digest[:])
 
 	// create signature file
 	sigContents, err := marshalSignature(expContents, int32(batchNum), int32(batchSize), signers)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal signature file: %w", err)
+		return nil, "", fmt.Errorf("unable to marshal signature file: %w", err)
 	}
 
 	// create compressed archive of binary and signature
@@ -70,24 +74,24 @@ func MarshalExportFile(eb *model.ExportBatch, exposures, revisedExposures []*pub
 	zw := zip.NewWriter(buf)
 	zf, err := zw.Create(exportBinaryName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create zip entry for export: %w", err)
+		return nil, "", fmt.Errorf("unable to create zip entry for export: %w", err)
 	}
 	_, err = zf.Write(expContents)
 	if err != nil {
-		return nil, fmt.Errorf("unable to write export to archive: %w", err)
+		return nil, "", fmt.Errorf("unable to write export to archive: %w", err)
 	}
 	zf, err = zw.Create(exportSignatureName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create zip entry for signature: %w", err)
+		return nil, "", fmt.Errorf("unable to create zip entry for signature: %w", err)
 	}
 	_, err = zf.Write(sigContents)
 	if err != nil {
-		return nil, fmt.Errorf("unable to write signature to archive: %w", err)
+		return nil, "", fmt.Errorf("unable to write signature to archive: %w", err)
 	}
 	if err := zw.Close(); err != nil {
-		return nil, fmt.Errorf("unable to close archive: %w", err)
+		return nil, "", fmt.Errorf("unable to close archive: %w", err)
 	}
-	return buf.Bytes(), nil
+	return buf.Bytes(), pbSHA, nil
 }
 
 // UnmarshalExportFile extracts the protobuf encoded exposure key present in the zip archived payload.
