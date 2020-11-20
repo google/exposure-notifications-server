@@ -205,11 +205,11 @@ func (e *exportFileWriter) writeFile() {
 		SignatureInfo: signatureInfo,
 		Signer:        e.privateKey,
 	}
-	data, err := export.MarshalExportFile(e.exportBatch, e.exposures, e.revisions, e.curBatch, e.numBatches, []*export.Signer{signer})
+	data, hexSHA, err := export.MarshalExportFile(e.exportBatch, e.exposures, e.revisions, e.curBatch, e.numBatches, []*export.Signer{signer})
 	if err != nil {
 		log.Fatalf("error marshaling export file: %v", err)
 	}
-	fileName := fmt.Sprintf(e.exportBatch.FilenameRoot+"%d-records-%d-of-%d"+filenameSuffix, e.totalKeys, e.curBatch, e.numBatches)
+	fileName := fmt.Sprintf(e.exportBatch.FilenameRoot+"%d-records-%d-of-%d-%s"+filenameSuffix, e.totalKeys, e.curBatch, e.numBatches, hexSHA[0:6])
 	log.Printf("Creating %v", fileName)
 	err = ioutil.WriteFile(fileName, data, 0666)
 	if err != nil {
