@@ -183,7 +183,7 @@ func assignReportType(reportType *string, pbek *export.TemporaryExposureKey) {
 //
 // If this is part of a larger batch, the end timestamps are adjusted. Android hashes
 // the start/end/batchNum to de-duplicate. If there are X files that have the same timing
-// metadata, then only the first would get processed. We compensate her by bumping the end
+// metadata, then only the first would get processed. We compensate here by bumping the end
 // timestamp by the file num in the batch.
 //
 //
