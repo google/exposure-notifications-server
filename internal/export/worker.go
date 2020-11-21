@@ -312,8 +312,8 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 				revisedExposures: group.revised,
 				exportBatch:      eb,
 				signatureInfos:   sigInfos,
-				batchNum:         i + 1,
-				batchSize:        batchSize,
+				batchNum:         i + 1,     // the batchNum and batchSize are flattened to 1 and 1 when
+				batchSize:        batchSize, // creating the file, but are needed to vary for timestamp offset calculation.
 			})
 		if err != nil {
 			return fmt.Errorf("creating export file %d for batch %d: %w", i+1, eb.BatchID, err)
@@ -450,12 +450,14 @@ func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObje
 	return indexObjectName, len(objects), nil
 }
 
-func exportFilename(eb *model.ExportBatch, groupNum int, pbHexSHA string) string {
+// The batchNum is still needed in the filename to preserve a stable filename sort
+// order when generating the index file.
+func exportFilename(eb *model.ExportBatch, batchNum int, pbHexSHA string) string {
 	first6 := pbHexSHA
 	if len(pbHexSHA) >= 6 {
 		first6 = pbHexSHA[0:6]
 	}
-	return fmt.Sprintf("%s/%d-%d-%05d-%s%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), eb.EndTimestamp.Unix(), groupNum, first6, filenameSuffix)
+	return fmt.Sprintf("%s/%d-%d-%05d-%s%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), eb.EndTimestamp.Unix(), batchNum, first6, filenameSuffix)
 }
 
 func exportIndexFilename(eb *model.ExportBatch) string {
