@@ -176,6 +176,8 @@ func assignReportType(reportType *string, pbek *export.TemporaryExposureKey) {
 	}
 }
 
+// The batch num and batch size are always set to 1/1.
+// If this is part of a larger batch, the end timestamps are adjusted.
 func marshalContents(eb *model.ExportBatch, exposures, revisedExposures []*publishmodel.Exposure, batchNum int32, batchSize int32, signers []*Signer) ([]byte, error) {
 	exportBytes := fixedHeader
 	if len(exportBytes) != fixedHeaderWidth {
@@ -209,12 +211,16 @@ func marshalContents(eb *model.ExportBatch, exposures, revisedExposures []*publi
 		exportSigInfos = append(exportSigInfos, createSignatureInfo(si.SignatureInfo))
 	}
 
+	offset := int64(0)
+	if batchSize > 1 {
+		offset = int64(batchNum)
+	}
 	pbeke := export.TemporaryExposureKeyExport{
 		StartTimestamp: proto.Uint64(uint64(eb.StartTimestamp.Unix())),
-		EndTimestamp:   proto.Uint64(uint64(eb.EndTimestamp.Unix())),
+		EndTimestamp:   proto.Uint64(uint64(eb.EndTimestamp.Unix() + offset)),
 		Region:         proto.String(eb.OutputRegion),
-		BatchNum:       proto.Int32(batchNum),
-		BatchSize:      proto.Int32(batchSize),
+		BatchNum:       proto.Int32(1),
+		BatchSize:      proto.Int32(1),
 		Keys:           pbeks,
 		RevisedKeys:    pbRevisedKeys,
 		SignatureInfos: exportSigInfos,

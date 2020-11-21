@@ -305,15 +305,15 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 
 		// 20201120 - Batch num/size changed to always be 1/1.
 		// The batch numbering being deemed unnecessary.
+		// However timing adjustments are put in place for variable batch sizes.
 		objectName, err := s.createFile(ctx,
 			createFileInfo{
 				exposures:        group.exposures,
 				revisedExposures: group.revised,
 				exportBatch:      eb,
 				signatureInfos:   sigInfos,
-				batchNum:         1,
-				batchSize:        1,
-				groupNum:         1,
+				batchNum:         i + 1,
+				batchSize:        batchSize,
 			})
 		if err != nil {
 			return fmt.Errorf("creating export file %d for batch %d: %w", i+1, eb.BatchID, err)
@@ -344,7 +344,6 @@ type createFileInfo struct {
 	signatureInfos   []*model.SignatureInfo
 	batchNum         int
 	batchSize        int
-	groupNum         int
 }
 
 func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, error) {
@@ -365,7 +364,7 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 		return "", fmt.Errorf("marshaling export file: %w", err)
 	}
 
-	objectName := exportFilename(cfi.exportBatch, cfi.groupNum, pbHexSHA)
+	objectName := exportFilename(cfi.exportBatch, cfi.batchNum, pbHexSHA)
 	logger.Infof("Created file %v, signed with %v keys", objectName, len(signers))
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
@@ -456,7 +455,7 @@ func exportFilename(eb *model.ExportBatch, groupNum int, pbHexSHA string) string
 	if len(pbHexSHA) >= 6 {
 		first6 = pbHexSHA[0:6]
 	}
-	return fmt.Sprintf("%s/%d-%d-%04d-%s%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), eb.EndTimestamp.Unix(), groupNum, first6, filenameSuffix)
+	return fmt.Sprintf("%s/%d-%d-%05d-%s%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), eb.EndTimestamp.Unix(), groupNum, first6, filenameSuffix)
 }
 
 func exportIndexFilename(eb *model.ExportBatch) string {
