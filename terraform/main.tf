@@ -153,6 +153,7 @@ resource "local_file" "env" {
 
   sensitive_content = <<EOF
 export PROJECT_ID="${var.project}"
+export REGION="${var.region}"
 
 # Note: these configurations assume you're using the Cloud SQL proxy!
 export DB_CONN="${google_sql_database_instance.db-inst.connection_name}"
