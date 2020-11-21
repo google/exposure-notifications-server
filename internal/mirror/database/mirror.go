@@ -51,6 +51,36 @@ func (db *MirrorDB) AddMirror(ctx context.Context, m *model.Mirror) error {
 	})
 }
 
+// UpdateMirror updates the given mirror struct in the database. It must already
+// exist in the database, keyed off of ID.
+func (db *MirrorDB) UpdateMirror(ctx context.Context, m *model.Mirror) error {
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			UPDATE
+				Mirror
+			SET
+				index_file = $2,
+				export_root = $3,
+				cloud_storage_bucket = $4,
+				filename_root = $5,
+				filename_rewrite = $6
+			WHERE id = $1
+		`, m.ID, m.IndexFile, m.ExportRoot, m.CloudStorageBucket, m.FilenameRoot, m.FilenameRewrite)
+		if err != nil {
+			return fmt.Errorf("failed to update mirror: %w", err)
+		}
+
+		switch v := result.RowsAffected(); v {
+		case 0:
+			return fmt.Errorf("no rows were updated (does the record exist?)")
+		case 1:
+			return nil
+		default:
+			return fmt.Errorf("only 1 row should have been updated, got %d", v)
+		}
+	})
+}
+
 func (db *MirrorDB) DeleteMirror(ctx context.Context, m *model.Mirror) error {
 	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
@@ -77,6 +107,34 @@ func (db *MirrorDB) DeleteMirror(ctx context.Context, m *model.Mirror) error {
 	})
 }
 
+// GetMirror retruns the mirror with the given ID.
+func (db *MirrorDB) GetMirror(ctx context.Context, id int64) (*model.Mirror, error) {
+	var mirror *model.Mirror
+
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		row := tx.QueryRow(ctx, `
+			SELECT
+				id, index_file, export_root, cloud_storage_bucket, filename_root, filename_rewrite
+			FROM
+				mirror
+			WHERE
+				id = $1
+		`, id)
+
+		var err error
+		mirror, err = scanOneMirror(row)
+		if err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to get mirror %d: %w", id, err)
+	}
+
+	return mirror, nil
+}
+
+// Mirrors returns the list of mirrors for the database, ordered by id.
 func (db *MirrorDB) Mirrors(ctx context.Context) ([]*model.Mirror, error) {
 	var mirrors []*model.Mirror
 
@@ -95,14 +153,14 @@ func (db *MirrorDB) Mirrors(ctx context.Context) ([]*model.Mirror, error) {
 
 		for rows.Next() {
 			if err := rows.Err(); err != nil {
-				return fmt.Errorf("faield to iterate: %w", err)
+				return fmt.Errorf("failed to iterate: %w", err)
 			}
 
-			var m model.Mirror
-			if err := rows.Scan(&m.ID, &m.IndexFile, &m.ExportRoot, &m.CloudStorageBucket, &m.FilenameRoot, &m.FilenameRewrite); err != nil {
-				return fmt.Errorf("reading row: %w", err)
+			m, err := scanOneMirror(rows)
+			if err != nil {
+				return err
 			}
-			mirrors = append(mirrors, &m)
+			mirrors = append(mirrors, m)
 		}
 		return nil
 	}); err != nil {
@@ -110,6 +168,15 @@ func (db *MirrorDB) Mirrors(ctx context.Context) ([]*model.Mirror, error) {
 	}
 
 	return mirrors, nil
+}
+
+// scanOneMirror scans a single pgx row into a mirror model.
+func scanOneMirror(row pgx.Row) (*model.Mirror, error) {
+	var m model.Mirror
+	if err := row.Scan(&m.ID, &m.IndexFile, &m.ExportRoot, &m.CloudStorageBucket, &m.FilenameRoot, &m.FilenameRewrite); err != nil {
+		return nil, fmt.Errorf("failed to scan mirror row: %w", err)
+	}
+	return &m, nil
 }
 
 type SyncFile struct {

@@ -23,6 +23,7 @@ import (
 	aadb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	exdb "github.com/google/exposure-notifications-server/internal/export/database"
 	exportimportdatabase "github.com/google/exposure-notifications-server/internal/exportimport/database"
+	mirrordatabase "github.com/google/exposure-notifications-server/internal/mirror/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 )
@@ -81,6 +82,14 @@ func (h *indexHandler) Execute(c *gin.Context) {
 		return
 	}
 	m["siginfos"] = sigInfos
+
+	// Load mirrors
+	mirrors, err := mirrordatabase.New(db).Mirrors(ctx)
+	if err != nil {
+		admin.ErrorPage(c, err.Error())
+		return
+	}
+	m["mirrors"] = mirrors
 
 	m.AddTitle("Exposure Notification Key Server - Admin Console")
 	c.HTML(http.StatusOK, "index", m)
