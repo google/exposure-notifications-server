@@ -228,7 +228,7 @@ func marshalContents(eb *model.ExportBatch, exposures, revisedExposures []*publi
 		StartTimestamp: proto.Uint64(uint64(eb.StartTimestamp.Unix())),
 		EndTimestamp:   proto.Uint64(uint64(eb.EndTimestamp.Unix() + offset)),
 		Region:         proto.String(eb.OutputRegion),
-		BatchNum:       proto.Int32(1), // all batches are now size 1 (singele file)
+		BatchNum:       proto.Int32(1), // all batches are now size 1 (single file)
 		BatchSize:      proto.Int32(1), // so it's always 1 of 1.
 		Keys:           pbeks,
 		RevisedKeys:    pbRevisedKeys,
