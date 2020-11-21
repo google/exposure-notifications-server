@@ -286,7 +286,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	}
 
 	// Perform health authority certificate verification.
-	verifiedClaims, err := h.verifier.VerifyDiagnosisCertificate(ctx, appConfig, data, h.config.FailOnCertificateAudienceMismatch)
+	verifiedClaims, err := h.verifier.VerifyDiagnosisCertificate(ctx, appConfig, data)
 	if err != nil {
 		if appConfig.BypassHealthAuthorityVerification {
 			logger.Warnf("bypassing health authority certificate verification health authority: %v", appConfig.AppPackageName)
