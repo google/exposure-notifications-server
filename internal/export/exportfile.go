@@ -60,8 +60,8 @@ func MarshalExportFile(eb *model.ExportBatch, exposures, revisedExposures []*pub
 		return nil, "", fmt.Errorf("unable to marshal exposure keys: %w", err)
 	}
 
-	// create signature file
-	sigContents, err := marshalSignature(expContents, int32(batchNum), int32(batchSize), signers)
+	// create signature file - all exports are generated w/ batchNum: 1 batchSize: 1 - have signature match
+	sigContents, err := marshalSignature(expContents, int32(1), int32(1), signers)
 	if err != nil {
 		return nil, "", fmt.Errorf("unable to marshal signature file: %w", err)
 	}
