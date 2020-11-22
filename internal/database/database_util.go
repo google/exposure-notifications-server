@@ -98,16 +98,15 @@ func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
 	})
 
 	// Get the host. On Mac, Docker runs in a VM.
-	host := container.Container.NetworkSettings.IPAddress
-	if runtime.GOOS == "darwin" {
-		host = net.JoinHostPort(container.GetBoundIP("5432/tcp"), container.GetPort("5432/tcp"))
-	}
+	host := container.GetBoundIP("5432/tcp")
+	port := container.GetPort("5432/tcp")
+	addr := net.JoinHostPort(host, port)
 
 	// Build the connection URL.
 	connURL := &url.URL{
 		Scheme: "postgres",
 		User:   url.UserPassword(username, password),
-		Host:   host,
+		Host:   addr,
 		Path:   dbname,
 	}
 	q := connURL.Query()
