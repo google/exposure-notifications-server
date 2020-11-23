@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -436,5 +437,84 @@ func TestVariableBatchMaxSize(t *testing.T) {
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
 		}
+	}
+}
+
+func TestExportFilename(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		m   *model.ExportBatch
+		num int
+		sha string
+		exp string
+	}{
+		{
+			m: &model.ExportBatch{
+				FilenameRoot:   "v1",
+				StartTimestamp: time.Unix(0, 0),
+				EndTimestamp:   time.Unix(0, 0),
+			},
+			num: 1,
+			sha: "abc123",
+			exp: "v1/0-0-00001999999999097098099049050051.zip",
+		},
+		{
+			m: &model.ExportBatch{
+				FilenameRoot:   "v1",
+				StartTimestamp: time.Unix(0, 0),
+				EndTimestamp:   time.Unix(0, 0),
+			},
+			num: 2,
+			sha: "",
+			exp: "v1/0-0-00002999999999.zip",
+		},
+		{
+			m: &model.ExportBatch{
+				FilenameRoot:   "v2",
+				StartTimestamp: time.Unix(100, 0),
+				EndTimestamp:   time.Unix(300, 0),
+			},
+			num: 1,
+			sha: "",
+			exp: "v2/100-300-00001999999999.zip",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.sha, func(t *testing.T) {
+			t.Parallel()
+
+			if got, want := exportFilename(tc.m, tc.num, tc.sha), tc.exp; got != want {
+				t.Errorf("expected %q to be %q", got, want)
+			}
+		})
+	}
+}
+
+func TestToASCIISortable(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		in  string
+		out string
+	}{
+		{"foo", "102111111"},
+		{"bar", "098097114"},
+		{"ad3e93", "097100051101057051"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.in, func(t *testing.T) {
+			t.Parallel()
+
+			if got, want := toASCIISortable(tc.in), tc.out; got != want {
+				t.Errorf("expected %q to be %q", got, want)
+			}
+		})
 	}
 }
