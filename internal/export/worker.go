@@ -458,7 +458,7 @@ func exportFilename(eb *model.ExportBatch, batchNum int, pbHexSHA string) string
 		first6 = pbHexSHA[0:6]
 	}
 
-	// Convert the sha to it's 2-digit ASCII equivalent. This is required because
+	// Convert the sha to it's 3-digit ASCII equivalent. This is required because
 	// some app developers hard-coded a regular expression which assumes only
 	// digits in filenames.
 	first6 = toASCIISortable(first6)
