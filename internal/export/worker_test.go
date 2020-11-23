@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -355,5 +356,164 @@ func TestBatchExposures(t *testing.T) {
 		if diff := cmp.Diff(foreignNonTraveler, foreignNonTravelerRollup); diff != "" {
 			t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
 		}
+	}
+}
+
+func TestVariableBatchMaxSize(t *testing.T) {
+	t.Parallel()
+
+	testDB := database.NewTestDatabase(t)
+	testPublishDB := publishdb.New(testDB)
+	ctx := context.Background()
+
+	// Using a 1 hour truncate window
+	baseTime := time.Date(2020, 10, 28, 1, 0, 0, 0, time.UTC).Truncate(time.Hour)
+	exposures := make([]*publishmodel.Exposure, 20)
+	want := make(map[string]struct{})
+	for i := 0; i < 20; i++ {
+		// All keys alignd to the same hour.
+		exposures[i] = &publishmodel.Exposure{
+			ExposureKey:     getKey(t),
+			Regions:         []string{"US"},
+			IntervalNumber:  100,
+			IntervalCount:   144,
+			CreatedAt:       baseTime,
+			LocalProvenance: true,
+			Traveler:        false,
+			ReportType:      verifyapi.ReportTypeClinical,
+		}
+		want[exposures[i].ExposureKeyBase64()] = struct{}{}
+	}
+	if _, err := testPublishDB.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+		Incoming:     exposures,
+		RequireToken: false,
+	}); err != nil {
+		t.Fatalf("inserting exposures: %v", err)
+	}
+
+	for batchSize := 1; batchSize <= len(exposures); batchSize++ {
+		config := Config{
+			MinRecords:         1,
+			PaddingRange:       0,
+			MaxRecords:         batchSize,
+			TruncateWindow:     time.Hour,
+			MaxInsertBatchSize: 100,
+		}
+		server := Server{
+			config: &config,
+			env:    serverenv.New(ctx, serverenv.WithDatabase(testDB)),
+		}
+
+		// Build the iteration criteria for the incremental batches.
+		criteria := publishdb.IterateExposuresCriteria{
+			SinceTimestamp:      baseTime,
+			UntilTimestamp:      baseTime.Add(time.Hour),
+			IncludeRegions:      []string{"US"}, // current list of foreign countries
+			IncludeTravelers:    true,
+			OnlyNonTravelers:    false,
+			OnlyLocalProvenance: true,
+		}
+
+		groups, err := server.batchExposures(ctx, criteria, "REMOTE")
+		if err != nil {
+			t.Fatalf("failed to read exposures: %v", err)
+		}
+		if len(groups) == 0 {
+			t.Fatalf("export batch should have found some keys")
+		}
+
+		got := make(map[string]struct{})
+		for _, group := range groups {
+			for _, exp := range group.exposures {
+				b64 := exp.ExposureKeyBase64()
+				if _, ok := got[b64]; ok {
+					t.Fatalf("hourly batch included duplicate key")
+				}
+				got[b64] = struct{}{}
+			}
+		}
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
+		}
+	}
+}
+
+func TestExportFilename(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		m   *model.ExportBatch
+		num int
+		sha string
+		exp string
+	}{
+		{
+			m: &model.ExportBatch{
+				FilenameRoot:   "v1",
+				StartTimestamp: time.Unix(0, 0),
+				EndTimestamp:   time.Unix(0, 0),
+			},
+			num: 1,
+			sha: "abc123",
+			exp: "v1/0-0-00001999999999097098099049050051.zip",
+		},
+		{
+			m: &model.ExportBatch{
+				FilenameRoot:   "v1",
+				StartTimestamp: time.Unix(0, 0),
+				EndTimestamp:   time.Unix(0, 0),
+			},
+			num: 2,
+			sha: "",
+			exp: "v1/0-0-00002999999999.zip",
+		},
+		{
+			m: &model.ExportBatch{
+				FilenameRoot:   "v2",
+				StartTimestamp: time.Unix(100, 0),
+				EndTimestamp:   time.Unix(300, 0),
+			},
+			num: 1,
+			sha: "",
+			exp: "v2/100-300-00001999999999.zip",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.sha, func(t *testing.T) {
+			t.Parallel()
+
+			if got, want := exportFilename(tc.m, tc.num, tc.sha), tc.exp; got != want {
+				t.Errorf("expected %q to be %q", got, want)
+			}
+		})
+	}
+}
+
+func TestToASCIISortable(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		in  string
+		out string
+	}{
+		{"foo", "102111111"},
+		{"bar", "098097114"},
+		{"ad3e93", "097100051101057051"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.in, func(t *testing.T) {
+			t.Parallel()
+
+			if got, want := toASCIISortable(tc.in), tc.out; got != want {
+				t.Errorf("expected %q to be %q", got, want)
+			}
+		})
 	}
 }
