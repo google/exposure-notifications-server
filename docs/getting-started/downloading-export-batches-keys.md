@@ -57,7 +57,7 @@ to remember the last filename that it has seen in an index.txt file.
 
 On next processing, if that line is seen in the file, the application will process
 from the next file to the end of the index. If that lien is not present in the file,
-then the application will restart processing of the index from the beginnig (line 0).
+then the application will restart processing of the index from the beginning (line 0).
 
 When done, the application always remembers the last filename processed.
 
