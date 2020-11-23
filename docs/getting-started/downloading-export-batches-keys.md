@@ -84,7 +84,7 @@ Practically speaking: currently all export files produced by this system will ha
 `batchNum` of `1` and `batchSize` of `1`. In the event a time period is too 
 large to find in one file according to the max records setting, there will
 be multiple files with the same `startTimestamp` but different `endTimestamps`. This
-is done to ensure succesful processing based on how both iOS and Android
+is done to ensure successful processing based on how both iOS and Android
 handle export processing.
 
 # Configurating Export Batches
