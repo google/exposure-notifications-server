@@ -457,7 +457,23 @@ func exportFilename(eb *model.ExportBatch, batchNum int, pbHexSHA string) string
 	if len(pbHexSHA) >= 6 {
 		first6 = pbHexSHA[0:6]
 	}
-	return fmt.Sprintf("%s/%d-%d-%05d-%s%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), eb.EndTimestamp.Unix(), batchNum, first6, filenameSuffix)
+
+	// Convert the sha to it's 2-digit ASCII equivalent. This is required because
+	// some app developers hard-coded a regular expression which assumes only
+	// digits in filenames.
+	first6 = toASCIISortable(first6)
+
+	return fmt.Sprintf("%s/%d-%d-%05d999999999%s%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), eb.EndTimestamp.Unix(), batchNum, first6, filenameSuffix)
+}
+
+// toASCIISortable converts each character in the provided string to its
+// ASCII-digit-only equivalent string (of numbers), padded to 3 digits.
+func toASCIISortable(s string) string {
+	var result string
+	for _, r := range s {
+		result = fmt.Sprintf("%s%03d", result, int(r))
+	}
+	return result
 }
 
 func exportIndexFilename(eb *model.ExportBatch) string {
