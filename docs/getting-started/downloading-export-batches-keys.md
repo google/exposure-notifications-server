@@ -80,6 +80,13 @@ being split across multiple files, and show all batches as single file size only
 This reduces the possilibty that a client app will pass un-parsable batch files
 to the operating system.
 
+Practically speaking: currently all export files produced by this system will have
+`batchNum` of `1` and `batchSize` of `1`. In the event a time period is too 
+large to find in one file according to the max records setting, there will
+be multiple files with the same `startTimestamp` but different `endTimestamps`. This
+is done to ensure succesful processing based on how both iOS and Android
+handle export processing.
+
 # Configurating Export Batches
 
 ## Prerequisites
