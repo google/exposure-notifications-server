@@ -443,75 +443,54 @@ func TestExportFilename(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		m   *model.ExportBatch
-		num int
-		sha string
-		exp string
+		name       string
+		m          *model.ExportBatch
+		num        int
+		regenCount int64
+		exp        string
 	}{
 		{
+			name: "no_regn",
 			m: &model.ExportBatch{
 				FilenameRoot:   "v1",
 				StartTimestamp: time.Unix(0, 0),
 				EndTimestamp:   time.Unix(0, 0),
 			},
-			num: 1,
-			sha: "abc123",
-			exp: "v1/0-0-00001999999999097098099049050051.zip",
+			num:        1,
+			regenCount: 0,
+			exp:        "v1/0-0-00001.zip",
 		},
 		{
+			name: "regen_2",
 			m: &model.ExportBatch{
 				FilenameRoot:   "v1",
 				StartTimestamp: time.Unix(0, 0),
 				EndTimestamp:   time.Unix(0, 0),
 			},
-			num: 2,
-			sha: "",
-			exp: "v1/0-0-00002999999999.zip",
+			num:        2,
+			regenCount: 2,
+			exp:        "v1/2-2-00002.zip",
 		},
 		{
+			name: "regen_3",
 			m: &model.ExportBatch{
 				FilenameRoot:   "v2",
 				StartTimestamp: time.Unix(100, 0),
 				EndTimestamp:   time.Unix(300, 0),
 			},
-			num: 1,
-			sha: "",
-			exp: "v2/100-300-00001999999999.zip",
+			num:        1,
+			regenCount: 3,
+			exp:        "v2/103-303-00001.zip",
 		},
 	}
 
 	for _, tc := range cases {
 		tc := tc
 
-		t.Run(tc.sha, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got, want := exportFilename(tc.m, tc.num, tc.sha), tc.exp; got != want {
-				t.Errorf("expected %q to be %q", got, want)
-			}
-		})
-	}
-}
-
-func TestToASCIISortable(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		in  string
-		out string
-	}{
-		{"foo", "102111111"},
-		{"bar", "098097114"},
-		{"ad3e93", "097100051101057051"},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-
-		t.Run(tc.in, func(t *testing.T) {
-			t.Parallel()
-
-			if got, want := toASCIISortable(tc.in), tc.out; got != want {
+			if got, want := exportFilename(tc.m, tc.num, tc.regenCount), tc.exp; got != want {
 				t.Errorf("expected %q to be %q", got, want)
 			}
 		})
