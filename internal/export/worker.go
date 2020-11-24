@@ -359,12 +359,12 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 	}
 
 	// Generate exposure key export file.
-	data, pbHexSHA, err := MarshalExportFile(cfi.exportBatch, cfi.exposures, cfi.revisedExposures, cfi.batchNum, cfi.batchSize, signers)
+	data, err := MarshalExportFile(cfi.exportBatch, cfi.exposures, cfi.revisedExposures, cfi.batchNum, cfi.batchSize, signers)
 	if err != nil {
 		return "", fmt.Errorf("marshaling export file: %w", err)
 	}
 
-	objectName := exportFilename(cfi.exportBatch, cfi.batchNum, pbHexSHA)
+	objectName := exportFilename(cfi.exportBatch, cfi.batchNum, s.config.RepressGeneration())
 	logger.Infof("Created file %v, signed with %v keys", objectName, len(signers))
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
@@ -452,28 +452,10 @@ func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObje
 
 // The batchNum is still needed in the filename to preserve a stable filename sort
 // order when generating the index file.
-func exportFilename(eb *model.ExportBatch, batchNum int, pbHexSHA string) string {
-	first6 := pbHexSHA
-	if len(pbHexSHA) >= 6 {
-		first6 = pbHexSHA[0:6]
-	}
-
-	// Convert the sha to it's 3-digit ASCII equivalent. This is required because
-	// some app developers hard-coded a regular expression which assumes only
-	// digits in filenames.
-	first6 = toASCIISortable(first6)
-
-	return fmt.Sprintf("%s/%d-%d-%05d999999999%s%s", eb.FilenameRoot, eb.StartTimestamp.Unix(), eb.EndTimestamp.Unix(), batchNum, first6, filenameSuffix)
-}
-
-// toASCIISortable converts each character in the provided string to its
-// ASCII-digit-only equivalent string (of numbers), padded to 3 digits.
-func toASCIISortable(s string) string {
-	var result string
-	for _, r := range s {
-		result = fmt.Sprintf("%s%03d", result, int(r))
-	}
-	return result
+func exportFilename(eb *model.ExportBatch, batchNum int, regenCount int64) string {
+	sTime := eb.StartTimestamp.Unix() + regenCount
+	eTime := eb.EndTimestamp.Unix() + regenCount
+	return fmt.Sprintf("%s/%d-%d-%05d%s", eb.FilenameRoot, sTime, eTime, batchNum, filenameSuffix)
 }
 
 func exportIndexFilename(eb *model.ExportBatch) string {
