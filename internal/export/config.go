@@ -52,7 +52,7 @@ type Config struct {
 	TruncateWindow     time.Duration `env:"TRUNCATE_WINDOW, default=1h"`
 	MinWindowAge       time.Duration `env:"MIN_WINDOW_AGE, default=2h"`
 	TTL                time.Duration `env:"CLEANUP_TTL, default=336h"`
-	// ReprocessCount needs to be incremented by one ever time you go back and
+	// ReprocessCount needs to be incremented by one every time you go back and
 	// regenerate previously exported files.
 	ReprocessCount uint `env:"REPROCESS_COUNT, default=0"`
 }
