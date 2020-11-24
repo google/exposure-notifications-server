@@ -20,8 +20,8 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/export"
@@ -31,9 +31,9 @@ import (
 )
 
 var (
-	showSig         = flag.Bool("sig", true, "show signature information from export bundle")
-	filePath        = flag.String("file", "", "path to the export zip file.")
-	printJSON       = flag.Bool("json", true, "print a JSON representation of the output")
+	showSig         = flag.Bool("sig", true, "show signature information from export bundle in json")
+	filePath        = flag.String("file", "", "path to the export files, supports file globs")
+	printJSON       = flag.Bool("json", true, "show the export in json")
 	quiet           = flag.Bool("q", false, "run in quiet mode")
 	allowedTEKAge   = flag.Duration("tek-age", 14*24*time.Hour, "max TEK age in checks")
 	symptomDayLimit = flag.Int("symptom-days", 14, "magnitude of expected symptom onset day range")
@@ -41,64 +41,109 @@ var (
 )
 
 func main() {
+	if err := realMain(); err != nil {
+		printError("%s", err)
+		os.Exit(1)
+	}
+}
+
+func realMain() error {
 	flag.Parse()
 	if *filePath == "" {
-		log.Fatal("--file is required.")
+		return fmt.Errorf("--file is required")
 	}
 	if *allowedTEKAge < time.Duration(0) {
-		log.Fatalf("--tek-age must be a positive duration, got: %v", *allowedTEKAge)
+		return fmt.Errorf("--tek-age must be a positive duration, got %q", *allowedTEKAge)
 	}
 	if *symptomDayLimit < 0 {
-		log.Fatalf("--symptom-days must be >=0, got: %v", *symptomDayLimit)
+		return fmt.Errorf("--symptom-days must be >=0, got %q", *symptomDayLimit)
 	}
 	if *fileAge < time.Duration(0) {
-		log.Fatalf("--file-age must be a positive duration, got: %v", *fileAge)
+		return fmt.Errorf("--file-age must be a positive duration, got %q", *fileAge)
 	}
 
-	blob, err := ioutil.ReadFile(*filePath)
+	matches, err := filepath.Glob(*filePath)
 	if err != nil {
-		log.Fatalf("can't read export file: %v", err)
+		return fmt.Errorf("failed to expand matches: %w", err)
 	}
 
-	if *showSig {
+	if len(matches) == 0 {
+		return fmt.Errorf("%q produced no matches (shell escaping?)", *filePath)
+	}
+
+	var errors *multierror.Error
+	var results []*analysis
+	for _, m := range matches {
+		result, err := analyzeOne(m, *showSig, *printJSON)
+		if err != nil {
+			errors = multierror.Append(errors, fmt.Errorf("%s: %s", m, err))
+			continue
+		}
+		results = append(results, result)
+	}
+
+	for _, result := range results {
+		printMsg("%s:\n", result.path)
+		if !*quiet && len(result.sig) > 0 {
+			printMsg("signature: %s", result.sig)
+		}
+
+		if !*quiet && len(result.export) > 0 {
+			printMsg("export: %s", result.export)
+		}
+		printMsg("\n")
+	}
+
+	return errors.ErrorOrNil()
+}
+
+type analysis struct {
+	path   string
+	sig    []byte
+	export []byte
+}
+
+func analyzeOne(pth string, includeSig, includeExport bool) (*analysis, error) {
+	blob, err := ioutil.ReadFile(pth)
+	if err != nil {
+		return nil, fmt.Errorf("can't read export file: %w", err)
+	}
+
+	var result analysis
+	result.path = pth
+
+	if includeSig {
 		sigExport, err := export.UnmarshalSignatureFile(blob)
 		if err != nil {
-			log.Fatalf("error unmarshaling export signature file: %v", err)
+			return nil, fmt.Errorf("error unmarshaling export signature file: %w", err)
 		}
 
 		prettyJSON, err := json.MarshalIndent(sigExport, "", " ")
 		if err != nil {
-			log.Fatalf("error pretty printing export signature: %v", err)
+			return nil, fmt.Errorf("error pretty printing export signature: %w", err)
 		}
-		log.Printf("Export signature file contents:\n%v", string(prettyJSON))
+		result.sig = prettyJSON
 	}
 
 	keyExport, _, err := export.UnmarshalExportFile(blob)
 	if err != nil {
-		log.Fatalf("error unmarshaling export file: %v", err)
+		return nil, fmt.Errorf("error unmarshaling export file: %w", err)
 	}
 
 	// Do some basic data validation.
-	success := true
 	if err := checkExportFile(keyExport); err != nil {
-		success = false
-		if !*quiet {
-			log.Printf("export file contains errors: %v", err)
-		}
+		return nil, fmt.Errorf("export file contains errors: %w", err)
 	}
 
-	if *printJSON {
+	if includeExport {
 		prettyJSON, err := json.MarshalIndent(keyExport, "", "  ")
 		if err != nil {
-			log.Fatalf("error pretty printing export: %v", err)
+			return nil, fmt.Errorf("error pretty printing export: %w", err)
 		}
-		log.Printf("Export file contents:\n%v", string(prettyJSON))
+		result.export = prettyJSON
 	}
 
-	if !success {
-		// return a non zero code if there are issues with the export file.
-		os.Exit(1)
-	}
+	return &result, nil
 }
 
 func checkExportFile(export *exportpb.TemporaryExposureKeyExport) error {
@@ -121,21 +166,31 @@ func checkKeys(kType string, keys []*exportpb.TemporaryExposureKey, floor, ceili
 	var errors *multierror.Error
 	for i, k := range keys {
 		if l := len(k.KeyData); l != 16 {
-			errors = multierror.Append(fmt.Errorf("%s #%d: invald key length: want 16, got: %v", kType, i, l))
+			errors = multierror.Append(errors, fmt.Errorf("%s #%d: invald key length: want 16, got: %v", kType, i, l))
 		}
 		if s := k.GetRollingStartIntervalNumber(); s < floor {
-			errors = multierror.Append(fmt.Errorf("%s #%d: rolling interval start number is > %v ago, want >= %d, got %d", kType, i, *allowedTEKAge, floor, s))
+			errors = multierror.Append(errors, fmt.Errorf("%s #%d: rolling interval start number is > %v ago, want >= %d, got %d", kType, i, *allowedTEKAge, floor, s))
 		} else if s > ceiling {
-			errors = multierror.Append(fmt.Errorf("%s #%d: rolling interval start number in the future, want < %d, got %d", kType, i, ceiling, s))
+			errors = multierror.Append(errors, fmt.Errorf("%s #%d: rolling interval start number in the future, want < %d, got %d", kType, i, ceiling, s))
 		}
 		if r := k.GetRollingPeriod(); r < 1 || r > 144 {
-			errors = multierror.Append(fmt.Errorf("%s #%d: rolling period invalid, want >= 1 && <= 144, got %d", kType, i, r))
+			errors = multierror.Append(errors, fmt.Errorf("%s #%d: rolling period invalid, want >= 1 && <= 144, got %d", kType, i, r))
 		}
 		if k.DaysSinceOnsetOfSymptoms != nil {
 			if d := k.GetDaysSinceOnsetOfSymptoms(); d < -symptomDays || d > symptomDays {
-				errors = multierror.Append(fmt.Errorf("%s #%d: days_since_onset_of_symptoms is outside of expectd range, -%d..%d, got: %d", kType, i, symptomDays, symptomDays, d))
+				errors = multierror.Append(errors, fmt.Errorf("%s #%d: days_since_onset_of_symptoms is outside of expected range, -%d..%d, got: %d", kType, i, symptomDays, symptomDays, d))
 			}
 		}
 	}
 	return errors.ErrorOrNil()
+}
+
+func printMsg(msg string, args ...interface{}) {
+	msg = fmt.Sprintf("%s\n", msg)
+	fmt.Fprintf(os.Stdout, msg, args...)
+}
+
+func printError(msg string, args ...interface{}) {
+	msg = fmt.Sprintf("ERROR! %s\n", msg)
+	fmt.Fprintf(os.Stderr, msg, args...)
 }
