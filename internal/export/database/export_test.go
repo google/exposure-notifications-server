@@ -439,6 +439,15 @@ func TestFinalizeBatch(t *testing.T) {
 			t.Errorf("mismatch for %q (-want, +got):\n%s", filename, diff)
 		}
 	}
+
+	// Check marking files for deletion.
+	sleepTime := time.Second
+	time.Sleep(sleepTime)
+	if num, err := New(testDB).MarkExpiredFiles(ctx, eb.ConfigID, sleepTime); err != nil {
+		t.Errorf("error marking files for deletion: %v", err)
+	} else if num != len(gotFiles) {
+		t.Errorf("expected to mark %d files expired, got %d", len(gotFiles), num)
+	}
 }
 
 // TestTravelerKeys ensures traveler keys are pulled in when necessary.
