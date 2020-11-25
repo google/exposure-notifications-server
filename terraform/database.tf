@@ -102,7 +102,7 @@ resource "google_sql_database_instance" "replicas" {
 resource "google_sql_database" "db" {
   project  = data.google_project.project.project_id
   instance = google_sql_database_instance.db-inst.name
-  name     = "key"
+  name     = var.db_name
 }
 
 resource "google_sql_ssl_cert" "db-cert" {
@@ -118,7 +118,7 @@ resource "random_password" "db-password" {
 
 resource "google_sql_user" "user" {
   instance = google_sql_database_instance.db-inst.name
-  name     = "key"
+  name     = var.db_user
   password = random_password.db-password.result
 }
 

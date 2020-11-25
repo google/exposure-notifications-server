@@ -35,6 +35,17 @@ variable "db_location" {
   default = "us-central1"
 }
 
+# database name, not instance name
+variable "db_name" {	
+  type    = string	
+  default = "key"	
+}
+
+variable "db_user" {	
+  type    = string	
+  default = "key"	
+}
+
 variable "db_version" {
   type    = string
   default = "POSTGRES_13"
