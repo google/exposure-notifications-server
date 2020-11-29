@@ -95,7 +95,14 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 			tb.Fatalf("unable to connect to database: %v", err)
 		}
 	} else {
-		db = database.NewTestDatabase(tb)
+		testDatabaseInstance := database.MustTestInstance()
+		tb.Cleanup(func() {
+			if err := testDatabaseInstance.Close(); err != nil {
+				tb.Fatal(err)
+			}
+		})
+
+		db, _ = testDatabaseInstance.NewDatabase(tb)
 	}
 
 	aap, err := authorizedapp.NewDatabaseProvider(ctx, db, &authorizedapp.Config{CacheDuration: time.Nanosecond})

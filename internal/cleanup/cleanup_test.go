@@ -25,11 +25,19 @@ import (
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
 
+var testDatabaseInstance *database.TestInstance
+
+func TestMain(m *testing.M) {
+	testDatabaseInstance = database.MustTestInstance()
+	defer testDatabaseInstance.MustClose()
+	m.Run()
+}
+
 func TestNewExposureHandler(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	testCases := []struct {
 		name string
@@ -50,6 +58,7 @@ func TestNewExposureHandler(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -76,7 +85,7 @@ func TestNewExportHandler(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	testDB := database.NewTestDatabase(t)
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	noopBlobstore, _ := storage.NewNoop(ctx)
 
 	testCases := []struct {
@@ -103,6 +112,7 @@ func TestNewExportHandler(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -126,8 +136,11 @@ func TestNewExportHandler(t *testing.T) {
 }
 
 func TestCutoffDate(t *testing.T) {
+	t.Parallel()
+
 	now := time.Now()
-	for _, test := range []struct {
+
+	cases := []struct {
 		name     string
 		d        time.Duration
 		wantDur  time.Duration // if zero, then expect an error
@@ -137,23 +150,29 @@ func TestCutoffDate(t *testing.T) {
 		{"negative", -10 * time.Minute, 0, false},                                // negative
 		{"long_enough", 241 * time.Hour, (10*24 + 1) * time.Hour, false},         // 10 days, 1 hour: OK
 		{"too_short_with_override", 216 * time.Hour, (9 * 24) * time.Hour, true}, // too short, but override backstop.
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			got, err := cutoffDate(context.Background(), test.d, test.override)
-			if test.wantDur == 0 {
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := cutoffDate(context.Background(), tc.d, tc.override)
+			if tc.wantDur == 0 {
 				if err == nil {
-					t.Errorf("%q: got no error, wanted one", test.d)
+					t.Errorf("%q: got no error, wanted one", tc.d)
 				}
 			} else if err != nil {
-				t.Errorf("%q: got error %v", test.d, err)
+				t.Errorf("%q: got error %v", tc.d, err)
 			} else {
-				want := now.Add(-test.wantDur)
+				want := now.Add(-tc.wantDur)
 				diff := got.Sub(want)
 				if diff < 0 {
 					diff = -diff
 				}
 				if diff > time.Second {
-					t.Errorf("%q: got %s, want %s", test.d, got, want)
+					t.Errorf("%q: got %s, want %s", tc.d, got, want)
 				}
 			}
 		})

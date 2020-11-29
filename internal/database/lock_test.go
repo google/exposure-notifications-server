@@ -24,8 +24,8 @@ import (
 func TestLock(t *testing.T) {
 	t.Parallel()
 
-	testDB := NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	const (
 		id1 = "test1"
@@ -87,8 +87,8 @@ func TestLock(t *testing.T) {
 func TestMultiLock(t *testing.T) {
 	t.Parallel()
 
-	testDB := NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	neededLocks := []string{"traveler", "US", "CA", "MX"}
 

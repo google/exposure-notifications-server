@@ -16,7 +16,10 @@ package database
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"flag"
 	"fmt"
 	"net"
 	"net/url"
@@ -25,12 +28,17 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/ory/dockertest"
+	"github.com/ory/dockertest/docker"
 	"github.com/sethvargo/go-retry"
 
 	// imported to register the postgres migration driver
@@ -40,128 +48,284 @@ import (
 	// imported to register the "postgres" database driver for migrate
 )
 
-// NewTestDatabaseWithConfig creates a new database suitable for use in testing.
-// This should not be used outside of testing, but it is exposed in the main
-// package so it can be shared with other packages.
+const (
+	// databaseName is the name of the template database to clone.
+	databaseName = "test-db-template"
+
+	// databaseUser and databasePassword are the username and password for
+	// connecting to the database. These values are only used for testing.
+	databaseUser     = "test-user"
+	databasePassword = "testing123"
+
+	// defaultPostgresImageRef is the default database container to use if none is
+	// specified.
+	defaultPostgresImageRef = "postgres:13-alpine"
+)
+
+var (
+	// ApproxTime is a compare helper for clock skew.
+	ApproxTime = cmp.Options{cmpopts.EquateApproxTime(1 * time.Second)}
+)
+
+// TestInstance is a wrapper around the Docker-based database instance.
+type TestInstance struct {
+	pool      *dockertest.Pool
+	container *dockertest.Resource
+	url       *url.URL
+
+	conn     *pgx.Conn
+	connLock sync.Mutex
+
+	skipReason string
+}
+
+// MustTestInstance is NewTestInstance, except it prints errors to stderr and
+// calls os.Exit when finished. Callers can call Close or MustClose().
+func MustTestInstance() *TestInstance {
+	testDatabaseInstance, err := NewTestInstance()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	return testDatabaseInstance
+}
+
+// NewTestInstance creates a new Docker-based database instance. It also creates
+// an initial database, runs the migrations, and sets that database as a
+// template to be cloned by future tests.
+//
+// This should not be used outside of testing, but it is exposed in the package
+// so it can be shared with other packages. It should be called and instantiated
+// in TestMain.
 //
 // All database tests can be skipped by running `go test -short` or by setting
 // the `SKIP_DATABASE_TESTS` environment variable.
-func NewTestDatabaseWithConfig(tb testing.TB) (*DB, *Config) {
-	tb.Helper()
+func NewTestInstance() (*TestInstance, error) {
+	// Querying for -short requires flags to be parsed.
+	if !flag.Parsed() {
+		flag.Parse()
+	}
 
+	// Do not create an instance in -short mode.
 	if testing.Short() {
-		tb.Skipf("🚧 Skipping database tests (short!")
+		return &TestInstance{
+			skipReason: "🚧 Skipping database tests (-short flag provided)!",
+		}, nil
 	}
 
+	// Do not create an instance if database tests are explicitly skipped.
 	if skip, _ := strconv.ParseBool(os.Getenv("SKIP_DATABASE_TESTS")); skip {
-		tb.Skipf("🚧 Skipping database tests (SKIP_DATABASE_TESTS is set)!")
+		return &TestInstance{
+			skipReason: "🚧 Skipping database tests (SKIP_DATABASE_TESTS is set)!",
+		}, nil
 	}
 
-	// Context.
 	ctx := context.Background()
 
-	// Create the pool (docker instance).
+	// Create the pool.
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		tb.Fatalf("failed to create Docker pool: %s", err)
+		return nil, fmt.Errorf("failed to create database docker pool: %w", err)
 	}
 
 	// Determine the container image to use.
-	repo, tag := postgresRepo(tb)
+	repository, tag, err := postgresRepo()
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine database repository: %w", err)
+	}
 
-	// Start the container.
-	dbname, username, password := "en-server", "my-username", "abcd1234"
+	// Start the actual container.
 	container, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: repo,
+		Repository: repository,
 		Tag:        tag,
 		Env: []string{
 			"LANG=C",
-			"POSTGRES_DB=" + dbname,
-			"POSTGRES_USER=" + username,
-			"POSTGRES_PASSWORD=" + password,
+			"POSTGRES_DB=" + databaseName,
+			"POSTGRES_USER=" + databaseUser,
+			"POSTGRES_PASSWORD=" + databasePassword,
 		},
+	}, func(c *docker.HostConfig) {
+		c.AutoRemove = true
+		c.RestartPolicy = docker.RestartPolicy{Name: "no"}
 	})
 	if err != nil {
-		tb.Fatalf("failed to start postgres container: %s", err)
+		return nil, fmt.Errorf("failed to start database container: %w", err)
 	}
 
-	// Force the database container to stop.
+	// Stop the container after its been running for too long. No since test suite
+	// should take super long.
 	if err := container.Expire(120); err != nil {
-		tb.Fatalf("failed to force-stop container: %v", err)
+		return nil, fmt.Errorf("failed to expire database container: %w", err)
 	}
-
-	// Ensure container is cleaned up.
-	tb.Cleanup(func() {
-		if err := pool.Purge(container); err != nil {
-			tb.Fatalf("failed to cleanup postgres container: %s", err)
-		}
-	})
-
-	// Get the host. On Mac, Docker runs in a VM.
-	host := container.GetBoundIP("5432/tcp")
-	port := container.GetPort("5432/tcp")
-	addr := net.JoinHostPort(host, port)
 
 	// Build the connection URL.
-	connURL := &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(username, password),
-		Host:   addr,
-		Path:   dbname,
+	connectionURL := &url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(databaseUser, databasePassword),
+		Host:     container.GetHostPort("5432/tcp"),
+		Path:     databaseName,
+		RawQuery: "sslmode=disable",
 	}
-	q := connURL.Query()
-	q.Add("sslmode", "disable")
-	connURL.RawQuery = q.Encode()
 
-	// Wait for the container to start.
+	// Create retryable.
 	b, err := retry.NewConstant(1 * time.Second)
 	if err != nil {
-		tb.Fatalf("failed to configure backoff: %v", err)
+		return nil, fmt.Errorf("failed to configure backoff: %w", err)
 	}
 	b = retry.WithMaxRetries(30, b)
 
-	// Establish a connection to the database. Use a Fibonacci backoff instead of
-	// exponential so wait times scale appropriately.
-	var dbpool *pgxpool.Pool
+	// Try to establish a connection to the database, with retries.
+	var conn *pgx.Conn
 	if err := retry.Do(ctx, b, func(ctx context.Context) error {
 		var err error
-		dbpool, err = pgxpool.Connect(ctx, connURL.String())
+		conn, err = pgx.Connect(ctx, connectionURL.String())
 		if err != nil {
+			return retry.RetryableError(err)
+		}
+		if err := conn.Ping(ctx); err != nil {
 			return retry.RetryableError(err)
 		}
 		return nil
 	}); err != nil {
-		tb.Fatalf("failed to start postgres: %s", err)
+		return nil, fmt.Errorf("failed waiting for database container to be ready: %w", err)
 	}
 
 	// Run the migrations.
-	if err := dbMigrate(connURL.String()); err != nil {
-		tb.Fatalf("failed to migrate database: %s", err)
+	if err := dbMigrate(connectionURL.String()); err != nil {
+		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 
-	// Create the db instance.
+	// Return the instance.
+	return &TestInstance{
+		pool:      pool,
+		container: container,
+		conn:      conn,
+		url:       connectionURL,
+	}, nil
+}
+
+// MustClose is like Close except it prints the error to stderr and calls os.Exit.
+func (i *TestInstance) MustClose() error {
+	if err := i.Close(); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	return nil
+}
+
+// Close terminates the test database instance, cleaning up any resources.
+func (i *TestInstance) Close() (retErr error) {
+	// Do not attempt to close  things when there's nothing to close.
+	if i.skipReason != "" {
+		return
+	}
+
+	defer func() {
+		if err := i.pool.Purge(i.container); err != nil {
+			retErr = fmt.Errorf("failed to purge database container: %w", err)
+			return
+		}
+	}()
+
+	ctx := context.Background()
+	if err := i.conn.Close(ctx); err != nil {
+		retErr = fmt.Errorf("failed to close connection: %w", err)
+		return
+	}
+
+	return
+}
+
+// NewDatabase creates a new database suitable for use in testing. It returns an
+// established database connection and the configuration.
+func (i *TestInstance) NewDatabase(tb testing.TB) (*DB, *Config) {
+	tb.Helper()
+
+	// Ensure we should actually create the database.
+	if i.skipReason != "" {
+		tb.Skip(i.skipReason)
+	}
+
+	// Clone the template database.
+	newDatabaseName, err := i.clone()
+	if err != nil {
+		tb.Fatal(err)
+	}
+
+	// Build the new connection URL for the new database name. Query params are
+	// dropped with ResolveReference, so we have to re-add disabling SSL over
+	// localhost.
+	connectionURL := i.url.ResolveReference(&url.URL{Path: newDatabaseName})
+	connectionURL.RawQuery = "sslmode=disable"
+
+	// Establish a connection to the database.
+	ctx := context.Background()
+	dbpool, err := pgxpool.Connect(ctx, connectionURL.String())
+	if err != nil {
+		tb.Fatalf("failed to connect to database %q: %s", newDatabaseName, err)
+	}
+
+	// Create the Go database instance.
 	db := &DB{Pool: dbpool}
 
-	// Close db when done.
+	// Close connection and delete database when done.
 	tb.Cleanup(func() {
-		db.Close(context.Background())
+		ctx := context.Background()
+
+		// Close connection first. It is an error to drop a database with active
+		// connections.
+		db.Close(ctx)
+
+		// Drop the database to keep the container from running out of resources.
+		q := fmt.Sprintf(`DROP DATABASE IF EXISTS "%s" WITH (FORCE);`, newDatabaseName)
+
+		i.connLock.Lock()
+		defer i.connLock.Unlock()
+
+		if _, err := i.conn.Exec(ctx, q); err != nil {
+			tb.Errorf("failed to drop database %q: %s", newDatabaseName, err)
+		}
 	})
 
+	host, port, err := net.SplitHostPort(i.url.Host)
+	if err != nil {
+		tb.Errorf("failed to split host/port %q: %w", i.url.Host, err)
+	}
+
 	return db, &Config{
-		Name:     dbname,
-		User:     username,
-		Host:     container.GetBoundIP("5432/tcp"),
-		Port:     container.GetPort("5432/tcp"),
+		Name:     newDatabaseName,
+		User:     databaseUser,
+		Host:     host,
+		Port:     port,
 		SSLMode:  "disable",
-		Password: password,
+		Password: databasePassword,
 	}
 }
 
-func NewTestDatabase(tb testing.TB) *DB {
-	tb.Helper()
+// clone creates a new database with a random name from the template instance.
+func (i *TestInstance) clone() (string, error) {
+	// Generate a random database name.
+	name, err := randomDatabaseName()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate random database name: %w", err)
+	}
 
-	db, _ := NewTestDatabaseWithConfig(tb)
-	return db
+	// Setup context and create SQL command. Unfortunately we cannot use parameter
+	// injection here as that's only valid for prepared statements, for which this
+	// is not. Fortunately both inputs can be trusted in this case.
+	ctx := context.Background()
+	q := fmt.Sprintf(`CREATE DATABASE "%s" WITH TEMPLATE "%s";`, name, databaseName)
+
+	// Unfortunately postgres does not allow parallel database creation from the
+	// same template, so this is guarded with a lock.
+	i.connLock.Lock()
+	defer i.connLock.Unlock()
+
+	// Clone the template database as the new random database name.
+	if _, err := i.conn.Exec(ctx, q); err != nil {
+		return "", fmt.Errorf("failed to clone template database: %w", err)
+	}
+	return name, nil
 }
 
 // dbMigrate runs the migrations. u is the connection URL string (e.g.
@@ -197,15 +361,27 @@ func dbMigrationsDir() string {
 	return filepath.Join(filepath.Dir(filename), "../../migrations")
 }
 
-func postgresRepo(tb testing.TB) (string, string) {
-	postgresImageRef := os.Getenv("CI_POSTGRES_IMAGE")
-	if postgresImageRef == "" {
-		postgresImageRef = "postgres:13-alpine"
+// postgresRepo returns the postgres container image name based on an
+// environment variable, or the default value if the environment variable is
+// unset.
+func postgresRepo() (string, string, error) {
+	ref := os.Getenv("CI_POSTGRES_IMAGE")
+	if ref == "" {
+		ref = defaultPostgresImageRef
 	}
 
-	parts := strings.SplitN(postgresImageRef, ":", 2)
+	parts := strings.SplitN(ref, ":", 2)
 	if len(parts) != 2 {
-		tb.Fatalf("invalid postgres ref %v", postgresImageRef)
+		return "", "", fmt.Errorf("invalid reference for database container: %q", ref)
 	}
-	return parts[0], parts[1]
+	return parts[0], parts[1], nil
+}
+
+// randomDatabaseName returns a random database name.
+func randomDatabaseName() (string, error) {
+	b := make([]byte, 4)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }

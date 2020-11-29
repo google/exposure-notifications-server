@@ -37,16 +37,15 @@ import (
 )
 
 var (
-	approxTime               = cmp.Options{cmpopts.EquateApproxTime(time.Second)}
 	ignoreUnexportedExposure = cmpopts.IgnoreUnexported(model.Exposure{})
 )
 
 func TestReadExposures(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
-	testPublishDB := New(testDB)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	testPublishDB := New(testDB)
 
 	// Insert some Exposures.
 	createdAt := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC).Truncate(time.Microsecond)
@@ -104,7 +103,7 @@ func TestReadExposures(t *testing.T) {
 		return out
 	})
 
-	if diff := cmp.Diff(exposures, got, approxTime, sorter, ignoreUnexportedExposure); diff != "" {
+	if diff := cmp.Diff(exposures, got, database.ApproxTime, sorter, ignoreUnexportedExposure); diff != "" {
 		t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
 	}
 
@@ -146,9 +145,9 @@ func TestReadExposures(t *testing.T) {
 func TestExposures(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
-	testPublishDB := New(testDB)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	testPublishDB := New(testDB)
 
 	// Insert some Exposures.
 	batchTime := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC).Truncate(time.Microsecond)
@@ -327,7 +326,7 @@ func TestReviseExposures(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	testDB := database.NewTestDatabase(t)
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	pubDB := New(testDB)
 
 	// Attempt to revise without a revision token - this should fail.
@@ -723,9 +722,9 @@ func TestReviseExposures(t *testing.T) {
 func TestIterateExposuresCursor(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
-	testPublishDB := New(testDB)
 	ctx, cancel := context.WithCancel(context.Background())
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	testPublishDB := New(testDB)
 
 	// Insert some Exposures.
 	exposures := []*model.Exposure{

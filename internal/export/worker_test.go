@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
@@ -31,6 +30,8 @@ import (
 )
 
 func TestRandomInt(t *testing.T) {
+	t.Parallel()
+
 	expected := make(map[int]bool)
 	for i := verifyapi.MinTransmissionRisk; i <= verifyapi.MaxTransmissionRisk; i++ {
 		expected[i] = true
@@ -54,6 +55,8 @@ func TestRandomInt(t *testing.T) {
 }
 
 func TestDoNotPadZeroLength(t *testing.T) {
+	t.Parallel()
+
 	exposures := make([]*publishmodel.Exposure, 0)
 	exposures, generated, err := ensureMinNumExposures(exposures, "US", 1000, 100, time.Now())
 	if err != nil {
@@ -68,6 +71,8 @@ func TestDoNotPadZeroLength(t *testing.T) {
 }
 
 func TestEnsureMinExposures(t *testing.T) {
+	t.Parallel()
+
 	// Insert a few exposures - that will be used to base the interval information off of.
 	exposures := []*publishmodel.Exposure{
 		{
@@ -143,9 +148,9 @@ func getKey(t *testing.T) []byte {
 func TestBatchExposures(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
-	testPublishDB := publishdb.New(testDB)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	testPublishDB := publishdb.New(testDB)
 
 	config := Config{
 		MinRecords:         1,
@@ -363,9 +368,9 @@ func TestBatchExposures(t *testing.T) {
 func TestVariableBatchMaxSize(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
-	testPublishDB := publishdb.New(testDB)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	testPublishDB := publishdb.New(testDB)
 
 	// Using a 1 hour truncate window
 	baseTime := time.Date(2020, 10, 28, 1, 0, 0, 0, time.UTC).Truncate(time.Hour)

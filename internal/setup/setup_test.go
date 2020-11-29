@@ -31,6 +31,14 @@ import (
 	"github.com/sethvargo/go-envconfig"
 )
 
+var testDatabaseInstance *database.TestInstance
+
+func TestMain(m *testing.M) {
+	testDatabaseInstance = database.MustTestInstance()
+	defer testDatabaseInstance.MustClose()
+	m.Run()
+}
+
 var _ setup.AuthorizedAppConfigProvider = (*testConfig)(nil)
 var _ setup.BlobstoreConfigProvider = (*testConfig)(nil)
 var _ setup.DatabaseConfigProvider = (*testConfig)(nil)
@@ -93,7 +101,7 @@ func TestSetupWith(t *testing.T) {
 		t.Parallel()
 
 		ctx := context.Background()
-		_, dbconfig := database.NewTestDatabaseWithConfig(t)
+		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
@@ -107,7 +115,7 @@ func TestSetupWith(t *testing.T) {
 		t.Parallel()
 
 		ctx := context.Background()
-		_, dbconfig := database.NewTestDatabaseWithConfig(t)
+		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
@@ -126,7 +134,7 @@ func TestSetupWith(t *testing.T) {
 		t.Parallel()
 
 		ctx := context.Background()
-		_, dbconfig := database.NewTestDatabaseWithConfig(t)
+		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
@@ -149,7 +157,7 @@ func TestSetupWith(t *testing.T) {
 		t.Parallel()
 
 		ctx := context.Background()
-		_, dbconfig := database.NewTestDatabaseWithConfig(t)
+		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
@@ -172,7 +180,7 @@ func TestSetupWith(t *testing.T) {
 		t.Parallel()
 
 		ctx := context.Background()
-		_, dbconfig := database.NewTestDatabaseWithConfig(t)
+		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
@@ -195,7 +203,7 @@ func TestSetupWith(t *testing.T) {
 		t.Parallel()
 
 		ctx := context.Background()
-		_, dbconfig := database.NewTestDatabaseWithConfig(t)
+		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
@@ -218,7 +226,7 @@ func TestSetupWith(t *testing.T) {
 		t.Parallel()
 
 		ctx := context.Background()
-		_, dbconfig := database.NewTestDatabaseWithConfig(t)
+		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
 		env, err := setup.SetupWith(ctx, config, lookuper)
