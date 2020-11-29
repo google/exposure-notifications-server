@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/keys"
@@ -29,7 +28,7 @@ func TestNewRotationHandler(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	testDB := database.NewTestDatabase(t)
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	kms := keys.TestKeyManager(t)
 

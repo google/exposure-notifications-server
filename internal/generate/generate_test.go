@@ -32,11 +32,19 @@ import (
 	"github.com/sethvargo/go-envconfig"
 )
 
+var testDatabaseInstance *database.TestInstance
+
+func TestMain(m *testing.M) {
+	testDatabaseInstance = database.MustTestInstance()
+	defer testDatabaseInstance.MustClose()
+	m.Run()
+}
+
 func testHandler(tb testing.TB) (*Config, *serverenv.ServerEnv) {
 	tb.Helper()
 
 	ctx := context.Background()
-	_, dbConfig := database.NewTestDatabaseWithConfig(tb)
+	_, dbConfig := testDatabaseInstance.NewDatabase(tb)
 
 	config := &Config{
 		Database: *dbConfig,

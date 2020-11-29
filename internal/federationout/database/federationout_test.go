@@ -29,8 +29,8 @@ import (
 func TestFederationOutAuthorization(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	want := &model.FederationOutAuthorization{
 		Issuer:         "iss",

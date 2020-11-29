@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -28,8 +27,8 @@ import (
 func TestAuthorizedAppLifecycle(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	aadb := New(testDB)
 
 	source := &model.AuthorizedApp{
@@ -128,7 +127,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 
-			testDB := database.NewTestDatabase(t)
+			testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 			// Acquire a connection
 			conn, err := testDB.Pool.Acquire(ctx)

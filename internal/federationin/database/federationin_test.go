@@ -32,9 +32,9 @@ import (
 func TestFederationIn(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
-	db := New(testDB)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	db := New(testDB)
 
 	want := &model.FederationInQuery{
 		QueryID:             "qid",

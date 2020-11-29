@@ -30,15 +30,11 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-var (
-	approxTime = cmp.Options{cmpopts.EquateApproxTime(time.Second)}
-)
-
 func TestAddGetUpdateExportConfig(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := New(testDB)
 
 	fromTime := time.Now().UTC().Add(-1 * time.Second)
@@ -62,7 +58,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(want, got, approxTime); diff != "" {
+	if diff := cmp.Diff(want, got, database.ApproxTime); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -70,8 +66,8 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 func TestAddImportFiles(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := New(testDB)
 
 	now := time.Now().UTC()
@@ -122,8 +118,8 @@ func TestAddImportFiles(t *testing.T) {
 func TestLeaseAndCompleteImportFile(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := New(testDB)
 
 	lockDuration, retryRate := 2*time.Second, time.Hour
@@ -187,8 +183,8 @@ func TestLeaseAndCompleteImportFile(t *testing.T) {
 func TestImportFilePublicKey(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := New(testDB)
 
 	now := time.Now().UTC()
@@ -236,7 +232,7 @@ func TestImportFilePublicKey(t *testing.T) {
 		t.Fatalf("error reading public keys: %v", err)
 	}
 
-	if diff := cmp.Diff(&want, got[0], approxTime); diff != "" {
+	if diff := cmp.Diff(&want, got[0], database.ApproxTime); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 
@@ -256,8 +252,8 @@ func TestImportFilePublicKey(t *testing.T) {
 func TestRetryToClose(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := New(testDB)
 
 	now := time.Now().UTC()

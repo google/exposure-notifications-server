@@ -29,6 +29,14 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 )
 
+var testDatabaseInstance *database.TestInstance
+
+func TestMain(m *testing.M) {
+	testDatabaseInstance = database.MustTestInstance()
+	defer testDatabaseInstance.MustClose()
+	m.Run()
+}
+
 var key1 = `{"kid":"r2v1","kty":"EC","crv":"P-256","x":"qcMMcLX1Z2afVAzypTMw1g3KN_OcdgvRDwOgpDWiswU","y":"RjK8Hc7pLLO_JADNhwZIxCXjCH95VHuWPoKVaCGkXiA"}`
 var key2 = `{"kid":"r2v2","kty":"EC","crv":"P-256","x":"F2MgtKg_cm-JfcJlrEUJMgXqXq1vHWRPMbBWEjzmN0U","y":"4U6g0nX9mVOGaHL8kYX10gL4Fsj-wNb4V9GMSJ7iLKk"}`
 var enc1 = `MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqcMMcLX1Z2afVAzypTMw1g3KN/Oc
@@ -116,8 +124,10 @@ func TestUpdateHA(t *testing.T) {
 	// "end-to-end" test is runn where the DB is validated.
 	for i, test := range tests {
 		test := test
+
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
+
 			// Start a local server to serve JSON data for the test.
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintf(w, test.resp)
@@ -127,7 +137,7 @@ func TestUpdateHA(t *testing.T) {
 
 			// Set up the test.
 			ctx := context.Background()
-			testDB := database.NewTestDatabase(t)
+			testDB, _ := testDatabaseInstance.NewDatabase(t)
 			mgr, err := NewManager(ctx, testDB)
 			if err != nil {
 				t.Fatalf("[%d] unexpected error: %v", i, err)

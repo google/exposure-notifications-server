@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 
 	"github.com/google/go-cmp/cmp"
@@ -36,9 +35,9 @@ IBSEEHOdgpAynz0yrHpkWL6vxjNHxRdWcImZxPgL0NVHMdY4TlsL7qaxBQ==
 func TestMissingHealthAuthority(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
-	haDB := New(testDB)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	haDB := New(testDB)
 
 	_, err := haDB.GetHealthAuthority(ctx, "does-not-exist")
 	if err == nil {
@@ -52,8 +51,8 @@ func TestMissingHealthAuthority(t *testing.T) {
 func TestAddRetrieveHealthAuthority(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	want := &model.HealthAuthority{
 		Issuer:   "doh.mystate.gov",
@@ -89,8 +88,8 @@ func TestAddRetrieveHealthAuthority(t *testing.T) {
 func TestAddRetrieveHealthAuthorityKeys(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	want := &model.HealthAuthority{
 		Issuer:   "doh.mystate.gov",

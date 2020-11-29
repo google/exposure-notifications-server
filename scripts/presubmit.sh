@@ -17,23 +17,34 @@
 set -eEuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
-SOURCE_DIRS="cmd internal tools"
-
 
 # Note: other environment variables may be set by the test infrastructure. See:
 # https://github.com/GoogleCloudPlatform/oss-test-infra/tree/master/prow/prowjobs/google/exposure-notifications-server.
 echo "🌳 Set up environment variables"
 export GOMAXPROCS=7
-# TODO(sethvargo): configure more
 
 
-echo "🚒 Verify Protobufs are up to date"
-${ROOT}/scripts/dev protoc
+# Authenticate and pull private Docker repos.
+if [ -n "${CI:-}" ]; then
+  gcloud --quiet auth configure-docker us-docker.pkg.dev
+fi
+if [ -n "${CI_POSTGRES_IMAGE:-}" ]; then
+  docker pull --quiet "${CI_POSTGRES_IMAGE}"
+fi
+if [ -n "${CI_REDIS_IMAGE:-}" ]; then
+  docker pull --quiet "${CI_REDIS_IMAGE}"
+fi
 
 
-echo "📚 Fetch dependencies"
-OUT="$(go get -t ./... 2>&1)" || {
+OUT="$(go get -t -tags=performance,e2e ./... 2>&1)" || {
   echo "✋ Error fetching dependencies"
+  echo "\n\n${OUT}\n\n"
+  exit 1
+}
+
+
+OUT="$(go test -i -tags=performance,e2e ./... 2>&1)" || {
+  echo "✋ Error fetching test dependencies"
   echo "\n\n${OUT}\n\n"
   exit 1
 }
@@ -59,9 +70,13 @@ make spellcheck || {
   exit 1
 }
 
+echo "👩‍⚖️ Verify copyrights"
+make copyrightcheck || {
+  echo "✋ Missing copyrights."
+  exit 1
+}
 
 echo "🔨 Building"
-go build ./...
 # Compiling *_test.go files with performance tag
 go test -c -tags=performance ./internal/performance/...
 

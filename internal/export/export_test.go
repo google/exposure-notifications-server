@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package metricsware provides a middleware for recording metrics of different kinds
-package metricsware
+package export
 
-import "github.com/google/exposure-notifications-server/internal/metrics"
+import (
+	"testing"
 
-type Middleware struct {
-	exporter *metrics.Exporter
-}
+	"github.com/google/exposure-notifications-server/internal/database"
+)
 
-func NewMiddleWare(exporter *metrics.Exporter) Middleware {
-	return Middleware{
-		exporter: exporter,
-	}
+var testDatabaseInstance *database.TestInstance
+
+func TestMain(m *testing.M) {
+	testDatabaseInstance = database.MustTestInstance()
+	defer testDatabaseInstance.MustClose()
+	m.Run()
 }
