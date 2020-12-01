@@ -13,13 +13,22 @@
 # limitations under the License.
 
 locals {
-  slower_services = format("(%s)", join("|", sort([
-    "cleanup-export",
-    "cleanup-exposure",
-  ])))
-  slowest_services = format("(%s)", join("|", sort([
-    "export",
-  ])))
+  p50_latency_thresholds_in_seconds = {
+    export         = 600
+    cleanup-export = 20
+    generate       = 30
+  }
+  p50_latency_thresholds_in_seconds_default = 10
+
+  p50_latency_condition = join("\n|| ", concat(
+    [
+      for k, v in local.p50_latency_thresholds_in_seconds :
+      "(resource.service_name == '${k}' && val > ${v * 1000} 'ms')"
+    ],
+    [
+      "(val > ${local.p50_latency_thresholds_in_seconds_default * 1000} 'ms')"
+    ]
+  ))
 }
 
 resource "google_monitoring_alert_policy" "LatencyTooHigh" {
@@ -35,18 +44,11 @@ resource "google_monitoring_alert_policy" "LatencyTooHigh" {
       query = <<-EOT
       fetch
       cloud_run_revision :: run.googleapis.com/request_latencies
-      | map add [type:
-        if(resource.service_name =~ '${local.slowest_services}', 'SLOWEST',
-          if(resource.service_name =~ '${local.slower_services}', 'SLOWER',
-            'NORMAL'))]
       | align delta(1m)
       | every 1m
       | group_by [resource.service_name, type],
       [val: percentile(value.request_latencies, 50)]
-      | condition
-        (type == 'SLOWEST' && val > 600000 'ms')
-        || (type == 'SLOWER' && val > 20000 'ms')
-        || (type == 'NORMAL' && val > 10000 'ms')
+      | condition ${local.p50_latency_condition}
       EOT
       trigger {
         count = 1
