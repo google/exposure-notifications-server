@@ -55,12 +55,14 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.6.7 // indirect
 	github.com/hashicorp/raft v1.1.2 // indirect
 	github.com/hashicorp/vault v1.2.1-0.20200522144850-6f72d4ff250f
+	github.com/hashicorp/vault-plugin-auth-gcp v0.8.0 // indirect
 	github.com/hashicorp/vault-plugin-secrets-kv v0.5.5
 	github.com/hashicorp/vault/api v1.0.5-0.20200522144850-6f72d4ff250f
 	github.com/hashicorp/vault/sdk v0.1.14-0.20200519221838-e0cfd64bc267
 	github.com/hashicorp/yamux v0.0.0-20190923154419-df201c70410d // indirect
 	github.com/jackc/pgproto3/v2 v2.0.4 // indirect
 	github.com/jackc/pgx/v4 v4.8.1
+	github.com/jackc/puddle v1.1.2 // indirect
 	github.com/jefferai/jsonx v1.0.1 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/kelseyhightower/run v0.0.17
@@ -75,6 +77,7 @@ require (
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/oklog/run v1.1.0 // indirect
+	github.com/okta/okta-sdk-golang v1.1.0 // indirect
 	github.com/onsi/ginkgo v1.13.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/oracle/oci-go-sdk v19.3.0+incompatible // indirect
@@ -112,7 +115,7 @@ require (
 	gopkg.in/ini.v1 v1.56.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
-	honnef.co/go/tools v0.0.1-2020.1.5
+	honnef.co/go/tools v0.0.1-2020.1.6
 	k8s.io/api v0.18.7-rc.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v3 v3.0.1-0.20200706213357-43c19bbb7fba // indirect
 )
