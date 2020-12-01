@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	exportimportdb "github.com/google/exposure-notifications-server/internal/exportimport/database"
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -30,15 +29,13 @@ import (
 func TestImportingRetries(t *testing.T) {
 	t.Parallel()
 
-	// Create a test http server.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	}))
-	defer ts.Close()
-
-	// Setup the database.
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := exportimportdb.New(testDB)
+
+	// Create a test http server.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer ts.Close()
 
 	now := time.Now().UTC()
 	eiConfig := model.ExportImport{

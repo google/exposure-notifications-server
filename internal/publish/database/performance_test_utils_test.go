@@ -17,11 +17,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 )
 
 func TestBulkInsertExposures(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name      string
 		exposures []*model.Exposure
@@ -52,14 +53,17 @@ func TestBulkInsertExposures(t *testing.T) {
 			},
 			want: 3},
 	}
-	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
-	testPublishDB := New(testDB)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	testPublishDB := New(testDB)
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			count, err := testPublishDB.BulkInsertExposures(ctx, tc.exposures)
 			if err != nil {
 				t.Fatal(err)

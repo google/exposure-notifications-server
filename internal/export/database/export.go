@@ -683,6 +683,38 @@ func (db *ExportDB) FinalizeBatch(ctx context.Context, eb *model.ExportBatch, fi
 	})
 }
 
+// MarkExpiredFiles marks files for deletion.
+func (db *ExportDB) MarkExpiredFiles(ctx context.Context, configID int64, ttl time.Duration) (int, error) {
+	var filesToDelete int
+	return filesToDelete, db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		minTime := time.Now().Add(-1 * ttl)
+		res, err := tx.Exec(ctx, `
+		UPDATE
+			ExportFile AS ef
+		SET
+			status = $5
+		FROM
+			ExportBatch AS eb
+		WHERE
+			eb.config_id = $1
+		AND
+			ef.batch_id = eb.batch_id
+		AND
+			eb.end_timestamp < $2
+		AND
+			eb.status = $3
+		AND
+			ef.status = $4
+		`,
+			configID, minTime, model.ExportBatchComplete, model.ExportBatchComplete, model.ExportBatchDeletePending)
+		if err != nil {
+			return fmt.Errorf("updating ExportFile: %w", err)
+		}
+		filesToDelete = int(res.RowsAffected())
+		return nil
+	})
+}
+
 // LookupExportFiles returns a list of completed and unexpired export files for a specific config.
 func (db *ExportDB) LookupExportFiles(ctx context.Context, configID int64, ttl time.Duration) ([]string, error) {
 	var files []string
@@ -702,13 +734,13 @@ func (db *ExportDB) LookupExportFiles(ctx context.Context, configID int64, ttl t
 			AND
 				eb.start_timestamp > $2
 			AND
-				eb.status = $3
+				(eb.status = $3 OR eb.status = $4)
 			AND
-				ef.status = $4
+				ef.status = $5
 			ORDER BY
 				ef.filename
 		`,
-			configID, minTime, model.ExportBatchComplete, model.ExportBatchComplete,
+			configID, minTime, model.ExportBatchComplete, model.ExportBatchDeleted, model.ExportBatchComplete,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to list: %w", err)
@@ -793,7 +825,8 @@ func (db *ExportDB) DeleteFilesBefore(ctx context.Context, before time.Time, blo
 			WHERE
 				eb.end_timestamp < $1
 				AND eb.status != $2
-		`, before, model.ExportBatchDeleted)
+				AND ef.status = $3
+		`, before, model.ExportBatchDeleted, model.ExportBatchDeletePending)
 		if err != nil {
 			return fmt.Errorf("failed to list: %w", err)
 		}

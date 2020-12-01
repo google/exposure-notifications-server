@@ -29,7 +29,17 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
+var testDatabaseInstance *database.TestInstance
+
+func TestMain(m *testing.M) {
+	testDatabaseInstance = database.MustTestInstance()
+	defer testDatabaseInstance.MustClose()
+	m.Run()
+}
+
 func TestBuildTokenBuffer(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name     string
 		publish  []*model.Exposure
@@ -135,7 +145,11 @@ func TestBuildTokenBuffer(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := buildTokenBufer(tc.previous, tc.publish)
 			if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreUnexported(pb.RevisionTokenData{}), cmpopts.IgnoreUnexported(pb.RevisableKey{})); diff != "" {
 				t.Fatalf("mismatch (-want, +got):\n%s", diff)
@@ -146,8 +160,9 @@ func TestBuildTokenBuffer(t *testing.T) {
 
 func TestEncryptDecrypt(t *testing.T) {
 	t.Parallel()
-	testDB := database.NewTestDatabase(t)
+
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	kms := keys.TestKeyManager(t)
 	keyID := keys.TestEncryptionKey(t, kms)
@@ -236,8 +251,9 @@ func TestEncryptDecrypt(t *testing.T) {
 
 func TestExpandRevisionToken(t *testing.T) {
 	t.Parallel()
-	testDB := database.NewTestDatabase(t)
+
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	kms := keys.TestKeyManager(t)
 	keyID := keys.TestEncryptionKey(t, kms)

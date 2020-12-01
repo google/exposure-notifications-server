@@ -359,6 +359,11 @@ func TestIntegration(t *testing.T) {
 			}); err != nil {
 				t.Fatal(err)
 			}
+			if numFiles, err := exportdb.New(db).MarkExpiredFiles(ctx, 1, 0); err != nil {
+				t.Fatalf("error marking expired %v", err)
+			} else if numFiles != len(batchFiles) {
+				t.Errorf("expected %d files, got %d", len(batchFiles), numFiles)
+			}
 
 			// Ensure the export was deleted
 			Eventually(t, 30, time.Second, func() error {

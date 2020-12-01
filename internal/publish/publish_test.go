@@ -32,7 +32,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	aadb "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
-	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	pubdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
@@ -56,6 +56,14 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
 )
+
+var testDatabaseInstance *database.TestInstance
+
+func TestMain(m *testing.M) {
+	testDatabaseInstance = database.MustTestInstance()
+	defer testDatabaseInstance.MustClose()
+	m.Run()
+}
 
 type version int
 
@@ -420,7 +428,7 @@ func TestPublishWithBypass(t *testing.T) {
 		ctx := context.Background()
 
 		// Database init for all modules that will be used.
-		testDB := coredb.NewTestDatabase(t)
+		testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 		kms := keys.TestKeyManager(t)
 		keyID := keys.TestEncryptionKey(t, kms)
@@ -753,7 +761,7 @@ func TestKeyRevision(t *testing.T) {
 	ctx := context.Background()
 
 	// Database init for all modules that will be used.
-	testDB := coredb.NewTestDatabase(t)
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	kms := keys.TestKeyManager(t)
 	keyID := keys.TestEncryptionKey(t, kms)
@@ -777,7 +785,9 @@ func TestKeyRevision(t *testing.T) {
 	defaultSymptomOnsetDaysAgo := uint(1)
 	// And set up publish handler up front.
 	config := Config{}
-	envconfig.ProcessWith(ctx, &config, envconfig.OsLookuper())
+	if err := envconfig.ProcessWith(ctx, &config, envconfig.OsLookuper()); err != nil {
+		t.Fatal(err)
+	}
 	config.AuthorizedApp.CacheDuration = time.Nanosecond
 	config.CreatedAtTruncateWindow = time.Second
 	config.MaxKeysOnPublish = 20

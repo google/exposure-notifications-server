@@ -28,19 +28,14 @@ import (
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	pgx "github.com/jackc/pgx/v4"
-)
-
-var (
-	approxTime = cmp.Options{cmpopts.EquateApproxTime(time.Millisecond * 250)}
 )
 
 func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	want := &model.SignatureInfo{
 		SigningKey:        "/kms/project/key/1",
@@ -73,7 +68,7 @@ func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(want, got, approxTime); diff != "" {
+	if diff := cmp.Diff(want, got, database.ApproxTime); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -81,8 +76,8 @@ func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
 func TestLookupSignatureInfos(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	testTime := time.Now().UTC()
 	create := []*model.SignatureInfo{
@@ -123,7 +118,7 @@ func TestLookupSignatureInfos(t *testing.T) {
 		create[1],
 	}
 
-	if diff := cmp.Diff(want, got, approxTime); diff != "" {
+	if diff := cmp.Diff(want, got, database.ApproxTime); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%v", diff)
 	}
 }
@@ -131,8 +126,8 @@ func TestLookupSignatureInfos(t *testing.T) {
 func TestAddGetUpdateExportConfig(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportDB := New(testDB)
 
 	fromTime := time.Now()
@@ -158,7 +153,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if diff := cmp.Diff(want, got, approxTime); diff != "" {
+	if diff := cmp.Diff(want, got, database.ApproxTime); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 
@@ -176,7 +171,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(want, got, approxTime); diff != "" {
+	if diff := cmp.Diff(want, got, database.ApproxTime); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -184,8 +179,8 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 func TestIterateExportConfigs(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	now := time.Now().Truncate(time.Microsecond)
 	ecs := []*model.ExportConfig{
@@ -239,8 +234,8 @@ func TestIterateExportConfigs(t *testing.T) {
 func TestBatches(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	now := time.Now().Truncate(time.Microsecond)
 	config := &model.ExportConfig{
@@ -350,9 +345,9 @@ func TestBatches(t *testing.T) {
 func TestFinalizeBatch(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
-	exportDB := New(testDB)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	exportDB := New(testDB)
 	now := time.Now().Truncate(time.Microsecond)
 
 	// Add a config.
@@ -439,14 +434,23 @@ func TestFinalizeBatch(t *testing.T) {
 			t.Errorf("mismatch for %q (-want, +got):\n%s", filename, diff)
 		}
 	}
+
+	// Check marking files for deletion.
+	sleepTime := time.Second
+	time.Sleep(sleepTime)
+	if num, err := New(testDB).MarkExpiredFiles(ctx, eb.ConfigID, sleepTime); err != nil {
+		t.Errorf("error marking files for deletion: %v", err)
+	} else if num != len(gotFiles) {
+		t.Errorf("expected to mark %d files expired, got %d", len(gotFiles), num)
+	}
 }
 
 // TestTravelerKeys ensures traveler keys are pulled in when necessary.
 func TestTravelerKeys(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	now := time.Now()
 
 	// Add a config.
@@ -572,7 +576,7 @@ func TestExcludeRegions(t *testing.T) {
 		CreatedAt:   startTimestamp,
 	}
 
-	tests := []struct {
+	cases := []struct {
 		name        string
 		users       []*publishmodel.Exposure
 		inclRegions []string
@@ -586,13 +590,14 @@ func TestExcludeRegions(t *testing.T) {
 		{"1main,2ext,notravel,2regions", []*publishmodel.Exposure{mainUser, extUser, extTravUser}, bothRegions, nil, true, []string{"aaa", "ccc"}},
 	}
 
-	for _, test := range tests {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			testDB := database.NewTestDatabase(t)
 			ctx := context.Background()
+			testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 			// Add a config.
 			ec := &model.ExportConfig{
@@ -648,11 +653,11 @@ func TestExcludeRegions(t *testing.T) {
 			// Lookup the keys; they must be only the key created_at the startTimestamp
 			// (because start is inclusive, end is exclusive).
 			criteria := publishdb.IterateExposuresCriteria{
-				IncludeRegions:   test.inclRegions,
+				IncludeRegions:   tc.inclRegions,
 				SinceTimestamp:   leased.StartTimestamp,
 				UntilTimestamp:   leased.EndTimestamp,
-				ExcludeRegions:   test.exclRegions,
-				OnlyNonTravelers: test.nonTraveler,
+				ExcludeRegions:   tc.exclRegions,
+				OnlyNonTravelers: tc.nonTraveler,
 			}
 
 			var got []*publishmodel.Exposure
@@ -669,8 +674,8 @@ func TestExcludeRegions(t *testing.T) {
 				keys = append(keys, string(exp.ExposureKey))
 			}
 			sort.Strings(keys)
-			if !reflect.DeepEqual(test.want, keys) {
-				t.Fatalf("%v got = %v, want %v", test.name, keys, test.want)
+			if !reflect.DeepEqual(tc.want, keys) {
+				t.Fatalf("%v got = %v, want %v", tc.name, keys, tc.want)
 			}
 		})
 	}
@@ -680,8 +685,8 @@ func TestExcludeRegions(t *testing.T) {
 func TestKeysInBatch(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	now := time.Now()
 
 	// Add a config.
@@ -779,9 +784,9 @@ func TestKeysInBatch(t *testing.T) {
 func TestAddExportFileSkipsDuplicates(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
-	exportDB := New(testDB)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	exportDB := New(testDB)
 
 	// Add foreign key records.
 	ec := &model.ExportConfig{Period: time.Hour}

@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	exportimportdb "github.com/google/exposure-notifications-server/internal/exportimport/database"
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 	"github.com/google/go-cmp/cmp"
@@ -31,8 +30,8 @@ import (
 func TestSyncFileFromIndexErrorsInExportRoot(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := exportimportdb.New(testDB)
 
 	fromTime := time.Now().UTC().Add(-1 * time.Second)
@@ -60,8 +59,8 @@ func TestSyncFileFromIndexErrorsInExportRoot(t *testing.T) {
 func TestSyncFilenameShapes(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := exportimportdb.New(testDB)
 
 	fromTime := time.Now().UTC().Add(-1 * time.Second)
@@ -194,6 +193,8 @@ func TestSyncFilenameShapes(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
 			config := tc.config
 			if err := exportImportDB.AddConfig(ctx, config); err != nil {
@@ -236,8 +237,8 @@ func TestSyncFilenameShapes(t *testing.T) {
 func TestSyncFileFromIndex(t *testing.T) {
 	t.Parallel()
 
-	testDB := database.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := exportimportdb.New(testDB)
 
 	fromTime := time.Now().UTC().Add(-1 * time.Second)
@@ -257,8 +258,9 @@ func TestSyncFileFromIndex(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		tc := tc
 
+		t.Run(tc.name, func(t *testing.T) {
 			config := &model.ExportImport{
 				IndexFile:  "https://mysever/exports/index.txt",
 				ExportRoot: tc.exportRoot,
@@ -268,7 +270,6 @@ func TestSyncFileFromIndex(t *testing.T) {
 			}
 			if err := exportImportDB.AddConfig(ctx, config); err != nil {
 				t.Fatal(err)
-
 			}
 
 			// test data ensures that URL parsing stripps extra slashes.

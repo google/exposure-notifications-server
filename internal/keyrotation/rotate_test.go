@@ -151,10 +151,12 @@ func TestRotateKeys(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			testDB := database.NewTestDatabase(t)
+			testDB, _ := testDatabaseInstance.NewDatabase(t)
+
 			env := serverenv.New(ctx, serverenv.WithKeyManager(kms), serverenv.WithDatabase(testDB))
 			server, err := NewServer(config, env)
 			if err != nil {

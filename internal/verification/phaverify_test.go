@@ -33,7 +33,6 @@ import (
 	"github.com/dgrijalva/jwt-go"
 
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
-	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/go-cmp/cmp"
@@ -91,8 +90,8 @@ func TestVerifyCertificate(t *testing.T) {
 	}
 
 	// Set up database. Create HealthAuthority + HAKey for the test.
-	testDB := coredb.NewTestDatabase(t)
 	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	haDB := database.New(testDB)
 
 	for iteration := 0; iteration < 2; iteration++ {

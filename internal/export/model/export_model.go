@@ -22,16 +22,19 @@ import (
 )
 
 var (
-	ExportBatchOpen     = "OPEN"
-	ExportBatchPending  = "PENDING"
-	ExportBatchComplete = "COMPLETE"
-	ExportBatchDeleted  = "DELETED"
+	ExportBatchOpen          = "OPEN"
+	ExportBatchPending       = "PENDING"
+	ExportBatchComplete      = "COMPLETE"
+	ExportBatchDeletePending = "DEL_PEND"
+	ExportBatchDeleted       = "DELETED"
 )
 
 const (
 	oneDay = 24 * time.Hour
 )
 
+// ExportConfig describes what goes into an export, and how frequently.
+// These are used to periodically generate an ExportBatch.
 type ExportConfig struct {
 	ConfigID         int64
 	BucketName       string
@@ -74,6 +77,7 @@ func (ec *ExportConfig) Validate() error {
 	return nil
 }
 
+// ExportBatch holds what was used to generate an export.
 type ExportBatch struct {
 	BatchID          int64
 	ConfigID         int64

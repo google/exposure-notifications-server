@@ -53,6 +53,10 @@ resource "google_compute_backend_bucket" "export" {
   name        = "export-backend-bucket"
   bucket_name = google_storage_bucket.export.name
   enable_cdn  = var.enable_cdn_for_exports
+
+  depends_on = [
+    google_project_service.services["compute.googleapis.com"],
+  ]
 }
 
 output "export_bucket" {

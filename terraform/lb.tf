@@ -21,6 +21,10 @@ resource "google_compute_ssl_policy" "one-two-ssl-policy" {
   name            = "one-two-ssl-policy"
   profile         = "MODERN"
   min_tls_version = "TLS_1_2"
+
+  depends_on = [
+    google_project_service.services["compute.googleapis.com"],
+  ]
 }
 
 resource "google_compute_global_address" "key-server" {
@@ -28,6 +32,10 @@ resource "google_compute_global_address" "key-server" {
 
   name    = "key-server-address"
   project = var.project
+
+  depends_on = [
+    google_project_service.services["compute.googleapis.com"],
+  ]
 }
 
 # Redirects all requests to https
@@ -42,6 +50,10 @@ resource "google_compute_url_map" "urlmap-http" {
     strip_query    = false
     https_redirect = true
   }
+
+  depends_on = [
+    google_project_service.services["compute.googleapis.com"],
+  ]
 }
 
 resource "google_compute_url_map" "urlmap-https" {
@@ -127,6 +139,10 @@ resource "google_compute_url_map" "urlmap-https" {
       default_service = google_compute_backend_service.federationout[0].id
     }
   }
+
+  depends_on = [
+    google_project_service.services["compute.googleapis.com"],
+  ]
 }
 
 resource "google_compute_target_http_proxy" "http" {
@@ -204,6 +220,10 @@ resource "google_compute_managed_ssl_certificate" "default" {
   lifecycle {
     create_before_destroy = true
   }
+
+  depends_on = [
+    google_project_service.services["compute.googleapis.com"],
+  ]
 }
 
 output "lb_ip" {

@@ -21,6 +21,17 @@ fi
 
 set -eEuo pipefail
 
+# Authenticate and pull private Docker repos.
+if [ -n "${CI:-}" ]; then
+  gcloud --quiet auth configure-docker us-docker.pkg.dev
+fi
+if [ -n "${CI_POSTGRES_IMAGE:-}" ]; then
+  docker pull --quiet "${CI_POSTGRES_IMAGE}"
+fi
+if [ -n "${CI_REDIS_IMAGE:-}" ]; then
+  docker pull --quiet "${CI_REDIS_IMAGE}"
+fi
+
 echo "🌳 Set up environment variables"
 # Docker image build
 # instruction(https://github.com/google/mako/blob/v0.2.0/docs/GUIDE.md#quickstore-microservice-as-a-docker-image)
