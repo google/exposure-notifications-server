@@ -17,8 +17,12 @@ configurable. We recommend batches are configured to be generated at most every
 
 The index.txt file indicates which export files are available for a mobile device
 to consume. The index file contains relative path names for available archives.
-A client is typically given two configuration items for pointing at a server
+A client is typically given two configuration items for pointing at a server.
 
+Mobile app developers are strongly encouraged to make these two values remotly
+configurable so that they can be changed without requiring an application
+update.
+ 
 * The absolute location of the index.txt file
 * The absolute base path to which the relative data in the index file should be appended
 
@@ -44,9 +48,12 @@ to the base path provided by the server operator.
 ### Index Processing Guideliens
 
 * Do not make any assumptions or dependencies on the layout of the .zip filenames themselves.
-* Do not make any assumptions about the depth of the ralative path in the index file. 
+* Do not make any assumptions about the depth of the relative path in the index file. 
+* The HTTP server will return the index.txt file with a content type of `text/plain`
+* The index.txt file is encoded using `US-ASCII`
 * The index.txt will always be ordered from oldest file to newest file.
 * Each file only needs to be processed once.
+* Do not assume that archive files end in the `.zip` extension, but they will be valid zip files.
 
 There are two modes of index file processing that meet these guidelines.
 
@@ -56,7 +63,7 @@ The most common method (in use by the Android reference application) is for the 
 to remember the last filename that it has seen in an index.txt file.
 
 On next processing, if that line is seen in the file, the application will process
-from the next file to the end of the index. If that lien is not present in the file,
+from the next file to the end of the index. If that line is not present in the file,
 then the application will restart processing of the index from the beginning (line 0).
 
 When done, the application always remembers the last filename processed.
