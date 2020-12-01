@@ -19,7 +19,7 @@ The index.txt file indicates which export files are available for a mobile devic
 to consume. The index file contains relative path names for available archives.
 A client is typically given two configuration items for pointing at a server.
 
-Mobile app developers are strongly encouraged to make these two values remotly
+Mobile app developers are strongly encouraged to make these two values remotely
 configurable so that they can be changed without requiring an application
 update.
  
@@ -42,10 +42,10 @@ Then the following 3 archives are are being offered to clients:
 1. `https://cdn.example.com/24h/region/file21.zip`
 1. `https://cdn.example.com/24h/region/other_export_.zip`
 
-And these are being arrived at by appending the contents of the index file (one per line)
+And these are derived at by appending the contents of the index file (one per line)
 to the base path provided by the server operator.
 
-### Index Processing Guideliens
+### Index Processing Guidelines
 
 * Do not make any assumptions or dependencies on the layout of the .zip filenames themselves.
 * Do not make any assumptions about the depth of the relative path in the index file. 
@@ -71,11 +71,11 @@ When done, the application always remembers the last filename processed.
 #### Set method:
 
 The client application should treate absolute URLs of the exports indicated in the the
-index.txt file contents as a set. The client should store the previsuly known state in
+index.txt file contents as a set. The client should store the previously known state in
 local storage.
 
 If differences are seen, the clients should download the items missing from the set in top
-to bottom order (oldest to newest) and hand them to the operating system for matching.
+to bottom order (oldest to newest) and provide them to the operating system for matching.
 
 The new set of absolute URLs should then be retained for processing next time around.
 
@@ -84,7 +84,7 @@ The new set of absolute URLs should then be retained for processing next time ar
 As the protocol has changed over the deployment of various exposure notifications
 installations, we have made a decisions to drop the usage of a batch
 being split across multiple files, and show all batches as single file size only.
-This reduces the possilibty that a client app will pass un-parsable batch files
+This reduces the possibility that a client app will pass un-parsable batch files
 to the operating system.
 
 Practically speaking: currently all export files produced by this system will have
@@ -94,7 +94,7 @@ be multiple files with the same `startTimestamp` but different `endTimestamps`. 
 is done to ensure successful processing based on how both iOS and Android
 handle export processing.
 
-# Configurating Export Batches
+# Configuring Export Batches
 
 ## Prerequisites
 
