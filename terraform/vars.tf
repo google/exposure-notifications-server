@@ -36,21 +36,21 @@ variable "db_location" {
 }
 
 # database name, not instance name
-variable "db_name" {	
-  type    = string	
-  default = "key"	
+variable "db_name" {
+  type    = string
+  default = "key"
 }
 
-variable "db_user" {	
-  type    = string	
-  default = "key"	
+variable "db_user" {
+  type    = string
+  default = "key"
 }
 
 variable "db_version" {
   type    = string
   default = "POSTGRES_13"
 
-  description = "Version of the database to use. Must be at least 11 or higher."
+  description = "Version of the database to use. Must be at least 13 or higher."
 }
 
 variable "db_failover_replica_regions" {
