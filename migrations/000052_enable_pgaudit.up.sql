@@ -12,8 +12,15 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-BEGIN;
+-- Some systems don't support pgaudit, gracefully degrade in that case
 
--- Author the migration here.
-
+DO
+$$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS pgaudit;
+EXCEPTION
+  WHEN undefined_file THEN
+    -- do nothing
 END;
+$$
+LANGUAGE plpgsql;

@@ -14,6 +14,6 @@
 
 BEGIN;
 
--- Author the migration here.
+DROP EXTENSION IF EXISTS pgaudit;
 
 END;
