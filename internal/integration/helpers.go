@@ -168,7 +168,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 		WorkerTimeout:  10 * time.Second,
 		MinRecords:     1,
 		PaddingRange:   1,
-		MaxRecords:     10000,
+		MaxRecords:     100,
 		TruncateWindow: 1 * time.Second,
 		MinWindowAge:   1 * time.Second,
 		TTL:            336 * time.Hour,

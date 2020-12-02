@@ -47,20 +47,32 @@ func TestIntegration(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		Name    string
-		JWTWrap time.Duration
-		Error   string
-		WantErr bool
+		Name      string
+		NumKeys   int
+		JWTWrap   time.Duration
+		Error     string
+		WantFiles int
+		WantErr   bool
 	}{
 		{
-			Name:    "exposure_verified",
-			JWTWrap: time.Duration(0),
+			Name:      "exposure_verified",
+			NumKeys:   3,
+			JWTWrap:   time.Duration(0),
+			WantFiles: 1,
 		},
 		{
-			Name:    "exposure_not_verified",
-			JWTWrap: time.Hour,
-			Error:   `"error":"unable to validate diagnosis verification: Token used before issued","code":"health_authority_verification_certificate_invalid"`,
-			WantErr: true,
+			Name:      "large_export",
+			NumKeys:   102,
+			JWTWrap:   time.Duration(0),
+			WantFiles: 2,
+		},
+		{
+			Name:      "exposure_not_verified",
+			NumKeys:   3,
+			JWTWrap:   time.Hour,
+			Error:     `"error":"unable to validate diagnosis verification: Token used before issued","code":"health_authority_verification_certificate_invalid"`,
+			WantFiles: 1,
+			WantErr:   true,
 		},
 	}
 
@@ -80,37 +92,46 @@ func TestIntegration(t *testing.T) {
 				OnlyLocalProvenance: false,
 			}
 
-			keys := util.GenerateExposureKeys(3, -1, false)
-			onsetTime := timeutils.UTCMidnight(timeutils.SubtractDays(time.Now().UTC(), 2))
-
-			// Publish 3 keys
-			payload := &verifyapi.Publish{
-				Keys:              keys,
-				HealthAuthorityID: appName,
-			}
-			jwtCfg.ExposureKeys = keys
-			jwtCfg.JWTWarp = tc.JWTWrap
-			jwtCfg.SymptomOnsetInterval = uint32(publishmodel.IntervalNumber(onsetTime))
-			verification, salt := testutil.IssueJWT(t, jwtCfg)
-			payload.VerificationPayload = verification
-			payload.HMACKey = salt
+			var wantKeys []*export.TemporaryExposureKey
 			var revisionToken string
-			resp, err := client.PublishKeys(payload)
-
-			if tc.WantErr {
-				if err == nil || !strings.Contains(err.Error(), tc.Error) {
-					t.Fatalf("expected error: %v, got: %v", tc.Error, err)
+			var payload *verifyapi.Publish
+			// Publish keys
+			for start := 0; start < tc.NumKeys; start += 14 {
+				end := start + 14
+				if end > tc.NumKeys {
+					end = tc.NumKeys
 				}
-				return
+				ks := util.GenerateExposureKeys(end-start, -1, false)
+				wantKeys = append(wantKeys, exportedKeysFrom(t, ks)...)
+
+				payload = &verifyapi.Publish{
+					Keys:              ks,
+					HealthAuthorityID: appName,
+				}
+				jwtCfg.ExposureKeys = ks
+				jwtCfg.JWTWarp = tc.JWTWrap
+				onsetTime := timeutils.UTCMidnight(timeutils.SubtractDays(time.Now().UTC(), 2))
+				jwtCfg.SymptomOnsetInterval = uint32(publishmodel.IntervalNumber(onsetTime))
+				verification, salt := testutil.IssueJWT(t, jwtCfg)
+				payload.VerificationPayload = verification
+				payload.HMACKey = salt
+				resp, err := client.PublishKeys(payload)
+
+				if tc.WantErr {
+					if err == nil || !strings.Contains(err.Error(), tc.Error) {
+						t.Fatalf("expected error: %v, got: %v", tc.Error, err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if resp.RevisionToken == "" {
+					t.Fatal("empty revision token")
+				}
+				revisionToken = resp.RevisionToken
+				// t.Logf("response: %+v", resp)
 			}
-			if err != nil {
-				t.Fatal(err)
-			}
-			if resp.RevisionToken == "" {
-				t.Fatal("empty revision token")
-			}
-			revisionToken = resp.RevisionToken
-			t.Logf("response: %+v", resp)
 
 			// Assert there are 3 exposures in the database
 			{
@@ -118,14 +139,14 @@ func TestIntegration(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got, want := len(exposures), 3; got != want {
+				if got, want := len(exposures), tc.NumKeys; got != want {
 					t.Fatalf("expected %#v to be %#v", got, want)
 				}
 			}
 
 			// Get the exported exposures
-			var exported *export.TemporaryExposureKeyExport
-			Eventually(t, 30, time.Second, func() error {
+			var exportedKeys []*export.TemporaryExposureKey
+			Eventually(t, 30, 200*time.Millisecond, func() error {
 				// Trigger an export
 				if err := client.ExportBatches(); err != nil {
 					return err
@@ -145,58 +166,64 @@ func TestIntegration(t *testing.T) {
 					return err
 				}
 
-				// Find the latest file in the index
+				// Find all files in the index
+				var files []string
 				lines := strings.Split(string(index), "\n")
-				latest := ""
 				for _, entry := range lines {
 					if strings.HasSuffix(entry, "zip") {
-						if entry > latest {
-							latest = entry
-						}
+						files = append(files, entry)
 					}
 				}
-				if latest == "" {
-					return retry.RetryableError(fmt.Errorf("failed to find latest export"))
+				if len(files) == 0 {
+					return retry.RetryableError(fmt.Errorf("failed to find export"))
 				}
-
-				// Download the latest export file contents
-				data, err := env.Blobstore().GetObject(ctx, exportDir, latest)
-				if err != nil {
-					return fmt.Errorf("failed to open %s/%s: %w", exportDir, latest, err)
+				if got, want := len(files), tc.WantFiles; got != want {
+					return retry.RetryableError(fmt.Errorf("files number mismatch. want: %d, got: %d", want, got))
 				}
+				// Download export files contents
+				var eks []*export.TemporaryExposureKey
+				for _, f := range files {
+					data, err := env.Blobstore().GetObject(ctx, exportDir, f)
+					if err != nil {
+						return fmt.Errorf("failed to open %s/%s: %w", exportDir, f, err)
+					}
 
-				// Process contents as an export
-				key, _, err := exportapi.UnmarshalExportFile(data)
-				if err != nil {
-					return fmt.Errorf("failed to extract export data: %w", err)
+					// Process contents as an export
+					key, _, err := exportapi.UnmarshalExportFile(data)
+					if err != nil {
+						return fmt.Errorf("failed to extract export data: %w", err)
+					}
+
+					// Try to marshal the result as JSON to verify its API compatible
+					if _, err := json.Marshal(key); err != nil {
+						return fmt.Errorf("failed to marshal as json: %v", err)
+					}
+
+					if got, want := *key.BatchSize, int32(1); got != want {
+						return fmt.Errorf("expected %v to be %v", got, want)
+					}
+					if got, want := *key.BatchNum, int32(1); got != want {
+						return fmt.Errorf("expected %v to be %v", got, want)
+					}
+					if got, want := *key.Region, "TEST"; got != want {
+						return fmt.Errorf("expected %v to be %v", got, want)
+					}
+					eks = append(eks, key.Keys...)
 				}
-
-				exported = key
+				exportedKeys = eks
+				if got, want := len(exportedKeys), tc.NumKeys; got != want {
+					return retry.RetryableError(fmt.Errorf("Not all keys are exported yet. Want: %d, got: %d", want, got))
+				}
 				return nil
 			})
-			// Sort keys for predictable testing
-			sortTEKs(exported.Keys)
-
-			// Verify export is correct
-			if got, want := *exported.BatchSize, int32(1); got != want {
-				t.Errorf("expected %v to be %v", got, want)
-			}
-			if got, want := *exported.BatchNum, int32(1); got != want {
-				t.Errorf("expected %v to be %v", got, want)
-			}
-			if got, want := *exported.Region, "TEST"; got != want {
-				t.Errorf("expected %v to be %v", got, want)
-			}
 
 			// Verify expected keys were exported
+			// Sort keys for predictable testing
+			sortTEKs(exportedKeys)
+			sortTEKs(wantKeys)
 			opts := cmpopts.IgnoreUnexported(export.TemporaryExposureKey{})
-			if diff := cmp.Diff(exported.Keys, exportedKeysFrom(t, payload.Keys), opts); diff != "" {
-				t.Errorf("wrong export keys (-got +want):\n%s", diff)
-			}
-
-			// Try to marshal the result as JSON to verify its API compatible
-			if _, err := json.Marshal(exported); err != nil {
-				t.Errorf("failed to marshal as json: %v", err)
+			if diff := cmp.Diff(exportedKeys, wantKeys, opts); diff != "" {
+				t.Fatalf("wrong export keys (-got +want):\n%s", diff)
 			}
 
 			// TODO: verify signature
@@ -235,15 +262,20 @@ func TestIntegration(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// Assert there are 2 exposures in the database now
+			// Assert there are one less exposures in the database now
 			{
 				exposures, err := getExposures(db, criteria)
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got, want := len(exposures), 2; got != want {
+				if got, want := len(exposures), tc.NumKeys-1; got != want {
 					t.Fatalf("expected %v to be %v", got, want)
 				}
+			}
+
+			// Done with testing split files
+			if tc.WantFiles > 1 {
+				return
 			}
 
 			// Rotate Keys. Should Genereate a new key.
@@ -267,11 +299,11 @@ func TestIntegration(t *testing.T) {
 			}
 
 			// Publish some new keys so we can generate a new batch
-			keys = util.GenerateExposureKeys(3, -1, false)
+			keys := util.GenerateExposureKeys(tc.NumKeys, -1, false)
 			payload.Keys = keys
 			jwtCfg.ExposureKeys = keys
 			jwtCfg.JWTWarp = tc.JWTWrap
-			verification, salt = testutil.IssueJWT(t, jwtCfg)
+			verification, salt := testutil.IssueJWT(t, jwtCfg)
 			payload.VerificationPayload = verification
 			payload.HMACKey = salt
 			if resp, err := client.PublishKeys(payload); err != nil {
@@ -428,7 +460,7 @@ func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey) []*export.Tem
 	sort.Slice(keys, func(i, j int) bool {
 		return keys[i].IntervalNumber < keys[j].IntervalNumber
 	})
-	daysSince := int32(-1)
+	daysSince := int32(-len(keys) + 2)
 	for i, key := range keys {
 		decoded, err := base64util.DecodeString(key.Key)
 		if err != nil {
