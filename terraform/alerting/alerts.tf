@@ -46,7 +46,7 @@ resource "google_monitoring_alert_policy" "LatencyTooHigh" {
       cloud_run_revision :: run.googleapis.com/request_latencies
       | align delta(1m)
       | every 1m
-      | group_by [resource.service_name, type],
+      | group_by [resource.service_name],
       [val: percentile(value.request_latencies, 50)]
       | condition ${local.p50_latency_condition}
       EOT
