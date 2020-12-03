@@ -153,11 +153,11 @@ func TestBatchExposures(t *testing.T) {
 		count int
 	}{
 		{
-			"base case",
+			"base_case",
 			4,
 		},
 		{
-			"a lot",
+			"a_lot",
 			1000,
 		},
 	}
