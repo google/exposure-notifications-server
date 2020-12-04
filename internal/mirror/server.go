@@ -40,6 +40,9 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	if env.Database() == nil {
 		return nil, fmt.Errorf("missing database in server environment")
 	}
+	if env.Blobstore() == nil {
+		return nil, fmt.Errorf("missing blobstore in server environment")
+	}
 
 	db := env.Database()
 	mdb := mirrordb.New(db)

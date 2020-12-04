@@ -26,6 +26,9 @@ import (
 const (
 	TimestampRW = "[timestamp]"
 	UUID        = "[uuid]"
+
+	// Test is used for testing only.
+	Test = "[test]"
 )
 
 // Mirror represents an individual mirror configuration.
@@ -75,9 +78,12 @@ func (m *Mirror) RewriteFilename(fName string) (string, error) {
 		}
 		fName = strings.Replace(fName, UUID, strings.ToUpper(newID.String()), 1)
 	}
+	for strings.Contains(fName, Test) {
+		fName = strings.Replace(fName, Test, "TEST", 1)
+	}
 
 	if fName == *m.FilenameRewrite {
-		return "", fmt.Errorf("mirror filename rewrite pattern contains not replacement patterns")
+		return "", fmt.Errorf("mirror filename rewrite pattern contains no replacement patterns")
 	}
 
 	return fName, nil
