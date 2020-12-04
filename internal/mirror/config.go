@@ -41,8 +41,16 @@ type Config struct {
 	MaxIndexBytes int64 `env:"MAX_INDEX_BYTES, default=1048576"`
 	MaxZipBytes   int64 `env:"MAX_ZIP_BYTES, default=20971520"`
 
-	IndexFileDownloadTimeout  time.Duration `env:"INDEX_FILE_DOWNLOAD_TIMEOUT, default=30s"`
-	ExportFileDownloadTimeout time.Duration `env:"EXPORT_FILE_DOWNLOAD_TIMEOUT, default=2m"`
+	// IndexFileDownloadTimeout is the amount of time to allow to download the
+	// entire index file.
+	IndexFileDownloadTimeout time.Duration `env:"INDEX_FILE_DOWNLOAD_TIMEOUT, default=30s"`
+
+	// ExportFileDownloadTimeout, ExportFileDeleteTimeout, and
+	// ExportFileUploadTimeout are the maximum amount of time to wait when
+	// downloading, deleting, and uploading an export file, respectively.
+	ExportFileDownloadTimeout time.Duration `env:"EXPORT_FILE_DOWNLOAD_TIMEOUT, default=1m"`
+	ExportFileDeleteTimeout   time.Duration `env:"EXPORT_FILE_DELETE_TIMEOUT, default=10s"`
+	ExportFileUploadTimeout   time.Duration `env:"EXPORT_FILE_UPLOAD_TIMEOUT, default=1m"`
 
 	MaxRuntime         time.Duration `env:"MAX_RUNTIME, default=14m"`
 	MirrorLockDuration time.Duration `env:"MIRROR_LOCK_DURATION, default=15m"`

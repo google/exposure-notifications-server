@@ -35,11 +35,7 @@ import (
 	"go.opencensus.io/trace"
 )
 
-const (
-	mirrorLockPrefix = "mirror-lock"
-	deleteTimeout    = 10 * time.Second
-	uploadTimeout    = 1 * time.Minute
-)
+const mirrorLockPrefix = "mirror-lock"
 
 func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
 	logger := logging.FromContext(ctx).Named("mirror.handleMirror")
@@ -163,7 +159,7 @@ func (s *Server) processMirror(ctx context.Context, deadline time.Time, mirror *
 					"local_file", localFilename,
 					"bucket", mirror.CloudStorageBucket)
 
-				ctx, cancel := context.WithTimeout(ctx, deleteTimeout)
+				ctx, cancel := context.WithTimeout(ctx, s.config.ExportFileDeleteTimeout)
 				defer cancel()
 
 				parent := mirror.CloudStorageBucket
@@ -243,7 +239,7 @@ func (s *Server) processMirror(ctx context.Context, deadline time.Time, mirror *
 		// Write this file to the blobstore - use a function so defers run when
 		// expected.
 		if err := func() error {
-			ctx, cancel := context.WithTimeout(ctx, uploadTimeout)
+			ctx, cancel := context.WithTimeout(ctx, s.config.ExportFileUploadTimeout)
 			defer cancel()
 
 			objName := urlJoin(mirror.FilenameRoot, writeFilename)
