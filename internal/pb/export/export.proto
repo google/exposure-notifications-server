@@ -26,7 +26,11 @@ option go_package = "github.com/google/exposure-notifications-server/internal/pb
 // file verifying the contents.
 message TemporaryExposureKeyExport {
   // Time window of keys in this file based on arrival to server, in UTC
-  // seconds
+  // seconds. start_timestamp, end_timestamp, and batch_num must be unique
+  // at any given snapshot of the index for a server. If multiple
+  // files are used for a specific time period, and batch_num/batch_size
+  // are both 1 (See below), then offsetting the end_timestamp is the
+  // suggested method for forcing uniqueness.
   optional fixed64 start_timestamp = 1;
   optional fixed64 end_timestamp = 2;
 
@@ -119,6 +123,8 @@ message TEKSignature {
   // Info about the signing key, version, algorithm, etc.
   optional SignatureInfo signature_info = 1;
   // E.g., Batch 2 of 10
+  // Must match fields from TemporaryExposureKeyExport, see
+  // documentation on that message.
   optional int32 batch_num = 2;
   optional int32 batch_size = 3;
   // Signature in X9.62 format (ASN.1 SEQUENCE of two INTEGER fields)

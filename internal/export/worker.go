@@ -296,6 +296,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 
 	// Create the export files.
 	batchSize := len(groups)
+	splitBatch := batchSize > 1
 	var objectNames []string
 	for i, group := range groups {
 		if ctx.Err() != nil {
@@ -307,13 +308,13 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		// The batch numbering being deemed unnecessary.
 		// However timing adjustments are put in place for variable batch sizes.
 		objectName, err := s.createFile(ctx,
-			createFileInfo{
+			&createFileInfo{
 				exposures:        group.exposures,
 				revisedExposures: group.revised,
 				exportBatch:      eb,
 				signatureInfos:   sigInfos,
-				batchNum:         i + 1,     // the batchNum and batchSize are flattened to 1 and 1 when
-				batchSize:        batchSize, // creating the file, but are needed to vary for timestamp offset calculation.
+				fileNum:          int32(i + 1), // the batchNum and batchSize are flattened to 1 and 1 when
+				splitBatch:       splitBatch,
 			})
 		if err != nil {
 			return fmt.Errorf("creating export file %d for batch %d: %w", i+1, eb.BatchID, err)
@@ -342,11 +343,11 @@ type createFileInfo struct {
 	revisedExposures []*publishmodel.Exposure
 	exportBatch      *model.ExportBatch
 	signatureInfos   []*model.SignatureInfo
-	batchNum         int
-	batchSize        int
+	fileNum          int32 // file number, normally 1, but could be higher in a split batch
+	splitBatch       bool  // Did this batch contain more than 1 file due to too many keys?
 }
 
-func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, error) {
+func (s *Server) createFile(ctx context.Context, cfi *createFileInfo) (string, error) {
 	logger := logging.FromContext(ctx)
 
 	var signers []*Signer
@@ -359,12 +360,12 @@ func (s *Server) createFile(ctx context.Context, cfi createFileInfo) (string, er
 	}
 
 	// Generate exposure key export file.
-	data, err := MarshalExportFile(cfi.exportBatch, cfi.exposures, cfi.revisedExposures, cfi.batchNum, cfi.batchSize, signers)
+	data, err := MarshalExportFile(cfi.exportBatch, cfi.exposures, cfi.revisedExposures, cfi.fileNum, cfi.splitBatch, signers)
 	if err != nil {
 		return "", fmt.Errorf("marshaling export file: %w", err)
 	}
 
-	objectName := exportFilename(cfi.exportBatch, cfi.batchNum, s.config.RepressGeneration())
+	objectName := exportFilename(cfi.exportBatch, cfi.fileNum, s.config.RepressGeneration())
 	logger.Infof("Created file %v, signed with %v keys", objectName, len(signers))
 	ctx, cancel := context.WithTimeout(ctx, blobOperationTimeout)
 	defer cancel()
@@ -471,10 +472,10 @@ func (s *Server) createIndex(ctx context.Context, eb *model.ExportBatch, newObje
 
 // The batchNum is still needed in the filename to preserve a stable filename sort
 // order when generating the index file.
-func exportFilename(eb *model.ExportBatch, batchNum int, regenCount int64) string {
+func exportFilename(eb *model.ExportBatch, fileNum int32, regenCount int64) string {
 	sTime := eb.StartTimestamp.Unix() + regenCount
 	eTime := eb.EndTimestamp.Unix() + regenCount
-	return fmt.Sprintf("%s/%d-%d-%05d%s", eb.FilenameRoot, sTime, eTime, batchNum, filenameSuffix)
+	return fmt.Sprintf("%s/%d-%d-%05d%s", eb.FilenameRoot, sTime, eTime, fileNum, filenameSuffix)
 }
 
 func exportIndexFilename(eb *model.ExportBatch) string {

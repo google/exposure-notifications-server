@@ -451,7 +451,7 @@ func TestExportFilename(t *testing.T) {
 	cases := []struct {
 		name       string
 		m          *model.ExportBatch
-		num        int
+		num        int32
 		regenCount int64
 		exp        string
 	}{
