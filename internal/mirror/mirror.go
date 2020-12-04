@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -36,6 +37,16 @@ import (
 )
 
 const mirrorLockPrefix = "mirror-lock"
+
+type MirrorResponse struct {
+	Mirrors []*MirrorStatus `json:"mirrors"`
+}
+
+type MirrorStatus struct {
+	ID        int64    `json:"id"`
+	Processed bool     `json:"processed"`
+	Errors    []string `json:"errors,omitempty"`
+}
 
 func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
 	logger := logging.FromContext(ctx).Named("mirror.handleMirror")
@@ -56,7 +67,7 @@ func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
 		deadline := time.Now().Add(runtime)
 		logger.Infow("mirror will run until", "deadline", deadline)
 
-		// get all possible mirror candidates
+		// Get all possible mirror candidates.
 		mirrors, err := s.mirrorDB.Mirrors(ctx)
 		if err != nil {
 			logger.Errorw("unable to list mirrors", "error", err)
@@ -64,24 +75,60 @@ func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
 			return
 		}
 
+		// Start building a response for all mirrors.
+		var resp MirrorResponse
+		var hasError bool
+
 		for _, mirror := range mirrors {
+			// Build the initial status
+			status := &MirrorStatus{ID: mirror.ID}
+
 			// If the deadline has passed, do not attempt to process additional
-			// mirrors.
+			// mirrors. Note that exceeding the deadline is NOT considered an error.
 			if deadlinePassed(deadline) {
-				logger.Warnw("mirror timed out before processing all configurations")
-				break
+				status.Errors = []string{"deadline exceeded before processing"}
+				resp.Mirrors = append(resp.Mirrors, status)
+				continue
 			}
 
+			// Process the mirror.
 			if err := s.processMirror(ctx, deadline, mirror); err != nil {
-				logger.Errorw("failed to process mirror", "error", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
+				hasError = true
+
+				status.Processed = true
+				status.Errors = []string{err.Error()}
+
+				// If the response was a multierror, extract into the list.
+				var merr *multierror.Error
+				if errors.As(err, &merr) {
+					errMsgs := make([]string, len(merr.Errors))
+					for i, v := range merr.Errors {
+						errMsgs[i] = v.Error()
+					}
+					status.Errors = errMsgs
+				}
+
+				resp.Mirrors = append(resp.Mirrors, status)
+				continue
 			}
+
+			// If we got this far, the job completed successfully.
+			status.Processed = true
+		}
+
+		// Marshal response.
+		b, err := json.Marshal(resp)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		status := http.StatusOK
+		if hasError {
+			status = http.StatusInternalServerError
+		}
 		w.WriteHeader(status)
-		fmt.Fprint(w, http.StatusText(status))
+		fmt.Fprint(w, string(b))
 	}
 }
 
@@ -381,7 +428,7 @@ func downloadFile(u string, timeout time.Duration, maxBytes int64) ([]byte, erro
 func (s *Server) downloadIndex(mirror *model.Mirror) ([]string, error) {
 	b, err := downloadFile(mirror.IndexFile, s.config.IndexFileDownloadTimeout, s.config.MaxIndexBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to download index file: %w", err)
+		return nil, err
 	}
 
 	currentFiles := make([]string, 0, 64)

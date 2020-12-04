@@ -317,7 +317,7 @@ func TestServer_DownloadIndex(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error")
 		}
-		if got, want := err.Error(), "failed to download index file"; !strings.Contains(got, want) {
+		if got, want := err.Error(), "failed to download"; !strings.Contains(got, want) {
 			t.Errorf("expected %q to contain %q", got, want)
 		}
 	})
