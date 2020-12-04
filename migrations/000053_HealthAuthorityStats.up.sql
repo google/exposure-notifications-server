@@ -16,23 +16,21 @@ BEGIN;
 
 CREATE TABLE HealthAuthorityStatsRelease(
     health_authority_id INT NOT NULL REFERENCES HealthAuthority(id),
-    not_before TIMESTAMPTZ NOT NULL,
-    -- timeone name, i.e. America/New_York
-    timezone TEXT,
-    -- last time that the timezone was changed - this locks the PHA out from changing again for configured time duration.
-    last_timezone_change TIMESTAMPTZ NOT NULL
+    not_before TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE HealthAuthorityStats(
-    health_authority_id INT NOT NULL REFERENCES HealthAuthority(id),
-    hour TIMESTAMPTZ NOT NULL,
+    health_authority_id INT NOT NULL REFERENCES HealthAuthority(id) ON DELETE CASCADE,
+    -- UTC hour
+    hour TIMESTAMPTZ NOT NULL, 
     publish INT NOT NULL DEFAULT 0,
     teks INT NOT NULL DEFAULT 0,
     revisions INT NOT NULL DEFAULT 0,
     -- Age of the oldest TEKs from an individual publish request. Index is number of days.
     oltest_tek_days INT [],    
     -- Symptom onset to upload ranges, index is number of days.
-    onset_age_days INT []
+    onset_age_days INT [],
+    missing_onset INT DEFAULT 0
 );
 
 CREATE UNIQUE INDEX
