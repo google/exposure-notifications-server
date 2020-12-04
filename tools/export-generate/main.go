@@ -154,7 +154,7 @@ func main() {
 	}
 	numBatches := int(math.Ceil(float64(actualNumKeys) / float64(*batchSize)))
 	log.Printf("number of batches: %d", numBatches)
-	b := 0
+	var b int32
 	currentBatch := []*publishmodel.Exposure{}
 	for i := 0; i < actualNumKeys; i++ {
 		currentBatch = append(currentBatch, &exposureKeys[i])
@@ -190,7 +190,7 @@ type exportFileWriter struct {
 	exportBatch *model.ExportBatch
 	exposures   []*publishmodel.Exposure
 	revisions   []*publishmodel.Exposure
-	curBatch    int
+	curBatch    int32
 	numBatches  int
 	totalKeys   int
 	privateKey  *ecdsa.PrivateKey
@@ -205,7 +205,7 @@ func (e *exportFileWriter) writeFile() {
 		SignatureInfo: signatureInfo,
 		Signer:        e.privateKey,
 	}
-	data, err := export.MarshalExportFile(e.exportBatch, e.exposures, e.revisions, e.curBatch, e.numBatches, []*export.Signer{signer})
+	data, err := export.MarshalExportFile(e.exportBatch, e.exposures, e.revisions, e.curBatch, e.numBatches > 1, []*export.Signer{signer})
 	if err != nil {
 		log.Fatalf("error marshaling export file: %v", err)
 	}

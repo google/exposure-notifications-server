@@ -95,7 +95,7 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 
 	signer := &customTestSigner{}
 
-	blob, err := MarshalExportFile(batch, exposures, revisedExposures, 1, 1, []*Signer{
+	blob, err := MarshalExportFile(batch, exposures, revisedExposures, int32(1), false /* single file batch */, []*Signer{
 		{SignatureInfo: signatureInfo, Signer: signer},
 	})
 	if err != nil {
