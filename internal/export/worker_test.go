@@ -148,220 +148,239 @@ func getKey(t *testing.T) []byte {
 func TestBatchExposures(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-	testDB, _ := testDatabaseInstance.NewDatabase(t)
-	testPublishDB := publishdb.New(testDB)
-
-	config := Config{
-		MinRecords:         1,
-		PaddingRange:       0,
-		MaxRecords:         1,
-		TruncateWindow:     time.Hour,
-		MaxInsertBatchSize: 100,
-	}
-	server := Server{
-		config: &config,
-		env:    serverenv.New(ctx, serverenv.WithDatabase(testDB)),
+	tests := []struct {
+		name  string
+		count int
+	}{
+		{
+			"base_case",
+			4,
+		},
+		{
+			"a_lot",
+			1000,
+		},
 	}
 
-	// Using a 1 hour truncate window
-	// * one export batch lineage w/ 1 hour window
-	// * one export batch wiuth 4 hour window
-	baseTime := time.Date(2020, 10, 28, 1, 0, 0, 0, time.UTC).Truncate(time.Hour)
-	exposures := make([]*publishmodel.Exposure, 12)
-	for i := 0; i < 4; i++ {
-		// home country non-traveler
-		exposures[i*3] = &publishmodel.Exposure{
-			ExposureKey:     getKey(t),
-			Regions:         []string{"US"},
-			IntervalNumber:  100,
-			IntervalCount:   144,
-			CreatedAt:       baseTime.Add(time.Duration(i) * time.Hour),
-			LocalProvenance: true,
-			Traveler:        false,
-			ReportType:      verifyapi.ReportTypeClinical,
-		}
-		// foreign country traveler
-		exposures[i*3+1] = &publishmodel.Exposure{
-			ExposureKey:     getKey(t),
-			Regions:         []string{"CA"},
-			IntervalNumber:  100,
-			IntervalCount:   144,
-			CreatedAt:       baseTime.Add(time.Duration(i) * time.Hour),
-			LocalProvenance: false,
-			Traveler:        true,
-			ReportType:      verifyapi.ReportTypeConfirmed,
-		}
-		// foreign country non-traveler
-		exposures[i*3+2] = &publishmodel.Exposure{
-			ExposureKey:     getKey(t),
-			Regions:         []string{"CA"},
-			IntervalNumber:  100,
-			IntervalCount:   144,
-			CreatedAt:       baseTime.Add(time.Duration(i) * time.Hour),
-			LocalProvenance: false,
-			Traveler:        false,
-			ReportType:      verifyapi.ReportTypeConfirmed,
-		}
-	}
-	if _, err := testPublishDB.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
-		Incoming:     exposures,
-		RequireToken: false,
-	}); err != nil {
-		t.Fatalf("inserting exposures: %v", err)
-	}
-	// Make sure there are some revisions.
-	revisions := make([]*publishmodel.Exposure, 0, 12)
-	for i, exp := range exposures {
-		if exp.ReportType == verifyapi.ReportTypeClinical {
-			revExp := &publishmodel.Exposure{
-				ExposureKey:     exp.ExposureKey,
-				Regions:         exp.Regions,
-				IntervalNumber:  exp.IntervalNumber,
-				IntervalCount:   exp.IntervalCount,
-				CreatedAt:       baseTime.Add(time.Duration(i) * time.Hour).Add(time.Minute),
-				LocalProvenance: exp.LocalProvenance,
-				Traveler:        exp.Traveler,
-				ReportType:      verifyapi.ReportTypeConfirmed,
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+
+			ctx := context.Background()
+			testDB, _ := testDatabaseInstance.NewDatabase(t)
+			testPublishDB := publishdb.New(testDB)
+
+			config := Config{
+				MinRecords:         1,
+				PaddingRange:       0,
+				MaxRecords:         1,
+				TruncateWindow:     time.Hour,
+				MaxInsertBatchSize: 100,
 			}
-			revisions = append(revisions, revExp)
-		}
-	}
-	if len(revisions) > 0 {
-		if _, err := testPublishDB.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
-			Incoming:     revisions,
-			RequireToken: false,
-		}); err != nil {
-			t.Fatalf("revising exposures: %v", err)
-		}
-	}
+			server := Server{
+				config: &config,
+				env:    serverenv.New(ctx, serverenv.WithDatabase(testDB)),
+			}
 
-	homePlusTraveler := make(map[string]struct{})
-	// Create the home country + traveler exports. 4, 1 per hour.
-	for i := 0; i < 4; i++ {
-		// Build the iteration criteria for the incremental batches.
-		criteria := publishdb.IterateExposuresCriteria{
-			SinceTimestamp:      baseTime.Add(time.Duration(i) * time.Hour),
-			UntilTimestamp:      baseTime.Add(time.Duration(i) * time.Hour).Add(time.Hour),
-			IncludeRegions:      []string{"US"},
-			IncludeTravelers:    true,
-			OnlyLocalProvenance: true,
-		}
-
-		groups, err := server.batchExposures(ctx, criteria, "US")
-		if err != nil {
-			t.Fatalf("failed to read exposures: %v", err)
-		}
-		if len(groups) == 0 {
-			t.Fatalf("export batch should have found some keys")
-		}
-
-		for _, group := range groups {
-			for _, exp := range group.exposures {
-				b64 := exp.ExposureKeyBase64()
-				if _, ok := homePlusTraveler[b64]; ok {
-					t.Fatalf("hourly batch included duplicate key")
+			// Using a 1 hour truncate window
+			// * one export batch lineage w/ 1 hour window
+			// * one export batch with 4 hour window
+			baseTime := time.Date(2020, 10, 28, 1, 0, 0, 0, time.UTC).Truncate(time.Hour)
+			exposures := make([]*publishmodel.Exposure, 3*tc.count)
+			for i := 0; i < tc.count; i++ {
+				// home country non-traveler
+				exposures[i*3] = &publishmodel.Exposure{
+					ExposureKey:     getKey(t),
+					Regions:         []string{"US"},
+					IntervalNumber:  100,
+					IntervalCount:   144,
+					CreatedAt:       baseTime.Add(time.Duration(i%4) * time.Hour),
+					LocalProvenance: true,
+					Traveler:        false,
+					ReportType:      verifyapi.ReportTypeClinical,
 				}
-				homePlusTraveler[b64] = struct{}{}
-			}
-		}
-	}
-
-	foreignNonTraveler := make(map[string]struct{})
-	// Create the foreign, non traveler export.
-	for i := 0; i < 4; i++ {
-		// Build the iteration criteria for the incremental batches.
-		criteria := publishdb.IterateExposuresCriteria{
-			SinceTimestamp:      baseTime.Add(time.Duration(i) * time.Hour),
-			UntilTimestamp:      baseTime.Add(time.Duration(i) * time.Hour).Add(time.Hour),
-			IncludeRegions:      []string{"CA"}, // current list of foreign countries
-			OnlyNonTravelers:    true,
-			OnlyLocalProvenance: false,
-		}
-
-		groups, err := server.batchExposures(ctx, criteria, "REMOTE")
-		if err != nil {
-			t.Fatalf("failed to read exposures: %v", err)
-		}
-		if len(groups) == 0 {
-			t.Fatalf("export batch should have found some keys")
-		}
-
-		for _, group := range groups {
-			for _, exp := range group.exposures {
-				b64 := exp.ExposureKeyBase64()
-				if _, ok := foreignNonTraveler[b64]; ok {
-					t.Fatalf("hourly batch included duplicate key")
+				// foreign country traveler
+				exposures[i*3+1] = &publishmodel.Exposure{
+					ExposureKey:     getKey(t),
+					Regions:         []string{"CA"},
+					IntervalNumber:  100,
+					IntervalCount:   144,
+					CreatedAt:       baseTime.Add(time.Duration(i%4) * time.Hour),
+					LocalProvenance: false,
+					Traveler:        true,
+					ReportType:      verifyapi.ReportTypeConfirmed,
 				}
-				foreignNonTraveler[b64] = struct{}{}
-			}
-		}
-	}
-
-	// Run the 4 hour export for home+traveler
-	{
-		criteria := publishdb.IterateExposuresCriteria{
-			SinceTimestamp:      baseTime,
-			UntilTimestamp:      baseTime.Add(4 * time.Hour),
-			IncludeRegions:      []string{"US"},
-			IncludeTravelers:    true,
-			OnlyLocalProvenance: true,
-		}
-		groups, err := server.batchExposures(ctx, criteria, "US")
-		if err != nil {
-			t.Fatalf("failed to read exposures: %v", err)
-		}
-		if len(groups) == 0 {
-			t.Fatalf("export batch should have keys")
-		}
-
-		homePlusTravelerRollup := make(map[string]struct{})
-		for _, group := range groups {
-			for _, exp := range group.exposures {
-				b64 := exp.ExposureKeyBase64()
-				if _, ok := homePlusTravelerRollup[b64]; ok {
-					t.Fatalf("home rollup included duplicate key")
+				// foreign country non-traveler
+				exposures[i*3+2] = &publishmodel.Exposure{
+					ExposureKey:     getKey(t),
+					Regions:         []string{"CA"},
+					IntervalNumber:  100,
+					IntervalCount:   144,
+					CreatedAt:       baseTime.Add(time.Duration(i%4) * time.Hour),
+					LocalProvenance: false,
+					Traveler:        false,
+					ReportType:      verifyapi.ReportTypeConfirmed,
 				}
-				homePlusTravelerRollup[b64] = struct{}{}
 			}
-		}
-
-		if diff := cmp.Diff(homePlusTraveler, homePlusTravelerRollup); diff != "" {
-			t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
-		}
-	}
-
-	// Run the 4 hour foreign, non-traveler
-	{
-		criteria := publishdb.IterateExposuresCriteria{
-			SinceTimestamp:      baseTime,
-			UntilTimestamp:      baseTime.Add(4 * time.Hour),
-			IncludeRegions:      []string{"CA"}, // current list of foreign countries
-			OnlyNonTravelers:    true,
-			OnlyLocalProvenance: false,
-		}
-		groups, err := server.batchExposures(ctx, criteria, "REMOTE")
-		if err != nil {
-			t.Fatalf("failed to read exposures: %v", err)
-		}
-		if len(groups) == 0 {
-			t.Fatalf("export batch should have keys")
-		}
-
-		foreignNonTravelerRollup := make(map[string]struct{})
-		for _, group := range groups {
-			for _, exp := range group.exposures {
-				b64 := exp.ExposureKeyBase64()
-				if _, ok := foreignNonTravelerRollup[b64]; ok {
-					t.Fatalf("home rollup included duplicate key")
+			if _, err := testPublishDB.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+				Incoming:     exposures,
+				RequireToken: false,
+			}); err != nil {
+				t.Fatalf("inserting exposures: %v", err)
+			}
+			// Make sure there are some revisions.
+			revisions := make([]*publishmodel.Exposure, 0, 3*tc.count)
+			for i, exp := range exposures {
+				if exp.ReportType == verifyapi.ReportTypeClinical {
+					revExp := &publishmodel.Exposure{
+						ExposureKey:     exp.ExposureKey,
+						Regions:         exp.Regions,
+						IntervalNumber:  exp.IntervalNumber,
+						IntervalCount:   exp.IntervalCount,
+						CreatedAt:       baseTime.Add(time.Duration(i) * time.Hour).Add(time.Minute),
+						LocalProvenance: exp.LocalProvenance,
+						Traveler:        exp.Traveler,
+						ReportType:      verifyapi.ReportTypeConfirmed,
+					}
+					revisions = append(revisions, revExp)
 				}
-				foreignNonTravelerRollup[b64] = struct{}{}
 			}
-		}
+			if len(revisions) > 0 {
+				if _, err := testPublishDB.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+					Incoming:     revisions,
+					RequireToken: false,
+				}); err != nil {
+					t.Fatalf("revising exposures: %v", err)
+				}
+			}
 
-		if diff := cmp.Diff(foreignNonTraveler, foreignNonTravelerRollup); diff != "" {
-			t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
-		}
+			homePlusTraveler := make(map[string]struct{})
+			// Create the home country + traveler exports. 4, 1 per hour.
+			for i := 0; i < 4; i++ {
+				// Build the iteration criteria for the incremental batches.
+				criteria := publishdb.IterateExposuresCriteria{
+					SinceTimestamp:      baseTime.Add(time.Duration(i) * time.Hour),
+					UntilTimestamp:      baseTime.Add(time.Duration(i) * time.Hour).Add(time.Hour),
+					IncludeRegions:      []string{"US"},
+					IncludeTravelers:    true,
+					OnlyLocalProvenance: true,
+				}
+
+				groups, err := server.batchExposures(ctx, criteria, "US")
+				if err != nil {
+					t.Fatalf("failed to read exposures: %v", err)
+				}
+				if len(groups) == 0 {
+					t.Fatalf("export batch for %d should have found some keys", i)
+				}
+
+				for _, group := range groups {
+					for _, exp := range group.exposures {
+						b64 := exp.ExposureKeyBase64()
+						if _, ok := homePlusTraveler[b64]; ok {
+							t.Fatalf("hourly batch included duplicate key")
+						}
+						homePlusTraveler[b64] = struct{}{}
+					}
+				}
+			}
+
+			foreignNonTraveler := make(map[string]struct{})
+			// Create the foreign, non traveler export.
+			for i := 0; i < 4; i++ {
+				// Build the iteration criteria for the incremental batches.
+				criteria := publishdb.IterateExposuresCriteria{
+					SinceTimestamp:      baseTime.Add(time.Duration(i) * time.Hour),
+					UntilTimestamp:      baseTime.Add(time.Duration(i) * time.Hour).Add(time.Hour),
+					IncludeRegions:      []string{"CA"}, // current list of foreign countries
+					OnlyNonTravelers:    true,
+					OnlyLocalProvenance: false,
+				}
+
+				groups, err := server.batchExposures(ctx, criteria, "REMOTE")
+				if err != nil {
+					t.Fatalf("failed to read exposures: %v", err)
+				}
+				if len(groups) == 0 {
+					t.Fatalf("export batch should have found some keys")
+				}
+
+				for _, group := range groups {
+					for _, exp := range group.exposures {
+						b64 := exp.ExposureKeyBase64()
+						if _, ok := foreignNonTraveler[b64]; ok {
+							t.Fatalf("hourly batch included duplicate key")
+						}
+						foreignNonTraveler[b64] = struct{}{}
+					}
+				}
+			}
+
+			// Run the 4 hour export for home+traveler
+			{
+				criteria := publishdb.IterateExposuresCriteria{
+					SinceTimestamp:      baseTime,
+					UntilTimestamp:      baseTime.Add(4 * time.Hour),
+					IncludeRegions:      []string{"US"},
+					IncludeTravelers:    true,
+					OnlyLocalProvenance: true,
+				}
+				groups, err := server.batchExposures(ctx, criteria, "US")
+				if err != nil {
+					t.Fatalf("failed to read exposures: %v", err)
+				}
+				if len(groups) == 0 {
+					t.Fatalf("export batch should have keys")
+				}
+
+				homePlusTravelerRollup := make(map[string]struct{})
+				for _, group := range groups {
+					for _, exp := range group.exposures {
+						b64 := exp.ExposureKeyBase64()
+						if _, ok := homePlusTravelerRollup[b64]; ok {
+							t.Fatalf("home rollup included duplicate key")
+						}
+						homePlusTravelerRollup[b64] = struct{}{}
+					}
+				}
+
+				if diff := cmp.Diff(homePlusTraveler, homePlusTravelerRollup); diff != "" {
+					t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
+				}
+			}
+
+			// Run the 4 hour foreign, non-traveler
+			{
+				criteria := publishdb.IterateExposuresCriteria{
+					SinceTimestamp:      baseTime,
+					UntilTimestamp:      baseTime.Add(4 * time.Hour),
+					IncludeRegions:      []string{"CA"}, // current list of foreign countries
+					OnlyNonTravelers:    true,
+					OnlyLocalProvenance: false,
+				}
+				groups, err := server.batchExposures(ctx, criteria, "REMOTE")
+				if err != nil {
+					t.Fatalf("failed to read exposures: %v", err)
+				}
+				if len(groups) == 0 {
+					t.Fatalf("export batch should have keys")
+				}
+
+				foreignNonTravelerRollup := make(map[string]struct{})
+				for _, group := range groups {
+					for _, exp := range group.exposures {
+						b64 := exp.ExposureKeyBase64()
+						if _, ok := foreignNonTravelerRollup[b64]; ok {
+							t.Fatalf("home rollup included duplicate key")
+						}
+						foreignNonTravelerRollup[b64] = struct{}{}
+					}
+				}
+
+				if diff := cmp.Diff(foreignNonTraveler, foreignNonTravelerRollup); diff != "" {
+					t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
+				}
+			}
+		})
 	}
 }
 
