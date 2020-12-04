@@ -27,7 +27,7 @@ CREATE TABLE HealthAuthorityStats(
     teks INT NOT NULL DEFAULT 0,
     revisions INT NOT NULL DEFAULT 0,
     -- Age of the oldest TEKs from an individual publish request. Index is number of days.
-    oltest_tek_days INT [],    
+    oldest_tek_days INT [],    
     -- Symptom onset to upload ranges, index is number of days.
     onset_age_days INT [],
     missing_onset INT DEFAULT 0
