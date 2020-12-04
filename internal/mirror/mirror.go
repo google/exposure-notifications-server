@@ -15,72 +15,31 @@
 package mirror
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
-	mirrordb "github.com/google/exposure-notifications-server/internal/mirror/database"
+	mirrordatabase "github.com/google/exposure-notifications-server/internal/mirror/database"
 	"github.com/google/exposure-notifications-server/internal/mirror/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/trace"
 )
 
-const mirrorLockPrefix = "mirror-lock"
-
-type FileStatus struct {
-	Order         int
-	MirrorFile    *model.MirrorFile
-	DownloadPath  string
-	Filename      string
-	LocalFilename string
-	Failed        bool
-	Saved         bool
-}
-
-func (f *FileStatus) needsDelete() bool {
-	return f.DownloadPath == ""
-}
-
-func (f *FileStatus) needsDownload() bool {
-	return f.MirrorFile == nil
-}
-
-func sortFileStatus(fs []*FileStatus) {
-	sort.Slice(fs, func(i, j int) bool {
-		return fs[i].Order < fs[j].Order
-	})
-}
-
-func (s *Server) downloadIndex(w http.ResponseWriter, mirror *model.Mirror) ([]string, error) {
-	client := &http.Client{
-		Timeout: s.config.IndexFileDownloadTimeout,
-	}
-	resp, err := client.Get(mirror.IndexFile)
-	if err != nil {
-		return nil, fmt.Errorf("error downloading index file: %w", err)
-	}
-	defer resp.Body.Close()
-	resp.Body = http.MaxBytesReader(w, resp.Body, s.config.MaxIndexBytes)
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading index file: %w", err)
-	}
-	zipNames := strings.Split(string(bytes), "\n")
-	currentFiles := make([]string, 0, len(zipNames))
-	for _, zipFile := range zipNames {
-		fullZipFile := fmt.Sprintf("%s%s", mirror.ExportRoot, strings.TrimSpace(zipFile))
-		currentFiles = append(currentFiles, fullZipFile)
-	}
-
-	return currentFiles, nil
-}
+const (
+	mirrorLockPrefix = "mirror-lock"
+	deleteTimeout    = 10 * time.Second
+	uploadTimeout    = 1 * time.Minute
+)
 
 func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
 	logger := logging.FromContext(ctx).Named("mirror.handleMirror")
@@ -99,7 +58,7 @@ func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
 			runtime = runtime - (30 * time.Second)
 		}
 		deadline := time.Now().Add(runtime)
-		logger.Infow("mirrow will run until", "deadline", deadline)
+		logger.Infow("mirror will run until", "deadline", deadline)
 
 		// get all possible mirror candidates
 		mirrors, err := s.mirrorDB.Mirrors(ctx)
@@ -110,13 +69,15 @@ func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
 		}
 
 		for _, mirror := range mirrors {
+			// If the deadline has passed, do not attempt to process additional
+			// mirrors.
 			if deadlinePassed(deadline) {
 				logger.Warnw("mirror timed out before processing all configurations")
 				break
 			}
 
-			if err := s.processMirror(ctx, w, deadline, mirror); err != nil {
-				logger.Errorw("unable to process mirror", "error", err)
+			if err := s.processMirror(ctx, deadline, mirror); err != nil {
+				logger.Errorw("failed to process mirror", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -124,112 +85,125 @@ func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
 
 		status := http.StatusOK
 		w.WriteHeader(status)
-		w.Write([]byte(http.StatusText(status)))
+		fmt.Fprint(w, http.StatusText(status))
 	}
 }
 
-func (s *Server) processMirror(ctx context.Context, w http.ResponseWriter, deadline time.Time, mirror *model.Mirror) error {
-	logger := logging.FromContext(ctx)
+// processMirror processes all files in the mirror, deleting files that have
+// been removed and downloading the new index and exports.
+//
+// An ambitious engineer might say "wow, we should really parallelize the
+// download and upload steps". Please don't. The files need to be processed and
+// uploaded in the order, in case a device is in the middle of downloading
+// things. Some devices uses the timestamps and ordering of the files, and
+// uploading in parallel wouldn't guarantee upload order. Thus, a client could
+// skip files and that would be bad.
+func (s *Server) processMirror(ctx context.Context, deadline time.Time, mirror *model.Mirror) (retErr error) {
+	logger := logging.FromContext(ctx).Named("mirror.processMirror").
+		With("mirror_id", mirror.ID)
+	blobstore := s.env.Blobstore()
 
 	lockID := fmt.Sprintf("%s-%d", mirrorLockPrefix, mirror.ID)
 	unlock, err := s.db.Lock(ctx, lockID, s.config.MaxRuntime)
 	if err != nil {
 		if errors.Is(err, database.ErrAlreadyLocked) {
-			logger.Infow("mirror already locked, skipping", "mirrorID", mirror.ID)
+			logger.Infow("mirror already locked, skipping")
 			return nil
 		}
-		return fmt.Errorf("unable to lock mirror: %w", err)
+		return fmt.Errorf("failed to lock mirror: %w", err)
 	}
 	defer func() {
+		logger.Debugw("finished processing mirror", "index", mirror.IndexFile)
+
 		if err := unlock(); err != nil {
-			logger.Errorw("failed to unlock: %v", err)
+			retErr = fmt.Errorf("failed to unlock mirror: %w, original error: %s", err, retErr)
 		}
 	}()
 
-	logger.Info("starting mirror", "mirrorID", mirror.ID, "index", mirror.IndexFile)
+	// If we got this far, we have the lock, start processing.
+	logger.Infow("starting mirror", "index", mirror.IndexFile)
 
-	// have the lock
+	// Get the list of known mirror files.
 	knownFiles, err := s.mirrorDB.ListFiles(ctx, mirror.ID)
 	if err != nil {
-		logger.Errorw("unable to list mirror files", "error", err)
-		return nil
+		return fmt.Errorf("failed to list mirror files: %w", err)
 	}
 
-	// download the index
-	// curFiles contains the fullly qualified download link for the files.
-	curFiles, err := s.downloadIndex(w, mirror)
+	// Download the index, which will return the fully qualified download links
+	// for the files.
+	indexFiles, err := s.downloadIndex(mirror)
 	if err != nil {
-		logger.Errorw("unable to download index.txt - skipping", "mirrorID", mirror.ID, "error", err)
-		return nil
+		return fmt.Errorf("failed to download index: %w", err)
 	}
 
-	// figure out the actions
-	actions := make(map[string]*FileStatus, len(curFiles))
-	for _, kf := range knownFiles {
-		actions[kf.Filename] = &FileStatus{
-			MirrorFile: kf,
-		}
-	}
-	for i, curFile := range curFiles {
-		lastIdx := strings.LastIndex(curFile, "/")
-		fileName := curFile[lastIdx+1:]
-		if cur, ok := actions[fileName]; ok {
-			cur.DownloadPath = curFile
-			cur.Filename = fileName
-			cur.LocalFilename = fileName
-			if cur.MirrorFile.LocalFilename != nil {
-				cur.LocalFilename = *cur.MirrorFile.LocalFilename
-			}
-			cur.Order = i
-		} else {
-			actions[fileName] = &FileStatus{
-				Order:        i,
-				Filename:     fileName,
-				DownloadPath: curFile,
-			}
-		}
-	}
+	// Build a running list of all errors. In many cases, processing continues on
+	// error.
+	var merr *multierror.Error
 
-	// save for convenience.
-	blobstore := s.env.Blobstore()
+	// Figure out actions to take by diffing the known files and current files.
+	actions := computeActions(knownFiles, indexFiles)
 
-	// delete any files we no longer have
+	// Delete any stale export files. These are files that we previously mirrored,
+	// but are no longer in the index.
 	for filename, status := range actions {
 		if status.needsDelete() {
-			logger.Infow("deleting stale export file", "file", filename)
+			// Use a function here so defers run sooner.
+			func() {
+				localFilename := filename
+				if status.MirrorFile != nil && status.MirrorFile.LocalFilename != nil {
+					// TODO(sethvargo): empty string "" check was not here before
+					val := *status.MirrorFile.LocalFilename
+					if val != "" {
+						localFilename = val
+					}
+				}
 
-			delFilename := filename
-			if status.MirrorFile != nil && status.MirrorFile.LocalFilename != nil {
-				delFilename = *status.MirrorFile.LocalFilename
-			}
+				logger.Debugw("deleting stale export file",
+					"upstream_file", filename,
+					"local_file", localFilename,
+					"bucket", mirror.CloudStorageBucket)
 
-			bsCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-			defer cancel()
-			// If there's a race and the file was already deleted, no error is returned.
-			if err := blobstore.DeleteObject(bsCtx, mirror.CloudStorageBucket, delFilename); err != nil {
-				logger.Errorw("unable to delete file", "bucket", mirror.CloudStorageBucket, "upstrteamFile", filename, "mirroredFiled", delFilename, "error", err)
-				return nil
-			}
-			// Remove from map, so will be deleted from db.
-			delete(actions, filename)
+				ctx, cancel := context.WithTimeout(ctx, deleteTimeout)
+				defer cancel()
+
+				parent := mirror.CloudStorageBucket
+				pth := urlJoin(mirror.FilenameRoot, localFilename)
+				if err := blobstore.DeleteObject(ctx, parent, pth); err != nil {
+					merr = multierror.Append(merr, fmt.Errorf("failed to delete stale export file %s: %w", urlJoin(parent, pth), err))
+					return
+				}
+
+				// Remove from map, so will be deleted from the database later. Note we
+				// only do this on successful deletion. The item is not removed from the
+				// map if deletion fails.
+				delete(actions, filename)
+			}()
 		}
 	}
 
-	// download any files we don't have
+	// Start building a list of all objects - we'll use this to save back to the
+	// database later.
 	indexObjects := make([]*FileStatus, 0, len(actions))
-	// quickly bypass anything that doesn't need to be downloaded.
-	// This ensures that if we timeout, files we previously knew about remain saved.
+
+	// Bypass files that we already know about, since they do not need to be
+	// downloaded. This ensures that if we timeout, files we previously knew about
+	// are still saved.
 	for _, status := range actions {
 		if !status.needsDownload() {
 			status.Saved = true
 			indexObjects = append(indexObjects, status)
 		}
 	}
-	logger.Infow("mirror state", "mirrorID", mirror.ID, "total", len(actions), "existing", len(indexObjects), "remaining", len(actions)-len(indexObjects))
 
-	// Convert actions to an array, so we can process files in order.
-	// This is necessary if files are being renamed and using timestamps, and if clients are depending on
-	// monotonically increaing timestamps.
+	// Download any files we don't have.
+	logger.Debugw("mirror state",
+		"total", len(actions),
+		"existing", len(indexObjects),
+		"remaining", len(actions)-len(indexObjects))
+
+	// Convert actions to an array, so we can process files in order. This is
+	// necessary if files are being renamed and using timestamps, and if clients
+	// are depending on monotonically increasing timestamps.
 	remainingWork := make([]*FileStatus, 0, len(actions))
 	for _, status := range actions {
 		if status.needsDownload() {
@@ -238,94 +212,212 @@ func (s *Server) processMirror(ctx context.Context, w http.ResponseWriter, deadl
 	}
 	sortFileStatus(remainingWork)
 
-	// go through again and process downloads.
+	// Process downloads.
 	for _, status := range remainingWork {
-		filename := status.Filename
 		if deadlinePassed(deadline) {
-			logger.Warnw("mirror didn't complete processing before timeout", "mirrorID", mirror.ID)
+			logger.Warnw("mirror did not complete processing before timeout")
 			break
 		}
 
-		logger.Infow("mirroring export file", "mirrorID", mirror.ID, "file", filename)
+		filename := status.Filename
+		logger.Debugw("downloading export file",
+			"file", filename,
+			"download_path", status.DownloadPath)
 
-		client := &http.Client{
-			Timeout: s.config.ExportFileDownloadTimeout,
-		}
-		resp, err := client.Get(status.DownloadPath)
+		b, err := downloadFile(status.DownloadPath, s.config.ExportFileDownloadTimeout, s.config.MaxZipBytes)
 		if err != nil {
-			logger.Errorw("unable to download file", "filename", filename, "error", err)
+			merr = multierror.Append(merr, fmt.Errorf("failed to download export file %s: %w", filename, err))
 			status.Failed = true
-			return nil
+			continue
 		}
 
-		defer resp.Body.Close()
-		resp.Body = http.MaxBytesReader(w, resp.Body, s.config.MaxZipBytes)
-		bytes, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			logger.Errorw("unable to read file", "filename", filename, "error", err)
-			status.Failed = true
-			return nil
-		}
-
-		// See if we need to rewrite the filename
+		// See if we need to rewrite the filename.
 		writeFilename, err := mirror.RewriteFilename(filename)
 		if err != nil {
-			logger.Errorw("unable to rewrite filename", "filename", filename, "error", err)
+			merr = multierror.Append(merr, fmt.Errorf("failed to rewrite filename %s: %w", filename, err))
 			status.Failed = true
-			return nil
+			continue
 		}
 		status.LocalFilename = writeFilename
 
-		// Write this file to the blob store.
-		bsCtx, cancel := context.WithTimeout(ctx, time.Minute)
-		defer cancel()
-		objName := fmt.Sprintf("%s/%s", mirror.FilenameRoot, writeFilename)
-		if err := blobstore.CreateObject(bsCtx, mirror.CloudStorageBucket, objName, bytes, true, storage.ContentTypeZip); err != nil {
-			logger.Errorw("unable to write file to blobstore", "filename", filename, "error", err)
+		// Write this file to the blobstore - use a function so defers run when
+		// expected.
+		if err := func() error {
+			ctx, cancel := context.WithTimeout(ctx, uploadTimeout)
+			defer cancel()
+
+			objName := urlJoin(mirror.FilenameRoot, writeFilename)
+			return blobstore.CreateObject(ctx, mirror.CloudStorageBucket, objName, b, true, storage.ContentTypeZip)
+		}(); err != nil {
+			merr = multierror.Append(merr, fmt.Errorf("failed to write %s to blobstore: %w", filename, err))
 			status.Failed = true
-			return nil
+			continue
 		}
-		logger.Infow("wrote mirrored archive", "filename", filename, "localFilename", writeFilename)
 
 		status.Saved = true
+		logger.Debugw("successfully saved mirrored archive",
+			"upstream_file", filename,
+			"local_file", writeFilename)
+
 		indexObjects = append(indexObjects, status)
 	}
 
-	// Write new index file
+	// Build and write a new index file.
 	sort.Slice(indexObjects, func(i, j int) bool {
 		return indexObjects[i].Order < indexObjects[j].Order
 	})
-	logger.Infof("index %+v", indexObjects)
-	syncFilenames := make([]*mirrordb.SyncFile, 0, len(indexObjects))
+
+	syncFilenames := make([]*mirrordatabase.SyncFile, 0, len(indexObjects))
 	filenames := make([]string, 0, len(indexObjects))
 	for _, obj := range indexObjects {
 		// Only persist state of the files we got to.
 		if obj.Saved {
-			syncFilenames = append(syncFilenames,
-				&mirrordb.SyncFile{
-					RemoteFile: obj.Filename,
-					LocalFile:  obj.LocalFilename,
-				})
-			filenames = append(filenames, fmt.Sprintf("%s/%s", mirror.FilenameRoot, obj.LocalFilename))
+			syncFilenames = append(syncFilenames, &mirrordatabase.SyncFile{
+				RemoteFile: obj.Filename,
+				LocalFile:  obj.LocalFilename,
+			})
+			filenames = append(filenames, urlJoin(mirror.FilenameRoot, obj.LocalFilename))
 		}
 	}
-	data := []byte(strings.Join(filenames, "\n"))
-	indexName := fmt.Sprintf("%s/index.txt", mirror.FilenameRoot)
+
 	bsCtx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	if err := blobstore.CreateObject(bsCtx, mirror.CloudStorageBucket, indexName, data, true, storage.ContentTypeTextPlain); err != nil {
-		logger.Errorw("unable to write index to blobstore", "filename", "index.txt", "error", err)
-		return nil
+
+	parent := mirror.CloudStorageBucket
+	pth := urlJoin(mirror.FilenameRoot, "index.txt")
+	data := []byte(strings.Join(filenames, "\n"))
+	if err := blobstore.CreateObject(bsCtx, parent, pth, data, true, storage.ContentTypeTextPlain); err != nil {
+		merr = multierror.Append(merr, fmt.Errorf("failed to write index.txt to blobstore: %w", err))
 	}
 
-	// sync state to DB.
+	// Save state to database.
 	if err := s.mirrorDB.SaveFiles(ctx, mirror.ID, syncFilenames); err != nil {
-		logger.Errorw("error saving index state to database", "mirrorID", mirror.ID, "error", err)
+		merr = multierror.Append(merr, fmt.Errorf("failed to save index state to database: %w", err))
 	}
-	logger.Infow("finished mirror", "mirrorID", mirror.ID, "index", mirror.IndexFile)
-	return nil
+
+	retErr = merr.ErrorOrNil()
+	return
+}
+
+// computeActions computes the actions to take based on the provided known files
+// and files in the index.
+func computeActions(knownFiles []*model.MirrorFile, indexFiles []string) map[string]*FileStatus {
+	actions := make(map[string]*FileStatus, len(indexFiles))
+	for _, kf := range knownFiles {
+		actions[kf.Filename] = &FileStatus{
+			MirrorFile: kf,
+		}
+	}
+
+	for i, indexFile := range indexFiles {
+		lastIdx := strings.LastIndex(indexFile, "/")
+		fileName := indexFile[lastIdx+1:]
+
+		// Start ordering a 1 because a value of 0 is also the default value.
+		order := i + 1
+
+		if cur, ok := actions[fileName]; ok {
+			cur.DownloadPath = indexFile
+			cur.Filename = fileName
+			cur.LocalFilename = fileName
+			if cur.MirrorFile.LocalFilename != nil {
+				cur.LocalFilename = *cur.MirrorFile.LocalFilename
+			}
+			cur.Order = order
+		} else {
+			actions[fileName] = &FileStatus{
+				Order:        order,
+				Filename:     fileName,
+				DownloadPath: indexFile,
+			}
+		}
+	}
+
+	return actions
+}
+
+// downloadFile downloads the file from the given URL u up to maxBytes. If the
+// URL does not return a 200, an error is returned. If the process takes longer
+// than the provided timeout, an error is returned. If more bytes remain after
+// maxBytes, an error is returned. Otherwise, the raw bytes are returned.
+func downloadFile(u string, timeout time.Duration, maxBytes int64) ([]byte, error) {
+	client := &http.Client{Timeout: timeout}
+
+	// Start the download.
+	resp, err := client.Get(u)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download %s: %w", u, err)
+	}
+	defer resp.Body.Close()
+
+	// Ensure a 200 response.
+	if code := resp.StatusCode; code != http.StatusOK {
+		return nil, fmt.Errorf("failed to download %s: status %d", u, code)
+	}
+
+	// Create the limited reader.
+	var b bytes.Buffer
+	r := &io.LimitedReader{R: resp.Body, N: maxBytes}
+	if _, err := io.Copy(&b, r); err != nil {
+		return nil, fmt.Errorf("failed to download %s: %w", u, err)
+	}
+	if r.N == 0 {
+		// Check if there's more data to be read and return an error if so.
+		if _, err := r.R.Read(make([]byte, 1)); err != io.EOF {
+			return nil, fmt.Errorf("failed to read %s: response exceeds %d bytes", u, maxBytes)
+		}
+	}
+
+	// Return the bytes.
+	return b.Bytes(), nil
+}
+
+// downloadIndex downloads the index files and returns the list of entries of
+// each line. An index file has the format:
+//
+//   us/1605818705-1605819005-00001.zip
+//   us/1605818705-1605819005-00002.zip
+//   us/1605818705-1605819005-00003.zip
+//   ...
+//
+// The values are returned in the order in which they appear in the file, joined
+// with the configured mirror ExportRoot.
+func (s *Server) downloadIndex(mirror *model.Mirror) ([]string, error) {
+	b, err := downloadFile(mirror.IndexFile, s.config.IndexFileDownloadTimeout, s.config.MaxIndexBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download index file: %w", err)
+	}
+
+	currentFiles := make([]string, 0, 64)
+	scanner := bufio.NewScanner(bytes.NewReader(b))
+	for scanner.Scan() {
+		fullName := urlJoin(mirror.ExportRoot, scanner.Text())
+		currentFiles = append(currentFiles, fullName)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("failed to scan index file: %w", err)
+	}
+
+	return currentFiles, nil
+}
+
+// urlJoin joins a root path with the extra path, attempting to clean leading
+// and trailing slashes.
+func urlJoin(root, extra string) string {
+	// We can't use path.Join here because it strips URLs (for example, "http://"
+	// becomes "http:/").
+	root = strings.TrimRight(root, "/")
+	extra = strings.TrimLeft(extra, "/")
+	return strings.TrimLeft(root+"/"+extra, "/")
 }
 
 func deadlinePassed(deadline time.Time) bool {
 	return time.Now().After(deadline)
+}
+
+func stringPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

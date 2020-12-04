@@ -180,8 +180,14 @@ func scanOneMirror(row pgx.Row) (*model.Mirror, error) {
 }
 
 type SyncFile struct {
+	// RemoteFile is the ONLY the final filename (last part after the slash) with
+	// extension. It does not include the URL, protocol or root information as
+	// that is built from the parent mirror record.
 	RemoteFile string
-	LocalFile  string
+
+	// LocalFile is blank unless a rewrite rule was provided. It is also just the
+	// filename (no URL or protocol information).
+	LocalFile string
 }
 
 // SaveFiles makes the list of filenames passed in the only files that are saved on that mirrorID.

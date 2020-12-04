@@ -23,9 +23,9 @@ type formData struct {
 	Action string `form:"Action" binding:"required"`
 
 	IndexFile          string `form:"IndexFile" binding:"required"`
-	ExportRoot         string `form:"ExportRoot" binding:"required"`
+	ExportRoot         string `form:"ExportRoot"`
 	CloudStorageBucket string `form:"CloudStorageBucket" binding:"required"`
-	FilenameRoot       string `form:"FilenameRoot" binding:"required"`
+	FilenameRoot       string `form:"FilenameRoot"`
 	FilenameRewrite    string `form:"FilenameRewrite"`
 }
 

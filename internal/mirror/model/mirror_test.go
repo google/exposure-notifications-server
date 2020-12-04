@@ -20,6 +20,8 @@ import (
 )
 
 func TestRewriteFilenameNoOp(t *testing.T) {
+	t.Parallel()
+
 	m := Mirror{}
 
 	want := "afile.zip"
@@ -31,6 +33,8 @@ func TestRewriteFilenameNoOp(t *testing.T) {
 }
 
 func TestRewriteFilenameTimestamps(t *testing.T) {
+	t.Parallel()
+
 	pattern := "[timestamp]-[timestamp]-00001.zip"
 	m := Mirror{
 		FilenameRewrite: &pattern,
@@ -52,6 +56,8 @@ func TestRewriteFilenameTimestamps(t *testing.T) {
 }
 
 func TestRewriteUUID(t *testing.T) {
+	t.Parallel()
+
 	pattern := "[uuid]-00001.zip"
 	m := Mirror{
 		FilenameRewrite: &pattern,
