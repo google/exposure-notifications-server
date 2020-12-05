@@ -58,6 +58,9 @@ func realMain() error {
 	}
 
 	keyExport, _, err := export.UnmarshalExportFile(blob)
+	if err != nil {
+		return err
+	}
 
 	// Build all of the nodes and map them to days (TEK start)
 	nodeMap := make(map[string]string)
@@ -134,6 +137,7 @@ func sameReportType(a, b *exportpb.TemporaryExposureKey) bool {
 }
 
 func sameTransmissionRisk(a, b *exportpb.TemporaryExposureKey) bool {
+	//lint:ignore SA1019 may be set on v1 files.
 	return a.GetTransmissionRiskLevel() == b.GetTransmissionRiskLevel()
 }
 
