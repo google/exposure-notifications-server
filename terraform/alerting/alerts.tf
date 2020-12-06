@@ -15,7 +15,7 @@
 locals {
   p50_latency_thresholds_in_seconds = {
     export         = 600
-    cleanup-export = 20
+    cleanup-export = 60
     generate       = 30
   }
   p50_latency_thresholds_in_seconds_default = 10
