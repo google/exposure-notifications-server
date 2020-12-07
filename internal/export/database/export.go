@@ -53,13 +53,14 @@ func (db *ExportDB) AddExportConfig(ctx context.Context, ec *model.ExportConfig)
 			INSERT INTO
 				ExportConfig
 				(bucket_name, filename_root, period_seconds, output_region, from_timestamp, thru_timestamp,
-				 signature_info_ids, input_regions, include_travelers, exclude_regions, only_non_travelers)
+				 signature_info_ids, input_regions, include_travelers, exclude_regions, only_non_travelers,
+				 max_records_override)
 			VALUES
-				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 			RETURNING config_id
 		`, ec.BucketName, ec.FilenameRoot, int(ec.Period.Seconds()), ec.OutputRegion,
 			ec.From, thru, ec.SignatureInfoIDs, ec.InputRegions, ec.IncludeTravelers,
-			ec.ExcludeRegions, ec.OnlyNonTravelers)
+			ec.ExcludeRegions, ec.OnlyNonTravelers, ec.MaxRecordsOverride)
 
 		if err := row.Scan(&ec.ConfigID); err != nil {
 			return fmt.Errorf("fetching config_id: %w", err)
@@ -83,11 +84,11 @@ func (db *ExportDB) UpdateExportConfig(ctx context.Context, ec *model.ExportConf
 			SET
 				bucket_name = $1, filename_root = $2, period_seconds = $3, output_region = $4, from_timestamp = $5,
 				thru_timestamp = $6, signature_info_ids = $7, input_regions = $8, include_travelers = $9,
-				exclude_regions = $10, only_non_travelers = $11
-			WHERE config_id = $12
+				exclude_regions = $10, only_non_travelers = $11, max_records_override = $12
+			WHERE config_id = $13
 		`, ec.BucketName, ec.FilenameRoot, int(ec.Period.Seconds()), ec.OutputRegion,
 			ec.From, thru, ec.SignatureInfoIDs, ec.InputRegions, ec.IncludeTravelers,
-			ec.ExcludeRegions, ec.OnlyNonTravelers,
+			ec.ExcludeRegions, ec.OnlyNonTravelers, ec.MaxRecordsOverride,
 			ec.ConfigID)
 		if err != nil {
 			return fmt.Errorf("updating signatureinfo: %w", err)
@@ -106,7 +107,7 @@ func (db *ExportDB) GetExportConfig(ctx context.Context, id int64) (*model.Expor
 			SELECT
 				config_id, bucket_name, filename_root, period_seconds, output_region,
 				from_timestamp, thru_timestamp, signature_info_ids, input_regions,
-				include_travelers, exclude_regions, only_non_travelers
+				include_travelers, exclude_regions, only_non_travelers, max_records_override
 			FROM
 				ExportConfig
 			WHERE
@@ -134,7 +135,7 @@ func (db *ExportDB) GetAllExportConfigs(ctx context.Context) ([]*model.ExportCon
 			SELECT
 				config_id, bucket_name, filename_root, period_seconds, output_region,
 				from_timestamp, thru_timestamp, signature_info_ids, input_regions, include_travelers,
-				exclude_regions, only_non_travelers
+				exclude_regions, only_non_travelers, max_records_override
 			FROM
 				ExportConfig
 			ORDER BY config_id
@@ -173,7 +174,7 @@ func (db *ExportDB) IterateExportConfigs(ctx context.Context, t time.Time, f fun
 			SELECT
 				config_id, bucket_name, filename_root, period_seconds, output_region,
 				from_timestamp, thru_timestamp, signature_info_ids, input_regions, include_travelers,
-				exclude_regions, only_non_travelers
+				exclude_regions, only_non_travelers, max_records_override
 			FROM
 				ExportConfig
 			WHERE
@@ -216,7 +217,7 @@ func scanOneExportConfig(row pgx.Row) (*model.ExportConfig, error) {
 		thru          *time.Time
 	)
 	if err := row.Scan(&m.ConfigID, &m.BucketName, &m.FilenameRoot, &periodSeconds, &outputRegion, &m.From, &thru,
-		&m.SignatureInfoIDs, &m.InputRegions, &m.IncludeTravelers, &m.ExcludeRegions, &m.OnlyNonTravelers); err != nil {
+		&m.SignatureInfoIDs, &m.InputRegions, &m.IncludeTravelers, &m.ExcludeRegions, &m.OnlyNonTravelers, &m.MaxRecordsOverride); err != nil {
 		return nil, err
 	}
 
@@ -482,9 +483,9 @@ func (db *ExportDB) AddExportBatches(ctx context.Context, batches []*model.Expor
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
 				ExportBatch
-				(config_id, bucket_name, filename_root, start_timestamp, end_timestamp, output_region, status, signature_info_ids, input_regions, include_travelers, exclude_regions, only_non_travelers)
+				(config_id, bucket_name, filename_root, start_timestamp, end_timestamp, output_region, status, signature_info_ids, input_regions, include_travelers, exclude_regions, only_non_travelers, max_records_override)
 			VALUES
-				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		`)
 		if err != nil {
 			return err
@@ -492,7 +493,8 @@ func (db *ExportDB) AddExportBatches(ctx context.Context, batches []*model.Expor
 
 		for _, eb := range batches {
 			if _, err := tx.Exec(ctx, stmtName,
-				eb.ConfigID, eb.BucketName, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.OutputRegion, eb.Status, eb.SignatureInfoIDs, eb.InputRegions, eb.IncludeTravelers, eb.ExcludeRegions, eb.OnlyNonTravelers); err != nil {
+				eb.ConfigID, eb.BucketName, eb.FilenameRoot, eb.StartTimestamp, eb.EndTimestamp, eb.OutputRegion, eb.Status, eb.SignatureInfoIDs,
+				eb.InputRegions, eb.IncludeTravelers, eb.ExcludeRegions, eb.OnlyNonTravelers, eb.MaxRecordsOverride); err != nil {
 				return err
 			}
 		}
@@ -626,7 +628,7 @@ type queryRowFn func(ctx context.Context, query string, args ...interface{}) pgx
 func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) (*model.ExportBatch, error) {
 	row := queryRow(ctx, `
 		SELECT
-			batch_id, config_id, bucket_name, filename_root, start_timestamp, end_timestamp, output_region, status, lease_expires, signature_info_ids, input_regions, include_travelers, exclude_regions, only_non_travelers
+			batch_id, config_id, bucket_name, filename_root, start_timestamp, end_timestamp, output_region, status, lease_expires, signature_info_ids, input_regions, include_travelers, exclude_regions, only_non_travelers, max_records_override
 		FROM
 			ExportBatch
 		WHERE
@@ -636,7 +638,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 
 	var expires *time.Time
 	eb := model.ExportBatch{}
-	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.BucketName, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.OutputRegion, &eb.Status, &expires, &eb.SignatureInfoIDs, &eb.InputRegions, &eb.IncludeTravelers, &eb.ExcludeRegions, &eb.OnlyNonTravelers); err != nil {
+	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.BucketName, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.OutputRegion, &eb.Status, &expires, &eb.SignatureInfoIDs, &eb.InputRegions, &eb.IncludeTravelers, &eb.ExcludeRegions, &eb.OnlyNonTravelers, &eb.MaxRecordsOverride); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, database.ErrNotFound
 		}

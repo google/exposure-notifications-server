@@ -29,19 +29,20 @@ import (
 var ErrCannotSetBothTravelers = errors.New("cannot have both 'include travelers', and 'only non-travelers' set")
 
 type formData struct {
-	OutputRegion     string        `form:"OutputRegion"`
-	InputRegions     string        `form:"InputRegions"`
-	IncludeTravelers bool          `form:"IncludeTravelers"`
-	OnlyNonTravelers bool          `form:"OnlyNonTravelers"`
-	ExcludeRegions   string        `form:"ExcludeRegions"`
-	BucketName       string        `form:"BucketName"`
-	FilenameRoot     string        `form:"FilenameRoot"`
-	Period           time.Duration `form:"Period"`
-	FromDate         string        `form:"fromdate"`
-	FromTime         string        `form:"fromtime"`
-	ThruDate         string        `form:"thrudate"`
-	ThruTime         string        `form:"thrutime"`
-	SigInfoIDs       []int64       `form:"siginfo"`
+	OutputRegion       string        `form:"OutputRegion"`
+	InputRegions       string        `form:"InputRegions"`
+	IncludeTravelers   bool          `form:"IncludeTravelers"`
+	OnlyNonTravelers   bool          `form:"OnlyNonTravelers"`
+	ExcludeRegions     string        `form:"ExcludeRegions"`
+	BucketName         string        `form:"BucketName"`
+	FilenameRoot       string        `form:"FilenameRoot"`
+	Period             time.Duration `form:"Period"`
+	FromDate           string        `form:"fromdate"`
+	FromTime           string        `form:"fromtime"`
+	ThruDate           string        `form:"thrudate"`
+	ThruTime           string        `form:"thrutime"`
+	SigInfoIDs         []int64       `form:"siginfo"`
+	MaxRecordsOverride int           `form:"MaxRecordsOverride"`
 }
 
 // splitRegions turns a string of regions (generally separated by newlines), and
@@ -82,6 +83,12 @@ func (f *formData) PopulateExportConfig(ec *model.ExportConfig) error {
 	ec.From = from
 	ec.Thru = thru
 	ec.SignatureInfoIDs = f.SigInfoIDs
+	if f.MaxRecordsOverride > 0 {
+		ec.MaxRecordsOverride = &f.MaxRecordsOverride
+	} else {
+		ec.MaxRecordsOverride = nil
+	}
+
 	if len(ec.SignatureInfoIDs) > 10 {
 		return fmt.Errorf("too many signing keys selected, there is a limit of 10")
 	}

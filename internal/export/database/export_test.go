@@ -132,17 +132,19 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 
 	fromTime := time.Now()
 	thruTime := fromTime.Add(6 * time.Hour)
+	maxRecords := 5000
 	want := &model.ExportConfig{
-		BucketName:       "mocked",
-		FilenameRoot:     "root",
-		Period:           3 * time.Hour,
-		OutputRegion:     "i1",
-		InputRegions:     []string{"US"},
-		IncludeTravelers: true,
-		ExcludeRegions:   []string{"EU"},
-		From:             fromTime,
-		Thru:             thruTime,
-		SignatureInfoIDs: []int64{42, 84},
+		BucketName:         "mocked",
+		FilenameRoot:       "root",
+		Period:             3 * time.Hour,
+		OutputRegion:       "i1",
+		InputRegions:       []string{"US"},
+		IncludeTravelers:   true,
+		ExcludeRegions:     []string{"EU"},
+		From:               fromTime,
+		Thru:               thruTime,
+		SignatureInfoIDs:   []int64{42, 84},
+		MaxRecordsOverride: &maxRecords,
 	}
 	if err := exportDB.AddExportConfig(ctx, want); err != nil {
 		t.Fatal(err)
@@ -183,6 +185,7 @@ func TestIterateExportConfigs(t *testing.T) {
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	now := time.Now().Truncate(time.Microsecond)
+	maxRecords := 27
 	ecs := []*model.ExportConfig{
 		{
 			BucketName:   "b 1",
@@ -196,10 +199,11 @@ func TestIterateExportConfigs(t *testing.T) {
 			From:         now.Add(-time.Minute),
 		},
 		{
-			BucketName:   "b 3",
-			FilenameRoot: "done",
-			From:         now.Add(-time.Hour),
-			Thru:         now.Add(-time.Minute),
+			BucketName:         "b 3",
+			FilenameRoot:       "done",
+			From:               now.Add(-time.Hour),
+			Thru:               now.Add(-time.Minute),
+			MaxRecordsOverride: &maxRecords,
 		},
 		{
 			BucketName:   "b 4",
@@ -234,111 +238,132 @@ func TestIterateExportConfigs(t *testing.T) {
 func TestBatches(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-	testDB, _ := testDatabaseInstance.NewDatabase(t)
-
-	now := time.Now().Truncate(time.Microsecond)
-	config := &model.ExportConfig{
-		BucketName:       "mocked",
-		FilenameRoot:     "root",
-		Period:           time.Hour,
-		OutputRegion:     "R",
-		From:             now,
-		Thru:             now.Add(time.Hour),
-		SignatureInfoIDs: []int64{1, 2, 3, 4},
-		IncludeTravelers: true,
-	}
-	if err := New(testDB).AddExportConfig(ctx, config); err != nil {
-		t.Fatal(err)
-	}
-	var batches []*model.ExportBatch
-	var wantLatest time.Time
-	for i := 0; i < 4; i++ {
-		start := now.Add(time.Duration(i) * time.Minute)
-		end := start.Add(time.Minute)
-		wantLatest = end
-		batches = append(batches, &model.ExportBatch{
-			ConfigID:         config.ConfigID,
-			BucketName:       config.BucketName,
-			FilenameRoot:     config.FilenameRoot,
-			OutputRegion:     config.OutputRegion,
-			Status:           model.ExportBatchOpen,
-			StartTimestamp:   start,
-			EndTimestamp:     end,
-			SignatureInfoIDs: []int64{1, 2, 3, 4},
-			IncludeTravelers: true,
-		})
-	}
-	if err := New(testDB).AddExportBatches(ctx, batches); err != nil {
-		t.Fatal(err)
+	maxRecords := 42
+	cases := []struct {
+		name       string
+		maxRecords *int
+	}{
+		{
+			name:       "default_max_records",
+			maxRecords: nil,
+		},
+		{
+			name:       "max_records_override",
+			maxRecords: &maxRecords,
+		},
 	}
 
-	gotLatest, err := New(testDB).LatestExportBatchEnd(ctx, config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !gotLatest.Equal(wantLatest) {
-		t.Errorf("LatestExportBatchEnd: got %s, want %s", gotLatest, wantLatest)
-	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			testDB, _ := testDatabaseInstance.NewDatabase(t)
 
-	leaseBatches := func() int64 {
-		t.Helper()
-		var batchID int64
-		// Lease all the batches.
-		for range batches {
-			got, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
+			now := time.Now().Truncate(time.Microsecond)
+			config := &model.ExportConfig{
+				BucketName:         "mocked",
+				FilenameRoot:       "root",
+				Period:             time.Hour,
+				OutputRegion:       "R",
+				From:               now,
+				Thru:               now.Add(time.Hour),
+				SignatureInfoIDs:   []int64{1, 2, 3, 4},
+				IncludeTravelers:   true,
+				MaxRecordsOverride: tc.maxRecords,
+			}
+			if err := New(testDB).AddExportConfig(ctx, config); err != nil {
+				t.Fatal(err)
+			}
+			var batches []*model.ExportBatch
+			var wantLatest time.Time
+			for i := 0; i < 4; i++ {
+				start := now.Add(time.Duration(i) * time.Minute)
+				end := start.Add(time.Minute)
+				wantLatest = end
+				batches = append(batches, &model.ExportBatch{
+					ConfigID:           config.ConfigID,
+					BucketName:         config.BucketName,
+					FilenameRoot:       config.FilenameRoot,
+					OutputRegion:       config.OutputRegion,
+					Status:             model.ExportBatchOpen,
+					StartTimestamp:     start,
+					EndTimestamp:       end,
+					SignatureInfoIDs:   []int64{1, 2, 3, 4},
+					IncludeTravelers:   true,
+					MaxRecordsOverride: tc.maxRecords,
+				})
+			}
+			if err := New(testDB).AddExportBatches(ctx, batches); err != nil {
+				t.Fatal(err)
+			}
+
+			gotLatest, err := New(testDB).LatestExportBatchEnd(ctx, config)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got == nil {
-				t.Fatal("could not lease a batch")
+			if !gotLatest.Equal(wantLatest) {
+				t.Errorf("LatestExportBatchEnd: got %s, want %s", gotLatest, wantLatest)
 			}
-			if got.ConfigID != config.ConfigID || got.FilenameRoot != config.FilenameRoot ||
-				got.OutputRegion != config.OutputRegion || got.BucketName != config.BucketName {
-				t.Errorf("LeaseBatch: got (%d, %q, %q, %q), want (%d, %q, %q, %q)",
-					got.ConfigID, got.BucketName, got.FilenameRoot, got.OutputRegion,
-					config.ConfigID, config.BucketName, config.FilenameRoot, config.OutputRegion)
-			}
-			if got.Status != model.ExportBatchPending {
-				t.Errorf("LeaseBatch: got status %q, want pending", got.Status)
-			}
-			wantExpires := now.Add(time.Hour)
-			if got.LeaseExpires.Before(wantExpires) || got.LeaseExpires.After(wantExpires.Add(time.Minute)) {
-				t.Errorf("LeaseBatch: expires at %s, wanted a time close to %s", got.LeaseExpires, wantExpires)
-			}
-			batchID = got.BatchID
-		}
-		// Every batch is leased.
-		got, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
-		if got != nil || err != nil {
-			t.Errorf("all leased: got (%v, %v), want (nil, nil)", got, err)
-		}
-		return batchID
-	}
-	// Now, all end times are in the future, so no batches can be leased.
-	got, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
-	if got != nil || err != nil {
-		t.Errorf("got (%v, %v), want (nil, nil)", got, err)
-	}
 
-	// One hour later, all batches' end times are in the past, so they can be leased.
-	now = now.Add(time.Hour)
-	leaseBatches()
-	// Two hours later all the batches have expired, so we can lease them again.
-	now = now.Add(2 * time.Hour)
-	batchID := leaseBatches()
+			leaseBatches := func() int64 {
+				t.Helper()
+				var batchID int64
+				// Lease all the batches.
+				for range batches {
+					got, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if got == nil {
+						t.Fatal("could not lease a batch")
+					}
+					if got.ConfigID != config.ConfigID || got.FilenameRoot != config.FilenameRoot ||
+						got.OutputRegion != config.OutputRegion || got.BucketName != config.BucketName {
+						t.Errorf("LeaseBatch: got (%d, %q, %q, %q), want (%d, %q, %q, %q)",
+							got.ConfigID, got.BucketName, got.FilenameRoot, got.OutputRegion,
+							config.ConfigID, config.BucketName, config.FilenameRoot, config.OutputRegion)
+					}
+					if got.Status != model.ExportBatchPending {
+						t.Errorf("LeaseBatch: got status %q, want pending", got.Status)
+					}
+					wantExpires := now.Add(time.Hour)
+					if got.LeaseExpires.Before(wantExpires) || got.LeaseExpires.After(wantExpires.Add(time.Minute)) {
+						t.Errorf("LeaseBatch: expires at %s, wanted a time close to %s", got.LeaseExpires, wantExpires)
+					}
+					batchID = got.BatchID
+				}
+				// Every batch is leased.
+				got, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
+				if got != nil || err != nil {
+					t.Errorf("all leased: got (%v, %v), want (nil, nil)", got, err)
+				}
+				return batchID
+			}
+			// Now, all end times are in the future, so no batches can be leased.
+			got, err := New(testDB).LeaseBatch(ctx, time.Hour, now)
+			if got != nil || err != nil {
+				t.Errorf("got (%v, %v), want (nil, nil)", got, err)
+			}
 
-	// Complete a batch.
-	err = testDB.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error { return completeBatch(ctx, tx, batchID) })
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err = New(testDB).LookupExportBatch(ctx, batchID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Status != model.ExportBatchComplete {
-		t.Errorf("after completion: got status %q, want complete", got.Status)
+			// One hour later, all batches' end times are in the past, so they can be leased.
+			now = now.Add(time.Hour)
+			leaseBatches()
+			// Two hours later all the batches have expired, so we can lease them again.
+			now = now.Add(2 * time.Hour)
+			batchID := leaseBatches()
+
+			// Complete a batch.
+			err = testDB.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error { return completeBatch(ctx, tx, batchID) })
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err = New(testDB).LookupExportBatch(ctx, batchID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Status != model.ExportBatchComplete {
+				t.Errorf("after completion: got status %q, want complete", got.Status)
+			}
+		})
 	}
 }
 

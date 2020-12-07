@@ -101,6 +101,15 @@
       </div>
 
       <div class="form-label-group">
+        <input type="text" name="MaxRecordsOverride" id="max-records-override" value="{{.export.MaxRecordsOverride | deref}}"
+          placeholder="" class="form-control">
+        <label for="max-records-override">Max records per export file (override)</label>
+        <small class="form-text text-muted">
+          If set to a value > 0, override the system settings for this export only.
+        </small>
+      </div>
+
+      <div class="form-label-group">
         <input type="text" name="Period" id="period" value="{{.export.Period}}"
           placeholder="Export period" class="form-control">
         <label for="period">Export period</label>
