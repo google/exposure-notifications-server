@@ -265,7 +265,7 @@ func TestBatchExposures(t *testing.T) {
 					OnlyLocalProvenance: true,
 				}
 
-				groups, err := server.batchExposures(ctx, criteria, "US")
+				groups, err := server.batchExposures(ctx, criteria, config.MaxRecords, "US")
 				if err != nil {
 					t.Fatalf("failed to read exposures: %v", err)
 				}
@@ -296,7 +296,7 @@ func TestBatchExposures(t *testing.T) {
 					OnlyLocalProvenance: false,
 				}
 
-				groups, err := server.batchExposures(ctx, criteria, "REMOTE")
+				groups, err := server.batchExposures(ctx, criteria, config.MaxRecords, "REMOTE")
 				if err != nil {
 					t.Fatalf("failed to read exposures: %v", err)
 				}
@@ -324,7 +324,7 @@ func TestBatchExposures(t *testing.T) {
 					IncludeTravelers:    true,
 					OnlyLocalProvenance: true,
 				}
-				groups, err := server.batchExposures(ctx, criteria, "US")
+				groups, err := server.batchExposures(ctx, criteria, config.MaxRecords, "US")
 				if err != nil {
 					t.Fatalf("failed to read exposures: %v", err)
 				}
@@ -357,7 +357,7 @@ func TestBatchExposures(t *testing.T) {
 					OnlyNonTravelers:    true,
 					OnlyLocalProvenance: false,
 				}
-				groups, err := server.batchExposures(ctx, criteria, "REMOTE")
+				groups, err := server.batchExposures(ctx, criteria, config.MaxRecords, "REMOTE")
 				if err != nil {
 					t.Fatalf("failed to read exposures: %v", err)
 				}
@@ -439,7 +439,7 @@ func TestVariableBatchMaxSize(t *testing.T) {
 			OnlyLocalProvenance: true,
 		}
 
-		groups, err := server.batchExposures(ctx, criteria, "REMOTE")
+		groups, err := server.batchExposures(ctx, criteria, batchSize, "REMOTE")
 		if err != nil {
 			t.Fatalf("failed to read exposures: %v", err)
 		}

@@ -54,3 +54,19 @@ func TestExportRegions(t *testing.T) {
 		})
 	}
 }
+
+func TestEffectiveMaxRecords(t *testing.T) {
+	eb := &ExportBatch{
+		MaxRecordsOverride: nil,
+	}
+
+	want := 57
+	if got := eb.EffectiveMaxRecords(want); want != got {
+		t.Fatalf("mismatch want: %v got: %v", want, got)
+	}
+
+	eb.MaxRecordsOverride = &want
+	if got := eb.EffectiveMaxRecords(450293); want != got {
+		t.Fatalf("mismatch want: %v got: %v", want, got)
+	}
+}

@@ -36,18 +36,19 @@ const (
 // ExportConfig describes what goes into an export, and how frequently.
 // These are used to periodically generate an ExportBatch.
 type ExportConfig struct {
-	ConfigID         int64
-	BucketName       string
-	FilenameRoot     string
-	Period           time.Duration
-	OutputRegion     string
-	InputRegions     []string
-	ExcludeRegions   []string
-	IncludeTravelers bool
-	OnlyNonTravelers bool
-	From             time.Time
-	Thru             time.Time
-	SignatureInfoIDs []int64
+	ConfigID           int64
+	BucketName         string
+	FilenameRoot       string
+	Period             time.Duration
+	OutputRegion       string
+	InputRegions       []string
+	ExcludeRegions     []string
+	IncludeTravelers   bool
+	OnlyNonTravelers   bool
+	From               time.Time
+	Thru               time.Time
+	SignatureInfoIDs   []int64
+	MaxRecordsOverride *int
 }
 
 // EffectiveInputRegions either returns `InputRegions` or if that array is
@@ -79,20 +80,32 @@ func (ec *ExportConfig) Validate() error {
 
 // ExportBatch holds what was used to generate an export.
 type ExportBatch struct {
-	BatchID          int64
-	ConfigID         int64
-	BucketName       string
-	FilenameRoot     string
-	StartTimestamp   time.Time
-	EndTimestamp     time.Time
-	OutputRegion     string
-	InputRegions     []string
-	IncludeTravelers bool
-	OnlyNonTravelers bool
-	ExcludeRegions   []string
-	Status           string
-	LeaseExpires     time.Time
-	SignatureInfoIDs []int64
+	BatchID            int64
+	ConfigID           int64
+	BucketName         string
+	FilenameRoot       string
+	StartTimestamp     time.Time
+	EndTimestamp       time.Time
+	OutputRegion       string
+	InputRegions       []string
+	IncludeTravelers   bool
+	OnlyNonTravelers   bool
+	ExcludeRegions     []string
+	Status             string
+	LeaseExpires       time.Time
+	SignatureInfoIDs   []int64
+	MaxRecordsOverride *int
+}
+
+// EffectiveMaxRecords returns either the provided value or the override
+// present in this config.
+func (eb *ExportBatch) EffectiveMaxRecords(systemDefault int) int {
+	// If the value is null in the database or > 0. Prevent accidental setting to 0 to
+	// think it indicates default.
+	if eb.MaxRecordsOverride != nil && *eb.MaxRecordsOverride > 0 {
+		return *eb.MaxRecordsOverride
+	}
+	return systemDefault
 }
 
 // EffectiveInputRegions either returns `InputRegions` or if that array is

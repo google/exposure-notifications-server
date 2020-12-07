@@ -139,7 +139,7 @@ func (g *group) Length() int {
 	return len(g.exposures) + len(g.revised)
 }
 
-func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.IterateExposuresCriteria, outputRegion string) ([]*group, error) {
+func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.IterateExposuresCriteria, maxRecords int, outputRegion string) ([]*group, error) {
 	logger := logging.FromContext(ctx)
 	db := s.env.Database()
 
@@ -204,14 +204,14 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 	nextGroup := &group{}
 	for _, exp := range primaryKeys {
 		nextGroup.exposures = append(nextGroup.exposures, exp)
-		if nextGroup.Length() >= s.config.MaxRecords {
+		if nextGroup.Length() >= maxRecords {
 			groups = append(groups, nextGroup)
 			nextGroup = &group{}
 		}
 	}
 	for _, exp := range revisedKeys {
 		nextGroup.revised = append(nextGroup.revised, exp)
-		if nextGroup.Length() >= s.config.MaxRecords {
+		if nextGroup.Length() >= maxRecords {
 			groups = append(groups, nextGroup)
 			nextGroup = &group{}
 		}
@@ -267,7 +267,12 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	logger := logging.FromContext(ctx)
 	db := s.env.Database()
 
-	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d", eb.BatchID, eb.FilenameRoot, eb.OutputRegion, s.config.MaxRecords)
+	maxRecords := eb.EffectiveMaxRecords(s.config.MaxRecords)
+	if maxRecords != s.config.MaxRecords {
+		logger.Debugw("max records is being overridden", "batchID", eb.BatchID)
+	}
+
+	logger.Infof("Processing export batch %d (root: %q, region: %s), max records per file %d", eb.BatchID, eb.FilenameRoot, eb.OutputRegion, maxRecords)
 
 	// Criteria starts w/ non-revised keys.
 	// Will be changed later to grab the revised keys.
@@ -282,7 +287,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		OnlyRevisedKeys:     false,
 	}
 
-	groups, err := s.batchExposures(ctx, criteria, eb.OutputRegion)
+	groups, err := s.batchExposures(ctx, criteria, maxRecords, eb.OutputRegion)
 	if err != nil {
 		return fmt.Errorf("reading exposures for batch: %w", err)
 	}
