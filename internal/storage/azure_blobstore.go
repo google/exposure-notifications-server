@@ -25,6 +25,7 @@ import (
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/Azure/go-autorest/autorest/adal"
+	"github.com/google/exposure-notifications-server/pkg/signal"
 	"github.com/prometheus/common/log"
 )
 
@@ -60,7 +61,20 @@ func newMSITokenCredential(blobstoreURL string) (azblob.Credential, error) {
 		err := spt.Refresh()
 		if err != nil {
 			log.Errorf("failed to refresh access token: %v", err)
-			return 0
+
+			token := spt.Token()
+			if token.Expires().After(time.Now().UTC()) {
+				log.Errorf("access token expired - shutting down server")
+				if err := signal.SendInterrupt(); err != nil {
+					// extreme measures.
+					log.Fatalf("unable to shot down server safely: %v", err)
+				}
+			}
+
+			// Retry again in 15 seconds.
+			// Max of ~8 retries since refresh is normally scheduled for 2 minutes
+			// prior to expiration.
+			return 15 * time.Second
 		}
 
 		token := spt.Token()
