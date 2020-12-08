@@ -21,17 +21,17 @@ import (
 )
 
 type formData struct {
-	IndexFile  string `form:"index_file"`
-	ExportRoot string `form:"export_root"`
+	IndexFile  string `form:"index-file"`
+	ExportRoot string `form:"export-root"`
 	Region     string `form:"region"`
 
 	// FromDate and FromTime are combined into FromTimestamp.
-	FromDate string `form:"from_date"`
-	FromTime string `form:"from_time"`
+	FromDate string `form:"from-date"`
+	FromTime string `form:"from-time"`
 
 	// ThruDate and ThruTime are combined into ThruTimestamp.
-	ThruDate string `form:"thru_date"`
-	ThruTime string `form:"thru_time"`
+	ThruDate string `form:"thru-date"`
+	ThruTime string `form:"thru-time"`
 }
 
 // BuildExportImporterModel populates and mutates the given model with form

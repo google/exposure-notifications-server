@@ -20,13 +20,13 @@ import (
 )
 
 type formData struct {
-	Action string `form:"Action" binding:"required"`
+	Action string `form:"action" binding:"required"`
 
-	IndexFile          string `form:"IndexFile" binding:"required"`
-	ExportRoot         string `form:"ExportRoot"`
-	CloudStorageBucket string `form:"CloudStorageBucket" binding:"required"`
-	FilenameRoot       string `form:"FilenameRoot"`
-	FilenameRewrite    string `form:"FilenameRewrite"`
+	IndexFile          string `form:"index-file" binding:"required"`
+	ExportRoot         string `form:"export-root"`
+	CloudStorageBucket string `form:"cloud-storage-bucket" binding:"required"`
+	FilenameRoot       string `form:"filename-root"`
+	FilenameRewrite    string `form:"filename-rewrite"`
 }
 
 func (f *formData) PopulateMirror(m *mirrormodel.Mirror) error {

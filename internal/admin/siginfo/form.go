@@ -24,11 +24,11 @@ import (
 )
 
 type formData struct {
-	SigningKey        string `form:"SigningKey"`
-	EndDate           string `form:"enddate"`
-	EndTime           string `form:"endtime"`
-	SigningKeyID      string `form:"SigningKeyID"`
-	SigningKeyVersion string `form:"SigningKeyVersion"`
+	SigningKey        string `form:"signing-key"`
+	EndDate           string `form:"end-date"`
+	EndTime           string `form:"end-time"`
+	SigningKeyID      string `form:"signing-key-id"`
+	SigningKeyVersion string `form:"signing-key-version"`
 }
 
 func (f *formData) EndTimestamp() (time.Time, error) {
