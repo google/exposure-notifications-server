@@ -71,8 +71,10 @@ func newMSITokenCredential(blobstoreURL string) (azblob.Credential, error) {
 				}
 			}
 
-			// Retry again in 1 minute.
-			return time.Minute
+			// Retry again in 15 seconds.
+			// Max of ~8 retries since refresh is normally scheduled for 2 minutes
+			// prior to expiration.
+			return 15 * time.Second
 		}
 
 		token := spt.Token()
