@@ -229,7 +229,7 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 		// will give away the generated data.
 		lastGroup := groups[len(groups)-1]
 		var generated []*publishmodel.Exposure
-		lastGroup.exposures, generated, err = ensureMinNumExposures(lastGroup.exposures, outputRegion, s.config.MinRecords, s.config.PaddingRange, maxCreatedAt)
+		lastGroup.exposures, generated, err = ensureMinNumExposures(lastGroup.exposures, outputRegion, s.config.MinRecords, s.config.PaddingRange, maxRecords, maxCreatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("ensureMinNumExposures: %w", err)
 		}
@@ -496,7 +496,7 @@ func randomInt(min, max int) (int, error) {
 	return int(n.Int64()) + min, nil
 }
 
-func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, minLength, jitter int, createdAt time.Time) ([]*publishmodel.Exposure, []*publishmodel.Exposure, error) {
+func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, minLength, jitter, maxLength int, createdAt time.Time) ([]*publishmodel.Exposure, []*publishmodel.Exposure, error) {
 	extra, _ := randomInt(0, jitter)
 	target := minLength + extra
 
@@ -504,42 +504,43 @@ func ensureMinNumExposures(exposures []*publishmodel.Exposure, region string, mi
 		return exposures, make([]*publishmodel.Exposure, 0), nil
 	}
 
-	sourceLen := len(exposures) - 1
+	sourceLen := len(exposures)
 	generated := make([]*publishmodel.Exposure, 0, target-len(exposures))
 
 	for len(exposures) < target {
-		// Pieces needed are
-		// (1) exposure key, (2) interval number, (3) transmission risk
-		// Exposure key is 16 random bytes.
-		eKey := make([]byte, verifyapi.KeyLength)
-		_, err := rand.Read(eKey)
-		if err != nil {
-			return nil, nil, fmt.Errorf("rand.Read: %w", err)
-		}
+		// loop through the source data
+		for fromIdx := 0; fromIdx < sourceLen; fromIdx++ {
+			// Pieces needed are
+			// (1) exposure key, (2) interval number, (3) transmission risk
+			// Exposure key is 16 random bytes.
+			eKey := make([]byte, verifyapi.KeyLength)
+			_, err := rand.Read(eKey)
+			if err != nil {
+				return nil, nil, fmt.Errorf("rand.Read: %w", err)
+			}
 
-		// Copy timing and report data from a key.
-		fromIdx, err := randomInt(0, sourceLen)
-		if err != nil {
-			return nil, nil, fmt.Errorf("randomInt: %w", err)
-		}
+			ek := &publishmodel.Exposure{
+				ExposureKey:           eKey,
+				TransmissionRisk:      exposures[fromIdx].TransmissionRisk,
+				AppPackageName:        exportAppPackageName,
+				Regions:               exposures[fromIdx].Regions,
+				Traveler:              exposures[fromIdx].Traveler,
+				IntervalNumber:        exposures[fromIdx].IntervalNumber,
+				IntervalCount:         exposures[fromIdx].IntervalCount,
+				CreatedAt:             createdAt,
+				LocalProvenance:       true,
+				ReportType:            exposures[fromIdx].ReportType,
+				DaysSinceSymptomOnset: exposures[fromIdx].DaysSinceSymptomOnset,
+				// key revision fields are not used here - generated data only covers primary keys.
+				// The rest of the publishmodel.Exposure fields are not used in the export file.
+			}
+			generated = append(generated, ek)
+			exposures = append(exposures, ek)
 
-		ek := &publishmodel.Exposure{
-			ExposureKey:           eKey,
-			TransmissionRisk:      exposures[fromIdx].TransmissionRisk,
-			AppPackageName:        exportAppPackageName,
-			Regions:               exposures[fromIdx].Regions,
-			Traveler:              exposures[fromIdx].Traveler,
-			IntervalNumber:        exposures[fromIdx].IntervalNumber,
-			IntervalCount:         exposures[fromIdx].IntervalCount,
-			CreatedAt:             createdAt,
-			LocalProvenance:       true,
-			ReportType:            exposures[fromIdx].ReportType,
-			DaysSinceSymptomOnset: exposures[fromIdx].DaysSinceSymptomOnset,
-			// key revision fields are not used here - generated data only covers primary keys.
-			// The rest of the publishmodel.Exposure fields are not used in the export file.
+			if len(exposures) >= maxLength {
+				return exposures, generated, nil
+			}
 		}
-		generated = append(generated, ek)
-		exposures = append(exposures, ek)
 	}
 
 	return exposures, generated, nil

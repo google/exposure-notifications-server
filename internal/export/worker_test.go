@@ -58,7 +58,7 @@ func TestDoNotPadZeroLength(t *testing.T) {
 	t.Parallel()
 
 	exposures := make([]*publishmodel.Exposure, 0)
-	exposures, generated, err := ensureMinNumExposures(exposures, "US", 1000, 100, time.Now())
+	exposures, generated, err := ensureMinNumExposures(exposures, "US", 1000, 100, 2000, time.Now())
 	if err != nil {
 		t.Fatalf("unepected error: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestEnsureMinExposures(t *testing.T) {
 
 	// pad the download.
 	inputSize := len(exposures)
-	exposures, generated, err := ensureMinNumExposures(exposures, "US", numKeys, variance, time.Now())
+	exposures, generated, err := ensureMinNumExposures(exposures, "US", numKeys, variance, numKeys*10, time.Now())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestEnsureMinExposures(t *testing.T) {
 	}
 	for k, v := range m {
 		if v < 20 {
-			t.Errorf("distribution not random, expected >= 30 keys with start interval %v, got %v", k, v)
+			t.Errorf("distribution not random, expected >= 20 keys with start interval %v, got %v", k, v)
 		}
 	}
 }
