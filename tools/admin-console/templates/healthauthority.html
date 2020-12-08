@@ -22,7 +22,7 @@
 
     <form method="POST" action="/healthauthority/{{.ha.ID}}" class="floating-form">
       <div class="form-label-group">
-        <input type="text" name="Name" id="name" value="{{.ha.Name}}"
+        <input type="text" name="name" id="name" value="{{.ha.Name}}"
           placeholder="name" class="form-control">
         <label for="name">Name</label>
         <small class="form-text text-muted">
@@ -32,7 +32,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="Issuer" id="issuer" value="{{.ha.Issuer}}"
+        <input type="text" name="issuer" id="issuer" value="{{.ha.Issuer}}"
           placeholder="Issuer (iss)" class="form-control">
         <label for="issuer">Issuer (iss)</label>
         <small class="form-text text-muted">
@@ -44,7 +44,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="Audience" id="audience" value="{{.ha.Audience}}"
+        <input type="text" name="audience" id="audience" value="{{.ha.Audience}}"
           placeholder="Audience (aud)" class="form-control">
         <label for="audience">Audience (aud)</label>
         <small class="form-text text-muted">
@@ -56,7 +56,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="JwksURI" id="jwks-uri" value="{{deref .ha.JwksURI}}"
+        <input type="text" name="jwks-uri" id="jwks-uri" value="{{deref .ha.JwksURI}}"
           placeholder="JWKS URI" class="form-control">
         <label for="jwks-uri">JWKS URI</label>
         <small class="form-text text-muted">
@@ -133,7 +133,7 @@
   <div class="card-body">
     <form method="POST" action="/healthauthoritykey/{{.ha.ID}}/create/new" class="floating-form">
       <div class="form-label-group">
-        <input type="text" name="Version" id="version" value="{{.hak.Version}}"
+        <input type="text" name="version" id="version" value="{{.hak.Version}}"
           placeholder="Version" class="form-control">
         <label for="version">Version</label>
         <small class="form-text text-muted">
@@ -156,11 +156,11 @@
         <label for="enddate">Start Date/Time</label>
         <div class="form-row">
           <div class="col-md-6">
-            <input type="date" name="FromDate" id="from-date" value="{{.hak.From | htmlDate}}"
+            <input type="date" name="from-date" id="from-date" value="{{.hak.From | htmlDate}}"
               min="2020-05-01" max="2029-12-21" class="form-control" />
           </div>
           <div class="col-md-6 input-group">
-            <input type="time" name="FromTime" id="from-time" value="{{.hak.From | htmlTime}}"
+            <input type="time" name="from-time" id="from-time" value="{{.hak.From | htmlTime}}"
               class="form-control" />
             <div class="input-group-append">
               <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
@@ -176,11 +176,11 @@
         <label for="enddate">End Date/Time</label>
         <div class="form-row">
           <div class="col-md-6">
-            <input type="date" name="ThruDate" id="thru-date" value="{{.hak.Thru | htmlDate}}"
+            <input type="date" name="thru-date" id="thru-date" value="{{.hak.Thru | htmlDate}}"
               min="2020-05-01" max="2029-12-21" class="form-control" />
           </div>
           <div class="col-md-6 input-group">
-            <input type="time" name="ThruTime" id="thru-time" value="{{.hak.Thru | htmlTime}}"
+            <input type="time" name="thru-time" id="thru-time" value="{{.hak.Thru | htmlTime}}"
               class="form-control" />
             <div class="input-group-append">
               <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>

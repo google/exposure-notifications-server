@@ -11,10 +11,10 @@
   </div>
   <div class="card-body">
     <form method="POST" action="/app" class="floating-form">
-      <input type="hidden" name="Key" value="{{.previousKey}}" />
+      <input type="hidden" name="key" value="{{.previousKey}}" />
 
       <div class="form-label-group">
-        <input type="text" name="AppPackageName" id="app-package-name" value="{{.app.AppPackageName}}" class="form-control" placeholder="Health Authority ID">
+        <input type="text" name="app-package-name" id="app-package-name" value="{{.app.AppPackageName}}" class="form-control" placeholder="Health Authority ID">
         <label for="app-package-name">Health Authority ID</label>
         <small class="form-text text-muted">
           This exact string must be passed by clients. Reverse DNS is recommended,
@@ -23,7 +23,7 @@
       </div>
 
       <div class="form-label-group">
-        <textarea name="Regions" id="regions" rows="3" class="form-control" placeholder="Regions">{{.app.RegionsOnePerLine}}</textarea>
+        <textarea name="regions" id="regions" rows="3" class="form-control" placeholder="Regions">{{.app.RegionsOnePerLine}}</textarea>
         <label for="regions">Regions</label>
         <small class="form-text text-muted">
           One per line. TEKs uploaded by this health authority will be present in
@@ -35,7 +35,7 @@
 
       <div class="form-group">
         <label for="bypass-revision-token">Disable Revision Token Enforcement</label>
-        <select name="BypassRevisionToken" id="bypass-revision-token" class="form-control custom-select">
+        <select name="bypass-revision-token" id="bypass-revision-token" class="form-control custom-select">
           <option value="false" {{if not .app.BypassRevisionToken}}selected{{end}}>false</option>
           <option value="true" {{if .app.BypassRevisionToken}}selected{{end}}>true</option>
         </select>
@@ -47,7 +47,7 @@
 
       <div class="form-group">
         <label for="bypass-health-authority-verification">Disable Health Authority Verification</label>
-        <select name="BypassHealthAuthorityVerification" id="bypass-health-authority-verification" class="form-control custom-select">
+        <select name="bypass-health-authority-verification" id="bypass-health-authority-verification" class="form-control custom-select">
           <option value="false" {{if not .app.BypassHealthAuthorityVerification}}selected{{end}}>false</option>
           <option value="true" {{if .app.BypassHealthAuthorityVerification}}selected{{end}}>true</option>
         </select>
@@ -65,7 +65,7 @@
             {{range .has}}
               <li class="list-group-item list-group-item-action">
                 <div class="custom-control custom-checkbox">
-                  <input type="checkbox" name="Healthauthorities" value="{{.ID}}" id="ha{{.ID}}"
+                  <input type="checkbox" name="health-authorities" value="{{.ID}}" id="ha{{.ID}}"
                     class="custom-control-input" {{if index $.usedHealthAuthorities .ID}}checked{{end}}>
                   <label for="ha{{.ID}}" class="custom-control-label d-block user-select-none">
                     {{.Name}} (<span class="text-monospace">id: {{.ID}}, iss: {{.Issuer}}, aud: {{.Audience}}</span>)
@@ -81,10 +81,10 @@
         </div>
       {{end}}
 
-      <button type="submit" class="mt-5 btn btn-primary btn-block" name="Action" value="save">Save changes</button>
+      <button type="submit" class="mt-5 btn btn-primary btn-block" name="action" value="save">Save changes</button>
 
       {{if not .new}}
-      <button type="submit" name="Action" value="delete" class="mt-3 btn btn-link btn-sm px-0 text-danger">
+      <button type="submit" name="action" value="delete" class="mt-3 btn btn-link btn-sm px-0 text-danger">
         <span class="oi oi-trash" aria-hidden="true"></span> Delete
       </button>
       {{end}}

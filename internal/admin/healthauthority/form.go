@@ -24,10 +24,10 @@ import (
 )
 
 type formData struct {
-	Issuer   string `form:"Issuer"`
-	Audience string `form:"Audience"`
-	Name     string `form:"Name"`
-	JwksURI  string `form:"JwksURI"`
+	Issuer   string `form:"issuer"`
+	Audience string `form:"audience"`
+	Name     string `form:"name"`
+	JwksURI  string `form:"jwks-uri"`
 }
 
 func (f *formData) PopulateHealthAuthority(ha *model.HealthAuthority) {
@@ -38,12 +38,12 @@ func (f *formData) PopulateHealthAuthority(ha *model.HealthAuthority) {
 }
 
 type keyFormData struct {
-	Version  string `form:"Version"`
-	PEMBlock string `form:"PublicKeyPEM"`
-	FromDate string `form:"FromDate"`
-	FromTime string `form:"FromTime"`
-	ThruDate string `form:"ThruDate"`
-	ThruTime string `form:"ThruTime"`
+	Version  string `form:"version"`
+	PEMBlock string `form:"public-key-pem"`
+	FromDate string `form:"from-date"`
+	FromTime string `form:"from-time"`
+	ThruDate string `form:"Thru-date"`
+	ThruTime string `form:"thru-time"`
 }
 
 func (f *keyFormData) FromTimestamp() (time.Time, error) {

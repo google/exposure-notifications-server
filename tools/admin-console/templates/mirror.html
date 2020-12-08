@@ -12,7 +12,7 @@
   <div class="card-body">
     <form method="POST" action="/mirrors/{{.mirror.ID}}" class="floating-form">
       <div class="form-label-group">
-        <input type="text" name="IndexFile" id="index-file" value="{{.mirror.IndexFile}}" class="form-control" placeholder="Index File">
+        <input type="text" name="index-file" id="index-file" value="{{.mirror.IndexFile}}" class="form-control" placeholder="Index File">
         <label for="index-file">Index File</label>
         <small class="form-text text-muted">
           Full URL of the index file from which to read. Example: <code>https://mysever/exports/index.txt</code>.
@@ -20,7 +20,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="ExportRoot" id="export-root" value="{{.mirror.ExportRoot}}" class="form-control" placeholder="Export Root">
+        <input type="text" name="export-root" id="export-root" value="{{.mirror.ExportRoot}}" class="form-control" placeholder="Export Root">
         <label for="export-root">Export Root</label>
         <small class="form-text text-muted">
           Full URL to the export root. Example: <code>https://myserver/</code>.
@@ -28,7 +28,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="CloudStorageBucket" id="cloud-storage-bucket" value="{{.mirror.CloudStorageBucket}}" class="form-control" placeholder="Cloud Storage Bucket">
+        <input type="text" name="cloud-storage-bucket" id="cloud-storage-bucket" value="{{.mirror.CloudStorageBucket}}" class="form-control" placeholder="Cloud Storage Bucket">
         <label for="cloud-storage-bucket">Cloud Storage Bucket</label>
         <small class="form-text text-muted">
           Name of the destination storage bucket. Example: <code>my-bucket</code>.
@@ -36,7 +36,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="FilenameRoot" id="filename-root" value="{{.mirror.FilenameRoot}}" class="form-control" placeholder="Filename Root">
+        <input type="text" name="filename-root" id="filename-root" value="{{.mirror.FilenameRoot}}" class="form-control" placeholder="Filename Root">
         <label for="filename-root">Filename Root</label>
         <small class="form-text text-muted">
           Root where the new file should be written. Example: <code>/path/to/new</code>
@@ -44,17 +44,17 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="FilenameRewrite" id="filename-rewrite" value="{{.mirror.FilenameRewrite | deref}}" class="form-control" placeholder="Filename Rewrite">
+        <input type="text" name="filename-rewrite" id="filename-rewrite" value="{{.mirror.FilenameRewrite | deref}}" class="form-control" placeholder="Filename Rewrite">
         <label for="filename-rewrite">Filename Rewrite</label>
         <small class="form-text text-muted">
           Optional regular expression for rewriting imports.
         </small>
       </div>
 
-      <button type="submit" class="mt-5 btn btn-primary btn-block" name="Action" value="save">Save changes</button>
+      <button type="submit" class="mt-5 btn btn-primary btn-block" name="action" value="save">Save changes</button>
 
       {{if .mirror.ID}}
-        <button type="submit" name="Action" value="delete" class="mt-3 btn btn-link btn-sm px-0 text-danger">
+        <button type="submit" name="action" value="delete" class="mt-3 btn btn-link btn-sm px-0 text-danger">
           <span class="oi oi-trash" aria-hidden="true"></span> Delete
         </button>
       {{end}}

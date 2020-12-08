@@ -25,7 +25,7 @@
 
     <form method="POST" action="/export-importers/{{.model.ID}}" class="floating-form">
       <div class="form-label-group">
-        <input type="text" name="index_file" id="index-file" value="{{.model.IndexFile}}"
+        <input type="text" name="index-file" id="index-file" value="{{.model.IndexFile}}"
           placeholder="Index file" class="form-control">
         <label for="index-file">Index file</label>
         <small class="form-text text-muted">
@@ -35,7 +35,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="export_root" id="export-root" value="{{.model.ExportRoot}}"
+        <input type="text" name="export-root" id="export-root" value="{{.model.ExportRoot}}"
           placeholder="Export root" class="form-control">
         <label for="export-root">Export root</label>
         <small class="form-text text-muted">
@@ -58,11 +58,11 @@
         <label for="from-date">Valid from Date/Time</label>
         <div class="form-row">
           <div class="col-md-6">
-            <input type="date" name="from_date" id="from-date" value="{{.model.From | htmlDate}}"
+            <input type="date" name="from-date" id="from-date" value="{{.model.From | htmlDate}}"
               min="2020-05-01" max="2029-12-21" class="form-control" />
           </div>
           <div class="col-md-6 input-group">
-            <input type="time" name="from_time" id="from-time" value="{{.model.From | htmlTime}}"
+            <input type="time" name="from-time" id="from-time" value="{{.model.From | htmlTime}}"
               class="form-control" />
             <div class="input-group-append">
               <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
@@ -78,11 +78,11 @@
         <label for="thru-date">Valid thru Date/Time</label>
         <div class="form-row">
           <div class="col-md-6">
-            <input type="date" name="thru_date" id="thru-date" value="{{.model.Thru | htmlDate}}"
+            <input type="date" name="thru-date" id="thru-date" value="{{.model.Thru | htmlDate}}"
               min="2020-05-01" max="2029-12-21" class="form-control" />
           </div>
           <div class="col-md-6 input-group">
-            <input type="time" name="thru_time" id="thru-time" value="{{.model.Thru | htmlTime}}"
+            <input type="time" name="thru-time" id="thru-time" value="{{.model.Thru | htmlTime}}"
               class="form-control" />
             <div class="input-group-append">
               <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>

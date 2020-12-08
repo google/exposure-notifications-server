@@ -24,15 +24,15 @@ import (
 
 type formData struct {
 	// Top Level
-	FormKey string `form:"Key"`
-	Action  string `form:"Action"`
+	FormKey string `form:"key"`
+	Action  string `form:"action"`
 
 	// Authorized App Data
-	AppPackageName                    string  `form:"AppPackageName"`
-	AllowedRegions                    string  `form:"Regions"`
-	BypassHealthAuthorityVerification bool    `form:"BypassHealthAuthorityVerification"`
-	BypassRevisionToken               bool    `form:"BypassRevisionToken"`
-	HealthAuthorityIDs                []int64 `form:"Healthauthorities"`
+	AppPackageName                    string  `form:"app-package-name"`
+	AllowedRegions                    string  `form:"regions"`
+	BypassHealthAuthorityVerification bool    `form:"bypass-health-authority-verification"`
+	BypassRevisionToken               bool    `form:"bypass-revision-token"`
+	HealthAuthorityIDs                []int64 `form:"health-authorities"`
 }
 
 func (f *formData) PriorKey() string {

@@ -29,20 +29,20 @@ import (
 var ErrCannotSetBothTravelers = errors.New("cannot have both 'include travelers', and 'only non-travelers' set")
 
 type formData struct {
-	OutputRegion       string        `form:"OutputRegion"`
-	InputRegions       string        `form:"InputRegions"`
-	IncludeTravelers   bool          `form:"IncludeTravelers"`
-	OnlyNonTravelers   bool          `form:"OnlyNonTravelers"`
-	ExcludeRegions     string        `form:"ExcludeRegions"`
-	BucketName         string        `form:"BucketName"`
-	FilenameRoot       string        `form:"FilenameRoot"`
-	Period             time.Duration `form:"Period"`
-	FromDate           string        `form:"fromdate"`
-	FromTime           string        `form:"fromtime"`
-	ThruDate           string        `form:"thrudate"`
-	ThruTime           string        `form:"thrutime"`
-	SigInfoIDs         []int64       `form:"siginfo"`
-	MaxRecordsOverride int           `form:"MaxRecordsOverride"`
+	OutputRegion       string        `form:"output-region"`
+	InputRegions       string        `form:"input-regions"`
+	IncludeTravelers   bool          `form:"include-travelers"`
+	OnlyNonTravelers   bool          `form:"only-non-travelers"`
+	ExcludeRegions     string        `form:"exclude-regions"`
+	BucketName         string        `form:"bucket-name"`
+	FilenameRoot       string        `form:"filename-root"`
+	Period             time.Duration `form:"period"`
+	FromDate           string        `form:"from-date"`
+	FromTime           string        `form:"from-time"`
+	ThruDate           string        `form:"thru-date"`
+	ThruTime           string        `form:"thru-time"`
+	SigInfoIDs         []int64       `form:"sig-info"`
+	MaxRecordsOverride int           `form:"max-records-override"`
 }
 
 // splitRegions turns a string of regions (generally separated by newlines), and

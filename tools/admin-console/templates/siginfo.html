@@ -32,7 +32,7 @@
 
     <form method="POST" action="/siginfo/{{.siginfo.ID}}" class="floating-form">
       <div class="form-label-group">
-        <input type="text" name="SigningKey" id="signing-key" value="{{.siginfo.SigningKey}}"
+        <input type="text" name="signing-key" id="signing-key" value="{{.siginfo.SigningKey}}"
           placeholder="signing-key" class="form-control">
         <label for="signing-key">Signing key</label>
         <small class="form-text text-muted">
@@ -45,11 +45,11 @@
         <label for="enddate">Use until</label>
         <div class="form-row">
           <div class="col-md-6">
-            <input type="date" id="enddate" name="enddate" value="{{.siginfo.HTMLEndDate}}"
+            <input type="date" id="enddate" name="end-date" value="{{.siginfo.HTMLEndDate}}"
               min="2020-05-01" max="2029-12-21" class="form-control" />
           </div>
           <div class="col-md-6 input-group">
-            <input type="time" id="endtime" name="endtime" value="{{.siginfo.HTMLEndTime}}"
+            <input type="time" id="endtime" name="end-time" value="{{.siginfo.HTMLEndTime}}"
               class="form-control" />
              <div class="input-group-append">
               <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
@@ -65,7 +65,7 @@
       </div>
 
       <div class="form-label-group">
-          <input type="text" name="SigningKeyID" id="signing-key-id" value="{{.siginfo.SigningKeyID}}"
+          <input type="text" name="signing-key-id" id="signing-key-id" value="{{.siginfo.SigningKeyID}}"
             placeholder="Signing key ID" class="form-control">
           <label for="signing-key-id">Signing key ID</label>
           <small class="form-text text-muted">
@@ -77,7 +77,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="SigningKeyVersion" id="signing-key-version" value="{{.siginfo.SigningKeyVersion}}"
+        <input type="text" name="signing-key-version" id="signing-key-version" value="{{.siginfo.SigningKeyVersion}}"
           placeholder="Signing key version" class="form-control">
         <label for="signing-key-version">Signing key version</label>
         <small class="form-text text-muted">
