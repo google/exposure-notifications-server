@@ -23,7 +23,7 @@
 
     <form method="POST" action="/exports/{{.export.ConfigID}}" class="floating-form">
       <div class="form-label-group">
-        <input type="text" name="OutputRegion" id="output-region" value="{{.export.OutputRegion}}"
+        <input type="text" name="output-region" id="output-region" value="{{.export.OutputRegion}}"
           placeholder="Output region" class="form-control">
         <label for="output-region">Output region</label>
         <small class="form-text text-muted">
@@ -34,7 +34,7 @@
       </div>
 
       <div class="form-label-group">
-        <textarea name="InputRegions" id="input-regions" rows="3"
+        <textarea name="input-regions" id="input-regions" rows="3"
           placeholder="Input regions" class="form-control">{{.export.InputRegionsOnePerLine}}</textarea>
         <label for="input-regions">Input regions</label>
         <small class="form-text text-muted">
@@ -46,7 +46,7 @@
 
       <div class="form-group">
         <label for="include-travelers">Include travelers</label>
-        <select name="IncludeTravelers" id="include-travelers" class="form-control custom-select">
+        <select name="include-travelers" id="include-travelers" class="form-control custom-select">
           <option value="true" {{if .export.IncludeTravelers}}selected{{end}}>Yes</option>
           <option value="false" {{if not .export.IncludeTravelers}}selected{{end}}>No</option>
         </select>
@@ -60,7 +60,7 @@
 
       <div class="form-group">
         <label for="only-non-travelers">Only Non Travelers</label>
-        <select name="OnlyNonTravelers" id="only-non-travelers" class="form-control custom-select">
+        <select name="only-non-travelers" id="only-non-travelers" class="form-control custom-select">
           <option value="true" {{if .export.OnlyNonTravelers}}selected{{end}}>Yes</option>
           <option value="false" {{if not .export.OnlyNonTravelers}}selected{{end}}>No</option>
         </select>
@@ -72,7 +72,7 @@
       </div>
 
       <div class="form-label-group">
-        <textarea name="ExcludeRegions" id="exclude-regions" rows="3"
+        <textarea name="exclude-regions" id="exclude-regions" rows="3"
           placeholder="Exclude regions" class="form-control">{{.export.ExcludeRegionsOnePerLine}}</textarea>
         <label for="exclude-regions">Exclude regions</label>
         <small class="form-text text-muted">
@@ -82,7 +82,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="BucketName" id="bucket-name" value="{{.export.BucketName}}"
+        <input type="text" name="bucket-name" id="bucket-name" value="{{.export.BucketName}}"
           placeholder="Cloud storage bucket" class="form-control">
         <label for="bucket-name">Cloud Storage bucket</label>
         <small class="form-text text-muted">
@@ -92,7 +92,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="FilenameRoot" id="filename-root" value="{{.export.FilenameRoot}}"
+        <input type="text" name="filename-root" id="filename-root" value="{{.export.FilenameRoot}}"
           placeholder="Filename root" class="form-control">
         <label for="filename-root">Filename root</label>
         <small class="form-text text-muted">
@@ -101,7 +101,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="MaxRecordsOverride" id="max-records-override" value="{{.export.MaxRecordsOverride | deref}}"
+        <input type="text" name="max-records-override" id="max-records-override" value="{{.export.MaxRecordsOverride | deref}}"
           placeholder="" class="form-control">
         <label for="max-records-override">Max records per export file (override)</label>
         <small class="form-text text-muted">
@@ -110,7 +110,7 @@
       </div>
 
       <div class="form-label-group">
-        <input type="text" name="Period" id="period" value="{{.export.Period}}"
+        <input type="text" name="period" id="period" value="{{.export.Period}}"
           placeholder="Export period" class="form-control">
         <label for="period">Export period</label>
         <small class="form-text text-muted">
@@ -124,11 +124,11 @@
         <label for="fromdate">Valid from Date/Time</label>
         <div class="form-row">
           <div class="col-md-6">
-            <input type="date" id="fromdate" name="fromdate" value="{{.export.From | htmlDate}}"
+            <input type="date" id="fromdate" name="from-date" value="{{.export.From | htmlDate}}"
               min="2020-05-01" max="2029-12-21" class="form-control" />
           </div>
           <div class="col-md-6 input-group">
-            <input type="time" id="fromtime" name="fromtime" value="{{.export.From | htmlTime}}"
+            <input type="time" id="fromtime" name="from-time" value="{{.export.From | htmlTime}}"
               class="form-control" />
             <div class="input-group-append">
               <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
@@ -144,11 +144,11 @@
         <label for="thrudate">Valid thru Date/Time</label>
         <div class="form-row">
           <div class="col-md-6">
-            <input type="date" id="thrudate" name="thrudate" value="{{.export.Thru | htmlDate}}"
+            <input type="date" id="thrudate" name="thru-date" value="{{.export.Thru | htmlDate}}"
               min="2020-05-01" max="2029-12-21" class="form-control" />
           </div>
           <div class="col-md-6 input-group">
-            <input type="time" id="thrutime" name="thrutime" value="{{.export.Thru | htmlTime}}"
+            <input type="time" id="thrutime" name="thru-time" value="{{.export.Thru | htmlTime}}"
               class="form-control" />
             <div class="input-group-append">
               <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
@@ -179,7 +179,7 @@
             {{range .siginfos}}
               <li class="list-group-item list-group-item-action">
                 <div class="custom-control custom-checkbox">
-                  <input type="checkbox" name="siginfo" value="{{.ID}}" id="sic{{.ID}}"
+                  <input type="checkbox" name="sig-info" value="{{.ID}}" id="sic{{.ID}}"
                     class="custom-control-input" {{if index $.usedSigInfos .ID}}checked{{end}}>
                   <label class="custom-control-label d-block user-select-none" for="sic{{.ID}}">
                     ID: {{.ID}}
