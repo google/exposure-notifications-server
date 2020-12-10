@@ -13,23 +13,28 @@
 # limitations under the License.
 
 locals {
-  p50_latency_thresholds_in_seconds = {
+  p50_latency_thresholds = {
     export         = 600
     cleanup-export = 60
     generate       = 30
   }
-  p50_latency_thresholds_in_seconds_default = 10
+  p50_latency_thresholds_default = 10
 
   p50_latency_condition = join("\n|| ", concat(
     [
-      for k, v in local.p50_latency_thresholds_in_seconds :
-      "(resource.service_name == '${k}' && val > ${v * 1000} 'ms')"
+      for k, v in local.p50_latency_thresholds:
+      "(resource.service_name == '${k}' && val > ${v} 's')"
     ],
     [
-      "(val > ${local.p50_latency_thresholds_in_seconds_default * 1000} 'ms')"
+      "(val > ${local.p50_latency_thresholds_default} 's')"
     ]
   ))
 }
+
+locals {
+  playbook_prefix = "https://github.com/google/exposure-notifications-server/blob/main/docs/playbooks/alerts"
+}
+
 
 resource "google_monitoring_alert_policy" "LatencyTooHigh" {
   combiner     = "OR"
@@ -56,9 +61,7 @@ resource "google_monitoring_alert_policy" "LatencyTooHigh" {
     }
   }
   documentation {
-    content   = <<-EOT
-    Our latency is too high for one or more Cloud Run services!
-    EOT
+    content   = "${local.playbook_prefix}/LatencyTooHigh.md"
     mime_type = "text/markdown"
   }
   notification_channels = [
