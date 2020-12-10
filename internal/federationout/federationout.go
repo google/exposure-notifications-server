@@ -27,12 +27,13 @@ import (
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/federationout/database"
-	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
+	"github.com/google/exposure-notifications-server/internal/metrics/federationout"
 	"github.com/google/exposure-notifications-server/internal/pb/federation"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"go.opencensus.io/stats"
 
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"google.golang.org/api/idtoken"
@@ -78,9 +79,7 @@ func (s Server) Fetch(ctx context.Context, req *federation.FederationFetchReques
 	logger := logging.FromContext(ctx)
 	response, err := s.fetch(ctx, req, s.publishdb.IterateExposures, publishmodel.TruncateWindow(time.Now(), s.config.TruncateWindow)) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?
 	if err != nil {
-		metricsExporter := s.env.MetricsExporter(ctx)
-		metricsMiddleWare := metricsware.NewMiddleWare(&metricsExporter)
-		metricsMiddleWare.RecordFetchFailure(ctx)
+		stats.Record(ctx, federationout.FetchFailed.M(1))
 		logger.Errorf("Fetch error: %v", err)
 		return nil, errors.New("internal error")
 	}
@@ -89,8 +88,6 @@ func (s Server) Fetch(ctx context.Context, req *federation.FederationFetchReques
 
 func (s Server) fetch(ctx context.Context, req *federation.FederationFetchRequest, itFunc iterateExposuresFunc, fetchUntil time.Time) (*federation.FederationFetchResponse, error) {
 	logger := logging.FromContext(ctx)
-	metrics := s.env.MetricsExporter(ctx)
-	metricsMiddleWare := metricsware.NewMiddleWare(&metrics)
 
 	if in := intersect(req.IncludeRegions, req.ExcludeRegions); len(in) > 0 {
 		logger.Errorw("overlap in included and excluded regions", "intersection", in)
@@ -103,8 +100,8 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 	for i, exRegion := range req.ExcludeRegions {
 		req.ExcludeRegions[i] = strings.ToUpper(exRegion)
 	}
-	metricsMiddleWare.RecordFetchRegionsRequested(ctx, len(req.IncludeRegions))
-	metricsMiddleWare.RecordFetchRegionsExcluded(ctx, len(req.ExcludeRegions))
+	stats.Record(ctx, federationout.FetchRegionsRequested.M(int64(len(req.IncludeRegions))))
+	stats.Record(ctx, federationout.FetchRegionsExcluded.M(int64(len(req.ExcludeRegions))))
 
 	// Use configuration max or user provided max.
 	maxRecords := s.config.MaxRecords
@@ -174,7 +171,7 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 	}))
 	keepGoing := true
 	if err != nil {
-		metricsMiddleWare.RecordFetchError(ctx)
+		stats.Record(ctx, federationout.FetchError.M(1))
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 			logger.Infof("Fetch request reached time out, returning partial response.")
 			response.PartialResponse = true
@@ -211,7 +208,7 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 			excludeRegions: excludedRegions,
 		}))
 		if err != nil {
-			metricsMiddleWare.RecordFetchError(ctx)
+			stats.Record(ctx, federationout.FetchError.M(1))
 			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 				logger.Infof("Fetch request reached time out, returning partial response.")
 				response.PartialResponse = true
@@ -245,7 +242,7 @@ func (s Server) fetch(ctx context.Context, req *federation.FederationFetchReques
 		}
 	}
 
-	metricsMiddleWare.RecordFetchCount(ctx, count)
+	stats.Record(ctx, federationout.FetchCount.M(int64(count)))
 	logger.Infow("sent key", "keys", count)
 	return response, nil
 }
@@ -339,8 +336,6 @@ func buildIteratorFunction(request *BuildIteratorRequest) publishdb.IteratorFunc
 // AuthInterceptor validates incoming OIDC bearer token and adds corresponding FederationAuthorization record to the context.
 func (s Server) AuthInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	logger := logging.FromContext(ctx)
-	metrics := s.env.MetricsExporter(ctx)
-	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 
 	raw, err := rawToken(ctx)
 	if err != nil {
@@ -351,24 +346,24 @@ func (s Server) AuthInterceptor(ctx context.Context, req interface{}, info *grpc
 	token, err := idtoken.Validate(ctx, raw, "")
 	if err != nil {
 		logger.Infof("Invalid token: %v", err)
-		metricsMiddleware.RecordInvalidFetchAuthToken(ctx)
+		stats.Record(ctx, federationout.FetchInvalidAuthToken.M(1))
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid token")
 	}
 
 	auth, err := s.db.GetFederationOutAuthorization(ctx, token.Issuer, token.Subject)
 	if err != nil {
 		if errors.Is(err, coredb.ErrNotFound) {
-			metricsMiddleware.RecordUnauthorizedFetchAttempt(ctx)
+			stats.Record(ctx, federationout.FetchUnauthorized.M(1))
 			logger.Infof("Authorization not found (issuer %q, subject %s)", token.Issuer, token.Subject)
 			return nil, status.Errorf(codes.Unauthenticated, "Invalid issuer/subject")
 		}
 		logger.Errorf("Failed to fetch authorization (issuer %q, subject %s): %v", token.Issuer, token.Subject, err)
-		metricsMiddleware.RecordInternalErrorDuringFetch(ctx)
+		stats.Record(ctx, federationout.FetchInternalError.M(1))
 		return nil, status.Errorf(codes.Internal, "Internal error")
 	}
 
 	if auth.Audience != "" && auth.Audience != token.Audience {
-		metricsMiddleware.RecordInvalidAudienceDuringFetch(ctx)
+		stats.Record(ctx, federationout.FetchInvalidAudience.M(1))
 		logger.Infof("Invalid audience, got %q, want %q", token.Audience, auth.Audience)
 		return nil, status.Errorf(codes.Unauthenticated, "Invalid audience")
 	}

@@ -25,8 +25,9 @@ import (
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
+	"go.opencensus.io/stats"
 
-	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
+	"github.com/google/exposure-notifications-server/internal/metrics/export"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
@@ -34,8 +35,6 @@ import (
 // create entries in ExportBatchJob as appropriate.
 func (s *Server) handleCreateBatches(ctx context.Context) http.HandlerFunc {
 	logger := logging.FromContext(ctx)
-	metrics := s.env.MetricsExporter(ctx)
-	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 	db := s.env.Database()
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +46,7 @@ func (s *Server) handleCreateBatches(ctx context.Context) http.HandlerFunc {
 		unlockFn, err := db.Lock(ctx, lock, s.config.CreateTimeout)
 		if err != nil {
 			if errors.Is(err, coredb.ErrAlreadyLocked) {
-				metricsMiddleware.RecordExportBatcherLockContention(ctx)
+				stats.Record(ctx, export.BatcherLockContention.M(1))
 				msg := fmt.Sprintf("Lock %s already in use, no work will be performed", lock)
 				logger.Infof(msg)
 				fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
@@ -85,7 +84,7 @@ func (s *Server) handleCreateBatches(ctx context.Context) http.HandlerFunc {
 		})
 		if err != nil {
 			// some specific error handling below, but just need one metric.
-			metricsMiddleware.RecordExportBatcherFailure(ctx)
+			stats.Record(ctx, export.BatcherFailure.M(1))
 		}
 		switch {
 		case err == nil:
@@ -103,8 +102,6 @@ func (s *Server) handleCreateBatches(ctx context.Context) http.HandlerFunc {
 
 func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig, now time.Time) (int, error) {
 	logger := logging.FromContext(ctx)
-	metrics := s.env.MetricsExporter(ctx)
-	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 	exportDB := exportdatabase.New(s.env.Database())
 
 	latestEnd, err := exportDB.LatestExportBatchEnd(ctx, ec)
@@ -114,7 +111,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 
 	ranges := makeBatchRanges(ec.Period, latestEnd, now, s.config.TruncateWindow)
 	if len(ranges) == 0 {
-		metricsMiddleware.RecordExportBatcherNoWork(ctx)
+		stats.Record(ctx, export.BatcherNoWork.M(1))
 		logger.Debugf("Batch creation for config %d is not required, skipping", ec.ConfigID)
 		return 0, nil
 	}
@@ -144,7 +141,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 		return 0, fmt.Errorf("creating export batches for config %d: %w", ec.ConfigID, err)
 	}
 
-	metricsMiddleware.RecordExportBatcherCreation(ctx, len(batches))
+	stats.Record(ctx, export.BatcherCreated.M(int64(len(batches))))
 	logger.Infof("Created %d batch(es) for config %d", len(batches), ec.ConfigID)
 	return len(batches), nil
 }

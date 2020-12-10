@@ -20,11 +20,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/maintenance"
-	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
+	"github.com/google/exposure-notifications-server/internal/metrics/publish"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/mikehelmick/go-chaff"
@@ -33,9 +34,6 @@ import (
 func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) *response {
 	ctx, span := trace.StartSpan(r.Context(), "(*publish.PublishHandler).handleRequest")
 	defer span.End()
-
-	metrics := h.serverenv.MetricsExporter(ctx)
-	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 
 	w.Header().Set(HeaderAPIVersion, "v1")
 
@@ -55,7 +53,7 @@ func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) *
 				Code:         errorCode,
 			},
 			metrics: func() {
-				metricsMiddleware.RecordBadJSON(ctx)
+				stats.Record(ctx, publish.BadJSON.M(1))
 			},
 		}
 	}
@@ -72,11 +70,9 @@ func (h *PublishHandler) Handle() http.Handler {
 				response := h.handleRequest(w, r)
 
 				ctx := r.Context()
-				metrics := h.serverenv.MetricsExporter(ctx)
-				metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 
 				if err := response.padResponse(h.config); err != nil {
-					metricsMiddleware.RecordPaddingFailure(ctx)
+					stats.Record(ctx, publish.PaddingFailed.M(1))
 					logging.FromContext(ctx).Errorw("failed to pad response", "error", err)
 				}
 
