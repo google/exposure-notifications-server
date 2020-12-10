@@ -25,7 +25,6 @@ import (
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 
-	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/internal/pb/federation"
 
 	"github.com/google/go-cmp/cmp"
@@ -437,7 +436,7 @@ func TestFederationPull(t *testing.T) {
 				maxMagnitudeSymptomOnsetDays: 14,
 			}
 
-			err := pull(ctx, metrics.NewLogsBasedFromContext(ctx), &opts)
+			err := pull(ctx, &opts)
 			if err != nil {
 				t.Fatalf("pull returned err=%v, want err=nil", err)
 			}
