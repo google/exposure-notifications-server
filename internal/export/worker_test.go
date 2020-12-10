@@ -119,7 +119,7 @@ func TestEnsureMinExposures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(exposures) < numKeys || len(exposures) > numKeys+variance {
+	if len(exposures) < numKeys || len(exposures) > (numKeys+variance+inputSize-1) {
 		t.Errorf("wrong number of exposures, want: >=%v and <=%v, got: %v", numKeys, numKeys+variance, len(exposures))
 	}
 	if l, exp := len(generated), numKeys-inputSize; l < exp {
