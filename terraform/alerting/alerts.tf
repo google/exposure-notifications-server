@@ -13,7 +13,7 @@
 # limitations under the License.
 
 locals {
-  p50_latency_thresholds= {
+  p50_latency_thresholds = {
     export         = 600
     cleanup-export = 60
     generate       = 30
