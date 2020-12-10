@@ -53,6 +53,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/go-plugin v1.3.0 // indirect
 	github.com/hashicorp/go-retryablehttp v0.6.7 // indirect
+	github.com/hashicorp/hcl/v2 v2.8.0
 	github.com/hashicorp/raft v1.1.2 // indirect
 	github.com/hashicorp/vault v1.2.1-0.20200522144850-6f72d4ff250f
 	github.com/hashicorp/vault-plugin-auth-gcp v0.8.0 // indirect

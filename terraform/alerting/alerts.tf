@@ -31,6 +31,11 @@ locals {
   ))
 }
 
+locals {
+  playbook_prefix = "https://github.com/google/exposure-notifications-server/blob/main/docs/playbooks/alerts"
+}
+
+
 resource "google_monitoring_alert_policy" "LatencyTooHigh" {
   combiner     = "OR"
   display_name = "LatencyTooHigh"
@@ -56,9 +61,7 @@ resource "google_monitoring_alert_policy" "LatencyTooHigh" {
     }
   }
   documentation {
-    content   = <<-EOT
-    Our latency is too high for one or more Cloud Run services!
-    EOT
+    content   = "${local.playbook_prefix}/LatencyTooHigh.md"
     mime_type = "text/markdown"
   }
   notification_channels = [
