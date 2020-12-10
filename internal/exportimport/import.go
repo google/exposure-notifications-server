@@ -155,7 +155,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 		inserts, dropped := exKeyTransform.transform(tekExport.Keys)
 		response.droppedKeys = response.droppedKeys + dropped
 		template := pubdb.InsertAndReviseExposuresRequest{
-			SkipRevions: true,
+			SkipRevisions: true,
 		}
 		if err := s.insertAndReviseKeys(ctx, "primary", inserts, &template, &response); err != nil {
 			return nil, fmt.Errorf("insert primary keys: %w", err)
