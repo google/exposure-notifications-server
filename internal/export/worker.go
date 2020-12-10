@@ -27,7 +27,6 @@ import (
 
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
-	"github.com/google/exposure-notifications-server/internal/metrics/export"
 	publishdatabase "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"go.opencensus.io/stats"
@@ -190,7 +189,7 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 
 	if droppedKeys > 0 {
 		logger.Errorf("Export found keys of invalid length, %v keys were dropped", droppedKeys)
-		stats.Record(ctx, export.WorkerBadKeyLength.M(int64(droppedKeys)))
+		stats.Record(ctx, mWorkerBadKeyLength.M(int64(droppedKeys)))
 	}
 
 	// Sort all the keys that we got so that if the batch is re-run, the contents are stable IFF

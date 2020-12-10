@@ -30,7 +30,6 @@ import (
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
-	"github.com/google/exposure-notifications-server/internal/metrics/federationin"
 	"github.com/google/exposure-notifications-server/internal/pb/federation"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
@@ -96,18 +95,18 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	queryIDs, ok := r.URL.Query()[queryParam]
 	if !ok {
-		stats.Record(ctx, federationin.PullInvalidRequest.M(1))
+		stats.Record(ctx, mPullInvalidRequest.M(1))
 		badRequestf(ctx, w, "%s is required", queryParam)
 		return
 	}
 	if len(queryIDs) > 1 {
-		stats.Record(ctx, federationin.PullInvalidRequest.M(1))
+		stats.Record(ctx, mPullInvalidRequest.M(1))
 		badRequestf(ctx, w, "only one %s allowed", queryParam)
 		return
 	}
 	queryID := queryIDs[0]
 	if queryID == "" {
-		stats.Record(ctx, federationin.PullInvalidRequest.M(1))
+		stats.Record(ctx, mPullInvalidRequest.M(1))
 		badRequestf(ctx, w, "%s is required", queryParam)
 		return
 	}
@@ -117,7 +116,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	unlockFn, err := h.db.Lock(ctx, lock, h.config.Timeout)
 	if err != nil {
 		if errors.Is(err, coredb.ErrAlreadyLocked) {
-			stats.Record(ctx, federationin.PullLockContention.M(1))
+			stats.Record(ctx, mPullLockContention.M(1))
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
 			logger.Infof(msg)
 			fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
@@ -389,8 +388,8 @@ func pull(ctx context.Context, opts *pullOptions) (err error) {
 				return fmt.Errorf("inserting %d exposures: %w", len(newExposures), err)
 			}
 			// Success, update metrics
-			stats.Record(ctx, federationin.PullInserts.M(int64(resp.Inserted)))
-			stats.Record(ctx, federationin.PullDropped.M(int64(resp.Dropped)))
+			stats.Record(ctx, mPullInserts.M(int64(resp.Inserted)))
+			stats.Record(ctx, mPullDropped.M(int64(resp.Dropped)))
 
 			total += int(resp.Inserted)
 		} else {
@@ -427,8 +426,8 @@ func pull(ctx context.Context, opts *pullOptions) (err error) {
 				return fmt.Errorf("revising %d exposures: %w", len(revisedExposures), err)
 			}
 			// Success, update metrics
-			stats.Record(ctx, federationin.PullRevisions.M(int64(resp.Revised)))
-			stats.Record(ctx, federationin.PullDropped.M(int64(resp.Dropped)))
+			stats.Record(ctx, mPullRevisions.M(int64(resp.Revised)))
+			stats.Record(ctx, mPullDropped.M(int64(resp.Dropped)))
 
 			total += int(resp.Revised)
 		} else {

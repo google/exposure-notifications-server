@@ -27,7 +27,6 @@ import (
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"go.opencensus.io/stats"
 
-	"github.com/google/exposure-notifications-server/internal/metrics/export"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
@@ -46,7 +45,7 @@ func (s *Server) handleCreateBatches(ctx context.Context) http.HandlerFunc {
 		unlockFn, err := db.Lock(ctx, lock, s.config.CreateTimeout)
 		if err != nil {
 			if errors.Is(err, coredb.ErrAlreadyLocked) {
-				stats.Record(ctx, export.BatcherLockContention.M(1))
+				stats.Record(ctx, mBatcherLockContention.M(1))
 				msg := fmt.Sprintf("Lock %s already in use, no work will be performed", lock)
 				logger.Infof(msg)
 				fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
@@ -84,7 +83,7 @@ func (s *Server) handleCreateBatches(ctx context.Context) http.HandlerFunc {
 		})
 		if err != nil {
 			// some specific error handling below, but just need one metric.
-			stats.Record(ctx, export.BatcherFailure.M(1))
+			stats.Record(ctx, mBatcherFailure.M(1))
 		}
 		switch {
 		case err == nil:
@@ -111,7 +110,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 
 	ranges := makeBatchRanges(ec.Period, latestEnd, now, s.config.TruncateWindow)
 	if len(ranges) == 0 {
-		stats.Record(ctx, export.BatcherNoWork.M(1))
+		stats.Record(ctx, mBatcherNoWork.M(1))
 		logger.Debugf("Batch creation for config %d is not required, skipping", ec.ConfigID)
 		return 0, nil
 	}
@@ -141,7 +140,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 		return 0, fmt.Errorf("creating export batches for config %d: %w", ec.ConfigID, err)
 	}
 
-	stats.Record(ctx, export.BatcherCreated.M(int64(len(batches))))
+	stats.Record(ctx, mBatcherCreated.M(int64(len(batches))))
 	logger.Infof("Created %d batch(es) for config %d", len(batches), ec.ConfigID)
 	return len(batches), nil
 }
