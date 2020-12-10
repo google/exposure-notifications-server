@@ -395,6 +395,9 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 				Warnings:     transformWarnings,
 			},
 			metrics: func() {
+				// TODO(yegle): we want to use this string later when we
+				// refactor the metrics.
+				_ = metric
 				stats.Record(ctx, publish.RevisionTokenIssue.M(1))
 			},
 		}
