@@ -93,9 +93,18 @@ type Exposure struct {
 	base64Key string
 }
 
+type ExportImportConfig struct {
+	DefaultReportType         string
+	BackfillSymptomOnset      bool
+	BackfillSymptomOnsetValue int32
+	MaxSymptomOnsetDays       int32
+	AllowClinical             bool
+	AllowRevoked              bool
+}
+
 // FromExportKey is used to read a key from an export file and convert it back to the
 // internal database format.
-func FromExportKey(key *export.TemporaryExposureKey, maxSymptomOnsetDays int32) (*Exposure, error) {
+func FromExportKey(key *export.TemporaryExposureKey, config *ExportImportConfig) (*Exposure, error) {
 	exp := &Exposure{
 		ExposureKey: make([]byte, verifyapi.KeyLength),
 	}
@@ -103,35 +112,6 @@ func FromExportKey(key *export.TemporaryExposureKey, maxSymptomOnsetDays int32) 
 		return nil, fmt.Errorf("invalid key length")
 	}
 	copy(exp.ExposureKey, key.KeyData)
-
-	//lint:ignore SA1019 may be set on v1 files.
-	if key.TransmissionRiskLevel != nil {
-		//lint:ignore SA1019 may be set on v1 files.
-		if tr := *key.TransmissionRiskLevel; tr < verifyapi.MinTransmissionRisk {
-			return nil, fmt.Errorf("transmission risk too low: %d, must be >= %d", tr, verifyapi.MinTransmissionRisk)
-		} else if tr > verifyapi.MaxTransmissionRisk {
-			return nil, fmt.Errorf("transmission risk too high: %d, must be <= %d", tr, verifyapi.MaxTransmissionRisk)
-		} else {
-			exp.TransmissionRisk = int(tr)
-		}
-	}
-
-	if key.RollingStartIntervalNumber == nil {
-		return nil, fmt.Errorf("missing rolling_start_interval_number")
-	}
-	exp.IntervalNumber = *key.RollingStartIntervalNumber
-
-	if key.RollingPeriod == nil {
-		exp.IntervalCount = verifyapi.MaxIntervalCount
-	} else {
-		if rp := *key.RollingPeriod; rp < verifyapi.MinIntervalCount {
-			return nil, fmt.Errorf("rolling period too low: %d must be >= %d", rp, verifyapi.MinIntervalCount)
-		} else if rp > verifyapi.MaxIntervalCount {
-			return nil, fmt.Errorf("rolling period too low: %d must be <= %d", rp, verifyapi.MaxIntervalCount)
-		} else {
-			exp.IntervalCount = rp
-		}
-	}
 
 	if key.ReportType != nil {
 		rt := *key.ReportType
@@ -149,14 +129,61 @@ func FromExportKey(key *export.TemporaryExposureKey, maxSymptomOnsetDays int32) 
 				export.TemporaryExposureKey_ReportType_name[int32(rt)])
 		}
 	}
+	if exp.ReportType == "" && config.DefaultReportType != "" {
+		exp.ReportType = config.DefaultReportType
+	}
+
+	if !config.AllowRevoked && exp.ReportType == verifyapi.ReportTypeNegative {
+		return nil, fmt.Errorf("saw revoked key when not allowed")
+	}
+	if !config.AllowClinical && exp.ReportType == verifyapi.ReportTypeClinical {
+		return nil, fmt.Errorf("saw likely key when not allowed")
+	}
+
+	//lint:ignore SA1019 may be set on v1 files.
+	if key.TransmissionRiskLevel != nil {
+		//lint:ignore SA1019 may be set on v1 files.
+		if tr := *key.TransmissionRiskLevel; tr < verifyapi.MinTransmissionRisk {
+			return nil, fmt.Errorf("transmission risk too low: %d, must be >= %d", tr, verifyapi.MinTransmissionRisk)
+		} else if tr > verifyapi.MaxTransmissionRisk {
+			return nil, fmt.Errorf("transmission risk too high: %d, must be <= %d", tr, verifyapi.MaxTransmissionRisk)
+		} else {
+			exp.TransmissionRisk = int(tr)
+		}
+	}
+	// Apply the TR backfill defaults based on report type.
+	exp.TransmissionRisk = ReportTypeTransmissionRisk(exp.ReportType, exp.TransmissionRisk)
+
+	if key.RollingStartIntervalNumber == nil {
+		return nil, fmt.Errorf("missing rolling_start_interval_number")
+	}
+	exp.IntervalNumber = *key.RollingStartIntervalNumber
+
+	if key.RollingPeriod == nil {
+		exp.IntervalCount = verifyapi.MaxIntervalCount
+	} else {
+		if rp := *key.RollingPeriod; rp < verifyapi.MinIntervalCount {
+			return nil, fmt.Errorf("rolling period too low: %d must be >= %d", rp, verifyapi.MinIntervalCount)
+		} else if rp > verifyapi.MaxIntervalCount {
+			return nil, fmt.Errorf("rolling period too high: %d must be <= %d", rp, verifyapi.MaxIntervalCount)
+		} else {
+			exp.IntervalCount = rp
+		}
+	}
 
 	if key.DaysSinceOnsetOfSymptoms != nil {
 		dsos := *key.DaysSinceOnsetOfSymptoms
-		if dsos >= (-1*maxSymptomOnsetDays) && dsos <= maxSymptomOnsetDays {
+		if dsos >= (-1*config.MaxSymptomOnsetDays) && dsos <= config.MaxSymptomOnsetDays {
 			exp.DaysSinceSymptomOnset = &dsos
 		} else {
-			return nil, fmt.Errorf("days since onset of symptoms is out of range: %d must be within: %d", dsos, maxSymptomOnsetDays)
+			return nil, fmt.Errorf("days since onset of symptoms is out of range: %d must be within: %d", dsos, config.MaxSymptomOnsetDays)
 		}
+	}
+	// make sure that something is set for days since symptom onset.
+	// since the upload date and original test/symptom dates are not known, apply
+	// a configurable default value (if enabled)
+	if exp.DaysSinceSymptomOnset == nil && config.BackfillSymptomOnset {
+		exp.DaysSinceSymptomOnset = &config.BackfillSymptomOnsetValue
 	}
 
 	exp.LocalProvenance = false

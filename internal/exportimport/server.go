@@ -24,6 +24,7 @@ import (
 	eidb "github.com/google/exposure-notifications-server/internal/exportimport/database"
 	pubdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/server"
 )
 
@@ -41,6 +42,10 @@ type Server struct {
 func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	if env.Database() == nil {
 		return nil, fmt.Errorf("missing database in server environment")
+	}
+
+	if rt := config.BackfillReportType; !(rt == "" || rt == verifyapi.ReportTypeConfirmed || rt == verifyapi.ReportTypeClinical) {
+		return nil, fmt.Errorf("BACKFILL_REPORT_TYPE value is invalid, must be %q, %q, or %q", "", verifyapi.ReportTypeConfirmed, verifyapi.ReportTypeClinical)
 	}
 
 	db := env.Database()

@@ -137,15 +137,22 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 		return nil, fmt.Errorf("no valid signature found")
 	}
 
-	// Common transform settings for primar + revised keys.
+	// Common transform settings for primary + revised keys.
 	exKeyTransform := transformer{
-		appPackageName:               s.config.ImportAPKName,
-		importRegions:                []string{ir.exportImport.Region},
-		batchTime:                    time.Now().UTC().Truncate(s.config.CreatedAtTruncateWindow),
-		exportImportID:               ir.exportImport.ID,
-		importFileID:                 ir.file.ID,
-		maxMagnitudeSymptomOnsetDays: int32(s.config.MaxMagnitudeSymptomOnsetDays),
-		logger:                       logger,
+		appPackageName: s.config.ImportAPKName,
+		importRegions:  []string{ir.exportImport.Region},
+		batchTime:      time.Now().UTC().Truncate(s.config.CreatedAtTruncateWindow),
+		exportImportID: ir.exportImport.ID,
+		importFileID:   ir.file.ID,
+		exportImportConfig: &pubmodel.ExportImportConfig{
+			DefaultReportType:         s.config.BackfillReportType,
+			BackfillSymptomOnset:      s.config.BackfillDaysSinceOnset,
+			BackfillSymptomOnsetValue: int32(s.config.BackfillDaysSinceOnsetValue),
+			MaxSymptomOnsetDays:       int32(s.config.MaxMagnitudeSymptomOnsetDays),
+			AllowClinical:             true,
+			AllowRevoked:              false,
+		},
+		logger: logger,
 	}
 	response := ImportResposne{}
 
@@ -164,6 +171,10 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 
 	// Then revised keys and revise.
 	if len(tekExport.RevisedKeys) > 0 {
+		// Revoked
+		exKeyTransform.exportImportConfig.AllowClinical = false
+		exKeyTransform.exportImportConfig.AllowRevoked = true
+
 		revisions, dropped := exKeyTransform.transform(tekExport.RevisedKeys)
 		response.droppedKeys = response.droppedKeys + dropped
 		template := pubdb.InsertAndReviseExposuresRequest{
@@ -204,20 +215,20 @@ func (s *Server) insertAndReviseKeys(ctx context.Context, mode string, exposures
 }
 
 type transformer struct {
-	appPackageName               string
-	importRegions                []string
-	batchTime                    time.Time
-	exportImportID               int64
-	importFileID                 int64
-	maxMagnitudeSymptomOnsetDays int32
-	logger                       *zap.SugaredLogger
+	appPackageName     string
+	importRegions      []string
+	batchTime          time.Time
+	exportImportID     int64
+	importFileID       int64
+	exportImportConfig *pubmodel.ExportImportConfig
+	logger             *zap.SugaredLogger
 }
 
 func (t *transformer) transform(keys []*exportproto.TemporaryExposureKey) ([]*pubmodel.Exposure, uint64) {
 	inserts := make([]*pubmodel.Exposure, 0, len(keys))
 	var dropped uint64
 	for _, k := range keys {
-		exp, err := pubmodel.FromExportKey(k, t.maxMagnitudeSymptomOnsetDays)
+		exp, err := pubmodel.FromExportKey(k, t.exportImportConfig)
 		if err != nil {
 			t.logger.Warnw("skipping invalid key", "error", err)
 			dropped++
