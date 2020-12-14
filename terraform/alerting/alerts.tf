@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# See https://cloud.google.com/monitoring/mql/reference#units-of-measure for
+# available units and prefixes that can be used as threshold
+#
+# Example:
+# "1ms" -> 10^-3 's'
+# "10%" -> 0.1
+# "10Hz" -> "10/s"
+
+
 locals {
   p50_latency_thresholds = {
     export         = "10min"
