@@ -171,6 +171,9 @@ resource "google_compute_backend_service" "exposure" {
     group = google_compute_region_network_endpoint_group.exposure[0].id
   }
   security_policy = google_compute_security_policy.cloud-armor.name
+  log_config = {
+    enable = var.enable-lb-logging
+  }
 }
 
 output "exposure_urls" {
