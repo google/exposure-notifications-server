@@ -87,6 +87,7 @@ resource "google_vpc_access_connector" "connector" {
   max_throughput = var.vpc_access_connector_max_throughput
 
   depends_on = [
+    google_service_networking_connection.private_vpc_connection,
     google_project_service.services["compute.googleapis.com"],
     google_project_service.services["vpcaccess.googleapis.com"],
   ]

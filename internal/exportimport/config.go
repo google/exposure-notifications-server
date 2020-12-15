@@ -37,6 +37,11 @@ type Config struct {
 	IndexFileDownloadTimeout  time.Duration `env:"INDEX_FILE_DOWNLOAD_TIMEOUT, default=30s"`
 	ExportFileDownloadTimeout time.Duration `env:"EXPORT_FILE_DOWNLOAD_TIMEOUT, default=2m"`
 
+	// For importing files that may have missed setting v1.5+ fields.
+	BackfillReportType          string `env:"BACKFILL_REPORT_TYPE, default=confirmed"`
+	BackfillDaysSinceOnset      bool   `env:"BACKFILL_DAYS_SINCE_ONSET, default=true"`
+	BackfillDaysSinceOnsetValue int    `env:"BACKFILL_DAYS_SINCE_ONSET_VALUE, default=10"`
+
 	MaxInsertBatchSize           int           `env:"MAX_INSERT_BATCH_SIZE, default=100"`
 	MaxIntervalAge               time.Duration `env:"MAX_INTERVAL_AGE_ON_PUBLISH, default=360h"`
 	MaxMagnitudeSymptomOnsetDays uint          `env:"MAX_SYMPTOM_ONSET_DAYS, default=14"`

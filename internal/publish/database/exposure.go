@@ -409,7 +409,7 @@ type InsertAndReviseExposuresRequest struct {
 	// The following operations are for federation.
 
 	// If true, if a key is determined to be a revsion, it is skipped.
-	SkipRevions bool
+	SkipRevisions bool
 	// If true, only revisions will be processed.
 	OnlyRevisions bool
 	// Require matching Sync QueryID only allows revisions if they originated from the same query ID.
@@ -446,7 +446,7 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 	if req == nil {
 		return nil, fmt.Errorf("missing request")
 	}
-	if req.SkipRevions && req.OnlyRevisions {
+	if req.SkipRevisions && req.OnlyRevisions {
 		return nil, fmt.Errorf("configuration paradox: skipRevisions and onlyRevisions are both set to true")
 	}
 
@@ -510,7 +510,7 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 			// Check that any existing exposures are present in the token.
 			for k, ex := range existing {
 				// For federation, if a key is rquested for insert.
-				if req.SkipRevions {
+				if req.SkipRevisions {
 					logger.Warnw("skipping key: would be revised but revision disabled for request")
 					delete(incomingMap, k)
 					continue

@@ -380,9 +380,9 @@ func pull(ctx context.Context, opts *pullOptions) (err error) {
 				newExposures = append(newExposures, exposure)
 			}
 			resp, err := opts.deps.insertExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
-				Incoming:     newExposures,
-				SkipRevions:  true,
-				RequireToken: false,
+				Incoming:      newExposures,
+				SkipRevisions: true,
+				RequireToken:  false,
 			})
 			if err != nil {
 				return fmt.Errorf("inserting %d exposures: %w", len(newExposures), err)

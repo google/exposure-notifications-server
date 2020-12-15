@@ -22,16 +22,26 @@ resource "google_compute_security_policy" "cloud-armor" {
     match {
       expr { expression = "evaluatePreconfiguredExpr('xss-stable')" }
     }
-    preview  = false
+    preview  = true
     priority = 10
   }
   rule {
     action      = "deny(403)"
     description = "SQL Injection protection"
     match {
-      expr { expression = "evaluatePreconfiguredExpr('sqli-stable')" }
+      expr {
+        expression = <<-EOT
+        evaluatePreconfiguredExpr(
+          'sqli-stable',
+          [
+            // Causes Content-Type:application/json request to fail.
+            'owasp-crs-v030001-id942432-sqli'
+          ]
+        )
+        EOT
+      }
     }
-    preview  = false
+    preview  = true
     priority = 20
   }
   rule {
@@ -40,7 +50,7 @@ resource "google_compute_security_policy" "cloud-armor" {
     match {
       expr { expression = "evaluatePreconfiguredExpr('rce-stable')" }
     }
-    preview  = false
+    preview  = true
     priority = 30
   }
   // Recommended action when we want to protect the service during incident:

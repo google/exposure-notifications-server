@@ -237,8 +237,8 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 		if length := len(generated); length > 0 {
 			// we generated some data in order to pad out this export. This data needs to be persisted.
 			insertRequest := &publishdatabase.InsertAndReviseExposuresRequest{
-				RequireToken: false,
-				SkipRevions:  true,
+				RequireToken:  false,
+				SkipRevisions: true,
 			}
 			// Insert the generated data in batches.
 			for i := 0; i < length; i = i + s.config.MaxInsertBatchSize {
