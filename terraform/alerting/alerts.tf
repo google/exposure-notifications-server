@@ -14,19 +14,19 @@
 
 locals {
   p50_latency_thresholds = {
-    export         = 600
-    cleanup-export = 60
-    generate       = 30
+    export         = "10min"
+    cleanup-export = "1min"
+    generate       = "30s"
   }
-  p50_latency_thresholds_default = 10
+  p50_latency_thresholds_default = "10s"
 
-  p50_latency_condition = join("\n|| ", concat(
+  p50_latency_condition = join("\n  || ", concat(
     [
-      for k, v in local.p50_latency_thresholds:
-      "(resource.service_name == '${k}' && val > ${v} 's')"
+      for k, v in local.p50_latency_thresholds :
+      "(resource.service_name == '${k}' && val > ${replace(v, "/(\\d+)(.*)/", "$1 '$2'")})"
     ],
     [
-      "(val > ${local.p50_latency_thresholds_default} 's')"
+      "(val > ${replace(local.p50_latency_thresholds_default, "/(\\d+)(.*)/", "$1 '$2'")})"
     ]
   ))
 }
