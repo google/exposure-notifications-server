@@ -249,7 +249,7 @@ variable "vpc_access_connector_max_throughput" {
   description = "Maximum provisioned traffic throughput in Mbps"
 }
 
-variable "enable-lb-logging" {
+variable "enable_lb_logging" {
   type        = bool
   default     = false
   description = <<-EOT
