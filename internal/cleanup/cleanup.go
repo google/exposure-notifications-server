@@ -21,12 +21,13 @@ import (
 	"net/http"
 	"time"
 
+	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 
-	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
+	"github.com/google/exposure-notifications-server/internal/metrics/cleanup"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -61,20 +62,18 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	defer span.End()
 
 	logger := logging.FromContext(ctx)
-	metrics := h.env.MetricsExporter(ctx)
-	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 
 	cutoff, err := cutoffDate(ctx, h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
 	if err != nil {
 		message := fmt.Sprintf("error processing cutoff time: %v", err)
 		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		metricsMiddleware.RecordExposuresSetupFailed(ctx)
+		stats.Record(ctx, cleanup.ExposuresSetupFailed.M(1))
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 	logger.Infof("Starting cleanup for records older than %v", cutoff.UTC())
-	metricsMiddleware.RecordExposuresCleanupCutoff(ctx, cutoff.Unix())
+	stats.Record(ctx, cleanup.ExposuresCleanupBefore.M(cutoff.Unix()))
 
 	// Set timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
@@ -84,13 +83,13 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		message := fmt.Sprintf("Failed deleting exposures: %v", err)
 		logger.Error(message)
-		metricsMiddleware.RecordExposuresDeleteFailed(ctx)
+		stats.Record(ctx, cleanup.ExposuresDeleteFailed.M(1))
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 
-	metricsMiddleware.RecordExposuresDeleted(ctx, count)
+	stats.Record(ctx, cleanup.ExposuresDeleted.M(count))
 	logger.Infof("cleanup run complete, deleted %v records.", count)
 	w.WriteHeader(http.StatusOK)
 }
@@ -125,20 +124,18 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	defer span.End()
 
 	logger := logging.FromContext(ctx)
-	metrics := h.env.MetricsExporter(ctx)
-	metricsMiddleware := metricsware.NewMiddleWare(&metrics)
 
 	cutoff, err := cutoffDate(ctx, h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
 	if err != nil {
 		message := fmt.Sprintf("error calculating cutoff time: %v", err)
-		metricsMiddleware.RecordExportsSetupFailed(ctx)
+		stats.Record(ctx, cleanup.ExportsSetupFailed.M(1))
 		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 	logger.Infof("Starting cleanup for export files older than %v", cutoff.UTC())
-	metricsMiddleware.RecordExportsCutoffDate(ctx, cutoff.Unix())
+	stats.Record(ctx, cleanup.ExportsCleanupBefore.M(cutoff.Unix()))
 
 	// Set h.Timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
@@ -148,13 +145,13 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		message := fmt.Sprintf("Failed deleting export files: %v", err)
 		logger.Error(message)
-		metricsMiddleware.RecordExposuresDeleteFailed(ctx)
+		stats.Record(ctx, cleanup.ExposuresDeleteFailed.M(1))
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
 
-	metricsMiddleware.RecordExportsDeleted(ctx, count)
+	stats.Record(ctx, cleanup.ExportsDeleted.M(int64(count)))
 	logger.Infof("cleanup run complete, deleted %v files.", count)
 	w.WriteHeader(http.StatusOK)
 }

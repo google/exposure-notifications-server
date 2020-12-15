@@ -30,8 +30,7 @@ import (
 	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
-	"github.com/google/exposure-notifications-server/internal/metrics"
-	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
+	"github.com/google/exposure-notifications-server/internal/metrics/federationin"
 	"github.com/google/exposure-notifications-server/internal/pb/federation"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
@@ -45,6 +44,7 @@ import (
 	"google.golang.org/grpc/credentials/oauth"
 
 	"go.opencensus.io/plugin/ocgrpc"
+	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 )
 
@@ -93,23 +93,21 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	logger := logging.FromContext(ctx)
-	metrics := h.env.MetricsExporter(ctx)
-	metricsMiddleWare := metricsware.NewMiddleWare(&metrics)
 
 	queryIDs, ok := r.URL.Query()[queryParam]
 	if !ok {
-		metricsMiddleWare.RecordPullInvalidRequest(ctx)
+		stats.Record(ctx, federationin.PullInvalidRequest.M(1))
 		badRequestf(ctx, w, "%s is required", queryParam)
 		return
 	}
 	if len(queryIDs) > 1 {
-		metricsMiddleWare.RecordPullInvalidRequest(ctx)
+		stats.Record(ctx, federationin.PullInvalidRequest.M(1))
 		badRequestf(ctx, w, "only one %s allowed", queryParam)
 		return
 	}
 	queryID := queryIDs[0]
 	if queryID == "" {
-		metricsMiddleWare.RecordPullInvalidRequest(ctx)
+		stats.Record(ctx, federationin.PullInvalidRequest.M(1))
 		badRequestf(ctx, w, "%s is required", queryParam)
 		return
 	}
@@ -119,7 +117,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	unlockFn, err := h.db.Lock(ctx, lock, h.config.Timeout)
 	if err != nil {
 		if errors.Is(err, coredb.ErrAlreadyLocked) {
-			metricsMiddleWare.RecordPullLockContention(ctx)
+			stats.Record(ctx, federationin.PullLockContention.M(1))
 			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
 			logger.Infof(msg)
 			fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
@@ -206,7 +204,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		maxMagnitudeSymptomOnsetDays: h.config.MaxMagnitudeSymptomOnsetDays,
 		debugReleaseSameDay:          h.config.ReleaseSameDayKeys,
 	}
-	if err := pull(timeoutContext, metrics, &opts); err != nil {
+	if err := pull(timeoutContext, &opts); err != nil {
 		internalErrorf(ctx, w, "Federation query %q failed: %v", queryID, err)
 		return
 	}
@@ -300,9 +298,7 @@ func buildExposure(e *federation.ExposureKey, config *Config) (*publishmodel.Exp
 	return &exposure, nil
 }
 
-func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err error) {
-	metricsMiddleWare := metricsware.NewMiddleWare(&metrics)
-
+func pull(ctx context.Context, opts *pullOptions) (err error) {
 	ctx, span := trace.StartSpan(ctx, "federationin.pull")
 	defer func() {
 		if err != nil {
@@ -393,8 +389,8 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 				return fmt.Errorf("inserting %d exposures: %w", len(newExposures), err)
 			}
 			// Success, update metrics
-			metricsMiddleWare.RecordPullInsertions(ctx, int(resp.Inserted))
-			metricsMiddleWare.RecordPullDropped(ctx, int(resp.Dropped))
+			stats.Record(ctx, federationin.PullInserts.M(int64(resp.Inserted)))
+			stats.Record(ctx, federationin.PullDropped.M(int64(resp.Dropped)))
 
 			total += int(resp.Inserted)
 		} else {
@@ -431,8 +427,8 @@ func pull(ctx context.Context, metrics metrics.Exporter, opts *pullOptions) (err
 				return fmt.Errorf("revising %d exposures: %w", len(revisedExposures), err)
 			}
 			// Success, update metrics
-			metricsMiddleWare.RecordPullRevisions(ctx, int(resp.Revised))
-			metricsMiddleWare.RecordPullDropped(ctx, int(resp.Dropped))
+			stats.Record(ctx, federationin.PullRevisions.M(int64(resp.Revised)))
+			stats.Record(ctx, federationin.PullDropped.M(int64(resp.Dropped)))
 
 			total += int(resp.Revised)
 		} else {

@@ -25,10 +25,11 @@ import (
 	"net/http"
 	"time"
 
+	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
-	"github.com/google/exposure-notifications-server/internal/metrics/metricsware"
+	"github.com/google/exposure-notifications-server/internal/metrics/publish"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
@@ -189,8 +190,6 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	defer span.End()
 
 	logger := logging.FromContext(ctx).With("health_authority_id", data.HealthAuthorityID)
-	metrics := h.serverenv.MetricsExporter(ctx)
-	metricsMiddleWare := metricsware.NewMiddleWare(&metrics)
 
 	logger.Info("publish API request")
 
@@ -209,7 +208,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 					Code:         verifyapi.ErrorUnknownHealthAuthorityID,
 				},
 				metrics: func() {
-					metricsMiddleWare.RecordHealthAuthorityNotAuthorized(ctx)
+					stats.Record(ctx, publish.HealthAuthorityNotAuthorized.M(1))
 				},
 			}
 		}
@@ -228,7 +227,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 				Code:         verifyapi.ErrorUnableToLoadHealthAuthority,
 			},
 			metrics: func() {
-				metricsMiddleWare.RecordErrorLoadingAuthorizedApp(ctx)
+				stats.Record(ctx, publish.ErrorLoadingAuthorizedApp.M(1))
 			},
 		}
 	}
@@ -250,7 +249,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 						ErrorMessage: message, // Error code omitted, since this isn't in the v1 path.
 					},
 					metrics: func() {
-						metricsMiddleWare.RecordRegionNotAuthorized(ctx)
+						stats.Record(ctx, publish.RegionNotAuthorized.M(1))
 					},
 				}
 			}
@@ -280,7 +279,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 				Code:         verifyapi.ErrorHealthAuthorityMissingRegionConfiguration,
 			},
 			metrics: func() {
-				metricsMiddleWare.RecordRegionNotSpecified(ctx)
+				stats.Record(ctx, publish.RegionNotSpecified.M(1))
 			},
 		}
 	}
@@ -290,7 +289,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	if err != nil {
 		if appConfig.BypassHealthAuthorityVerification {
 			logger.Warnf("bypassing health authority certificate verification health authority: %v", appConfig.AppPackageName)
-			metricsMiddleWare.RecordVerificationBypassed(ctx)
+			stats.Record(ctx, publish.VerificationBypassed.M(1))
 		} else {
 			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
 			if h.config.DebugLogBadCertificates {
@@ -306,7 +305,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 					Code:         verifyapi.ErrorVerificationCertificateInvalid,
 				},
 				metrics: func() {
-					metricsMiddleWare.RecordBadVerification(ctx)
+					stats.Record(ctx, publish.BadVerification.M(1))
 				},
 			}
 		}
@@ -346,7 +345,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 				Warnings:     transformWarnings,
 			},
 			metrics: func() {
-				metricsMiddleWare.RecordTransformFail(ctx)
+				stats.Record(ctx, publish.TransformFail.M(1))
 			},
 		}
 	}
@@ -396,7 +395,10 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 				Warnings:     transformWarnings,
 			},
 			metrics: func() {
-				metricsMiddleWare.RecordRevisionTokenIssue(ctx, metric)
+				// TODO(yegle): we want to use this string later when we
+				// refactor the metrics.
+				_ = metric
+				stats.Record(ctx, publish.RevisionTokenIssue.M(1))
 			},
 		}
 	}
@@ -443,9 +445,9 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		status:      http.StatusOK,
 		pubResponse: &publishResponse,
 		metrics: func() {
-			metricsMiddleWare.RecordInsertions(ctx, int(resp.Inserted))
-			metricsMiddleWare.RecordRevisions(ctx, int(resp.Revised))
-			metricsMiddleWare.RecordDrops(ctx, int(resp.Dropped))
+			stats.Record(ctx, publish.ExposuresInserted.M(int64(resp.Inserted)))
+			stats.Record(ctx, publish.ExposuresInserted.M(int64(resp.Revised)))
+			stats.Record(ctx, publish.ExposuresInserted.M(int64(resp.Dropped)))
 		},
 	}
 }
