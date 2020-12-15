@@ -249,6 +249,15 @@ variable "vpc_access_connector_max_throughput" {
   description = "Maximum provisioned traffic throughput in Mbps"
 }
 
+variable "enable_lb_logging" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+  Whether to enable load balancer logging. This is useful for debugging Cloud
+  Armor issues.
+  EOT
+}
+
 terraform {
   required_version = ">= 0.13"
 
