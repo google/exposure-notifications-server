@@ -74,7 +74,7 @@ type StackdriverConfig struct {
 	ReportingInterval    time.Duration `env:"STACKDRIVER_REPORTING_INTERVAL, default=2m"`
 	BundleDelayThreshold time.Duration `env:"STACKDRIVER_BUNDLE_DELAY_THRESHOLD, default=2s"`
 	BundleCountThreshold uint          `env:"STACKDRIVER_BUNDLE_COUNT_THRESHOLD, default=50"`
-	Timeout              time.Duration `env:"STACKDRIVER_TIMEOUT, default=5s"`
+	Timeout              time.Duration `env:"STACKDRIVER_TIMEOUT, default=1m"`
 
 	// The Cloud Run services are exporting many metrics that we get for free
 	// from the OpenCensus libaries. You can control whether to exclude some of
