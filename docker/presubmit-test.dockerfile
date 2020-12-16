@@ -20,10 +20,10 @@ FROM golang:1.15.2
 RUN apt-get update -yqq && apt-get install -yqq sudo unzip
 
 # Install terraform
-RUN wget -q https://releases.hashicorp.com/terraform/0.13.1/terraform_0.13.1_linux_amd64.zip \
-  && unzip terraform_0.13.1_linux_amd64.zip \
+RUN wget -q https://releases.hashicorp.com/terraform/0.14.2/terraform_0.14.2_linux_amd64.zip \
+  && unzip terraform_0.14.2_linux_amd64.zip \
   && mv terraform /usr/bin \
-  && rm terraform_0.13.1_linux_amd64.zip
+  && rm terraform_0.14.2_linux_amd64.zip
 
 # Install jq
 RUN curl -o /usr/bin/jq http://stedolan.github.io/jq/download/linux64/jq \
