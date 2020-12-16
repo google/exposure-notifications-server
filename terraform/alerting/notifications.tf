@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "google_monitoring_notification_channel" "email" {
+resource "google_monitoring_notification_channel" "channels" {
   provider     = google-beta
-  display_name = "Email Notification Channel"
-  type         = "email"
-  labels = {
-    email_address = var.notification-email
-  }
+  project      = var.project
+  display_name = "${each.key} Notification Channel"
+  type         = each.key
+  labels       = each.value.labels
+
+  for_each = var.alert-notification-channels
 }

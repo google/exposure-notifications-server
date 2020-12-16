@@ -17,10 +17,22 @@ variable "project" {
   description = "GCP project for key server. Required."
 }
 
-variable "notification-email" {
-  type        = string
-  default     = "nobody@example.com"
-  description = "Email address for alerts to go to."
+variable "alert-notification-channels" {
+  type = map(any)
+  default = {
+    email = {
+      labels = {
+        email_address = "nobody@example.com"
+      }
+    }
+    slack = {
+      labels = {
+        channel_name = "#foo"
+        auth_token   = "abr"
+      }
+    }
+  }
+  description = "Notification channels"
 }
 
 terraform {
