@@ -165,6 +165,9 @@ resource "google_compute_backend_service" "debugger" {
     group = google_compute_region_network_endpoint_group.debugger[0].id
   }
   security_policy = google_compute_security_policy.cloud-armor.name
+  log_config {
+    enable = var.enable_lb_logging
+  }
 }
 
 output "debugger_urls" {
