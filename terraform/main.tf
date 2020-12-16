@@ -135,8 +135,6 @@ locals {
     DB_SSLMODE        = "verify-ca"
     DB_SSLROOTCERT    = "secret://${google_secret_manager_secret_version.db-secret-version["sslrootcert"].id}?target=file"
     DB_USER           = google_sql_user.user.name
-
-    STACKDRIVER_TIMEOUT = "1m"
   }
 }
 
