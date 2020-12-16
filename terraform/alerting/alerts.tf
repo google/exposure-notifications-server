@@ -64,7 +64,8 @@ resource "google_monitoring_alert_policy" "LatencyTooHigh" {
     content   = "${local.playbook_prefix}/LatencyTooHigh.md"
     mime_type = "text/markdown"
   }
-  notification_channels = [
-    google_monitoring_notification_channel.email.id
+  notification_channels = [for x in values(google_monitoring_notification_channel.channels) : x.id]
+  depends_on = [
+    google_monitoring_notification_channel.channels
   ]
 }
