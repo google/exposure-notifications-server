@@ -135,6 +135,8 @@ function destroy() {
     sleep 120
   fi
   # Clean up states after manual DB delete
+  terraform state rm module.en.google_sql_database_instance.db-inst || best_effort
+  terraform state rm module.en.google_sql_database.db || best_effort
   terraform state rm module.en.google_sql_user.user || best_effort
   terraform state rm module.en.google_sql_ssl_cert.db-cert || best_effort
 
