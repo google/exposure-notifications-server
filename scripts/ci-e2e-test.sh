@@ -140,7 +140,7 @@ case "${ACTION}" in
     ;;
 
   "smoke" | "incremental" )
-    "${ACTION}"
+    smoke
     ;;
 
   *)
