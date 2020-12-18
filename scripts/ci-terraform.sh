@@ -152,7 +152,7 @@ function destroy() {
 function smoke() {
   # Best effort destroy before applying
   destroy || best_effort
-  trap "destroy || true" EXIT
+  trap "git status; git diff; destroy || true" EXIT
   deploy
 }
 
