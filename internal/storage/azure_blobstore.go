@@ -165,7 +165,7 @@ func (s *AzureBlobstore) DeleteObject(ctx context.Context, container, name strin
 // exist, it returns ErrNotFound.
 func (s *AzureBlobstore) GetObject(ctx context.Context, container, name string) ([]byte, error) {
 	blobURL := s.serviceURL.NewContainerURL(container).NewBlockBlobURL(name)
-	dr, err := blobURL.Download(ctx, 0, azblob.CountToEnd, azblob.BlobAccessConditions{}, false)
+	dr, err := blobURL.Download(ctx, 0, azblob.CountToEnd, azblob.BlobAccessConditions{}, false, azblob.ClientProvidedKeyOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to download object: %w", err)
 	}
