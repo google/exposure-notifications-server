@@ -87,7 +87,7 @@ Standard JWT headers must be provided.
 
 * `alg` : _REQUIRED_ and must be set to `ES256`
 * `kid` : _REQUIRED_ and indicate a specific key ID to use for verification
-* `twp` : _REQUIRED_ and must be set to `JWT`
+* `typ` : _REQUIRED_ and must be set to `JWT`
 
 ### HMAC Calculation
 
