@@ -398,7 +398,7 @@ type InsertAndReviseExposuresRequest struct {
 	Incoming []*model.Exposure
 	Token    *pb.RevisionTokenData
 
-	// Optional - is provided, stats will be updated.
+	// Optional: if provided stats will be updated transactionally with the TEKs.
 	PublishInfo *model.PublishInfo
 
 	// RequireToken requires that the request supply a revision token to re-upload
