@@ -14,8 +14,6 @@
 
 BEGIN;
 
-
-DROP TABLE HealthAuthorityStatsRelease;
 DROP TABLE HealthAuthorityStats;
 
 END;

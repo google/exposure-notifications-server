@@ -12,37 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package stats is a model abstraction for health authority telemetry.
-package stats
+// Package model is a model abstraction for health authority telemetry.
+package model
 
 import (
-	"log"
 	"time"
 )
 
 const (
 	MaxOldestTEK = 14
 	MaxOnsetDays = 28
+
+	PlatformAndroid = "android"
+	PlatformIOS     = "ios"
+	PlatformUnknown = "unknown"
 )
 
-// HealthAuthorityRelease defines a distributed lock, preventing
-// stats from being retrieved too frequently.
-type HealthAuthorityRelease struct {
-	HealthAuthorityID int64
-	NotBefore         time.Time
-}
-
-// CanPull returns true if the NotBefore time is in the past.
-func (h *HealthAuthorityRelease) CanPull() bool {
-	return time.Now().UTC().After(h.NotBefore)
-}
+var (
+	platforms = map[string]int{
+		PlatformAndroid: 0,
+		PlatformIOS:     1,
+		PlatformUnknown: 2,
+	}
+)
 
 // HealthAuthorityStats represents the raw metrics for an individual
 // health authority for a given hour.
 type HealthAuthorityStats struct {
 	HealthAuthorityID int64
 	Hour              time.Time
-	PublishCount      int32
+	PublishCount      []int32
 	TEKCount          int32
 	RevisionCount     int32
 	OldestTekDays     []int32
@@ -50,12 +49,12 @@ type HealthAuthorityStats struct {
 	MissingOnset      int32
 }
 
-// NewHour creates a HealthAuthorityStats record for specified hour.
+// InitHour creates a HealthAuthorityStats record for specified hour.
 func InitHour(healthAuthorityID int64, hour time.Time) *HealthAuthorityStats {
 	return &HealthAuthorityStats{
 		HealthAuthorityID: healthAuthorityID,
 		Hour:              hour.UTC().Truncate(time.Hour),
-		PublishCount:      0,
+		PublishCount:      make([]int32, len(platforms)),
 		TEKCount:          0,
 		RevisionCount:     0,
 		OldestTekDays:     make([]int32, MaxOldestTEK+1),
@@ -64,21 +63,41 @@ func InitHour(healthAuthorityID int64, hour time.Time) *HealthAuthorityStats {
 	}
 }
 
+// PublishInfo is the paremeters to the AddPublish call
+type PublishInfo struct {
+	CreatedAt    time.Time
+	Platform     string
+	NumTEKs      int32
+	Revision     bool
+	OldestDays   int
+	OnsetDaysAgo int
+	MissingOnset bool
+}
+
 // AddPublish increments the stats for a given hour. This should be called
 // inside of a read-modify-write database transaction.
-func (has *HealthAuthorityStats) AddPublish(teks int32, revision bool, oldestDays int, onsetDaysAgo int, missingOnset bool) {
-	has.PublishCount++
-	has.TEKCount += teks
-	if revision {
+func (has *HealthAuthorityStats) AddPublish(info *PublishInfo) {
+	switch info.Platform {
+	case PlatformAndroid:
+		has.PublishCount[platforms[PlatformAndroid]]++
+	case PlatformIOS:
+		has.PublishCount[platforms[PlatformIOS]]++
+	default:
+		has.PublishCount[platforms[PlatformUnknown]]++
+	}
+
+	has.TEKCount += info.NumTEKs
+	if info.Revision {
 		has.RevisionCount++
+		return
 	}
-	log.Printf("%v %v", oldestDays, len(has.OldestTekDays))
-	if oldestDays >= 0 && oldestDays < len(has.OldestTekDays) {
-		has.OldestTekDays[oldestDays] = has.OldestTekDays[oldestDays] + 1
+	// This info is only updated if it's not a revision.
+	if info.OldestDays >= 0 && info.OldestDays < len(has.OldestTekDays) {
+		has.OldestTekDays[info.OldestDays]++
 	}
-	if missingOnset {
+	if info.MissingOnset {
 		has.MissingOnset++
-	} else if onsetDaysAgo >= 0 && onsetDaysAgo < len(has.OnsetAgeDays) {
-		has.OnsetAgeDays[onsetDaysAgo] = has.OnsetAgeDays[onsetDaysAgo] + 1
+	} else if info.OnsetDaysAgo >= 0 && info.OnsetDaysAgo < len(has.OnsetAgeDays) {
+		has.OnsetAgeDays[info.OnsetDaysAgo]++
 	}
 }

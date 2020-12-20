@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -397,6 +398,9 @@ type InsertAndReviseExposuresRequest struct {
 	Incoming []*model.Exposure
 	Token    *pb.RevisionTokenData
 
+	// Optional - is provided, stats will be updated.
+	PublishInfo *model.PublishInfo
+
 	// RequireToken requires that the request supply a revision token to re-upload
 	// existing keys.
 	RequireToken bool
@@ -449,6 +453,10 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 	if req.SkipRevisions && req.OnlyRevisions {
 		return nil, fmt.Errorf("configuration paradox: skipRevisions and onlyRevisions are both set to true")
 	}
+
+	// Save a handle to the publis info stats, which may be nil.
+	stats := req.PublishInfo
+	healthAuthorityID := int64(0)
 
 	// Maintain a record of the number of exposures inserted and updated, and a
 	// record of the exposures that were actually inserted/updated after merge
@@ -643,7 +651,21 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 				}
 				resp.Revised++
 			}
+
+			if healthAuthorityID == 0 && exp.HealthAuthorityID != nil {
+				healthAuthorityID = *exp.HealthAuthorityID
+			}
 		}
+
+		log.Printf("stats: %+v haid: %v", stats, healthAuthorityID)
+		if stats != nil && healthAuthorityID != 0 {
+			stats.NumTEKs = int32(resp.Inserted) + int32(resp.Revised)
+			stats.Revision = resp.Revised > 0
+			if err := db.UpdateStats(ctx, tx, stats.CreatedAt, healthAuthorityID, stats); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return nil, err

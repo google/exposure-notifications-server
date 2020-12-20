@@ -558,7 +558,7 @@ func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 // The return params are the list of exposures, a list of warnings, and any
 // errors that occur.
 //
-func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, []string, error) {
+func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, *PublishInfo, []string, error) {
 	logger := logging.FromContext(ctx)
 	if t.debugReleaseSameDay {
 		logger.Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
@@ -568,16 +568,23 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	if len(inData.Keys) == 0 {
 		msg := "no exposure keys in publish request"
 		logger.Debugf(msg)
-		return nil, nil, fmt.Errorf(msg)
+		return nil, nil, nil, fmt.Errorf(msg)
 	}
 	if len(inData.Keys) > t.maxExposureKeys {
 		msg := fmt.Sprintf("too many exposure keys in publish: %v, max of %v is allowed", len(inData.Keys), t.maxExposureKeys)
 		logger.Debugf(msg)
-		return nil, nil, fmt.Errorf(msg)
+		return nil, nil, nil, fmt.Errorf(msg)
 	}
 
 	defaultCreatedAt := TruncateWindow(batchTime, t.truncateWindow)
 	entities := make([]*Exposure, 0, len(inData.Keys))
+
+	// Some of the stats of the publish request can be calculated in line with the transform.
+	// Some won't matter until after the save, so this structure is created
+	// here and returned for further updating.
+	stats := &PublishInfo{
+		CreatedAt: defaultCreatedAt,
+	}
 
 	settings := KeyTransform{
 		// An exposure key must have an interval >= minInterval (max configured age)
@@ -618,6 +625,12 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	if daysSince := math.Abs(float64(DaysFromSymptomOnset(onsetInterval, currentInterval))); onsetInterval == 0 || daysSince > float64(t.maxValidSymptomOnsetReportDays) {
 		logger.Debugw("defaulting days since symptom onset")
 		onsetInterval = IntervalNumber(timeutils.SubtractDays(batchTime, t.defaultSymptomOnsetDaysAgo))
+		stats.MissingOnset = true
+	}
+
+	// If an onset was provided, that should be put in the stats for this publish.
+	if !stats.MissingOnset {
+		stats.OnsetDaysAgo = int(DaysFromSymptomOnset(onsetInterval, currentInterval))
 	}
 
 	// Regions are a multi-value property, uppercase them for storage.
@@ -665,13 +678,18 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 			exposure.SetDaysSinceSymptomOnset(daysSince)
 		}
 
+		// Check and see many days old the key is.
+		if daysOld := DaysFromSymptomOnset(exposure.IntervalNumber, currentInterval); daysOld > int32(stats.OldestDays) {
+			stats.OldestDays = int(daysOld)
+		}
+
 		exposure.Traveler = inData.Traveler
 		entities = append(entities, exposure)
 	}
 
 	if len(entities) == 0 {
-		// All keys in the batch are valid.
-		return nil, transformWarnings, transformErrors.ErrorOrNil()
+		// All keys in the batch are invalid.
+		return nil, nil, transformWarnings, transformErrors.ErrorOrNil()
 	}
 
 	// Validate the uploaded data meets configuration parameters.
@@ -707,7 +725,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		if ex.IntervalNumber < nextInterval {
 			msg := fmt.Sprintf("exposure keys have non aligned overlapping intervals. %v overlaps with previous key that is good from %v to %v.", ex.IntervalNumber, lastInterval, nextInterval)
 			logger.Debugf(msg)
-			return nil, transformWarnings, fmt.Errorf(msg)
+			return nil, nil, transformWarnings, fmt.Errorf(msg)
 		}
 		// OK, current key starts at or after the end of the previous one. Advance both variables.
 		lastInterval = ex.IntervalNumber
@@ -718,9 +736,9 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		if v > t.maxSameDayKeys {
 			msg := fmt.Sprintf("too many overlapping keys for start interval: %v want: <= %v, got: %v", k, t.maxSameDayKeys, v)
 			logger.Debugf(msg)
-			return nil, transformWarnings, fmt.Errorf(msg)
+			return nil, nil, transformWarnings, fmt.Errorf(msg)
 		}
 	}
 
-	return entities, transformWarnings, transformErrors.ErrorOrNil()
+	return entities, stats, transformWarnings, transformErrors.ErrorOrNil()
 }

@@ -14,22 +14,21 @@
 
 BEGIN;
 
-CREATE TABLE HealthAuthorityStatsRelease(
-    health_authority_id INT NOT NULL REFERENCES HealthAuthority(id),
-    not_before TIMESTAMPTZ NOT NULL
-);
-
 CREATE TABLE HealthAuthorityStats(
     health_authority_id INT NOT NULL REFERENCES HealthAuthority(id) ON DELETE CASCADE,
     -- UTC hour
-    hour TIMESTAMPTZ NOT NULL, 
-    publish INT NOT NULL DEFAULT 0,
+    hour TIMESTAMPTZ NOT NULL,
+    -- 3 elements, android/iphone/unknown
+    publish INT [],
+    -- number of TEKs provided
     teks INT NOT NULL DEFAULT 0,
+    -- number of TEKs that were revised
     revisions INT NOT NULL DEFAULT 0,
-    -- Age of the oldest TEKs from an individual publish request. Index is number of days.
+    -- Age of the oldest TEKs from an individual publish request. Index is number of days. 0-14
     oldest_tek_days INT [],    
-    -- Symptom onset to upload ranges, index is number of days.
+    -- Symptom onset to upload ranges, index is number of days. 0-28.
     onset_age_days INT [],
+    -- Indicator of where the symptom onset was backfilled.
     missing_onset INT DEFAULT 0
 );
 
