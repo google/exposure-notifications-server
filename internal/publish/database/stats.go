@@ -23,10 +23,6 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-const (
-	statsEmbargo = time.Hour
-)
-
 // ReadStats will return all stats before the current hour, ordered in ascenting time.
 func (db *PublishDB) ReadStats(ctx context.Context, healthAuthorityID int64) ([]*model.HealthAuthorityStats, error) {
 	if healthAuthorityID <= 0 {
