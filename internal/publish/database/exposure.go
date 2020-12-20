@@ -21,7 +21,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -454,8 +453,10 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 		return nil, fmt.Errorf("configuration paradox: skipRevisions and onlyRevisions are both set to true")
 	}
 
-	// Save a handle to the publis info stats, which may be nil.
+	// Save a handle to the publish info stats, which may be nil.
 	stats := req.PublishInfo
+	// The health authority ID is attached to the TEKs if this is coming from a verified publish,
+	// this is used to track if it has been found.
 	healthAuthorityID := int64(0)
 
 	// Maintain a record of the number of exposures inserted and updated, and a
@@ -657,7 +658,7 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 			}
 		}
 
-		log.Printf("stats: %+v haid: %v", stats, healthAuthorityID)
+		// If requested, update the publish stats for the associated health authority.
 		if stats != nil && healthAuthorityID != 0 {
 			stats.NumTEKs = int32(resp.Inserted) + int32(resp.Revised)
 			stats.Revision = resp.Revised > 0
