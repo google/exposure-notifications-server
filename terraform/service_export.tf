@@ -114,6 +114,7 @@ resource "google_cloud_run_service" "export" {
       annotations = {
         "autoscaling.knative.dev/maxScale" : "10",
         "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
+        "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
       }
     }
   }
@@ -127,7 +128,9 @@ resource "google_cloud_run_service" "export" {
 
   lifecycle {
     ignore_changes = [
-      template[0].metadata[0].annotations,
+      template[0].metadata[0].annotations["client.knative.dev/user-image"],
+      template[0].metadata[0].annotations["run.googleapis.com/client-name"],
+      template[0].metadata[0].annotations["run.googleapis.com/client-version"],
       template[0].spec[0].containers[0].image,
     ]
   }
