@@ -375,7 +375,7 @@ func encodeKey(key []byte) string {
 }
 
 func TestStillValidKey(t *testing.T) {
-	now := time.Now()
+	now := timeutils.UTCMidnight(time.Now())
 	batchWindow := TruncateWindow(now, time.Minute)
 	intervalNumber := IntervalNumber(now) - 1
 
@@ -447,10 +447,10 @@ func TestStillValidKey(t *testing.T) {
 			}
 
 			wantStats := &PublishInfo{
-				CreatedAt:    now.Truncate(time.Minute),
+				OldestDays:   1,
 				MissingOnset: true,
 			}
-			if diff := cmp.Diff(wantStats, stats, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
+			if diff := cmp.Diff(wantStats, stats, cmpopts.IgnoreFields(PublishInfo{}, "CreatedAt")); diff != "" {
 				t.Errorf("stats mismatch (-want +got):\n%v", diff)
 			}
 		})
@@ -1297,7 +1297,8 @@ func TestTransformOverlapping(t *testing.T) {
 }
 
 func TestDaysFromSymptomOnset(t *testing.T) {
-	now := time.Now().UTC()
+	// Node that everything is based on midnight UTC so we'll start there.
+	now := timeutils.UTCMidnight(time.Now().UTC())
 
 	cases := []struct {
 		name  string
@@ -1324,10 +1325,10 @@ func TestDaysFromSymptomOnset(t *testing.T) {
 			want:  1,
 		},
 		{
-			name:  "next_day_round_up",
+			name:  "next_day_round_down_2",
 			onset: IntervalNumber(now),
 			check: IntervalNumber(now.Add(37 * time.Hour)),
-			want:  2,
+			want:  1,
 		},
 		{
 			name:  "previous_day",
@@ -1339,7 +1340,7 @@ func TestDaysFromSymptomOnset(t *testing.T) {
 			name:  "previous_day_round_down",
 			onset: IntervalNumber(now),
 			check: IntervalNumber(now.Add(-25 * time.Hour)),
-			want:  -1,
+			want:  -2,
 		},
 		{
 			name:  "previous_day_round_up",
@@ -1357,7 +1358,7 @@ func TestDaysFromSymptomOnset(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := DaysFromSymptomOnset(tc.onset, tc.check)
+			got := DaysBetweenIntervals(tc.onset, tc.check)
 			if tc.want != got {
 				t.Fatalf("wrong day instance between %v and %v, got: %v want: %v", tc.onset, tc.check, got, tc.want)
 			}

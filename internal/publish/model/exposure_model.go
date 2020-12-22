@@ -382,23 +382,20 @@ func TimeForIntervalNumber(interval int32) time.Time {
 	return time.Unix(int64(verifyapi.IntervalLength.Seconds())*int64(interval), 0)
 }
 
-// DaysFromSymptomOnset calculates the number of days between two start intervals.
-// Partial days are rounded up/down to the closest day.
-// If the checkInterval is before the onsetInterval, number of days will be negative.
-func DaysFromSymptomOnset(onsetInterval int32, checkInterval int32) int32 {
-	distance := checkInterval - onsetInterval
+// DaysBetweenIntervals calculates the number of days between two start intervals.
+// The intervals represent their start interval (UTC midnight). Partial days always
+// round up.
+func DaysBetweenIntervals(a int32, b int32) int32 {
+	a = IntervalNumber(timeutils.UTCMidnight(TimeForIntervalNumber(a)))
+	b = IntervalNumber(timeutils.UTCMidnight(TimeForIntervalNumber(b)))
+	distance := b - a
 	days := distance / verifyapi.MaxIntervalCount
-	// if the days don't divide evenly, round (up or down) to the closest even day.
+	// if the days don't divide evenly go to 1 magnitude larger.
 	if rem := distance % verifyapi.MaxIntervalCount; rem != 0 {
-		// remainder of negative number is negative in go. So if the ABS is more than
-		// half a day, adjust the day count.
-		if math.Abs(float64(rem)) > verifyapi.MaxIntervalCount/2 {
-			// Account for the fact that if day is 0 and rem is > half a day, sign of rem matters.
-			if days < 0 || rem < 0 {
-				days--
-			} else {
-				days++
-			}
+		if days < 0 {
+			days--
+		} else {
+			days++
 		}
 	}
 	return days
@@ -622,7 +619,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	// There are launched applications using this sever that rely on this
 	// behavior - that are passing invalid symotom onset interviews, those
 	// are screened about above when the onsetInterval is set.
-	if daysSince := math.Abs(float64(DaysFromSymptomOnset(onsetInterval, currentInterval))); onsetInterval == 0 || daysSince > float64(t.maxValidSymptomOnsetReportDays) {
+	if daysSince := math.Abs(float64(DaysBetweenIntervals(onsetInterval, currentInterval))); onsetInterval == 0 || daysSince > float64(t.maxValidSymptomOnsetReportDays) {
 		logger.Debugw("defaulting days since symptom onset")
 		onsetInterval = IntervalNumber(timeutils.SubtractDays(batchTime, t.defaultSymptomOnsetDaysAgo))
 		stats.MissingOnset = true
@@ -630,7 +627,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 
 	// If an onset was provided, that should be put in the stats for this publish.
 	if !stats.MissingOnset {
-		stats.OnsetDaysAgo = int(DaysFromSymptomOnset(onsetInterval, currentInterval))
+		stats.OnsetDaysAgo = int(DaysBetweenIntervals(onsetInterval, currentInterval))
 	}
 
 	// Regions are a multi-value property, uppercase them for storage.
@@ -663,7 +660,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		}
 		// Set days since onset, either from the API or from the verified claims (see above).
 		if onsetInterval > 0 {
-			daysSince := DaysFromSymptomOnset(onsetInterval, exposure.IntervalNumber)
+			daysSince := DaysBetweenIntervals(onsetInterval, exposure.IntervalNumber)
 			// Note that previously this returned an error, but this broke the iOS
 			// implementation since it is unable to handle partial success. As such,
 			// it was converted to a warning that's a separate field in the API
@@ -679,7 +676,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		}
 
 		// Check and see many days old the key is.
-		if daysOld := DaysFromSymptomOnset(exposure.IntervalNumber, currentInterval); daysOld > int32(stats.OldestDays) {
+		if daysOld := DaysBetweenIntervals(exposure.IntervalNumber, currentInterval); daysOld > int32(stats.OldestDays) {
 			stats.OldestDays = int(daysOld)
 		}
 

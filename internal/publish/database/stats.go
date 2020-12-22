@@ -48,6 +48,7 @@ func (db *PublishDB) ReadStats(ctx context.Context, healthAuthorityID int64) ([]
 		}
 
 		for rows.Next() {
+			// The time the hour is initialized to doesn't matter, the scan will override it.
 			stats := model.InitHour(healthAuthorityID, now)
 			if err := scanOneHealthAuthorityStats(rows, stats); err != nil {
 				return err

@@ -48,8 +48,8 @@ func TestCheckAddPublish(t *testing.T) {
 			PublishCount:      []int32{1, 0, 0},
 			TEKCount:          14,
 			RevisionCount:     0,
-			OldestTekDays:     []int32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-			OnsetAgeDays:      []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			OldestTekDays:     []int32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+			OnsetAgeDays:      []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			MissingOnset:      0,
 		}
 		compare(want, record, t)
@@ -73,8 +73,8 @@ func TestCheckAddPublish(t *testing.T) {
 			PublishCount:      []int32{1, 1, 0},
 			TEKCount:          24,
 			RevisionCount:     1,
-			OldestTekDays:     []int32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-			OnsetAgeDays:      []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			OldestTekDays:     []int32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+			OnsetAgeDays:      []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			MissingOnset:      0,
 		}
 		compare(want, record, t)
@@ -98,8 +98,33 @@ func TestCheckAddPublish(t *testing.T) {
 			PublishCount:      []int32{1, 1, 1},
 			TEKCount:          29,
 			RevisionCount:     1,
-			OldestTekDays:     []int32{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-			OnsetAgeDays:      []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			OldestTekDays:     []int32{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+			OnsetAgeDays:      []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			MissingOnset:      1,
+		}
+		compare(want, record, t)
+	}
+
+	{
+		info := PublishInfo{
+			Platform:     PlatformAndroid,
+			NumTEKs:      20,
+			Revision:     false,
+			OldestDays:   StatsMaxOldestTEK + 5,
+			OnsetDaysAgo: StatsMaxOnsetDays + 5,
+			MissingOnset: false,
+		}
+
+		record.AddPublish(&info)
+
+		want = &HealthAuthorityStats{
+			HealthAuthorityID: want.HealthAuthorityID,
+			Hour:              want.Hour,
+			PublishCount:      []int32{2, 1, 1},
+			TEKCount:          49,
+			RevisionCount:     1,
+			OldestTekDays:     []int32{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},
+			OnsetAgeDays:      []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 			MissingOnset:      1,
 		}
 		compare(want, record, t)

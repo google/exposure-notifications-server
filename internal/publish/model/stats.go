@@ -20,8 +20,12 @@ import (
 )
 
 const (
-	MaxOldestTEK = 14
-	MaxOnsetDays = 28
+	// StatsMaxOldestTEK represents the oldest age (days) that will be reflected in stats.
+	// Anything >= will count in the largest bucket.
+	StatsMaxOldestTEK = 15
+	// StatsMaxOnsetDays represents the oldest symptom onset age that will be reflected in stats.
+	// Anything >= will count in the largest bucket.
+	StatsMaxOnsetDays = 29
 
 	PlatformAndroid = "android"
 	PlatformIOS     = "ios"
@@ -57,8 +61,8 @@ func InitHour(healthAuthorityID int64, hour time.Time) *HealthAuthorityStats {
 		PublishCount:      make([]int32, len(platforms)),
 		TEKCount:          0,
 		RevisionCount:     0,
-		OldestTekDays:     make([]int32, MaxOldestTEK+1),
-		OnsetAgeDays:      make([]int32, MaxOnsetDays+1),
+		OldestTekDays:     make([]int32, StatsMaxOldestTEK+1),
+		OnsetAgeDays:      make([]int32, StatsMaxOnsetDays+1),
 		MissingOnset:      0,
 	}
 }
@@ -92,12 +96,19 @@ func (has *HealthAuthorityStats) AddPublish(info *PublishInfo) {
 		return
 	}
 	// This info is only updated if it's not a revision.
-	if info.OldestDays >= 0 && info.OldestDays < len(has.OldestTekDays) {
+	if age, length := info.OldestDays, len(has.OldestTekDays); age >= 0 && age < length {
 		has.OldestTekDays[info.OldestDays]++
+	} else if age >= length {
+		// count this in the last, >= bucket.
+		has.OldestTekDays[length-1]++
 	}
 	if info.MissingOnset {
 		has.MissingOnset++
-	} else if info.OnsetDaysAgo >= 0 && info.OnsetDaysAgo < len(has.OnsetAgeDays) {
-		has.OnsetAgeDays[info.OnsetDaysAgo]++
+	} else {
+		if oAge, length := info.OnsetDaysAgo, len(has.OnsetAgeDays); oAge >= 0 && oAge < length {
+			has.OnsetAgeDays[oAge]++
+		} else if oAge >= length {
+			has.OnsetAgeDays[length-1]++
+		}
 	}
 }

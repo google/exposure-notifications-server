@@ -282,8 +282,8 @@ func TestPublishWithBypass(t *testing.T) {
 				{
 					PublishCount:  []int32{1, 0, 0},
 					TEKCount:      2,
-					OldestTekDays: []int32{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					OnsetAgeDays:  []int32{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OldestTekDays: []int32{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OnsetAgeDays:  []int32{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 				},
 			},
 			ReportType: verifyapi.ReportTypeConfirmed,
@@ -319,8 +319,8 @@ func TestPublishWithBypass(t *testing.T) {
 				{
 					PublishCount:  []int32{0, 1, 0},
 					TEKCount:      2,
-					OldestTekDays: []int32{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					OnsetAgeDays:  []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OldestTekDays: []int32{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OnsetAgeDays:  []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 				},
 			},
 			Regions:          []string{regions.current()},
@@ -356,8 +356,8 @@ func TestPublishWithBypass(t *testing.T) {
 				{
 					PublishCount:  []int32{0, 0, 1},
 					TEKCount:      2,
-					OldestTekDays: []int32{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					OnsetAgeDays:  []int32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OldestTekDays: []int32{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OnsetAgeDays:  []int32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 					MissingOnset:  1,
 				},
 			},
