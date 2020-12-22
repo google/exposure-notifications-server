@@ -162,7 +162,7 @@ resource "google_compute_backend_service" "federationout" {
   }
   security_policy = google_compute_security_policy.cloud-armor.name
   log_config {
-    enable = local.enable_lb_logging
+    enable = var.enable_lb_logging
   }
 }
 
