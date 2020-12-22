@@ -99,11 +99,14 @@ resource "google_cloud_run_service" "export-importer" {
     }
 
     metadata {
-      annotations = {
+      annotations = merge({
         "autoscaling.knative.dev/maxScale" : "10",
         "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
         "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
-      }
+        }, local.enable_lb ? {
+        "run.googleapis.com/ingress" : "internal-and-cloud-load-balancing"
+        } : {}
+      )
     }
   }
 

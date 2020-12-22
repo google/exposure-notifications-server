@@ -95,11 +95,14 @@ resource "google_cloud_run_service" "federationout" {
     }
 
     metadata {
-      annotations = {
+      annotations = merge({
         "autoscaling.knative.dev/maxScale" : "5",
         "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
         "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
-      }
+        }, local.enable_lb ? {
+        "run.googleapis.com/ingress" : "internal-and-cloud-load-balancing"
+        } : {}
+      )
     }
   }
 
@@ -159,7 +162,7 @@ resource "google_compute_backend_service" "federationout" {
   }
   security_policy = google_compute_security_policy.cloud-armor.name
   log_config {
-    enable = var.enable_lb_logging
+    enable = local.enable_lb_logging
   }
 }
 
