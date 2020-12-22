@@ -45,9 +45,9 @@ type ImportRequest struct {
 }
 
 type ImportResposne struct {
-	insertedKeys uint64
-	revisedKeys  uint64
-	droppedKeys  uint64
+	insertedKeys uint32
+	revisedKeys  uint32
+	droppedKeys  uint32
 }
 
 type SignatureAndKey struct {
@@ -224,9 +224,9 @@ type transformer struct {
 	logger             *zap.SugaredLogger
 }
 
-func (t *transformer) transform(keys []*exportproto.TemporaryExposureKey) ([]*pubmodel.Exposure, uint64) {
+func (t *transformer) transform(keys []*exportproto.TemporaryExposureKey) ([]*pubmodel.Exposure, uint32) {
 	inserts := make([]*pubmodel.Exposure, 0, len(keys))
-	var dropped uint64
+	var dropped uint32
 	for _, k := range keys {
 		exp, err := pubmodel.FromExportKey(k, t.exportImportConfig)
 		if err != nil {

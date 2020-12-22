@@ -185,7 +185,7 @@ func newVersionBridge(regions []string) *versionBridge {
 
 // process runs the publish business logic over a "v1" version of the publish request
 // and knows how to join in data from previous versions (the provided versionBridge)
-func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, bridge *versionBridge) *response {
+func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, platform string, bridge *versionBridge) *response {
 	ctx, span := trace.StartSpan(ctx, "(*publish.PublishHandler).process")
 	defer span.End()
 
@@ -329,7 +329,11 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	}
 
 	batchTime := time.Now()
-	exposures, transformWarnings, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
+	result, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
+	// Break apart the result object for easier usage below.
+	exposures := result.Exposures
+	publishInfo := result.PublishInfo
+	transformWarnings := result.Warnings
 	// Check for non-recoverable error. It is possible that individual keys are dropped, but if there
 	// are any valid ones, we will try and move forward.
 	// If at the end, there is a success, the transformError will be returned as supplemental information.
@@ -350,9 +354,15 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		}
 	}
 
+	// Add in the platform
+	if publishInfo != nil {
+		publishInfo.Platform = platform
+	}
+
 	resp, err := h.database.InsertAndReviseExposures(ctx, &database.InsertAndReviseExposuresRequest{
-		Incoming: exposures,
-		Token:    token,
+		Incoming:    exposures,
+		Token:       token,
+		PublishInfo: publishInfo,
 
 		RequireToken:          !appConfig.BypassRevisionToken,
 		AllowPartialRevisions: h.config.AllowPartialRevisions,

@@ -382,23 +382,20 @@ func TimeForIntervalNumber(interval int32) time.Time {
 	return time.Unix(int64(verifyapi.IntervalLength.Seconds())*int64(interval), 0)
 }
 
-// DaysFromSymptomOnset calculates the number of days between two start intervals.
-// Partial days are rounded up/down to the closest day.
-// If the checkInterval is before the onsetInterval, number of days will be negative.
-func DaysFromSymptomOnset(onsetInterval int32, checkInterval int32) int32 {
-	distance := checkInterval - onsetInterval
+// DaysBetweenIntervals calculates the number of days between two start intervals.
+// The intervals represent their start interval (UTC midnight). Partial days always
+// round up.
+func DaysBetweenIntervals(a int32, b int32) int32 {
+	a = IntervalNumber(timeutils.UTCMidnight(TimeForIntervalNumber(a)))
+	b = IntervalNumber(timeutils.UTCMidnight(TimeForIntervalNumber(b)))
+	distance := b - a
 	days := distance / verifyapi.MaxIntervalCount
-	// if the days don't divide evenly, round (up or down) to the closest even day.
+	// if the days don't divide evenly go to 1 magnitude larger.
 	if rem := distance % verifyapi.MaxIntervalCount; rem != 0 {
-		// remainder of negative number is negative in go. So if the ABS is more than
-		// half a day, adjust the day count.
-		if math.Abs(float64(rem)) > verifyapi.MaxIntervalCount/2 {
-			// Account for the fact that if day is 0 and rem is > half a day, sign of rem matters.
-			if days < 0 || rem < 0 {
-				days--
-			} else {
-				days++
-			}
+		if days < 0 {
+			days--
+		} else {
+			days++
 		}
 	}
 	return days
@@ -549,6 +546,12 @@ func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 	return verifyapi.TransmissionRiskUnknown
 }
 
+type TransformPublishResult struct {
+	Exposures   []*Exposure
+	PublishInfo *PublishInfo
+	Warnings    []string
+}
+
 // TransformPublish converts incoming key data to a list of exposure entities.
 // The data in the request is validated during the transform, including:
 //
@@ -558,7 +561,7 @@ func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 // The return params are the list of exposures, a list of warnings, and any
 // errors that occur.
 //
-func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, []string, error) {
+func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) (*TransformPublishResult, error) {
 	logger := logging.FromContext(ctx)
 	if t.debugReleaseSameDay {
 		logger.Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
@@ -568,16 +571,23 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	if len(inData.Keys) == 0 {
 		msg := "no exposure keys in publish request"
 		logger.Debugf(msg)
-		return nil, nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf(msg)
 	}
 	if len(inData.Keys) > t.maxExposureKeys {
 		msg := fmt.Sprintf("too many exposure keys in publish: %v, max of %v is allowed", len(inData.Keys), t.maxExposureKeys)
 		logger.Debugf(msg)
-		return nil, nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf(msg)
 	}
 
 	defaultCreatedAt := TruncateWindow(batchTime, t.truncateWindow)
 	entities := make([]*Exposure, 0, len(inData.Keys))
+
+	// Some of the stats of the publish request can be calculated in line with the transform.
+	// Some won't matter until after the save, so this structure is created
+	// here and returned for further updating.
+	stats := &PublishInfo{
+		CreatedAt: defaultCreatedAt,
+	}
 
 	settings := KeyTransform{
 		// An exposure key must have an interval >= minInterval (max configured age)
@@ -615,9 +625,15 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	// There are launched applications using this sever that rely on this
 	// behavior - that are passing invalid symotom onset interviews, those
 	// are screened about above when the onsetInterval is set.
-	if daysSince := math.Abs(float64(DaysFromSymptomOnset(onsetInterval, currentInterval))); onsetInterval == 0 || daysSince > float64(t.maxValidSymptomOnsetReportDays) {
+	if daysSince := math.Abs(float64(DaysBetweenIntervals(onsetInterval, currentInterval))); onsetInterval == 0 || daysSince > float64(t.maxValidSymptomOnsetReportDays) {
 		logger.Debugw("defaulting days since symptom onset")
 		onsetInterval = IntervalNumber(timeutils.SubtractDays(batchTime, t.defaultSymptomOnsetDaysAgo))
+		stats.MissingOnset = true
+	}
+
+	// If an onset was provided, that should be put in the stats for this publish.
+	if !stats.MissingOnset {
+		stats.OnsetDaysAgo = int(DaysBetweenIntervals(onsetInterval, currentInterval))
 	}
 
 	// Regions are a multi-value property, uppercase them for storage.
@@ -650,7 +666,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		}
 		// Set days since onset, either from the API or from the verified claims (see above).
 		if onsetInterval > 0 {
-			daysSince := DaysFromSymptomOnset(onsetInterval, exposure.IntervalNumber)
+			daysSince := DaysBetweenIntervals(onsetInterval, exposure.IntervalNumber)
 			// Note that previously this returned an error, but this broke the iOS
 			// implementation since it is unable to handle partial success. As such,
 			// it was converted to a warning that's a separate field in the API
@@ -665,13 +681,20 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 			exposure.SetDaysSinceSymptomOnset(daysSince)
 		}
 
+		// Check and see many days old the key is.
+		if daysOld := DaysBetweenIntervals(exposure.IntervalNumber, currentInterval); daysOld > int32(stats.OldestDays) {
+			stats.OldestDays = int(daysOld)
+		}
+
 		exposure.Traveler = inData.Traveler
 		entities = append(entities, exposure)
 	}
 
 	if len(entities) == 0 {
-		// All keys in the batch are valid.
-		return nil, transformWarnings, transformErrors.ErrorOrNil()
+		// All keys in the batch are invalid.
+		return &TransformPublishResult{
+			Warnings: transformWarnings,
+		}, transformErrors.ErrorOrNil()
 	}
 
 	// Validate the uploaded data meets configuration parameters.
@@ -707,7 +730,9 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		if ex.IntervalNumber < nextInterval {
 			msg := fmt.Sprintf("exposure keys have non aligned overlapping intervals. %v overlaps with previous key that is good from %v to %v.", ex.IntervalNumber, lastInterval, nextInterval)
 			logger.Debugf(msg)
-			return nil, transformWarnings, fmt.Errorf(msg)
+			return &TransformPublishResult{
+				Warnings: transformWarnings,
+			}, fmt.Errorf(msg)
 		}
 		// OK, current key starts at or after the end of the previous one. Advance both variables.
 		lastInterval = ex.IntervalNumber
@@ -718,9 +743,15 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		if v > t.maxSameDayKeys {
 			msg := fmt.Sprintf("too many overlapping keys for start interval: %v want: <= %v, got: %v", k, t.maxSameDayKeys, v)
 			logger.Debugf(msg)
-			return nil, transformWarnings, fmt.Errorf(msg)
+			return &TransformPublishResult{
+				Warnings: transformWarnings,
+			}, fmt.Errorf(msg)
 		}
 	}
 
-	return entities, transformWarnings, transformErrors.ErrorOrNil()
+	return &TransformPublishResult{
+		Exposures:   entities,
+		PublishInfo: stats,
+		Warnings:    transformWarnings,
+	}, transformErrors.ErrorOrNil()
 }

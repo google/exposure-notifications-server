@@ -397,6 +397,9 @@ type InsertAndReviseExposuresRequest struct {
 	Incoming []*model.Exposure
 	Token    *pb.RevisionTokenData
 
+	// Optional: if provided stats will be updated transactionally with the TEKs.
+	PublishInfo *model.PublishInfo
+
 	// RequireToken requires that the request supply a revision token to re-upload
 	// existing keys.
 	RequireToken bool
@@ -423,15 +426,15 @@ type InsertAndReviseExposuresRequest struct {
 type InsertAndReviseExposuresResponse struct {
 	// Inserted is the number of new exposures that were inserted into the
 	// database.
-	Inserted uint64
+	Inserted uint32
 
 	// Revised is the number of exposures that matched an existing TEK and were
 	// subsequently revised.
-	Revised uint64
+	Revised uint32
 
 	// Dropped is the number of exposures that were not inserted or updated. This
 	// could be because they weren't present in the revision token, etc.
-	Dropped uint64
+	Dropped uint32
 
 	// Exposures is the actual exposures that were inserted or updated in this
 	// call.
@@ -449,6 +452,9 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 	if req.SkipRevisions && req.OnlyRevisions {
 		return nil, fmt.Errorf("configuration paradox: skipRevisions and onlyRevisions are both set to true")
 	}
+
+	// Save a handle to the publish info stats, which may be nil.
+	stats := req.PublishInfo
 
 	// Maintain a record of the number of exposures inserted and updated, and a
 	// record of the exposures that were actually inserted/updated after merge
@@ -594,7 +600,7 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 		}
 
 		// Calculate the number of dropped responses.
-		resp.Dropped = uint64(len(req.Incoming) - len(incomingMap))
+		resp.Dropped = uint32(len(req.Incoming) - len(incomingMap))
 
 		// If we got this far, the revision token is valid for this request, not
 		// required, or bypassed. It's possible that keys were given, but none of
@@ -628,6 +634,13 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 		if err != nil {
 			return fmt.Errorf("preparing update statement: %v", err)
 		}
+
+		// only possible if all passed in keys are already existing and not revisions.
+		if len(exposures) == 0 {
+			return nil
+		}
+
+		healthAuthorityID := exposures[0].HealthAuthorityID
 		for _, exp := range exposures {
 			if exp.RevisedAt == nil {
 				if exp.ReportType == verifyapi.ReportTypeNegative {
@@ -643,7 +656,23 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 				}
 				resp.Revised++
 			}
+
+			if (healthAuthorityID == nil && exp.HealthAuthorityID != nil) ||
+				(healthAuthorityID != nil && exp.HealthAuthorityID != nil && *healthAuthorityID != *exp.HealthAuthorityID) {
+				return fmt.Errorf("more than one health authority present in publish")
+			}
 		}
+
+		// If requested, update the publish stats for the associated health authority.
+		if stats != nil && healthAuthorityID != nil {
+			// For all practical purposes - this can be no more than a couple hundred TEKs in a single transaction.
+			stats.NumTEKs = int32(resp.Inserted) + int32(resp.Revised)
+			stats.Revision = resp.Revised > 0
+			if err := db.UpdateStatsInTx(ctx, tx, stats.CreatedAt, *healthAuthorityID, stats); err != nil {
+				return fmt.Errorf("failed to update statistics: %w", err)
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return nil, err

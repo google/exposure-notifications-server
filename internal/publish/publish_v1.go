@@ -58,7 +58,8 @@ func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) *
 		}
 	}
 
-	return h.process(ctx, &data, newVersionBridge([]string{}))
+	clientPlatform := platform(r.UserAgent())
+	return h.process(ctx, &data, clientPlatform, newVersionBridge([]string{}))
 }
 
 // Handle returns an http.Handler that can process V1 publish requests.

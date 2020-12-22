@@ -149,7 +149,7 @@ func TestInvalidBase64(t *testing.T) {
 	regions := []string{"US"}
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
 
-	_, _, err = transformer.TransformPublish(ctx, source, regions, nil, batchTime)
+	_, err = transformer.TransformPublish(ctx, source, regions, nil, batchTime)
 	expErr := `key 0 cannot be imported: illegal base64 data at input byte 4`
 	if err == nil || !strings.Contains(err.Error(), expErr) {
 		t.Errorf("expected error '%v', got: %v", expErr, err)
@@ -346,7 +346,7 @@ func TestPublishValidation(t *testing.T) {
 				t.Fatalf("unepected error: %v", err)
 			}
 
-			_, _, err = tf.TransformPublish(ctx, c.p, []string{}, nil, captureStartTime)
+			_, err = tf.TransformPublish(ctx, c.p, []string{}, nil, captureStartTime)
 			if err == nil {
 				if c.m != "" {
 					t.Errorf("want error '%v', got nil", c.m)
@@ -375,7 +375,7 @@ func encodeKey(key []byte) string {
 }
 
 func TestStillValidKey(t *testing.T) {
-	now := time.Now()
+	now := timeutils.UTCMidnight(time.Now())
 	batchWindow := TruncateWindow(now, time.Minute)
 	intervalNumber := IntervalNumber(now) - 1
 
@@ -433,10 +433,12 @@ func TestStillValidKey(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			tf, _, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
+			result, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
 			if err != nil {
 				t.Fatal(err)
 			}
+
+			tf := result.Exposures
 
 			if len(tf) != 1 {
 				t.Fatalf("wrong number of keys, want: 1 got :%v", len(tf))
@@ -501,6 +503,7 @@ func TestTransform(t *testing.T) {
 		Regions      []string
 		Claims       *verification.VerifiedClaims
 		Want         []*Exposure
+		WantStats    *PublishInfo
 		PartialError string
 		Warnings     []string
 	}{
@@ -583,6 +586,11 @@ func TestTransform(t *testing.T) {
 					DaysSinceSymptomOnset: int32Ptr(0),
 				},
 			},
+			WantStats: &PublishInfo{
+				CreatedAt:    batchTimeRounded,
+				OldestDays:   7,
+				MissingOnset: true,
+			},
 		},
 		{
 			Name: "report_type_transmission_risks",
@@ -632,6 +640,11 @@ func TestTransform(t *testing.T) {
 					ReportType:            verifyapi.ReportTypeConfirmed,
 					DaysSinceSymptomOnset: int32Ptr(-2),
 				},
+			},
+			WantStats: &PublishInfo{
+				CreatedAt:    batchTimeRounded,
+				OldestDays:   7,
+				MissingOnset: true,
 			},
 		},
 		{
@@ -702,6 +715,11 @@ func TestTransform(t *testing.T) {
 					DaysSinceSymptomOnset: int32Ptr(1),
 				},
 			},
+			WantStats: &PublishInfo{
+				CreatedAt:    batchTimeRounded,
+				OldestDays:   7,
+				OnsetDaysAgo: 6,
+			},
 		},
 		{
 			Name: "claims_with_report_type_with_backfill",
@@ -771,6 +789,11 @@ func TestTransform(t *testing.T) {
 					DaysSinceSymptomOnset: int32Ptr(0),
 					HealthAuthorityID:     int64Ptr(27),
 				},
+			},
+			WantStats: &PublishInfo{
+				CreatedAt:    batchTimeRounded,
+				OldestDays:   7,
+				OnsetDaysAgo: 5,
 			},
 		},
 		{
@@ -843,6 +866,11 @@ func TestTransform(t *testing.T) {
 					HealthAuthorityID:     int64Ptr(27),
 				},
 			},
+			WantStats: &PublishInfo{
+				CreatedAt:    batchTimeRounded,
+				OldestDays:   7,
+				OnsetDaysAgo: 6,
+			},
 		},
 		{
 			Name: "user_provided_symptom_unreasonable",
@@ -913,6 +941,11 @@ func TestTransform(t *testing.T) {
 					HealthAuthorityID:     int64Ptr(27),
 				},
 			},
+			WantStats: &PublishInfo{
+				CreatedAt:    batchTimeRounded,
+				OldestDays:   5,
+				MissingOnset: true,
+			},
 		},
 		{
 			Name: "symptom_onset_too_large",
@@ -952,6 +985,11 @@ func TestTransform(t *testing.T) {
 					HealthAuthorityID:     int64Ptr(27),
 				},
 			},
+			WantStats: &PublishInfo{
+				CreatedAt:    batchTimeRounded,
+				OldestDays:   7,
+				OnsetDaysAgo: 21,
+			},
 			Warnings: []string{"key 1 symptom onset is too large, 15 > 14 - saving without this key"},
 		},
 	}
@@ -973,7 +1011,7 @@ func TestTransform(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			got, warnings, err := transformer.TransformPublish(ctx, tc.Publish, tc.Regions, tc.Claims, batchTime)
+			result, err := transformer.TransformPublish(ctx, tc.Publish, tc.Regions, tc.Claims, batchTime)
 			if err != nil && tc.PartialError == "" {
 				t.Fatalf("TransformPublish returned unexpected error: %v", err)
 			} else if tc.PartialError != "" {
@@ -986,15 +1024,18 @@ func TestTransform(t *testing.T) {
 
 			if exp := tc.Warnings; len(exp) > 0 {
 				sort.Strings(exp)
-				sort.Strings(warnings)
+				sort.Strings(result.Warnings)
 
-				if !reflect.DeepEqual(exp, warnings) {
-					t.Errorf("expected %#v to be %#v", warnings, exp)
+				if !reflect.DeepEqual(exp, result.Warnings) {
+					t.Errorf("expected %#v to be %#v", result.Warnings, exp)
 				}
 			}
 
-			if diff := cmp.Diff(tc.Want, got, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
+			if diff := cmp.Diff(tc.Want, result.Exposures, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
 				t.Errorf("TransformPublish mismatch (-want +got):\n%v", diff)
+			}
+			if diff := cmp.Diff(tc.WantStats, result.PublishInfo, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
+				t.Errorf("stats mismatch (-want +got):\n%v", diff)
 			}
 		})
 	}
@@ -1070,16 +1111,16 @@ func TestDefaultSymptomOnset(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			tf, _, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
+			result, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if len(tf) != 1 {
-				t.Fatalf("wrong number of keys, want: 1 got :%v", len(tf))
+			if len(result.Exposures) != 1 {
+				t.Fatalf("wrong number of keys, want: 1 got :%v", len(result.Exposures))
 			}
 
-			if diff := cmp.Diff(tf[0].DaysSinceSymptomOnset, tc.wantDaysSinceOnset); diff != "" {
+			if diff := cmp.Diff(result.Exposures[0].DaysSinceSymptomOnset, tc.wantDaysSinceOnset); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})
@@ -1237,7 +1278,7 @@ func TestTransformOverlapping(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewTransformer returned unexpected error: %v", err)
 			}
-			_, _, err = transformer.TransformPublish(ctx, &tc.source, tc.regions, nil, now)
+			_, err = transformer.TransformPublish(ctx, &tc.source, tc.regions, nil, now)
 			if err != nil && tc.error == "" {
 				t.Fatalf("unexpected error, want: nil, got: %v", err)
 			} else if err != nil && !strings.Contains(err.Error(), tc.error) {
@@ -1250,7 +1291,8 @@ func TestTransformOverlapping(t *testing.T) {
 }
 
 func TestDaysFromSymptomOnset(t *testing.T) {
-	now := time.Now().UTC()
+	// Node that everything is based on midnight UTC so we'll start there.
+	now := timeutils.UTCMidnight(time.Now().UTC())
 
 	cases := []struct {
 		name  string
@@ -1277,10 +1319,10 @@ func TestDaysFromSymptomOnset(t *testing.T) {
 			want:  1,
 		},
 		{
-			name:  "next_day_round_up",
+			name:  "next_day_round_down_2",
 			onset: IntervalNumber(now),
 			check: IntervalNumber(now.Add(37 * time.Hour)),
-			want:  2,
+			want:  1,
 		},
 		{
 			name:  "previous_day",
@@ -1292,7 +1334,7 @@ func TestDaysFromSymptomOnset(t *testing.T) {
 			name:  "previous_day_round_down",
 			onset: IntervalNumber(now),
 			check: IntervalNumber(now.Add(-25 * time.Hour)),
-			want:  -1,
+			want:  -2,
 		},
 		{
 			name:  "previous_day_round_up",
@@ -1310,7 +1352,7 @@ func TestDaysFromSymptomOnset(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := DaysFromSymptomOnset(tc.onset, tc.check)
+			got := DaysBetweenIntervals(tc.onset, tc.check)
 			if tc.want != got {
 				t.Fatalf("wrong day instance between %v and %v, got: %v want: %v", tc.onset, tc.check, got, tc.want)
 			}
