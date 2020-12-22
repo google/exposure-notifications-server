@@ -280,10 +280,10 @@ func TestPublishWithBypass(t *testing.T) {
 			UserAgent: "an android phone",
 			WantStats: []*model.HealthAuthorityStats{
 				{
-					PublishCount:  []int32{1, 0, 0},
+					PublishCount:  []int64{0, 1, 0},
 					TEKCount:      2,
-					OldestTekDays: []int32{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					OnsetAgeDays:  []int32{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OldestTekDays: []int64{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OnsetAgeDays:  []int64{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 				},
 			},
 			ReportType: verifyapi.ReportTypeConfirmed,
@@ -317,10 +317,10 @@ func TestPublishWithBypass(t *testing.T) {
 			UserAgent: "bluetoothd (unknown version) CFNetwork/1197 Darwin/20.0.0",
 			WantStats: []*model.HealthAuthorityStats{
 				{
-					PublishCount:  []int32{0, 1, 0},
+					PublishCount:  []int64{0, 0, 1},
 					TEKCount:      2,
-					OldestTekDays: []int32{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					OnsetAgeDays:  []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OldestTekDays: []int64{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OnsetAgeDays:  []int64{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 				},
 			},
 			Regions:          []string{regions.current()},
@@ -354,10 +354,10 @@ func TestPublishWithBypass(t *testing.T) {
 			UserAgent: "some unknown user agent",
 			WantStats: []*model.HealthAuthorityStats{
 				{
-					PublishCount:  []int32{0, 0, 1},
+					PublishCount:  []int64{1, 0, 0},
 					TEKCount:      2,
-					OldestTekDays: []int32{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-					OnsetAgeDays:  []int32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OldestTekDays: []int64{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OnsetAgeDays:  []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 					MissingOnset:  1,
 				},
 			},
@@ -744,7 +744,7 @@ func TestPublishWithBypass(t *testing.T) {
 							// There was a valid certificate present. there should be statistics.
 							stats, err := pubDB.ReadStats(ctx, tc.HealthAuthority.ID)
 							if err != nil {
-								t.Errorf("error reading back stats after publish: %v", err)
+								t.Fatalf("error reading back stats after publish: %v", err)
 							}
 
 							// We don't know the health authority ID in advance.

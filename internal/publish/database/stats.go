@@ -23,7 +23,7 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-// ReadStats will return all stats before the current hour, ordered in ascenting time.
+// ReadStats will return all stats before the current hour, ordered in ascending time.
 func (db *PublishDB) ReadStats(ctx context.Context, healthAuthorityID int64) ([]*model.HealthAuthorityStats, error) {
 	if healthAuthorityID <= 0 {
 		return nil, fmt.Errorf("missing healthAuthorityID")
@@ -31,7 +31,8 @@ func (db *PublishDB) ReadStats(ctx context.Context, healthAuthorityID int64) ([]
 
 	// Slightly larger than normal upper bound.
 	results := make([]*model.HealthAuthorityStats, 0, 15*24)
-	now := time.Now()
+	// This time is only used to init structures, and immediately overridden from the database read.
+	now := time.Now().UTC()
 
 	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
@@ -70,8 +71,15 @@ func scanOneHealthAuthorityStats(rows pgx.Rows, stats *model.HealthAuthorityStat
 		&stats.RevisionCount, &stats.OldestTekDays, &stats.OnsetAgeDays, &stats.MissingOnset)
 }
 
-// UpdateStats records information for the health authority during a publish request.
-func (db *PublishDB) UpdateStats(ctx context.Context, tx pgx.Tx, hour time.Time, healthAuthorityID int64, info *model.PublishInfo) error {
+// UpdateStats performance a read-modify-write to update the requested stats.
+func (db *PublishDB) UpdateStats(ctx context.Context, hour time.Time, healthAuthorityID int64, info *model.PublishInfo) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		return db.UpdateStatsInTx(ctx, tx, hour, healthAuthorityID, info)
+	})
+}
+
+// UpdateStatsInTx records information for the health authority during a publish request, in an existing database transaction.
+func (db *PublishDB) UpdateStatsInTx(ctx context.Context, tx pgx.Tx, hour time.Time, healthAuthorityID int64, info *model.PublishInfo) error {
 	if healthAuthorityID <= 0 {
 		return nil
 	}

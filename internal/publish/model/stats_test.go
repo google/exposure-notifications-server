@@ -45,11 +45,11 @@ func TestCheckAddPublish(t *testing.T) {
 		want = &HealthAuthorityStats{
 			HealthAuthorityID: want.HealthAuthorityID,
 			Hour:              want.Hour,
-			PublishCount:      []int32{1, 0, 0},
+			PublishCount:      []int64{0, 1, 0},
 			TEKCount:          14,
 			RevisionCount:     0,
-			OldestTekDays:     []int32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
-			OnsetAgeDays:      []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			OldestTekDays:     []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+			OnsetAgeDays:      []int64{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			MissingOnset:      0,
 		}
 		compare(want, record, t)
@@ -70,11 +70,11 @@ func TestCheckAddPublish(t *testing.T) {
 		want = &HealthAuthorityStats{
 			HealthAuthorityID: want.HealthAuthorityID,
 			Hour:              want.Hour,
-			PublishCount:      []int32{1, 1, 0},
+			PublishCount:      []int64{0, 1, 1},
 			TEKCount:          24,
 			RevisionCount:     1,
-			OldestTekDays:     []int32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
-			OnsetAgeDays:      []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			OldestTekDays:     []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+			OnsetAgeDays:      []int64{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			MissingOnset:      0,
 		}
 		compare(want, record, t)
@@ -95,11 +95,11 @@ func TestCheckAddPublish(t *testing.T) {
 		want = &HealthAuthorityStats{
 			HealthAuthorityID: want.HealthAuthorityID,
 			Hour:              want.Hour,
-			PublishCount:      []int32{1, 1, 1},
+			PublishCount:      []int64{1, 1, 1},
 			TEKCount:          29,
 			RevisionCount:     1,
-			OldestTekDays:     []int32{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
-			OnsetAgeDays:      []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			OldestTekDays:     []int64{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+			OnsetAgeDays:      []int64{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			MissingOnset:      1,
 		}
 		compare(want, record, t)
@@ -120,11 +120,11 @@ func TestCheckAddPublish(t *testing.T) {
 		want = &HealthAuthorityStats{
 			HealthAuthorityID: want.HealthAuthorityID,
 			Hour:              want.Hour,
-			PublishCount:      []int32{2, 1, 1},
+			PublishCount:      []int64{1, 2, 1},
 			TEKCount:          49,
 			RevisionCount:     1,
-			OldestTekDays:     []int32{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},
-			OnsetAgeDays:      []int32{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+			OldestTekDays:     []int64{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},
+			OnsetAgeDays:      []int64{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 			MissingOnset:      1,
 		}
 		compare(want, record, t)

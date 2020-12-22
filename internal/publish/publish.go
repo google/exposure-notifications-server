@@ -329,7 +329,11 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 	}
 
 	batchTime := time.Now()
-	exposures, publishInfo, transformWarnings, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
+	result, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
+	// Break apart the result object for easier usage below.
+	exposures := result.Exposures
+	publishInfo := result.PublishInfo
+	transformWarnings := result.Warnings
 	// Check for non-recoverable error. It is possible that individual keys are dropped, but if there
 	// are any valid ones, we will try and move forward.
 	// If at the end, there is a success, the transformError will be returned as supplemental information.

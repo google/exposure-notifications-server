@@ -32,25 +32,29 @@ const (
 	PlatformUnknown = "unknown"
 )
 
-var (
-	platforms = map[string]int{
-		PlatformAndroid: 0,
-		PlatformIOS:     1,
-		PlatformUnknown: 2,
+// Turns a platform identifier string into an int for calculation
+func platformToInt(platform string) int {
+	switch platform {
+	case PlatformAndroid:
+		return 1
+	case PlatformIOS:
+		return 2
+	default:
+		return 0
 	}
-)
+}
 
 // HealthAuthorityStats represents the raw metrics for an individual
 // health authority for a given hour.
 type HealthAuthorityStats struct {
 	HealthAuthorityID int64
 	Hour              time.Time
-	PublishCount      []int32
-	TEKCount          int32
-	RevisionCount     int32
-	OldestTekDays     []int32
-	OnsetAgeDays      []int32
-	MissingOnset      int32
+	PublishCount      []int64
+	TEKCount          int64
+	RevisionCount     int64
+	OldestTekDays     []int64
+	OnsetAgeDays      []int64
+	MissingOnset      int64
 }
 
 // InitHour creates a HealthAuthorityStats record for specified hour.
@@ -58,11 +62,11 @@ func InitHour(healthAuthorityID int64, hour time.Time) *HealthAuthorityStats {
 	return &HealthAuthorityStats{
 		HealthAuthorityID: healthAuthorityID,
 		Hour:              hour.UTC().Truncate(time.Hour),
-		PublishCount:      make([]int32, len(platforms)),
+		PublishCount:      make([]int64, 3),
 		TEKCount:          0,
 		RevisionCount:     0,
-		OldestTekDays:     make([]int32, StatsMaxOldestTEK+1),
-		OnsetAgeDays:      make([]int32, StatsMaxOnsetDays+1),
+		OldestTekDays:     make([]int64, StatsMaxOldestTEK+1),
+		OnsetAgeDays:      make([]int64, StatsMaxOnsetDays+1),
 		MissingOnset:      0,
 	}
 }
@@ -79,18 +83,18 @@ type PublishInfo struct {
 }
 
 // AddPublish increments the stats for a given hour. This should be called
-// inside of a read-modify-write database transaction.
+// inside of a read-modify-write database transaction. The HealthAuthorityStats
+// represents the current state in the database, and the PublishInfo provided is
+// added to it.
+//
+// The HealthAuthorityStats must be created by InitHour or may not be initialized correctly.
+//
+// This method does not enforce that it is called in a transaction, it only
+// applyes the in-memory logic.
 func (has *HealthAuthorityStats) AddPublish(info *PublishInfo) {
-	switch info.Platform {
-	case PlatformAndroid:
-		has.PublishCount[platforms[PlatformAndroid]]++
-	case PlatformIOS:
-		has.PublishCount[platforms[PlatformIOS]]++
-	default:
-		has.PublishCount[platforms[PlatformUnknown]]++
-	}
+	has.PublishCount[platformToInt(info.Platform)]++
 
-	has.TEKCount += info.NumTEKs
+	has.TEKCount += int64(info.NumTEKs)
 	if info.Revision {
 		has.RevisionCount++
 		return

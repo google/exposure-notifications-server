@@ -19,17 +19,17 @@ CREATE TABLE HealthAuthorityStats(
     -- UTC hour
     hour TIMESTAMPTZ NOT NULL,
     -- 3 elements, android/iphone/unknown
-    publish INT [],
+    publish BIGINT [],
     -- number of TEKs provided
-    teks INT NOT NULL DEFAULT 0,
+    teks BIGINT NOT NULL DEFAULT 0,
     -- number of TEKs that were revised
-    revisions INT NOT NULL DEFAULT 0,
+    revisions BIGINT NOT NULL DEFAULT 0,
     -- Age of the oldest TEKs from an individual publish request. Index is number of days. 0-14
-    oldest_tek_days INT [],    
+    oldest_tek_days BIGINT [],    
     -- Symptom onset to upload ranges, index is number of days. 0-28.
-    onset_age_days INT [],
+    onset_age_days BIGINT [],
     -- Indicator of where the symptom onset was backfilled.
-    missing_onset INT DEFAULT 0
+    missing_onset BIGINT DEFAULT 0
 );
 
 CREATE UNIQUE INDEX

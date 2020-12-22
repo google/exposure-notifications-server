@@ -15,8 +15,6 @@
 package publish
 
 import (
-	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/publish/model"
@@ -59,10 +57,7 @@ func TestPlatform(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := httptest.NewRequest("POST", "/", strings.NewReader(""))
-			r.Header.Set("User-Agent", tc.userAgent)
-
-			if got := platform(r); got != tc.wantPlatform {
+			if got := platform(tc.userAgent); got != tc.wantPlatform {
 				t.Fatalf("wrong platform, want: %q got: %q", tc.wantPlatform, got)
 			}
 		})

@@ -170,13 +170,13 @@ func (h *generateHandler) generateKeysInRegion(ctx context.Context, region strin
 			SymptomOnsetInterval: uint32(publish.Keys[intervalIdx].IntervalNumber),
 		}
 
-		exposures, _, _, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
+		result, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
 		if err != nil {
 			return fmt.Errorf("failed to transform generated exposures: %w", err)
 		}
 
 		n, err := h.database.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
-			Incoming:     exposures,
+			Incoming:     result.Exposures,
 			RequireToken: true,
 		})
 		if err != nil {
@@ -193,14 +193,14 @@ func (h *generateHandler) generateKeysInRegion(ctx context.Context, region strin
 			claims.ReportType = revisedReportType
 			batchTime = batchTime.Add(h.config.KeyRevisionDelay)
 
-			exposures, _, _, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
+			result, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
 			if err != nil {
 				return fmt.Errorf("failed to transform generated exposures: %w", err)
 			}
 
 			// Build the revision token
 			var token pb.RevisionTokenData
-			for _, e := range exposures {
+			for _, e := range result.Exposures {
 				token.RevisableKeys = append(token.RevisableKeys, &pb.RevisableKey{
 					TemporaryExposureKey: e.ExposureKey,
 					IntervalNumber:       e.IntervalNumber,
@@ -210,7 +210,7 @@ func (h *generateHandler) generateKeysInRegion(ctx context.Context, region strin
 
 			// Bypass revision token enforcement on generated data.
 			n, err := h.database.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
-				Incoming:     exposures,
+				Incoming:     result.Exposures,
 				Token:        &token,
 				RequireToken: true,
 			})

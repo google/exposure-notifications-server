@@ -15,14 +15,12 @@
 package publish
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 )
 
-func platform(r *http.Request) string {
-	userAgent := r.UserAgent()
+func platform(userAgent string) string {
 	switch {
 	case isAndroid(userAgent):
 		return model.PlatformAndroid

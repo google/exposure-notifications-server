@@ -546,6 +546,12 @@ func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 	return verifyapi.TransmissionRiskUnknown
 }
 
+type TransformPublishResult struct {
+	Exposures   []*Exposure
+	PublishInfo *PublishInfo
+	Warnings    []string
+}
+
 // TransformPublish converts incoming key data to a list of exposure entities.
 // The data in the request is validated during the transform, including:
 //
@@ -555,7 +561,7 @@ func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 // The return params are the list of exposures, a list of warnings, and any
 // errors that occur.
 //
-func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) ([]*Exposure, *PublishInfo, []string, error) {
+func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) (*TransformPublishResult, error) {
 	logger := logging.FromContext(ctx)
 	if t.debugReleaseSameDay {
 		logger.Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
@@ -565,12 +571,12 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	if len(inData.Keys) == 0 {
 		msg := "no exposure keys in publish request"
 		logger.Debugf(msg)
-		return nil, nil, nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf(msg)
 	}
 	if len(inData.Keys) > t.maxExposureKeys {
 		msg := fmt.Sprintf("too many exposure keys in publish: %v, max of %v is allowed", len(inData.Keys), t.maxExposureKeys)
 		logger.Debugf(msg)
-		return nil, nil, nil, fmt.Errorf(msg)
+		return nil, fmt.Errorf(msg)
 	}
 
 	defaultCreatedAt := TruncateWindow(batchTime, t.truncateWindow)
@@ -686,7 +692,9 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 
 	if len(entities) == 0 {
 		// All keys in the batch are invalid.
-		return nil, nil, transformWarnings, transformErrors.ErrorOrNil()
+		return &TransformPublishResult{
+			Warnings: transformWarnings,
+		}, transformErrors.ErrorOrNil()
 	}
 
 	// Validate the uploaded data meets configuration parameters.
@@ -722,7 +730,9 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		if ex.IntervalNumber < nextInterval {
 			msg := fmt.Sprintf("exposure keys have non aligned overlapping intervals. %v overlaps with previous key that is good from %v to %v.", ex.IntervalNumber, lastInterval, nextInterval)
 			logger.Debugf(msg)
-			return nil, nil, transformWarnings, fmt.Errorf(msg)
+			return &TransformPublishResult{
+				Warnings: transformWarnings,
+			}, fmt.Errorf(msg)
 		}
 		// OK, current key starts at or after the end of the previous one. Advance both variables.
 		lastInterval = ex.IntervalNumber
@@ -733,9 +743,15 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		if v > t.maxSameDayKeys {
 			msg := fmt.Sprintf("too many overlapping keys for start interval: %v want: <= %v, got: %v", k, t.maxSameDayKeys, v)
 			logger.Debugf(msg)
-			return nil, nil, transformWarnings, fmt.Errorf(msg)
+			return &TransformPublishResult{
+				Warnings: transformWarnings,
+			}, fmt.Errorf(msg)
 		}
 	}
 
-	return entities, stats, transformWarnings, transformErrors.ErrorOrNil()
+	return &TransformPublishResult{
+		Exposures:   entities,
+		PublishInfo: stats,
+		Warnings:    transformWarnings,
+	}, transformErrors.ErrorOrNil()
 }

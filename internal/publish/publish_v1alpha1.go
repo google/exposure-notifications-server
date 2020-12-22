@@ -76,7 +76,7 @@ func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Req
 	}
 	bridge := newVersionBridge(data.Regions)
 
-	clientPlatform := platform(r)
+	clientPlatform := platform(r.UserAgent())
 	return h.process(ctx, &publish, clientPlatform, bridge)
 }
 

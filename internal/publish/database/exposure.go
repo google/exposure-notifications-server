@@ -426,15 +426,15 @@ type InsertAndReviseExposuresRequest struct {
 type InsertAndReviseExposuresResponse struct {
 	// Inserted is the number of new exposures that were inserted into the
 	// database.
-	Inserted uint64
+	Inserted uint32
 
 	// Revised is the number of exposures that matched an existing TEK and were
 	// subsequently revised.
-	Revised uint64
+	Revised uint32
 
 	// Dropped is the number of exposures that were not inserted or updated. This
 	// could be because they weren't present in the revision token, etc.
-	Dropped uint64
+	Dropped uint32
 
 	// Exposures is the actual exposures that were inserted or updated in this
 	// call.
@@ -600,7 +600,7 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 		}
 
 		// Calculate the number of dropped responses.
-		resp.Dropped = uint64(len(req.Incoming) - len(incomingMap))
+		resp.Dropped = uint32(len(req.Incoming) - len(incomingMap))
 
 		// If we got this far, the revision token is valid for this request, not
 		// required, or bypassed. It's possible that keys were given, but none of
@@ -635,6 +635,11 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 			return fmt.Errorf("preparing update statement: %v", err)
 		}
 
+		// only possible if all passed in keys are already existing and not revisions.
+		if len(exposures) == 0 {
+			return nil
+		}
+
 		healthAuthorityID := exposures[0].HealthAuthorityID
 		for _, exp := range exposures {
 			if exp.RevisedAt == nil {
@@ -660,10 +665,11 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 
 		// If requested, update the publish stats for the associated health authority.
 		if stats != nil && healthAuthorityID != nil {
+			// For all practical purposes - this can be no more than a couple hundred TEKs in a single transaction.
 			stats.NumTEKs = int32(resp.Inserted) + int32(resp.Revised)
 			stats.Revision = resp.Revised > 0
-			if err := db.UpdateStats(ctx, tx, stats.CreatedAt, *healthAuthorityID, stats); err != nil {
-				return err
+			if err := db.UpdateStatsInTx(ctx, tx, stats.CreatedAt, *healthAuthorityID, stats); err != nil {
+				return fmt.Errorf("failed to update statistics: %w", err)
 			}
 		}
 

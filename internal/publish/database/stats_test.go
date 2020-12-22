@@ -22,7 +22,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 	hamodel "github.com/google/exposure-notifications-server/internal/verification/model"
-	"github.com/jackc/pgx/v4"
 )
 
 func TestUpdateStats(t *testing.T) {
@@ -53,12 +52,12 @@ func TestUpdateStats(t *testing.T) {
 		MissingOnset: false,
 	}
 
-	if err := runUpdate(testPublishDB, ctx, hour, healthAuthority.ID, info); err != nil {
+	if err := testPublishDB.UpdateStats(ctx, hour, healthAuthority.ID, info); err != nil {
 		t.Fatalf("updating stats: %v", err)
 	}
 
 	// Update again - test conflict codepath.
-	if err := runUpdate(testPublishDB, ctx, hour, healthAuthority.ID, info); err != nil {
+	if err := testPublishDB.UpdateStats(ctx, hour, healthAuthority.ID, info); err != nil {
 		t.Fatalf("updating stats: %v", err)
 	}
 }
@@ -93,7 +92,7 @@ func TestReadStats(t *testing.T) {
 	endTime := startTime.Add(10 * time.Hour)
 
 	for hour := startTime; !hour.After(endTime); hour = hour.Add(time.Hour) {
-		if err := runUpdate(testPublishDB, ctx, hour, healthAuthority.ID, info); err != nil {
+		if err := testPublishDB.UpdateStats(ctx, hour, healthAuthority.ID, info); err != nil {
 			t.Fatalf("updating stats: %v", err)
 		}
 	}
@@ -106,10 +105,4 @@ func TestReadStats(t *testing.T) {
 	if len(stats) != 11 {
 		t.Fatalf("added 11 hours of stats, got: %v", len(stats))
 	}
-}
-
-func runUpdate(db *PublishDB, ctx context.Context, time time.Time, haID int64, info *model.PublishInfo) error {
-	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
-		return db.UpdateStats(ctx, tx, time, haID, info)
-	})
 }

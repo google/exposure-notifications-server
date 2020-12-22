@@ -149,7 +149,7 @@ func TestInvalidBase64(t *testing.T) {
 	regions := []string{"US"}
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
 
-	_, _, _, err = transformer.TransformPublish(ctx, source, regions, nil, batchTime)
+	_, err = transformer.TransformPublish(ctx, source, regions, nil, batchTime)
 	expErr := `key 0 cannot be imported: illegal base64 data at input byte 4`
 	if err == nil || !strings.Contains(err.Error(), expErr) {
 		t.Errorf("expected error '%v', got: %v", expErr, err)
@@ -346,7 +346,7 @@ func TestPublishValidation(t *testing.T) {
 				t.Fatalf("unepected error: %v", err)
 			}
 
-			_, _, _, err = tf.TransformPublish(ctx, c.p, []string{}, nil, captureStartTime)
+			_, err = tf.TransformPublish(ctx, c.p, []string{}, nil, captureStartTime)
 			if err == nil {
 				if c.m != "" {
 					t.Errorf("want error '%v', got nil", c.m)
@@ -433,10 +433,12 @@ func TestStillValidKey(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			tf, stats, _, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
+			result, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
 			if err != nil {
 				t.Fatal(err)
 			}
+
+			tf := result.Exposures
 
 			if len(tf) != 1 {
 				t.Fatalf("wrong number of keys, want: 1 got :%v", len(tf))
@@ -444,14 +446,6 @@ func TestStillValidKey(t *testing.T) {
 
 			if !tf[0].CreatedAt.Equal(tc.createdAt) {
 				t.Errorf("wrong createdAt time, want: %v got: %v", tc.createdAt, tf[0].CreatedAt)
-			}
-
-			wantStats := &PublishInfo{
-				OldestDays:   1,
-				MissingOnset: true,
-			}
-			if diff := cmp.Diff(wantStats, stats, cmpopts.IgnoreFields(PublishInfo{}, "CreatedAt")); diff != "" {
-				t.Errorf("stats mismatch (-want +got):\n%v", diff)
 			}
 		})
 	}
@@ -1017,7 +1011,7 @@ func TestTransform(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			got, stats, warnings, err := transformer.TransformPublish(ctx, tc.Publish, tc.Regions, tc.Claims, batchTime)
+			result, err := transformer.TransformPublish(ctx, tc.Publish, tc.Regions, tc.Claims, batchTime)
 			if err != nil && tc.PartialError == "" {
 				t.Fatalf("TransformPublish returned unexpected error: %v", err)
 			} else if tc.PartialError != "" {
@@ -1030,17 +1024,17 @@ func TestTransform(t *testing.T) {
 
 			if exp := tc.Warnings; len(exp) > 0 {
 				sort.Strings(exp)
-				sort.Strings(warnings)
+				sort.Strings(result.Warnings)
 
-				if !reflect.DeepEqual(exp, warnings) {
-					t.Errorf("expected %#v to be %#v", warnings, exp)
+				if !reflect.DeepEqual(exp, result.Warnings) {
+					t.Errorf("expected %#v to be %#v", result.Warnings, exp)
 				}
 			}
 
-			if diff := cmp.Diff(tc.Want, got, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
+			if diff := cmp.Diff(tc.Want, result.Exposures, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
 				t.Errorf("TransformPublish mismatch (-want +got):\n%v", diff)
 			}
-			if diff := cmp.Diff(tc.WantStats, stats, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
+			if diff := cmp.Diff(tc.WantStats, result.PublishInfo, cmpopts.IgnoreUnexported(Exposure{})); diff != "" {
 				t.Errorf("stats mismatch (-want +got):\n%v", diff)
 			}
 		})
@@ -1117,16 +1111,16 @@ func TestDefaultSymptomOnset(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			tf, _, _, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
+			result, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if len(tf) != 1 {
-				t.Fatalf("wrong number of keys, want: 1 got :%v", len(tf))
+			if len(result.Exposures) != 1 {
+				t.Fatalf("wrong number of keys, want: 1 got :%v", len(result.Exposures))
 			}
 
-			if diff := cmp.Diff(tf[0].DaysSinceSymptomOnset, tc.wantDaysSinceOnset); diff != "" {
+			if diff := cmp.Diff(result.Exposures[0].DaysSinceSymptomOnset, tc.wantDaysSinceOnset); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
 		})
@@ -1284,7 +1278,7 @@ func TestTransformOverlapping(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewTransformer returned unexpected error: %v", err)
 			}
-			_, _, _, err = transformer.TransformPublish(ctx, &tc.source, tc.regions, nil, now)
+			_, err = transformer.TransformPublish(ctx, &tc.source, tc.regions, nil, now)
 			if err != nil && tc.error == "" {
 				t.Fatalf("unexpected error, want: nil, got: %v", err)
 			} else if err != nil && !strings.Contains(err.Error(), tc.error) {
