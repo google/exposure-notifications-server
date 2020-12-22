@@ -44,7 +44,6 @@ func NewLogger(debug bool) *zap.SugaredLogger {
 	config := &zap.Config{
 		Level:            zap.NewAtomicLevelAt(zap.InfoLevel),
 		Development:      false,
-		Sampling:         samplingConfig,
 		Encoding:         encodingJSON,
 		EncoderConfig:    encoderConfig,
 		OutputPaths:      outputStderr,
@@ -55,7 +54,6 @@ func NewLogger(debug bool) *zap.SugaredLogger {
 	if debug {
 		config.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
 		config.Development = true
-		config.Sampling = nil
 	}
 
 	logger, err := config.Build()
@@ -121,11 +119,6 @@ var encoderConfig = zapcore.EncoderConfig{
 	EncodeTime:     timeEncoder(),
 	EncodeDuration: zapcore.SecondsDurationEncoder,
 	EncodeCaller:   zapcore.ShortCallerEncoder,
-}
-
-var samplingConfig = &zap.SamplingConfig{
-	Initial:    250,
-	Thereafter: 250,
 }
 
 // levelEncoder transforms a zap level to the associated stackdriver level.
