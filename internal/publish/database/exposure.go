@@ -455,9 +455,6 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 
 	// Save a handle to the publish info stats, which may be nil.
 	stats := req.PublishInfo
-	// The health authority ID is attached to the TEKs if this is coming from a verified publish,
-	// this is used to track if it has been found.
-	healthAuthorityID := int64(0)
 
 	// Maintain a record of the number of exposures inserted and updated, and a
 	// record of the exposures that were actually inserted/updated after merge
@@ -637,6 +634,8 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 		if err != nil {
 			return fmt.Errorf("preparing update statement: %v", err)
 		}
+
+		healthAuthorityID := exposures[0].HealthAuthorityID
 		for _, exp := range exposures {
 			if exp.RevisedAt == nil {
 				if exp.ReportType == verifyapi.ReportTypeNegative {
@@ -653,16 +652,17 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 				resp.Revised++
 			}
 
-			if healthAuthorityID == 0 && exp.HealthAuthorityID != nil {
-				healthAuthorityID = *exp.HealthAuthorityID
+			if (healthAuthorityID == nil && exp.HealthAuthorityID != nil) ||
+				(healthAuthorityID != nil && exp.HealthAuthorityID != nil && *healthAuthorityID != *exp.HealthAuthorityID) {
+				return fmt.Errorf("more than one health authority present in publish")
 			}
 		}
 
 		// If requested, update the publish stats for the associated health authority.
-		if stats != nil && healthAuthorityID != 0 {
+		if stats != nil && healthAuthorityID != nil {
 			stats.NumTEKs = int32(resp.Inserted) + int32(resp.Revised)
 			stats.Revision = resp.Revised > 0
-			if err := db.UpdateStats(ctx, tx, stats.CreatedAt, healthAuthorityID, stats); err != nil {
+			if err := db.UpdateStats(ctx, tx, stats.CreatedAt, *healthAuthorityID, stats); err != nil {
 				return err
 			}
 		}
