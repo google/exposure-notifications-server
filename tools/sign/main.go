@@ -24,8 +24,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
@@ -43,11 +41,9 @@ var (
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
 
-	debug, _ := strconv.ParseBool(os.Getenv("LOG_DEBUG"))
-	logger := logging.NewLogger(debug).Named("tools.sign")
+	logger := logging.NewLoggerFromEnv().Named("tools.sign")
 	logger = logger.With("build_id", buildinfo.BuildID)
 	logger = logger.With("build_tag", buildinfo.BuildTag)
-
 	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)
