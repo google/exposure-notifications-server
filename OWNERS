@@ -1,11 +1,5 @@
 approvers:
-  - mikehelmick
-  - sethvargo
-  - chaodaig
-  - jeremyfaller
-  - whaught  
+  - @google/exposure-notifications-server
+
 reviewers:
-  - mikehelmick
-  - sethvargo
-  - whaught
-  - jeremyfaller
+  - @google/exposure-notifications-server
