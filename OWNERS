@@ -1,5 +1,5 @@
 approvers:
-  - @google/exposure-notifications-server
+  - '@google/exposure-notifications-server'
 
 reviewers:
-  - @google/exposure-notifications-server
+  - '@google/exposure-notifications-server'
