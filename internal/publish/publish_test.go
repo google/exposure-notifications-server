@@ -42,7 +42,6 @@ import (
 	vermodel "github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/keys"
-	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/jackc/pgx/v4"
@@ -485,10 +484,6 @@ func TestPublishWithBypass(t *testing.T) {
 			}
 
 			t.Run(addVer+tc.Name, func(t *testing.T) {
-				ctx = context.Background()
-				logger := logging.NewLogger(true)
-				ctx = logging.WithLogger(ctx, logger)
-
 				// And set up publish handler up front.
 				config := Config{}
 				config.AuthorizedApp.CacheDuration = time.Nanosecond

@@ -17,11 +17,11 @@ package logging
 
 import (
 	"context"
-	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
-	"go.opencensus.io/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -40,20 +40,25 @@ var (
 )
 
 // NewLogger creates a new logger with the given configuration.
-func NewLogger(debug bool) *zap.SugaredLogger {
-	config := &zap.Config{
-		Level:            zap.NewAtomicLevelAt(zap.InfoLevel),
-		Development:      false,
-		Encoding:         encodingJSON,
-		EncoderConfig:    encoderConfig,
-		OutputPaths:      outputStderr,
-		ErrorOutputPaths: outputStderr,
-	}
-
-	// Add more details if logging is in debug mode.
-	if debug {
-		config.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
-		config.Development = true
+func NewLogger(level string, development bool) *zap.SugaredLogger {
+	var config *zap.Config
+	if development {
+		config = &zap.Config{
+			Level:            zap.NewAtomicLevelAt(levelToZapLevel(level)),
+			Development:      true,
+			Encoding:         encodingConsole,
+			EncoderConfig:    developmentEncoderConfig,
+			OutputPaths:      outputStderr,
+			ErrorOutputPaths: outputStderr,
+		}
+	} else {
+		config = &zap.Config{
+			Level:            zap.NewAtomicLevelAt(levelToZapLevel(level)),
+			Encoding:         encodingJSON,
+			EncoderConfig:    productionEncoderConfig,
+			OutputPaths:      outputStderr,
+			ErrorOutputPaths: outputStderr,
+		}
 	}
 
 	logger, err := config.Build()
@@ -64,10 +69,19 @@ func NewLogger(debug bool) *zap.SugaredLogger {
 	return logger.Sugar()
 }
 
+// NewLoggerFromEnv creates a new logger from the environment. It consumes
+// LOG_LEVEL for determining the level and LOG_MODE for determining the output
+// parameters.
+func NewLoggerFromEnv() *zap.SugaredLogger {
+	level := os.Getenv("LOG_LEVEL")
+	development := strings.ToLower(strings.TrimSpace(os.Getenv("LOG_MODE"))) == "development"
+	return NewLogger(level, development)
+}
+
 // DefaultLogger returns the default logger for the package.
 func DefaultLogger() *zap.SugaredLogger {
 	defaultLoggerOnce.Do(func() {
-		defaultLogger = NewLogger(false)
+		defaultLogger = NewLoggerFromEnv()
 	})
 	return defaultLogger
 }
@@ -102,12 +116,13 @@ const (
 	levelAlert     = "ALERT"
 	levelEmergency = "EMERGENCY"
 
-	encodingJSON = "json"
+	encodingConsole = "console"
+	encodingJSON    = "json"
 )
 
 var outputStderr = []string{"stderr"}
 
-var encoderConfig = zapcore.EncoderConfig{
+var productionEncoderConfig = zapcore.EncoderConfig{
 	TimeKey:        timestamp,
 	LevelKey:       severity,
 	NameKey:        logger,
@@ -119,6 +134,44 @@ var encoderConfig = zapcore.EncoderConfig{
 	EncodeTime:     timeEncoder(),
 	EncodeDuration: zapcore.SecondsDurationEncoder,
 	EncodeCaller:   zapcore.ShortCallerEncoder,
+}
+
+var developmentEncoderConfig = zapcore.EncoderConfig{
+	TimeKey:        "",
+	LevelKey:       "L",
+	NameKey:        "N",
+	CallerKey:      "C",
+	FunctionKey:    zapcore.OmitKey,
+	MessageKey:     "M",
+	StacktraceKey:  "S",
+	LineEnding:     zapcore.DefaultLineEnding,
+	EncodeLevel:    zapcore.CapitalLevelEncoder,
+	EncodeTime:     zapcore.ISO8601TimeEncoder,
+	EncodeDuration: zapcore.StringDurationEncoder,
+	EncodeCaller:   zapcore.ShortCallerEncoder,
+}
+
+// levelToZapLevel converts the given string to the appropriate zap level
+// value.
+func levelToZapLevel(s string) zapcore.Level {
+	switch strings.ToUpper(strings.TrimSpace(s)) {
+	case levelDebug:
+		return zapcore.DebugLevel
+	case levelInfo:
+		return zapcore.InfoLevel
+	case levelWarning:
+		return zapcore.WarnLevel
+	case levelError:
+		return zapcore.ErrorLevel
+	case levelCritical:
+		return zapcore.DPanicLevel
+	case levelAlert:
+		return zapcore.PanicLevel
+	case levelEmergency:
+		return zapcore.FatalLevel
+	}
+
+	return zapcore.WarnLevel
 }
 
 // levelEncoder transforms a zap level to the associated stackdriver level.
@@ -140,26 +193,6 @@ func levelEncoder() zapcore.LevelEncoder {
 		case zapcore.FatalLevel:
 			enc.AppendString(levelEmergency)
 		}
-	}
-}
-
-// TraceFromContext adds the correct Stackdriver trace fields.
-//
-// see: https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry
-func TraceFromContext(ctx context.Context) []zap.Field {
-	span := trace.FromContext(ctx)
-
-	if span == nil {
-		return nil
-	}
-
-	sc := span.SpanContext()
-
-	return []zap.Field{
-		// TODO(icco): Figure out how to add project ID to this.
-		zap.String("trace", fmt.Sprintf("traces/%s", sc.TraceID)),
-		zap.String("spanId", sc.SpanID.String()),
-		zap.Bool("traceSampled", sc.IsSampled()),
 	}
 }
 

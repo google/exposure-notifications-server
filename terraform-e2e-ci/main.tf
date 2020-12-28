@@ -43,17 +43,18 @@ module "en" {
       TRUNCATE_WINDOW = "1s"
       MIN_WINDOW_AGE  = "1s"
 
-      LOG_DEBUG = "true"
+      LOG_LEVEL = "debug"
     }
 
     exposure = {
       TRUNCATE_WINDOW             = "1s"
       DEBUG_RELEASE_SAME_DAY_KEYS = true
-      LOG_DEBUG                   = "true"
+
+      LOG_LEVEL = "debug"
     }
 
     generate = {
-      LOG_DEBUG = "true"
+      LOG_LEVEL = "debug"
     }
   }
 }
