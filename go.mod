@@ -32,6 +32,7 @@ require (
 	github.com/google/mako v0.2.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/handlers v1.5.1
+	github.com/gostaticanalysis/analysisutil v0.6.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-hclog v0.14.1
@@ -59,7 +60,9 @@ require (
 	github.com/sethvargo/go-gcpkms v0.1.0
 	github.com/sethvargo/go-retry v0.1.0
 	github.com/sethvargo/go-signalcontext v0.1.0
+	github.com/sethvargo/zapw v0.1.0
 	github.com/shirou/gopsutil v3.20.12-0.20201210134652-afe0c04c5d5a+incompatible // indirect
+	github.com/timakin/bodyclose v0.0.0-20200424151742-cb6215831a94
 	github.com/ugorji/go v1.2.1 // indirect
 	go.opencensus.io v0.22.5
 	go.uber.org/multierr v1.6.0 // indirect
@@ -69,11 +72,11 @@ require (
 	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a // indirect
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
-	golang.org/x/tools v0.0.0-20201217235154-5b06639e575e
+	golang.org/x/tools v0.0.0-20201226215659-b1c90890d22a
 	google.golang.org/api v0.36.0
 	google.golang.org/genproto v0.0.0-20201214200347-8c77b98c765d
 	google.golang.org/grpc v1.34.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	honnef.co/go/tools v0.0.1-2020.1.4
+	honnef.co/go/tools v0.1.0
 )

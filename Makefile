@@ -16,6 +16,11 @@ VETTERS = "asmdecl,assign,atomic,bools,buildtag,cgocall,composites,copylocks,err
 GOFMT_FILES = $(shell go list -f '{{.Dir}}' ./... | grep -v '/pb')
 GO_FILES = $(shell find . -name \*.go)
 
+bodyclose:
+	@command -v bodyclose > /dev/null 2>&1 || go get github.com/timakin/bodyclose
+	@go vet -vettool=$$(which bodyclose) ./...
+.PHONY: bodyclose
+
 copyrightcheck:
 	@CHANGES="$$(grep -L "Copyright" $(GO_FILES))"; \
 		if [ -n "$${CHANGES}" ]; then \
@@ -49,6 +54,10 @@ staticcheck:
 	@command -v staticcheck > /dev/null 2>&1 || go get honnef.co/go/tools/cmd/staticcheck
 	@staticcheck -checks="all,-SA3000" -tests $(GOFMT_FILES)
 .PHONY: staticcheck
+
+zapcheck:
+	@command -v zapw > /dev/null 2>&1 || GO111MODULE=off go get github.com/sethvargo/zapw/cmd/zapw
+	@zapw ./...
 
 test:
 	@go test \
