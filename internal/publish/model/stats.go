@@ -77,32 +77,32 @@ func ReduceStats(hourly []*HealthAuthorityStats, onlyBefore time.Time, dayThresh
 		if _, ok := days[day]; !ok {
 			// Initialize this day
 			days[day] = &verifyapi.StatsDay{
-				Day:                   day,
-				OldestTEKDistribution: make([]int64, StatsMaxOldestTEK+1),
-				OnsetToUpload:         make([]int64, StatsMaxOnsetDays+1),
+				Day:                       day,
+				TEKAgeDistribution:        make([]int64, StatsMaxOldestTEK+1),
+				OnsetToUploadDistribution: make([]int64, StatsMaxOnsetDays+1),
 			}
 		}
 
 		metricsDay := days[day]
-		metricsDay.PublishCount.Android += hour.PublishCount[platformToInt(PlatformAndroid)]
-		metricsDay.PublishCount.IOS += hour.PublishCount[platformToInt(PlatformIOS)]
-		metricsDay.PublishCount.UnknownPlatform += hour.PublishCount[platformToInt(PlatformUnknown)]
-		metricsDay.TEKs += hour.TEKCount
-		metricsDay.Revisions += hour.RevisionCount
-		metricsDay.MissingOnset += hour.MissingOnset
+		metricsDay.PublishRequests.Android += hour.PublishCount[platformToInt(PlatformAndroid)]
+		metricsDay.PublishRequests.IOS += hour.PublishCount[platformToInt(PlatformIOS)]
+		metricsDay.PublishRequests.UnknownPlatform += hour.PublishCount[platformToInt(PlatformUnknown)]
+		metricsDay.TotalTEKsPublished += hour.TEKCount
+		metricsDay.RevisionRequests += hour.RevisionCount
+		metricsDay.RequestsMissingOnsetDate += hour.MissingOnset
 
 		for i := 0; i <= StatsMaxOldestTEK && i < len(hour.OldestTekDays); i++ {
-			metricsDay.OldestTEKDistribution[i] += hour.OldestTekDays[i]
+			metricsDay.TEKAgeDistribution[i] += hour.OldestTekDays[i]
 		}
 		for i := 0; i <= StatsMaxOnsetDays && i < len(hour.OnsetAgeDays); i++ {
-			metricsDay.OnsetToUpload[i] += hour.OnsetAgeDays[i]
+			metricsDay.OnsetToUploadDistribution[i] += hour.OnsetAgeDays[i]
 		}
 	}
 
 	// Bring the map back to an array
 	result := make([]*verifyapi.StatsDay, 0, len(days))
 	for _, day := range days {
-		if day.PublishCount.Total() < dayThreshold {
+		if day.PublishRequests.Total() < dayThreshold {
 			continue
 		}
 		result = append(result, day)

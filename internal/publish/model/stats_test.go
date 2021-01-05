@@ -213,29 +213,29 @@ func TestReduce(t *testing.T) {
 	want := []*verifyapi.StatsDay{
 		{
 			Day: startTime,
-			PublishCount: verifyapi.PublishCount{
+			PublishRequests: verifyapi.PublishRequests{
 				UnknownPlatform: 1,
 				Android:         15,
 				IOS:             10,
 			},
-			TEKs:                  177,
-			Revisions:             0,
-			OldestTEKDistribution: []int64{0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 21, 1},
-			OnsetToUpload:         minPadSlice([]int64{1, 1, 5, 10, 6, 1}, StatsMaxOnsetDays+1),
-			MissingOnset:          1,
+			TotalTEKsPublished:        177,
+			RevisionRequests:          0,
+			TEKAgeDistribution:        []int64{0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 21, 1},
+			OnsetToUploadDistribution: minPadSlice([]int64{1, 1, 5, 10, 6, 1}, StatsMaxOnsetDays+1),
+			RequestsMissingOnsetDate:  1,
 		},
 		{
 			Day: startTime.Add(48 * time.Hour),
-			PublishCount: verifyapi.PublishCount{
+			PublishRequests: verifyapi.PublishRequests{
 				UnknownPlatform: 0,
 				Android:         187,
 				IOS:             294,
 			},
-			TEKs:                  6734,
-			Revisions:             0,
-			OldestTEKDistribution: []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 81, 200, 200, 0},
-			OnsetToUpload:         minPadSlice([]int64{1, 50, 100, 300, 29}, StatsMaxOnsetDays+1),
-			MissingOnset:          0,
+			TotalTEKsPublished:        6734,
+			RevisionRequests:          0,
+			TEKAgeDistribution:        []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 81, 200, 200, 0},
+			OnsetToUploadDistribution: minPadSlice([]int64{1, 50, 100, 300, 29}, StatsMaxOnsetDays+1),
+			RequestsMissingOnsetDate:  0,
 		},
 	}
 
