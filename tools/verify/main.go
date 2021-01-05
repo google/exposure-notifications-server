@@ -26,8 +26,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"os"
-	"strconv"
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
@@ -45,11 +43,9 @@ var (
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
 
-	debug, _ := strconv.ParseBool(os.Getenv("LOG_DEBUG"))
-	logger := logging.NewLogger(debug).Named("tools.verify")
+	logger := logging.NewLoggerFromEnv().Named("tools.verify")
 	logger = logger.With("build_id", buildinfo.BuildID)
 	logger = logger.With("build_tag", buildinfo.BuildTag)
-
 	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)

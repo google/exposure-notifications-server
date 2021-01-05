@@ -24,7 +24,7 @@ import (
 func TestNewLogger(t *testing.T) {
 	t.Parallel()
 
-	logger := logging.NewLogger(true)
+	logger := logging.NewLogger("", true)
 	if logger == nil {
 		t.Fatal("expected logger to never be nil")
 	}
