@@ -85,14 +85,14 @@ func TestRetrieveMetrics(t *testing.T) {
 
 	// Add some raw publish info metrics.
 	rawStats := []model.PublishInfo{
-		model.PublishInfo{
+		{
 			CreatedAt:    startTime,
 			Platform:     model.PlatformAndroid,
 			NumTEKs:      14,
 			OldestDays:   14,
 			OnsetDaysAgo: 4,
 		},
-		model.PublishInfo{
+		{
 			CreatedAt:    startTime,
 			Platform:     model.PlatformIOS,
 			NumTEKs:      10,
