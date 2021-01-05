@@ -258,6 +258,31 @@ variable "enable_lb_logging" {
   EOT
 }
 
+variable "service_annotations" {
+  type    = map(map(string))
+  default = {}
+
+  description = "Per-service additional annotations."
+}
+
+locals {
+  default_annotations = {
+    "autoscaling.knative.dev/maxScale" : "1",
+    "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
+    "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
+  }
+}
+
+variable "default_annotations_overrides" {
+  type    = map(string)
+  default = {}
+
+  description = <<-EOT
+  Annotations that applies to all services. Can be used to override
+  default_annotations.
+  EOT
+}
+
 terraform {
   required_version = ">= 0.14.2"
 

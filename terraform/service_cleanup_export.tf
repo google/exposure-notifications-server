@@ -101,11 +101,11 @@ resource "google_cloud_run_service" "cleanup-export" {
     }
 
     metadata {
-      annotations = {
-        "autoscaling.knative.dev/maxScale" : "1",
-        "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
-        "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
-      }
+      annotations = merge(
+        local.default_annotations,
+        var.default_annotations_overrides,
+        lookup(var.service_annotations, "cleanup_export", {}),
+      )
     }
   }
 
