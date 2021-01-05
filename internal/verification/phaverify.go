@@ -38,6 +38,7 @@ import (
 // Verifier can be used to verify public health authority diagnosis verification certificates.
 type Verifier struct {
 	db      *database.HealthAuthorityDB
+	config  *Config
 	haCache *cache.Cache
 }
 
@@ -47,7 +48,7 @@ func New(db *database.HealthAuthorityDB, config *Config) (*Verifier, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Verifier{db, cache}, nil
+	return &Verifier{db, config, cache}, nil
 }
 
 // VerifiedClaims represents the relevant claims extracted from a verified

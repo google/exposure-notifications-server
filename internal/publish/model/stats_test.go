@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -133,6 +135,112 @@ func TestCheckAddPublish(t *testing.T) {
 
 func compare(want, got *HealthAuthorityStats, t *testing.T) {
 	t.Helper()
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+}
+
+func minPadSlice(s []int64, size int) []int64 {
+	if len(s) >= size {
+		return s
+	}
+	resized := make([]int64, size)
+	copy(resized, s)
+	return resized
+}
+
+func TestReduce(t *testing.T) {
+
+	hour := timeutils.UTCMidnight(time.Now().UTC()).Add(-48 * time.Hour)
+	startTime := hour
+
+	input := []*HealthAuthorityStats{
+		// two entries from 2 days ago
+		{
+			HealthAuthorityID: 42,
+			Hour:              hour,
+			PublishCount:      []int64{1, 10, 4},
+			TEKCount:          112,
+			RevisionCount:     0,
+			OldestTekDays:     []int64{0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 10, 1},
+			OnsetAgeDays:      minPadSlice([]int64{1, 1, 2, 5, 3, 1}, StatsMaxOnsetDays+1),
+			MissingOnset:      1,
+		},
+		{
+			HealthAuthorityID: 42,
+			Hour:              hour.Add(time.Hour),
+			PublishCount:      []int64{0, 5, 6},
+			TEKCount:          65,
+			RevisionCount:     0,
+			OldestTekDays:     []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0},
+			OnsetAgeDays:      minPadSlice([]int64{0, 0, 3, 5, 3}, StatsMaxOnsetDays+1),
+			MissingOnset:      0,
+		},
+		// one entry from 1 days ago, but not enough uploads to be shown
+		{
+			HealthAuthorityID: 42,
+			Hour:              hour.Add(24 * time.Hour),
+			PublishCount:      []int64{1, 1, 1},
+			TEKCount:          42,
+			RevisionCount:     0,
+			OldestTekDays:     []int64{0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0},
+			OnsetAgeDays:      minPadSlice([]int64{0, 0, 1, 1, 1}, StatsMaxOnsetDays+1),
+			MissingOnset:      0,
+		},
+		// two entries from today, but one shouldn't be shown (time hasn't lapsed yet)
+		{
+			HealthAuthorityID: 42,
+			Hour:              hour.Add(48 * time.Hour),
+			PublishCount:      []int64{0, 187, 294},
+			TEKCount:          6734,
+			RevisionCount:     0,
+			OldestTekDays:     []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 81, 200, 200, 0},
+			OnsetAgeDays:      minPadSlice([]int64{1, 50, 100, 300, 29}, StatsMaxOnsetDays+1),
+			MissingOnset:      0,
+		},
+		{ // This record should be held back.
+			HealthAuthorityID: 42,
+			Hour:              hour.Add(49 * time.Hour),
+			PublishCount:      []int64{0, 5, 6},
+			TEKCount:          65,
+			RevisionCount:     0,
+			OldestTekDays:     []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0},
+			OnsetAgeDays:      minPadSlice([]int64{0, 0, 3, 5, 3}, StatsMaxOnsetDays+1),
+			MissingOnset:      0,
+		},
+	}
+
+	want := []*verifyapi.StatsDay{
+		{
+			Day: startTime,
+			PublishRequests: verifyapi.PublishRequests{
+				UnknownPlatform: 1,
+				Android:         15,
+				IOS:             10,
+			},
+			TotalTEKsPublished:        177,
+			RevisionRequests:          0,
+			TEKAgeDistribution:        []int64{0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 21, 1},
+			OnsetToUploadDistribution: minPadSlice([]int64{1, 1, 5, 10, 6, 1}, StatsMaxOnsetDays+1),
+			RequestsMissingOnsetDate:  1,
+		},
+		{
+			Day: startTime.Add(48 * time.Hour),
+			PublishRequests: verifyapi.PublishRequests{
+				UnknownPlatform: 0,
+				Android:         187,
+				IOS:             294,
+			},
+			TotalTEKsPublished:        6734,
+			RevisionRequests:          0,
+			TEKAgeDistribution:        []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 81, 200, 200, 0},
+			OnsetToUploadDistribution: minPadSlice([]int64{1, 50, 100, 300, 29}, StatsMaxOnsetDays+1),
+			RequestsMissingOnsetDate:  0,
+		},
+	}
+
+	got := ReduceStats(input, hour.Add(49*time.Hour), 10)
+
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)
 	}

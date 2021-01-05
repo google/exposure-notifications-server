@@ -49,6 +49,39 @@ type SigningKey struct {
 	PublicKey string
 }
 
+// StatsJWTConfig represents the configuration for an auth token to
+// call the stats API. Requires the private key to sign JWTs.
+type StatsJWTConfig struct {
+	HealthAuthority    *vm.HealthAuthority
+	HealthAuthorityKey *vm.HealthAuthorityKey
+	Key                *ecdsa.PrivateKey
+	Audience           string
+	JWTWarp            time.Duration
+}
+
+// IssueStatsJWT issues an auth token to call the stats API.
+// This is meant for test purposes only. Normally these tokens
+// would be issued outside this system.
+func (c *StatsJWTConfig) IssueStatsJWT(t testing.TB) string {
+	t.Helper()
+
+	now := time.Now().UTC()
+	claims := &jwt.StandardClaims{
+		Audience:  c.Audience,
+		ExpiresAt: now.Add(time.Minute).Unix(),
+		IssuedAt:  now.Unix(),
+		Issuer:    c.HealthAuthority.Issuer,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	token.Header["kid"] = c.HealthAuthorityKey.Version
+
+	jwtString, err := token.SignedString(c.Key)
+	if err != nil {
+		t.Fatalf("failed to sign JWT: %v", err)
+	}
+	return jwtString
+}
+
 // JWTConfig stores the config used to fetch a verification jwt certificate
 type JWTConfig struct {
 	HealthAuthority      *vm.HealthAuthority

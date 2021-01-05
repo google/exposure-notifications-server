@@ -16,7 +16,11 @@
 package model
 
 import (
+	"sort"
 	"time"
+
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/exposure-notifications-server/pkg/timeutils"
 )
 
 const (
@@ -55,6 +59,60 @@ type HealthAuthorityStats struct {
 	OldestTekDays     []int64
 	OnsetAgeDays      []int64
 	MissingOnset      int64
+}
+
+// ReduceStats takes hourly breakdowns and rolls them up to daily. The onlyBefore
+// time indicates the cutoff point for inclusion.
+// The dayThreshold indicates how many entries are needed to include a given day.
+// Day boundaries are all in UTC.
+func ReduceStats(hourly []*HealthAuthorityStats, onlyBefore time.Time, dayThreshold int64) []*verifyapi.StatsDay {
+	days := make(map[time.Time]*verifyapi.StatsDay)
+	// Combine the hours into days based on same UTC midnight time.
+	for _, hour := range hourly {
+		if !hour.Hour.Before(onlyBefore) {
+			continue
+		}
+
+		day := timeutils.UTCMidnight(hour.Hour)
+		if _, ok := days[day]; !ok {
+			// Initialize this day
+			days[day] = &verifyapi.StatsDay{
+				Day:                       day,
+				TEKAgeDistribution:        make([]int64, StatsMaxOldestTEK+1),
+				OnsetToUploadDistribution: make([]int64, StatsMaxOnsetDays+1),
+			}
+		}
+
+		metricsDay := days[day]
+		metricsDay.PublishRequests.Android += hour.PublishCount[platformToInt(PlatformAndroid)]
+		metricsDay.PublishRequests.IOS += hour.PublishCount[platformToInt(PlatformIOS)]
+		metricsDay.PublishRequests.UnknownPlatform += hour.PublishCount[platformToInt(PlatformUnknown)]
+		metricsDay.TotalTEKsPublished += hour.TEKCount
+		metricsDay.RevisionRequests += hour.RevisionCount
+		metricsDay.RequestsMissingOnsetDate += hour.MissingOnset
+
+		for i := 0; i <= StatsMaxOldestTEK && i < len(hour.OldestTekDays); i++ {
+			metricsDay.TEKAgeDistribution[i] += hour.OldestTekDays[i]
+		}
+		for i := 0; i <= StatsMaxOnsetDays && i < len(hour.OnsetAgeDays); i++ {
+			metricsDay.OnsetToUploadDistribution[i] += hour.OnsetAgeDays[i]
+		}
+	}
+
+	// Bring the map back to an array
+	result := make([]*verifyapi.StatsDay, 0, len(days))
+	for _, day := range days {
+		if day.PublishRequests.Total() < dayThreshold {
+			continue
+		}
+		result = append(result, day)
+	}
+	// Sort before returning.
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Day.Before(result[j].Day)
+	})
+
+	return result
 }
 
 // InitHour creates a HealthAuthorityStats record for specified hour.

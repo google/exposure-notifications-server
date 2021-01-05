@@ -20,8 +20,33 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/publish/model"
+	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	pgx "github.com/jackc/pgx/v4"
 )
+
+// DeleteStatsBefore deletes exposure publish stats created before "before" date. Returns the number of records deleted.
+func (db *PublishDB) DeleteStatsBefore(ctx context.Context, before time.Time) (int64, error) {
+	var count int64
+	// to prevent days from changing, a whole day should be deleted at the same time, so we round down to UTC midnight.
+	before = timeutils.UTCMidnight(before)
+	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			DELETE FROM
+				HealthAuthorityStats
+			WHERE
+				hour < $1
+			`, before)
+		if err != nil {
+			return fmt.Errorf("deleting exposures: %v", err)
+		}
+		count = result.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
 
 // ReadStats will return all stats before the current hour, ordered in ascending time.
 func (db *PublishDB) ReadStats(ctx context.Context, healthAuthorityID int64) ([]*model.HealthAuthorityStats, error) {

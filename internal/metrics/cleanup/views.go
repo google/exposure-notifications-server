@@ -47,6 +47,18 @@ func init() {
 			Aggregation: view.Sum(),
 		},
 		{
+			Name:        metrics.MetricRoot + "exposure_stats_cleanup_delete_failed_count",
+			Description: "Total count of exposures stats delete failed",
+			Measure:     ExposuresStatsDeleteFailed,
+			Aggregation: view.Sum(),
+		},
+		{
+			Name:        metrics.MetricRoot + "exposures_stats_deleted_count",
+			Description: "Total count of stats exposures deletions",
+			Measure:     ExposuresStatsDeleted,
+			Aggregation: view.Sum(),
+		},
+		{
 			Name:        metrics.MetricRoot + "exports_setup_failed_count",
 			Description: "Total count of exports setup failures",
 			Measure:     ExportsSetupFailed,

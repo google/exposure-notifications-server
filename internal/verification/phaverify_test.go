@@ -243,7 +243,7 @@ func TestVerifyCertificate(t *testing.T) {
 					publish.HMACKey = tc.MacKeyAdjustment + hmacKeyB64
 
 					// Actually test the verify code.
-					verifier, err := New(haDB, &Config{time.Nanosecond})
+					verifier, err := New(haDB, &Config{time.Nanosecond, "audience"})
 					if err != nil {
 						t.Fatal(err)
 					}

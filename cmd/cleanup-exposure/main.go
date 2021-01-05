@@ -37,8 +37,6 @@ func main() {
 		With("build_tag", buildinfo.BuildTag)
 	ctx = logging.WithLogger(ctx, logger)
 
-	ctx = logging.WithLogger(ctx, logger)
-
 	err := realMain(ctx)
 	done()
 

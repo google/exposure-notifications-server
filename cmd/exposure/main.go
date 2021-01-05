@@ -70,6 +70,10 @@ func realMain(ctx context.Context) error {
 	mux.Handle("/v1/publish", handler.Handle())
 	mux.Handle("/v1/publish/", http.NotFoundHandler())
 
+	// Handle stats retrieval API
+	mux.Handle("/v1/stats", handler.HandleStats())
+	mux.Handle("/v1/stats/", http.NotFoundHandler())
+
 	// Serving of v1alpha1 is on by default, but can be disabled through env var.
 	if config.EnableV1Alpha1API {
 		mux.Handle("/", handler.HandleV1Alpha1())
