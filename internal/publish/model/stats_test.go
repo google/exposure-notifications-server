@@ -210,7 +210,7 @@ func TestReduce(t *testing.T) {
 		},
 	}
 
-	want := []*verifyapi.MetricsDay{
+	want := []*verifyapi.StatsDay{
 		{
 			Day: startTime,
 			PublishCount: verifyapi.PublishCount{

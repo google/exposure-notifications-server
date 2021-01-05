@@ -123,7 +123,7 @@ func TestRetrieveMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to create publish handler: %v", err)
 	}
-	metricsHandler := pubHandler.HandleMetrics()
+	metricsHandler := pubHandler.HandleStats()
 	server := httptest.NewServer(metricsHandler)
 	defer server.Close()
 
@@ -137,7 +137,7 @@ func TestRetrieveMetrics(t *testing.T) {
 	token := jwtConfig.IssueStatsJWT(t)
 
 	// make the stats request.
-	request := &verifyapi.MetricsRequest{}
+	request := &verifyapi.StatsRequest{}
 	jsonString, err := json.Marshal(request)
 	if err != nil {
 		t.Fatal(err)
@@ -159,37 +159,37 @@ func TestRetrieveMetrics(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var got verifyapi.MetricsResponse
+	var got verifyapi.StatsResponse
 	if err := json.Unmarshal(respBytes, &got); err != nil {
 		t.Fatalf("unable to unmarshal response body: %v; data: %v", err, string(respBytes))
 	}
 
-	want := verifyapi.MetricsResponse{
-		Days: []verifyapi.MetricsDay{
+	want := verifyapi.StatsResponse{
+		Days: []*verifyapi.StatsDay{
 			{
 				Day: startTime,
-				PublishCount: verifyapi.PublishCount{
+				PublishRequests: verifyapi.PublishRequests{
 					Android: 10,
 					IOS:     10,
 				},
-				TEKs:                  240,
+				TotalTEKsPublished:    240,
 				OldestTEKDistribution: []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 10, 0},
 				OnsetToUpload:         []int64{0, 0, 0, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			},
 			{
 				Day: startTime.Add(24 * time.Hour),
-				PublishCount: verifyapi.PublishCount{
+				PublishRequests: verifyapi.PublishRequests{
 					Android: 10,
 					IOS:     10,
 				},
-				TEKs:                  240,
+				TotalTEKsPublished:    240,
 				OldestTEKDistribution: []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 10, 0},
 				OnsetToUpload:         []int64{0, 0, 0, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			},
 		},
 	}
 
-	ignorePadding := cmpopts.IgnoreFields(verifyapi.MetricsResponse{}, "Padding")
+	ignorePadding := cmpopts.IgnoreFields(verifyapi.StatsResponse{}, "Padding")
 	if diff := cmp.Diff(want, got, ignorePadding); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}

@@ -21,5 +21,6 @@ import "time"
 type Config struct {
 	CacheDuration time.Duration `env:"VERIFICATION_CACHE_DURATION, default=5m"`
 
+	// StatsAudience is the expected JWT 'aud' value when calling the /v1/stats API.
 	StatsAudience string `env:"STATS_AUDIENCE, default=keyserver"`
 }

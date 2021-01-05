@@ -49,6 +49,8 @@ type SigningKey struct {
 	PublicKey string
 }
 
+// StatsJWTConfig represents the configuration for an auth token to
+// call the stats API. Requires the private key to sign JWTs.
 type StatsJWTConfig struct {
 	HealthAuthority    *vm.HealthAuthority
 	HealthAuthorityKey *vm.HealthAuthorityKey
@@ -57,7 +59,10 @@ type StatsJWTConfig struct {
 	JWTWarp            time.Duration
 }
 
-func (c *StatsJWTConfig) IssueStatsJWT(t *testing.T) string {
+// IssueStatsJWT issues an auth token to call the stats API.
+// This is meant for test purposes only. Normally these tokens
+// would be issued outside this system.
+func (c *StatsJWTConfig) IssueStatsJWT(t testing.TB) string {
 	t.Helper()
 
 	now := time.Now().UTC()

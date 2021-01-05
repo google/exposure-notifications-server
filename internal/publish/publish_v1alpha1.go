@@ -16,7 +16,6 @@
 package publish
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -97,7 +96,7 @@ func (h *PublishHandler) HandleV1Alpha1() http.Handler {
 				}
 
 				// Downgrade the v1 response to a v1alpha1 response.
-				alpha1Response := v1alpha1.PublishResponse{
+				alpha1Response := &v1alpha1.PublishResponse{
 					RevisionToken:     response.pubResponse.RevisionToken,
 					InsertedExposures: response.pubResponse.InsertedExposures,
 					Error:             response.pubResponse.ErrorMessage,
@@ -109,16 +108,6 @@ func (h *PublishHandler) HandleV1Alpha1() http.Handler {
 					response.metrics()
 				}
 
-				data, err := json.Marshal(&alpha1Response)
-				if err != nil {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusInternalServerError)
-					fmt.Fprintf(w, "{\"error\": \"%v\"}", err.Error())
-					return
-				}
-
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(response.status)
-				fmt.Fprintf(w, "%s", data)
+				jsonutil.MarshalResponse(w, response.status, alpha1Response)
 			})))
 }

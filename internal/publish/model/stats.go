@@ -65,8 +65,8 @@ type HealthAuthorityStats struct {
 // time indicates the cutoff point for inclusion.
 // The dayThreshold indicates how many entries are needed to include a given day.
 // Day boundaries are all in UTC.
-func ReduceStats(hourly []*HealthAuthorityStats, onlyBefore time.Time, dayThreshold int64) []*verifyapi.MetricsDay {
-	days := make(map[time.Time]*verifyapi.MetricsDay)
+func ReduceStats(hourly []*HealthAuthorityStats, onlyBefore time.Time, dayThreshold int64) []*verifyapi.StatsDay {
+	days := make(map[time.Time]*verifyapi.StatsDay)
 	// Combine the hours into days based on same UTC midnight time.
 	for _, hour := range hourly {
 		if !hour.Hour.Before(onlyBefore) {
@@ -76,7 +76,7 @@ func ReduceStats(hourly []*HealthAuthorityStats, onlyBefore time.Time, dayThresh
 		day := timeutils.UTCMidnight(hour.Hour)
 		if _, ok := days[day]; !ok {
 			// Initialize this day
-			days[day] = &verifyapi.MetricsDay{
+			days[day] = &verifyapi.StatsDay{
 				Day:                   day,
 				OldestTEKDistribution: make([]int64, StatsMaxOldestTEK+1),
 				OnsetToUpload:         make([]int64, StatsMaxOnsetDays+1),
@@ -100,7 +100,7 @@ func ReduceStats(hourly []*HealthAuthorityStats, onlyBefore time.Time, dayThresh
 	}
 
 	// Bring the map back to an array
-	result := make([]*verifyapi.MetricsDay, 0, len(days))
+	result := make([]*verifyapi.StatsDay, 0, len(days))
 	for _, day := range days {
 		if day.PublishCount.Total() < dayThreshold {
 			continue

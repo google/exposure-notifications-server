@@ -22,13 +22,11 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
-	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
-// AuthenticateStatsToken parse the provided JWT and determines if it is an authorized stats request.
+// AuthenticateStatsToken parse the provided JWT and determines if it is an authorized stats request
+// and returns the authorized health authority ID.
 func (v *Verifier) AuthenticateStatsToken(ctx context.Context, rawToken string) (int64, error) {
-	logger := logging.FromContext(ctx)
-
 	var healthAuthorityID int64
 	var claims *jwt.StandardClaims
 
@@ -40,14 +38,12 @@ func (v *Verifier) AuthenticateStatsToken(ctx context.Context, rawToken string) 
 		kidHeader, ok := token.Header["kid"]
 		if !ok {
 			err := errors.New("missing 'kid' header in token")
-			logger.Infow("invalid authentication token", "error", err)
 			return nil, err
 		}
 
 		kid, ok := kidHeader.(string)
 		if !ok {
 			err := errors.New("invalid 'kid' field in token")
-			logger.Infow("invalid authentication token", "error", err)
 			return nil, err
 		}
 
@@ -61,7 +57,6 @@ func (v *Verifier) AuthenticateStatsToken(ctx context.Context, rawToken string) 
 			ha, err := v.db.GetHealthAuthority(ctx, claims.Issuer)
 			// Special case not found so that we can cache it.
 			if errors.Is(err, database.ErrHealthAuthorityNotFound) {
-				logger.Warnw("requested issuer not found", "iss", claims.Issuer)
 				return nil, nil
 			}
 			if err != nil {
@@ -78,7 +73,10 @@ func (v *Verifier) AuthenticateStatsToken(ctx context.Context, rawToken string) 
 			return nil, fmt.Errorf("issuer not found: %v", claims.Issuer)
 		}
 
-		healthAuthority := cacheVal.(*model.HealthAuthority)
+		healthAuthority, ok := cacheVal.(*model.HealthAuthority)
+		if !ok {
+			return nil, fmt.Errorf("incorrect type in cache: %w", err)
+		}
 		// Look for the matching 'kid'
 		for _, key := range healthAuthority.Keys {
 			if key.Version == kid && key.IsValid() {
@@ -97,7 +95,6 @@ func (v *Verifier) AuthenticateStatsToken(ctx context.Context, rawToken string) 
 	}
 
 	if !claims.VerifyAudience(v.config.StatsAudience, true) {
-		logger.Warnw("stats audience mismatch", "expected", v.config.StatsAudience, "got", claims.Audience)
 		return 0, fmt.Errorf("unauthorized, audience mismatch")
 	}
 

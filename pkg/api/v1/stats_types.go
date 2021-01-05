@@ -17,10 +17,11 @@ package v1
 import "time"
 
 const (
+	// ErrorUnauthorized is returned if the provided bearer token is invalid.
 	ErrorUnauthorized = "unauthorized"
 )
 
-// MetricsRequest represents the request to retrieve publish metrics for a specific
+// StatsRequest represents the request to retrieve publish metrics for a specific
 // health authority.
 //
 // Calls to this API require an "Authorization: Bearer <JWT>" header
@@ -29,18 +30,20 @@ const (
 //
 // New stats are released every hour. And stats for a day (UTC) only start to be released
 // once there have been a sufficient numbers of publish requests for that day.
-type MetricsRequest struct {
+//
+// This API is invoked via POST request to /v1/stats
+type StatsRequest struct {
 	// currently no data fields in the request.
 
 	Padding string `json:"padding"`
 }
 
-// MetricsResponse returns all currently known metrics for the authenticated health authority.
+// StatsResponse returns all currently known metrics for the authenticated health authority.
 //
 // There may be gaps in the Days if a day has insufficient data.
-type MetricsResponse struct {
+type StatsResponse struct {
 	// Individual days. There may be gaps if a day does not have enough data.
-	Days []MetricsDay `json:"days,omitempty"`
+	Days []*StatsDay `json:"days,omitempty"`
 
 	ErrorMessage string `json:"error,omitempty"`
 	ErrorCode    string `json:"code,omitempty"`
@@ -48,32 +51,35 @@ type MetricsResponse struct {
 	Padding string `json:"padding"`
 }
 
-// MetricsDay represents stats from an individual day.
-type MetricsDay struct {
+// StatsDay represents stats from an individual day. All stats represent only successful requests.
+type StatsDay struct {
 	// Day will be set to midnight UTC of the day represented. An individual day
 	// isn't released until there is a minimum threshold for updates has been met.
-	Day          time.Time    `json:"day"`
-	PublishCount PublishCount `json:"publishCount"`
-	TEKs         int64        `json:"teks"`
-	Revisions    int64        `json:"revisions"`
-	// OldestTEKDistribution shows a distribution of the oldest tek in an upload.
+	Day                time.Time       `json:"day"`
+	PublishRequests    PublishRequests `json:"publish_requests"`
+	TotalTEKsPublished int64           `json:"total_teks_published"`
+	// RevisionRequests is the number of publish requests that contained at least one TEK revision.
+	RevisionRequests int64 `json:"requests_with_revisions"`
+	// TEKAgeDistribution shows a distribution of the oldest tek in an upload.
 	// The count at index 0-15 represent the number of uploads there the oldest TEK is that value.
-	// Index 16 represents > 15.
-	OldestTEKDistribution []int64 `json:"oldestTEKDistribution"`
-	// OnsetToUpload shows a distribution of onset to upload, the index is in days.
+	// Index 16 represents > 15 days.
+	TEKAgeDistribution []int64 `json:"tek_age_distribution"`
+	// OnsetToUploadDistribution shows a distribution of onset to upload, the index is in days.
 	// The count at index 0-29 represents the number of uploads with that symptom onset age.
 	// Index 30 represents > 29 days.
-	OnsetToUpload []int64 `json:"onsetToUpload"`
+	OnsetToUploadDistribution []int64 `json:"onset_to_upload_distribution"`
 
-	MissingOnset int64 `json:"missingOnset"`
+	// RequestsMissingOnsetDate is the number of publish requests where no onset date
+	// was provided. These request are not included in the onset to upload distribution.
+	RequestsMissingOnsetDate int64 `json:"requests_missing_onset_date"`
 }
 
-type PublishCount struct {
+type PublishRequests struct {
 	UnknownPlatform int64 `json:"unknown"`
 	Android         int64 `json:"android"`
 	IOS             int64 `json:"ios"`
 }
 
-func (p *PublishCount) Total() int64 {
+func (p *PublishRequests) Total() int64 {
 	return p.UnknownPlatform + p.Android + p.IOS
 }

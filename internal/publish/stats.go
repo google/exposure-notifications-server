@@ -16,7 +16,6 @@ package publish
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -32,54 +31,49 @@ import (
 	"github.com/mikehelmick/go-chaff"
 )
 
-func (h *PublishHandler) HandleMetrics() http.Handler {
+func (h *PublishHandler) HandleStats() http.Handler {
 	mResponder := maintenance.New(h.config)
-	return h.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
-		mResponder.Handle(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				ctx, span := trace.StartSpan(r.Context(), "(*publish.HandleMetrics)")
-				defer span.End()
+	return h.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"), mResponder.Handle(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := trace.StartSpan(r.Context(), "(*publish.HandleStats)")
+			defer span.End()
 
-				var request verifyapi.MetricsRequest
-				code, err := jsonutil.Unmarshal(w, r, &request)
-				if err != nil {
-					message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
-					span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-					errorCode := verifyapi.ErrorBadRequest
-					if code == http.StatusInternalServerError {
-						errorCode = verifyapi.ErrorInternalError
-					}
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusBadRequest)
-					fmt.Fprintf(w, "{\"error\": \"%v\", \"code\": \"%v\"}", err.Error(), errorCode)
-					return
+			var request verifyapi.StatsRequest
+			response := &verifyapi.StatsResponse{}
+			code, err := jsonutil.Unmarshal(w, r, &request)
+			if err != nil {
+				message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
+				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+				errorCode := verifyapi.ErrorBadRequest
+				if code == http.StatusInternalServerError {
+					errorCode = verifyapi.ErrorInternalError
 				}
+				h.addMetricsPadding(ctx, response)
+				jsonutil.MarshalResponse(w, http.StatusBadRequest, &verifyapi.StatsResponse{
+					ErrorMessage: message,
+					ErrorCode:    errorCode,
+				})
+				return
+			}
 
-				response, status := h.handleMetricsRequest(ctx, r.Header.Get("Authorization"), &request)
+			response, status := h.handleMetricsRequest(ctx, r.Header.Get("Authorization"), &request)
+			h.addMetricsPadding(ctx, response)
 
-				if padding, err := generatePadding(h.config.StatsResponsePaddingMinBytes, h.config.StatsResponsePaddingRange); err != nil {
-					logging.FromContext(ctx).Errorw("failed to pad response", "error", err)
-				} else {
-					response.Padding = padding
-				}
-
-				data, err := json.Marshal(response)
-				if err != nil {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusInternalServerError)
-					fmt.Fprintf(w, "{\"error\": \"%v\"}", err.Error())
-					return
-				}
-
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(status)
-				fmt.Fprintf(w, "%s", data)
-			})))
+			jsonutil.MarshalResponse(w, status, response)
+		})))
 }
 
-func (h *PublishHandler) handleMetricsRequest(ctx context.Context, bearerToken string, request *verifyapi.MetricsRequest) (*verifyapi.MetricsResponse, int) {
+func (h *PublishHandler) addMetricsPadding(ctx context.Context, response *verifyapi.StatsResponse) {
+	if padding, err := generatePadding(h.config.StatsResponsePaddingMinBytes, h.config.StatsResponsePaddingRange); err != nil {
+		logging.FromContext(ctx).Errorw("failed to pad response", "error", err)
+	} else {
+		response.Padding = padding
+	}
+}
+
+func (h *PublishHandler) handleMetricsRequest(ctx context.Context, bearerToken string, request *verifyapi.StatsRequest) (*verifyapi.StatsResponse, int) {
 	logger := logging.FromContext(ctx)
-	response := &verifyapi.MetricsResponse{}
+	response := &verifyapi.StatsResponse{}
 
 	if !strings.HasPrefix(bearerToken, "Bearer ") {
 		response.ErrorMessage = "Authorization header is not in `Bearer <token>` format"
@@ -91,6 +85,7 @@ func (h *PublishHandler) handleMetricsRequest(ctx context.Context, bearerToken s
 	// Validate JWT - if valid, the health authority ID (based on issuer) is returned.
 	healthAuthorityID, err := h.verifier.AuthenticateStatsToken(ctx, bearerToken)
 	if err != nil {
+		logger.Infow("stats authorization failure", "error", err)
 		response.ErrorMessage = err.Error()
 		response.ErrorCode = verifyapi.ErrorUnauthorized
 		return response, http.StatusUnauthorized
@@ -109,12 +104,7 @@ func (h *PublishHandler) handleMetricsRequest(ctx context.Context, bearerToken s
 	onlyBefore := time.Now().UTC().Truncate(time.Hour)
 
 	// Combine days - this also filters things that are "too new" and days that don't meet the threshold.
-	metricsDays := model.ReduceStats(stats, onlyBefore, h.config.StatsUploadMinimum)
-	// Transform array of points to array of structs before return.
-	response.Days = make([]verifyapi.MetricsDay, len(metricsDays))
-	for i, day := range metricsDays {
-		response.Days[i] = *day
-	}
+	response.Days = model.ReduceStats(stats, onlyBefore, h.config.StatsUploadMinimum)
 
 	// return
 	return response, http.StatusOK
