@@ -31,6 +31,10 @@ var (
 		"Instances of exposures delete failures", stats.UnitDimensionless)
 	ExposuresDeleted = stats.Int64(cleanupMetricsPrefix+"exposures_deleted",
 		"Exposures deletions", stats.UnitDimensionless)
+	ExposuresStatsDeleteFailed = stats.Int64(cleanupMetricsPrefix+"exposures_stats_delete_failed",
+		"Instances of exposures stats delete failures", stats.UnitDimensionless)
+	ExposuresStatsDeleted = stats.Int64(cleanupMetricsPrefix+"exposures_stats_deleted",
+		"Exposures stats deletions", stats.UnitDimensionless)
 	ExportsSetupFailed = stats.Int64(cleanupMetricsPrefix+"exports_setup_failed",
 		"Instances of export setup failures", stats.UnitDimensionless)
 	ExportsCleanupBefore = stats.Int64(cleanupMetricsPrefix+"exports_cleanup_before",

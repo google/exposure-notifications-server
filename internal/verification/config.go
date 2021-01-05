@@ -20,4 +20,6 @@ import "time"
 // verification piece.
 type Config struct {
 	CacheDuration time.Duration `env:"VERIFICATION_CACHE_DURATION, default=5m"`
+
+	StatsAudience string `env:"STATS_AUDIENCE, default=keyserver"`
 }

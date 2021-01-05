@@ -98,6 +98,9 @@ type Config struct {
 	// Normally "still valid" keys can be accepted, but are embargoed.
 	ReleaseSameDayKeys      bool `env:"DEBUG_RELEASE_SAME_DAY_KEYS"`
 	DebugLogBadCertificates bool `env:"DEBUG_LOG_BAD_CERTIFICATES"`
+
+	// Publish stats API config
+	StatsUploadMinimum int64 `env:"STATS_UPLOAD_MINIMUM, default=10"`
 }
 
 func (c *Config) MaintenanceMode() bool {

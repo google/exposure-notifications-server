@@ -49,6 +49,34 @@ type SigningKey struct {
 	PublicKey string
 }
 
+type StatsJWTConfig struct {
+	HealthAuthority    *vm.HealthAuthority
+	HealthAuthorityKey *vm.HealthAuthorityKey
+	Key                *ecdsa.PrivateKey
+	Audience           string
+	JWTWarp            time.Duration
+}
+
+func (c *StatsJWTConfig) IssueStatsJWT(t *testing.T) string {
+	t.Helper()
+
+	now := time.Now().UTC()
+	claims := &jwt.StandardClaims{
+		Audience:  c.Audience,
+		ExpiresAt: now.Add(time.Minute).Unix(),
+		IssuedAt:  now.Unix(),
+		Issuer:    c.HealthAuthority.Issuer,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	token.Header["kid"] = c.HealthAuthorityKey.Version
+
+	jwtString, err := token.SignedString(c.Key)
+	if err != nil {
+		t.Fatalf("failed to sign JWT: %v", err)
+	}
+	return jwtString
+}
+
 // JWTConfig stores the config used to fetch a verification jwt certificate
 type JWTConfig struct {
 	HealthAuthority      *vm.HealthAuthority
