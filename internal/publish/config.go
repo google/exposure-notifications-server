@@ -100,7 +100,9 @@ type Config struct {
 	DebugLogBadCertificates bool `env:"DEBUG_LOG_BAD_CERTIFICATES"`
 
 	// Publish stats API config
-	StatsUploadMinimum int64 `env:"STATS_UPLOAD_MINIMUM, default=10"`
+	StatsUploadMinimum           int64 `env:"STATS_UPLOAD_MINIMUM, default=10"`
+	StatsResponsePaddingMinBytes int64 `env:"RESPONSE_PADDING_MIN_BYTES, default=2048"`
+	StatsResponsePaddingRange    int64 `env:"RESPONSE_PADDING_RANGE, default=1024"`
 }
 
 func (c *Config) MaintenanceMode() bool {

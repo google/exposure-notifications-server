@@ -72,9 +72,11 @@ func (h *PublishHandler) Handle() http.Handler {
 
 				ctx := r.Context()
 
-				if err := response.padResponse(h.config); err != nil {
+				if padding, err := generatePadding(h.config.ResponsePaddingMinBytes, h.config.ResponsePaddingRange); err != nil {
 					stats.Record(ctx, publish.PaddingFailed.M(1))
 					logging.FromContext(ctx).Errorw("failed to pad response", "error", err)
+				} else {
+					response.pubResponse.Padding = padding
 				}
 
 				if response.metrics != nil {

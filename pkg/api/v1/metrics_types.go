@@ -30,7 +30,9 @@ const (
 // New stats are released every hour. And stats for a day (UTC) only start to be released
 // once there have been a sufficient numbers of publish requests for that day.
 type MetricsRequest struct {
-	// currently no fields in the request.
+	// currently no data fields in the request.
+
+	Padding string `json:"padding"`
 }
 
 // MetricsResponse returns all currently known metrics for the authenticated health authority.
@@ -42,6 +44,8 @@ type MetricsResponse struct {
 
 	ErrorMessage string `json:"error,omitempty"`
 	ErrorCode    string `json:"code,omitempty"`
+
+	Padding string `json:"padding"`
 }
 
 // MetricsDay represents stats from an individual day.

@@ -36,6 +36,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sethvargo/go-envconfig"
 )
 
@@ -188,7 +189,11 @@ func TestRetrieveMetrics(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	ignorePadding := cmpopts.IgnoreFields(verifyapi.MetricsResponse{}, "Padding")
+	if diff := cmp.Diff(want, got, ignorePadding); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+	if got.Padding == "" {
+		t.Errorf("response is missing padding")
 	}
 }

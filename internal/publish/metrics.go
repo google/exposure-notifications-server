@@ -57,6 +57,12 @@ func (h *PublishHandler) HandleMetrics() http.Handler {
 
 				response, status := h.handleMetricsRequest(ctx, r.Header.Get("Authorization"), &request)
 
+				if padding, err := generatePadding(h.config.StatsResponsePaddingMinBytes, h.config.StatsResponsePaddingRange); err != nil {
+					logging.FromContext(ctx).Errorw("failed to pad response", "error", err)
+				} else {
+					response.Padding = padding
+				}
+
 				data, err := json.Marshal(response)
 				if err != nil {
 					w.Header().Set("Content-Type", "application/json")
