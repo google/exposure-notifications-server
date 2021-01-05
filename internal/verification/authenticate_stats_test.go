@@ -41,7 +41,6 @@ func claimsIdentity(claims *jwt.StandardClaims) *jwt.StandardClaims {
 type HeaderChanger func(map[string]interface{})
 
 func headerIdentity(headers map[string]interface{}) {
-	return
 }
 
 type JWTChanger func(string) string
