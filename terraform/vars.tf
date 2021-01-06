@@ -258,31 +258,64 @@ variable "enable_lb_logging" {
   EOT
 }
 
-variable "service_annotations" {
-  type    = map(map(string))
-  default = {}
-
-  description = "Per-service additional annotations."
-}
+// Note: in Cloud Run/Knative, there are two kinds of annotations.
+// - Service level annotations: applies to all revisions in the service. E.g.
+//   the ingress restriction
+//   https://cloud.google.com/run/docs/securing/ingress#yaml
+// - Revision level annotations: only applies to a new revision you want to
+//   create. E.g. the VPC connector setting
+//   https://cloud.google.com/run/docs/configuring/connecting-vpc#yaml
+//
+// Unfortunately they are just too similar and you'll have to read the doc
+// carefully to know what kind of annotation is needed to enable a feature.
+//
+// The variables below are named service_annotations and revision_annotations
+// accordingly.
 
 locals {
-  default_annotations = {
+  default_revision_annotations = {
     "autoscaling.knative.dev/maxScale" : "1",
     "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
     "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
   }
+  default_service_annotations = {
+    "run.googleapis.com/ingress" : "all"
+  }
 }
 
-variable "default_annotations_overrides" {
+variable "service_annotations" {
+  type    = map(map(string))
+  default = {}
+
+  description = "Per-service service level annotations."
+}
+
+variable "default_service_annotations_overrides" {
   type    = map(string)
   default = {}
 
   description = <<-EOT
   Annotations that applies to all services. Can be used to override
-  default_annotations.
+  default_service_annotations.
   EOT
 }
 
+variable "revision_annotations" {
+  type    = map(map(string))
+  default = {}
+
+  description = "Per-service revision level annotations."
+}
+
+variable "default_revision_annotations_overrides" {
+  type    = map(string)
+  default = {}
+
+  description = <<-EOT
+  Annotations that applies to all services. Can be used to override
+  default_revision_annotations.
+  EOT
+}
 terraform {
   required_version = ">= 0.14.2"
 
