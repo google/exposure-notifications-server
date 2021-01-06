@@ -98,7 +98,7 @@ func scanOneHealthAuthorityStats(rows pgx.Rows, stats *model.HealthAuthorityStat
 
 // UpdateStats performance a read-modify-write to update the requested stats.
 func (db *PublishDB) UpdateStats(ctx context.Context, hour time.Time, healthAuthorityID int64, info *model.PublishInfo) error {
-	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		return db.UpdateStatsInTx(ctx, tx, hour, healthAuthorityID, info)
 	})
 }

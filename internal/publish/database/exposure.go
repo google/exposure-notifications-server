@@ -668,9 +668,11 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 			// For all practical purposes - this can be no more than a couple hundred TEKs in a single transaction.
 			stats.NumTEKs = int32(resp.Inserted) + int32(resp.Revised)
 			stats.Revision = resp.Revised > 0
-			if err := db.UpdateStatsInTx(ctx, tx, stats.CreatedAt, *healthAuthorityID, stats); err != nil {
-				return fmt.Errorf("failed to update statistics: %w", err)
-			}
+			go func() {
+				if err := db.UpdateStats(context.Background(), stats.CreatedAt, *healthAuthorityID, stats); err != nil {
+					logger.Errorw("failed to update statistics", "error", err)
+				}
+			}()
 		}
 
 		return nil
