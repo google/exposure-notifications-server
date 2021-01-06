@@ -737,7 +737,7 @@ func TestPublishWithBypass(t *testing.T) {
 
 						if tc.HealthAuthority != nil {
 							// statistics are written in the background.
-							time.Sleep(2 * time.Second)
+							time.Sleep(5 * time.Second)
 							// There was a valid certificate present. there should be statistics.
 							stats, err := pubDB.ReadStats(ctx, tc.HealthAuthority.ID)
 							if err != nil {
