@@ -69,3 +69,37 @@ resource "google_monitoring_alert_policy" "LatencyTooHigh" {
     google_monitoring_notification_channel.channels
   ]
 }
+
+resource "google_monitoring_alert_policy" "CloudSchedulerJobFailed" {
+  project      = var.project
+  display_name = "CloudSchedulerJobFailed"
+  combiner     = "OR"
+  conditions {
+    display_name = "Cloud Scheduler Job Error Ratio"
+    condition_monitoring_query_language {
+      duration = "900s"
+      # Uses rate(5m). See the reasoning above.
+      query = <<-EOT
+      fetch cloud_scheduler_job::logging.googleapis.com/log_entry_count
+      | filter (metric.severity == 'ERROR')
+      | align rate(5m)
+      | group_by [resource.job_id], [val: aggregate(value.log_entry_count)]
+      | condition val > 0
+      EOT
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  documentation {
+    content   = "${local.playbook_prefix}/CloudSchedulerJobFailed.md"
+    mime_type = "text/markdown"
+  }
+
+  notification_channels = [for x in values(google_monitoring_notification_channel.channels) : x.id]
+
+  depends_on = [
+    google_monitoring_notification_channel.channels
+  ]
+}
