@@ -109,4 +109,4 @@ fi
 echo "🧪 Test"
 make test-acc
 echo "🔬 Test Coverage"
-make test-Coverage
+make test-coverage
