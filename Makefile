@@ -74,8 +74,16 @@ test-acc:
 		-race \
 		-timeout=10m \
 		-vet="${VETTERS}" \
-		./...
+		./... \
+		-coverprofile=coverage.out
 .PHONY: test-acc
+
+test-coverage:
+	@go tool cover \
+		-func coverage.out \
+		| grep total \
+		| awk '{print $NF}'
+.PHONY: test-coverage		
 
 performance-test:
 	@go test \
