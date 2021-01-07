@@ -26,23 +26,28 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
+// AuthorizedAppDB is a handle to database operations for authorized apps
+// (referred to as healthAuthorityID in v1 publish API).
 type AuthorizedAppDB struct {
 	db *database.DB
 }
 
+// New creates a new authorizedAppDB that wraps a raw database handle.
 func New(db *database.DB) *AuthorizedAppDB {
 	return &AuthorizedAppDB{
 		db: db,
 	}
 }
 
+// InsertAuthorizedApp inserts an authorized app into the database, caling the validate method first
+// and returning any errors.
 func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.AuthorizedApp) error {
 	if errors := m.Validate(); len(errors) > 0 {
 		return fmt.Errorf("AuthorizedApp invalid: %v", strings.Join(errors, ", "))
 	}
 
 	return aa.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
-		result, err := tx.Exec(ctx, `
+		_, err := tx.Exec(ctx, `
 			INSERT INTO
 				AuthorizedApp
 				(app_package_name, allowed_regions,
@@ -56,13 +61,11 @@ func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.Aut
 		if err != nil {
 			return fmt.Errorf("inserting authorizedapp: %w", err)
 		}
-		if result.RowsAffected() != 1 {
-			return fmt.Errorf("no rows inserted")
-		}
 		return nil
 	})
 }
 
+// UpdateAuthorizedApp updates the properties of an authorized app, including possibly renaming it.
 func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey string, m *model.AuthorizedApp) error {
 	return aa.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
@@ -86,6 +89,7 @@ func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey str
 	})
 }
 
+// DeleteAuthorizedApp removes an authorized app from the database.
 func (aa *AuthorizedAppDB) DeleteAuthorizedApp(ctx context.Context, name string) error {
 	var count int64
 	err := aa.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
@@ -110,6 +114,8 @@ func (aa *AuthorizedAppDB) DeleteAuthorizedApp(ctx context.Context, name string)
 	return nil
 }
 
+// ListAuthorizedApps reads all authorized app, returned in alphabetical order by
+// healthAuthorityID (app_package_name).
 func (aa *AuthorizedAppDB) ListAuthorizedApps(ctx context.Context) ([]*model.AuthorizedApp, error) {
 	var apps []*model.AuthorizedApp
 

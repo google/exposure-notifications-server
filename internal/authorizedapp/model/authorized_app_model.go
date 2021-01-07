@@ -16,6 +16,7 @@
 package model
 
 import (
+	"sort"
 	"strings"
 )
 
@@ -40,6 +41,8 @@ type AuthorizedApp struct {
 	BypassRevisionToken bool
 }
 
+// NewAuthorizedApp initializes an AuthorizedApp structure including
+// pre-allocating all included maps.
 func NewAuthorizedApp() *AuthorizedApp {
 	return &AuthorizedApp{
 		AllowedRegions:            make(map[string]struct{}),
@@ -47,6 +50,7 @@ func NewAuthorizedApp() *AuthorizedApp {
 	}
 }
 
+// AllAllowedRegions returns a slice of all allowed region codes.
 func (c *AuthorizedApp) AllAllowedRegions() []string {
 	regions := []string{}
 	for k := range c.AllowedRegions {
@@ -55,6 +59,8 @@ func (c *AuthorizedApp) AllAllowedRegions() []string {
 	return regions
 }
 
+// AllAllowedHealthAuthorityIDs returns a slice of all allowed
+// heauth authority IDs.
 func (c *AuthorizedApp) AllAllowedHealthAuthorityIDs() []int64 {
 	has := []int64{}
 	for k := range c.AllowedHealthAuthorityIDs {
@@ -63,6 +69,7 @@ func (c *AuthorizedApp) AllAllowedHealthAuthorityIDs() []int64 {
 	return has
 }
 
+// Validate checks an authorized app before a save operation.
 func (c *AuthorizedApp) Validate() []string {
 	errors := make([]string, 0)
 	if c.AppPackageName == "" {
@@ -74,17 +81,23 @@ func (c *AuthorizedApp) Validate() []string {
 	return errors
 }
 
+// RegionsOnePerLine returns a string with all authorized
+// regions, one per line. This is a utility method for the
+// admin console.
 func (c *AuthorizedApp) RegionsOnePerLine() string {
-	regions := []string{}
+	var regions sort.StringSlice
 	for r := range c.AllowedRegions {
 		regions = append(regions, r)
 	}
+	regions.Sort()
 	return strings.Join(regions, "\n")
 }
 
 // IsAllowedRegion returns true if the regions list is empty or if the given
 // region is in the list of allowed regions.
 func (c *AuthorizedApp) IsAllowedRegion(s string) bool {
+	// This is a legacy inconsistency. Anything going through the admin
+	// console will have allowed regions set.
 	if len(c.AllowedRegions) == 0 {
 		return true
 	}
