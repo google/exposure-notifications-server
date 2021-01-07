@@ -235,12 +235,6 @@ func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) err
 		if err := haDB.AddHealthAuthorityKey(ctx, ha, hak); err != nil {
 			return fmt.Errorf("error adding key: %w", err)
 		}
-		ha.Keys = append(ha.Keys, hak)
-	}
-
-	// And save the HealthAuthority.
-	if err := haDB.UpdateHealthAuthority(ctx, ha); err != nil {
-		return fmt.Errorf("failed to update health authority: %w", err)
 	}
 
 	logger.Infow("updated jwks",
