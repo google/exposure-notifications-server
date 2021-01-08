@@ -18,7 +18,46 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 )
+
+func TestSetJWKS(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		input string
+		want  *string
+	}{
+		{
+			name:  "empty",
+			input: "",
+			want:  nil,
+		},
+		{
+			name:  "trim_empty",
+			input: "  ",
+			want:  nil,
+		},
+		{
+			name:  "valid",
+			input: "https://jwks.example.com/",
+			want:  proto.String("https://jwks.example.com/"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ha := &HealthAuthority{}
+			ha.SetJWKS(tc.input)
+			if diff := cmp.Diff(tc.want, ha.JwksURI); diff != "" {
+				t.Fatalf("mismatch (-want, +got):\n%s", diff)
+			}
+		})
+	}
+}
 
 func TestIsValid(t *testing.T) {
 	now := time.Now().UTC()

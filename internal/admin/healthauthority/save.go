@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/exposure-notifications-server/internal/admin"
@@ -74,5 +75,6 @@ func (h *saveController) Execute(c *gin.Context) {
 
 	m.AddSuccess(fmt.Sprintf("Updated Health Authority '%v'", healthAuthority.Issuer))
 	m["ha"] = healthAuthority
+	m["hak"] = &model.HealthAuthorityKey{From: time.Now()} // For create form.
 	c.HTML(http.StatusOK, "healthauthority", m)
 }

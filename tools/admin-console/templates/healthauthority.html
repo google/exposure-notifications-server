@@ -55,6 +55,17 @@
         </small>
       </div>
 
+      <div class="form-group">
+        <label for="enable-stats-api">Enable Stats API Access</label>
+        <select name="enable-stats-api" id="enable-stats-api" class="form-control custom-select">
+          <option value="true" {{if .ha.EnableStatsAPI}}selected{{end}}>true</option>
+          <option value="false" {{if not .ha.EnableStatsAPI}}selected{{end}}>false</option>
+        </select>
+        <small class="form-text text-muted">
+          If false, this health authority will always get "unauthorized" on the stats API.
+        </small>
+      </div>
+
       <div class="form-label-group">
         <input type="text" name="jwks-uri" id="jwks-uri" value="{{deref .ha.JwksURI}}"
           placeholder="JWKS URI" class="form-control">

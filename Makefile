@@ -79,10 +79,7 @@ test-acc:
 .PHONY: test-acc
 
 test-coverage:
-	@go tool cover \
-		-func coverage.out \
-		| grep total \
-		| awk '{print $NF}'
+	@go tool cover -func ./coverage.out | grep total
 .PHONY: test-coverage		
 
 performance-test:
