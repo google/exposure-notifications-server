@@ -412,7 +412,7 @@ func TestStillValidKey(t *testing.T) {
 					},
 				},
 			},
-			createdAt:          TruncateWindow(TimeForIntervalNumber(intervalNumber+verifyapi.MaxIntervalCount), time.Minute),
+			createdAt:          TruncateWindow(TimeForIntervalNumber(intervalNumber+verifyapi.MaxIntervalCount).Add(time.Minute), time.Minute),
 			releaseSameDayKeys: false,
 		},
 	}

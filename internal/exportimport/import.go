@@ -142,6 +142,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 		appPackageName: s.config.ImportAPKName,
 		importRegions:  []string{ir.exportImport.Region},
 		batchTime:      time.Now().UTC().Truncate(s.config.CreatedAtTruncateWindow),
+		truncateWindow: s.config.CreatedAtTruncateWindow,
 		exportImportID: ir.exportImport.ID,
 		importFileID:   ir.file.ID,
 		exportImportConfig: &pubmodel.ExportImportConfig{
@@ -218,6 +219,7 @@ type transformer struct {
 	appPackageName     string
 	importRegions      []string
 	batchTime          time.Time
+	truncateWindow     time.Duration
 	exportImportID     int64
 	importFileID       int64
 	exportImportConfig *pubmodel.ExportImportConfig
@@ -241,6 +243,11 @@ func (t *transformer) transform(keys []*exportproto.TemporaryExposureKey) ([]*pu
 		exp.LocalProvenance = false
 		exp.ExportImportID = &t.exportImportID
 		exp.ImportFileID = &t.importFileID
+
+		// Adjust created at time, if this key is not yet expired.
+		if expTime := pubmodel.TimeForIntervalNumber(exp.IntervalNumber + exp.IntervalCount); expTime.Before(exp.CreatedAt) {
+			exp.CreatedAt = exp.CreatedAt.Add(t.truncateWindow).Truncate(t.truncateWindow)
+		}
 
 		inserts = append(inserts, exp)
 	}

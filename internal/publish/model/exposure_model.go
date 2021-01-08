@@ -354,7 +354,8 @@ func (e *Exposure) AdjustAndValidate(settings *KeyTransform) error {
 	if e.IntervalNumber+e.IntervalCount > settings.MaxStartInterval {
 		// key is still valid. The created At for this key needs to be adjusted unless debugging is enabled.
 		if !settings.ReleaseStillValidKeys {
-			e.CreatedAt = TimeForIntervalNumber(e.IntervalNumber + e.IntervalCount).Truncate(settings.BatchWindow)
+			// The add of the batch window is to ensure that the created at time is after the expiry.
+			e.CreatedAt = TimeForIntervalNumber(e.IntervalNumber + e.IntervalCount).Add(settings.BatchWindow).Truncate(settings.BatchWindow)
 		}
 	}
 
