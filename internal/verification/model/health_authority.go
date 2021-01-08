@@ -21,21 +21,25 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
 // HealthAuthority represents a public health authority that is authorized to
 // issue diagnosis verification certificates accepted by this server.
 type HealthAuthority struct {
-	ID       int64
-	Issuer   string
-	Audience string
-	Name     string
-	Keys     []*HealthAuthorityKey
-	JwksURI  *string
+	ID             int64
+	Issuer         string
+	Audience       string
+	Name           string
+	Keys           []*HealthAuthorityKey
+	JwksURI        *string
+	EnableStatsAPI bool
 }
 
+// SetJWKS sets the optional JwksURI property of the HealthAuthority.
 func (ha *HealthAuthority) SetJWKS(uri string) {
+	uri = strings.TrimSpace(uri)
 	if uri == "" {
 		ha.JwksURI = nil
 		return

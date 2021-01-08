@@ -30,7 +30,7 @@ command -v migrate >/dev/null 2>&1 || {
 migrate create -ext sql -dir migrations -seq $1
 
 # Template for the newly created migration file
-TEMPLATE='-- Copyright 2020 Google LLC
+TEMPLATE='-- Copyright 2021 Google LLC
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.

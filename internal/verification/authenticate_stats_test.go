@@ -60,6 +60,7 @@ func TestAuthenticateStatsToken(t *testing.T) {
 		ModifyClaims ClaimChanger
 		ModifyHeader HeaderChanger
 		ModifyJWT    JWTChanger
+		DisableAPI   bool
 		Error        string
 	}{
 		{
@@ -140,6 +141,14 @@ func TestAuthenticateStatsToken(t *testing.T) {
 			},
 			Error: "token contains an invalid number of segments",
 		},
+		{
+			Name:         "forbidden",
+			ModifyClaims: claimsIdentity,
+			ModifyHeader: headerIdentity,
+			ModifyJWT:    jwtIdentity,
+			DisableAPI:   true,
+			Error:        "API access forbidden",
+		},
 	}
 
 	for _, tc := range cases {
@@ -170,9 +179,13 @@ func TestAuthenticateStatsToken(t *testing.T) {
 			issuer := fmt.Sprintf("issuer-%s", t.Name())
 			audience := fmt.Sprintf("aud-%s", t.Name())
 			healthAuthority := model.HealthAuthority{
-				Issuer:   issuer,
-				Audience: audience,
-				Name:     "Very Real Health Authority",
+				Issuer:         issuer,
+				Audience:       audience,
+				Name:           "Very Real Health Authority",
+				EnableStatsAPI: true,
+			}
+			if tc.DisableAPI {
+				healthAuthority.EnableStatsAPI = false
 			}
 			if err := haDB.AddHealthAuthority(ctx, &healthAuthority); err != nil {
 				t.Fatal(err)

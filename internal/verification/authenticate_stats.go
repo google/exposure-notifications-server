@@ -77,6 +77,11 @@ func (v *Verifier) AuthenticateStatsToken(ctx context.Context, rawToken string) 
 		if !ok {
 			return nil, fmt.Errorf("incorrect type in cache: %w", err)
 		}
+		// check that the API is enabled for this HA.
+		if !healthAuthority.EnableStatsAPI {
+			return nil, fmt.Errorf("API access forbidden")
+		}
+
 		// Look for the matching 'kid'
 		for _, key := range healthAuthority.Keys {
 			if key.Version == kid && key.IsValid() {

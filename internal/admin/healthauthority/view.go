@@ -40,7 +40,9 @@ func (v *viewController) Execute(c *gin.Context) {
 	ctx := c.Request.Context()
 	m := admin.TemplateMap{}
 
-	healthAuthority := &model.HealthAuthority{}
+	healthAuthority := &model.HealthAuthority{
+		EnableStatsAPI: true, // default enabled.
+	}
 	if IDParam := c.Param("id"); IDParam == "0" {
 		m["new"] = true
 	} else {
@@ -57,7 +59,6 @@ func (v *viewController) Execute(c *gin.Context) {
 			return
 		}
 	}
-
 	m["ha"] = healthAuthority
 	m["hak"] = &model.HealthAuthorityKey{From: time.Now()} // For create form.
 	c.HTML(http.StatusOK, "healthauthority", m)

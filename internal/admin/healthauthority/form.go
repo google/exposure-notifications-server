@@ -24,16 +24,18 @@ import (
 )
 
 type formData struct {
-	Issuer   string `form:"issuer"`
-	Audience string `form:"audience"`
-	Name     string `form:"name"`
-	JwksURI  string `form:"jwks-uri"`
+	Issuer         string `form:"issuer"`
+	Audience       string `form:"audience"`
+	Name           string `form:"name"`
+	EnableStatsAPI bool   `form:"enable-stats-api"`
+	JwksURI        string `form:"jwks-uri"`
 }
 
 func (f *formData) PopulateHealthAuthority(ha *model.HealthAuthority) {
 	ha.Issuer = f.Issuer
 	ha.Audience = f.Audience
 	ha.Name = f.Name
+	ha.EnableStatsAPI = f.EnableStatsAPI
 	ha.SetJWKS(f.JwksURI)
 }
 

@@ -74,9 +74,10 @@ func TestRetrieveMetrics(t *testing.T) {
 
 	// Create a health authority with a public key.
 	healthAuthority := &vermodel.HealthAuthority{
-		Issuer:   "health-authority",
-		Audience: "n/a",
-		Name:     "health-authority",
+		Issuer:         "health-authority",
+		Audience:       "n/a",
+		Name:           "health-authority",
+		EnableStatsAPI: true,
 	}
 	healthAuthorityKey := &vermodel.HealthAuthorityKey{
 		Version: "v1",
