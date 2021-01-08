@@ -200,6 +200,13 @@ variable "enable_cdn_for_exports" {
   description = "Enable Cloud CDN on the export bucket."
 }
 
+variable "admin_console_invokers" {
+  type    = list(string)
+  default = []
+
+  description = "List of IAM entities that can invoke the admin-console. This should be of the form user:[email], serviceAccount:[email], or group:[email]."
+}
+
 variable "debugger_invokers" {
   type    = list(string)
   default = []
@@ -212,6 +219,13 @@ variable "service_environment" {
   default = {}
 
   description = "Per-service environment overrides."
+}
+
+variable "admin_console_hosts" {
+  type    = list(string)
+  default = []
+
+  description = "List of domains upon which the admin console is served."
 }
 
 variable "debugger_hosts" {
