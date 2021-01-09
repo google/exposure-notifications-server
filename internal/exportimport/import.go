@@ -245,8 +245,8 @@ func (t *transformer) transform(keys []*exportproto.TemporaryExposureKey) ([]*pu
 		exp.ImportFileID = &t.importFileID
 
 		// Adjust created at time, if this key is not yet expired.
-		if expTime := pubmodel.TimeForIntervalNumber(exp.IntervalNumber + exp.IntervalCount); expTime.Before(exp.CreatedAt) {
-			exp.CreatedAt = exp.CreatedAt.Add(t.truncateWindow).Truncate(t.truncateWindow)
+		if expTime := pubmodel.TimeForIntervalNumber(exp.IntervalNumber + exp.IntervalCount); exp.CreatedAt.Before(expTime) {
+			exp.CreatedAt = expTime.UTC().Add(t.truncateWindow).Truncate(t.truncateWindow)
 		}
 
 		inserts = append(inserts, exp)
