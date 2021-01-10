@@ -1338,10 +1338,10 @@ func TestExposureRevisionFields(t *testing.T) {
 	if revType != *e.RevisedReportType {
 		t.Errorf("revised report type mismatch, want: %v got: %v", revTime, *e.RevisedAt)
 	}
-	if 5 != *e.RevisedDaysSinceSymptomOnset {
+	if *e.RevisedDaysSinceSymptomOnset != 5 {
 		t.Errorf("revised days since onset mismatch, want: %v got: %v", revTime, *e.RevisedAt)
 	}
-	if 2 != *e.RevisedTransmissionRisk {
+	if *e.RevisedTransmissionRisk != 2 {
 		t.Errorf("revised transmission risk mismatch, want: %v got: %v", revTime, *e.RevisedAt)
 	}
 
