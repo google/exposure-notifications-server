@@ -39,7 +39,7 @@ var (
 	ErrorExposureKeyMismatch = fmt.Errorf("attempted to revise a key with a different key")
 	// ErrorNonLocalProvenance - key revision attempted on federated key, which is not allowed
 	ErrorNonLocalProvenance = fmt.Errorf("key not origionally uploaded to this server, cannot revise")
-	// ErrorNotSameFederationSource - if a key arrived by federation, it can onlybe be revised by the same query (same source)
+	// ErrorNotSameFederationSource - if a key arrived by federation, it can only be be revised by the same query (same source)
 	ErrorNotSameFederationSource = fmt.Errorf("key cannot be revised by a different federation query")
 	// ErrorKeyAlreadyRevised - attempt to revise a key that has already been revised.
 	ErrorKeyAlreadyRevised = fmt.Errorf("key has already been revised and cannot be revised again")
@@ -93,6 +93,9 @@ type Exposure struct {
 	base64Key string
 }
 
+// ExportImportConfig represents the configuration for
+// processing of export files from other systems and how they are imported
+// into this server.
 type ExportImportConfig struct {
 	DefaultReportType         string
 	BackfillSymptomOnset      bool
@@ -333,6 +336,8 @@ func (e *Exposure) ExposureKeyBase64() string {
 	return e.base64Key
 }
 
+// AdjustAndValidate both validates the kay and if necessary makes adjustments
+// to the timing field (createdAt).
 func (e *Exposure) AdjustAndValidate(settings *KeyTransform) error {
 	// Validate individual pieces of the exposure key
 	if l := len(e.ExposureKey); l != verifyapi.KeyLength {
@@ -390,15 +395,8 @@ func DaysBetweenIntervals(a int32, b int32) int32 {
 	a = IntervalNumber(timeutils.UTCMidnight(TimeForIntervalNumber(a)))
 	b = IntervalNumber(timeutils.UTCMidnight(TimeForIntervalNumber(b)))
 	distance := b - a
+	// This will always divide evenly since a and b are aligned on UTC midnight boundaries.
 	days := distance / verifyapi.MaxIntervalCount
-	// if the days don't divide evenly go to 1 magnitude larger.
-	if rem := distance % verifyapi.MaxIntervalCount; rem != 0 {
-		if days < 0 {
-			days--
-		} else {
-			days++
-		}
-	}
 	return days
 }
 

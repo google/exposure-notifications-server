@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -1290,6 +1291,65 @@ func TestTransformOverlapping(t *testing.T) {
 	}
 }
 
+func TestExposure_HasDaysSinceSymptomOnset(t *testing.T) {
+	e := &Exposure{}
+
+	if e.HasDaysSinceSymptomOnset() {
+		t.Error("has days since onset before being set")
+	}
+	e.SetDaysSinceSymptomOnset(2)
+	if !e.HasDaysSinceSymptomOnset() {
+		t.Error("doesn't have days since onset after being set")
+	}
+}
+
+func TestExposure_HasDaysHealthAuthorityID(t *testing.T) {
+	e := &Exposure{}
+
+	if e.HasHealthAuthorityID() {
+		t.Error("has health authority id before being set")
+	}
+	e.SetHealthAuthorityID(2)
+	if !e.HasHealthAuthorityID() {
+		t.Error("doesn't have health authority id after being set")
+	}
+}
+
+func TestExposureRevisionFields(t *testing.T) {
+	revTime := time.Now().UTC().Truncate(time.Minute)
+	revType := "revisedType"
+
+	e := &Exposure{}
+	if e.HasBeenRevised() {
+		t.Error("reports revised before revisedAt is set")
+	}
+	e.SetRevisedAt(revTime)
+	e.SetRevisedReportType(revType)
+	e.SetRevisedDaysSinceSymptomOnset(5)
+	e.SetRevisedTransmissionRisk(2)
+
+	if !e.HasBeenRevised() {
+		t.Error("reports not revised after revisedAt set")
+	}
+
+	if revTime != *e.RevisedAt {
+		t.Errorf("revisedAt mismatch, want: %v got: %v", revTime, *e.RevisedAt)
+	}
+	if revType != *e.RevisedReportType {
+		t.Errorf("revised report type mismatch, want: %v got: %v", revTime, *e.RevisedAt)
+	}
+	if 5 != *e.RevisedDaysSinceSymptomOnset {
+		t.Errorf("revised days since onset mismatch, want: %v got: %v", revTime, *e.RevisedAt)
+	}
+	if 2 != *e.RevisedTransmissionRisk {
+		t.Errorf("revised transmission risk mismatch, want: %v got: %v", revTime, *e.RevisedAt)
+	}
+
+	if err := e.SetRevisedAt(revTime); err == nil {
+		t.Fatalf("expected error when revising already revised key")
+	}
+}
+
 func TestDaysFromSymptomOnset(t *testing.T) {
 	// Node that everything is based on midnight UTC so we'll start there.
 	now := timeutils.UTCMidnight(time.Now().UTC())
@@ -1360,11 +1420,100 @@ func TestDaysFromSymptomOnset(t *testing.T) {
 	}
 }
 
+func TestReviseKeys_FromFederation(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		existing *Exposure
+		incoming *Exposure
+		err      error
+	}{
+		{
+			name: "export_import_mismatch",
+			existing: &Exposure{
+				ExposureKey:     []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				LocalProvenance: false,
+				ExportImportID:  proto.Int64(2),
+			},
+			incoming: &Exposure{
+				ExposureKey:    []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				ReportType:     "fake",
+				ExportImportID: proto.Int64(4),
+			},
+			err: ErrorNotSameFederationSource,
+		},
+		{
+			name: "export_import_same",
+			existing: &Exposure{
+				ExposureKey:     []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				LocalProvenance: false,
+				ReportType:      "likely",
+				ExportImportID:  proto.Int64(2),
+			},
+			incoming: &Exposure{
+				ExposureKey:    []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				ReportType:     "confirmed",
+				ExportImportID: proto.Int64(2),
+			},
+		},
+		{
+			name: "federation_mismatch",
+			existing: &Exposure{
+				ExposureKey:       []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				LocalProvenance:   false,
+				FederationQueryID: "foo",
+			},
+			incoming: &Exposure{
+				ExposureKey: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				ReportType:  "fake",
+			},
+			err: ErrorNotSameFederationSource,
+		},
+		{
+			name: "federation_mismatch",
+			existing: &Exposure{
+				ExposureKey:       []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				LocalProvenance:   false,
+				ReportType:        "likely",
+				FederationQueryID: "foo",
+			},
+			incoming: &Exposure{
+				ExposureKey:       []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+				ReportType:        "confirmed",
+				FederationQueryID: "foo",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			existing := make(map[string]*Exposure)
+			existing[tc.existing.ExposureKeyBase64()] = tc.existing
+
+			incoming := make([]*Exposure, 1)
+			incoming[0] = tc.incoming
+
+			_, err := ReviseKeys(ctx, existing, incoming)
+			if err == nil && tc.err != nil {
+				t.Errorf("missing expected error: %v", tc.err)
+			} else if err != nil && tc.err == nil {
+				t.Errorf("unexpected error: %v", err)
+			} else if !errors.Is(err, tc.err) {
+				t.Errorf("wrong error, want: %v got: %v", tc.err, err)
+			}
+		})
+	}
+}
+
 func TestReviseKeys(t *testing.T) {
+	t.Parallel()
+
 	createdAt := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Hour)
 	revisedAt := time.Now().UTC().Truncate(time.Hour)
 
-	allExposures := make([]*Exposure, 4)
+	allExposures := make([]*Exposure, 5)
 	// The "existing" key that isn't in the revision set.
 	allExposures[0] = &Exposure{
 		ExposureKey: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
@@ -1405,15 +1554,29 @@ func TestReviseKeys(t *testing.T) {
 		HealthAuthorityID: int64Ptr(2),
 		ReportType:        verifyapi.ReportTypeConfirmed,
 	}
+	// key that will be presented agin, but with no changed.
+	allExposures[4] = &Exposure{
+		ExposureKey:       []byte{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
+		TransmissionRisk:  0,
+		Regions:           []string{"US"},
+		IntervalNumber:    100,
+		IntervalCount:     144,
+		CreatedAt:         createdAt,
+		LocalProvenance:   true,
+		HealthAuthorityID: int64Ptr(2),
+		ReportType:        verifyapi.ReportTypeConfirmed,
+	}
 
 	ctx := context.Background()
 	existing := make(map[string]*Exposure)
 	existing[allExposures[0].ExposureKeyBase64()] = allExposures[0]
 	existing[allExposures[1].ExposureKeyBase64()] = allExposures[1]
+	existing[allExposures[4].ExposureKeyBase64()] = allExposures[4]
 
-	incoming := make([]*Exposure, 2)
+	incoming := make([]*Exposure, 3)
 	incoming[0] = allExposures[2]
 	incoming[1] = allExposures[3]
+	incoming[2] = allExposures[4]
 
 	got, err := ReviseKeys(ctx, existing, incoming)
 	if err != nil {
@@ -1523,6 +1686,17 @@ func TestExposureReview(t *testing.T) {
 			},
 			needsRevision: false,
 			err:           `invalid report type transition: cannot transition from "" to "likely"`,
+		},
+		{
+			name: "key_mismatch",
+			previous: &Exposure{
+				ExposureKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+			},
+			incoming: &Exposure{
+				ExposureKey: []byte{42, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+			},
+			needsRevision: false,
+			err:           `attempted to revise a key with a different key`,
 		},
 		{
 			name: "valid_transition_from_empty_report_type",
@@ -1656,10 +1830,11 @@ func TestExposureFromExportFile(t *testing.T) {
 	}
 
 	cases := []struct {
-		name      string
-		key       *export.TemporaryExposureKey
-		want      *Exposure
-		wantError string
+		name         string
+		key          *export.TemporaryExposureKey
+		want         *Exposure
+		modifyConfig func(*ExportImportConfig) *ExportImportConfig
+		wantError    string
 	}{
 		{
 			name: "valid_key",
@@ -1728,6 +1903,26 @@ func TestExposureFromExportFile(t *testing.T) {
 				ReportType:                 export.TemporaryExposureKey_REVOKED.Enum(),
 			},
 			wantError: "saw revoked key when not allowed",
+		},
+		{
+			name: "no_clinical",
+			key: &export.TemporaryExposureKey{
+				KeyData:                    validTEK,
+				RollingStartIntervalNumber: proto.Int32(validInterval),
+				RollingPeriod:              proto.Int32(verifyapi.MaxIntervalCount),
+				ReportType:                 export.TemporaryExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS.Enum(),
+			},
+			modifyConfig: func(c *ExportImportConfig) *ExportImportConfig {
+				return &ExportImportConfig{
+					DefaultReportType:         c.DefaultReportType,
+					BackfillSymptomOnset:      c.BackfillSymptomOnset,
+					BackfillSymptomOnsetValue: c.BackfillSymptomOnsetValue,
+					MaxSymptomOnsetDays:       c.MaxSymptomOnsetDays,
+					AllowClinical:             false,
+					AllowRevoked:              false,
+				}
+			},
+			wantError: "saw likely key when not allowed",
 		},
 		{
 			name: "backfill_data_from_unknown",
@@ -1864,7 +2059,12 @@ func TestExposureFromExportFile(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := FromExportKey(tc.key, config)
+			thisConfig := config
+			if tc.modifyConfig != nil {
+				thisConfig = tc.modifyConfig(config)
+			}
+
+			got, err := FromExportKey(tc.key, thisConfig)
 
 			if err != nil && tc.wantError == "" {
 				t.Fatalf("unexpected error: %v", err)
