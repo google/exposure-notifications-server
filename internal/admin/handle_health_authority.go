@@ -205,7 +205,7 @@ type keyhealthAuthorityFormData struct {
 	PEMBlock string `form:"public-key-pem"`
 	FromDate string `form:"from-date"`
 	FromTime string `form:"from-time"`
-	ThruDate string `form:"Thru-date"`
+	ThruDate string `form:"thru-date"`
 	ThruTime string `form:"thru-time"`
 }
 
@@ -232,9 +232,5 @@ func (f *keyhealthAuthorityFormData) PopulateHealthAuthorityKey(hak *model.Healt
 	hak.PublicKeyPEM = strings.TrimSpace(f.PEMBlock)
 
 	_, err = hak.PublicKey()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }

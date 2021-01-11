@@ -186,14 +186,15 @@ type authorizedAppFormData struct {
 }
 
 func (f *authorizedAppFormData) PriorKey() string {
-	if f.FormKey != "" {
-		bytes, err := base64.StdEncoding.DecodeString(f.FormKey)
-		if err != nil {
-			return ""
-		}
-		return string(bytes)
+	if f.FormKey == "" {
+		return ""
 	}
-	return ""
+
+	bytes, err := base64.StdEncoding.DecodeString(f.FormKey)
+	if err != nil {
+		return ""
+	}
+	return string(bytes)
 }
 
 func (f *authorizedAppFormData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
