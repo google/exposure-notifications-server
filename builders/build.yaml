@@ -62,6 +62,32 @@ steps:
   - 'download-modules'
 
 #
+# admin-console
+#
+- id: 'build-admin-console'
+  name: 'golang:1.15.2'
+  args:
+  - 'go'
+  - 'build'
+  - '-trimpath'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
+  - '-o=./bin/admin-console'
+  - './cmd/admin-console'
+  waitFor:
+  - 'download-modules'
+
+- id: 'dockerize-admin-console'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/admin-console.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/admin-console:${_TAG}'
+  - '--build-arg=SERVICE=admin-console'
+  - '.'
+  waitFor:
+  - 'build-admin-console'
+
+#
 # cleanup-export
 #
 - id: 'build-cleanup-export'
@@ -399,6 +425,7 @@ steps:
   - 'build-jwks'
 
 images:
+- 'gcr.io/${PROJECT_ID}/${_REPO}/admin-console:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/cleanup-export:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/cleanup-exposure:${_TAG}'
 - 'gcr.io/${PROJECT_ID}/${_REPO}/debugger:${_TAG}'

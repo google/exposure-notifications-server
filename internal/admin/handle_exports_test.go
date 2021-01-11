@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package exports
+package admin
 
 import (
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
-	"github.com/google/exposure-notifications-server/internal/admin"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 )
 
-func TestRenderSignatureInfo(t *testing.T) {
-	// Hello developer!
-	// If this test fails, it's likely that you changed something in
-	//  internal/authorizedapp/model/
-	// And whatever you changed is used in the
-	//  tools/admin-console/templates/export.html
-	// That is what caused the test failure.
-	m := admin.TemplateMap{}
+func TestRenderExports(t *testing.T) {
+	m := TemplateMap{}
 	exportConfig := &model.ExportConfig{}
 	m["export"] = exportConfig
 
@@ -41,13 +35,33 @@ func TestRenderSignatureInfo(t *testing.T) {
 	m["siginfos"] = sigInfos
 
 	recorder := httptest.NewRecorder()
-	config := admin.Config{
-		TemplatePath: "../../../tools/admin-console/templates",
+	config := Config{
+		TemplatePath: "../../cmd/admin-console/templates",
 		TopFile:      "top",
 		BotFile:      "bottom",
 	}
 	err := config.RenderTemplate(recorder, "export", m)
 	if err != nil {
 		t.Fatalf("error rendering template: %v", err)
+	}
+}
+
+func TestSplitRegions(t *testing.T) {
+	tests := []struct {
+		r string
+		e []string
+	}{
+		{"", []string{}},
+		{"  test  ", []string{"test"}},
+		{"test\n\rfoo", []string{"foo", "test"}},
+		{"test\n\rfoo bar\n\r", []string{"foo bar", "test"}},
+		{"test\n\rfoo bar\n\r  ", []string{"foo bar", "test"}},
+		{"test\nfoo\n", []string{"foo", "test"}},
+	}
+
+	for i, test := range tests {
+		if res := splitRegions(test.r); !reflect.DeepEqual(res, test.e) {
+			t.Errorf("[%d] splitRegions(%v) = %v, expected %v", i, test.r, res, test.e)
+		}
 	}
 }

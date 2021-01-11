@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,29 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package exports
+package admin
 
 import (
-	"reflect"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/google/exposure-notifications-server/internal/mirror/model"
 )
 
-func TestSplitRegions(t *testing.T) {
-	tests := []struct {
-		r string
-		e []string
-	}{
-		{"", []string{}},
-		{"  test  ", []string{"test"}},
-		{"test\n\rfoo", []string{"foo", "test"}},
-		{"test\n\rfoo bar\n\r", []string{"foo bar", "test"}},
-		{"test\n\rfoo bar\n\r  ", []string{"foo bar", "test"}},
-		{"test\nfoo\n", []string{"foo", "test"}},
-	}
+func TestRenderMirrors(t *testing.T) {
+	m := TemplateMap{}
+	mirror := &model.Mirror{}
+	m["mirror"] = mirror
 
-	for i, test := range tests {
-		if res := splitRegions(test.r); !reflect.DeepEqual(res, test.e) {
-			t.Errorf("[%d] splitRegions(%v) = %v, expected %v", i, test.r, res, test.e)
-		}
+	recorder := httptest.NewRecorder()
+	config := Config{
+		TemplatePath: "../../cmd/admin-console/templates",
+		TopFile:      "top",
+		BotFile:      "bottom",
+	}
+	err := config.RenderTemplate(recorder, "mirror", m)
+	if err != nil {
+		t.Fatalf("error rendering template: %v", err)
 	}
 }

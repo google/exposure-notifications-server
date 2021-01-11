@@ -41,7 +41,7 @@ type Config struct {
 	Storage       storage.Config
 
 	Port         string `env:"PORT, default=8080"`
-	TemplatePath string `env:"TEMPLATE_DIR, default=./tools/admin-console/templates"`
+	TemplatePath string `env:"TEMPLATE_DIR, default=./cmd/admin-console/templates"`
 	TopFile      string `env:"TOP_FILE, default=top"`
 	BotFile      string `env:"BOTTOM_FILE, default=bottom"`
 }

@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,30 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package exportimporters
+package admin
 
 import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/google/exposure-notifications-server/internal/admin"
-	exportimportmodel "github.com/google/exposure-notifications-server/internal/exportimport/model"
+	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 )
 
-func TestRenderSignatureInfo(t *testing.T) {
-	// Hello developer!
-	// If this test fails, it's likely that you changed something in
-	//  internal/authorizedapp/model/
-	// And whatever you changed is used in the
-	//  tools/admin-console/templates/siginfo.html
-	// That is what caused the test failure.
-	m := admin.TemplateMap{}
-	model := new(exportimportmodel.ExportImport)
+func TestRednerExportImporters(t *testing.T) {
+	m := TemplateMap{}
+	model := new(model.ExportImport)
 	m["model"] = model
 
 	recorder := httptest.NewRecorder()
-	config := admin.Config{
-		TemplatePath: "../../../tools/admin-console/templates",
+	config := Config{
+		TemplatePath: "../../cmd/admin-console/templates",
 		TopFile:      "top",
 		BotFile:      "bottom",
 	}
