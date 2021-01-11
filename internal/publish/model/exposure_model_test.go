@@ -1554,7 +1554,7 @@ func TestReviseKeys(t *testing.T) {
 		HealthAuthorityID: int64Ptr(2),
 		ReportType:        verifyapi.ReportTypeConfirmed,
 	}
-	// key that will be presented agin, but with no changed.
+	// key that will be presented again, but with no changes.
 	allExposures[4] = &Exposure{
 		ExposureKey:       []byte{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
 		TransmissionRisk:  0,
