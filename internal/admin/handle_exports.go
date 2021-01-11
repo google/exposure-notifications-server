@@ -15,6 +15,7 @@
 package admin
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sort"
@@ -41,48 +42,39 @@ func (s *Server) HandleExportsSave() func(c *gin.Context) {
 		ctx := c.Request.Context()
 		m := TemplateMap{}
 
-		exportDB := database.New(s.env.Database())
-		exportConfig := &model.ExportConfig{}
-		idParam := c.Param("id")
-		if idParam != "0" {
-			cfgID, err := strconv.ParseInt(idParam, 10, 64)
-			if err != nil {
-				ErrorPage(c, "unable to parse `id` param.")
-				return
-			}
-			exportConfig, err = exportDB.GetExportConfig(ctx, cfgID)
-			if err != nil {
-				ErrorPage(c, fmt.Sprintf("Error loading export config: %v", err))
-				return
-			}
+		db := database.New(s.env.Database())
+		record, err := s.getExportConfig(ctx, db, c.Param("id"))
+		if err != nil {
+			ErrorPage(c, fmt.Sprintf("Failed to load export config: %s", err))
+			return
 		}
 
-		if err := form.PopulateExportConfig(exportConfig); err != nil {
+		if err := form.PopulateExportConfig(record); err != nil {
 			ErrorPage(c, fmt.Sprintf("error processing export config: %v", err))
 		}
 
-		updateFn := exportDB.AddExportConfig
-		if exportConfig.ConfigID != 0 {
-			updateFn = exportDB.UpdateExportConfig
+		updateFn := db.AddExportConfig
+		if record.ConfigID != 0 {
+			updateFn = db.UpdateExportConfig
 		}
-		if err := updateFn(ctx, exportConfig); err != nil {
+		if err := updateFn(ctx, record); err != nil {
 			ErrorPage(c, fmt.Sprintf("Error writing export config: %v", err))
 			return
 		}
 
-		m.AddSuccess(fmt.Sprintf("Updated export config #%v", exportConfig.ConfigID))
+		m.AddSuccess(fmt.Sprintf("Updated export config #%v", record.ConfigID))
 
 		usedSigInfos := make(map[int64]bool)
-		for _, id := range exportConfig.SignatureInfoIDs {
+		for _, id := range record.SignatureInfoIDs {
 			usedSigInfos[id] = true
 		}
 
-		sigInfos, err := exportDB.ListAllSignatureInfos(ctx)
+		sigInfos, err := db.ListAllSignatureInfos(ctx)
 		if err != nil {
 			ErrorPage(c, fmt.Sprintf("Error reading the database: %v", err))
 		}
 
-		m["export"] = exportConfig
+		m["export"] = record
 		m["usedSigInfos"] = usedSigInfos
 		m["siginfos"] = sigInfos
 		c.HTML(http.StatusOK, "export", m)
@@ -95,40 +87,47 @@ func (s *Server) HandleExportsShow() func(c *gin.Context) {
 		ctx := c.Request.Context()
 		m := TemplateMap{}
 
-		exportDB := database.New(s.env.Database())
-		exportConfig := &model.ExportConfig{}
-		if idParam := c.Param("id"); idParam == "0" {
-			// Default the period to suggest an appropriate value.
-			exportConfig.Period = 24 * time.Hour
-			exportConfig.IncludeTravelers = true // Encourage this default.
-		} else {
-			cfgID, err := strconv.ParseInt(idParam, 10, 64)
-			if err != nil {
-				ErrorPage(c, "unable to parse `id` param.")
-				return
-			}
-			exportConfig, err = exportDB.GetExportConfig(ctx, cfgID)
-			if err != nil {
-				ErrorPage(c, fmt.Sprintf("Error loading export config: %v", err))
-				return
-			}
+		db := database.New(s.env.Database())
+		record, err := s.getExportConfig(ctx, db, c.Param("id"))
+		if err != nil {
+			ErrorPage(c, fmt.Sprintf("Failed to load export config: %s", err))
+			return
 		}
 
 		usedSigInfos := make(map[int64]bool)
-		for _, id := range exportConfig.SignatureInfoIDs {
+		for _, id := range record.SignatureInfoIDs {
 			usedSigInfos[id] = true
 		}
 
-		sigInfos, err := exportDB.ListAllSignatureInfos(ctx)
+		sigInfos, err := db.ListAllSignatureInfos(ctx)
 		if err != nil {
 			ErrorPage(c, fmt.Sprintf("Error reading the database: %v", err))
 		}
 
-		m["export"] = exportConfig
+		m["export"] = record
 		m["usedSigInfos"] = usedSigInfos
 		m["siginfos"] = sigInfos
 		c.HTML(http.StatusOK, "export", m)
 	}
+}
+
+// getExportConfig gets an export config with the given id. If the id is "" or
+// "0", an empty record is returned. Otherwise, it attempts to find a record
+// with the id.
+func (s *Server) getExportConfig(ctx context.Context, db *database.ExportDB, idRaw string) (*model.ExportConfig, error) {
+	if idRaw == "0" {
+		return &model.ExportConfig{
+			Period:           24 * time.Hour,
+			IncludeTravelers: true,
+		}, nil
+	}
+
+	id, err := strconv.ParseInt(idRaw, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %q as int: %w", idRaw, err)
+	}
+
+	return db.GetExportConfig(ctx, id)
 }
 
 type exportFormData struct {

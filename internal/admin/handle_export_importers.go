@@ -15,6 +15,7 @@
 package admin
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -38,40 +39,29 @@ func (s *Server) HandleExportImportersSave() func(c *gin.Context) {
 		m := TemplateMap{}
 
 		db := database.New(s.env.Database())
-		model := new(model.ExportImport)
-
-		idRaw := c.Param("id")
-		if idRaw != "" && idRaw != "0" {
-			id, err := strconv.ParseInt(idRaw, 10, 64)
-			if err != nil {
-				ErrorPage(c, "failed to to parse `id` param.")
-				return
-			}
-
-			model, err = db.GetConfig(ctx, id)
-			if err != nil {
-				ErrorPage(c, fmt.Sprintf("failed to load export importer config: %s", err))
-				return
-			}
+		record, err := s.getExportImporter(ctx, db, c.Param("id"))
+		if err != nil {
+			ErrorPage(c, fmt.Sprintf("Failed to load export importer: %s", err))
+			return
 		}
 
-		if err := form.BuildExportImporterModel(model); err != nil {
+		if err := form.BuildExportImporterModel(record); err != nil {
 			ErrorPage(c, fmt.Sprintf("failed to build export importer config: %s", err))
 			return
 		}
 
 		fn := db.AddConfig
-		if model.ID != 0 {
+		if record.ID != 0 {
 			fn = db.UpdateConfig
 		}
 
-		if err := fn(ctx, model); err != nil {
+		if err := fn(ctx, record); err != nil {
 			ErrorPage(c, fmt.Sprintf("failed to write export importer config: %s", err))
 			return
 		}
 
 		m.AddSuccess("Successfully updated export importer config!")
-		m["model"] = model
+		m["model"] = record
 		c.HTML(http.StatusOK, "export-importer", m)
 		c.Abort()
 	}
@@ -84,27 +74,33 @@ func (s *Server) HandleExportImportersShow() func(c *gin.Context) {
 		ctx := c.Request.Context()
 
 		db := database.New(s.env.Database())
-		model := new(model.ExportImport)
-
-		if idRaw := c.Param("id"); idRaw != "" && idRaw != "0" {
-			id, err := strconv.ParseInt(idRaw, 10, 64)
-			if err != nil {
-				ErrorPage(c, fmt.Sprintf("Failed to parse `id` param: %s", err))
-				return
-			}
-
-			model, err = db.GetConfig(ctx, id)
-			if err != nil {
-				ErrorPage(c, fmt.Sprintf("Failed to load export importer config: %s", err))
-				return
-			}
+		record, err := s.getExportImporter(ctx, db, c.Param("id"))
+		if err != nil {
+			ErrorPage(c, fmt.Sprintf("Failed to load export importer: %s", err))
+			return
 		}
 
 		m := make(TemplateMap)
-		m["model"] = model
+		m["model"] = record
 		c.HTML(http.StatusOK, "export-importer", m)
 		c.Abort()
 	}
+}
+
+// getExportImporter gets an export importer with the given id. If the id is ""
+// or "0", an empty record is returned. Otherwise, it attempts to find a record
+// with the id.
+func (s *Server) getExportImporter(ctx context.Context, db *database.ExportImportDB, idRaw string) (*model.ExportImport, error) {
+	if idRaw == "0" {
+		return &model.ExportImport{}, nil
+	}
+
+	id, err := strconv.ParseInt(idRaw, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %q as int: %w", idRaw, err)
+	}
+
+	return db.GetConfig(ctx, id)
 }
 
 type exportImporterFormData struct {
