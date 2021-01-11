@@ -44,7 +44,7 @@ type ImportRequest struct {
 	file         *model.ImportFile
 }
 
-type ImportResposne struct {
+type ImportResponse struct {
 	insertedKeys uint32
 	revisedKeys  uint32
 	droppedKeys  uint32
@@ -55,11 +55,11 @@ type SignatureAndKey struct {
 	publicKey *ecdsa.PublicKey
 }
 
-func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*ImportResposne, error) {
+func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*ImportResponse, error) {
 	// Special case - previous versions may have inserted the filename root as a file.
 	// If we find that, skip attempted processing and just mark as successful.
 	if ir.exportImport.ExportRoot == ir.file.ZipFilename {
-		return &ImportResposne{
+		return &ImportResponse{
 			insertedKeys: 0,
 			revisedKeys:  0,
 			droppedKeys:  0,
@@ -155,7 +155,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 		},
 		logger: logger,
 	}
-	response := ImportResposne{}
+	response := ImportResponse{}
 
 	// Go through primary keys and insert.
 	// Must be separate from revised keys in the event both are in the same file.
@@ -191,7 +191,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 	return &response, nil
 }
 
-func (s *Server) insertAndReviseKeys(ctx context.Context, mode string, exposures []*pubmodel.Exposure, template *pubdb.InsertAndReviseExposuresRequest, response *ImportResposne) error {
+func (s *Server) insertAndReviseKeys(ctx context.Context, mode string, exposures []*pubmodel.Exposure, template *pubdb.InsertAndReviseExposuresRequest, response *ImportResponse) error {
 	logger := logging.FromContext(ctx)
 	length := len(exposures)
 	for i := 0; i < length; i = i + s.config.MaxInsertBatchSize {
