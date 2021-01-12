@@ -18,12 +18,12 @@ package keyrotation
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/server"
+	"github.com/gorilla/mux"
 )
 
 // Server hosts end points to manage key rotation
@@ -63,11 +63,11 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 }
 
 // Routes defines and returns the routes for this server.
-func (s *Server) Routes(ctx context.Context) *http.ServeMux {
-	mux := http.NewServeMux()
+func (s *Server) Routes(ctx context.Context) *mux.Router {
+	r := mux.NewRouter()
 
-	mux.HandleFunc("/rotate-keys", s.handleRotateKeys(ctx))
-	mux.Handle("/health", server.HandleHealthz(ctx))
+	r.HandleFunc("/rotate-keys", s.handleRotateKeys(ctx))
+	r.Handle("/health", server.HandleHealthz(ctx))
 
-	return mux
+	return r
 }

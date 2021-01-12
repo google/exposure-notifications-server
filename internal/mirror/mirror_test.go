@@ -32,6 +32,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/go-cmp/cmp"
+	"github.com/gorilla/mux"
 	"github.com/sethvargo/go-envconfig"
 )
 
@@ -184,23 +185,23 @@ func TestServer_ProcessMirror(t *testing.T) {
 			mirror := tc.mirror
 
 			// Create a test in-memory server.
-			mux := http.NewServeMux()
+			r := mux.NewRouter()
 
 			indexPath := urlJoin(mirror.ExportRoot, "index.txt")
-			mux.HandleFunc("/"+indexPath, func(w http.ResponseWriter, r *http.Request) {
+			r.HandleFunc("/"+indexPath, func(w http.ResponseWriter, r *http.Request) {
 				for _, v := range tc.indexFiles {
 					fmt.Fprintln(w, v)
 				}
 			})
 			for _, indexFile := range tc.indexFiles {
 				indexFilePath := urlJoin(mirror.ExportRoot, indexFile)
-				mux.HandleFunc("/"+indexFilePath, func(w http.ResponseWriter, r *http.Request) {
+				r.HandleFunc("/"+indexFilePath, func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/zip")
 					fmt.Fprint(w, zipFileContents)
 				})
 			}
 
-			ts := httptest.NewServer(mux)
+			ts := httptest.NewServer(r)
 			t.Cleanup(ts.Close)
 
 			// Set up mirror and save to the database.

@@ -28,6 +28,7 @@ import (
 	_ "github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 	"github.com/sethvargo/go-signalcontext"
 )
 
@@ -56,8 +57,8 @@ func realMain(ctx context.Context) error {
 	}
 	defer env.Close(ctx)
 
-	mux := http.NewServeMux()
-	mux.Handle("/health", server.HandleHealthz(ctx))
+	r := mux.NewRouter()
+	r.Handle("/health", server.HandleHealthz(ctx))
 	handler, err := publish.NewHandler(ctx, &config, env)
 	if err != nil {
 		return fmt.Errorf("publish.NewHandler: %w", err)
@@ -65,16 +66,16 @@ func realMain(ctx context.Context) error {
 
 	// Handle v1 API - this route has to come before the v1alpha route because of
 	// path matching.
-	mux.Handle("/v1/publish", handler.Handle())
-	mux.Handle("/v1/publish/", http.NotFoundHandler())
+	r.Handle("/v1/publish", handler.Handle())
+	r.Handle("/v1/publish/", http.NotFoundHandler())
 
 	// Handle stats retrieval API
-	mux.Handle("/v1/stats", handler.HandleStats())
-	mux.Handle("/v1/stats/", http.NotFoundHandler())
+	r.Handle("/v1/stats", handler.HandleStats())
+	r.Handle("/v1/stats/", http.NotFoundHandler())
 
 	// Serving of v1alpha1 is on by default, but can be disabled through env var.
 	if config.EnableV1Alpha1API {
-		mux.Handle("/", handler.HandleV1Alpha1())
+		r.Handle("/", handler.HandleV1Alpha1())
 	}
 
 	srv, err := server.New(config.Port)
@@ -83,5 +84,5 @@ func realMain(ctx context.Context) error {
 	}
 	logger.Infof("listening on :%s", config.Port)
 
-	return srv.ServeHTTPHandler(ctx, handlers.CombinedLoggingHandler(os.Stdout, mux))
+	return srv.ServeHTTPHandler(ctx, handlers.CombinedLoggingHandler(os.Stdout, r))
 }

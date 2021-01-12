@@ -18,7 +18,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/cleanup"
@@ -26,6 +25,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	_ "github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/server"
+	"github.com/gorilla/mux"
 	"github.com/sethvargo/go-signalcontext"
 )
 
@@ -60,9 +60,9 @@ func realMain(ctx context.Context) error {
 		return fmt.Errorf("cleanup.NewExportHandler: %w", err)
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/", handler)
-	mux.Handle("/health", server.HandleHealthz(ctx))
+	r := mux.NewRouter()
+	r.Handle("/", handler)
+	r.Handle("/health", server.HandleHealthz(ctx))
 
 	srv, err := server.New(config.Port)
 	if err != nil {
@@ -70,5 +70,5 @@ func realMain(ctx context.Context) error {
 	}
 	logger.Infof("listening on :%s", config.Port)
 
-	return srv.ServeHTTPHandler(ctx, mux)
+	return srv.ServeHTTPHandler(ctx, r)
 }

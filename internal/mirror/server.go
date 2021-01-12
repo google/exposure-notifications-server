@@ -18,12 +18,12 @@ package mirror
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	mirrordb "github.com/google/exposure-notifications-server/internal/mirror/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/server"
+	"github.com/gorilla/mux"
 )
 
 // Server hosts end points to manage key rotation
@@ -56,11 +56,11 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 }
 
 // Routes defines and returns the routes for this server.
-func (s *Server) Routes(ctx context.Context) *http.ServeMux {
-	mux := http.NewServeMux()
+func (s *Server) Routes(ctx context.Context) *mux.Router {
+	r := mux.NewRouter()
 
-	mux.HandleFunc("/", s.handleMirror(ctx))
-	mux.Handle("/health", server.HandleHealthz(ctx))
+	r.HandleFunc("/", s.handleMirror(ctx))
+	r.Handle("/health", server.HandleHealthz(ctx))
 
-	return mux
+	return r
 }

@@ -18,7 +18,6 @@ package exportimport
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	eidb "github.com/google/exposure-notifications-server/internal/exportimport/database"
@@ -26,6 +25,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/server"
+	"github.com/gorilla/mux"
 )
 
 // Server hosts end points to manage key rotation
@@ -62,12 +62,12 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 }
 
 // Routes defines and returns the routes for this server.
-func (s *Server) Routes(ctx context.Context) *http.ServeMux {
-	mux := http.NewServeMux()
+func (s *Server) Routes(ctx context.Context) *mux.Router {
+	r := mux.NewRouter()
 
-	mux.HandleFunc("/schedule", s.handleSchedule(ctx))
-	mux.HandleFunc("/import", s.handleImport(ctx))
-	mux.Handle("/health", server.HandleHealthz(ctx))
+	r.HandleFunc("/schedule", s.handleSchedule(ctx))
+	r.HandleFunc("/import", s.handleImport(ctx))
+	r.Handle("/health", server.HandleHealthz(ctx))
 
-	return mux
+	return r
 }
