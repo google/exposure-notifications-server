@@ -15,6 +15,10 @@
 package admin
 
 import (
+	"crypto"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -25,6 +29,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 )
+
+const defaultDigestMessage = "hello world"
 
 // HandleSignatureInfosSave handles the create/update actions for signature
 // infos.
@@ -70,8 +76,29 @@ func (s *Server) HandleSignatureInfosSave() func(c *gin.Context) {
 			return
 		}
 
-		m.AddSuccess(fmt.Sprintf("Updated signture info #`%v`", sigInfo.ID))
 		m["siginfo"] = sigInfo
+
+		// For new records, sign the magical "hello world" string
+		if sigID == 0 {
+			signer, err := s.env.GetSignerForKey(ctx, sigInfo.SigningKey)
+			if err != nil {
+				m.AddErrors(fmt.Sprintf("Failed to get key signer: %s", err))
+				c.HTML(http.StatusOK, "siginfo", m)
+				return
+			}
+
+			digest := sha256.Sum256([]byte(defaultDigestMessage))
+			sig, err := signer.Sign(rand.Reader, digest[:], crypto.SHA256)
+			if err != nil {
+				m.AddErrors(fmt.Sprintf("Failed to digest message: %s", err))
+				c.HTML(http.StatusOK, "siginfo", m)
+				return
+			}
+
+			m["signature"] = base64.StdEncoding.EncodeToString(sig)
+		}
+
+		m.AddSuccess(fmt.Sprintf("Updated signture info #%d", sigInfo.ID))
 		c.HTML(http.StatusOK, "siginfo", m)
 	}
 }
