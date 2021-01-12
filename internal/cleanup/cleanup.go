@@ -96,7 +96,7 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		message := fmt.Sprintf("Failed deleting publish stats: %v", err)
 		logger.Error(message)
-		stats.Record(ctx, cleanup.ExposuresStatsDeleteFailed.M(1))
+		stats.Record(ctx, mExposuresStatsDeleteFailed.M(1))
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return

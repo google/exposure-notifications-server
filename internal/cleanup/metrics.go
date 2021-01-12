@@ -33,6 +33,10 @@ var (
 		"Instances of exposures delete failures", stats.UnitDimensionless)
 	mExposuresDeleted = stats.Int64(cleanupMetricsPrefix+"exposures_deleted",
 		"Exposures deletions", stats.UnitDimensionless)
+	mExposuresStatsDeleteFailed = stats.Int64(cleanupMetricsPrefix+"exposures_stats_delete_failed",
+		"Instances of exposures stats delete failures", stats.UnitDimensionless)
+	mExposuresStatsDeleted = stats.Int64(cleanupMetricsPrefix+"exposures_stats_deleted",
+		"Exposures stats deletions", stats.UnitDimensionless)
 	mExportsSetupFailed = stats.Int64(cleanupMetricsPrefix+"exports_setup_failed",
 		"Instances of export setup failures", stats.UnitDimensionless)
 	mExportsCleanupBefore = stats.Int64(cleanupMetricsPrefix+"exports_cleanup_before",
@@ -72,13 +76,13 @@ func init() {
 		{
 			Name:        metrics.MetricRoot + "exposure_stats_cleanup_delete_failed_count",
 			Description: "Total count of exposures stats delete failed",
-			Measure:     ExposuresStatsDeleteFailed,
+			Measure:     mExposuresStatsDeleteFailed,
 			Aggregation: view.Sum(),
 		},
 		{
 			Name:        metrics.MetricRoot + "exposures_stats_deleted_count",
 			Description: "Total count of stats exposures deletions",
-			Measure:     ExposuresStatsDeleted,
+			Measure:     mExposuresStatsDeleted,
 			Aggregation: view.Sum(),
 		},
 		{
