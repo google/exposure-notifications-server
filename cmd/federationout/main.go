@@ -24,7 +24,7 @@ import (
 
 	"go.opencensus.io/plugin/ocgrpc"
 
-	"github.com/google/exposure-notifications-server/internal/buildinfo"
+	"github.com/google/exposure-notifications-server/pkg/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/federationout"
 	"github.com/google/exposure-notifications-server/internal/pb/federation"
 	"github.com/google/exposure-notifications-server/internal/setup"

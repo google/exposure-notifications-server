@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/exposure-notifications-server/internal/buildinfo"
+	"github.com/google/exposure-notifications-server/pkg/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/publish"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/logging"
