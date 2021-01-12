@@ -18,6 +18,7 @@ layout: default
   - [Key management](#key-management)
   - [Secrets management](#secrets-management)
   - [Observability](#observability)
+- [Running the admin console](#running-the-admin-console)
 
 <!-- /TOC -->
 
@@ -331,3 +332,25 @@ configurations are available:
 | Noop                    | `NOOP`                          | No metrics are exported.
 
 \* default
+
+
+## Running the admin console
+
+The admin console is deployed as a Cloud Run service, protected by Cloud IAM. To
+access it, you need:
+
+-   The URL to the service, which you can find in the Terraform output or by looking for `admin-console` in the Cloud Run web UI.
+
+-   `roles/run.invoker` permission on the Cloud Run service.
+
+-   [gcloud](https://cloud.google.com/sdk).
+
+-   [Cloud Run Proxy](https://github.com/sethvargo/cloud-run-proxy).
+
+Start the proxy with the URL to the Admin Console:
+
+```text
+cloud-run-proxy -host https://admin-console-fda.a.run.app
+```
+
+Point your browser to http://localhost:8080.
