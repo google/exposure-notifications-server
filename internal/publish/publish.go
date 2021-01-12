@@ -136,37 +136,32 @@ type response struct {
 	metrics func()
 }
 
-func (r *response) padResponse(c *Config) error {
-	if r.pubResponse == nil {
-		return fmt.Errorf("no publish response exists to pad")
-	}
-
-	minBytes := c.ResponsePaddingMinBytes
+func generatePadding(minPadding, paddingRange int64) (string, error) {
+	minBytes := minPadding
 	if minBytes <= 0 {
 		minBytes = 1024
 	}
-	padRange := c.ResponsePaddingRange
+	padRange := int64(paddingRange)
 	if padRange <= 0 {
 		padRange = 1024
 	}
 
 	bi, err := rand.Int(rand.Reader, big.NewInt(padRange))
 	if err != nil {
-		return fmt.Errorf("padding: failed to generate random number: %w", err)
+		return "", fmt.Errorf("padding: failed to generate random number: %w", err)
 	}
 	i := int(bi.Int64() + minBytes)
 
 	b := make([]byte, i)
 	n, err := rand.Read(b)
 	if err != nil {
-		return fmt.Errorf("padding: failed to read bytes: %w", err)
+		return "", fmt.Errorf("padding: failed to read bytes: %w", err)
 	}
 	if n < i {
-		return fmt.Errorf("padding: wrote less bytes than expected")
+		return "", fmt.Errorf("padding: wrote less bytes than expected")
 	}
 
-	r.pubResponse.Padding = base64.StdEncoding.EncodeToString(b)
-	return nil
+	return base64.StdEncoding.EncodeToString(b), nil
 }
 
 // versionBridge closes the gap in up-leveling v1alpha1 to v1 API.
@@ -184,7 +179,7 @@ func newVersionBridge(regions []string) *versionBridge {
 
 // process runs the publish business logic over a "v1" version of the publish request
 // and knows how to join in data from previous versions (the provided versionBridge)
-func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, bridge *versionBridge) *response {
+func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, platform string, bridge *versionBridge) *response {
 	ctx, span := trace.StartSpan(ctx, "(*publish.PublishHandler).process")
 	defer span.End()
 
@@ -328,7 +323,11 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 	}
 
 	batchTime := time.Now()
-	exposures, transformWarnings, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
+	result, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
+	// Break apart the result object for easier usage below.
+	exposures := result.Exposures
+	publishInfo := result.PublishInfo
+	transformWarnings := result.Warnings
 	// Check for non-recoverable error. It is possible that individual keys are dropped, but if there
 	// are any valid ones, we will try and move forward.
 	// If at the end, there is a success, the transformError will be returned as supplemental information.
@@ -349,9 +348,15 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, b
 		}
 	}
 
+	// Add in the platform
+	if publishInfo != nil {
+		publishInfo.Platform = platform
+	}
+
 	resp, err := h.database.InsertAndReviseExposures(ctx, &database.InsertAndReviseExposuresRequest{
-		Incoming: exposures,
-		Token:    token,
+		Incoming:    exposures,
+		Token:       token,
+		PublishInfo: publishInfo,
 
 		RequireToken:          !appConfig.BypassRevisionToken,
 		AllowPartialRevisions: h.config.AllowPartialRevisions,

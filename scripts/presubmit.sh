@@ -64,6 +64,13 @@ make staticcheck || {
 }
 
 
+echo "🦶 Verify bodyclose"
+make bodyclose || {
+  echo "✋ Found unclosed response bodies."
+  exit 1
+}
+
+
 echo "🐝 Verify spelling"
 make spellcheck || {
   echo "✋ Found spelling errors."
@@ -101,3 +108,5 @@ fi
 
 echo "🧪 Test"
 make test-acc
+echo "🔬 Test Coverage"
+make test-coverage

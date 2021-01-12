@@ -42,7 +42,6 @@ import (
 	vermodel "github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/keys"
-	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/jackc/pgx/v4"
@@ -114,10 +113,12 @@ func TestPublishWithBypass(t *testing.T) {
 		HealthAuthorityKey *vermodel.HealthAuthorityKey // Automatically linked to SigningKey
 		AuthorizedApp      *aamodel.AuthorizedApp       // Automatically linked to health authorities.
 		Publish            verifyapi.Publish
+		UserAgent          string
 		Regions            []string
 		JWTTiming          time.Duration
 		ReportType         string
 		WantTRAdjustment   []int
+		WantStats          []*model.HealthAuthorityStats
 		Code               int
 		Error              string
 		ErrorCode          string
@@ -125,6 +126,7 @@ func TestPublishWithBypass(t *testing.T) {
 		SkipKeys           map[int]bool // which keys should be skipped (partial success)
 		MaintenanceMode    bool
 	}{
+
 		{
 			Name:       "successful_insert_bypass_ha_verification",
 			TestRegion: regions.next(),
@@ -268,10 +270,20 @@ func TestPublishWithBypass(t *testing.T) {
 				return authApp
 			}(),
 			Publish: verifyapi.Publish{
-				Keys:                util.GenerateExposureKeys(2, 5, false),
-				Traveler:            true,
-				HealthAuthorityID:   names.current(),
-				VerificationPayload: "totally not a JWT",
+				Keys:                 util.GenerateExposureKeys(2, 5, false),
+				Traveler:             true,
+				HealthAuthorityID:    names.current(),
+				VerificationPayload:  "totally not a JWT",
+				SymptomOnsetInterval: model.IntervalNumber(time.Now().Add(-24 * time.Hour)),
+			},
+			UserAgent: "an android phone",
+			WantStats: []*model.HealthAuthorityStats{
+				{
+					PublishCount:  []int64{0, 1, 0},
+					TEKCount:      2,
+					OldestTekDays: []int64{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OnsetAgeDays:  []int64{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				},
 			},
 			ReportType: verifyapi.ReportTypeConfirmed,
 			Regions:    []string{}, // will receive defaults
@@ -296,9 +308,19 @@ func TestPublishWithBypass(t *testing.T) {
 				return authApp
 			}(),
 			Publish: verifyapi.Publish{
-				Keys:                util.GenerateExposureKeys(2, 0, false),
-				HealthAuthorityID:   names.current(),
-				VerificationPayload: "totally not a JWT",
+				Keys:                 util.GenerateExposureKeys(2, 0, false),
+				HealthAuthorityID:    names.current(),
+				VerificationPayload:  "totally not a JWT",
+				SymptomOnsetInterval: model.IntervalNumber(time.Now().UTC().Add(-96 * time.Hour)),
+			},
+			UserAgent: "bluetoothd (unknown version) CFNetwork/1197 Darwin/20.0.0",
+			WantStats: []*model.HealthAuthorityStats{
+				{
+					PublishCount:  []int64{0, 0, 1},
+					TEKCount:      2,
+					OldestTekDays: []int64{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OnsetAgeDays:  []int64{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				},
 			},
 			Regions:          []string{regions.current()},
 			ReportType:       verifyapi.ReportTypeConfirmed,
@@ -327,6 +349,16 @@ func TestPublishWithBypass(t *testing.T) {
 				Keys:                util.GenerateExposureKeys(2, 0, false),
 				HealthAuthorityID:   names.current(),
 				VerificationPayload: "totally not a JWT",
+			},
+			UserAgent: "some unknown user agent",
+			WantStats: []*model.HealthAuthorityStats{
+				{
+					PublishCount:  []int64{1, 0, 0},
+					TEKCount:      2,
+					OldestTekDays: []int64{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OnsetAgeDays:  []int64{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					MissingOnset:  1,
+				},
 			},
 			Regions:          []string{regions.current()},
 			ReportType:       verifyapi.ReportTypeClinical,
@@ -452,10 +484,6 @@ func TestPublishWithBypass(t *testing.T) {
 			}
 
 			t.Run(addVer+tc.Name, func(t *testing.T) {
-				ctx = context.Background()
-				logger := logging.NewLogger(true)
-				ctx = logging.WithLogger(ctx, logger)
-
 				// And set up publish handler up front.
 				config := Config{}
 				config.AuthorizedApp.CacheDuration = time.Nanosecond
@@ -555,7 +583,13 @@ func TestPublishWithBypass(t *testing.T) {
 				if tc.ContentType != "" {
 					contentType = tc.ContentType
 				}
-				resp, err := server.Client().Post(server.URL, contentType, strings.NewReader(string(jsonString)))
+				request, err := http.NewRequest("POST", server.URL, strings.NewReader(string(jsonString)))
+				if err != nil {
+					t.Fatal(err)
+				}
+				request.Header.Set("Content-Type", contentType)
+				request.Header.Set("User-Agent", tc.UserAgent)
+				resp, err := server.Client().Do(request)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -700,6 +734,28 @@ func TestPublishWithBypass(t *testing.T) {
 						if diff := cmp.Diff(tokenWant.RevisableKeys, revToken.RevisableKeys, revisableSorter, cmpopts.IgnoreUnexported(pb.RevisableKey{})); diff != "" {
 							t.Errorf("mismatch (-want, +got):\n%s", diff)
 						}
+
+						if tc.HealthAuthority != nil {
+							// statistics are written in the background.
+							time.Sleep(5 * time.Second)
+							// There was a valid certificate present. there should be statistics.
+							stats, err := pubDB.ReadStats(ctx, tc.HealthAuthority.ID)
+							if err != nil {
+								t.Fatalf("error reading back stats after publish: %v", err)
+							}
+
+							// We don't know the health authority ID in advance.
+							for _, ws := range tc.WantStats {
+								ws.HealthAuthorityID = tc.HealthAuthority.ID
+							}
+
+							ignoreFields := cmpopts.IgnoreFields(model.HealthAuthorityStats{}, "Hour")
+
+							if diff := cmp.Diff(tc.WantStats, stats, ignoreFields); diff != "" {
+								t.Errorf("mismatch (-want, +got):\n%s", diff)
+							}
+						}
+
 					} else {
 						if !strings.Contains(response.ErrorMessage, tc.Error) {
 							t.Errorf("missing error text '%v', got '%+v'", tc.Error, response)

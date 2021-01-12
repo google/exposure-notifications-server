@@ -16,7 +16,6 @@
 package publish
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -57,7 +56,8 @@ func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) *
 		}
 	}
 
-	return h.process(ctx, &data, newVersionBridge([]string{}))
+	clientPlatform := platform(r.UserAgent())
+	return h.process(ctx, &data, clientPlatform, newVersionBridge([]string{}))
 }
 
 // Handle returns an http.Handler that can process V1 publish requests.
@@ -70,25 +70,17 @@ func (h *PublishHandler) Handle() http.Handler {
 
 				ctx := r.Context()
 
-				if err := response.padResponse(h.config); err != nil {
+				if padding, err := generatePadding(h.config.ResponsePaddingMinBytes, h.config.ResponsePaddingRange); err != nil {
 					stats.Record(ctx, mPaddingFailed.M(1))
 					logging.FromContext(ctx).Errorw("failed to pad response", "error", err)
+				} else {
+					response.pubResponse.Padding = padding
 				}
 
 				if response.metrics != nil {
 					response.metrics()
 				}
 
-				data, err := json.Marshal(response.pubResponse)
-				if err != nil {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusInternalServerError)
-					fmt.Fprintf(w, "{\"error\": \"%v\"}", err.Error())
-					return
-				}
-
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(response.status)
-				fmt.Fprintf(w, "%s", data)
+				jsonutil.MarshalResponse(w, response.status, response.pubResponse)
 			})))
 }

@@ -45,6 +45,10 @@ represent best practices.
     # Disable observability locally.
     export OBSERVABILITY_EXPORTER="NOOP"
 
+    # Configure local logging.
+    export LOG_LEVEL="debug"
+    export LOG_MODE="development"
+
     # Configure key management for revision tokens. Create your own revision
     # token AAD with:
     #

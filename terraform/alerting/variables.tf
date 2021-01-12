@@ -17,10 +17,36 @@ variable "project" {
   description = "GCP project for key server. Required."
 }
 
-variable "notification-email" {
-  type        = string
-  default     = "nobody@example.com"
-  description = "Email address for alerts to go to."
+variable "alert-notification-channels" {
+  type = map(any)
+  default = {
+    email = {
+      labels = {
+        email_address = "nobody@example.com"
+      }
+    }
+    slack = {
+      labels = {
+        channel_name = "#foo"
+        auth_token   = "abr"
+      }
+    }
+  }
+  description = "Notification channels"
+}
+
+variable "alert_on_human_accessed_secret" {
+  type    = bool
+  default = true
+
+  description = "Alert when a human accesses a secret. You must enable DATA_READ audit logs for Secret Manager."
+}
+
+variable "alert_on_human_decrypted_value" {
+  type    = bool
+  default = true
+
+  description = "Alert when a human accesses a secret. You must enable DATA_READ audit logs for Cloud KMS."
 }
 
 terraform {
@@ -29,11 +55,11 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 3.46"
+      version = "~> 3.51"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "~> 3.46"
+      version = "~> 3.51"
     }
   }
 }

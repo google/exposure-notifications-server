@@ -22,14 +22,13 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"time"
 
 	authorizedappdatabase "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	verificationdatabase "github.com/google/exposure-notifications-server/internal/verification/database"
@@ -43,8 +42,9 @@ import (
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
 
-	debug, _ := strconv.ParseBool(os.Getenv("LOG_DEBUG"))
-	logger := logging.NewLogger(debug)
+	logger := logging.NewLoggerFromEnv().Named("tools.seed")
+	logger = logger.With("build_id", buildinfo.BuildID)
+	logger = logger.With("build_tag", buildinfo.BuildTag)
 	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)

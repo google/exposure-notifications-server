@@ -1,11 +1,13 @@
 approvers:
   - mikehelmick
   - sethvargo
-  - chaodaig
-  - jeremyfaller
-  - whaught  
+  - whaught
+  - yegle
+  - mariliamelo
+
 reviewers:
   - mikehelmick
   - sethvargo
   - whaught
-  - jeremyfaller
+  - yegle
+  - mariliamelo

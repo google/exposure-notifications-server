@@ -44,10 +44,10 @@ type ImportRequest struct {
 	file         *model.ImportFile
 }
 
-type ImportResposne struct {
-	insertedKeys uint64
-	revisedKeys  uint64
-	droppedKeys  uint64
+type ImportResponse struct {
+	insertedKeys uint32
+	revisedKeys  uint32
+	droppedKeys  uint32
 }
 
 type SignatureAndKey struct {
@@ -55,11 +55,11 @@ type SignatureAndKey struct {
 	publicKey *ecdsa.PublicKey
 }
 
-func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*ImportResposne, error) {
+func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*ImportResponse, error) {
 	// Special case - previous versions may have inserted the filename root as a file.
 	// If we find that, skip attempted processing and just mark as successful.
 	if ir.exportImport.ExportRoot == ir.file.ZipFilename {
-		return &ImportResposne{
+		return &ImportResponse{
 			insertedKeys: 0,
 			revisedKeys:  0,
 			droppedKeys:  0,
@@ -142,6 +142,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 		appPackageName: s.config.ImportAPKName,
 		importRegions:  []string{ir.exportImport.Region},
 		batchTime:      time.Now().UTC().Truncate(s.config.CreatedAtTruncateWindow),
+		truncateWindow: s.config.CreatedAtTruncateWindow,
 		exportImportID: ir.exportImport.ID,
 		importFileID:   ir.file.ID,
 		exportImportConfig: &pubmodel.ExportImportConfig{
@@ -154,7 +155,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 		},
 		logger: logger,
 	}
-	response := ImportResposne{}
+	response := ImportResponse{}
 
 	// Go through primary keys and insert.
 	// Must be separate from revised keys in the event both are in the same file.
@@ -190,7 +191,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 	return &response, nil
 }
 
-func (s *Server) insertAndReviseKeys(ctx context.Context, mode string, exposures []*pubmodel.Exposure, template *pubdb.InsertAndReviseExposuresRequest, response *ImportResposne) error {
+func (s *Server) insertAndReviseKeys(ctx context.Context, mode string, exposures []*pubmodel.Exposure, template *pubdb.InsertAndReviseExposuresRequest, response *ImportResponse) error {
 	logger := logging.FromContext(ctx)
 	length := len(exposures)
 	for i := 0; i < length; i = i + s.config.MaxInsertBatchSize {
@@ -218,15 +219,16 @@ type transformer struct {
 	appPackageName     string
 	importRegions      []string
 	batchTime          time.Time
+	truncateWindow     time.Duration
 	exportImportID     int64
 	importFileID       int64
 	exportImportConfig *pubmodel.ExportImportConfig
 	logger             *zap.SugaredLogger
 }
 
-func (t *transformer) transform(keys []*exportproto.TemporaryExposureKey) ([]*pubmodel.Exposure, uint64) {
+func (t *transformer) transform(keys []*exportproto.TemporaryExposureKey) ([]*pubmodel.Exposure, uint32) {
 	inserts := make([]*pubmodel.Exposure, 0, len(keys))
-	var dropped uint64
+	var dropped uint32
 	for _, k := range keys {
 		exp, err := pubmodel.FromExportKey(k, t.exportImportConfig)
 		if err != nil {
@@ -241,6 +243,11 @@ func (t *transformer) transform(keys []*exportproto.TemporaryExposureKey) ([]*pu
 		exp.LocalProvenance = false
 		exp.ExportImportID = &t.exportImportID
 		exp.ImportFileID = &t.importFileID
+
+		// Adjust created at time, if this key is not yet expired.
+		if expTime := pubmodel.TimeForIntervalNumber(exp.IntervalNumber + exp.IntervalCount); exp.CreatedAt.Before(expTime) {
+			exp.CreatedAt = expTime.UTC().Add(t.truncateWindow).Truncate(t.truncateWindow)
+		}
 
 		inserts = append(inserts, exp)
 	}

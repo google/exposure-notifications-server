@@ -101,7 +101,7 @@ func (s *Server) handleDoWork(ctx context.Context) http.HandlerFunc {
 			}
 			unlock := func() {
 				if err := unlockFn(); err != nil {
-					logger.Errorw("failed to unlock region locks", batch.ConfigID, "batch", batch.BatchID, "regions", locks, "error", err)
+					logger.Errorw("failed to unlock region locks", "config", batch.ConfigID, "batch", batch.BatchID, "regions", locks, "error", err)
 				}
 			}
 

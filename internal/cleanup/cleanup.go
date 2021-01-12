@@ -90,6 +90,20 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 	stats.Record(ctx, mExposuresDeleted.M(count))
 	logger.Infof("cleanup run complete, deleted %v records.", count)
+
+	// Clean up associated stats.
+	statsCount, err := h.database.DeleteStatsBefore(timeoutCtx, cutoff)
+	if err != nil {
+		message := fmt.Sprintf("Failed deleting publish stats: %v", err)
+		logger.Error(message)
+		stats.Record(ctx, cleanup.ExposuresStatsDeleteFailed.M(1))
+		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		return
+	}
+	stats.Record(ctx, cleanup.ExposuresStatsDeleted.M(statsCount))
+	logger.Infof("stats cleanup run complete, deleted %v records.", statsCount)
+
 	w.WriteHeader(http.StatusOK)
 }
 

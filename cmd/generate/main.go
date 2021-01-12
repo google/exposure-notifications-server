@@ -20,8 +20,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"strconv"
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/generate"
@@ -35,11 +33,9 @@ import (
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
 
-	debug, _ := strconv.ParseBool(os.Getenv("LOG_DEBUG"))
-	logger := logging.NewLogger(debug)
-	logger = logger.With("build_id", buildinfo.BuildID)
-	logger = logger.With("build_tag", buildinfo.BuildTag)
-
+	logger := logging.NewLoggerFromEnv().
+		With("build_id", buildinfo.BuildID).
+		With("build_tag", buildinfo.BuildTag)
 	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)

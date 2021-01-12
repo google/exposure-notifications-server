@@ -200,6 +200,13 @@ variable "enable_cdn_for_exports" {
   description = "Enable Cloud CDN on the export bucket."
 }
 
+variable "admin_console_invokers" {
+  type    = list(string)
+  default = []
+
+  description = "List of IAM entities that can invoke the admin-console. This should be of the form user:[email], serviceAccount:[email], or group:[email]."
+}
+
 variable "debugger_invokers" {
   type    = list(string)
   default = []
@@ -212,6 +219,13 @@ variable "service_environment" {
   default = {}
 
   description = "Per-service environment overrides."
+}
+
+variable "admin_console_hosts" {
+  type    = list(string)
+  default = []
+
+  description = "List of domains upon which the admin console is served."
 }
 
 variable "debugger_hosts" {
@@ -258,17 +272,75 @@ variable "enable_lb_logging" {
   EOT
 }
 
+// Note: in Cloud Run/Knative, there are two kinds of annotations.
+// - Service level annotations: applies to all revisions in the service. E.g.
+//   the ingress restriction
+//   https://cloud.google.com/run/docs/securing/ingress#yaml
+// - Revision level annotations: only applies to a new revision you want to
+//   create. E.g. the VPC connector setting
+//   https://cloud.google.com/run/docs/configuring/connecting-vpc#yaml
+//
+// Unfortunately they are just too similar and you'll have to read the doc
+// carefully to know what kind of annotation is needed to enable a feature.
+//
+// The variables below are named service_annotations and revision_annotations
+// accordingly.
+
+locals {
+  default_revision_annotations = {
+    "autoscaling.knative.dev/maxScale" : "1",
+    "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
+    "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
+  }
+  default_service_annotations = {
+    "run.googleapis.com/ingress" : "all"
+  }
+}
+
+variable "service_annotations" {
+  type    = map(map(string))
+  default = {}
+
+  description = "Per-service service level annotations."
+}
+
+variable "default_service_annotations_overrides" {
+  type    = map(string)
+  default = {}
+
+  description = <<-EOT
+  Annotations that applies to all services. Can be used to override
+  default_service_annotations.
+  EOT
+}
+
+variable "revision_annotations" {
+  type    = map(map(string))
+  default = {}
+
+  description = "Per-service revision level annotations."
+}
+
+variable "default_revision_annotations_overrides" {
+  type    = map(string)
+  default = {}
+
+  description = <<-EOT
+  Annotations that applies to all services. Can be used to override
+  default_revision_annotations.
+  EOT
+}
 terraform {
   required_version = ">= 0.14.2"
 
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 3.36"
+      version = "~> 3.51"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "~> 3.36"
+      version = "~> 3.51"
     }
     local = {
       source  = "hashicorp/local"

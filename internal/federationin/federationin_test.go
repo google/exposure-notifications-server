@@ -106,8 +106,8 @@ func (idb *publishDB) insertExposures(ctx context.Context, req *publishdb.Insert
 	idb.exposures = append(idb.exposures, req.Incoming...)
 	return &publishdb.InsertAndReviseExposuresResponse{
 		Exposures: req.Incoming,
-		Inserted:  uint64(len(req.Incoming)),
-		Revised:   uint64(len(req.Incoming)), // mock doesn't know if it is revising or inserting.
+		Inserted:  uint32(len(req.Incoming)),
+		Revised:   uint32(len(req.Incoming)), // mock doesn't know if it is revising or inserting.
 	}, nil
 }
 
