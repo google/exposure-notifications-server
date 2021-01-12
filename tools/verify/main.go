@@ -27,8 +27,8 @@ import (
 	"io/ioutil"
 	"math/big"
 
-	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/google/exposure-notifications-server/pkg/buildinfo"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/sethvargo/go-signalcontext"
 )
