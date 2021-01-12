@@ -12,12 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rotate
+// Package keyrotation contains OpenCensus metrics and views for rotate operations
+package keyrotation
 
 import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/pkg/observability"
+	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
+)
+
+var (
+	rotateMetricsPrefix = metrics.MetricRoot + "rotate"
+
+	mRevisionKeysCreated = stats.Int64(rotateMetricsPrefix+"revision_keys_created",
+		"Instance of revision key being created", stats.UnitDimensionless)
+	mRevisionKeysDeleted = stats.Int64(rotateMetricsPrefix+"revision_keys_deleted",
+		"Instance of revision keys being deleted", stats.UnitDimensionless)
 )
 
 func init() {
@@ -25,13 +36,13 @@ func init() {
 		{
 			Name:        metrics.MetricRoot + "revision_keys_created_count",
 			Description: "Total count of revision key creation instances",
-			Measure:     RevisionKeysCreated,
+			Measure:     mRevisionKeysCreated,
 			Aggregation: view.Sum(),
 		},
 		{
 			Name:        metrics.MetricRoot + "revision_keys_deleted_count",
 			Description: "Total count of revision key deletion instances",
-			Measure:     RevisionKeysDeleted,
+			Measure:     mRevisionKeysDeleted,
 			Aggregation: view.Sum(),
 		},
 	}...)

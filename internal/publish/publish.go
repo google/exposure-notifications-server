@@ -29,7 +29,6 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
-	"github.com/google/exposure-notifications-server/internal/metrics/publish"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
@@ -203,7 +202,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 					Code:         verifyapi.ErrorUnknownHealthAuthorityID,
 				},
 				metrics: func() {
-					stats.Record(ctx, publish.HealthAuthorityNotAuthorized.M(1))
+					stats.Record(ctx, mHealthAuthorityNotAuthorized.M(1))
 				},
 			}
 		}
@@ -222,7 +221,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 				Code:         verifyapi.ErrorUnableToLoadHealthAuthority,
 			},
 			metrics: func() {
-				stats.Record(ctx, publish.ErrorLoadingAuthorizedApp.M(1))
+				stats.Record(ctx, mErrorLoadingAuthorizedApp.M(1))
 			},
 		}
 	}
@@ -244,7 +243,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 						ErrorMessage: message, // Error code omitted, since this isn't in the v1 path.
 					},
 					metrics: func() {
-						stats.Record(ctx, publish.RegionNotAuthorized.M(1))
+						stats.Record(ctx, mRegionNotAuthorized.M(1))
 					},
 				}
 			}
@@ -274,7 +273,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 				Code:         verifyapi.ErrorHealthAuthorityMissingRegionConfiguration,
 			},
 			metrics: func() {
-				stats.Record(ctx, publish.RegionNotSpecified.M(1))
+				stats.Record(ctx, mRegionNotSpecified.M(1))
 			},
 		}
 	}
@@ -284,7 +283,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 	if err != nil {
 		if appConfig.BypassHealthAuthorityVerification {
 			logger.Warnf("bypassing health authority certificate verification health authority: %v", appConfig.AppPackageName)
-			stats.Record(ctx, publish.VerificationBypassed.M(1))
+			stats.Record(ctx, mVerificationBypassed.M(1))
 		} else {
 			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
 			if h.config.DebugLogBadCertificates {
@@ -300,7 +299,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 					Code:         verifyapi.ErrorVerificationCertificateInvalid,
 				},
 				metrics: func() {
-					stats.Record(ctx, publish.BadVerification.M(1))
+					stats.Record(ctx, mBadVerification.M(1))
 				},
 			}
 		}
@@ -344,7 +343,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 				Warnings:     transformWarnings,
 			},
 			metrics: func() {
-				stats.Record(ctx, publish.TransformFail.M(1))
+				stats.Record(ctx, mTransformFail.M(1))
 			},
 		}
 	}
@@ -403,7 +402,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 				// TODO(yegle): we want to use this string later when we
 				// refactor the metrics.
 				_ = metric
-				stats.Record(ctx, publish.RevisionTokenIssue.M(1))
+				stats.Record(ctx, mRevisionTokenIssue.M(1))
 			},
 		}
 	}
@@ -450,9 +449,9 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 		status:      http.StatusOK,
 		pubResponse: &publishResponse,
 		metrics: func() {
-			stats.Record(ctx, publish.ExposuresInserted.M(int64(resp.Inserted)))
-			stats.Record(ctx, publish.ExposuresInserted.M(int64(resp.Revised)))
-			stats.Record(ctx, publish.ExposuresInserted.M(int64(resp.Dropped)))
+			stats.Record(ctx, mExposuresInserted.M(int64(resp.Inserted)))
+			stats.Record(ctx, mExposuresInserted.M(int64(resp.Revised)))
+			stats.Record(ctx, mExposuresInserted.M(int64(resp.Dropped)))
 		},
 	}
 }

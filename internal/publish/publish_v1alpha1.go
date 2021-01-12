@@ -24,7 +24,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	"github.com/google/exposure-notifications-server/internal/maintenance"
-	"github.com/google/exposure-notifications-server/internal/metrics/publish"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -46,7 +45,7 @@ func (h *PublishHandler) handleV1Apha1Request(w http.ResponseWriter, r *http.Req
 			status:      code,
 			pubResponse: &verifyapi.PublishResponse{ErrorMessage: message}, // will be down-converted in ServeHTTP
 			metrics: func() {
-				stats.Record(ctx, publish.BadJSON.M(1))
+				stats.Record(ctx, mBadJSON.M(1))
 			},
 		}
 	}
@@ -89,7 +88,7 @@ func (h *PublishHandler) HandleV1Alpha1() http.Handler {
 				ctx := r.Context()
 
 				if padding, err := generatePadding(h.config.ResponsePaddingMinBytes, h.config.ResponsePaddingRange); err != nil {
-					stats.Record(ctx, publish.PaddingFailed.M(1))
+					stats.Record(ctx, mPaddingFailed.M(1))
 					logging.FromContext(ctx).Errorw("failed to padd response", "error", err)
 				} else {
 					response.pubResponse.Padding = padding

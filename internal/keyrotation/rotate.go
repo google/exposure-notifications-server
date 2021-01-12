@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/metrics/rotate"
 	"github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
@@ -80,7 +79,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 		effectiveID = key.KeyID
 		previousCreated = key.CreatedAt
 		logger.Info("Created new revision key.")
-		stats.Record(ctx, rotate.RevisionKeysCreated.M(1))
+		stats.Record(ctx, mRevisionKeysCreated.M(1))
 	} else {
 		previousCreated = allowed[0].CreatedAt
 	}
@@ -97,7 +96,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 	}
 	if deleted > 0 {
 		logger.Infof("Deleted %d old revision keys.", deleted)
-		stats.Record(ctx, rotate.RevisionKeysDeleted.M(int64(deleted)))
+		stats.Record(ctx, mRevisionKeysDeleted.M(int64(deleted)))
 	}
 	return result.ErrorOrNil()
 }

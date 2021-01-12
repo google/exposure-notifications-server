@@ -12,12 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package export contains OpenCensus metrics and views for export operations
 package export
 
 import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/pkg/observability"
+	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
+)
+
+var (
+	exportMetricsPrefix = metrics.MetricRoot + "export"
+
+	mBatcherLockContention = stats.Int64(exportMetricsPrefix+"export_batcher_lock_contention",
+		"Instances of export batcher lock contention", stats.UnitDimensionless)
+	mBatcherFailure = stats.Int64(exportMetricsPrefix+"export_batcher_failure",
+		"Instances of export batcher failures", stats.UnitDimensionless)
+	mBatcherNoWork = stats.Int64(exportMetricsPrefix+"export_batcher_no_work",
+		"Instances of export batcher having no work", stats.UnitDimensionless)
+	mBatcherCreated = stats.Int64(exportMetricsPrefix+"export_batches_created",
+		"Number of export batchers created", stats.UnitDimensionless)
+	mWorkerBadKeyLength = stats.Int64(exportMetricsPrefix+"export_worker_bad_key_length",
+		"Number of dropped keys caused by bad key length", stats.UnitDimensionless)
 )
 
 func init() {
@@ -25,31 +42,31 @@ func init() {
 		{
 			Name:        metrics.MetricRoot + "export_batcher_lock_contention_count",
 			Description: "Total count of lock contention instances",
-			Measure:     BatcherLockContention,
+			Measure:     mBatcherLockContention,
 			Aggregation: view.Sum(),
 		},
 		{
 			Name:        metrics.MetricRoot + "export_batcher_failure_count",
 			Description: "Total count of export batcher failures",
-			Measure:     BatcherFailure,
+			Measure:     mBatcherFailure,
 			Aggregation: view.Sum(),
 		},
 		{
 			Name:        metrics.MetricRoot + "export_batcher_no_work_count",
 			Description: "Total count for instances of export batcher having no work",
-			Measure:     BatcherNoWork,
+			Measure:     mBatcherNoWork,
 			Aggregation: view.Sum(),
 		},
 		{
 			Name:        metrics.MetricRoot + "export_batches_created_count",
 			Description: "Total count for number of export batches created",
-			Measure:     BatcherCreated,
+			Measure:     mBatcherCreated,
 			Aggregation: view.Sum(),
 		},
 		{
 			Name:        metrics.MetricRoot + "export_worker_bad_key_length_latest",
 			Description: "Latest number of dropped keys caused by bad key length",
-			Measure:     WorkerBadKeyLength,
+			Measure:     mWorkerBadKeyLength,
 			Aggregation: view.LastValue(),
 		},
 	}...)
