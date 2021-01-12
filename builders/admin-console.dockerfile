@@ -1,4 +1,4 @@
-# Copyright 2020 Google LLC
+# Copyright 2021 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,14 +18,14 @@ RUN mkdir -p /var/run/secrets && \
   chown 65534:65534 /var/run/secrets
 
 FROM scratch
-ARG SERVICE
 COPY ./builders/passwd /etc/passwd
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 USER nobody
-COPY ./bin/${SERVICE} /server
+COPY ./bin/admin-console /admin-console
+COPY ./cmd/admin-console/templates /templates
 COPY --from=builder /var/run /var/run
 COPY --from=builder /var/run/secrets /var/run/secrets
 
 ENV PORT 8080
-ENTRYPOINT ["/server"]
+ENTRYPOINT ["/admin-console"]
