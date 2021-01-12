@@ -10,6 +10,13 @@
     {{end}}
   </div>
   <div class="card-body">
+    {{if .signature}}
+      <div class="alert alert-info" role="alert">
+        <p class="mb-0">
+          The signature for the string "hello world" for this key is <code>{{.signature}}</code>.
+        </p>
+      </div>
+    {{end}}
     {{if not .new}}
       <div class="alert alert-warning" role="alert">
         <p>
