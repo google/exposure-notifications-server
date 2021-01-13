@@ -77,7 +77,8 @@ func (h *PublishHandler) handleMetricsRequest(ctx context.Context, bearerToken s
 
 	if !strings.HasPrefix(bearerToken, "Bearer ") {
 		response.ErrorMessage = "Authorization header is not in `Bearer <token>` format"
-		return response, http.StatusBadRequest
+		response.ErrorCode = verifyapi.ErrorUnauthorized
+		return response, http.StatusUnauthorized
 	}
 	// Remove 'Bearer ' from the token.
 	bearerToken = bearerToken[7:]

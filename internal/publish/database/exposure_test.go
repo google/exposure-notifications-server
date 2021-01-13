@@ -322,6 +322,39 @@ func testExposure(tb testing.TB) *model.Exposure {
 	return exposure
 }
 
+func TestInsertAndReviseExposures_MissingRequest(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	pubDB := New(testDB)
+
+	if _, err := pubDB.InsertAndReviseExposures(ctx, nil); err == nil {
+		t.Fatal("missing error")
+	} else if !strings.Contains(err.Error(), "missing request") {
+		t.Fatalf("wrong error, want: %v got: %v", "missing request", err.Error())
+	}
+}
+
+func TestInsertAndReviseExposures_ConfigParadox(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	pubDB := New(testDB)
+
+	req := &InsertAndReviseExposuresRequest{
+		SkipRevisions: true,
+		OnlyRevisions: true,
+	}
+
+	if _, err := pubDB.InsertAndReviseExposures(ctx, req); err == nil {
+		t.Fatal("missing error")
+	} else if !strings.Contains(err.Error(), "configuration paradox") {
+		t.Fatalf("wrong error, want: %v got: %v", "configuration paradox", err.Error())
+	}
+}
+
 func TestReviseExposures(t *testing.T) {
 	t.Parallel()
 
