@@ -24,6 +24,34 @@ import (
 	hamodel "github.com/google/exposure-notifications-server/internal/verification/model"
 )
 
+func TestDeleteStatsBefore(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	testPublishDB := New(testDB)
+
+	testHADB := hadb.New(testDB)
+	healthAuthority := hamodel.HealthAuthority{
+		Issuer:   "a",
+		Audience: "b",
+		Name:     "c",
+	}
+	if err := testHADB.AddHealthAuthority(ctx, &healthAuthority); err != nil {
+		t.Fatalf("unable to cerate health authority: %v", err)
+	}
+
+	now := time.Now().UTC().Truncate(time.Hour)
+
+	count, err := testPublishDB.DeleteStatsBefore(ctx, now)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("deleted rows when non present")
+	}
+}
+
 func TestUpdateStats(t *testing.T) {
 	t.Parallel()
 
