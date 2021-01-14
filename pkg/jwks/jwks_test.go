@@ -122,7 +122,7 @@ func TestUpdateHA(t *testing.T) {
 	// Run the tests.
 	//
 	// Again, each test tests individual pieces of the service, and then an
-	// "end-to-end" test is runn where the DB is validated.
+	// "end-to-end" test is run where the DB is validated.
 	for i, test := range tests {
 		test := test
 

@@ -1171,14 +1171,15 @@ func TestKeyRevision(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				server := httptest.NewServer(handler)
-				defer server.Close()
-
-				// make the initial request
-				resp, err := server.Client().Post(server.URL, "application/json", strings.NewReader(string(jsonString)))
+				request, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
 				if err != nil {
 					t.Fatal(err)
 				}
+				request.Header.Set("Content-Type", "application/json")
+
+				rr := httptest.NewRecorder()
+				handler.ServeHTTP(rr, request)
+				resp := rr.Result()
 
 				// For non success status, check that they body contains the expected message
 				defer resp.Body.Close()
