@@ -47,9 +47,7 @@ func TestString(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var l RegionListVar
-			l = tc.value
-
+			var l RegionListVar = tc.value
 			if r := l.String(); r != tc.want {
 				t.Errorf("wrong value, want: %q got: %q", tc.want, r)
 			}

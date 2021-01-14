@@ -43,7 +43,7 @@ func TestMarshalResponse(t *testing.T) {
 		t.Errorf("wrong response code, want: %v got: %v", http.StatusOK, w.Code)
 	}
 
-	got := string(w.Body.Bytes())
+	got := w.Body.String()
 	want := `{"name":"Steve"}`
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unmarshal mismatch (-want +got):\n%v", diff)
@@ -68,7 +68,7 @@ func TestMarshalResponseError(t *testing.T) {
 		t.Errorf("wrong response code, want: %v got: %v", http.StatusOK, w.Code)
 	}
 
-	got := string(w.Body.Bytes())
+	got := w.Body.String()
 	want := `{"error":"json: unsupported value: encountered a cycle via *jsonutil.Circular"}`
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unmarshal mismatch (-want +got):\n%v", diff)
