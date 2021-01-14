@@ -126,7 +126,6 @@ func TestPublishWithBypass(t *testing.T) {
 		SkipKeys           map[int]bool // which keys should be skipped (partial success)
 		MaintenanceMode    bool
 	}{
-
 		{
 			Name:       "successful_insert_bypass_ha_verification",
 			TestRegion: regions.next(),
@@ -579,27 +578,24 @@ func TestPublishWithBypass(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				server := httptest.NewServer(handler)
-				defer server.Close()
-
 				// make the request
 				contentType := "application/json"
 				if tc.ContentType != "" {
 					contentType = tc.ContentType
 				}
-				request, err := http.NewRequest("POST", server.URL, strings.NewReader(string(jsonString)))
+				request, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
 				if err != nil {
 					t.Fatal(err)
 				}
 				request.Header.Set("Content-Type", contentType)
 				request.Header.Set("User-Agent", tc.UserAgent)
-				resp, err := server.Client().Do(request)
-				if err != nil {
-					t.Fatal(err)
-				}
+
+				rr := httptest.NewRecorder()
+				handler.ServeHTTP(rr, request)
+				resp := rr.Result()
 
 				// Response content type should always be application/json
-				if got, want := resp.Header.Get("Content-Type"), "application/json"; got != want {
+				if got, want := rr.Header().Get("Content-Type"), "application/json"; got != want {
 					t.Errorf("expected %#v to be %#v", got, want)
 				}
 
@@ -1113,14 +1109,15 @@ func TestKeyRevision(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				server := httptest.NewServer(handler)
-				defer server.Close()
-
-				// make the initial request
-				resp, err := server.Client().Post(server.URL, "application/json", strings.NewReader(string(jsonString)))
+				request, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
 				if err != nil {
 					t.Fatal(err)
 				}
+				request.Header.Set("Content-Type", "application/json")
+
+				rr := httptest.NewRecorder()
+				handler.ServeHTTP(rr, request)
+				resp := rr.Result()
 
 				// For non success status, check that they body contains the expected message
 				defer resp.Body.Close()
