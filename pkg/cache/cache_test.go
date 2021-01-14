@@ -139,7 +139,7 @@ func TestInvalidDuration(t *testing.T) {
 
 	if _, err := New(-1 * time.Second); err == nil {
 		t.Fatal("expected error, got nil")
-	} else if strings.Contains(err.Error(), "duration cannot be negative") {
+	} else if !strings.Contains(err.Error(), "duration cannot be negative") {
 		t.Fatalf("wrong error: want: `duration cannot be negative` got: %v", err.Error())
 	}
 }
