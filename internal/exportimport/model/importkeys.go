@@ -23,8 +23,8 @@ import (
 
 // ImportFilePublicKey represents a possible signing key
 // for export files being imported into this system.
-// A given ExportImportID can have more than one, and more than
-// one that is currently valid.
+// A given ExportImportID can have more than one associated key,
+// and more than one that is currently valid.
 type ImportFilePublicKey struct {
 	ExportImportID int64
 	KeyID          string

@@ -22,7 +22,7 @@ import (
 	"fmt"
 )
 
-// ParseECDSAPublicKey is a conveinence function for decoding an
+// ParseECDSAPublicKey is a convenience function for decoding an
 // ECDSA public key in PEM format.
 func ParseECDSAPublicKey(pemBlock string) (*ecdsa.PublicKey, error) {
 	block, _ := pem.Decode([]byte(pemBlock))

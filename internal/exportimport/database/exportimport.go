@@ -26,7 +26,7 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-// ExportImportDB contains databse methods for managing with export-import configs.
+// ExportImportDB contains database methods for managing with export-import configs.
 type ExportImportDB struct {
 	db *database.DB
 }

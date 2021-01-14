@@ -40,10 +40,7 @@ func TestParseECDSAPublicKey_WrongKeyType(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	x509EncodedPub, err := x509.MarshalPKIXPublicKey(pk.PublicKey)
-	if err != nil {
-		t.Fatal(err)
-	}
+	x509EncodedPub := x509.MarshalPKCS1PublicKey(&pk.PublicKey)
 	pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "RSA PUBLIC KEY", Bytes: x509EncodedPub})
 	pemPublicKey := string(pemEncodedPub)
 

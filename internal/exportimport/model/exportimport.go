@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// ExportImport reqpresnts the configuration of a set of export files
+// ExportImport represents the configuration of a set of export files
 // to be imported into this server, by pointing at the index file
 // and remote root directory.
 type ExportImport struct {
@@ -51,7 +51,7 @@ func (ei *ExportImport) Validate() error {
 	return nil
 }
 
-// Active returns if the ExportImport configuration is currently
+// Active returns true if the ExportImport configuration is currently
 // active based on From and Thru times.
 func (ei *ExportImport) Active() bool {
 	now := time.Now().UTC()
