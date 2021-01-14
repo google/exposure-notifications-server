@@ -32,6 +32,8 @@ import (
 )
 
 func TestMarshalUnmarshalExportFile(t *testing.T) {
+	t.Parallel()
+
 	batchStartTime := time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC).Truncate(time.Second)
 	batchEndTime := batchStartTime.Add(1 * time.Hour)
 

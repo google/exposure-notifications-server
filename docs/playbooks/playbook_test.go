@@ -114,6 +114,8 @@ func setDiff(xs, ys []string) []string {
 // Test to ensure every playbook has a corresponding alert, and every alert has
 // a corresponding laybook.
 func TestPlaybooks(t *testing.T) {
+	t.Parallel()
+
 	playbooks := allPlaybookNames(t)
 	alerts := allAlertNames(t)
 	for _, x := range setDiff(playbooks, alerts) {

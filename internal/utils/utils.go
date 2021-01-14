@@ -154,8 +154,8 @@ func IssueJWT(t *testing.T, cfg *JWTConfig) (jwtText, hmacKey string) {
 	return
 }
 
-// InitalizeVerificationDB links the vdb, HA and SigningKeys together
-func InitalizeVerificationDB(ctx context.Context, tb testing.TB, db *database.DB, ha *vm.HealthAuthority, hak *vm.HealthAuthorityKey, sk *SigningKey) int64 {
+// InitializeVerificationDB links the vdb, HA and SigningKeys together
+func InitializeVerificationDB(ctx context.Context, tb testing.TB, db *database.DB, ha *vm.HealthAuthority, hak *vm.HealthAuthorityKey, sk *SigningKey) int64 {
 	verDB := vdb.New(db)
 	exist, err := verDB.GetHealthAuthority(context.Background(), ha.Issuer)
 	if exist != nil && err == nil {

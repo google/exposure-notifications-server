@@ -74,6 +74,7 @@ type StatsDay struct {
 	RequestsMissingOnsetDate int64 `json:"requests_missing_onset_date"`
 }
 
+// PublishRequests is a summary of one day's publish requests by platform.
 type PublishRequests struct {
 	UnknownPlatform int64 `json:"unknown"`
 	Android         int64 `json:"android"`

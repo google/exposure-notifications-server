@@ -22,6 +22,8 @@ import (
 )
 
 func TestRenderMirrors(t *testing.T) {
+	t.Parallel()
+
 	m := TemplateMap{}
 	mirror := &model.Mirror{}
 	m["mirror"] = mirror

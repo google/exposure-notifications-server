@@ -23,6 +23,8 @@ import (
 )
 
 func TestAuthorizedApp_IsAllowedRegion(t *testing.T) {
+	t.Parallel()
+
 	cfg := NewAuthorizedApp()
 	cfg.AllowedRegions = map[string]struct{}{
 		"US": {},
@@ -38,6 +40,8 @@ func TestAuthorizedApp_IsAllowedRegion(t *testing.T) {
 }
 
 func TestAllAllowedRegions(t *testing.T) {
+	t.Parallel()
+
 	cfg := NewAuthorizedApp()
 	cfg.AllowedRegions = map[string]struct{}{
 		"US": {},
@@ -55,6 +59,8 @@ func TestAllAllowedRegions(t *testing.T) {
 }
 
 func TestRegionsOnePerLine(t *testing.T) {
+	t.Parallel()
+
 	cfg := NewAuthorizedApp()
 	cfg.AllowedRegions = map[string]struct{}{
 		"US": {},
@@ -69,6 +75,8 @@ func TestRegionsOnePerLine(t *testing.T) {
 }
 
 func TestAllAllowedHealthAuthorityIDs(t *testing.T) {
+	t.Parallel()
+
 	cfg := NewAuthorizedApp()
 	cfg.AllowedHealthAuthorityIDs[12] = struct{}{}
 	cfg.AllowedHealthAuthorityIDs[42] = struct{}{}
@@ -84,8 +92,9 @@ func TestAllAllowedHealthAuthorityIDs(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
-	cfg := NewAuthorizedApp()
+	t.Parallel()
 
+	cfg := NewAuthorizedApp()
 	got := cfg.Validate()
 	want := []string{
 		"Health Authority ID cannot be empty",
@@ -97,6 +106,8 @@ func TestValidate(t *testing.T) {
 }
 
 func TestIsAllowedRegions(t *testing.T) {
+	t.Parallel()
+
 	cfg := NewAuthorizedApp()
 
 	if !cfg.IsAllowedRegion("foo") {

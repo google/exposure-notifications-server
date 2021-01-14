@@ -19,6 +19,8 @@ import (
 )
 
 func TestDecodeString(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		encoded string
 		raw     string

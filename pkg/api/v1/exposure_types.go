@@ -49,7 +49,7 @@ const (
 	ErrorBadRequest = "bad_request"
 	// ErrorInternalError
 	ErrorInternalError = "internal_error"
-	// ErrorMissingRevisionToken indicates no reivison token passed when one is needed
+	// ErrorMissingRevisionToken indicates no revision token passed when one is needed
 	ErrorMissingRevisionToken = "missing_revision_token"
 	// ErrorInvalidRevisionToken indicates a revision token was passed, but is missing a
 	// key or has invalid metadata.

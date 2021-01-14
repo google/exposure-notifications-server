@@ -254,7 +254,11 @@ func TestBatches(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 			testDB, _ := testDatabaseInstance.NewDatabase(t)
 
@@ -575,6 +579,8 @@ func TestTravelerKeys(t *testing.T) {
 
 // TestExcludeRegions ensures excluded regions are excluded.
 func TestExcludeRegions(t *testing.T) {
+	t.Parallel()
+
 	inclRegion, exclRegion := "US", "EU"
 	inclRegions, exclRegions, bothRegions := []string{inclRegion}, []string{exclRegion}, []string{inclRegion, exclRegion}
 	now := time.Now()

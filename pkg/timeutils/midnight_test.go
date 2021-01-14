@@ -24,6 +24,8 @@ import (
 )
 
 func TestLocalMidnight(t *testing.T) {
+	t.Parallel()
+
 	day := time.Date(2020, 10, 31, 4, 15, 0, 0, time.Local)
 	want := time.Date(2020, 10, 31, 0, 0, 0, 0, time.Local)
 	got := LocalMidnight(day)
@@ -38,6 +40,8 @@ func TestLocalMidnight(t *testing.T) {
 }
 
 func TestUTCMidnight(t *testing.T) {
+	t.Parallel()
+
 	day := time.Date(2020, 10, 31, 4, 15, 0, 0, time.Local)
 	want := time.Date(2020, 10, 31, 0, 0, 0, 0, time.UTC)
 	got := UTCMidnight(day)

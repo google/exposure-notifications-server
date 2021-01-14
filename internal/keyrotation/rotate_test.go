@@ -33,6 +33,7 @@ import (
 
 func TestRotateKeys(t *testing.T) {
 	t.Parallel()
+
 	ctx := context.Background()
 
 	kms := keys.TestKeyManager(t)

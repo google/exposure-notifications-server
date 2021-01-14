@@ -22,6 +22,8 @@ import (
 )
 
 func TestRenderSignatureInfo(t *testing.T) {
+	t.Parallel()
+
 	m := TemplateMap{}
 	sigInfo := &model.SignatureInfo{}
 	m["siginfo"] = sigInfo

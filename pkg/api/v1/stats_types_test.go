@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,27 +14,15 @@
 
 package v1
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
-func TestValidateClaims(t *testing.T) {
-	t.Parallel()
-
-	c := NewVerificationClaims()
-	c.ReportType = "bogus"
-
-	if err := c.CustomClaimsValid(); err == nil {
-		t.Fatal("expected an error, got nil")
-	} else if !strings.Contains(err.Error(), "bogus") {
-		t.Fatalf("wanted an error that contained bogus, got: %v", err)
+func TestTotal(t *testing.T) {
+	p := &PublishRequests{
+		UnknownPlatform: 6,
+		Android:         22,
+		IOS:             45,
 	}
-
-	for k := range ValidReportTypes {
-		c.ReportType = k
-		if err := c.CustomClaimsValid(); err != nil {
-			t.Errorf("got error when using valid report type: %q, err: %v", k, err)
-		}
+	if want, got := int64(73), p.Total(); want != got {
+		t.Fatalf("addition not working, want: %v got: %v", want, got)
 	}
 }

@@ -56,7 +56,11 @@ func TestPlatform(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			if got := platform(tc.userAgent); got != tc.wantPlatform {
 				t.Fatalf("wrong platform, want: %q got: %q", tc.wantPlatform, got)
 			}

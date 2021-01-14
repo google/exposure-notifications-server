@@ -278,7 +278,7 @@ func Seed(tb testing.TB, ctx context.Context, db *database.DB, exportPeriod time
 		Version: "v1",
 		From:    time.Now().Add(-1 * time.Minute),
 	}
-	haID := testutil.InitalizeVerificationDB(ctx, tb, db, ha, haKey, sk)
+	haID := testutil.InitializeVerificationDB(ctx, tb, db, ha, haKey, sk)
 	jwtCfg := &testutil.JWTConfig{
 		HealthAuthority:    ha,
 		HealthAuthorityKey: haKey,

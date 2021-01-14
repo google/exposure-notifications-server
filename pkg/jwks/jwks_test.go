@@ -65,6 +65,7 @@ func encodePublic(keys ...string) []string {
 // as well. It might behoove future engineers to break this up into multiple
 // tests.
 func TestUpdateHA(t *testing.T) {
+	t.Parallel()
 	//
 	// Constants for testing.
 	//
@@ -121,7 +122,7 @@ func TestUpdateHA(t *testing.T) {
 	// Run the tests.
 	//
 	// Again, each test tests individual pieces of the service, and then an
-	// "end-to-end" test is runn where the DB is validated.
+	// "end-to-end" test is run where the DB is validated.
 	for i, test := range tests {
 		test := test
 
@@ -234,6 +235,7 @@ func TestUpdateHA(t *testing.T) {
 
 func TestStrip(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		k1, k2 string
 	}{

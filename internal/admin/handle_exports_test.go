@@ -23,6 +23,8 @@ import (
 )
 
 func TestRenderExports(t *testing.T) {
+	t.Parallel()
+
 	m := TemplateMap{}
 	exportConfig := &model.ExportConfig{}
 	m["export"] = exportConfig
@@ -47,6 +49,8 @@ func TestRenderExports(t *testing.T) {
 }
 
 func TestSplitRegions(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		r string
 		e []string
