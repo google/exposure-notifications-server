@@ -49,7 +49,11 @@ func TestSetJWKS(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			ha := &HealthAuthority{}
 			ha.SetJWKS(tc.input)
 			if diff := cmp.Diff(tc.want, ha.JwksURI); diff != "" {
@@ -93,7 +97,11 @@ func TestIsValid(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			hak := HealthAuthorityKey{
 				From: tc.from,
 				Thru: tc.thru,
@@ -141,7 +149,11 @@ NTG3+oqI0Q6a3kPOuAAAupr373j7O1YXrM2KAix966EPwTNlK7YCcJa0m6PKz9DT
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			hak := HealthAuthorityKey{
 				PublicKeyPEM: tc.pemBlock,
 			}

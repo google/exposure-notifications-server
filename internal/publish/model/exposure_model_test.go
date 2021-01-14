@@ -334,7 +334,11 @@ func TestPublishValidation(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		c := c
+
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 			tf, err := NewTransformer(&testConfig{
 				maxExposureKeys:     2,
@@ -419,7 +423,11 @@ func TestStillValidKey(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			allowedAge := 2 * 24 * time.Hour
 			transformer, err := NewTransformer(&testConfig{
 				maxExposureKeys:     10,
@@ -468,7 +476,11 @@ func TestReportTypeToTransmissionRisk(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := ReportTypeTransmissionRisk(tc.report, tc.inTR)
 			if tc.wantTR != got {
 				t.Fatalf("wrong output transmission risk, want: %v got %v", tc.wantTR, got)
@@ -1011,7 +1023,11 @@ func TestTransform(t *testing.T) {
 	ctx := context.Background()
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
 			result, err := transformer.TransformPublish(ctx, tc.Publish, tc.Regions, tc.Claims, batchTime)
 			if err != nil && tc.PartialError == "" {
 				t.Fatalf("TransformPublish returned unexpected error: %v", err)
@@ -1096,7 +1112,11 @@ func TestDefaultSymptomOnset(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			allowedAge := 6 * 24 * time.Hour
 			transformer, err := NewTransformer(&testConfig{
 				maxExposureKeys:         10,
@@ -1267,7 +1287,11 @@ func TestTransformOverlapping(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 			transformer, err := NewTransformer(&testConfig{
 				maxExposureKeys:     10,
@@ -1411,7 +1435,11 @@ func TestDaysFromSymptomOnset(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := DaysBetweenIntervals(tc.onset, tc.check)
 			if tc.want != got {
 				t.Fatalf("wrong day instance between %v and %v, got: %v want: %v", tc.onset, tc.check, got, tc.want)
@@ -1487,7 +1515,11 @@ func TestReviseKeys_FromFederation(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 			existing := make(map[string]*Exposure)
 			existing[tc.existing.ExposureKeyBase64()] = tc.existing
@@ -1791,7 +1823,11 @@ func TestExposureReview(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			result, err := tc.previous.Revise(tc.incoming)
 			if result != tc.needsRevision {
 				t.Errorf("revision decision mismatch: want: %v got: %v", tc.needsRevision, result)
@@ -2058,7 +2094,11 @@ func TestExposureFromExportFile(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			thisConfig := config
 			if tc.modifyConfig != nil {
 				thisConfig = tc.modifyConfig(config)

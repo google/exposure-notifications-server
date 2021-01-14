@@ -285,7 +285,11 @@ func TestRetrieveMetrics_AuthErrors(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
 			// make the stats request with auth token.
 			request := &verifyapi.StatsRequest{}
 			jsonString, err := json.Marshal(request)

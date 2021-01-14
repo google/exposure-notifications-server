@@ -44,7 +44,11 @@ func TestSubtractDays(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := SubtractDays(day, tc.days)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Fatalf("mismatch (-want, +got):\n%s", diff)

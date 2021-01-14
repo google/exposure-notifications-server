@@ -479,11 +479,15 @@ func TestPublishWithBypass(t *testing.T) {
 		}
 
 		for _, tc := range cases {
+			tc := tc
+
 			if tc.SkipVersions[ver] {
 				continue
 			}
 
 			t.Run(addVer+tc.Name, func(t *testing.T) {
+				t.Parallel()
+
 				// And set up publish handler up front.
 				config := Config{}
 				config.AuthorizedApp.CacheDuration = time.Nanosecond
@@ -1085,7 +1089,10 @@ func TestKeyRevision(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
 			ctx = context.Background()
 
 			revisionToken := ""

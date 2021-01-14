@@ -196,6 +196,8 @@ func TestSyncFilenameShapes(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			config := tc.config
 			if err := exportImportDB.AddConfig(ctx, config); err != nil {
 				t.Fatal(err)
@@ -261,6 +263,8 @@ func TestSyncFileFromIndex(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			config := &model.ExportImport{
 				IndexFile:  "https://mysever/exports/index.txt",
 				ExportRoot: tc.exportRoot,

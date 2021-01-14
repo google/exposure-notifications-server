@@ -63,7 +63,11 @@ func TestMetrics(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		c := c
+
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
 			var got []string
 			hook := func(e zapcore.Entry) error {
 				got = append(got, e.Message)
