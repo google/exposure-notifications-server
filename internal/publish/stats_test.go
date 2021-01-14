@@ -247,8 +247,6 @@ func TestRetrieveMetrics_AuthErrors(t *testing.T) {
 		t.Fatalf("unable to create publish handler: %v", err)
 	}
 	metricsHandler := pubHandler.HandleStats()
-	server := httptest.NewServer(metricsHandler)
-	defer server.Close()
 
 	// get the authentication token.
 	jwtConfig := &testutil.StatsJWTConfig{
@@ -289,6 +287,9 @@ func TestRetrieveMetrics_AuthErrors(t *testing.T) {
 
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
+
+			server := httptest.NewServer(metricsHandler)
+			defer server.Close()
 
 			// make the stats request with auth token.
 			request := &verifyapi.StatsRequest{}

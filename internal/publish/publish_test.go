@@ -457,27 +457,6 @@ func TestPublishWithBypass(t *testing.T) {
 			addVer = "v1Alpha1_"
 		}
 
-		ctx := context.Background()
-
-		// Database init for all modules that will be used.
-		testDB, _ := testDatabaseInstance.NewDatabase(t)
-
-		kms := keys.TestKeyManager(t)
-		keyID := keys.TestEncryptionKey(t, kms)
-
-		tokenAAD := make([]byte, 16)
-		if _, err := rand.Read(tokenAAD); err != nil {
-			t.Fatalf("not enough entropy: %v", err)
-		}
-		// Configure revision keys.
-		revDB, err := revisiondb.New(testDB, &revisiondb.KMSConfig{WrapperKeyID: keyID, KeyManager: kms})
-		if err != nil {
-			t.Fatalf("unable to create revision DB handle: %v", err)
-		}
-		if _, err := revDB.CreateRevisionKey(ctx); err != nil {
-			t.Fatalf("unable to create revision key: %v", err)
-		}
-
 		for _, tc := range cases {
 			tc := tc
 
@@ -487,6 +466,27 @@ func TestPublishWithBypass(t *testing.T) {
 
 			t.Run(addVer+tc.Name, func(t *testing.T) {
 				t.Parallel()
+
+				ctx := context.Background()
+
+				// Database init for all modules that will be used.
+				testDB, _ := testDatabaseInstance.NewDatabase(t)
+
+				kms := keys.TestKeyManager(t)
+				keyID := keys.TestEncryptionKey(t, kms)
+
+				tokenAAD := make([]byte, 16)
+				if _, err := rand.Read(tokenAAD); err != nil {
+					t.Fatalf("not enough entropy: %v", err)
+				}
+				// Configure revision keys.
+				revDB, err := revisiondb.New(testDB, &revisiondb.KMSConfig{WrapperKeyID: keyID, KeyManager: kms})
+				if err != nil {
+					t.Fatalf("unable to create revision DB handle: %v", err)
+				}
+				if _, err := revDB.CreateRevisionKey(ctx); err != nil {
+					t.Fatalf("unable to create revision key: %v", err)
+				}
 
 				// And set up publish handler up front.
 				config := Config{}
