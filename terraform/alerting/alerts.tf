@@ -12,62 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-locals {
-  p50_latency_thresholds = {
-    export         = "10min"
-    cleanup-export = "10min"
-    generate       = "2min"
-  }
-  p50_latency_thresholds_default = "10s"
-
-  p50_latency_condition = join("\n  || ", concat(
-    [
-      for k, v in local.p50_latency_thresholds :
-      "(resource.service_name == '${k}' && val > ${replace(v, "/(\\d+)(.*)/", "$1 '$2'")})"
-    ],
-    [
-      "(val > ${replace(local.p50_latency_thresholds_default, "/(\\d+)(.*)/", "$1 '$2'")})"
-    ]
-  ))
-}
 
 locals {
   playbook_prefix = "https://github.com/google/exposure-notifications-server/blob/main/docs/playbooks/alerts"
-}
-
-
-resource "google_monitoring_alert_policy" "LatencyTooHigh" {
-  combiner     = "OR"
-  display_name = "LatencyTooHigh"
-  conditions {
-    display_name = "p50 request latency"
-    condition_monitoring_query_language {
-      duration = "180s"
-      # NOTE: this is a bit complex because we want to have a single latency
-      # alert (not two alerts one for slow and one for normal), and we can only
-      # have one mql query in a conditions block.
-      query = <<-EOT
-      fetch
-      cloud_run_revision :: run.googleapis.com/request_latencies
-      | align delta(1m)
-      | every 1m
-      | group_by [resource.service_name],
-      [val: percentile(value.request_latencies, 50)]
-      | condition ${local.p50_latency_condition}
-      EOT
-      trigger {
-        count = 1
-      }
-    }
-  }
-  documentation {
-    content   = "${local.playbook_prefix}/LatencyTooHigh.md"
-    mime_type = "text/markdown"
-  }
-  notification_channels = [for x in values(google_monitoring_notification_channel.channels) : x.id]
-  depends_on = [
-    google_monitoring_notification_channel.channels
-  ]
 }
 
 resource "google_monitoring_alert_policy" "CloudSchedulerJobFailed" {
