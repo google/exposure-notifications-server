@@ -16,10 +16,12 @@ package jsonutil
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +29,21 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 )
+
+func TestBodyTooLarge(t *testing.T) {
+	input := make(map[string]string, 1)
+	input["padding"] = strings.Repeat("0", maxBodyBytes+10)
+
+	largeJSON, err := json.Marshal(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	errors := []string{
+		`http: request body too large`,
+	}
+	unmarshalTestHelper(t, []string{string(largeJSON)}, errors, http.StatusRequestEntityTooLarge)
+}
 
 func TestInvalidHeader(t *testing.T) {
 	body := ioutil.NopCloser(bytes.NewReader([]byte("")))

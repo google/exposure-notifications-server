@@ -17,7 +17,6 @@ package keys
 import (
 	"context"
 	"crypto"
-	"crypto/ecdsa"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -411,15 +410,5 @@ func (s *HashiCorpVaultSigner) getPublicKey() (crypto.PublicKey, error) {
 		return nil, fmt.Errorf("invalid public_key type %T", publicKeyPEMRaw)
 	}
 
-	publicKey, err := parsePublicKeyPEM(publicKeyPEM)
-	if err != nil {
-		return nil, err
-	}
-
-	typed, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return nil, fmt.Errorf("invalid public key type: %T", publicKey)
-	}
-
-	return typed, nil
+	return ParseECDSAPublicKey(publicKeyPEM)
 }

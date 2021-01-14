@@ -20,6 +20,9 @@ import (
 	"time"
 )
 
+// ExportImport reqpresnts the configuration of a set of export files
+// to be imported into this server, by pointing at the index file
+// and remote root directory.
 type ExportImport struct {
 	ID         int64
 	IndexFile  string
@@ -29,6 +32,8 @@ type ExportImport struct {
 	Thru       *time.Time
 }
 
+// Validate checks the contents of an ExportImport file. This is a utility
+// function for the admin console.
 func (ei *ExportImport) Validate() error {
 	if l := len(ei.Region); l == 0 {
 		return fmt.Errorf("region cannot be blank")
@@ -46,6 +51,8 @@ func (ei *ExportImport) Validate() error {
 	return nil
 }
 
+// Active returns if the ExportImport configuration is currently
+// active based on From and Thru times.
 func (ei *ExportImport) Active() bool {
 	now := time.Now().UTC()
 	return ei.From.Before(now) && (ei.Thru == nil || now.Before(*ei.Thru))

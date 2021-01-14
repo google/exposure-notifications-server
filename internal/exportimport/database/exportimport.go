@@ -26,6 +26,7 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+// ExportImportDB contains databse methods for managing with export-import configs.
 type ExportImportDB struct {
 	db *database.DB
 }
@@ -62,6 +63,8 @@ func (db *ExportImportDB) GetConfig(ctx context.Context, id int64) (*model.Expor
 	return config, nil
 }
 
+// ListConfigs lists all configs (active and inactive). This is a utility method for the
+// admin console.
 func (db *ExportImportDB) ListConfigs(ctx context.Context) ([]*model.ExportImport, error) {
 	var configs []*model.ExportImport
 
@@ -71,7 +74,7 @@ func (db *ExportImportDB) ListConfigs(ctx context.Context) ([]*model.ExportImpor
 				id, index_file, export_root, region, from_timestamp, thru_timestamp
 			FROM
 				exportimport
-			ORDER BY id DESC
+			ORDER BY id ASC
 		`)
 		if err != nil {
 			return fmt.Errorf("failed to list: %w", err)
@@ -97,6 +100,7 @@ func (db *ExportImportDB) ListConfigs(ctx context.Context) ([]*model.ExportImpor
 	return configs, nil
 }
 
+// ActiveConfigs returns the active export import configurations.
 func (db *ExportImportDB) ActiveConfigs(ctx context.Context) ([]*model.ExportImport, error) {
 	var configs []*model.ExportImport
 
@@ -110,7 +114,7 @@ func (db *ExportImportDB) ActiveConfigs(ctx context.Context) ([]*model.ExportImp
 				from_timestamp <= $1
 			AND
 				(thru_timestamp IS NULL OR thru_timestamp >= $1)
-			ORDER BY id DESC
+			ORDER BY id ASC
 		`, time.Now().UTC())
 		if err != nil {
 			return fmt.Errorf("failed to list: %w", err)
@@ -152,6 +156,7 @@ func scanOneConfig(row pgx.Row) (*model.ExportImport, error) {
 	return &m, nil
 }
 
+// AddConfig saves a new ExportImport configuration.
 func (db *ExportImportDB) AddConfig(ctx context.Context, ei *model.ExportImport) error {
 	if err := ei.Validate(); err != nil {
 		return err

@@ -18,10 +18,8 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
-	"crypto/x509"
 	"encoding/asn1"
 	"encoding/base64"
-	"encoding/pem"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -29,6 +27,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/sethvargo/go-signalcontext"
 )
@@ -83,16 +82,7 @@ func realMain(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
 	// Validate the signature
-	block, _ := pem.Decode(pemBytes)
-	if block == nil || block.Type != "PUBLIC KEY" {
-		return fmt.Errorf("unable to decode PEM block containing PUBLIC KEY")
-	}
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return fmt.Errorf("unable to decode public key, x509.ParsePKIXPublicKey: %w", err)
-	}
-
-	publicKey, err := publicKeyAsECDSA(pub)
+	publicKey, err := keys.ParseECDSAPublicKey(string(pemBytes))
 	if err != nil {
 		return err
 	}
@@ -125,13 +115,4 @@ func convert1363ToAsn1(b []byte) ([]byte, error) {
 	}
 
 	return asn1.Marshal(rs)
-}
-
-func publicKeyAsECDSA(pub interface{}) (*ecdsa.PublicKey, error) {
-	switch typ := pub.(type) {
-	case *ecdsa.PublicKey:
-		return pub.(*ecdsa.PublicKey), nil
-	default:
-		return nil, fmt.Errorf("unsupported public key type: %T", typ)
-	}
 }
