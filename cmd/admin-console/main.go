@@ -20,8 +20,8 @@ import (
 	"fmt"
 
 	"github.com/google/exposure-notifications-server/internal/admin"
+	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/setup"
-	"github.com/google/exposure-notifications-server/pkg/buildinfo"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/sethvargo/go-signalcontext"
@@ -30,9 +30,11 @@ import (
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
 
+	build := buildinfo.KeyServer{}
+
 	logger := logging.NewLoggerFromEnv().
-		With("build_id", buildinfo.BuildID).
-		With("build_tag", buildinfo.BuildTag)
+		With("build_id", build.ID()).
+		With("build_tag", build.Tag())
 	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)

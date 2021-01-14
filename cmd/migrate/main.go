@@ -23,9 +23,9 @@ import (
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/setup"
-	"github.com/google/exposure-notifications-server/pkg/buildinfo"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/sethvargo/go-signalcontext"
 )
@@ -39,9 +39,11 @@ func main() {
 
 	ctx, done := signalcontext.OnInterrupt()
 
+	build := buildinfo.KeyServer{}
+
 	logger := logging.NewLoggerFromEnv().
-		With("build_id", buildinfo.BuildID).
-		With("build_tag", buildinfo.BuildTag)
+		With("build_id", build.ID()).
+		With("build_tag", build.Tag())
 	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)

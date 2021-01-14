@@ -30,7 +30,6 @@ options:
 
 substitutions:
   _REPO: 'github.com/google/exposure-notifications-server'
-  _BUILDINFO: 'github.com/google/exposure-notifications-server/pkg/buildinfo'
   _TAG:
 
 steps:
@@ -71,8 +70,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - &add-buildinfo
-    '-ldflags=-s -w -X=${_BUILDINFO}.BuildID=${BUILD_ID} -X=${_BUILDINFO}.BuildTag=${_TAG} -extldflags=-static'
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/admin-console'
   - './cmd/admin-console'
   waitFor:
@@ -98,7 +96,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/cleanup-export'
   - './cmd/cleanup-export'
   waitFor:
@@ -124,7 +122,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/cleanup-exposure'
   - './cmd/cleanup-exposure'
   waitFor:
@@ -150,7 +148,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/debugger'
   - './cmd/debugger'
   waitFor:
@@ -176,7 +174,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/export'
   - './cmd/export'
   waitFor:
@@ -202,7 +200,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/export-importer'
   - './cmd/export-importer'
   waitFor:
@@ -228,7 +226,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/exposure'
   - './cmd/exposure'
   waitFor:
@@ -254,7 +252,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/federationin'
   - './cmd/federationin'
   waitFor:
@@ -280,7 +278,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/federationout'
   - './cmd/federationout'
   waitFor:
@@ -306,7 +304,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/generate'
   - './cmd/generate'
   waitFor:
@@ -332,7 +330,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/key-rotation'
   - './cmd/key-rotation'
   waitFor:
@@ -358,7 +356,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/migrate'
   - './cmd/migrate'
   waitFor:
@@ -383,7 +381,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/mirror'
   - './cmd/mirror'
   waitFor:
@@ -409,7 +407,7 @@ steps:
   - 'go'
   - 'build'
   - '-trimpath'
-  - *add-buildinfo
+  - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.id=${BUILD_ID} -X=${_REPO}/internal/buildinfo.tag=${_TAG} -extldflags=-static'
   - '-o=./bin/jwks'
   - './cmd/jwks-updater'
   waitFor:
