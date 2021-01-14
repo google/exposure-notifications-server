@@ -124,4 +124,7 @@ resource "google_compute_security_policy" "cloud-armor" {
     preview  = false
     priority = 2147483647
   }
+  depends_on = [
+    google_project_service.services["compute.googleapis.com"],
+  ]
 }
