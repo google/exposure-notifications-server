@@ -198,3 +198,136 @@ func TestRetrieveMetrics(t *testing.T) {
 		t.Errorf("response is missing padding")
 	}
 }
+
+func TestRetrieveMetrics_AuthErrors(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	authKey := testutil.GetSigningKey(t)
+	kms := keys.TestKeyManager(t)
+	keyID := keys.TestEncryptionKey(t, kms)
+
+	tokenAAD := make([]byte, 16)
+	if _, err := rand.Read(tokenAAD); err != nil {
+		t.Fatalf("not enough entropy: %v", err)
+	}
+
+	// load default config to ensure that what we need is there.
+	var config Config
+	if err := envconfig.Process(ctx, &config); err != nil {
+		t.Fatal(err)
+	}
+	aaProvider, err := authorizedapp.NewDatabaseProvider(ctx, testDB, config.AuthorizedAppConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.RevisionToken.AAD = tokenAAD
+	config.RevisionToken.KeyID = keyID
+	env := serverenv.New(ctx,
+		serverenv.WithDatabase(testDB),
+		serverenv.WithAuthorizedAppProvider(aaProvider),
+		serverenv.WithKeyManager(kms))
+
+	// Create a health authority with a public key.
+	healthAuthority := &vermodel.HealthAuthority{
+		Issuer:         "health-authority",
+		Audience:       "n/a",
+		Name:           "health-authority",
+		EnableStatsAPI: true,
+	}
+	healthAuthorityKey := &vermodel.HealthAuthorityKey{
+		Version: "v1",
+		From:    time.Now().Add(-1 * time.Minute),
+	}
+	_ = testutil.InitalizeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, authKey)
+
+	pubHandler, err := NewHandler(ctx, &config, env)
+	if err != nil {
+		t.Fatalf("unable to create publish handler: %v", err)
+	}
+	metricsHandler := pubHandler.HandleStats()
+	server := httptest.NewServer(metricsHandler)
+	defer server.Close()
+
+	// get the authentication token.
+	jwtConfig := &testutil.StatsJWTConfig{
+		HealthAuthority:    healthAuthority,
+		HealthAuthorityKey: healthAuthorityKey,
+		Key:                authKey.Key,
+		Audience:           config.Verification.StatsAudience + "WRONG",
+	}
+	token := jwtConfig.IssueStatsJWT(t)
+
+	cases := []struct {
+		Name          string
+		Authorization string
+		ErrorMessage  string
+		ErrorCode     string
+	}{
+		{
+			Name:          "bad_token",
+			Authorization: fmt.Sprintf("Bearer %s", token),
+			ErrorMessage:  "unauthorized, audience mismatch",
+			ErrorCode:     "unauthorized",
+		},
+		{
+			Name:          "not_bearer",
+			Authorization: "LET ME IN",
+			ErrorMessage:  "Authorization header is not in `Bearer <token>` format",
+			ErrorCode:     "unauthorized",
+		},
+		{
+			Name:         "missing_auth_header",
+			ErrorMessage: "Authorization header is not in `Bearer <token>` format",
+			ErrorCode:    "unauthorized",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			// make the stats request with auth token.
+			request := &verifyapi.StatsRequest{}
+			jsonString, err := json.Marshal(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			httpRequest, err := http.NewRequest("POST", server.URL, strings.NewReader(string(jsonString)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			httpRequest.Header.Set("Content-Type", "application/json")
+			if tc.Authorization != "" {
+				httpRequest.Header.Set("Authorization", tc.Authorization)
+			}
+			resp, err := server.Client().Do(httpRequest)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			defer resp.Body.Close()
+			respBytes, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var got verifyapi.StatsResponse
+			if err := json.Unmarshal(respBytes, &got); err != nil {
+				t.Fatalf("unable to unmarshal response body: %v; data: %v", err, string(respBytes))
+			}
+
+			want := verifyapi.StatsResponse{
+				ErrorMessage: tc.ErrorMessage,
+				ErrorCode:    tc.ErrorCode,
+			}
+
+			ignorePadding := cmpopts.IgnoreFields(verifyapi.StatsResponse{}, "Padding")
+			if diff := cmp.Diff(want, got, ignorePadding); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
+			}
+			if got.Padding == "" {
+				t.Errorf("response is missing padding")
+			}
+		})
+	}
+}
