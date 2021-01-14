@@ -25,6 +25,8 @@ const (
 	ImportFileFailed   = "FAILED"
 )
 
+// ImportFile represents an individual export file that is scheduled for,
+// or has been attempted or imported into the system.
 type ImportFile struct {
 	ID             int64
 	ExportImportID int64

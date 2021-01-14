@@ -16,13 +16,15 @@ package model
 
 import (
 	"crypto/ecdsa"
-	"crypto/x509"
-	"encoding/pem"
-	"errors"
-	"fmt"
 	"time"
+
+	"github.com/google/exposure-notifications-server/pkg/keys"
 )
 
+// ImportFilePublicKey represents a possible signing key
+// for export files being imported into this system.
+// A given ExportImportID can have more than one associated key,
+// and more than one that is currently valid.
 type ImportFilePublicKey struct {
 	ExportImportID int64
 	KeyID          string
@@ -33,19 +35,5 @@ type ImportFilePublicKey struct {
 }
 
 func (pk *ImportFilePublicKey) PublicKey() (*ecdsa.PublicKey, error) {
-	block, _ := pem.Decode([]byte(pk.PublicKeyPEM))
-	if block == nil {
-		return nil, errors.New("unable to decode PEM block containing PUBLIC KEY")
-	}
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("x509.ParsePKIXPublicKey: %w", err)
-	}
-
-	switch typ := pub.(type) {
-	case *ecdsa.PublicKey:
-		return typ, nil
-	default:
-		return nil, fmt.Errorf("unsupported public key type: %T", typ)
-	}
+	return keys.ParseECDSAPublicKey(pk.PublicKeyPEM)
 }

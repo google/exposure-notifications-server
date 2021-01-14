@@ -40,10 +40,17 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 	fromTime := time.Now().UTC().Add(-1 * time.Second)
 	want := []*model.ExportImport{
 		{
-			IndexFile:  "https://mysever/exports/index.txt",
+			IndexFile:  "https://myserver/exports/index.txt",
 			ExportRoot: "https://myserver/",
 			Region:     "US",
 			From:       fromTime,
+			Thru:       nil,
+		},
+		{
+			IndexFile:  "https://myserver2/exports/index.txt",
+			ExportRoot: "https://myserver2/",
+			Region:     "US",
+			From:       fromTime.Add(time.Hour),
 			Thru:       nil,
 		},
 	}
@@ -53,13 +60,59 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 		}
 	}
 
-	got, err := exportImportDB.ActiveConfigs(ctx)
-	if err != nil {
-		t.Fatal(err)
+	// list active configs
+	{
+		got, err := exportImportDB.ActiveConfigs(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if diff := cmp.Diff(want[0:1], got, database.ApproxTime); diff != "" {
+			t.Errorf("mismatch (-want, +got):\n%s", diff)
+		}
 	}
 
-	if diff := cmp.Diff(want, got, database.ApproxTime); diff != "" {
-		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	// retrieve config by ID.
+	{
+		for i := range want {
+			got, err := exportImportDB.GetConfig(ctx, want[i].ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(want[i], got, database.ApproxTime); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
+			}
+		}
+	}
+
+	// list all configs
+	{
+		got, err := exportImportDB.ListConfigs(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if diff := cmp.Diff(want, got, database.ApproxTime); diff != "" {
+			t.Errorf("mismatch (-want, +got):\n%s", diff)
+		}
+	}
+
+	// Change time one second config
+	want[1].From = fromTime
+	if err := exportImportDB.UpdateConfig(ctx, want[1]); err != nil {
+		t.Fatalf("failed to update config: %v", err)
+	}
+
+	// list active configs, all are active now.
+	{
+		got, err := exportImportDB.ActiveConfigs(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if diff := cmp.Diff(want, got, database.ApproxTime); diff != "" {
+			t.Errorf("mismatch (-want, +got):\n%s", diff)
+		}
 	}
 }
 

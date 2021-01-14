@@ -16,10 +16,12 @@ package jsonutil
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,7 +30,24 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestBodyTooLarge(t *testing.T) {
+	t.Parallel()
+	input := make(map[string]string, 1)
+	input["padding"] = strings.Repeat("0", maxBodyBytes+10)
+
+	largeJSON, err := json.Marshal(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	errors := []string{
+		`http: request body too large`,
+	}
+	unmarshalTestHelper(t, []string{string(largeJSON)}, errors, http.StatusRequestEntityTooLarge)
+}
+
 func TestInvalidHeader(t *testing.T) {
+	t.Parallel()
 	body := ioutil.NopCloser(bytes.NewReader([]byte("")))
 	r := httptest.NewRequest("POST", "/", body)
 	r.Header.Set("content-type", "application/text")
@@ -49,6 +68,7 @@ func TestInvalidHeader(t *testing.T) {
 }
 
 func TestEmptyBody(t *testing.T) {
+	t.Parallel()
 	invalidJSON := []string{
 		``,
 	}
@@ -58,6 +78,7 @@ func TestEmptyBody(t *testing.T) {
 	unmarshalTestHelper(t, invalidJSON, errors, http.StatusBadRequest)
 }
 func TestMultipleJson(t *testing.T) {
+	t.Parallel()
 	invalidJSON := []string{
 		`{"temporaryExposureKeys":
 			[{"key": "ABC"},
@@ -79,6 +100,7 @@ func TestMultipleJson(t *testing.T) {
 }
 
 func TestInvalidJSON(t *testing.T) {
+	t.Parallel()
 	invalidJSON := []string{
 		`totally not json`,
 		`{"key": "value", badKey: 6`,
@@ -93,6 +115,7 @@ func TestInvalidJSON(t *testing.T) {
 }
 
 func TestInvalidStructure(t *testing.T) {
+	t.Parallel()
 	invalidJSON := []string{
 		`{"temporaryExposureKeys": 42}`,
 		`{"temporaryExposureKeys": ["41", 42]}`,
@@ -111,6 +134,7 @@ func TestInvalidStructure(t *testing.T) {
 }
 
 func TestValidPublishMessage(t *testing.T) {
+	t.Parallel()
 	intervalNumber := int32(time.Date(2020, 04, 17, 20, 04, 01, 1, time.UTC).Unix() / 600)
 	json := `{"temporaryExposureKeys": [
 		  {"key": "ABC", "rollingStartNumber": %v, "rollingPeriod": 144, "TransmissionRisk": 2},
