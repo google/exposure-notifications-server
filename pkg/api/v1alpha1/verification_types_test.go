@@ -21,6 +21,17 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestNewVerificationClaims(t *testing.T) {
+	got := NewVerificationClaims()
+	want := &VerificationClaims{
+		TransmissionRisks: []TransmissionRiskOverride{},
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("mismatch (-want +got):\n%v", diff)
+	}
+}
+
 func TestTransmissionRiskVectorSort(t *testing.T) {
 	got := TransmissionRiskVector{
 		{0, 0},
