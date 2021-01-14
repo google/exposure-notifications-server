@@ -770,11 +770,11 @@ func TestPublishWithBypass(t *testing.T) {
 	}
 }
 
-type RevisionTokenChanger func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string
+type RevisionTokenChanger func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) (string, error)
 
-func TokenIdentity(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
+func TokenIdentity(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) (string, error) {
 	t.Helper()
-	return token
+	return token, nil
 }
 
 type PublishDataChanger func(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish)
@@ -918,8 +918,8 @@ func TestKeyRevision(t *testing.T) {
 				VerificationPayload: "totally not a JWT",
 			},
 			RevErrorCode: verifyapi.ErrorMissingRevisionToken,
-			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
-				return ""
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) (string, error) {
+				return "", nil
 			},
 			PublishMesser:    PublishIdentity,
 			ReportTypeMesser: ReportTypeIdentity,
@@ -994,14 +994,14 @@ func TestKeyRevision(t *testing.T) {
 				VerificationPayload: "totally not a JWT",
 			},
 			RevErrorCode: verifyapi.ErrorInvalidRevisionToken,
-			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) (string, error) {
 				tokenBytes, err := base64util.DecodeString(token)
 				if err != nil {
-					return ""
+					return "", err
 				}
 				revToken, err := tm.UnmarshalRevisionToken(ctx, tokenBytes, aad)
 				if err != nil {
-					return ""
+					return "", err
 				}
 				// Gotta throw some new keys in, or we can't mint a new revision token.
 				newKeys := []*model.Exposure{
@@ -1014,9 +1014,9 @@ func TestKeyRevision(t *testing.T) {
 				revToken.RevisableKeys = revToken.RevisableKeys[0:1]
 				tokenBytes, err = tm.MakeRevisionToken(ctx, revToken, newKeys, aad)
 				if err != nil {
-					return ""
+					return "", err
 				}
-				return base64.StdEncoding.EncodeToString(tokenBytes)
+				return base64.StdEncoding.EncodeToString(tokenBytes), nil
 			},
 			PublishMesser:    PublishIdentity,
 			ReportTypeMesser: ReportTypeIdentity,
@@ -1029,7 +1029,7 @@ func TestKeyRevision(t *testing.T) {
 				HealthAuthorityID:   haName,
 				VerificationPayload: "totally not a JWT",
 			},
-			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) (string, error) {
 				// This function doesn't change the revision token, but it does
 				// rotate the keys so that this token is effectively useless.
 				t.Helper()
@@ -1048,8 +1048,7 @@ func TestKeyRevision(t *testing.T) {
 						}
 					}
 				}
-
-				return token
+				return token, nil
 			},
 			PublishMesser: func(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish) {
 				t.Helper()
@@ -1140,7 +1139,9 @@ func TestKeyRevision(t *testing.T) {
 			var keysAreRevisions bool
 			// Make the revision.
 			{
-				revisionToken = tc.RevTokenMesser(ctx, t, revisionToken, tm, tokenAAD)
+				if revisionToken, err = tc.RevTokenMesser(ctx, t, revisionToken, tm, tokenAAD); err != nil {
+					t.Fatal(err)
+				}
 				// Add the revision token to publish request.
 				tc.Publish.RevisionToken = revisionToken
 
