@@ -464,8 +464,6 @@ func TestPublishWithBypass(t *testing.T) {
 			}
 
 			t.Run(addVer+tc.Name, func(t *testing.T) {
-				t.Parallel()
-
 				ctx := context.Background()
 
 				// Database init for all modules that will be used.
@@ -1084,7 +1082,6 @@ func TestKeyRevision(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.Name, func(t *testing.T) {
-			t.Parallel()
 			ctx = context.Background()
 
 			revisionToken := ""
