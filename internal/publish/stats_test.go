@@ -83,7 +83,7 @@ func TestRetrieveMetrics(t *testing.T) {
 		Version: "v1",
 		From:    time.Now().Add(-1 * time.Minute),
 	}
-	healthAuthorityID := testutil.InitalizeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, authKey)
+	healthAuthorityID := testutil.InitializeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, authKey)
 
 	// Add some raw publish info metrics.
 	rawStats := []model.PublishInfo{
@@ -240,7 +240,7 @@ func TestRetrieveMetrics_AuthErrors(t *testing.T) {
 		Version: "v1",
 		From:    time.Now().Add(-1 * time.Minute),
 	}
-	_ = testutil.InitalizeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, authKey)
+	_ = testutil.InitializeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, authKey)
 
 	pubHandler, err := NewHandler(ctx, &config, env)
 	if err != nil {

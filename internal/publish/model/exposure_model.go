@@ -462,7 +462,7 @@ type KeyTransform struct {
 // * exposure keys are exactly 16 bytes in length after base64 decoding
 // * minInterval <= interval number +intervalCount <= maxInterval
 // * MinIntervalCount <= interval count <= MaxIntervalCount
-func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName string, upcaseRegions []string, settings *KeyTransform) (*Exposure, error) {
+func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName string, uppercaseRegions []string, settings *KeyTransform) (*Exposure, error) {
 	binKey, err := base64util.DecodeString(exposureKey.Key)
 	if err != nil {
 		return nil, err
@@ -472,7 +472,7 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 		ExposureKey:      binKey,
 		TransmissionRisk: exposureKey.TransmissionRisk,
 		AppPackageName:   appPackageName,
-		Regions:          upcaseRegions,
+		Regions:          uppercaseRegions,
 		IntervalNumber:   exposureKey.IntervalNumber,
 		IntervalCount:    exposureKey.IntervalCount,
 		CreatedAt:        settings.CreatedAt,
@@ -622,7 +622,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	// days ago to approximate symptom onset.
 	//
 	// There are launched applications using this sever that rely on this
-	// behavior - that are passing invalid symotom onset interviews, those
+	// behavior - that are passing invalid symptom onset interviews, those
 	// are screened about above when the onsetInterval is set.
 	if daysSince := math.Abs(float64(DaysBetweenIntervals(onsetInterval, currentInterval))); onsetInterval == 0 || daysSince > float64(t.maxValidSymptomOnsetReportDays) {
 		logger.Debugw("defaulting days since symptom onset")
@@ -639,15 +639,15 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	// There is no set of "valid" regions overall, but it is defined
 	// elsewhere by what regions an authorized application may write to.
 	// See `authorizedapp.Config`
-	upcaseRegions := make([]string, len(regions))
+	uppercaseRegions := make([]string, len(regions))
 	for i, r := range regions {
-		upcaseRegions[i] = strings.ToUpper(r)
+		uppercaseRegions[i] = strings.ToUpper(r)
 	}
 
 	var transformWarnings []string
 	var transformErrors *multierror.Error
 	for i, exposureKey := range inData.Keys {
-		exposure, err := TransformExposureKey(exposureKey, inData.HealthAuthorityID, upcaseRegions, &settings)
+		exposure, err := TransformExposureKey(exposureKey, inData.HealthAuthorityID, uppercaseRegions, &settings)
 		if err != nil {
 			logger.Debugw("individual key transform failed", "error", err)
 			transformErrors = multierror.Append(transformErrors, fmt.Errorf("key %d cannot be imported: %w", i, err))

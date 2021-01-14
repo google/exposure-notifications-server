@@ -504,7 +504,7 @@ func TestPublishWithBypass(t *testing.T) {
 				config.ResponsePaddingMinBytes = 100
 				config.ResponsePaddingRange = 100
 				config.MaxMagnitudeSymptomOnsetDays = 14
-				config.MaxSypmtomOnsetReportDays = 28
+				config.MaxSymptomOnsetReportDays = 28
 				config.Maintenance = tc.MaintenanceMode
 				env := serverenv.New(ctx,
 					serverenv.WithDatabase(testDB),
@@ -523,7 +523,7 @@ func TestPublishWithBypass(t *testing.T) {
 
 				// See if there is a health authority to set up.
 				if tc.HealthAuthority != nil {
-					testutil.InitalizeVerificationDB(ctx, t, testDB, tc.HealthAuthority, tc.HealthAuthorityKey, signingKey)
+					testutil.InitializeVerificationDB(ctx, t, testDB, tc.HealthAuthority, tc.HealthAuthorityKey, signingKey)
 					cfg := &testutil.JWTConfig{
 						HealthAuthority:    tc.HealthAuthority,
 						HealthAuthorityKey: tc.HealthAuthorityKey,
@@ -840,7 +840,7 @@ func TestKeyRevision(t *testing.T) {
 	}
 	// Init verification db with new HA
 	signingKey := testutil.GetSigningKey(t)
-	testutil.InitalizeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, signingKey)
+	testutil.InitializeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, signingKey)
 
 	defaultSymptomOnsetDaysAgo := uint(1)
 	// And set up publish handler up front.

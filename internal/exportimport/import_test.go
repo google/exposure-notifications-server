@@ -57,6 +57,8 @@ func (k *keyGenerator) fakeExposureKey(t testing.TB) []byte {
 }
 
 func TestTransform(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 

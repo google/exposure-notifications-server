@@ -29,6 +29,8 @@ import (
 )
 
 func TestHashiCorpVault_GetSecretValue(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name   string
 		setup  func(client *vaultapi.Client) error

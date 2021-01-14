@@ -28,8 +28,9 @@ type simpleBatchRange struct {
 
 // TestMakeBatchRanges tests makeBatchRanges().
 func TestMakeBatchRanges(t *testing.T) {
-	now := "12-10 10:11"
+	t.Parallel()
 
+	now := "12-10 10:11"
 	testCases := []struct {
 		name      string
 		period    time.Duration

@@ -64,6 +64,8 @@ func TestSetJWKS(t *testing.T) {
 }
 
 func TestIsValid(t *testing.T) {
+	t.Parallel()
+
 	now := time.Now().UTC()
 	cases := []struct {
 		name  string
@@ -114,6 +116,8 @@ func TestIsValid(t *testing.T) {
 }
 
 func TestPublicKeyParse(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name     string
 		pemBlock string

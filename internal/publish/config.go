@@ -64,10 +64,10 @@ type Config struct {
 	// Symptom onset settings.
 	// Maximum valid range. TEKs presneted with values outside this range, but still "reasonable" will not be saved.
 	MaxMagnitudeSymptomOnsetDays uint `env:"MAX_SYMPTOM_ONSET_DAYS, default=14"`
-	// MaxValidSypmtomOnsetReportDays indicates how many days would be considered
+	// MaxValidSymptomOnsetReportDays indicates how many days would be considered
 	// a valid symptom onset report (-val..+val). Anything outside
 	// that range would be subject to the default symptom onset flags (see below).
-	MaxSypmtomOnsetReportDays uint `env:"MAX_VALID_SYMPOTOM_ONSET_REPORT_DAYS, default=28"`
+	MaxSymptomOnsetReportDays uint `env:"MAX_VALID_SYMPTOM_ONSET_REPORT_DAYS, default=28"`
 
 	// TEKs that arrive without a days since symptom onset (i.e. no symptom onset date),
 	// then the upload date minus DEFAULT_SYMPTOM_ONSET_DAYS_AGO is used.
@@ -118,9 +118,9 @@ func (c *Config) Validate() error {
 		result = multierror.Append(result,
 			fmt.Errorf("env var `MAX_SYMPTOM_ONSET_DAYS` must be > 0, got: %v", c.MaxMagnitudeSymptomOnsetDays))
 	}
-	if c.MaxSypmtomOnsetReportDays == 0 {
+	if c.MaxSymptomOnsetReportDays == 0 {
 		result = multierror.Append(result,
-			fmt.Errorf("env var `MAX_VALID_SYMPOTOM_ONSET_REPORT_DAYS` must be > 0, got: %v", c.MaxSypmtomOnsetReportDays))
+			fmt.Errorf("env var `MAX_VALID_SYMPTOM_ONSET_REPORT_DAYS` must be > 0, got: %v", c.MaxSymptomOnsetReportDays))
 	}
 
 	return result.ErrorOrNil()
@@ -147,7 +147,7 @@ func (c *Config) MaxSymptomOnsetDays() uint {
 }
 
 func (c *Config) MaxValidSymptomOnsetReportDays() uint {
-	return c.MaxSypmtomOnsetReportDays
+	return c.MaxSymptomOnsetReportDays
 }
 
 func (c *Config) DefaultSymptomOnsetDaysAgo() uint {

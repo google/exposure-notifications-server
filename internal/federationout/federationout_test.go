@@ -130,6 +130,8 @@ func (t *testIterator) provideInput(_ context.Context, _ publishdb.IterateExposu
 
 // TestFetch tests the fetch() function.
 func TestFetch(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name              string
 		includeRegions    []string
@@ -538,6 +540,8 @@ func TestFetch(t *testing.T) {
 
 // TestRawToken tests rawToken().
 func TestRawToken(t *testing.T) {
+	t.Parallel()
+
 	want := "Abc123"
 	md := metadata.New(map[string]string{"authorization": fmt.Sprintf("Bearer %s", want)})
 	ctx := metadata.NewIncomingContext(context.Background(), md)
@@ -554,6 +558,8 @@ func TestRawToken(t *testing.T) {
 
 // TestRawTokenErrors tests error responses from rawToken().
 func TestRawTokenErrors(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name  string
 		mdMap map[string][]string
@@ -593,6 +599,8 @@ func TestRawTokenErrors(t *testing.T) {
 
 // TestIntersect tests intersect().
 func TestIntersect(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name string
 		aa   []string
@@ -650,6 +658,8 @@ func TestIntersect(t *testing.T) {
 
 // TestUnion tests union().
 func TestUnion(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name string
 		aa   []string

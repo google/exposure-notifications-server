@@ -20,6 +20,8 @@ import (
 )
 
 func TestValidateClaims(t *testing.T) {
+	t.Parallel()
+
 	c := NewVerificationClaims()
 	c.ReportType = "bogus"
 

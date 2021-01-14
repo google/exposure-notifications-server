@@ -396,7 +396,7 @@ func TestVariableBatchMaxSize(t *testing.T) {
 	exposures := make([]*publishmodel.Exposure, 20)
 	want := make(map[string]struct{})
 	for i := 0; i < 20; i++ {
-		// All keys alignd to the same hour.
+		// All keys aligned to the same hour.
 		exposures[i] = &publishmodel.Exposure{
 			ExposureKey:     getKey(t),
 			Regions:         []string{"US"},

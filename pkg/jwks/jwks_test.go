@@ -65,6 +65,7 @@ func encodePublic(keys ...string) []string {
 // as well. It might behoove future engineers to break this up into multiple
 // tests.
 func TestUpdateHA(t *testing.T) {
+	t.Parallel()
 	//
 	// Constants for testing.
 	//
@@ -234,6 +235,7 @@ func TestUpdateHA(t *testing.T) {
 
 func TestStrip(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		k1, k2 string
 	}{

@@ -579,6 +579,8 @@ func TestTravelerKeys(t *testing.T) {
 
 // TestExcludeRegions ensures excluded regions are excluded.
 func TestExcludeRegions(t *testing.T) {
+	t.Parallel()
+
 	inclRegion, exclRegion := "US", "EU"
 	inclRegions, exclRegions, bothRegions := []string{inclRegion}, []string{exclRegion}, []string{inclRegion, exclRegion}
 	now := time.Now()

@@ -140,6 +140,8 @@ func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.Federat
 
 // TestFederationPull tests the federationPull() function.
 func TestFederationPull(t *testing.T) {
+	t.Parallel()
+
 	batchTime := time.Now().Truncate(time.Second)
 	// Make all items have reasonable interval numbers based on test time.
 	intervalNumber := publishmodel.IntervalNumber(batchTime.Add(-2 * 24 * time.Hour))
@@ -243,7 +245,7 @@ func TestFederationPull(t *testing.T) {
 							verifyapi.TransmissionRiskConfirmedStandard),
 							"US"),
 							federation.ExposureKey_CONFIRMED_TEST),
-							1), // TOO OLD - Key will be droped
+							1), // TOO OLD - Key will be dropped
 						setReportType(setRegions(setTransmissionRisk(copyExposureKey(ccc),
 							verifyapi.TransmissionRiskConfirmedStandard),
 							"US"),

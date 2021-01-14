@@ -86,7 +86,9 @@ func (c *testConfig) DebugReleaseSameDayKeys() bool {
 }
 
 func TestIntervalNumber(t *testing.T) {
-	// Since time to interval is lossy, truncate down to the beginnging of a window.
+	t.Parallel()
+
+	// Since time to interval is lossy, truncate down to the beginging of a window.
 	now := time.Now().Truncate(verifyapi.IntervalLength)
 
 	interval := IntervalNumber(now)
@@ -98,6 +100,8 @@ func TestIntervalNumber(t *testing.T) {
 }
 
 func TestInvalidNew(t *testing.T) {
+	t.Parallel()
+
 	errMsg := "maxExposureKeys must be > 0"
 	cases := []struct {
 		maxKeys        uint
@@ -127,6 +131,8 @@ func TestInvalidNew(t *testing.T) {
 }
 
 func TestInvalidBase64(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	transformer, err := NewTransformer(&testConfig{
 		maxExposureKeys:     1,
@@ -158,6 +164,8 @@ func TestInvalidBase64(t *testing.T) {
 }
 
 func TestDifferentEncodings(t *testing.T) {
+	t.Parallel()
+
 	data := "this is some data"
 
 	cases := []struct {
@@ -185,6 +193,8 @@ func TestDifferentEncodings(t *testing.T) {
 }
 
 func TestPublishValidation(t *testing.T) {
+	t.Parallel()
+
 	maxAge := 24 * 5 * time.Hour
 
 	captureStartTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
@@ -348,7 +358,7 @@ func TestPublishValidation(t *testing.T) {
 				maxSymptomOnsetDays: maxSymptomOnsetDays,
 				debugReleaseSameDay: c.sameDay})
 			if err != nil {
-				t.Fatalf("unepected error: %v", err)
+				t.Fatalf("unexpected error: %v", err)
 			}
 
 			_, err = tf.TransformPublish(ctx, c.p, []string{}, nil, captureStartTime)
@@ -380,6 +390,8 @@ func encodeKey(key []byte) string {
 }
 
 func TestStillValidKey(t *testing.T) {
+	t.Parallel()
+
 	now := timeutils.UTCMidnight(time.Now())
 	batchWindow := TruncateWindow(now, time.Minute)
 	intervalNumber := IntervalNumber(now) - 1
@@ -461,6 +473,8 @@ func TestStillValidKey(t *testing.T) {
 }
 
 func TestReportTypeToTransmissionRisk(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name   string
 		report string
@@ -496,6 +510,8 @@ func timePtr(t time.Time) *time.Time { return &t }
 func stringPtr(s string) *string     { return &s }
 
 func TestTransform(t *testing.T) {
+	t.Parallel()
+
 	captureStartTime := time.Date(2020, 2, 29, 11, 15, 1, 0, time.UTC)
 	intervalNumber := IntervalNumber(captureStartTime)
 
@@ -551,7 +567,7 @@ func TestTransform(t *testing.T) {
 				},
 				HealthAuthorityID: appPackage,
 			},
-			Regions: []string{"us", "cA", "Mx"}, // will be upcased
+			Regions: []string{"us", "cA", "Mx"}, // will be uppercased
 			Claims:  nil,
 			Want: []*Exposure{
 				{
@@ -1059,6 +1075,8 @@ func TestTransform(t *testing.T) {
 }
 
 func TestDefaultSymptomOnset(t *testing.T) {
+	t.Parallel()
+
 	now := time.Now()
 	onsetDaysAgo := uint(4)
 
@@ -1149,6 +1167,8 @@ func TestDefaultSymptomOnset(t *testing.T) {
 }
 
 func TestTransformOverlapping(t *testing.T) {
+	t.Parallel()
+
 	now := time.Now()
 	allowedAge := 3 * 24 * time.Hour
 	twoDaysAgoInterval := IntervalNumber(now) - 1 - 288
@@ -1178,7 +1198,7 @@ func TestTransformOverlapping(t *testing.T) {
 				},
 				HealthAuthorityID: "State Health Dept",
 			},
-			regions:             []string{"us", "cA", "Mx"}, // will be upcased
+			regions:             []string{"us", "cA", "Mx"}, // will be uppercased
 			maxSameIntervalKeys: 3,
 			error:               "exposure keys have non aligned overlapping intervals",
 		},
@@ -1199,7 +1219,7 @@ func TestTransformOverlapping(t *testing.T) {
 				},
 				HealthAuthorityID: "State Health Dept",
 			},
-			regions:             []string{"us", "cA", "Mx"}, // will be upcased
+			regions:             []string{"us", "cA", "Mx"}, // will be uppercased
 			maxSameIntervalKeys: 3,
 			error:               "exposure keys have non aligned overlapping intervals",
 		},
@@ -1316,6 +1336,8 @@ func TestTransformOverlapping(t *testing.T) {
 }
 
 func TestExposure_HasDaysSinceSymptomOnset(t *testing.T) {
+	t.Parallel()
+
 	e := &Exposure{}
 
 	if e.HasDaysSinceSymptomOnset() {
@@ -1328,6 +1350,8 @@ func TestExposure_HasDaysSinceSymptomOnset(t *testing.T) {
 }
 
 func TestExposure_HasDaysHealthAuthorityID(t *testing.T) {
+	t.Parallel()
+
 	e := &Exposure{}
 
 	if e.HasHealthAuthorityID() {
@@ -1340,6 +1364,8 @@ func TestExposure_HasDaysHealthAuthorityID(t *testing.T) {
 }
 
 func TestExposureRevisionFields(t *testing.T) {
+	t.Parallel()
+
 	revTime := time.Now().UTC().Truncate(time.Minute)
 	revType := "revisedType"
 
@@ -1375,6 +1401,8 @@ func TestExposureRevisionFields(t *testing.T) {
 }
 
 func TestDaysFromSymptomOnset(t *testing.T) {
+	t.Parallel()
+
 	// Node that everything is based on midnight UTC so we'll start there.
 	now := timeutils.UTCMidnight(time.Now().UTC())
 
@@ -1649,6 +1677,8 @@ func TestReviseKeys(t *testing.T) {
 }
 
 func TestExposureReview(t *testing.T) {
+	t.Parallel()
+
 	createdAt := time.Now().UTC().Add(-1 * time.Hour).Truncate(time.Hour)
 	revisedAt := time.Now().UTC().Add(time.Hour).Truncate(time.Hour)
 
@@ -1851,6 +1881,8 @@ func TestExposureReview(t *testing.T) {
 }
 
 func TestExposureFromExportFile(t *testing.T) {
+	t.Parallel()
+
 	validTEK := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	invalidTEK := []byte{0, 1}
 

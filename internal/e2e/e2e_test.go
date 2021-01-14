@@ -105,6 +105,7 @@ func checkResp(r *http.Response) ([]byte, error) {
 }
 
 func TestPublishEndpoint(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 
 	tc := initConfig(t, ctx)

@@ -23,6 +23,8 @@ import (
 )
 
 func TestMetrics(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name string
 		f    func(e Exporter)

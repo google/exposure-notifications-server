@@ -46,7 +46,7 @@ func TestSyncFileFromIndexErrorsInExportRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// test data ensures that URL parsing stripps extra slashes.
+	// test data ensures that URL parsing strips extra slashes.
 	index := strings.Join([]string{"a.zip", "/b.zip", "//c.zip", ""}, "\n")
 
 	if _, _, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err == nil {
@@ -276,7 +276,7 @@ func TestSyncFileFromIndex(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// test data ensures that URL parsing stripps extra slashes.
+			// test data ensures that URL parsing strips extra slashes.
 			index := strings.Join([]string{"a.zip", "/b.zip", "//c.zip", ""}, "\n")
 
 			if n, f, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err != nil {

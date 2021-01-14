@@ -23,6 +23,8 @@ import (
 )
 
 func TestEscapeJSON(t *testing.T) {
+	t.Parallel()
+
 	want := `{\"a\": \"b\"}`
 	got := escapeJSON(`{"a": "b"}`)
 	if diff := cmp.Diff(want, got); diff != "" {
@@ -31,6 +33,8 @@ func TestEscapeJSON(t *testing.T) {
 }
 
 func TestMarshalResponse(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	toSave := map[string]string{
@@ -51,6 +55,8 @@ func TestMarshalResponse(t *testing.T) {
 }
 
 func TestMarshalResponseError(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	type Circular struct {

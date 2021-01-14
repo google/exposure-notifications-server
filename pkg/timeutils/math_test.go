@@ -24,6 +24,8 @@ import (
 )
 
 func TestSubtractDays(t *testing.T) {
+	t.Parallel()
+
 	day := time.Date(2020, 10, 31, 4, 15, 0, 0, time.UTC)
 
 	cases := []struct {

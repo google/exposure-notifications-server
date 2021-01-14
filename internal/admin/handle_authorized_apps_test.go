@@ -22,6 +22,8 @@ import (
 )
 
 func TestRenderAuthorizedApps(t *testing.T) {
+	t.Parallel()
+
 	m := TemplateMap{}
 	authorizedApp := model.NewAuthorizedApp()
 	m["app"] = authorizedApp
