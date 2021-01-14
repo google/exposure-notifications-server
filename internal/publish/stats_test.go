@@ -125,8 +125,6 @@ func TestRetrieveMetrics(t *testing.T) {
 		t.Fatalf("unable to create publish handler: %v", err)
 	}
 	metricsHandler := pubHandler.HandleStats()
-	server := httptest.NewServer(metricsHandler)
-	defer server.Close()
 
 	// get the authentication token.
 	jwtConfig := &testutil.StatsJWTConfig{
@@ -143,16 +141,15 @@ func TestRetrieveMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	httpRequest, err := http.NewRequest("POST", server.URL, strings.NewReader(string(jsonString)))
+	httpRequest, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	httpRequest.Header.Set("Content-Type", "application/json")
 	httpRequest.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	resp, err := server.Client().Do(httpRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rr := httptest.NewRecorder()
+	metricsHandler.ServeHTTP(rr, httpRequest)
+	resp := rr.Result()
 
 	defer resp.Body.Close()
 	respBytes, err := ioutil.ReadAll(resp.Body)
