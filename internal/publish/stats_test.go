@@ -285,16 +285,13 @@ func TestRetrieveMetrics_AuthErrors(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
-			server := httptest.NewServer(metricsHandler)
-			defer server.Close()
-
 			// make the stats request with auth token.
 			request := &verifyapi.StatsRequest{}
 			jsonString, err := json.Marshal(request)
 			if err != nil {
 				t.Fatal(err)
 			}
-			httpRequest, err := http.NewRequest("POST", server.URL, strings.NewReader(string(jsonString)))
+			httpRequest, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -302,10 +299,9 @@ func TestRetrieveMetrics_AuthErrors(t *testing.T) {
 			if tc.Authorization != "" {
 				httpRequest.Header.Set("Authorization", tc.Authorization)
 			}
-			resp, err := server.Client().Do(httpRequest)
-			if err != nil {
-				t.Fatal(err)
-			}
+			rr := httptest.NewRecorder()
+			metricsHandler.ServeHTTP(rr, httpRequest)
+			resp := rr.Result()
 
 			defer resp.Body.Close()
 			respBytes, err := ioutil.ReadAll(resp.Body)
