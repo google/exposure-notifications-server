@@ -884,9 +884,6 @@ func TestKeyRevision(t *testing.T) {
 		t.Fatalf("unable to create publish handler: %v", err)
 	}
 	handler := pubHandler.Handle()
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
 	pubDB := pubdb.New(testDB)
 
 	// the first key in each publish will be at this time.
@@ -1116,6 +1113,9 @@ func TestKeyRevision(t *testing.T) {
 					t.Fatal(err)
 				}
 
+				server := httptest.NewServer(handler)
+				defer server.Close()
+
 				// make the initial request
 				resp, err := server.Client().Post(server.URL, "application/json", strings.NewReader(string(jsonString)))
 				if err != nil {
@@ -1173,6 +1173,9 @@ func TestKeyRevision(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+
+				server := httptest.NewServer(handler)
+				defer server.Close()
 
 				// make the initial request
 				resp, err := server.Client().Post(server.URL, "application/json", strings.NewReader(string(jsonString)))
