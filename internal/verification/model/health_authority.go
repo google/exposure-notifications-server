@@ -17,12 +17,12 @@ package model
 
 import (
 	"crypto/ecdsa"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/google/exposure-notifications-server/pkg/keys"
 )
 
 // HealthAuthority represents a public health authority that is authorized to
@@ -104,19 +104,5 @@ func (k HealthAuthorityKey) Revoke() {
 // PublicKey decodes the PublicKeyPEM text and returns the `*ecdsa.PublicKey`
 // This system only supports verifying ECDSA JWTs, `alg: ES256`.
 func (k *HealthAuthorityKey) PublicKey() (*ecdsa.PublicKey, error) {
-	block, _ := pem.Decode([]byte(k.PublicKeyPEM))
-	if block == nil || block.Type != "PUBLIC KEY" {
-		return nil, errors.New("unable to decode PEM block containing PUBLIC KEY")
-	}
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("x509.ParsePKIXPublicKey: %w", err)
-	}
-
-	switch typ := pub.(type) {
-	case *ecdsa.PublicKey:
-		return typ, nil
-	default:
-		return nil, fmt.Errorf("unsupported public key type: %T", typ)
-	}
+	return keys.ParseECDSAPublicKey(k.PublicKeyPEM)
 }

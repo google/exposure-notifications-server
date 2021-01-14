@@ -21,6 +21,8 @@ import (
 	"strings"
 )
 
+// MarshalResponse is a helper function to write an object to the http.ResponseWriter
+// with fallback error template.
 func MarshalResponse(w http.ResponseWriter, status int, response interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 
