@@ -24,12 +24,6 @@ var (
 	tag string = "unknown"
 )
 
-// Build is an interface to get the build information.
-type Build interface {
-	ID() string
-	Tag() string
-}
-
 // KeyServer provides the build information about the key server.
 type KeyServer struct{}
 
@@ -42,5 +36,3 @@ func (KeyServer) ID() string {
 func (KeyServer) Tag() string {
 	return tag
 }
-
-var _ Build = KeyServer{}
