@@ -35,6 +35,8 @@ import (
 )
 
 func TestNewHashiCorpVaultSigner(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name       string
 		client     *vaultapi.Client

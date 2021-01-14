@@ -21,6 +21,8 @@ import (
 )
 
 func TestExportRegions(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name         string
 		region       string
@@ -42,7 +44,11 @@ func TestExportRegions(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			ec := ExportConfig{
 				OutputRegion: tc.region,
 				InputRegions: tc.inputRegions,
@@ -56,6 +62,8 @@ func TestExportRegions(t *testing.T) {
 }
 
 func TestEffectiveMaxRecords(t *testing.T) {
+	t.Parallel()
+
 	eb := &ExportBatch{
 		MaxRecordsOverride: nil,
 	}

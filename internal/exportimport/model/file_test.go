@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-func TestShoudlTry(t *testing.T) {
+func TestShouldTry(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().UTC()

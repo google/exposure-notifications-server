@@ -38,6 +38,8 @@ func checkSize(t *testing.T, c *Cache, want int) {
 }
 
 func TestCache(t *testing.T) {
+	t.Parallel()
+
 	duration := time.Millisecond * 500
 	cache, err := New(duration)
 	if err != nil {
@@ -79,6 +81,8 @@ func TestCache(t *testing.T) {
 }
 
 func TestWriteThruCache(t *testing.T) {
+	t.Parallel()
+
 	cache, err := New(time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -107,6 +111,8 @@ func TestWriteThruCache(t *testing.T) {
 }
 
 func TestWriteThruError(t *testing.T) {
+	t.Parallel()
+
 	cache, err := New(time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -124,19 +130,23 @@ func TestWriteThruError(t *testing.T) {
 		t.Errorf("incorrect error, want: `nope` got: %v", err.Error())
 	}
 	if got != nil {
-		t.Errorf("unexpecetd cached item, want: nil, got %v", got)
+		t.Errorf("unexpected cached item, want: nil, got %v", got)
 	}
 }
 
 func TestInvalidDuration(t *testing.T) {
+	t.Parallel()
+
 	if _, err := New(-1 * time.Second); err == nil {
-		t.Fatal("expecterd error, got nil")
-	} else if strings.Contains(err.Error(), "duration cannot be nagative") {
+		t.Fatal("expected error, got nil")
+	} else if !strings.Contains(err.Error(), "duration cannot be negative") {
 		t.Fatalf("wrong error: want: `duration cannot be negative` got: %v", err.Error())
 	}
 }
 
 func TestConcurrentReaders(t *testing.T) {
+	t.Parallel()
+
 	cache, err := New(time.Second * 5)
 	if err != nil {
 		t.Fatal(err)

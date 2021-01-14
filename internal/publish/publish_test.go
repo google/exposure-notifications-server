@@ -126,7 +126,6 @@ func TestPublishWithBypass(t *testing.T) {
 		SkipKeys           map[int]bool // which keys should be skipped (partial success)
 		MaintenanceMode    bool
 	}{
-
 		{
 			Name:       "successful_insert_bypass_ha_verification",
 			TestRegion: regions.next(),
@@ -457,33 +456,35 @@ func TestPublishWithBypass(t *testing.T) {
 			addVer = "v1Alpha1_"
 		}
 
-		ctx := context.Background()
-
-		// Database init for all modules that will be used.
-		testDB, _ := testDatabaseInstance.NewDatabase(t)
-
-		kms := keys.TestKeyManager(t)
-		keyID := keys.TestEncryptionKey(t, kms)
-
-		tokenAAD := make([]byte, 16)
-		if _, err := rand.Read(tokenAAD); err != nil {
-			t.Fatalf("not enough entropy: %v", err)
-		}
-		// Configure revision keys.
-		revDB, err := revisiondb.New(testDB, &revisiondb.KMSConfig{WrapperKeyID: keyID, KeyManager: kms})
-		if err != nil {
-			t.Fatalf("unable to create revision DB handle: %v", err)
-		}
-		if _, err := revDB.CreateRevisionKey(ctx); err != nil {
-			t.Fatalf("unable to create revision key: %v", err)
-		}
-
 		for _, tc := range cases {
+			tc := tc
+
 			if tc.SkipVersions[ver] {
 				continue
 			}
 
 			t.Run(addVer+tc.Name, func(t *testing.T) {
+				ctx := context.Background()
+
+				// Database init for all modules that will be used.
+				testDB, _ := testDatabaseInstance.NewDatabase(t)
+
+				kms := keys.TestKeyManager(t)
+				keyID := keys.TestEncryptionKey(t, kms)
+
+				tokenAAD := make([]byte, 16)
+				if _, err := rand.Read(tokenAAD); err != nil {
+					t.Fatalf("not enough entropy: %v", err)
+				}
+				// Configure revision keys.
+				revDB, err := revisiondb.New(testDB, &revisiondb.KMSConfig{WrapperKeyID: keyID, KeyManager: kms})
+				if err != nil {
+					t.Fatalf("unable to create revision DB handle: %v", err)
+				}
+				if _, err := revDB.CreateRevisionKey(ctx); err != nil {
+					t.Fatalf("unable to create revision key: %v", err)
+				}
+
 				// And set up publish handler up front.
 				config := Config{}
 				config.AuthorizedApp.CacheDuration = time.Nanosecond
@@ -500,7 +501,7 @@ func TestPublishWithBypass(t *testing.T) {
 				config.ResponsePaddingMinBytes = 100
 				config.ResponsePaddingRange = 100
 				config.MaxMagnitudeSymptomOnsetDays = 14
-				config.MaxSypmtomOnsetReportDays = 28
+				config.MaxSymptomOnsetReportDays = 28
 				config.Maintenance = tc.MaintenanceMode
 				env := serverenv.New(ctx,
 					serverenv.WithDatabase(testDB),
@@ -519,7 +520,7 @@ func TestPublishWithBypass(t *testing.T) {
 
 				// See if there is a health authority to set up.
 				if tc.HealthAuthority != nil {
-					testutil.InitalizeVerificationDB(ctx, t, testDB, tc.HealthAuthority, tc.HealthAuthorityKey, signingKey)
+					testutil.InitializeVerificationDB(ctx, t, testDB, tc.HealthAuthority, tc.HealthAuthorityKey, signingKey)
 					cfg := &testutil.JWTConfig{
 						HealthAuthority:    tc.HealthAuthority,
 						HealthAuthorityKey: tc.HealthAuthorityKey,
@@ -575,27 +576,24 @@ func TestPublishWithBypass(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				server := httptest.NewServer(handler)
-				defer server.Close()
-
 				// make the request
 				contentType := "application/json"
 				if tc.ContentType != "" {
 					contentType = tc.ContentType
 				}
-				request, err := http.NewRequest("POST", server.URL, strings.NewReader(string(jsonString)))
+				request, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
 				if err != nil {
 					t.Fatal(err)
 				}
 				request.Header.Set("Content-Type", contentType)
 				request.Header.Set("User-Agent", tc.UserAgent)
-				resp, err := server.Client().Do(request)
-				if err != nil {
-					t.Fatal(err)
-				}
+
+				rr := httptest.NewRecorder()
+				handler.ServeHTTP(rr, request)
+				resp := rr.Result()
 
 				// Response content type should always be application/json
-				if got, want := resp.Header.Get("Content-Type"), "application/json"; got != want {
+				if got, want := rr.Header().Get("Content-Type"), "application/json"; got != want {
 					t.Errorf("expected %#v to be %#v", got, want)
 				}
 
@@ -770,11 +768,11 @@ func TestPublishWithBypass(t *testing.T) {
 	}
 }
 
-type RevisionTokenChanger func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string
+type RevisionTokenChanger func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) (string, error)
 
-func TokenIdentity(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
+func TokenIdentity(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) (string, error) {
 	t.Helper()
-	return token
+	return token, nil
 }
 
 type PublishDataChanger func(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish)
@@ -836,7 +834,7 @@ func TestKeyRevision(t *testing.T) {
 	}
 	// Init verification db with new HA
 	signingKey := testutil.GetSigningKey(t)
-	testutil.InitalizeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, signingKey)
+	testutil.InitializeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, signingKey)
 
 	defaultSymptomOnsetDaysAgo := uint(1)
 	// And set up publish handler up front.
@@ -880,9 +878,6 @@ func TestKeyRevision(t *testing.T) {
 		t.Fatalf("unable to create publish handler: %v", err)
 	}
 	handler := pubHandler.Handle()
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
 	pubDB := pubdb.New(testDB)
 
 	// the first key in each publish will be at this time.
@@ -921,8 +916,8 @@ func TestKeyRevision(t *testing.T) {
 				VerificationPayload: "totally not a JWT",
 			},
 			RevErrorCode: verifyapi.ErrorMissingRevisionToken,
-			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
-				return ""
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) (string, error) {
+				return "", nil
 			},
 			PublishMesser:    PublishIdentity,
 			ReportTypeMesser: ReportTypeIdentity,
@@ -997,14 +992,14 @@ func TestKeyRevision(t *testing.T) {
 				VerificationPayload: "totally not a JWT",
 			},
 			RevErrorCode: verifyapi.ErrorInvalidRevisionToken,
-			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) (string, error) {
 				tokenBytes, err := base64util.DecodeString(token)
 				if err != nil {
-					return ""
+					return "", err
 				}
 				revToken, err := tm.UnmarshalRevisionToken(ctx, tokenBytes, aad)
 				if err != nil {
-					return ""
+					return "", err
 				}
 				// Gotta throw some new keys in, or we can't mint a new revision token.
 				newKeys := []*model.Exposure{
@@ -1017,9 +1012,9 @@ func TestKeyRevision(t *testing.T) {
 				revToken.RevisableKeys = revToken.RevisableKeys[0:1]
 				tokenBytes, err = tm.MakeRevisionToken(ctx, revToken, newKeys, aad)
 				if err != nil {
-					return ""
+					return "", err
 				}
-				return base64.StdEncoding.EncodeToString(tokenBytes)
+				return base64.StdEncoding.EncodeToString(tokenBytes), nil
 			},
 			PublishMesser:    PublishIdentity,
 			ReportTypeMesser: ReportTypeIdentity,
@@ -1032,7 +1027,7 @@ func TestKeyRevision(t *testing.T) {
 				HealthAuthorityID:   haName,
 				VerificationPayload: "totally not a JWT",
 			},
-			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) string {
+			RevTokenMesser: func(ctx context.Context, t *testing.T, token string, tm *revision.TokenManager, aad []byte) (string, error) {
 				// This function doesn't change the revision token, but it does
 				// rotate the keys so that this token is effectively useless.
 				t.Helper()
@@ -1051,8 +1046,7 @@ func TestKeyRevision(t *testing.T) {
 						}
 					}
 				}
-
-				return token
+				return token, nil
 			},
 			PublishMesser: func(t *testing.T, data *verifyapi.Publish) (bool, *verifyapi.Publish) {
 				t.Helper()
@@ -1085,6 +1079,8 @@ func TestKeyRevision(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.Name, func(t *testing.T) {
 			ctx = context.Background()
 
@@ -1109,11 +1105,15 @@ func TestKeyRevision(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				// make the initial request
-				resp, err := server.Client().Post(server.URL, "application/json", strings.NewReader(string(jsonString)))
+				request, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
 				if err != nil {
 					t.Fatal(err)
 				}
+				request.Header.Set("Content-Type", "application/json")
+
+				rr := httptest.NewRecorder()
+				handler.ServeHTTP(rr, request)
+				resp := rr.Result()
 
 				// For non success status, check that they body contains the expected message
 				defer resp.Body.Close()
@@ -1136,7 +1136,9 @@ func TestKeyRevision(t *testing.T) {
 			var keysAreRevisions bool
 			// Make the revision.
 			{
-				revisionToken = tc.RevTokenMesser(ctx, t, revisionToken, tm, tokenAAD)
+				if revisionToken, err = tc.RevTokenMesser(ctx, t, revisionToken, tm, tokenAAD); err != nil {
+					t.Fatal(err)
+				}
 				// Add the revision token to publish request.
 				tc.Publish.RevisionToken = revisionToken
 
@@ -1167,11 +1169,15 @@ func TestKeyRevision(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				// make the initial request
-				resp, err := server.Client().Post(server.URL, "application/json", strings.NewReader(string(jsonString)))
+				request, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
 				if err != nil {
 					t.Fatal(err)
 				}
+				request.Header.Set("Content-Type", "application/json")
+
+				rr := httptest.NewRecorder()
+				handler.ServeHTTP(rr, request)
+				resp := rr.Result()
 
 				// For non success status, check that they body contains the expected message
 				defer resp.Body.Close()

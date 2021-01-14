@@ -85,7 +85,11 @@ func TestAddHealthAuthorityErrors(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 			if err := haDB.AddHealthAuthority(ctx, tc.ha); err == nil {
 				t.Error("missing expected error")

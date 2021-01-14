@@ -115,7 +115,7 @@ func TestMultiLock(t *testing.T) {
 		t.Fatalf("failed to release locks: %v", err)
 	}
 
-	// should still fail, because there is still ovelap w/ the second lock.
+	// should still fail, because there is still overlap w/ the second lock.
 	if _, err := testDB.MultiLock(ctx, overlappingLocks, time.Minute); err == nil {
 		t.Fatalf("expected lock acquisition to fail, but didn't.")
 	} else if !errors.Is(err, ErrAlreadyLocked) {

@@ -72,8 +72,11 @@ func TestValidate(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			got := ""
 			err := tc.ei.Validate()
 			if err != nil {
@@ -129,8 +132,11 @@ func TestActive(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			got := tc.ei.Active()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("unmarshal mismatch (-want +got):\n%v", diff)

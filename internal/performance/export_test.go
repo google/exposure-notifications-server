@@ -45,6 +45,8 @@ type testConfig struct {
 }
 
 func TestExport(t *testing.T) {
+	t.Parallel()
+
 	const (
 		keysPerPublish = 14
 		exportPeriod   = 10 * time.Minute

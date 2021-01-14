@@ -150,6 +150,7 @@ func minPadSlice(s []int64, size int) []int64 {
 }
 
 func TestReduce(t *testing.T) {
+	t.Parallel()
 
 	hour := timeutils.UTCMidnight(time.Now().UTC()).Add(-48 * time.Hour)
 	startTime := hour

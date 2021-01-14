@@ -46,7 +46,11 @@ func TestString(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			var l RegionListVar = tc.value
 			if r := l.String(); r != tc.want {
 				t.Errorf("wrong value, want: %q got: %q", tc.want, r)
@@ -56,6 +60,8 @@ func TestString(t *testing.T) {
 }
 
 func TestSetError(t *testing.T) {
+	t.Parallel()
+
 	var l RegionListVar = []string{"A"}
 	if err := l.Set("A"); err == nil {
 		t.Fatal("expected error, got nil")
@@ -63,6 +69,8 @@ func TestSetError(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
+	t.Parallel()
+
 	var l RegionListVar
 	if err := l.Set("A, B, C,D, A"); err != nil {
 		t.Fatalf("unexpected error: %v", err)

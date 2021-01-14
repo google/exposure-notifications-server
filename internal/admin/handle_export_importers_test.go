@@ -21,7 +21,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 )
 
-func TestRednerExportImporters(t *testing.T) {
+func TestRenderExportImporters(t *testing.T) {
+	t.Parallel()
+
 	m := TemplateMap{}
 	model := new(model.ExportImport)
 	m["model"] = model

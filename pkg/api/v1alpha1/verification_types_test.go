@@ -22,6 +22,8 @@ import (
 )
 
 func TestTransmissionRiskVectorSort(t *testing.T) {
+	t.Parallel()
+
 	got := TransmissionRiskVector{
 		{0, 0},
 		{3, 100},

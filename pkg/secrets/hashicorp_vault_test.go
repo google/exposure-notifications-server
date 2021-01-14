@@ -29,6 +29,8 @@ import (
 )
 
 func TestHashiCorpVault_GetSecretValue(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name   string
 		setup  func(client *vaultapi.Client) error
@@ -151,6 +153,8 @@ func TestHashiCorpVault_GetSecretValue(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			// Create a Vault server.
 			ctx := context.Background()
 			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{

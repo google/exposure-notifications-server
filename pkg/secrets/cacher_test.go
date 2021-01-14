@@ -31,6 +31,7 @@ func (sm *testSecretManager) GetSecretValue(ctx context.Context, name string) (s
 }
 
 func TestCacher_GetSecretValue(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 
 	sm := &testSecretManager{value: "first"}
