@@ -42,9 +42,11 @@ var (
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
 
-	logger := logging.NewLoggerFromEnv().Named("tools.verify")
-	logger = logger.With("build_id", buildinfo.BuildID)
-	logger = logger.With("build_tag", buildinfo.BuildTag)
+	build := buildinfo.KeyServer{}
+
+	logger := logging.NewLoggerFromEnv().Named("tools.seed").
+		With("build_id", build.ID()).
+		With("build_tag", build.Tag())
 	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)
