@@ -34,8 +34,8 @@ func main() {
 	ctx, done := signalcontext.OnInterrupt()
 
 	logger := logging.NewLoggerFromEnv().
-		With("build_id", buildinfo.KeyServer.ID()).
-		With("build_tag", buildinfo.KeyServer.Tag())
+		With("build_id", buildinfo.BuildID).
+		With("build_tag", buildinfo.BuildTag)
 	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)

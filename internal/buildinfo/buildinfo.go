@@ -17,11 +17,11 @@
 package buildinfo
 
 var (
-	// id is the unique build identifier.
-	id string = "unknown"
+	// BuildID is the unique build identifier.
+	BuildID string = "unknown"
 
-	// tag is the git tag from which this build was created.
-	tag string = "unknown"
+	// BuildTag is the git tag from which this build was created.
+	BuildTag string = "unknown"
 )
 
 // info provides the build information about the key server.
@@ -29,12 +29,12 @@ type buildinfo struct{}
 
 // ID returns the build ID.
 func (buildinfo) ID() string {
-	return id
+	return BuildID
 }
 
 // Tag returns the build tag.
 func (buildinfo) Tag() string {
-	return tag
+	return BuildTag
 }
 
 // KeyServer provides the build information about the key server.
