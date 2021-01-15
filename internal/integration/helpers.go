@@ -180,7 +180,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 		tb.Fatal(err)
 	}
 	exportHandler := http.StripPrefix("/export", exportServer.Routes(ctx))
-	r.Handle("/export/", exportHandler)
+	r.PathPrefix("/export/").Handler(exportHandler)
 
 	// Federation
 	federationInConfig := &federationin.Config{
@@ -213,7 +213,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	r.Handle("/key-rotation/", http.StripPrefix("/key-rotation", rotationServer.Routes(ctx)))
+	r.PathPrefix("/key-rotation/").Handler(http.StripPrefix("/key-rotation", rotationServer.Routes(ctx)))
 
 	// Parse the config to load default values.
 	publishConfig := publish.Config{}
