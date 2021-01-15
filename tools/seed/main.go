@@ -42,11 +42,9 @@ import (
 func main() {
 	ctx, done := signalcontext.OnInterrupt()
 
-	build := buildinfo.KeyServer{}
-
 	logger := logging.NewLoggerFromEnv().Named("tools.seed").
-		With("build_id", build.ID()).
-		With("build_tag", build.Tag())
+		With("build_id", buildinfo.KeyServer.ID()).
+		With("build_tag", buildinfo.KeyServer.Tag())
 	ctx = logging.WithLogger(ctx, logger)
 
 	err := realMain(ctx)

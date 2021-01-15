@@ -24,15 +24,18 @@ var (
 	tag string = "unknown"
 )
 
-// KeyServer provides the build information about the key server.
-type KeyServer struct{}
+// info provides the build information about the key server.
+type buildinfo struct{}
 
 // ID returns the build ID.
-func (KeyServer) ID() string {
+func (buildinfo) ID() string {
 	return id
 }
 
 // Tag returns the build tag.
-func (KeyServer) Tag() string {
+func (buildinfo) Tag() string {
 	return tag
 }
+
+// KeyServer provides the build information about the key server.
+var KeyServer buildinfo
