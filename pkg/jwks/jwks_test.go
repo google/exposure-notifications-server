@@ -49,7 +49,7 @@ func encodeKeys(keys ...string) string {
 }
 
 func encodeKey(key string) string {
-	return "-----BEGIN PUBLIC KEY-----\n" + key + "\n-----END PUBLIC KEY-----\n"
+	return "-----BEGIN PUBLIC KEY-----\n" + key + "\n-----END PUBLIC KEY-----"
 }
 
 func encodePublic(keys ...string) []string {

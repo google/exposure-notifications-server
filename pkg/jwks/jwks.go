@@ -136,7 +136,7 @@ func parseKeys(data []byte) ([]string, map[string]string, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("marshal error: %w", err)
 		}
-		keys[i] = string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: encoded}))
+		keys[i] = strings.TrimSpace(string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: encoded})))
 		versions[keys[i]] = spec.KeyID
 	}
 	return keys, versions, nil
@@ -230,7 +230,7 @@ func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) err
 			AuthorityID:  ha.ID,
 			Version:      versions[key],
 			From:         time.Now(),
-			PublicKeyPEM: key,
+			PublicKeyPEM: strings.TrimSpace(key),
 		}
 		if err := haDB.AddHealthAuthorityKey(ctx, ha, hak); err != nil {
 			return fmt.Errorf("error adding key: %w", err)
