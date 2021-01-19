@@ -28,6 +28,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/federationout/database"
 	"github.com/google/exposure-notifications-server/internal/pb/federation"
+	"github.com/google/exposure-notifications-server/internal/project"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
@@ -392,7 +393,7 @@ func rawToken(ctx context.Context) (string, error) {
 	if !strings.HasPrefix(authHeader, bearer) {
 		return "", status.Errorf(codes.Unauthenticated, "Invalid authorization header")
 	}
-	rawToken := strings.TrimSpace(strings.TrimPrefix(authHeader, bearer))
+	rawToken := project.TrimSpaceAndNonPrintable(strings.TrimPrefix(authHeader, bearer))
 	return rawToken, nil
 }
 

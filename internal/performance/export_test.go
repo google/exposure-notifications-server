@@ -27,6 +27,7 @@ import (
 
 	exportapi "github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/integration"
+	"github.com/google/exposure-notifications-server/internal/project"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
@@ -186,7 +187,7 @@ func TestExport(t *testing.T) {
 				return retry.RetryableError(err)
 			}
 			return err
-		} else if c := strings.TrimSpace(string(index)); c == "" {
+		} else if c := project.TrimSpaceAndNonPrintable(string(index)); c == "" {
 			time.Sleep(500 * time.Millisecond)
 			return retry.RetryableError(fmt.Errorf("index file %s/%s is empty", exportDir, integration.IndexFilePath(exportRoot)))
 		}

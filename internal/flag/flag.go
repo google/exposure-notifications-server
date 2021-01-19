@@ -18,6 +18,8 @@ package flag
 import (
 	"fmt"
 	"strings"
+
+	"github.com/google/exposure-notifications-server/internal/project"
 )
 
 // RegionListVar is a list of upper-cased, unique regions derived from a comma-separated list.
@@ -35,7 +37,7 @@ func (l *RegionListVar) Set(val string) error {
 
 	unique := map[string]struct{}{}
 	for _, v := range strings.Split(val, ",") {
-		vf := strings.ToUpper(strings.TrimSpace(v))
+		vf := strings.ToUpper(project.TrimSpaceAndNonPrintable(v))
 		if _, seen := unique[vf]; !seen {
 			*l = append(*l, vf)
 			unique[vf] = struct{}{}

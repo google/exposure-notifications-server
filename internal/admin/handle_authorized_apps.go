@@ -25,6 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 	verdb "github.com/google/exposure-notifications-server/internal/verification/database"
 )
 
@@ -198,12 +199,12 @@ func (f *authorizedAppFormData) PriorKey() string {
 }
 
 func (f *authorizedAppFormData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
-	a.AppPackageName = strings.TrimSpace(f.AppPackageName)
+	a.AppPackageName = project.TrimSpaceAndNonPrintable(f.AppPackageName)
 	a.AllowedRegions = make(map[string]struct{})
 	for _, region := range strings.Split(f.AllowedRegions, "\n") {
-		region = strings.TrimSpace(region)
+		region = project.TrimSpaceAndNonPrintable(region)
 		if region != "" {
-			a.AllowedRegions[strings.TrimSpace(region)] = struct{}{}
+			a.AllowedRegions[project.TrimSpaceAndNonPrintable(region)] = struct{}{}
 		}
 	}
 	a.AllowedHealthAuthorityIDs = make(map[int64]struct{})

@@ -19,9 +19,9 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 )
 
@@ -39,7 +39,7 @@ type HealthAuthority struct {
 
 // SetJWKS sets the optional JwksURI property of the HealthAuthority.
 func (ha *HealthAuthority) SetJWKS(uri string) {
-	uri = strings.TrimSpace(uri)
+	uri = project.TrimSpaceAndNonPrintable(uri)
 	if uri == "" {
 		ha.JwksURI = nil
 		return

@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
@@ -136,7 +137,7 @@ func parseKeys(data []byte) ([]string, map[string]string, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("marshal error: %w", err)
 		}
-		keys[i] = strings.TrimSpace(string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: encoded})))
+		keys[i] = project.TrimSpaceAndNonPrintable(string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: encoded})))
 		versions[keys[i]] = spec.KeyID
 	}
 	return keys, versions, nil
@@ -230,7 +231,7 @@ func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) err
 			AuthorityID:  ha.ID,
 			Version:      versions[key],
 			From:         time.Now(),
-			PublicKeyPEM: strings.TrimSpace(key),
+			PublicKeyPEM: project.TrimSpaceAndNonPrintable(key),
 		}
 		if err := haDB.AddHealthAuthorityKey(ctx, ha, hak); err != nil {
 			return fmt.Errorf("error adding key: %w", err)

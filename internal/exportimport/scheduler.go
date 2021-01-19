@@ -28,6 +28,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	exportimportdb "github.com/google/exposure-notifications-server/internal/exportimport/database"
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"go.opencensus.io/trace"
 )
@@ -111,7 +112,7 @@ func buildArchiveURLs(ctx context.Context, config *model.ExportImport, index str
 	zipNames := strings.Split(index, "\n")
 	currentFiles := make([]string, 0, len(zipNames))
 	for _, zipFile := range zipNames {
-		if len(strings.TrimSpace(zipFile)) == 0 {
+		if len(project.TrimSpaceAndNonPrintable(zipFile)) == 0 {
 			// drop blank lines.
 			continue
 		}
@@ -121,7 +122,7 @@ func buildArchiveURLs(ctx context.Context, config *model.ExportImport, index str
 		if err != nil {
 			return nil, fmt.Errorf("config.ExportRoot is invalid: %s: %w", config.ExportRoot, err)
 		}
-		base.Path = path.Join(base.Path, "/", strings.TrimSpace(zipFile))
+		base.Path = path.Join(base.Path, "/", project.TrimSpaceAndNonPrintable(zipFile))
 		proposedURL := base.String()
 		// Re-parse combined URL in case there are issues with the filename in the index file.
 		url, err := url.Parse(proposedURL)

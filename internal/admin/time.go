@@ -15,8 +15,9 @@
 package admin
 
 import (
-	"strings"
 	"time"
+
+	"github.com/google/exposure-notifications-server/internal/project"
 )
 
 // CombineDateAndTime takes values from date and time HTML inputs and combines
@@ -29,5 +30,5 @@ func CombineDateAndTime(dateS, timeS string) (time.Time, error) {
 	if timeS == "" {
 		timeS = "00:00"
 	}
-	return time.Parse("2006-01-02 15:04", strings.TrimSpace(dateS)+" "+strings.TrimSpace(timeS))
+	return time.Parse("2006-01-02 15:04", project.TrimSpaceAndNonPrintable(dateS)+" "+project.TrimSpaceAndNonPrintable(timeS))
 }

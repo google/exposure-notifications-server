@@ -19,10 +19,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 )
@@ -226,10 +226,10 @@ func (f *keyhealthAuthorityFormData) PopulateHealthAuthorityKey(hak *model.Healt
 	if err != nil {
 		return err
 	}
-	hak.Version = strings.TrimSpace(f.Version)
+	hak.Version = project.TrimSpaceAndNonPrintable(f.Version)
 	hak.From = fTime
 	hak.Thru = tTime
-	hak.PublicKeyPEM = strings.TrimSpace(f.PEMBlock)
+	hak.PublicKeyPEM = project.TrimSpaceAndNonPrintable(f.PEMBlock)
 
 	_, err = hak.PublicKey()
 	return err
