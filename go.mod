@@ -80,3 +80,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	honnef.co/go/tools v0.1.0
 )
+
+// FIXME: remove once
+// https://github.com/census-ecosystem/opencensus-go-exporter-stackdriver/commit/1996040a78017ba96c8bd972de452a9a7df00a04
+// is included in a release.
+replace contrib.go.opencensus.io/exporter/stackdriver v0.13.4 => github.com/census-ecosystem/opencensus-go-exporter-stackdriver v0.0.0-20210120144749-1996040a7801
