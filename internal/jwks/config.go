@@ -31,7 +31,7 @@ type Config struct {
 
 	Port string `env:"PORT, default=8080"`
 
-	KeyCleanupTTL time.Duration `env:"HEALTH_AUTHORITY_KEY_CLEANUP_TTL, default=30d"`
+	KeyCleanupTTL time.Duration `env:"HEALTH_AUTHORITY_KEY_CLEANUP_TTL, default=720h"` // 30 days
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
