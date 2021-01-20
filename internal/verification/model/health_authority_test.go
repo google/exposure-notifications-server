@@ -63,6 +63,39 @@ func TestSetJWKS(t *testing.T) {
 	}
 }
 
+func TestRevoke(t *testing.T) {
+	t.Parallel()
+
+	t.Run("existing", func(t *testing.T) {
+		t.Parallel()
+		hak := &HealthAuthorityKey{}
+		hak.From = time.Now().UTC()
+
+		time.Sleep(time.Second)
+		hak.Revoke()
+
+		if !hak.Thru.After(hak.From) {
+			t.Fatalf("thru (%v) should be set and after from (%v)", hak.Thru, hak.From)
+		}
+	})
+
+	t.Run("future", func(t *testing.T) {
+		t.Parallel()
+		hak := &HealthAuthorityKey{}
+		hak.From = time.Now().UTC().Add(time.Minute)
+
+		if !hak.IsFuture() {
+			t.Fatalf("future dated key not reporting as future")
+		}
+
+		hak.Revoke()
+
+		if diff := cmp.Diff(hak.From, hak.Thru); diff != "" {
+			t.Fatalf("mismatch (-want, +got):\n%s", diff)
+		}
+	})
+}
+
 func TestIsValid(t *testing.T) {
 	t.Parallel()
 

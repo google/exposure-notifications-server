@@ -93,7 +93,7 @@ func (k *HealthAuthorityKey) IsValidAt(t time.Time) bool {
 }
 
 // Revoke revokes a key.
-func (k HealthAuthorityKey) Revoke() {
+func (k *HealthAuthorityKey) Revoke() {
 	k.Thru = time.Now().UTC()
 	if !k.Thru.After(k.From) {
 		// make it so that the key doesn't expire before it is active.

@@ -21,8 +21,8 @@ import (
 	"fmt"
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
+	"github.com/google/exposure-notifications-server/internal/jwks"
 	"github.com/google/exposure-notifications-server/internal/setup"
-	"github.com/google/exposure-notifications-server/pkg/jwks"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/sethvargo/go-signalcontext"
