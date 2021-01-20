@@ -20,11 +20,14 @@ import (
 	"fmt"
 	"strings"
 
+	monitoring "cloud.google.com/go/monitoring/apiv3"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
+	"google.golang.org/api/option"
+	monitoringpb "google.golang.org/genproto/googleapis/monitoring/v3"
 )
 
 var _ Exporter = (*stackdriverExporter)(nil)
@@ -32,6 +35,7 @@ var _ Exporter = (*stackdriverExporter)(nil)
 type stackdriverExporter struct {
 	exporter *stackdriver.Exporter
 	config   *StackdriverConfig
+	options  *stackdriver.Options
 }
 
 // NewStackdriver creates a new metrics and trace exporter for Stackdriver.
@@ -46,7 +50,7 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 	monitoredResource := NewStackdriverMonitoredResource(ctx, config)
 	logger.Debugw("monitored resource", "resource", monitoredResource)
 
-	exporter, err := stackdriver.NewExporter(stackdriver.Options{
+	options := stackdriver.Options{
 		Context:                 ctx,
 		ProjectID:               projectID,
 		ReportingInterval:       config.ReportingInterval,
@@ -58,17 +62,34 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 		OnError: func(err error) {
 			logger.Errorw("failed to export metric", "error", err, "resource", monitoredResource)
 		},
-	})
+	}
+	exporter, err := stackdriver.NewExporter(options)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Stackdriver exporter: %w", err)
 	}
-	return &stackdriverExporter{exporter, config}, nil
+	return &stackdriverExporter{
+		exporter: exporter,
+		config:   config,
+		options:  &options}, nil
+}
+
+func (e *stackdriverExporter) metricClient() (*monitoring.MetricClient, error) {
+	opts := append(e.options.MonitoringClientOptions, option.WithUserAgent(e.options.UserAgent))
+	ctx := e.options.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return monitoring.NewMetricClient(ctx, opts...)
 }
 
 // StartExporter starts the exporter.
 func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
 	logger := logging.FromContext(ctx).Named("stackdriver")
+	mclient, err := e.metricClient()
+	if err != nil {
+		return fmt.Errorf("unable to create metric client: %w", err)
+	}
 	for _, v := range AllViews() {
 		shouldSkip := false
 		for _, prefix := range e.config.ExcludedMetricPrefixes {
@@ -83,6 +104,18 @@ func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
 		}
 		if err := view.Register(v); err != nil {
 			return fmt.Errorf("failed to start stackdriver exporter: view registration failed: %w", err)
+		}
+		md, err := e.exporter.ViewToMetricDescriptor(ctx, v)
+		if err != nil {
+			return fmt.Errorf("failed to convert view to MetricDescriptor: %w", err)
+		}
+		cmrdesc := &monitoringpb.CreateMetricDescriptorRequest{
+			Name:             fmt.Sprintf("projects/%s", e.config.ProjectID),
+			MetricDescriptor: md,
+		}
+		_, err = mclient.CreateMetricDescriptor(ctx, cmrdesc)
+		if err != nil {
+			return fmt.Errorf("failed to create MetricDescriptor: %w", err)
 		}
 	}
 
