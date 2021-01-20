@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 )
 
 // HandleExportsSave handles the create/update actions for exports.
@@ -152,7 +153,7 @@ type exportFormData struct {
 func splitRegions(regions string) []string {
 	ret := make([]string, 0, 20)
 	for _, s := range strings.Split(regions, "\n") {
-		s := strings.TrimSpace(s)
+		s := project.TrimSpaceAndNonPrintable(s)
 		if s != "" {
 			ret = append(ret, s)
 		}
@@ -174,10 +175,10 @@ func (f *exportFormData) PopulateExportConfig(ec *model.ExportConfig) error {
 		return fmt.Errorf("cannot have both 'include travelers', and 'only non-travelers' set")
 	}
 
-	ec.BucketName = strings.TrimSpace(f.BucketName)
-	ec.FilenameRoot = strings.TrimSpace(f.FilenameRoot)
+	ec.BucketName = project.TrimSpaceAndNonPrintable(f.BucketName)
+	ec.FilenameRoot = project.TrimSpaceAndNonPrintable(f.FilenameRoot)
 	ec.Period = f.Period
-	ec.OutputRegion = strings.TrimSpace(f.OutputRegion)
+	ec.OutputRegion = project.TrimSpaceAndNonPrintable(f.OutputRegion)
 	ec.InputRegions = splitRegions(f.InputRegions)
 	ec.IncludeTravelers = f.IncludeTravelers
 	ec.OnlyNonTravelers = f.OnlyNonTravelers

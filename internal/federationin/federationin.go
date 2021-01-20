@@ -31,6 +31,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/federationin/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/pb/federation"
+	"github.com/google/exposure-notifications-server/internal/project"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -250,7 +251,7 @@ func updateTimestamps(max, maxRevised time.Time, state *federation.FetchState) (
 func buildExposure(e *federation.ExposureKey, config *Config) (*publishmodel.Exposure, error) {
 	upperRegions := make([]string, len(e.Regions))
 	for i, r := range e.Regions {
-		upperRegions[i] = strings.ToUpper(strings.TrimSpace(r))
+		upperRegions[i] = strings.ToUpper(project.TrimSpaceAndNonPrintable(r))
 	}
 	sort.Strings(upperRegions)
 
