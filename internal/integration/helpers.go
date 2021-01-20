@@ -40,6 +40,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/google/exposure-notifications-server/pkg/server"
+	"github.com/gorilla/mux"
 	"github.com/sethvargo/go-envconfig"
 	"github.com/sethvargo/go-retry"
 
@@ -136,7 +137,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	)
 	// Note: don't call env.Cleanup() because the database helper closes the
 	// connection for us.
-	mux := http.NewServeMux()
+	r := mux.NewRouter()
 
 	// Cleanup export
 	cleanupExportConfig := &cleanup.Config{
@@ -148,7 +149,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	mux.Handle("/cleanup-export", cleanupExportHandler)
+	r.Handle("/cleanup-export", cleanupExportHandler)
 
 	// Cleanup exposure
 	cleanupExposureConfig := &cleanup.Config{
@@ -160,7 +161,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	mux.Handle("/cleanup-exposure", cleanupExposureHandler)
+	r.Handle("/cleanup-exposure", cleanupExposureHandler)
 
 	// Export
 	exportConfig := &export.Config{
@@ -179,7 +180,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 		tb.Fatal(err)
 	}
 	exportHandler := http.StripPrefix("/export", exportServer.Routes(ctx))
-	mux.Handle("/export/", exportHandler)
+	r.PathPrefix("/export/").Handler(exportHandler)
 
 	// Federation
 	federationInConfig := &federationin.Config{
@@ -188,7 +189,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	}
 
 	federationinHandler := federationin.NewHandler(env, federationInConfig)
-	mux.Handle("/federation-in", federationinHandler)
+	r.Handle("/federation-in", federationinHandler)
 
 	// Federation out
 	// TODO: this is a grpc listener and requires a lot of setup.
@@ -212,7 +213,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	mux.Handle("/key-rotation/", http.StripPrefix("/key-rotation", rotationServer.Routes(ctx)))
+	r.PathPrefix("/key-rotation/").Handler(http.StripPrefix("/key-rotation", rotationServer.Routes(ctx)))
 
 	// Parse the config to load default values.
 	publishConfig := publish.Config{}
@@ -230,7 +231,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	mux.Handle("/publish", publishHandler.Handle())
+	r.Handle("/publish", publishHandler.Handle())
 
 	srv, err := server.New("")
 	if err != nil {
@@ -243,7 +244,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 
 	// Start the server
 	go func() {
-		if err := srv.ServeHTTPHandler(stopCtx, mux); err != nil {
+		if err := srv.ServeHTTPHandler(stopCtx, r); err != nil {
 			tb.Error(err)
 		}
 	}()

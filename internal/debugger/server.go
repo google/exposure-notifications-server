@@ -17,10 +17,10 @@ package debugger
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/server"
+	"github.com/gorilla/mux"
 )
 
 // Server is the debugger server.
@@ -53,10 +53,10 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	}, nil
 }
 
-func (s *Server) Routes(ctx context.Context) *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", s.handleDebug(ctx))
-	mux.Handle("/health", server.HandleHealthz(ctx))
+func (s *Server) Routes(ctx context.Context) *mux.Router {
+	r := mux.NewRouter()
+	r.HandleFunc("/", s.handleDebug(ctx))
+	r.Handle("/health", server.HandleHealthz(ctx))
 
-	return mux
+	return r
 }

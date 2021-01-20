@@ -24,6 +24,7 @@ import (
 
 	"contrib.go.opencensus.io/exporter/prometheus"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/gorilla/mux"
 )
 
 // ServeMetricsIfPrometheus serves the opencensus metrics at /metrics when OBSERVABILITY_EXPORTER set to "prometheus"
@@ -43,11 +44,11 @@ func ServeMetricsIfPrometheus(ctx context.Context) error {
 		}
 
 		go func() {
-			mux := http.NewServeMux()
-			mux.Handle("/metrics", exporter)
+			r := mux.NewRouter()
+			r.Handle("/metrics", exporter)
 
 			logger.Debugf("Metrics endpoint listening on :%s", metricsPort)
-			if err := http.ListenAndServe(":"+metricsPort, mux); err != nil {
+			if err := http.ListenAndServe(":"+metricsPort, r); err != nil {
 				logger.Debugf("error while serving metrics endpoint: %w", err)
 			}
 		}()
