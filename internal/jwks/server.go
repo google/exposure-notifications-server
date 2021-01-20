@@ -39,7 +39,7 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	}
 
 	ctx := context.Background()
-	manager, err := NewManager(ctx, env.Database())
+	manager, err := NewManager(ctx, env.Database(), config.KeyCleanupTTL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create manager: %w", err)
 	}

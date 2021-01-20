@@ -31,48 +31,34 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/project"
-	"github.com/google/exposure-notifications-server/internal/setup"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/logging"
-	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/hashicorp/go-multierror"
 	"github.com/rakutentech/jwk-go/jwk"
 	"go.uber.org/zap"
 )
 
-var _ setup.DatabaseConfigProvider = (*Config)(nil)
-var _ setup.SecretManagerConfigProvider = (*Config)(nil)
-
-type Config struct {
-	Database      database.Config
-	SecretManager secrets.Config
-
-	Port string `env:"PORT, default=8080"`
-}
-
-func (c *Config) DatabaseConfig() *database.Config {
-	return &c.Database
-}
-
-func (c *Config) SecretManagerConfig() *secrets.Config {
-	return &c.SecretManager
-}
-
 // Manager handles updating all HealthAuthorities if they've specified a JWKS
 // URI.
 type Manager struct {
-	db     *database.DB
-	logger *zap.SugaredLogger
+	db         *database.DB
+	logger     *zap.SugaredLogger
+	cleanupTTL time.Duration
 }
 
 // NewManager creates a new Manager.
-func NewManager(ctx context.Context, db *database.DB) (*Manager, error) {
+func NewManager(ctx context.Context, db *database.DB, cleanupTTL time.Duration) (*Manager, error) {
 	logger := logging.FromContext(ctx).Named("jwks")
 
+	if cleanupTTL < 0 {
+		cleanupTTL *= -1
+	}
+
 	return &Manager{
-		logger: logger,
-		db:     db,
+		logger:     logger,
+		db:         db,
+		cleanupTTL: cleanupTTL,
 	}, nil
 }
 
@@ -191,6 +177,13 @@ func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) err
 
 	// Create the hadb once to save allocations
 	haDB := hadb.New(mgr.db)
+
+	purgeBefore := time.Now().UTC().Add(-1 * mgr.cleanupTTL)
+	if count, err := haDB.PurgeHealthAuthorityKeys(ctx, ha, purgeBefore); err != nil {
+		logger.Errorw("error purging expired health authority keys", "healthAuthorityID", ha.ID, "error", err)
+	} else if count > 0 {
+		logger.Infow("purged health authority keys", "healthAuthorityID", ha.ID, "count", count)
+	}
 
 	// Get the keys for the health authority
 	if keys, err := haDB.GetHealthAuthorityKeys(ctx, ha); err != nil {

@@ -163,7 +163,7 @@ func TestAddRetrieveHealthAuthorityKeys(t *testing.T) {
 	wantKeys := []*model.HealthAuthorityKey{
 		{
 			Version:      "v1",
-			From:         time.Now().Truncate(time.Second),
+			From:         time.Now().Add(-1 * time.Minute).Truncate(time.Second),
 			PublicKeyPEM: validPEM,
 		},
 	}
@@ -181,6 +181,33 @@ func TestAddRetrieveHealthAuthorityKeys(t *testing.T) {
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	// revoke that key.
+	wantKeys[0].Revoke()
+	if err := haDB.UpdateHealthAuthorityKey(ctx, wantKeys[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	// Reading back the HA will also read back the keys.
+	got, err = haDB.GetHealthAuthority(ctx, want.Issuer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("mismatch (-want, +got):\n%s", diff)
+	}
+
+	time.Sleep(time.Second)
+
+	// Purge the keys.
+	count, err := haDB.PurgeHealthAuthorityKeys(ctx, want, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("failed to purge old keys")
+	}
+	if count != 1 {
+		t.Fatalf("wrong number of keys purged, want: %v got: %v", 1, count)
 	}
 }
 

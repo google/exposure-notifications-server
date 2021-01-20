@@ -139,7 +139,7 @@ func TestUpdateHA(t *testing.T) {
 			// Set up the test.
 			ctx := context.Background()
 			testDB, _ := testDatabaseInstance.NewDatabase(t)
-			mgr, err := NewManager(ctx, testDB)
+			mgr, err := NewManager(ctx, testDB, time.Minute)
 			if err != nil {
 				t.Fatalf("[%d] unexpected error: %v", i, err)
 			}

@@ -245,6 +245,26 @@ func (db *HealthAuthorityDB) AddHealthAuthorityKey(ctx context.Context, ha *mode
 	})
 }
 
+func (db *HealthAuthorityDB) PurgeHealthAuthorityKeys(ctx context.Context, ha *model.HealthAuthority, purgeBefore time.Time) (int64, error) {
+	purgeCount := int64(0)
+	err := db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			DELETE FROM HealthAuthorityKey
+			WHERE
+				health_authority_id = $1 AND (thru_timestamp IS NOT NULL and thru_timestamp < $2)
+			`, ha.ID, purgeBefore)
+		if err != nil {
+			return fmt.Errorf("updating health authority key: %w", err)
+		}
+		purgeCount = result.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return purgeCount, nil
+}
+
 func (db *HealthAuthorityDB) UpdateHealthAuthorityKey(ctx context.Context, hak *model.HealthAuthorityKey) error {
 	if _, err := hak.PublicKey(); err != nil {
 		return err
