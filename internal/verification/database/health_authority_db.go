@@ -227,7 +227,7 @@ func (db *HealthAuthorityDB) AddHealthAuthorityKey(ctx context.Context, ha *mode
 
 	hak.AuthorityID = ha.ID
 	thru := db.db.NullableTime(hak.Thru)
-	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			INSERT INTO
 				HealthAuthorityKey
@@ -247,7 +247,7 @@ func (db *HealthAuthorityDB) AddHealthAuthorityKey(ctx context.Context, ha *mode
 
 func (db *HealthAuthorityDB) PurgeHealthAuthorityKeys(ctx context.Context, ha *model.HealthAuthority, purgeBefore time.Time) (int64, error) {
 	purgeCount := int64(0)
-	err := db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			DELETE FROM HealthAuthorityKey
 			WHERE
@@ -271,7 +271,7 @@ func (db *HealthAuthorityDB) UpdateHealthAuthorityKey(ctx context.Context, hak *
 	}
 
 	thru := db.db.NullableTime(hak.Thru)
-	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE HealthAuthorityKey
 			SET
