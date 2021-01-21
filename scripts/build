@@ -34,6 +34,8 @@ if [ -z "${TAG:-}" ]; then
 fi
 
 SUBS="_TAG=${TAG}"
+SUBS="${SUBS},_BINAUTHZ_ATTESTOR=${BINAUTHZ_ATTESTOR:-""}"
+SUBS="${SUBS},_BINAUTHZ_KEY_VERSION=${BINAUTHZ_KEY_VERSION:-""}"
 
 gcloud builds submit "${ROOT}" \
   --project "${PROJECT_ID}" \

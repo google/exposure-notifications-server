@@ -15,6 +15,15 @@
 provider "google" {
   project = var.project
   region  = var.region
+
+  user_project_override = true
+}
+
+provider "google-beta" {
+  project = var.project
+  region  = var.region
+
+  user_project_override = true
 }
 
 # To generate passwords.
@@ -34,16 +43,22 @@ resource "google_project_service" "resourcemanager" {
 resource "google_project_service" "services" {
   project = data.google_project.project.project_id
   for_each = toset([
+    "binaryauthorization.googleapis.com",
     "cloudbuild.googleapis.com",
     "cloudkms.googleapis.com",
     "cloudscheduler.googleapis.com",
     "compute.googleapis.com",
+    "containeranalysis.googleapis.com",
     "containerregistry.googleapis.com",
+    "iam.googleapis.com",
+    "monitoring.googleapis.com",
+    "redis.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
     "servicenetworking.googleapis.com",
     "sql-component.googleapis.com",
     "sqladmin.googleapis.com",
+    "stackdriver.googleapis.com",
     "storage-api.googleapis.com",
     "vpcaccess.googleapis.com",
   ])
@@ -99,6 +114,9 @@ resource "null_resource" "build" {
     environment = {
       PROJECT_ID = data.google_project.project.project_id
       TAG        = "initial"
+
+      BINAUTHZ_ATTESTOR    = google_binary_authorization_attestor.built-by-ci.id
+      BINAUTHZ_KEY_VERSION = trimprefix(data.google_kms_crypto_key_version.binauthz-built-by-ci-signer-version.id, "//cloudkms.googleapis.com/v1/")
     }
 
     command = "${path.module}/../scripts/build"
@@ -106,6 +124,8 @@ resource "null_resource" "build" {
 
   depends_on = [
     google_project_service.services["cloudbuild.googleapis.com"],
+    google_storage_bucket_iam_member.cloudbuild-cache,
+    google_binary_authorization_attestor_iam_member.ci-attestor,
   ]
 }
 
@@ -165,6 +185,9 @@ export DB_PASSWORD="secret://${google_secret_manager_secret_version.db-secret-ve
 export DB_PORT="5432"
 export DB_SSLMODE="disable"
 export DB_USER="${google_sql_user.user.name}"
+
+export BINAUTHZ_ATTESTOR="${google_binary_authorization_attestor.built-by-ci.id}"
+export BINAUTHZ_KEY_VERSION="${trimprefix(data.google_kms_crypto_key_version.binauthz-built-by-ci-signer-version.id, "//cloudkms.googleapis.com/v1/")}"
 EOF
 }
 
