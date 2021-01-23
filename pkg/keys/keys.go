@@ -104,14 +104,10 @@ type EncryptionKeyManager interface {
 func KeyManagerFor(ctx context.Context, config *Config) (KeyManager, error) {
 	typ := config.KeyManagerType
 	switch typ {
-	case KeyManagerTypeAWSKMS:
-		return NewAWSKMS(ctx)
 	case KeyManagerTypeAzureKeyVault:
 		return NewAzureKeyVault(ctx)
 	case KeyManagerTypeGoogleCloudKMS:
 		return NewGoogleCloudKMS(ctx, config)
-	case KeyManagerTypeHashiCorpVault:
-		return NewHashiCorpVault(ctx)
 	case KeyManagerTypeFilesystem:
 		return NewFilesystem(ctx, config.FilesystemRoot)
 	}

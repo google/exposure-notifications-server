@@ -44,8 +44,6 @@ type Blobstore interface {
 // does not exist.
 func BlobstoreFor(ctx context.Context, typ BlobstoreType) (Blobstore, error) {
 	switch typ {
-	case BlobstoreTypeAWSS3:
-		return NewAWSS3(ctx)
 	case BlobstoreTypeAzureBlobStorage:
 		return NewAzureBlobstore(ctx)
 	case BlobstoreTypeGoogleCloudStorage:

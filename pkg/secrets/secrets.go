@@ -38,14 +38,10 @@ type SecretManagerFunc func(ctx context.Context) (SecretManager, error)
 // if one does not exist.
 func SecretManagerFor(ctx context.Context, typ SecretManagerType) (SecretManager, error) {
 	switch typ {
-	case SecretManagerTypeAWSSecretsManager:
-		return NewAWSSecretsManager(ctx)
 	case SecretManagerTypeAzureKeyVault:
 		return NewAzureKeyVault(ctx)
 	case SecretManagerTypeGoogleSecretManager:
 		return NewGoogleSecretManager(ctx)
-	case SecretManagerTypeGoogleHashiCorpVault:
-		return NewHashiCorpVault(ctx)
 	case SecretManagerTypeInMemory:
 		return NewInMemory(ctx)
 	}
