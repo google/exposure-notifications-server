@@ -14,7 +14,14 @@
 
 package v1
 
-import "time"
+import (
+	"bytes"
+	"encoding/csv"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+)
 
 const (
 	// ErrorUnauthorized is returned if the provided bearer token is invalid.
@@ -38,12 +45,15 @@ type StatsRequest struct {
 	Padding string `json:"padding"`
 }
 
+// StatsDays represents a logical collection of stats.
+type StatsDays []*StatsDay
+
 // StatsResponse returns all currently known metrics for the authenticated health authority.
 //
 // There may be gaps in the Days if a day has insufficient data.
 type StatsResponse struct {
 	// Individual days. There may be gaps if a day does not have enough data.
-	Days []*StatsDay `json:"days,omitempty"`
+	Days StatsDays `json:"days,omitempty"`
 
 	ErrorMessage string `json:"error,omitempty"`
 	ErrorCode    string `json:"code,omitempty"`
@@ -83,4 +93,57 @@ type PublishRequests struct {
 
 func (p *PublishRequests) Total() int64 {
 	return p.UnknownPlatform + p.Android + p.IOS
+}
+
+// MarshalCSV returns bytes in CSV format.
+func (s StatsDays) MarshalCSV() ([]byte, error) {
+	// Do nothing if there's no records
+	if len(s) == 0 {
+		return nil, nil
+	}
+
+	var b bytes.Buffer
+	w := csv.NewWriter(&b)
+
+	if err := w.Write([]string{
+		"day",
+		"publish_requests_unknown", "publish_requests_android", "publish_requests_ios",
+		"total_teks_published", "requests_with_revisions", "requests_missing_onset_date", "tek_age_distribution", "onset_to_upload_distribution",
+	}); err != nil {
+		return nil, fmt.Errorf("failed to write CSV header: %w", err)
+	}
+
+	for i, stat := range s {
+		if err := w.Write([]string{
+			stat.Day.Format("2006-01-02"),
+			strconv.FormatInt(stat.PublishRequests.UnknownPlatform, 10),
+			strconv.FormatInt(stat.PublishRequests.Android, 10),
+			strconv.FormatInt(stat.PublishRequests.IOS, 10),
+			strconv.FormatInt(stat.TotalTEKsPublished, 10),
+			strconv.FormatInt(stat.RevisionRequests, 10),
+			strconv.FormatInt(stat.RequestsMissingOnsetDate, 10),
+			join(stat.TEKAgeDistribution, "|"),
+			join(stat.OnsetToUploadDistribution, "|"),
+		}); err != nil {
+			return nil, fmt.Errorf("failed to write CSV entry %d: %w", i, err)
+		}
+	}
+
+	w.Flush()
+	if err := w.Error(); err != nil {
+		return nil, fmt.Errorf("failed to create CSV: %w", err)
+	}
+
+	return b.Bytes(), nil
+}
+
+func join(arr []int64, sep string) string {
+	var sb strings.Builder
+	for i, d := range arr {
+		sb.WriteString(strconv.FormatInt(d, 10))
+		if i != len(arr)-1 {
+			sb.WriteString(sep)
+		}
+	}
+	return sb.String()
 }
