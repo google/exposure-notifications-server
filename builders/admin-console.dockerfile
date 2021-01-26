@@ -23,7 +23,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 USER nobody
 COPY ./bin/admin-console /admin-console
-COPY ./cmd/admin-console/templates /templates
+COPY --chown=65534:65534 ./cmd/admin-console/templates /templates
 COPY --from=builder /var/run /var/run
 COPY --from=builder /var/run/secrets /var/run/secrets
 
