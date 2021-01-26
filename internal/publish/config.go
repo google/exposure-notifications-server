@@ -39,7 +39,7 @@ var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
 var _ model.TransformerConfig = (*Config)(nil)
 var _ setup.KeyManagerConfigProvider = (*Config)(nil)
-var _ maintenance.MaintenanceConfig = (*Config)(nil)
+var _ maintenance.Config = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.

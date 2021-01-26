@@ -20,20 +20,26 @@ import (
 	"net/http"
 )
 
-type MaintenanceConfig interface {
+// Config is an interface that determines if
+// the implementer can supply maintenance mode settings.
+type Config interface {
 	MaintenanceMode() bool
 }
 
+// Responder is a handle to a configured maintenance mode responder.
 type Responder struct {
 	inMaintenance bool
 }
 
-func New(c MaintenanceConfig) *Responder {
+// New creates a new maintenance mode responder.
+func New(c Config) *Responder {
 	return &Responder{
 		inMaintenance: c.MaintenanceMode(),
 	}
 }
 
+// Handle will either return the maintenance mode responder (if enabled)
+// or pass through to the next handler.
 func (r *Responder) Handle(next http.Handler) http.Handler {
 	if r.inMaintenance {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
