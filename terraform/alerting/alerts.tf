@@ -24,12 +24,12 @@ resource "google_monitoring_alert_policy" "CloudSchedulerJobFailed" {
   conditions {
     display_name = "Cloud Scheduler Job Error Ratio"
     condition_monitoring_query_language {
-      duration = "900s"
-      # Uses rate(5m). See the reasoning above.
-      query = <<-EOT
+      duration = "0s"
+      query    = <<-EOT
       fetch cloud_scheduler_job::logging.googleapis.com/log_entry_count
       | filter (metric.severity == 'ERROR')
       | align rate(5m)
+      | every 1m
       | group_by [resource.job_id], [val: aggregate(value.log_entry_count)]
       | condition val > 0
       EOT
