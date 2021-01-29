@@ -16,7 +16,6 @@ package admin
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -167,8 +166,6 @@ func (s *Server) HandleHealthAuthorityKeys() func(c *gin.Context) {
 			} else {
 				hak.Thru = time.Time{}
 			}
-
-			log.Printf("HAK %+v", hak)
 
 			err = haDB.UpdateHealthAuthorityKey(ctx, hak)
 			if err != nil {
