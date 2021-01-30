@@ -91,13 +91,6 @@ func makeMultiUnlockFn(ctx context.Context, db *DB, lockIDs []string, expires ti
 	}
 }
 
-func retryable(err error) bool {
-	if errors.Is(err, ErrAlreadyLocked) || serializationError(err) {
-		return true
-	}
-	return false
-}
-
 func serializationError(err error) bool {
 	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code == "40001" {
 		return true
@@ -116,7 +109,7 @@ func (db *DB) LockRetry(ctx context.Context, lockID string, ttl time.Duration, t
 	err := retry.Do(ctx, b, func(ctx context.Context) error {
 		var err error
 		unlock, err = db.Lock(ctx, lockID, ttl)
-		if err != nil && retryable(err) {
+		if err != nil && serializationError(err) {
 			return retry.RetryableError(err)
 		}
 		return err

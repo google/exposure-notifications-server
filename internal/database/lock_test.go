@@ -17,9 +17,12 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/sethvargo/go-retry"
 )
 
 func TestLock(t *testing.T) {
@@ -102,19 +105,29 @@ func TestLockRetry(t *testing.T) {
 				ch <- struct{}{}
 			}()
 			ctx := context.Background()
-			unlock, err := testDB.LockRetry(ctx, lockName, ttl, 10*time.Second)
+
+			b, _ := retry.NewConstant(10 * time.Millisecond)
+			b = retry.WithMaxDuration(10*time.Second, b)
+
+			err := retry.Do(ctx, b, func(ctx context.Context) error {
+				unlock, err := testDB.LockRetry(ctx, lockName, ttl, 1*time.Second)
+				if err != nil {
+					if errors.Is(err, ErrAlreadyLocked) {
+						return retry.RetryableError(err)
+					}
+					return fmt.Errorf("unable to acquire lock: worker: %v: %w", worker, err)
+				}
+				log.Printf("worker %v got lock", worker)
+				time.Sleep(10 * time.Millisecond)
+				if err := unlock(); err != nil {
+					return fmt.Errorf("unable to unlock: worker: %v: %w", worker, err)
+				}
+				log.Printf("worker %v released lock", worker)
+				return nil
+			})
 			if err != nil {
-				log.Printf("worker %v unable to acquire lock: %v", worker, err)
-				t.Errorf("unable to acquire lock: worker: %v err: %v", worker, err)
-				return
+				t.Errorf("locking error: %v", err)
 			}
-			log.Printf("worker %v got lock", worker)
-			time.Sleep(10 * time.Millisecond)
-			if err := unlock(); err != nil {
-				t.Errorf("error unlocking: %v", err)
-				return
-			}
-			log.Printf("worker %v released lock", worker)
 		}(i)
 	}
 
@@ -123,7 +136,7 @@ func TestLockRetry(t *testing.T) {
 		select {
 		case <-ch:
 			left--
-		case <-time.After(2 * time.Second):
+		case <-time.After(5 * time.Second):
 			t.Fatal("timed out waiting for parallel lock/release to finish")
 		}
 	}
