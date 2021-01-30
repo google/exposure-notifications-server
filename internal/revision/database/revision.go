@@ -88,7 +88,7 @@ func (rdb *RevisionDB) DestroyKey(ctx context.Context, keyID int64) error {
 	logger := logging.FromContext(ctx)
 	logger.Warnf("destroying key material for revision key ID %v", keyID)
 
-	if err := rdb.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	if err := rdb.db.SerializableTx(ctx, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE
 				RevisionKeys

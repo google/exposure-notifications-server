@@ -46,7 +46,7 @@ func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.Aut
 		return fmt.Errorf("AuthorizedApp invalid: %v", strings.Join(errors, ", "))
 	}
 
-	return aa.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return aa.db.SerializableTx(ctx, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
 			INSERT INTO
 				AuthorizedApp
@@ -67,7 +67,7 @@ func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.Aut
 
 // UpdateAuthorizedApp updates the properties of an authorized app, including possibly renaming it.
 func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey string, m *model.AuthorizedApp) error {
-	return aa.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return aa.db.SerializableTx(ctx, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE AuthorizedApp
 			SET
@@ -92,7 +92,7 @@ func (aa *AuthorizedAppDB) UpdateAuthorizedApp(ctx context.Context, priorKey str
 // DeleteAuthorizedApp removes an authorized app from the database.
 func (aa *AuthorizedAppDB) DeleteAuthorizedApp(ctx context.Context, name string) error {
 	var count int64
-	err := aa.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	err := aa.db.SerializableTx(ctx, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			DELETE FROM
 				AuthorizedApp

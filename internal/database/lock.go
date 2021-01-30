@@ -71,7 +71,7 @@ func (db *DB) MultiLock(ctx context.Context, lockIDs []string, ttl time.Duration
 
 func makeMultiUnlockFn(ctx context.Context, db *DB, lockIDs []string, expires time.Time) UnlockFn {
 	return func() error {
-		return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		return db.SerializableTx(ctx, func(tx pgx.Tx) error {
 			for i := len(lockIDs) - 1; i >= 0; i-- {
 				lockID := lockIDs[i]
 				row := tx.QueryRow(ctx, `SELECT ReleaseLock($1, $2)`, lockID, expires)
@@ -92,7 +92,7 @@ func makeMultiUnlockFn(ctx context.Context, db *DB, lockIDs []string, expires ti
 // Lock acquires lock with given name that times out after ttl. Returns an UnlockFn that can be used to unlock the lock. ErrAlreadyLocked will be returned if there is already a lock in use.
 func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (UnlockFn, error) {
 	var expires time.Time
-	err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	err := db.SerializableTx(ctx, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			SELECT AcquireLock($1, $2)
 		`, lockID, int(ttl.Seconds()))
@@ -113,7 +113,7 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 
 func makeUnlockFn(ctx context.Context, db *DB, lockID string, expires time.Time) UnlockFn {
 	return func() error {
-		return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+		return db.SerializableTx(ctx, func(tx pgx.Tx) error {
 			row := tx.QueryRow(ctx, `
 				SELECT ReleaseLock($1, $2)
 			`, lockID, expires)

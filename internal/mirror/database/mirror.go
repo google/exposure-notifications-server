@@ -35,7 +35,7 @@ func New(db *database.DB) *MirrorDB {
 }
 
 func (db *MirrorDB) AddMirror(ctx context.Context, m *model.Mirror) error {
-	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				Mirror (index_file, export_root, cloud_storage_bucket, filename_root, filename_rewrite)
@@ -54,7 +54,7 @@ func (db *MirrorDB) AddMirror(ctx context.Context, m *model.Mirror) error {
 // UpdateMirror updates the given mirror struct in the database. It must already
 // exist in the database, keyed off of ID.
 func (db *MirrorDB) UpdateMirror(ctx context.Context, m *model.Mirror) error {
-	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE
 				Mirror
@@ -82,7 +82,7 @@ func (db *MirrorDB) UpdateMirror(ctx context.Context, m *model.Mirror) error {
 }
 
 func (db *MirrorDB) DeleteMirror(ctx context.Context, m *model.Mirror) error {
-	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
 			DELETE FROM
 				MirrorFile

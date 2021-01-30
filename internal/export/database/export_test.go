@@ -356,7 +356,7 @@ func TestBatches(t *testing.T) {
 			batchID := leaseBatches()
 
 			// Complete a batch.
-			err = testDB.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error { return completeBatch(ctx, tx, batchID) })
+			err = testDB.SerializableTx(ctx, func(tx pgx.Tx) error { return completeBatch(ctx, tx, batchID) })
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -842,7 +842,7 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 	}
 
 	// Add a record.
-	err = testDB.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	err = testDB.SerializableTx(ctx, func(tx pgx.Tx) error {
 		if err := addExportFile(ctx, tx, ef); err != nil {
 			return err
 		}
@@ -863,7 +863,7 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 
 	// Add a second record with same filename, must return ErrKeyConflict, and not overwrite.
 	ef.BucketName = "bucket-2"
-	err = testDB.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	err = testDB.SerializableTx(ctx, func(tx pgx.Tx) error {
 		if err := addExportFile(ctx, tx, ef); err != nil {
 			if err == database.ErrKeyConflict {
 				return nil // Expected result.
