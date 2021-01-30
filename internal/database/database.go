@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgconn"
 	pgx "github.com/jackc/pgx/v4"
 )
 
@@ -36,6 +37,20 @@ func (db *DB) NullableTime(t time.Time) *time.Time {
 		return nil
 	}
 	return &t
+}
+
+// IsSerializationError returns true if the error is a transaction serialization error
+// from PG. This should only occur with isolation level of serializable and is
+// a retryable condition.
+func IsSerializationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// See https://www.postgresql.org/docs/current/errcodes-appendix.html
+	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code == "40001" {
+		return true
+	}
+	return false
 }
 
 // InTx runs the given function f within a transaction with isolation level isoLevel.

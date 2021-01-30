@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
-	"github.com/jackc/pgconn"
 	pgx "github.com/jackc/pgx/v4"
 	"github.com/sethvargo/go-retry"
 )
@@ -91,14 +90,6 @@ func makeMultiUnlockFn(ctx context.Context, db *DB, lockIDs []string, expires ti
 	}
 }
 
-func serializationError(err error) bool {
-	// See https://www.postgresql.org/docs/current/errcodes-appendix.html
-	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code == "40001" {
-		return true
-	}
-	return false
-}
-
 // LockRetry will attempt to acquire a lock using exponential backoff, up to the tryFor time.
 // Delegates to db.Lock().
 func (db *DB) LockRetry(ctx context.Context, lockID string, ttl time.Duration, tryFor time.Duration) (UnlockFn, error) {
@@ -110,7 +101,7 @@ func (db *DB) LockRetry(ctx context.Context, lockID string, ttl time.Duration, t
 	err := retry.Do(ctx, b, func(ctx context.Context) error {
 		var err error
 		unlock, err = db.Lock(ctx, lockID, ttl)
-		if err != nil && serializationError(err) {
+		if IsSerializationError(err) {
 			return retry.RetryableError(err)
 		}
 		return err
@@ -162,7 +153,7 @@ func makeUnlockFn(ctx context.Context, db *DB, lockID string, expires time.Time)
 				logging.FromContext(ctx).Debugf("Released lock %q", lockID)
 				return nil
 			})
-			if serializationError(err) {
+			if IsSerializationError(err) {
 				return retry.RetryableError(err)
 			}
 			return err
