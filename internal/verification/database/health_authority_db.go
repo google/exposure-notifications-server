@@ -54,7 +54,7 @@ func (db *HealthAuthorityDB) AddHealthAuthority(ctx context.Context, ha *model.H
 		return err
 	}
 
-	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				HealthAuthority
@@ -79,7 +79,7 @@ func (db *HealthAuthorityDB) UpdateHealthAuthority(ctx context.Context, ha *mode
 		return err
 	}
 
-	return db.db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE HealthAuthority
 			SET

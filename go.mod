@@ -44,6 +44,7 @@ require (
 	github.com/hashicorp/vault-plugin-secrets-kv v0.7.0
 	github.com/hashicorp/vault/api v1.0.5-0.20201001211907-38d91b749c77
 	github.com/hashicorp/vault/sdk v0.1.14-0.20201214222404-d8fffe05d2f4
+	github.com/jackc/pgconn v1.8.0
 	github.com/jackc/pgx/v4 v4.10.0
 	github.com/kelseyhightower/run v0.0.17
 	github.com/leodido/go-urn v1.2.1 // indirect
