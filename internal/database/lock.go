@@ -92,6 +92,7 @@ func makeMultiUnlockFn(ctx context.Context, db *DB, lockIDs []string, expires ti
 }
 
 func serializationError(err error) bool {
+	// See https://www.postgresql.org/docs/current/errcodes-appendix.html
 	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code == "40001" {
 		return true
 	}
