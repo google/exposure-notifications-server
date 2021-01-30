@@ -22,8 +22,13 @@ import (
 	"net/http"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/google/exposure-notifications-server/internal/database"
 	revisiondatabase "github.com/google/exposure-notifications-server/internal/revision/database"
+=======
+	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/revision/database"
+>>>>>>> 024b7f1 (improve locking handling for background jobs)
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/stats"
@@ -45,19 +50,17 @@ func (s *Server) handleRotateKeys() http.Handler {
 
 		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
 		if err != nil {
-			if errors.Is(err, database.ErrAlreadyLocked) {
-				logger.Debugw("already locked")
-				w.WriteHeader(http.StatusOK) // don't report conflict/failure to scheduler (will retry later)
+			logger.Warnw("unable to obtain lock", "lock", lockID, "error", err)
+			if errors.Is(err, coredb.ErrAlreadyLocked) {
+				w.WriteHeader(http.StatusOK)
 				return
 			}
-
-			logger.Errorw("failed to lock", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		defer func() {
 			if err := unlock(); err != nil {
-				logger.Errorw("failed to unlock", "error", err)
+				logger.Errorw("failed to unlock", "lock", lockID, "error", err)
 			}
 		}()
 
