@@ -134,6 +134,7 @@ func stripKey(k string) string {
 	k = strings.ReplaceAll(k, "-----BEGIN PUBLIC KEY-----", "")
 	k = strings.ReplaceAll(k, "-----END PUBLIC KEY-----", "")
 	k = strings.ReplaceAll(k, "\n", "")
+	k = strings.ReplaceAll(k, "\r", "")
 	return k
 }
 
