@@ -102,7 +102,7 @@ func TestLockRetry(t *testing.T) {
 				ch <- struct{}{}
 			}()
 			ctx := context.Background()
-			unlock, err := testDB.LockRetry(ctx, lockName, ttl, 2*time.Second)
+			unlock, err := testDB.LockRetry(ctx, lockName, ttl, 10*time.Second)
 			if err != nil {
 				log.Printf("worker %v unable to acquire lock: %v", worker, err)
 				t.Errorf("unable to acquire lock: worker: %v err: %v", worker, err)
