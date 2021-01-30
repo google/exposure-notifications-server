@@ -17,10 +17,12 @@ package keyrotation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
@@ -38,15 +40,19 @@ func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 		ctx, span := trace.StartSpan(r.Context(), "(*keyrotation.handler).ServeHTTP")
 		defer span.End()
 
-		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
+		unlock, err := s.db.LockRetry(ctx, lockID, time.Minute, s.config.Database.LockRetryTime)
 		if err != nil {
-			logger.Warn(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logger.Warnw("unable to acquire lock for key rotation", "error", err)
+			if errors.Is(err, coredb.ErrAlreadyLocked) {
+				w.WriteHeader(http.StatusOK)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 			return
 		}
 		defer func() {
 			if err := unlock(); err != nil {
-				logger.Errorf("failed to unlock: %v", err)
+				logger.Errorw("failed to unlock", "error", err)
 			}
 		}()
 

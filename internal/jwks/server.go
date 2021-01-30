@@ -16,14 +16,19 @@ package jwks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 )
+
+const jwksLock = "jwks-import"
 
 // Server is the debugger server.
 type Server struct {
@@ -65,8 +70,24 @@ func (s *Server) handleUpdateAll(ctx context.Context) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
+		unlock, err := s.manager.db.LockRetry(ctx, jwksLock, time.Minute, s.config.Database.LockRetryTime)
+		if err != nil {
+			logger.Warnw("unable to acquire lock for jwks import", "error", err)
+			if errors.Is(err, database.ErrAlreadyLocked) {
+				w.WriteHeader(http.StatusOK)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+			return
+		}
+		defer func() {
+			if err := unlock(); err != nil {
+				logger.Errorw("failed to unlock", "error", err)
+			}
+		}()
+
 		if err := s.manager.UpdateAll(ctx); err != nil {
-			logger.Error(err)
+			logger.Errorw("unable to import JWKS key sets", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, http.StatusText(http.StatusInternalServerError))
 			return

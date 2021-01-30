@@ -70,7 +70,7 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 	logger := logging.FromContext(ctx)
 
 	// Obtain a lock to work on this import config.
-	unlock, err := s.db.Lock(ctx, fmt.Sprintf("%s%d", lockPrefix, config.ID), s.config.MaxRuntime)
+	unlock, err := s.db.LockRetry(ctx, fmt.Sprintf("%s%d", lockPrefix, config.ID), s.config.MaxRuntime, s.config.Database.LockRetryTime)
 	if err != nil {
 		if errors.Is(err, database.ErrAlreadyLocked) {
 			logger.Warnw("import already locked", "config", config)

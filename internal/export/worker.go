@@ -395,7 +395,7 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 			return nil
 		}
 
-		unlock, err := db.Lock(ctx, lockID, time.Minute)
+		unlock, err := db.LockRetry(ctx, lockID, time.Minute, s.config.Database.LockRetryTime)
 		if err != nil {
 			if errors.Is(err, coredb.ErrAlreadyLocked) {
 				logger.Debugf("Lock %s is locked; sleeping %v and will try again", lockID, sleep)

@@ -40,6 +40,10 @@ type Config struct {
 	PoolMaxConnLife    time.Duration `env:"DB_POOL_MAX_CONN_LIFETIME, default=5m" json:",omitempty"`
 	PoolMaxConnIdle    time.Duration `env:"DB_POOL_MAX_CONN_IDLE_TIME, default=1m" json:",omitempty"`
 	PoolHealthCheck    time.Duration `env:"DB_POOL_HEALTH_CHECK_PERIOD, default=1m" json:",omitempty"`
+
+	// LockRetryTime is a suggested default for retry on lock acquisition.
+	// Consider a different value for things in user facing paths.
+	LockRetryTime time.Duration `env:"LOCK_RETRY_TIME, default=1s"`
 }
 
 func (c *Config) DatabaseConfig() *Config {

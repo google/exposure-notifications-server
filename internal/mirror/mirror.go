@@ -147,7 +147,7 @@ func (s *Server) processMirror(ctx context.Context, deadline time.Time, mirror *
 	blobstore := s.env.Blobstore()
 
 	lockID := fmt.Sprintf("%s-%d", mirrorLockPrefix, mirror.ID)
-	unlock, err := s.db.Lock(ctx, lockID, s.config.MaxRuntime)
+	unlock, err := s.db.LockRetry(ctx, lockID, s.config.MaxRuntime, s.config.Database.LockRetryTime)
 	if err != nil {
 		if errors.Is(err, database.ErrAlreadyLocked) {
 			logger.Infow("mirror already locked, skipping")

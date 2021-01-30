@@ -42,7 +42,7 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 		_, span := trace.StartSpan(r.Context(), "(*exportimport.handleSchedule).ServeHTTP")
 		defer span.End()
 
-		unlock, err := s.db.Lock(ctx, schedulerLockID, s.config.MaxRuntime)
+		unlock, err := s.db.LockRetry(ctx, schedulerLockID, s.config.MaxRuntime, s.config.Database.LockRetryTime)
 		if err != nil {
 			if errors.Is(err, database.ErrAlreadyLocked) {
 				w.WriteHeader(http.StatusOK)

@@ -42,7 +42,7 @@ func (s *Server) handleCreateBatches(ctx context.Context) http.HandlerFunc {
 
 		// Obtain lock to make sure there are no other processes working to create batches.
 		lock := "create_batches"
-		unlockFn, err := db.Lock(ctx, lock, s.config.CreateTimeout)
+		unlockFn, err := db.LockRetry(ctx, lock, s.config.CreateTimeout, s.config.Database.LockRetryTime)
 		if err != nil {
 			if errors.Is(err, coredb.ErrAlreadyLocked) {
 				stats.Record(ctx, mBatcherLockContention.M(1))
