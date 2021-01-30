@@ -17,6 +17,7 @@ package database
 import (
 	"context"
 	"errors"
+	"log"
 	"testing"
 	"time"
 )
@@ -81,6 +82,50 @@ func TestLock(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("got %d rows from Lock table, wanted zero", count)
+	}
+}
+
+func TestLockRetry(t *testing.T) {
+	t.Parallel()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+
+	lockName := "foo"
+	ttl := 5 * time.Second
+
+	attempts := 10
+	ch := make(chan struct{}, attempts)
+	defer close(ch)
+
+	for i := 0; i < attempts; i++ {
+		go func(worker int) {
+			defer func() {
+				ch <- struct{}{}
+			}()
+			ctx := context.Background()
+			unlock, err := testDB.LockRetry(ctx, lockName, ttl, 2*time.Second)
+			if err != nil {
+				log.Printf("worker %v unable to acquire lock: %v", worker, err)
+				t.Errorf("unable to acquire lock: worker: %v err: %v", worker, err)
+				return
+			}
+			log.Printf("worker %v got lock", worker)
+			time.Sleep(10 * time.Millisecond)
+			if err := unlock(); err != nil {
+				t.Errorf("error unlocking: %v", err)
+				return
+			}
+			log.Printf("worker %v released lock", worker)
+		}(i)
+	}
+
+	left := attempts
+	for left > 0 {
+		select {
+		case <-ch:
+			left--
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for parallel lock/release to finish")
+		}
 	}
 }
 

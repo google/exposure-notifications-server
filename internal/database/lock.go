@@ -22,7 +22,9 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/jackc/pgconn"
 	pgx "github.com/jackc/pgx/v4"
+	"github.com/sethvargo/go-retry"
 )
 
 var (
@@ -89,6 +91,42 @@ func makeMultiUnlockFn(ctx context.Context, db *DB, lockIDs []string, expires ti
 	}
 }
 
+func retryable(err error) bool {
+	if errors.Is(err, ErrAlreadyLocked) || serializationError(err) {
+		return true
+	}
+	return false
+}
+
+func serializationError(err error) bool {
+	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code == "40001" {
+		return true
+	}
+	return false
+}
+
+// LockRetry will attempt to acquire a lock using exponential backoff, up to the tryFor time.
+// Delegates to db.Lock().
+func (db *DB) LockRetry(ctx context.Context, lockID string, ttl time.Duration, tryFor time.Duration) (UnlockFn, error) {
+	// Ignored error - it checks for < 0
+	b, _ := retry.NewExponential(time.Millisecond)
+	b = retry.WithMaxDuration(tryFor, b)
+
+	var unlock UnlockFn
+	err := retry.Do(ctx, b, func(ctx context.Context) error {
+		var err error
+		unlock, err = db.Lock(ctx, lockID, ttl)
+		if err != nil && retryable(err) {
+			return retry.RetryableError(err)
+		}
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return unlock, err
+}
+
 // Lock acquires lock with given name that times out after ttl. Returns an UnlockFn that can be used to unlock the lock. ErrAlreadyLocked will be returned if there is already a lock in use.
 func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (UnlockFn, error) {
 	var expires time.Time
@@ -113,19 +151,27 @@ func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (Unloc
 
 func makeUnlockFn(ctx context.Context, db *DB, lockID string, expires time.Time) UnlockFn {
 	return func() error {
-		return db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
-			row := tx.QueryRow(ctx, `
-				SELECT ReleaseLock($1, $2)
-			`, lockID, expires)
-			var released bool
-			if err := row.Scan(&released); err != nil {
-				return err
+		b, _ := retry.NewExponential(time.Millisecond)
+		b = retry.WithMaxRetries(3, b)
+		return retry.Do(ctx, b, func(ctx context.Context) error {
+			err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+				row := tx.QueryRow(ctx, `
+					SELECT ReleaseLock($1, $2)
+				`, lockID, expires)
+				var released bool
+				if err := row.Scan(&released); err != nil {
+					return err
+				}
+				if !released {
+					return fmt.Errorf("cannot delete lock %q that no longer belongs to you; it likely expired and was taken by another process", lockID)
+				}
+				logging.FromContext(ctx).Debugf("Released lock %q", lockID)
+				return nil
+			})
+			if serializationError(err) {
+				return retry.RetryableError(err)
 			}
-			if !released {
-				return fmt.Errorf("cannot delete lock %q that no longer belongs to you; it likely expired and was taken by another process", lockID)
-			}
-			logging.FromContext(ctx).Debugf("Released lock %q", lockID)
-			return nil
+			return err
 		})
 	}
 }
