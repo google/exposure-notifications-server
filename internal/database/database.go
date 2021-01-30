@@ -32,7 +32,7 @@ var (
 	// ErrKeyConflict indicates that there was a key conflict inserting a row.
 	ErrKeyConflict = errors.New("key conflict")
 
-	// FastRetry will attempt a transation 3 times using exponential backoff starting at 10
+	// FastRetry will attempt a transaction 3 times using exponential backoff starting at 10
 	FastRetry retry.Backoff
 )
 
