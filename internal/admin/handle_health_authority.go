@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -226,7 +227,7 @@ func (f *keyhealthAuthorityFormData) PopulateHealthAuthorityKey(hak *model.Healt
 	hak.Version = project.TrimSpaceAndNonPrintable(f.Version)
 	hak.From = fTime
 	hak.Thru = tTime
-	hak.PublicKeyPEM = project.TrimSpaceAndNonPrintable(f.PEMBlock)
+	hak.PublicKeyPEM = strings.ReplaceAll(project.TrimSpaceAndNonPrintable(f.PEMBlock), "\r", "")
 
 	_, err = hak.PublicKey()
 	return err
