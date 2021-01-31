@@ -75,12 +75,13 @@ func TestLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Release()
-	var count int
-	if err := conn.QueryRow(ctx, `SELECT count(*) FROM Lock`).Scan(&count); err != nil {
+
+	var expires time.Time
+	if err := conn.QueryRow(ctx, `SELECT expires FROM Lock WHERE lock_id = $1`, id1).Scan(&expires); err != nil {
 		t.Fatal(err)
 	}
-	if count != 0 {
-		t.Fatalf("got %d rows from Lock table, wanted zero", count)
+	if got, want := expires.UTC(), time.Unix(0, 0).UTC(); got != want {
+		t.Fatalf("expected lock to be expired (%v), got %v", want, got)
 	}
 }
 

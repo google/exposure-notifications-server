@@ -89,7 +89,9 @@ func makeMultiUnlockFn(ctx context.Context, db *DB, lockIDs []string, expires ti
 	}
 }
 
-// Lock acquires lock with given name that times out after ttl. Returns an UnlockFn that can be used to unlock the lock. ErrAlreadyLocked will be returned if there is already a lock in use.
+// Lock acquires lock with given name that times out after ttl. Returns an
+// UnlockFn that can be used to unlock the lock. ErrAlreadyLocked will be
+// returned if there is already a lock in use.
 func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (UnlockFn, error) {
 	var expires time.Time
 	err := db.SerializableTx(ctx, func(tx pgx.Tx) error {
