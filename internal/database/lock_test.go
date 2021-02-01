@@ -17,6 +17,8 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -82,6 +84,54 @@ func TestLock(t *testing.T) {
 	}
 	if got, want := expires.UTC(), time.Unix(0, 0).UTC(); got != want {
 		t.Fatalf("expected lock to be expired (%v), got %v", want, got)
+	}
+}
+
+// TestLock_contention attempts to test that high lock contention does not
+// result in database-level errors, specifically with respect to transaction
+// isolation levels and dirty reads.
+func TestLock_contention(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, 100)
+	for i := 0; i < 10; i++ {
+		lockID := fmt.Sprintf("lock_%d", i)
+
+		for j := 0; j < 5; j++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				unlock, err := testDB.Lock(ctx, lockID, 5*time.Second)
+				if err != nil {
+					select {
+					case errCh <- fmt.Errorf("failed to lock %s: %w", lockID, err):
+					default:
+					}
+				}
+				if unlock != nil {
+					if err := unlock(); err != nil {
+						select {
+						case errCh <- fmt.Errorf("failed to unlock %s: %w", lockID, err):
+						default:
+						}
+					}
+				}
+			}()
+		}
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		if err != nil && !errors.Is(err, ErrAlreadyLocked) {
+			t.Error(err)
+		}
 	}
 }
 

@@ -40,8 +40,10 @@ type UnlockFn func() error
 // the transaction is rolled back.
 // The lockIDs are sorted by normal ascending string sort order before obtaining the locks.
 func (db *DB) MultiLock(ctx context.Context, lockIDs []string, ttl time.Duration) (UnlockFn, error) {
+	logger := logging.FromContext(ctx).Named("database.MultiLock")
+
 	if len(lockIDs) == 0 {
-		return nil, fmt.Errorf("no lockIDs presented")
+		return nil, fmt.Errorf("no lockIDs")
 	}
 
 	lockOrder := make([]string, len(lockIDs))
@@ -50,39 +52,44 @@ func (db *DB) MultiLock(ctx context.Context, lockIDs []string, ttl time.Duration
 	sort.Strings(lockOrder)
 
 	var expires time.Time
-	err := db.InTx(ctx, pgx.Serializable, func(tx pgx.Tx) error {
+	if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		for _, lockID := range lockOrder {
-			row := tx.QueryRow(ctx, `SELECT AcquireLock($1, $2)`, lockID, int(ttl.Seconds()))
+			row := tx.QueryRow(ctx, `SELECT AcquireLock($1, $2)`, lockID, int32(ttl.Seconds()))
 			if err := row.Scan(&expires); err != nil {
-				return err
+				return fmt.Errorf("failed to scan multilock.expires: %w", err)
 			}
 			if expires.Before(thePast) {
 				return ErrAlreadyLocked
 			}
 		}
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
-	logging.FromContext(ctx).Debugf("Acquired locks %v", lockOrder)
+
+	logger.Debugw("acquired locks", "locks", lockOrder)
 	return makeMultiUnlockFn(ctx, db, lockOrder, expires), nil
 }
 
 func makeMultiUnlockFn(ctx context.Context, db *DB, lockIDs []string, expires time.Time) UnlockFn {
+	logger := logging.FromContext(ctx).Named("database.MultiUnlock")
+
 	return func() error {
-		return db.SerializableTx(ctx, func(tx pgx.Tx) error {
-			for i := len(lockIDs) - 1; i >= 0; i-- {
-				lockID := lockIDs[i]
+		return db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+			for _, lockID := range lockIDs {
+				logger := logger.With("lock_id", lockID)
+
 				row := tx.QueryRow(ctx, `SELECT ReleaseLock($1, $2)`, lockID, expires)
 				var released bool
 				if err := row.Scan(&released); err != nil {
-					return err
+					return fmt.Errorf("failed to scan lock.released: %w", err)
 				}
-				if !released {
-					return fmt.Errorf("cannot delete lock %q that no longer belongs to you; it likely expired and was taken by another process", lockID)
+
+				if released {
+					logger.Debugw("released lock")
+				} else {
+					logger.Warnw("failed to release lock - it may have expired or no longer belongs to you")
 				}
-				logging.FromContext(ctx).Debugf("Released lock %q", lockID)
 			}
 			return nil
 		})
@@ -93,40 +100,46 @@ func makeMultiUnlockFn(ctx context.Context, db *DB, lockIDs []string, expires ti
 // UnlockFn that can be used to unlock the lock. ErrAlreadyLocked will be
 // returned if there is already a lock in use.
 func (db *DB) Lock(ctx context.Context, lockID string, ttl time.Duration) (UnlockFn, error) {
+	logger := logging.FromContext(ctx).Named("database.Lock").
+		With("lock_id", lockID)
+
 	var expires time.Time
-	err := db.SerializableTx(ctx, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx, `
-			SELECT AcquireLock($1, $2)
-		`, lockID, int(ttl.Seconds()))
+	if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		row := tx.QueryRow(ctx, `SELECT AcquireLock($1, $2)`, lockID, int32(ttl.Seconds()))
+
 		if err := row.Scan(&expires); err != nil {
-			return err
+			return fmt.Errorf("failed to scan lock.expires: %w", err)
 		}
+
 		if expires.Before(thePast) {
 			return ErrAlreadyLocked
 		}
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
-	logging.FromContext(ctx).Debugf("Acquired lock %q", lockID)
+
+	logger.Debugw("acquired lock")
 	return makeUnlockFn(ctx, db, lockID, expires), nil
 }
 
 func makeUnlockFn(ctx context.Context, db *DB, lockID string, expires time.Time) UnlockFn {
+	logger := logging.FromContext(ctx).Named("database.Unlock").
+		With("lock_id", lockID)
+
 	return func() error {
-		return db.SerializableTx(ctx, func(tx pgx.Tx) error {
-			row := tx.QueryRow(ctx, `
-				SELECT ReleaseLock($1, $2)
-			`, lockID, expires)
+		return db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+			row := tx.QueryRow(ctx, `SELECT ReleaseLock($1, $2)`, lockID, expires)
 			var released bool
 			if err := row.Scan(&released); err != nil {
-				return err
+				return fmt.Errorf("failed to scan lock.released: %w", err)
 			}
-			if !released {
-				return fmt.Errorf("cannot delete lock %q that no longer belongs to you; it likely expired and was taken by another process", lockID)
+
+			if released {
+				logger.Debugw("released lock")
+			} else {
+				logger.Warnw("failed to release lock - it may have expired or no longer belongs to you")
 			}
-			logging.FromContext(ctx).Debugf("Released lock %q", lockID)
 			return nil
 		})
 	}
