@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgconn"
 	pgx "github.com/jackc/pgx/v4"
 	"github.com/sethvargo/go-retry"
 )
@@ -46,40 +45,6 @@ func (db *DB) NullableTime(t time.Time) *time.Time {
 		return nil
 	}
 	return &t
-}
-
-// IsSerializationError returns true if the error is a transaction serialization error
-// from PG. This should only occur with isolation level of serializable and is
-// a retryable condition.
-func IsSerializationError(err error) bool {
-	if err == nil {
-		return false
-	}
-	// See https://www.postgresql.org/docs/current/errcodes-appendix.html
-	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code == "40001" {
-		return true
-	}
-	return false
-}
-
-// SerializableTx will run f in a transaction with an isolation level of serializable.
-// The transaction will be retried according the default FastRetry strategy
-// a serialization error occurs.
-func (db *DB) SerializableTx(ctx context.Context, f func(tx pgx.Tx) error) error {
-	return db.SerializableTxWithBackoff(ctx, FastRetry, f)
-}
-
-// SerializableTxWithBackoff will run f in a transaction with an isolation level of serializable.
-// The transaction will be retried according to the provided backoff strategy if
-// a serialization error occurs.
-func (db *DB) SerializableTxWithBackoff(ctx context.Context, b retry.Backoff, f func(tx pgx.Tx) error) error {
-	return retry.Do(ctx, b, func(ctx context.Context) error {
-		err := db.InTx(ctx, pgx.Serializable, f)
-		if IsSerializationError(err) {
-			return retry.RetryableError(err)
-		}
-		return err
-	})
 }
 
 // InTx runs the given function f within a transaction with isolation level isoLevel.

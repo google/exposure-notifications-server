@@ -367,7 +367,7 @@ func TestIntegration(t *testing.T) {
 			}
 
 			// Mark the export in the past to force a cleanup
-			if err := db.SerializableTx(ctx, func(tx pgx.Tx) error {
+			if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 				result, err := tx.Exec(ctx, `
 				UPDATE
 					ExportBatch

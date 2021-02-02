@@ -226,7 +226,7 @@ func TestPublishEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	if err := db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 		UPDATE
 			ExportBatch

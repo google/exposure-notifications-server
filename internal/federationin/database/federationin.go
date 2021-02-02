@@ -64,7 +64,7 @@ func (db *FederationInDB) GetFederationInQuery(ctx context.Context, queryID stri
 func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRowFn) (*model.FederationInQuery, error) {
 	row := queryRow(ctx, `
 		SELECT
-			query_id, server_addr, oidc_audience, include_regions, exclude_regions, 
+			query_id, server_addr, oidc_audience, include_regions, exclude_regions,
 			only_local_provenance, only_travelers,
 			last_timestamp, primary_cursor, last_revised_timestamp, revised_cursor
 		FROM
@@ -104,7 +104,7 @@ func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRow
 
 // AddFederationInQuery adds a FederationInQuery entity. It will overwrite a query with matching q.queryID if it exists.
 func (db *FederationInDB) AddFederationInQuery(ctx context.Context, q *model.FederationInQuery) error {
-	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		query := `
 			INSERT INTO
 				FederationInQuery
@@ -209,7 +209,7 @@ func (db *FederationInDB) StartFederationInSync(ctx context.Context, q *model.Fe
 	finalize := func(state *federation.FetchState, q *model.FederationInQuery, totalInserted int) error {
 		completed := started.Add(time.Since(startedTimer))
 
-		return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+		return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 			// Special case: when no keys are pulled, the maxTimestamp will be 0, so we don't update the
 			// FederationQuery in this case to prevent it from going back and fetching old keys from the past.
 			if totalInserted > 0 {
