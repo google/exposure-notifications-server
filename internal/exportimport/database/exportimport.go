@@ -162,7 +162,7 @@ func (db *ExportImportDB) AddConfig(ctx context.Context, ei *model.ExportImport)
 		return err
 	}
 
-	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 			ExportImport
@@ -186,7 +186,7 @@ func (db *ExportImportDB) UpdateConfig(ctx context.Context, c *model.ExportImpor
 	}
 
 	from := db.db.NullableTime(c.From)
-	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE
 				ExportImport

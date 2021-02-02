@@ -37,7 +37,7 @@ func New(db *database.DB) *FederationOutDB {
 
 // AddFederationOutAuthorization adds or updates a FederationOutAuthorization record.
 func (db *FederationOutDB) AddFederationOutAuthorization(ctx context.Context, auth *model.FederationOutAuthorization) error {
-	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		q := `
 			INSERT INTO
 				FederationOutAuthorization

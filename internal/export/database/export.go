@@ -48,7 +48,7 @@ func (db *ExportDB) AddExportConfig(ctx context.Context, ec *model.ExportConfig)
 	}
 
 	thru := db.db.NullableTime(ec.Thru)
-	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 				ExportConfig
@@ -77,7 +77,7 @@ func (db *ExportDB) UpdateExportConfig(ctx context.Context, ec *model.ExportConf
 	}
 
 	thru := db.db.NullableTime(ec.Thru)
-	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE
 				ExportConfig
@@ -242,7 +242,7 @@ func (db *ExportDB) AddSignatureInfo(ctx context.Context, si *model.SignatureInf
 	if !si.EndTimestamp.IsZero() {
 		thru = &si.EndTimestamp
 	}
-	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
  				SignatureInfo
@@ -264,7 +264,7 @@ func (db *ExportDB) UpdateSignatureInfo(ctx context.Context, si *model.Signature
 	if !si.EndTimestamp.IsZero() {
 		thru = &si.EndTimestamp
 	}
-	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE SignatureInfo
 			SET
@@ -405,7 +405,7 @@ func scanOneSignatureInfo(row pgx.Row) (*model.SignatureInfo, error) {
 func (db *ExportDB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportConfig) (time.Time, error) {
 	var t time.Time
 
-	if err := db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			SELECT
 				MAX(end_timestamp)
@@ -442,7 +442,7 @@ func (db *ExportDB) LatestExportBatchEnd(ctx context.Context, ec *model.ExportCo
 func (db *ExportDB) ListLatestExportBatchEnds(ctx context.Context) (map[int64]*time.Time, error) {
 	ts := make(map[int64]*time.Time, 8)
 
-	if err := db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT
 				config_id, MAX(end_timestamp)
@@ -478,7 +478,7 @@ func (db *ExportDB) ListLatestExportBatchEnds(ctx context.Context) (map[int64]*t
 
 // AddExportBatches inserts new export batches.
 func (db *ExportDB) AddExportBatches(ctx context.Context, batches []*model.ExportBatch) error {
-	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		const stmtName = "insert export batches"
 		_, err := tx.Prepare(ctx, stmtName, `
 			INSERT INTO
@@ -559,7 +559,7 @@ func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, batchMaxC
 	for _, bid := range openBatchIDs {
 		// In a serialized transaction, fetch the existing batch and make sure it can be leased, then lease it.
 		leased := false
-		err := db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+		err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 			row := tx.QueryRow(ctx, `
 				SELECT
 					status, lease_expires
@@ -652,7 +652,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 
 // FinalizeBatch writes the ExportFile records and marks the ExportBatch as complete.
 func (db *ExportDB) FinalizeBatch(ctx context.Context, eb *model.ExportBatch, files []string, batchSize int) error {
-	return db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		// Update ExportFile for the files created.
 		for i, file := range files {
 			ef := model.ExportFile{
@@ -868,7 +868,7 @@ func (db *ExportDB) DeleteFilesBefore(ctx context.Context, before time.Time, blo
 			return 0, fmt.Errorf("delete object: %w", err)
 		}
 
-		err := db.db.SerializableTx(ctx, func(tx pgx.Tx) error {
+		err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 			// Update Status in ExportFile.
 			if err := updateExportFileStatus(ctx, tx, f.filename, model.ExportBatchDeleted); err != nil {
 				return fmt.Errorf("updating ExportFile: %w", err)
