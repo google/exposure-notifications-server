@@ -23,6 +23,8 @@ ALTER TABLE FederationInQuery ALTER primary_cursor TYPE TEXT;
 ALTER TABLE FederationInQuery ALTER revised_cursor TYPE TEXT;
 
 CREATE INDEX federationinquery_last_timestamp ON FederationInQuery(last_timestamp);
+CREATE INDEX federationinquery_only_local_provenance ON FederationInQuery(only_local_provenance);
+CREATE INDEX federationinquery_only_travelers ON FederationInQuery(only_travelers);
 CREATE INDEX federationinquery_last_revised_timestamp ON FederationInQuery(last_revised_timestamp);
 CREATE INDEX federationinquery_primary_cursor ON FederationInQuery(primary_cursor);
 CREATE INDEX federationinquery_revised_cursor ON FederationInQuery(revised_cursor);

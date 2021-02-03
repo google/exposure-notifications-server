@@ -16,6 +16,8 @@
 # Runs schema migrations.
 #
 
+timeout: 900s
+
 substitutions:
   _DB_CONN:
   _DB_HOST:
@@ -41,3 +43,4 @@ steps:
   args:
   - '/migrate'
   - '-path=/migrations'
+  - '-timeout=15m'
