@@ -31,17 +31,18 @@ ALTER TABLE Exposure ALTER export_import_id TYPE BIGINT;
 ALTER TABLE Exposure ALTER import_file_id TYPE BIGINT;
 ALTER TABLE Exposure ALTER revised_import_file_id TYPE BIGINT;
 
-ALTER INDEX infection_pkey RENAME TO exposure_pkey;
+END;
 
-CREATE INDEX exposure_regions ON Exposure(regions);
-CREATE INDEX exposure_created_at ON Exposure(created_at);
-CREATE INDEX exposure_local_provenance ON Exposure(local_provenance);
-CREATE INDEX exposure_revised_at ON Exposure(revised_at);
-CREATE INDEX exposure_traveler ON Exposure(traveler);
-CREATE INDEX exposure_sync_query_id ON Exposure(sync_query_id);
-CREATE INDEX exposure_export_import_id ON Exposure(export_import_id);
-CREATE INDEX exposure_import_file_id ON Exposure(import_file_id);
-CREATE INDEX exposure_revised_import_file_id ON Exposure(revised_import_file_id);
+BEGIN; ALTER INDEX infection_pkey RENAME TO exposure_pkey; END;
+
+BEGIN; CREATE INDEX IF NOT EXISTS exposure_created_at ON Exposure(created_at); END;
+BEGIN; CREATE INDEX IF NOT EXISTS exposure_revised_at ON Exposure(revised_at); END;
+BEGIN; CREATE INDEX IF NOT EXISTS exposure_sync_query_id ON Exposure(sync_query_id); END;
+BEGIN; CREATE INDEX IF NOT EXISTS exposure_export_import_id ON Exposure(export_import_id); END;
+BEGIN; CREATE INDEX IF NOT EXISTS exposure_import_file_id ON Exposure(import_file_id); END;
+BEGIN; CREATE INDEX IF NOT EXISTS exposure_revised_import_file_id ON Exposure(revised_import_file_id); END;
+
+BEGIN;
 
 DROP INDEX IF EXISTS exposure_created_at_idx;
 DROP INDEX IF EXISTS exposure_revised_at_idx;
