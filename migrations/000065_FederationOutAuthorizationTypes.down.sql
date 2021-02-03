@@ -14,11 +14,12 @@
 
 BEGIN;
 
-ALTER TABLE FederationOutAuthorization ALTER oidc_issuer TYPE VARCHAR(1000);
-ALTER TABLE FederationOutAuthorization ALTER oidc_subject TYPE VARCHAR(1000);
-ALTER TABLE FederationOutAuthorization ALTER oidc_audience TYPE VARCHAR(1000);
-ALTER TABLE FederationOutAuthorization ALTER note TYPE VARCHAR(100);
-ALTER TABLE FederationOutAuthorization ALTER include_regions TYPE VARCHAR(5)[];
-ALTER TABLE FederationOutAuthorization ALTER exclude_regions TYPE VARCHAR(5)[];
+ALTER TABLE FederationOutAuthorization
+  ALTER oidc_issuer TYPE VARCHAR(1000),
+  ALTER oidc_subject TYPE VARCHAR(1000),
+  ALTER oidc_audience TYPE VARCHAR(1000),
+  ALTER note TYPE VARCHAR(100),
+  ALTER include_regions TYPE VARCHAR(5)[],
+  ALTER exclude_regions TYPE VARCHAR(5)[];
 
 END;

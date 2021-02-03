@@ -15,6 +15,7 @@
 BEGIN;
 
 ALTER SEQUENCE revisionkeys_kid_seq AS INT;
-ALTER TABLE RevisionKeys ALTER kid TYPE INT;
+ALTER TABLE RevisionKeys
+  ALTER kid TYPE INT;
 
 END;

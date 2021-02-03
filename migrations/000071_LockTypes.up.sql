@@ -14,6 +14,7 @@
 
 BEGIN;
 
-ALTER TABLE Lock ALTER lock_id TYPE TEXT;
+ALTER TABLE Lock
+  ALTER lock_id TYPE TEXT;
 
 END;

@@ -15,15 +15,16 @@
 BEGIN;
 
 ALTER SEQUENCE exportbatch_batch_id_seq AS BIGINT;
-ALTER TABLE ExportBatch ALTER batch_id TYPE BIGINT;
-ALTER TABLE ExportBatch ALTER COLUMN config_id TYPE BIGINT;
-ALTER TABLE ExportBatch ALTER COLUMN filename_root TYPE TEXT;
-ALTER TABLE ExportBatch ALTER COLUMN output_region TYPE TEXT;
-ALTER TABLE ExportBatch ALTER COLUMN bucket_name TYPE TEXT;
-ALTER TABLE ExportBatch ALTER COLUMN signature_info_ids TYPE BIGINT[];
-ALTER TABLE ExportBatch ALTER COLUMN input_regions TYPE TEXT[];
-ALTER TABLE ExportBatch ALTER COLUMN exclude_regions TYPE TEXT[];
-ALTER TABLE ExportBatch ALTER COLUMN max_records_override TYPE BIGINT;
+ALTER TABLE ExportBatch
+  ALTER batch_id TYPE BIGINT,
+  ALTER config_id TYPE BIGINT,
+  ALTER filename_root TYPE TEXT,
+  ALTER output_region TYPE TEXT,
+  ALTER bucket_name TYPE TEXT,
+  ALTER signature_info_ids TYPE BIGINT[],
+  ALTER input_regions TYPE TEXT[],
+  ALTER exclude_regions TYPE TEXT[],
+  ALTER max_records_override TYPE BIGINT;
 
 CREATE INDEX exportbatch_config_id ON ExportBatch(config_id);
 CREATE INDEX exportbatch_status ON ExportBatch(status);

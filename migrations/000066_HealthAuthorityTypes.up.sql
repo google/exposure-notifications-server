@@ -15,10 +15,11 @@
 BEGIN;
 
 ALTER SEQUENCE healthauthority_id_seq AS BIGINT;
-ALTER TABLE HealthAuthority ALTER id TYPE BIGINT;
-ALTER TABLE HealthAuthority ALTER iss TYPE TEXT;
-ALTER TABLE HealthAuthority ALTER aud TYPE TEXT;
-ALTER TABLE HealthAuthority ALTER name TYPE TEXT;
+ALTER TABLE HealthAuthority
+  ALTER id TYPE BIGINT,
+  ALTER iss TYPE TEXT,
+  ALTER aud TYPE TEXT,
+  ALTER name TYPE TEXT;
 
 ALTER INDEX uniqueiss RENAME TO healthauthority_iss;
 

@@ -14,8 +14,9 @@
 
 BEGIN;
 
-ALTER TABLE MirrorFile ALTER mirror_id TYPE INT;
-ALTER TABLE MirrorFile ALTER filename TYPE VARCHAR(200);
-ALTER TABLE MirrorFile ALTER local_filename TYPE VARCHAR(200);
+ALTER TABLE MirrorFile
+  ALTER mirror_id TYPE INT,
+  ALTER filename TYPE VARCHAR(200),
+  ALTER local_filename TYPE VARCHAR(200);
 
 END;

@@ -14,9 +14,10 @@
 
 BEGIN;
 
-ALTER TABLE HealthAuthorityKey ALTER health_authority_id TYPE INT;
-ALTER TABLE HealthAuthorityKey ALTER version TYPE VARCHAR(100);
-ALTER TABLE HealthAuthorityKey ALTER public_key TYPE VARCHAR(500);
+ALTER TABLE HealthAuthorityKey
+  ALTER health_authority_id TYPE INT,
+  ALTER version TYPE VARCHAR(100),
+  ALTER public_key TYPE VARCHAR(500);
 
 DROP INDEX IF EXISTS healthauthoritykey_from_timestamp;
 DROP INDEX IF EXISTS healthauthoritykey_thru_timestamp;

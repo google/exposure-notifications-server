@@ -15,11 +15,12 @@
 BEGIN;
 
 ALTER SEQUENCE mirror_id_seq AS INT;
-ALTER TABLE Mirror ALTER id TYPE INT;
-ALTER TABLE Mirror ALTER index_file TYPE VARCHAR(500);
-ALTER TABLE Mirror ALTER export_root TYPE VARCHAR(500);
-ALTER TABLE Mirror ALTER cloud_storage_bucket TYPE VARCHAR(200);
-ALTER TABLE Mirror ALTER filename_root TYPE VARCHAR(500);
-ALTER TABLE Mirror ALTER filename_rewrite TYPE VARCHAR(500);
+ALTER TABLE Mirror
+  ALTER id TYPE INT,
+  ALTER index_file TYPE VARCHAR(500),
+  ALTER export_root TYPE VARCHAR(500),
+  ALTER cloud_storage_bucket TYPE VARCHAR(200),
+  ALTER filename_root TYPE VARCHAR(500),
+  ALTER filename_rewrite TYPE VARCHAR(500);
 
 END;

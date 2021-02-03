@@ -15,10 +15,11 @@
 BEGIN;
 
 ALTER SEQUENCE importfile_id_seq AS BIGINT;
-ALTER TABLE ImportFile ALTER id TYPE BIGINT;
-ALTER TABLE ImportFile ALTER export_import_id TYPE BIGINT;
-ALTER TABLE ImportFile ALTER zip_filename TYPE TEXT;
-ALTER TABLE ImportFile ALTER retries TYPE BIGINT;
+ALTER TABLE ImportFile
+  ALTER id TYPE BIGINT,
+  ALTER export_import_id TYPE BIGINT,
+  ALTER zip_filename TYPE TEXT,
+  ALTER retries TYPE BIGINT;
 
 CREATE INDEX importfile_discovered_at ON ImportFile(discovered_at);
 CREATE INDEX importfile_status ON ImportFile(status);

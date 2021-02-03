@@ -14,9 +14,10 @@
 
 BEGIN;
 
-ALTER TABLE AuthorizedApp ALTER COLUMN app_package_name TYPE TEXT;
-ALTER TABLE AuthorizedApp ALTER COLUMN allowed_regions TYPE TEXT[];
-ALTER TABLE AuthorizedApp ALTER COLUMN allowed_health_authority_ids TYPE BIGINT[];
+ALTER TABLE AuthorizedApp
+  ALTER app_package_name TYPE TEXT,
+  ALTER allowed_regions TYPE TEXT[],
+  ALTER allowed_health_authority_ids TYPE BIGINT[];
 
 CREATE INDEX authorizedapp_allowed_regions ON AuthorizedApp(allowed_regions);
 CREATE INDEX authorizedapp_allowed_health_authority_ids ON AuthorizedApp(allowed_health_authority_ids);

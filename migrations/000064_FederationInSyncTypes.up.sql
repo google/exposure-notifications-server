@@ -16,9 +16,10 @@ BEGIN;
 
 ALTER SEQUENCE federationsync_sync_id_seq RENAME TO federationinsync_sync_id_seq;
 ALTER SEQUENCE federationinsync_sync_id_seq AS BIGINT;
-ALTER TABLE FederationInSync ALTER sync_id TYPE BIGINT;
-ALTER TABLE FederationInSync ALTER query_id TYPE TEXT;
-ALTER TABLE FederationInSync ALTER insertions TYPE BIGINT;
+ALTER TABLE FederationInSync
+  ALTER sync_id TYPE BIGINT,
+  ALTER query_id TYPE TEXT,
+  ALTER insertions TYPE BIGINT;
 
 CREATE INDEX federationinsync_query_id ON FederationInSync(query_id);
 CREATE INDEX federationinsync_started ON FederationInSync(started);

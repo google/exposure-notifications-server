@@ -17,15 +17,16 @@ BEGIN;
 CREATE INDEX uidx_bucket_name_filename_root ON exportconfig(LOWER(bucket_name), LOWER(filename_root));
 
 ALTER SEQUENCE exportconfig_config_id_seq AS INT;
-ALTER TABLE ExportConfig ALTER config_id TYPE INT;
-ALTER TABLE ExportConfig ALTER filename_root TYPE VARCHAR(100);
-ALTER TABLE ExportConfig ALTER period_seconds TYPE INT;
-ALTER TABLE ExportConfig ALTER output_region TYPE VARCHAR(5);
-ALTER TABLE ExportConfig ALTER bucket_name TYPE VARCHAR(64);
-ALTER TABLE ExportConfig ALTER signature_info_ids TYPE INT[];
-ALTER TABLE ExportConfig ALTER input_regions TYPE VARCHAR(5)[];
-ALTER TABLE ExportConfig ALTER exclude_regions TYPE VARCHAR(5)[];
-ALTER TABLE ExportConfig ALTER max_records_override TYPE INT;
+ALTER TABLE ExportConfig
+  ALTER config_id TYPE INT,
+  ALTER filename_root TYPE VARCHAR(100),
+  ALTER period_seconds TYPE INT,
+  ALTER output_region TYPE VARCHAR(5),
+  ALTER bucket_name TYPE VARCHAR(64),
+  ALTER signature_info_ids TYPE INT[],
+  ALTER input_regions TYPE VARCHAR(5)[],
+  ALTER exclude_regions TYPE VARCHAR(5)[],
+  ALTER max_records_override TYPE INT;
 
 DROP INDEX IF EXISTS exportconfig_filename_root ON ExportConfig(filename_root);
 DROP INDEX IF EXISTS exportconfig_from_timestamp ON ExportConfig(from_timestamp);

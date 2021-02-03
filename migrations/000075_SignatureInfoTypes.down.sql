@@ -15,10 +15,11 @@
 BEGIN;
 
 ALTER SEQUENCE signatureinfo_id_seq AS INT;
-ALTER TABLE SignatureInfo ALTER id TYPE INT;
-ALTER TABLE SignatureInfo ALTER signing_key TYPE VARCHAR(500);
-ALTER TABLE SignatureInfo ALTER signing_key_version TYPE VARCHAR(100);
-ALTER TABLE SignatureInfo ALTER signing_key_id TYPE VARCHAR(50);
+ALTER TABLE SignatureInfo
+  ALTER id TYPE INT,
+  ALTER signing_key TYPE VARCHAR(500),
+  ALTER signing_key_version TYPE VARCHAR(100),
+  ALTER signing_key_id TYPE VARCHAR(50);
 
 DROP INDEX IF EXISTS signatureinfo_thru_timestamp;
 

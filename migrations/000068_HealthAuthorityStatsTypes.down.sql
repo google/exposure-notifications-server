@@ -14,6 +14,7 @@
 
 BEGIN;
 
-ALTER TABLE HealthAuthorityStats ALTER health_authority_id TYPE INT;
+ALTER TABLE HealthAuthorityStats
+  ALTER health_authority_id TYPE INT;
 
 END;

@@ -14,10 +14,11 @@
 
 BEGIN;
 
-ALTER TABLE ImportFilePublicKey ALTER export_import_id TYPE INT;
-ALTER TABLE ImportFilePublicKey ALTER key_id TYPE VARCHAR(50);
-ALTER TABLE ImportFilePublicKey ALTER key_version TYPE VARCHAR(50);
-ALTER TABLE ImportFilePublicKey ALTER public_key TYPE VARCHAR(500);
+ALTER TABLE ImportFilePublicKey
+  ALTER export_import_id TYPE INT,
+  ALTER key_id TYPE VARCHAR(50),
+  ALTER key_version TYPE VARCHAR(50),
+  ALTER public_key TYPE VARCHAR(500);
 
 CREATE INDEX import_file_public_key_from ON ImportFilePublicKey(from_timestamp) USING BRIN;
 CREATE INDEX import_file_public_key_thru ON ImportFilePublicKey(thru_timestamp) USING BRIN;

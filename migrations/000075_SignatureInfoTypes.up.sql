@@ -15,13 +15,14 @@
 BEGIN;
 
 ALTER SEQUENCE signatureinfo_id_seq AS BIGINT;
-ALTER TABLE SignatureInfo ALTER id TYPE BIGINT;
-ALTER TABLE SignatureInfo ALTER signing_key TYPE TEXT;
-ALTER TABLE SignatureInfo ALTER signing_key SET DEFAULT '';
-ALTER TABLE SignatureInfo ALTER signing_key_version TYPE TEXT;
-ALTER TABLE SignatureInfo ALTER signing_key_version SET DEFAULT '';
-ALTER TABLE SignatureInfo ALTER signing_key_id TYPE TEXT;
-ALTER TABLE SignatureInfo ALTER signing_key_id SET DEFAULT '';
+ALTER TABLE SignatureInfo
+  ALTER id TYPE BIGINT,
+  ALTER signing_key TYPE TEXT,
+  ALTER signing_key SET DEFAULT '',
+  ALTER signing_key_version TYPE TEXT,
+  ALTER signing_key_version SET DEFAULT '',
+  ALTER signing_key_id TYPE TEXT,
+  ALTER signing_key_id SET DEFAULT '';
 
 CREATE INDEX signatureinfo_thru_timestamp ON SignatureInfo(thru_timestamp);
 

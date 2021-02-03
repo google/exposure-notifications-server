@@ -15,10 +15,11 @@
 BEGIN;
 
 ALTER SEQUENCE exportimport_id_seq AS BIGINT;
-ALTER TABLE ExportImport ALTER id TYPE BIGINT;
-ALTER TABLE ExportImport ALTER index_file TYPE TEXT;
-ALTER TABLE ExportImport ALTER export_root TYPE TEXT;
-ALTER TABLE ExportImport ALTER region TYPE TEXT;
+ALTER TABLE ExportImport
+  ALTER id TYPE BIGINT,
+  ALTER index_file TYPE TEXT,
+  ALTER export_root TYPE TEXT,
+  ALTER region TYPE TEXT;
 
 CREATE INDEX exportimport_from_timestamp ON ExportImport(from_timestamp);
 CREATE INDEX exportimport_thru_timestamp ON ExportImport(thru_timestamp);

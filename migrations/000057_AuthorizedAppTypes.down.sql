@@ -14,9 +14,10 @@
 
 BEGIN;
 
-ALTER TABLE AuthorizedApp ALTER COLUMN app_package_name TYPE VARCHAR(1000);
-ALTER TABLE AuthorizedApp ALTER COLUMN allowed_regions TYPE VARCHAR(5)[];
-ALTER TABLE AuthorizedApp ALTER COLUMN allowed_health_authority_ids TYPE INT[];
+ALTER TABLE AuthorizedApp
+  ALTER app_package_name TYPE VARCHAR(1000),
+  ALTER allowed_regions TYPE VARCHAR(5)[],
+  ALTER allowed_health_authority_ids TYPE INT[];
 
 DROP INDEX IF EXISTS authorizedapp_allowed_regions;
 DROP INDEX IF EXISTS authorizedapp_allowed_health_authority_ids;

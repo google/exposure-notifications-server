@@ -14,9 +14,10 @@
 
 BEGIN;
 
-ALTER TABLE HealthAuthorityKey ALTER health_authority_id TYPE BIGINT;
-ALTER TABLE HealthAuthorityKey ALTER version TYPE TEXT;
-ALTER TABLE HealthAuthorityKey ALTER public_key TYPE TEXT;
+ALTER TABLE HealthAuthorityKey
+  ALTER health_authority_id TYPE BIGINT,
+  ALTER version TYPE TEXT,
+  ALTER public_key TYPE TEXT;
 
 CREATE INDEX healthauthoritykey_from_timestamp ON HealthAuthorityKey(from_timestamp);
 CREATE INDEX healthauthoritykey_thru_timestamp ON HealthAuthorityKey(thru_timestamp);

@@ -15,15 +15,16 @@
 BEGIN;
 
 ALTER SEQUENCE exportconfig_config_id_seq AS BIGINT;
-ALTER TABLE ExportConfig ALTER config_id TYPE BIGINT;
-ALTER TABLE ExportConfig ALTER filename_root TYPE TEXT;
-ALTER TABLE ExportConfig ALTER period_seconds TYPE BIGINT;
-ALTER TABLE ExportConfig ALTER output_region TYPE TEXT;
-ALTER TABLE ExportConfig ALTER bucket_name TYPE TEXT;
-ALTER TABLE ExportConfig ALTER signature_info_ids TYPE BIGINT[];
-ALTER TABLE ExportConfig ALTER input_regions TYPE TEXT[];
-ALTER TABLE ExportConfig ALTER exclude_regions TYPE TEXT[];
-ALTER TABLE ExportConfig ALTER max_records_override TYPE BIGINT;
+ALTER TABLE ExportConfig
+  ALTER config_id TYPE BIGINT,
+  ALTER filename_root TYPE TEXT,
+  ALTER period_seconds TYPE BIGINT,
+  ALTER output_region TYPE TEXT,
+  ALTER bucket_name TYPE TEXT,
+  ALTER signature_info_ids TYPE BIGINT[],
+  ALTER input_regions TYPE TEXT[],
+  ALTER exclude_regions TYPE TEXT[],
+  ALTER max_records_override TYPE BIGINT;
 
 CREATE INDEX exportconfig_filename_root ON ExportConfig(filename_root);
 CREATE INDEX exportconfig_from_timestamp ON ExportConfig(from_timestamp);

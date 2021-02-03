@@ -16,9 +16,10 @@ BEGIN;
 
 ALTER SEQUENCE federationinsync_sync_id_seq RENAME TO federationsync_sync_id_seq;
 ALTER SEQUENCE federationsync_sync_id_seq AS INT;
-ALTER TABLE FederationInSync ALTER sync_id TYPE INT;
-ALTER TABLE FederationInSync ALTER query_id TYPE VARCHAR(50);
-ALTER TABLE FederationInSync ALTER insertions TYPE INT;
+ALTER TABLE FederationInSync
+  ALTER sync_id TYPE INT,
+  ALTER query_id TYPE VARCHAR(50),
+  ALTER insertions TYPE INT;
 
 DROP INDEX IF EXISTS federationinsync_query_id;
 DROP INDEX IF EXISTS federationinsync_started;
