@@ -563,7 +563,7 @@ type TransformPublishResult struct {
 func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) (*TransformPublishResult, error) {
 	logger := logging.FromContext(ctx)
 	if t.debugReleaseSameDay {
-		logger.Errorf("DEBUG SERVER - Current day keys are not being embargoed.")
+		logger.Warnw("DEBUG SERVER - current day keys are not being embargoed!")
 	}
 
 	// Validate the number of keys that want to be published.
