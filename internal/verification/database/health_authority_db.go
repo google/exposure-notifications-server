@@ -300,6 +300,8 @@ func (db *HealthAuthorityDB) GetHealthAuthorityKeys(ctx context.Context, ha *mod
 				HealthAuthorityKey
 			WHERE
 				health_authority_id = $1
+			ORDER BY
+				health_authority_id, version
 		`, ha.ID)
 		if err != nil {
 			return fmt.Errorf("failed to list: %w", err)

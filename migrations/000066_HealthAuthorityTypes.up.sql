@@ -1,4 +1,4 @@
--- Copyright 2020 Google LLC
+-- Copyright 2021 Google LLC
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -14,15 +14,12 @@
 
 BEGIN;
 
-UPDATE AuthorizedApp SET app_package_name = LOWER(app_package_name)
-  WHERE app_package_name IS NOT NULL;
+ALTER SEQUENCE healthauthority_id_seq AS BIGINT;
+ALTER TABLE HealthAuthority ALTER id TYPE BIGINT;
+ALTER TABLE HealthAuthority ALTER iss TYPE TEXT;
+ALTER TABLE HealthAuthority ALTER aud TYPE TEXT;
+ALTER TABLE HealthAuthority ALTER name TYPE TEXT;
 
-UPDATE Exposure SET app_package_name = LOWER(app_package_name)
-  WHERE app_package_name IS NOT NULL;
-
-UPDATE SignatureInfo SET app_package_name = LOWER(app_package_name)
-  WHERE app_package_name IS NOT NULL;
-UPDATE SignatureInfo SET bundle_id = LOWER(bundle_id)
-  WHERE bundle_id IS NOT NULL;
+ALTER INDEX uniqueiss RENAME TO healthauthority_iss;
 
 END;

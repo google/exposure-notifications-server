@@ -1,4 +1,4 @@
--- Copyright 2020 Google LLC
+-- Copyright 2021 Google LLC
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -14,15 +14,15 @@
 
 BEGIN;
 
-UPDATE AuthorizedApp SET app_package_name = LOWER(app_package_name)
-  WHERE app_package_name IS NOT NULL;
+ALTER TABLE ImportFilePublicKey ALTER export_import_id TYPE BIGINT;
+ALTER TABLE ImportFilePublicKey ALTER key_id TYPE TEXT;
+ALTER TABLE ImportFilePublicKey ALTER key_version TYPE TEXT;
+ALTER TABLE ImportFilePublicKey ALTER public_key TYPE TEXT;
 
-UPDATE Exposure SET app_package_name = LOWER(app_package_name)
-  WHERE app_package_name IS NOT NULL;
+CREATE INDEX importfilepublickey_from_timestamp ON ImportFilePublicKey(from_timestamp);
+CREATE INDEX importfilepublickey_thru_timestamp ON ImportFilePublicKey(thru_timestamp);
 
-UPDATE SignatureInfo SET app_package_name = LOWER(app_package_name)
-  WHERE app_package_name IS NOT NULL;
-UPDATE SignatureInfo SET bundle_id = LOWER(bundle_id)
-  WHERE bundle_id IS NOT NULL;
+DROP INDEX import_file_public_key_from;
+DROP INDEX import_file_public_key_thru;
 
 END;
