@@ -32,6 +32,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"github.com/google/exposure-notifications-server/pkg/util"
 )
 
@@ -121,12 +122,26 @@ func (h *generateHandler) generateKeysInRegion(ctx context.Context, region strin
 		traveler = true
 	}
 
-	batchTime := time.Now().UTC()
+	now := time.Now().UTC()
+	// Find the valid intervals - starting with today and working backwards
+	minInterval := publishmodel.IntervalNumber(timeutils.UTCMidnight(now.Add(-1 * h.config.MaxIntervalAge).Add(24 * time.Hour)))
+	curInterval := publishmodel.IntervalNumber(timeutils.UTCMidnight(now))
+	intervals := make([]int32, 0, h.config.KeysPerExposure)
+	for i := 0; i < h.config.KeysPerExposure && curInterval >= minInterval; i++ {
+		intervals = append(intervals, curInterval)
+		curInterval -= verifyapi.MaxIntervalCount
+	}
+
+	batchTime := now
 	for i := 0; i < h.config.NumExposures; i++ {
 		logger.Debugf("generating exposure %d of %d", i+1, h.config.NumExposures)
 
+		exposures, err := util.GenerateExposuresForIntervals(intervals)
+		if err != nil {
+			return fmt.Errorf("failed to generate keys: %w", err)
+		}
 		publish := &verifyapi.Publish{
-			Keys:              util.GenerateExposureKeys(h.config.KeysPerExposure, 0, false),
+			Keys:              exposures,
 			HealthAuthorityID: "generated.data",
 			Traveler:          traveler,
 		}
