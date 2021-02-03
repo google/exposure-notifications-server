@@ -33,12 +33,9 @@ ALTER TABLE Exposure ALTER revised_import_file_id TYPE BIGINT;
 
 ALTER INDEX infection_pkey RENAME TO exposure_pkey;
 
-CREATE INDEX exposure_app_package_name ON Exposure(app_package_name);
 CREATE INDEX exposure_regions ON Exposure(regions);
 CREATE INDEX exposure_created_at ON Exposure(created_at);
 CREATE INDEX exposure_local_provenance ON Exposure(local_provenance);
-CREATE INDEX exposure_sync_id ON Exposure(sync_id);
-CREATE INDEX exposure_health_authority_id ON Exposure(health_authority_id);
 CREATE INDEX exposure_revised_at ON Exposure(revised_at);
 CREATE INDEX exposure_traveler ON Exposure(traveler);
 CREATE INDEX exposure_sync_query_id ON Exposure(sync_query_id);

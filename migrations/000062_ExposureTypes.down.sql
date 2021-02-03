@@ -36,12 +36,9 @@ CREATE INDEX exposure_revised_at_idx ON Exposure(revised_at) USING BRIN;
 
 ALTER INDEX exposure_pkey RENAME TO infection_pkey;
 
-DROP INDEX IF EXISTS exposure_app_package_name;
 DROP INDEX IF EXISTS exposure_regions;
 DROP INDEX IF EXISTS exposure_created_at;
 DROP INDEX IF EXISTS exposure_local_provenance;
-DROP INDEX IF EXISTS exposure_sync_id;
-DROP INDEX IF EXISTS exposure_health_authority_id;
 DROP INDEX IF EXISTS exposure_revised_at;
 DROP INDEX IF EXISTS exposure_traveler;
 DROP INDEX IF EXISTS exposure_sync_query_id;
