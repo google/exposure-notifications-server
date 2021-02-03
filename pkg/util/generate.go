@@ -18,6 +18,7 @@ package util
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"log"
 	"math/big"
 	"time"
@@ -103,6 +104,19 @@ func RandomArrValue(arr []string) (string, error) {
 		return "", err
 	}
 	return arr[n], nil
+}
+
+// GenerateExposuresForIntervals generates a key for each interval start passed in
+func GenerateExposuresForIntervals(intervals []int32) ([]v1.ExposureKey, error) {
+	exposureKeys := make([]v1.ExposureKey, len(intervals))
+	var err error
+	for i, interval := range intervals {
+		exposureKeys[i], err = RandomExposureKey(interval, v1.MaxIntervalCount, 0)
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate exposure keys: %w", err)
+		}
+	}
+	return exposureKeys, nil
 }
 
 // GenerateExposureKeys creates the given number of exposure keys.
