@@ -15,10 +15,11 @@
 BEGIN;
 
 ALTER SEQUENCE healthauthority_id_seq AS INT;
-ALTER TABLE HealthAuthority ALTER id TYPE INT;
-ALTER TABLE HealthAuthority ALTER iss TYPE VARCHAR(200);
-ALTER TABLE HealthAuthority ALTER aud TYPE VARCHAR(200);
-ALTER TABLE HealthAuthority ALTER name TYPE VARCHAR(200);
+ALTER TABLE HealthAuthority
+  ALTER id TYPE INT,
+  ALTER iss TYPE VARCHAR(200),
+  ALTER aud TYPE VARCHAR(200),
+  ALTER name TYPE VARCHAR(200);
 
 ALTER INDEX healthauthority_iss RENAME TO uniqueiss;
 

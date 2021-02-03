@@ -15,11 +15,12 @@
 BEGIN;
 
 ALTER SEQUENCE mirror_id_seq AS BIGINT;
-ALTER TABLE Mirror ALTER id TYPE BIGINT;
-ALTER TABLE Mirror ALTER index_file TYPE TEXT;
-ALTER TABLE Mirror ALTER export_root TYPE TEXT;
-ALTER TABLE Mirror ALTER cloud_storage_bucket TYPE TEXT;
-ALTER TABLE Mirror ALTER filename_root TYPE TEXT;
-ALTER TABLE Mirror ALTER filename_rewrite TYPE TEXT;
+ALTER TABLE Mirror
+  ALTER id TYPE BIGINT,
+  ALTER index_file TYPE TEXT,
+  ALTER export_root TYPE TEXT,
+  ALTER cloud_storage_bucket TYPE TEXT,
+  ALTER filename_root TYPE TEXT,
+  ALTER filename_rewrite TYPE TEXT;
 
 END;

@@ -15,6 +15,7 @@
 BEGIN;
 
 ALTER SEQUENCE revisionkeys_kid_seq AS BIGINT;
-ALTER TABLE RevisionKeys ALTER kid TYPE BIGINT;
+ALTER TABLE RevisionKeys
+  ALTER kid TYPE BIGINT;
 
 END;

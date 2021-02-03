@@ -14,15 +14,16 @@
 
 BEGIN;
 
-ALTER TABLE ExportFile ALTER filename TYPE TEXT;
-ALTER TABLE ExportFile ALTER batch_id TYPE BIGINT;
-ALTER TABLE ExportFile ALTER output_region TYPE TEXT;
-ALTER TABLE ExportFile ALTER batch_num TYPE BIGINT;
-ALTER TABLE ExportFile ALTER batch_size TYPE BIGINT;
-ALTER TABLE ExportFile ALTER status TYPE TEXT;
-ALTER TABLE ExportFile ALTER bucket_name TYPE TEXT;
-ALTER TABLE ExportFile ALTER input_regions TYPE TEXT[];
-ALTER TABLE ExportFile ALTER exclude_regions TYPE TEXT[];
+ALTER TABLE ExportFile
+  ALTER filename TYPE TEXT,
+  ALTER batch_id TYPE BIGINT,
+  ALTER output_region TYPE TEXT,
+  ALTER batch_num TYPE BIGINT,
+  ALTER batch_size TYPE BIGINT,
+  ALTER status TYPE TEXT,
+  ALTER bucket_name TYPE TEXT,
+  ALTER input_regions TYPE TEXT[],
+  ALTER exclude_regions TYPE TEXT[];
 
 CREATE INDEX exportfile_batch_id ON ExportFile(batch_id);
 CREATE INDEX exportfile_status ON ExportFile(status);

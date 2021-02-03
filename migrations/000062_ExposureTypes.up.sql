@@ -14,41 +14,24 @@
 
 BEGIN;
 
-ALTER TABLE Exposure ALTER exposure_key TYPE TEXT;
-ALTER TABLE Exposure ALTER app_package_name TYPE TEXT;
-ALTER TABLE Exposure ALTER transmission_risk TYPE BIGINT;
-ALTER TABLE Exposure ALTER regions TYPE TEXT[];
-ALTER TABLE Exposure ALTER interval_number TYPE BIGINT;
-ALTER TABLE Exposure ALTER interval_count TYPE BIGINT;
-ALTER TABLE Exposure ALTER sync_id TYPE BIGINT;
-ALTER TABLE Exposure ALTER health_authority_id TYPE BIGINT;
-ALTER TABLE Exposure ALTER report_type TYPE TEXT;
-ALTER TABLE Exposure ALTER days_since_symptom_onset TYPE BIGINT;
-ALTER TABLE Exposure ALTER revised_report_type TYPE TEXT;
-ALTER TABLE Exposure ALTER revised_days_since_symptom_onset TYPE BIGINT;
-ALTER TABLE Exposure ALTER sync_query_id TYPE TEXT;
-ALTER TABLE Exposure ALTER export_import_id TYPE BIGINT;
-ALTER TABLE Exposure ALTER import_file_id TYPE BIGINT;
-ALTER TABLE Exposure ALTER revised_import_file_id TYPE BIGINT;
+ALTER TABLE Exposure
+  ALTER exposure_key TYPE TEXT,
+  ALTER app_package_name TYPE TEXT,
+  ALTER transmission_risk TYPE BIGINT,
+  ALTER regions TYPE TEXT[],
+  ALTER interval_number TYPE BIGINT,
+  ALTER interval_count TYPE BIGINT,
+  ALTER sync_id TYPE BIGINT,
+  ALTER health_authority_id TYPE BIGINT,
+  ALTER report_type TYPE TEXT,
+  ALTER days_since_symptom_onset TYPE BIGINT,
+  ALTER revised_report_type TYPE TEXT,
+  ALTER revised_days_since_symptom_onset TYPE BIGINT,
+  ALTER sync_query_id TYPE TEXT,
+  ALTER export_import_id TYPE BIGINT,
+  ALTER import_file_id TYPE BIGINT,
+  ALTER revised_import_file_id TYPE BIGINT;
 
 ALTER INDEX infection_pkey RENAME TO exposure_pkey;
-
-CREATE INDEX exposure_created_at ON Exposure(created_at);
-CREATE INDEX exposure_created_at_regions ON Exposure(created_at, regions);
-CREATE INDEX exposure_created_at_local_provenance ON Exposure(created_at, local_provenance);
-CREATE INDEX exposure_created_at_traveler ON Exposure(created_at, traveler);
-
-CREATE INDEX exposure_revised_at ON Exposure(revised_at);
-CREATE INDEX exposure_revised_at_regions ON Exposure(revised_at, regions);
-CREATE INDEX exposure_revised_at_local_provenance ON Exposure(revised_at, local_provenance);
-CREATE INDEX exposure_revised_at_traveler ON Exposure(revised_at, traveler);
-
-CREATE INDEX exposure_sync_query_id ON Exposure(sync_query_id);
-CREATE INDEX exposure_export_import_id ON Exposure(export_import_id);
-CREATE INDEX exposure_import_file_id ON Exposure(import_file_id);
-CREATE INDEX exposure_revised_import_file_id ON Exposure(revised_import_file_id);
-
-DROP INDEX IF EXISTS exposure_created_at_idx;
-DROP INDEX IF EXISTS exposure_revised_at_idx;
 
 END;

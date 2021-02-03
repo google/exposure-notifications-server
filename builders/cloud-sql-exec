@@ -31,7 +31,7 @@ function cleanup {
 }
 
 echo "==> Staring Cloud SQL Proxy"
-/cloud-sql-proxy -instances=${DB_CONN}=tcp:${DB_PORT} &
+/cloud-sql-proxy -instances=${DB_CONN}=tcp:${DB_PORT} -term_timeout=60s -verbose &
 CLOUD_SQL_PID=$!
 trap cleanup EXIT
 

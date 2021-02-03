@@ -15,10 +15,11 @@
 BEGIN;
 
 ALTER SEQUENCE importfile_id_seq AS INT;
-ALTER TABLE ImportFile ALTER id TYPE INT;
-ALTER TABLE ImportFile ALTER export_import_id TYPE INT;
-ALTER TABLE ImportFile ALTER zip_filename TYPE VARCHAR(500);
-ALTER TABLE ImportFile ALTER retries TYPE INT;
+ALTER TABLE ImportFile
+  ALTER id TYPE INT,
+  ALTER export_import_id TYPE INT,
+  ALTER zip_filename TYPE VARCHAR(500),
+  ALTER retries TYPE INT;
 
 DROP INDEX IF EXISTS importfile_discovered_at;
 DROP INDEX IF EXISTS importfile_status;

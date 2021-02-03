@@ -14,13 +14,14 @@
 
 BEGIN;
 
-ALTER TABLE FederationInQuery ALTER query_id TYPE TEXT;
-ALTER TABLE FederationInQuery ALTER server_addr TYPE TEXT;
-ALTER TABLE FederationInQuery ALTER include_regions TYPE TEXT[];
-ALTER TABLE FederationInQuery ALTER exclude_regions TYPE TEXT[];
-ALTER TABLE FederationInQuery ALTER oidc_audience TYPE TEXT;
-ALTER TABLE FederationInQuery ALTER primary_cursor TYPE TEXT;
-ALTER TABLE FederationInQuery ALTER revised_cursor TYPE TEXT;
+ALTER TABLE FederationInQuery
+  ALTER query_id TYPE TEXT,
+  ALTER server_addr TYPE TEXT,
+  ALTER include_regions TYPE TEXT[],
+  ALTER exclude_regions TYPE TEXT[],
+  ALTER oidc_audience TYPE TEXT,
+  ALTER primary_cursor TYPE TEXT,
+  ALTER revised_cursor TYPE TEXT;
 
 CREATE INDEX federationinquery_last_timestamp ON FederationInQuery(last_timestamp);
 CREATE INDEX federationinquery_only_local_provenance ON FederationInQuery(only_local_provenance);

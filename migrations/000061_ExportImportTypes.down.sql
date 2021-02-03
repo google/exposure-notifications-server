@@ -15,10 +15,11 @@
 BEGIN;
 
 ALTER SEQUENCE exportimport_id_seq AS INT;
-ALTER TABLE ExportImport ALTER id TYPE INT;
-ALTER TABLE ExportImport ALTER index_file TYPE VARCHAR(500);
-ALTER TABLE ExportImport ALTER export_root TYPE VARCHAR(500);
-ALTER TABLE ExportImport ALTER region TYPE VARCHAR(5);
+ALTER TABLE ExportImport
+  ALTER id TYPE INT,
+  ALTER index_file TYPE VARCHAR(500),
+  ALTER export_root TYPE VARCHAR(500),
+  ALTER region TYPE VARCHAR(5);
 
 CREATE INDEX export_import_from_timestamp ON ExportImport(from_timestamp) USING BRIN;
 CREATE INDEX export_import_thru_timestamp ON ExportImport(thru_timestamp) USING BRIN;

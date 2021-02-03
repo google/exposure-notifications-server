@@ -14,10 +14,11 @@
 
 BEGIN;
 
-ALTER TABLE ImportFilePublicKey ALTER export_import_id TYPE BIGINT;
-ALTER TABLE ImportFilePublicKey ALTER key_id TYPE TEXT;
-ALTER TABLE ImportFilePublicKey ALTER key_version TYPE TEXT;
-ALTER TABLE ImportFilePublicKey ALTER public_key TYPE TEXT;
+ALTER TABLE ImportFilePublicKey
+  ALTER export_import_id TYPE BIGINT,
+  ALTER key_id TYPE TEXT,
+  ALTER key_version TYPE TEXT,
+  ALTER public_key TYPE TEXT;
 
 CREATE INDEX importfilepublickey_from_timestamp ON ImportFilePublicKey(from_timestamp);
 CREATE INDEX importfilepublickey_thru_timestamp ON ImportFilePublicKey(thru_timestamp);

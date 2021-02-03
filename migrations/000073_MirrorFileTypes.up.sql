@@ -14,8 +14,9 @@
 
 BEGIN;
 
-ALTER TABLE MirrorFile ALTER mirror_id TYPE BIGINT;
-ALTER TABLE MirrorFile ALTER filename TYPE TEXT;
-ALTER TABLE MirrorFile ALTER local_filename TYPE TEXT;
+ALTER TABLE MirrorFile
+  ALTER mirror_id TYPE BIGINT,
+  ALTER filename TYPE TEXT,
+  ALTER local_filename TYPE TEXT;
 
 END;

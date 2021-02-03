@@ -14,15 +14,16 @@
 
 BEGIN;
 
-ALTER TABLE ExportFile ALTER filename TYPE VARCHAR(100);
-ALTER TABLE ExportFile ALTER batch_id TYPE INT;
-ALTER TABLE ExportFile ALTER output_region TYPE VARCHAR(5);
-ALTER TABLE ExportFile ALTER batch_num TYPE INT;
-ALTER TABLE ExportFile ALTER batch_size TYPE INT;
-ALTER TABLE ExportFile ALTER status TYPE VARCHAR(10);
-ALTER TABLE ExportFile ALTER bucket_name TYPE VARCHAR(64);
-ALTER TABLE ExportFile ALTER input_regions TYPE VARCHAR(5)[];
-ALTER TABLE ExportFile ALTER exclude_regions TYPE VARCHAR(5)[];
+ALTER TABLE ExportFile
+  ALTER filename TYPE VARCHAR(100),
+  ALTER batch_id TYPE INT,
+  ALTER output_region TYPE VARCHAR(5),
+  ALTER batch_num TYPE INT,
+  ALTER batch_size TYPE INT,
+  ALTER status TYPE VARCHAR(10),
+  ALTER bucket_name TYPE VARCHAR(64),
+  ALTER input_regions TYPE VARCHAR(5)[],
+  ALTER exclude_regions TYPE VARCHAR(5)[];
 
 DROP INDEX IF EXISTS exportfile_batch_id;
 DROP INDEX IF EXISTS exportfile_status;

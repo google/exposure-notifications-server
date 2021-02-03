@@ -14,11 +14,12 @@
 
 BEGIN;
 
-ALTER TABLE FederationOutAuthorization ALTER oidc_issuer TYPE TEXT;
-ALTER TABLE FederationOutAuthorization ALTER oidc_subject TYPE TEXT;
-ALTER TABLE FederationOutAuthorization ALTER oidc_audience TYPE TEXT;
-ALTER TABLE FederationOutAuthorization ALTER note TYPE TEXT;
-ALTER TABLE FederationOutAuthorization ALTER include_regions TYPE TEXT[];
-ALTER TABLE FederationOutAuthorization ALTER exclude_regions TYPE TEXT[];
+ALTER TABLE FederationOutAuthorization
+  ALTER oidc_issuer TYPE TEXT,
+  ALTER oidc_subject TYPE TEXT,
+  ALTER oidc_audience TYPE TEXT,
+  ALTER note TYPE TEXT,
+  ALTER include_regions TYPE TEXT[],
+  ALTER exclude_regions TYPE TEXT[];
 
 END;
