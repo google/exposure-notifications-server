@@ -388,8 +388,9 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 			errorMessage = http.StatusText(http.StatusInternalServerError)
 			errorCode = verifyapi.ErrorInternalError
 			metric = "publish-db-write-error"
+			logger.Errorw("publish error", "error", logMessage)
 		}
-		logger.Error(logMessage)
+		logger.Debugw("publish error", "error", logMessage)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: logMessage})
 		return &response{
 			status: status,
