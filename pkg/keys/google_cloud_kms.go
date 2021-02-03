@@ -22,6 +22,7 @@ import (
 
 	kms "cloud.google.com/go/kms/apiv1"
 	"github.com/sethvargo/go-gcpkms/pkg/gcpkms"
+	"github.com/sethvargo/go-retry"
 	"google.golang.org/api/iterator"
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 	grpccodes "google.golang.org/grpc/codes"
@@ -124,7 +125,7 @@ func (kms *GoogleCloudKMS) SigningKeyVersions(ctx context.Context, parent string
 	it := kms.client.ListCryptoKeyVersions(ctx, &kmspb.ListCryptoKeyVersionsRequest{
 		Parent:   parent,
 		PageSize: 200,
-		Filter:   `Filter: "state != DESTROYED AND state != DESTROY_SCHEDULED"`,
+		Filter:   `Filter: "state = ENABLED"`,
 	})
 	for {
 		resp, err := it.Next()
@@ -161,6 +162,25 @@ func (kms *GoogleCloudKMS) CreateKeyVersion(ctx context.Context, parent string) 
 	if err != nil {
 		return "", fmt.Errorf("failed to create key version: %w", err)
 	}
+
+	b, _ := retry.NewConstant(500 * time.Millisecond)
+	b = retry.WithMaxRetries(10, b)
+	if err := retry.Do(ctx, b, func(ctx context.Context) error {
+		version, err := kms.client.GetCryptoKeyVersion(ctx, &kmspb.GetCryptoKeyVersionRequest{
+			Name: result.Name,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to validate if key was created: %w", err)
+		}
+
+		if version.State == kmspb.CryptoKeyVersion_ENABLED {
+			return nil
+		}
+		return retry.RetryableError(fmt.Errorf("key is not ready (%s)", version.State))
+	}); err != nil {
+		return "", err
+	}
+
 	return result.Name, nil
 }
 
