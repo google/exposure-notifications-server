@@ -109,7 +109,7 @@ steps:
   - 'dockerize-admin-console'
 
 - id: 'attest-admin-console'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -148,7 +148,7 @@ steps:
   - 'dockerize-cleanup-export'
 
 - id: 'attest-cleanup-export'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -187,7 +187,7 @@ steps:
   - 'dockerize-cleanup-exposure'
 
 - id: 'attest-cleanup-exposure'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -226,7 +226,7 @@ steps:
   - 'dockerize-debugger'
 
 - id: 'attest-debugger'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -265,7 +265,7 @@ steps:
   - 'dockerize-export'
 
 - id: 'attest-export'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -304,7 +304,7 @@ steps:
   - 'dockerize-export-importer'
 
 - id: 'attest-export-importer'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -343,7 +343,7 @@ steps:
   - 'dockerize-exposure'
 
 - id: 'attest-exposure'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -382,7 +382,7 @@ steps:
   - 'dockerize-federationin'
 
 - id: 'attest-federationin'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -421,7 +421,7 @@ steps:
   - 'dockerize-federationout'
 
 - id: 'attest-federationout'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -460,7 +460,7 @@ steps:
   - 'dockerize-generate'
 
 - id: 'attest-generate'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -499,7 +499,7 @@ steps:
   - 'dockerize-key-rotation'
 
 - id: 'attest-key-rotation'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -537,7 +537,7 @@ steps:
   - 'dockerize-migrate'
 
 - id: 'attest-migrate'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -576,7 +576,7 @@ steps:
   - 'dockerize-mirror'
 
 - id: 'attest-mirror'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -615,7 +615,7 @@ steps:
   - 'dockerize-jwks'
 
 - id: 'attest-jwks'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
   args:
   - 'bash'
   - '-eEuo'

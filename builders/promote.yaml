@@ -26,7 +26,7 @@ steps:
 # admin-console
 #
 - id: 'promote-admin-console'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -46,7 +46,7 @@ steps:
 # cleanup-exposure
 #
 - id: 'promote-cleanup-exposure'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -66,7 +66,7 @@ steps:
 # cleanup-export
 #
 - id: 'promote-cleanup-export'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -86,7 +86,7 @@ steps:
 # debugger
 #
 - id: 'promote-debugger'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -106,7 +106,7 @@ steps:
 # export
 #
 - id: 'promote-export'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -126,7 +126,7 @@ steps:
 # export-importer
 #
 - id: 'promote-export-importer'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -147,7 +147,7 @@ steps:
 # exposure
 #
 - id: 'promote-exposure'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -167,7 +167,7 @@ steps:
 # federationin
 #
 - id: 'promote-federationin'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -187,7 +187,7 @@ steps:
 # federationout
 #
 - id: 'promote-federationout'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -207,7 +207,7 @@ steps:
 # generate
 #
 - id: 'promote-generate'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -227,7 +227,7 @@ steps:
 # key-rotation
 #
 - id: 'promote-key-rotation'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -247,7 +247,7 @@ steps:
 # jwks
 #
 - id: 'promote-jwks'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
@@ -267,7 +267,7 @@ steps:
 # mirror
 #
 - id: 'promote-mirror'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:307.0.0-alpine'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
   args:
   - 'bash'
   - '-eEuo'
