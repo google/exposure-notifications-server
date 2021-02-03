@@ -197,7 +197,7 @@ func TestUpdateHA(t *testing.T) {
 			}
 			for _, key := range keys {
 				if err := haDB.AddHealthAuthorityKey(ctx, &test.ha, key); err != nil {
-					t.Fatalf("[%d] error adding key: %v", i, err)
+					t.Errorf("[%d] error adding key: %v", i, err)
 				}
 			}
 
@@ -216,7 +216,7 @@ func TestUpdateHA(t *testing.T) {
 				}
 				for j := range ha.Keys {
 					if key := ha.Keys[j].PublicKeyPEM; key != test.resKeys[j] {
-						t.Fatalf("[%d] wrong key[%d] %q, expected %q", i, j, key, test.resKeys[i])
+						t.Errorf("[%d] wrong key[%d] %q, expected %q", i, j, key, test.resKeys[j])
 					}
 				}
 
@@ -225,7 +225,7 @@ func TestUpdateHA(t *testing.T) {
 				var emptyTime time.Time
 				for _, j := range test.deadKeys {
 					if delTime := ha.Keys[j].From; reflect.DeepEqual(emptyTime, delTime) {
-						t.Fatalf("[%d:%d] key not deleted %v", i, j, delTime)
+						t.Errorf("[%d:%d] key not deleted %v", i, j, delTime)
 					}
 				}
 			}
