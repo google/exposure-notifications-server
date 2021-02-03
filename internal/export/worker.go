@@ -96,12 +96,22 @@ func (s *Server) handleDoWork(ctx context.Context) http.HandlerFunc {
 			}
 			unlockFn, err := db.MultiLock(ctx, locks, s.config.WorkerTimeout)
 			if err != nil {
-				logger.Errorw("unable to obtain region locks", "config", batch.ConfigID, "batch", batch.BatchID, "regions", locks, "error", err)
+				if !errors.Is(err, coredb.ErrAlreadyLocked) {
+					logger.Errorw("failed to acquire region lock",
+						"config", batch.ConfigID,
+						"batch", batch.BatchID,
+						"regions", locks,
+						"error", err)
+				}
 				continue
 			}
 			unlock := func() {
 				if err := unlockFn(); err != nil {
-					logger.Errorw("failed to unlock region locks", "config", batch.ConfigID, "batch", batch.BatchID, "regions", locks, "error", err)
+					logger.Errorw("failed to release region lock",
+						"config", batch.ConfigID,
+						"batch", batch.BatchID,
+						"regions", locks,
+						"error", err)
 				}
 			}
 
