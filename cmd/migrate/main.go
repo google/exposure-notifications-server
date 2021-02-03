@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
@@ -31,7 +32,8 @@ import (
 )
 
 var (
-	pathFlag = flag.String("path", "migrations/", "path to migrations folder")
+	pathFlag         = flag.String("path", "migrations/", "path to migrations folder")
+	migrationTimeout = flag.Duration("timeout", 15*time.Minute, "duration for migration timeout")
 )
 
 func main() {
@@ -68,6 +70,7 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed create migrate: %w", err)
 	}
+	m.LockTimeout = *migrationTimeout
 	m.Log = newLogger()
 
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
