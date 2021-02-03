@@ -27,7 +27,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/pb"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
-	"github.com/google/exposure-notifications-server/internal/publish/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
@@ -125,8 +124,8 @@ func (h *generateHandler) generateKeysInRegion(ctx context.Context, region strin
 
 	now := time.Now().UTC()
 	// Find the valid intervals - starting with today and working backwards
-	minInterval := model.IntervalNumber(timeutils.UTCMidnight(now.Add(-1 * h.config.MaxIntervalAge).Add(24 * time.Hour)))
-	curInterval := model.IntervalNumber(timeutils.UTCMidnight(now))
+	minInterval := publishmodel.IntervalNumber(timeutils.UTCMidnight(now.Add(-1 * h.config.MaxIntervalAge).Add(24 * time.Hour)))
+	curInterval := publishmodel.IntervalNumber(timeutils.UTCMidnight(now))
 	intervals := make([]int32, 0, h.config.KeysPerExposure)
 	for i := 0; i < h.config.KeysPerExposure && curInterval >= minInterval; i++ {
 		intervals = append(intervals, curInterval)
