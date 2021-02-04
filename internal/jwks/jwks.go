@@ -42,17 +42,23 @@ import (
 // URI.
 type Manager struct {
 	db         *database.DB
+	client     *http.Client
 	cleanupTTL time.Duration
 }
 
 // NewManager creates a new Manager.
-func NewManager(db *database.DB, cleanupTTL time.Duration) (*Manager, error) {
+func NewManager(db *database.DB, cleanupTTL, requestTimeout time.Duration) (*Manager, error) {
 	if cleanupTTL < 0 {
 		cleanupTTL *= -1
 	}
 
+	client := &http.Client{
+		Timeout: requestTimeout,
+	}
+
 	return &Manager{
 		db:         db,
+		client:     client,
 		cleanupTTL: cleanupTTL,
 	}, nil
 }
@@ -74,7 +80,7 @@ func (mgr *Manager) getKeys(ctx context.Context, ha *model.HealthAuthority) ([]b
 		return nil, fmt.Errorf("creating connection: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := mgr.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("reading connection: %w", err)
 	}

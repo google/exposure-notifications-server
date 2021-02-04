@@ -31,6 +31,10 @@ type Config struct {
 
 	Port string `env:"PORT, default=8080"`
 
+	// RequestTimeout is the per-request amount of time to wait for a response
+	// before timing out.
+	RequestTimeout time.Duration `env:"REQUEST_TIMEOUT, default=5s"`
+
 	KeyCleanupTTL time.Duration `env:"HEALTH_AUTHORITY_KEY_CLEANUP_TTL, default=720h"` // 30 days
 }
 
