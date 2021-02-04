@@ -39,7 +39,7 @@ func NewServer(cfg *Config, env *serverenv.ServerEnv) (*Server, error) {
 		return nil, fmt.Errorf("missing database in server env")
 	}
 
-	manager, err := NewManager(env.Database(), cfg.KeyCleanupTTL)
+	manager, err := NewManager(env.Database(), cfg.KeyCleanupTTL, cfg.RequestTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create manager: %w", err)
 	}
