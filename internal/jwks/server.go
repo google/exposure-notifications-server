@@ -17,62 +17,50 @@ package jwks
 import (
 	"context"
 	"fmt"
-	"net/http"
 
+	"github.com/google/exposure-notifications-server/internal/middleware"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/server"
+
 	"github.com/gorilla/mux"
 )
 
-// Server is the debugger server.
+// Server is the server.
 type Server struct {
 	config  *Config
 	manager *Manager
 	env     *serverenv.ServerEnv
 }
 
-// NewServer makes a new debugger server.
-func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
+// NewServer makes a new server.
+func NewServer(cfg *Config, env *serverenv.ServerEnv) (*Server, error) {
 	if env.Database() == nil {
-		return nil, fmt.Errorf("expected env to have database")
+		return nil, fmt.Errorf("missing database in server env")
 	}
 
-	ctx := context.Background()
-	manager, err := NewManager(ctx, env.Database(), config.KeyCleanupTTL)
+	manager, err := NewManager(env.Database(), cfg.KeyCleanupTTL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create manager: %w", err)
 	}
 
 	return &Server{
-		config:  config,
+		config:  cfg,
 		manager: manager,
 		env:     env,
 	}, nil
 }
 
+// Routes returns the router for this server.
 func (s *Server) Routes(ctx context.Context) *mux.Router {
+	logger := logging.FromContext(ctx).Named("jwks")
+
 	r := mux.NewRouter()
+	r.Use(middleware.PopulateRequestID())
+	r.Use(middleware.PopulateLogger(logger))
+
 	r.Handle("/health", server.HandleHealthz(ctx))
-	r.Handle("/", s.handleUpdateAll(ctx))
+	r.Handle("/", s.handleUpdateAll())
 
 	return r
-}
-
-func (s *Server) handleUpdateAll(ctx context.Context) http.Handler {
-	logger := logging.FromContext(ctx).Named("handleUpdateAll")
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-
-		if err := s.manager.UpdateAll(ctx); err != nil {
-			logger.Error(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, http.StatusText(http.StatusInternalServerError))
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, http.StatusText(http.StatusOK))
-	})
 }
