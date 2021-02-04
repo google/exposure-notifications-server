@@ -36,27 +36,22 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
 	"github.com/rakutentech/jwk-go/jwk"
-	"go.uber.org/zap"
 )
 
 // Manager handles updating all HealthAuthorities if they've specified a JWKS
 // URI.
 type Manager struct {
 	db         *database.DB
-	logger     *zap.SugaredLogger
 	cleanupTTL time.Duration
 }
 
 // NewManager creates a new Manager.
-func NewManager(ctx context.Context, db *database.DB, cleanupTTL time.Duration) (*Manager, error) {
-	logger := logging.FromContext(ctx).Named("jwks")
-
+func NewManager(db *database.DB, cleanupTTL time.Duration) (*Manager, error) {
 	if cleanupTTL < 0 {
 		cleanupTTL *= -1
 	}
 
 	return &Manager{
-		logger:     logger,
 		db:         db,
 		cleanupTTL: cleanupTTL,
 	}, nil
@@ -79,8 +74,7 @@ func (mgr *Manager) getKeys(ctx context.Context, ha *model.HealthAuthority) ([]b
 		return nil, fmt.Errorf("creating connection: %w", err)
 	}
 
-	var resp *http.Response
-	resp, err = http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("reading connection: %w", err)
 	}
@@ -169,7 +163,9 @@ func findKeyMods(ha *model.HealthAuthority, rxKeys []string) (deadKeys []int, ne
 
 // updateHA updates HealthAuthority's keys.
 func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) error {
-	logger := mgr.logger.With("health_authority_name", ha.Name, "health_authority_id", ha.ID)
+	logger := logging.FromContext(ctx).Named("updateHA").
+		With("health_authority_name", ha.Name).
+		With("health_authority_id", ha.ID)
 
 	if ha.JwksURI == nil || len(*ha.JwksURI) == 0 {
 		logger.Infow("skipping jwks, no URI specified")
@@ -181,9 +177,9 @@ func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) err
 
 	purgeBefore := time.Now().UTC().Add(-1 * mgr.cleanupTTL)
 	if count, err := haDB.PurgeHealthAuthorityKeys(ctx, ha, purgeBefore); err != nil {
-		logger.Errorw("error purging expired health authority keys", "healthAuthorityID", ha.ID, "error", err)
+		logger.Errorw("error purging expired health authority keys", "error", err)
 	} else if count > 0 {
-		logger.Infow("purged health authority keys", "healthAuthorityID", ha.ID, "count", count)
+		logger.Infow("purged health authority keys", "count", count)
 	}
 
 	// Get the keys for the health authority
@@ -242,7 +238,9 @@ func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) err
 
 // UpdateAll reads the JWKS keys for all HealthAuthorities.
 func (mgr *Manager) UpdateAll(ctx context.Context) error {
-	mgr.logger.Info("starting jwks update")
+	logger := logging.FromContext(ctx).Named("UpdateAll")
+	logger.Debug("starting jwks update")
+	defer logger.Debug("finished jwks update")
 
 	haDB := hadb.New(mgr.db)
 	healthAuthorities, err := haDB.ListAllHealthAuthoritiesWithoutKeys(ctx)
@@ -267,8 +265,6 @@ func (mgr *Manager) UpdateAll(ctx context.Context) error {
 		}(ha)
 	}
 	wg.Wait()
-
-	mgr.logger.Info("finished jwks update")
 
 	if err := merr.ErrorOrNil(); err != nil {
 		return fmt.Errorf("failed to update all: %w", err)

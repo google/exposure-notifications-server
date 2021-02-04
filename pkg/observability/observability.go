@@ -20,17 +20,34 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"os"
 	"sync"
+
+	"github.com/google/exposure-notifications-server/internal/buildinfo"
 
 	"contrib.go.opencensus.io/integrations/ocsql"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
+	"go.opencensus.io/tag"
 )
 
 // OCSQLDriverName is the name of the SQL driver wrapped by OpenCensus
 // instrumentation code.
 const OCSQLDriverName = "ocsql"
+
+var (
+	BuildIDTagKey  = tag.MustNewKey("build_id")
+	BuildTagTagKey = tag.MustNewKey("build_tag")
+
+	KnativeServiceTagKey       = tag.MustNewKey("k_service")
+	KnativeRevisionTagKey      = tag.MustNewKey("k_revision")
+	KnativeConfigurationTagKey = tag.MustNewKey("k_configuration")
+
+	knativeService       = os.Getenv("K_SERVICE")
+	knativeRevision      = os.Getenv("K_REVISION")
+	knativeConfiguration = os.Getenv("K_CONFIGURATION")
+)
 
 func defaultViews() []*view.View {
 	var ret []*view.View
@@ -100,4 +117,27 @@ func NewFromEnv(config *Config) (Exporter, error) {
 	default:
 		return nil, fmt.Errorf("unknown observability exporter type %v", config.ExporterType)
 	}
+}
+
+// WithBuildInfo creates a new context with the build and revision info attached
+// to the observability context.
+func WithBuildInfo(ctx context.Context) context.Context {
+	tags := make([]tag.Mutator, 0, 5)
+	tags = append(tags, tag.Upsert(BuildIDTagKey, buildinfo.BuildID))
+	tags = append(tags, tag.Upsert(BuildTagTagKey, buildinfo.BuildTag))
+
+	if knativeService != "" {
+		tags = append(tags, tag.Upsert(KnativeServiceTagKey, knativeService))
+	}
+
+	if knativeRevision != "" {
+		tags = append(tags, tag.Upsert(KnativeRevisionTagKey, knativeRevision))
+	}
+
+	if knativeConfiguration != "" {
+		tags = append(tags, tag.Upsert(KnativeConfigurationTagKey, knativeConfiguration))
+	}
+
+	ctx, _ = tag.New(ctx, tags...)
+	return ctx
 }
