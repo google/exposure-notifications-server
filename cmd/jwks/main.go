@@ -55,23 +55,22 @@ func main() {
 func realMain(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
-	var config jwks.Config
-	env, err := setup.Setup(ctx, &config)
+	var cfg jwks.Config
+	env, err := setup.Setup(ctx, &cfg)
 	if err != nil {
 		return fmt.Errorf("setup.Setup: %w", err)
 	}
 	defer env.Close(ctx)
 
-	jwksServer, err := jwks.NewServer(&config, env)
+	jwksServer, err := jwks.NewServer(&cfg, env)
 	if err != nil {
 		return fmt.Errorf("jwks.NewServer: %w", err)
 	}
 
-	srv, err := server.New(config.Port)
+	srv, err := server.New(cfg.Port)
 	if err != nil {
 		return fmt.Errorf("server.New: %w", err)
 	}
-	logger.Infof("listening on :%s", config.Port)
-
+	logger.Infow("server listening", "port", cfg.Port)
 	return srv.ServeHTTPHandler(ctx, jwksServer.Routes(ctx))
 }

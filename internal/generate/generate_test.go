@@ -15,7 +15,6 @@
 package generate
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -23,9 +22,9 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/project"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
@@ -40,13 +39,13 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func testHandler(tb testing.TB) (*Config, *serverenv.ServerEnv) {
+func testServer(tb testing.TB) *Server {
 	tb.Helper()
 
-	ctx := context.Background()
+	ctx := project.TestContext(tb)
 	_, dbConfig := testDatabaseInstance.NewDatabase(tb)
 
-	config := &Config{
+	cfg := &Config{
 		Database: *dbConfig,
 		SecretManager: secrets.Config{
 			SecretManagerType: secrets.SecretManagerTypeInMemory,
@@ -67,7 +66,7 @@ func testHandler(tb testing.TB) (*Config, *serverenv.ServerEnv) {
 		KeyRevisionDelay:             1 * time.Hour,
 	}
 
-	env, err := setup.SetupWith(ctx, config, envconfig.MapLookuper(map[string]string{
+	env, err := setup.SetupWith(ctx, cfg, envconfig.MapLookuper(map[string]string{
 		// We want this to be 0, but envconfig overrides the default value of 0 when
 		// processing, so force it to be 0 by simulating the environment variable
 		// value to 0.
@@ -82,42 +81,47 @@ func testHandler(tb testing.TB) (*Config, *serverenv.ServerEnv) {
 		}
 	})
 
-	return config, env
+	srv, err := NewServer(cfg, env)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return srv
 }
 
-func TestGenerateHandler_ServeHTTP(t *testing.T) {
+func TestServer_smoke(t *testing.T) {
 	// Note: this only tests that the server is capable of sending and receiving
 	// responses. It does not attempt to exhaustively exercise the actual
 	// generation, which is tested in a different function.
 	t.Parallel()
 
-	ctx := context.Background()
-	config, env := testHandler(t)
-	h, err := NewHandler(ctx, config, env)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := project.TestContext(t)
 
-	req, err := http.NewRequest("POST", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	srv := testServer(t)
+	mux := srv.Routes(ctx)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(h.ServeHTTP)
-	handler.ServeHTTP(rr, req)
+	t.Run("handleGenerate", func(t *testing.T) {
+		t.Parallel()
 
-	if got, want := rr.Code, http.StatusOK; got != want {
-		t.Errorf("expected %#v to be %#v", got, want)
-	}
+		r := httptest.NewRequest("POST", "/", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
 
-	if got, want := rr.Body.String(), "successfully generated exposure keys"; got != want {
-		t.Errorf("expected %#v to be %#v", got, want)
-	}
+		w.Flush()
+
+		if got, want := w.Code, http.StatusOK; got != want {
+			t.Errorf("expected %#v to be %#v", got, want)
+		}
+
+		if got, want := w.Body.String(), "successfully generated exposure keys"; got != want {
+			t.Errorf("expected %#v to be %#v", got, want)
+		}
+	})
 }
 
-func TestGenerateHandler_Generate(t *testing.T) {
+func TestServer_handleGenerate(t *testing.T) {
 	t.Parallel()
+
+	ctx := project.TestContext(t)
 
 	cases := []struct {
 		name string
@@ -149,27 +153,16 @@ func TestGenerateHandler_Generate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			config, env := testHandler(t)
-			db := env.Database()
+			srv := testServer(t)
 
 			if tc.sameDayRelease {
-				config.SimulateSameDayRelease = true
+				srv.config.SimulateSameDayRelease = true
 			}
 			if tc.reviseKeys {
-				config.ChanceOfKeyRevision = 100
+				srv.config.ChanceOfKeyRevision = 100
 			}
 
-			ctx := context.Background()
-			h, err := NewHandler(ctx, config, env)
-			if err != nil {
-				t.Fatal(err)
-			}
-			gh, ok := h.(*generateHandler)
-			if !ok {
-				t.Fatalf("expected handler to be generateHandler")
-			}
-
-			if err := gh.generate(ctx, tc.regions); err != nil {
+			if err := srv.generate(ctx, tc.regions); err != nil {
 				if tc.err == "" {
 					t.Fatal(err)
 				}
@@ -179,7 +172,7 @@ func TestGenerateHandler_Generate(t *testing.T) {
 			}
 
 			var exposures []*publishmodel.Exposure
-			if _, err := publishdb.New(db).IterateExposures(ctx, publishdb.IterateExposuresCriteria{}, func(m *publishmodel.Exposure) error {
+			if _, err := srv.database.IterateExposures(ctx, publishdb.IterateExposuresCriteria{}, func(m *publishmodel.Exposure) error {
 				exposures = append(exposures, m)
 				return nil
 			}); err != nil {

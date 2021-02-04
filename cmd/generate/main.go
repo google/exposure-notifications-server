@@ -26,7 +26,6 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	_ "github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/server"
-	"github.com/gorilla/mux"
 	"github.com/sethvargo/go-signalcontext"
 )
 
@@ -57,27 +56,22 @@ func main() {
 func realMain(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
-	var config generate.Config
-	env, err := setup.Setup(ctx, &config)
+	var cfg generate.Config
+	env, err := setup.Setup(ctx, &cfg)
 	if err != nil {
 		return fmt.Errorf("setup.Setup: %w", err)
 	}
 	defer env.Close(ctx)
 
-	handler, err := generate.NewHandler(ctx, &config, env)
+	generateServer, err := generate.NewServer(&cfg, env)
 	if err != nil {
-		return fmt.Errorf("generate.NewHandler: %w", err)
+		return fmt.Errorf("generate.NewServer: %w", err)
 	}
 
-	r := mux.NewRouter()
-	r.Handle("/", handler)
-	r.Handle("/health", server.HandleHealthz(ctx))
-
-	srv, err := server.New(config.Port)
+	srv, err := server.New(cfg.Port)
 	if err != nil {
 		return fmt.Errorf("server.New: %w", err)
 	}
-	logger.Infof("listening on :%s", config.Port)
-
-	return srv.ServeHTTPHandler(ctx, r)
+	logger.Infow("server listening", "port", cfg.Port)
+	return srv.ServeHTTPHandler(ctx, generateServer.Routes(ctx))
 }
