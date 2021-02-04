@@ -15,7 +15,6 @@
 package jwks
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -25,6 +24,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/project"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 )
@@ -137,7 +137,7 @@ func TestUpdateHA(t *testing.T) {
 			defer ts.Close()
 
 			// Set up the test.
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			testDB, _ := testDatabaseInstance.NewDatabase(t)
 			mgr, err := NewManager(testDB, time.Minute, 5*time.Second)
 			if err != nil {

@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,119 +22,87 @@ import (
 	"strings"
 	"time"
 
-	"go.opencensus.io/trace"
-	"go.uber.org/zap"
-
 	"github.com/google/exposure-notifications-server/internal/pb"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"github.com/google/exposure-notifications-server/pkg/util"
+	"go.opencensus.io/trace"
 )
 
-func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
-	logger := logging.FromContext(ctx).Named("generate")
+func (s *Server) handleGenerate() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, span := trace.StartSpan(r.Context(), "(*generate.Server).handleGenerate")
+		defer span.End()
 
-	if env.Database() == nil {
-		return nil, fmt.Errorf("missing database in server environment")
-	}
+		logger := logging.FromContext(ctx).Named("handleGenerate")
 
-	transformer, err := publishmodel.NewTransformer(config)
-	if err != nil {
-		return nil, fmt.Errorf("model.NewTransformer: %w", err)
-	}
-	logger.Debugw("max keys per upload", "value", config.MaxKeysOnPublish)
-	logger.Debugw("max interval start age", "value", config.MaxIntervalAge)
-	logger.Debugw("truncate window", "value", config.TruncateWindow)
+		regionStr := s.config.DefaultRegion
+		if v := r.URL.Query().Get("region"); v != "" {
+			regionStr = v
+		}
+		regions := strings.Split(regionStr, ",")
 
-	return &generateHandler{
-		serverenv:   env,
-		transformer: transformer,
-		config:      config,
-		database:    publishdb.New(env.Database()),
-		logger:      logger,
-	}, nil
+		logger.Debugw("generating data", "regions", regions)
+
+		if err := s.generate(ctx, regions); err != nil {
+			logger.Errorw("failed to generate", "error", err)
+			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, err.Error())
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "successfully generated exposure keys")
+	})
 }
 
-type generateHandler struct {
-	config      *Config
-	serverenv   *serverenv.ServerEnv
-	transformer *publishmodel.Transformer
-	database    *publishdb.PublishDB
-	logger      *zap.SugaredLogger
-}
-
-func (h *generateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, span := trace.StartSpan(r.Context(), "(*generate.generateHandler).ServeHTTP")
-	defer span.End()
-
-	logger := h.logger.Named("ServeHTTP")
-
-	regionStr := h.config.DefaultRegion
-	if v := r.URL.Query().Get("region"); v != "" {
-		regionStr = v
-	}
-	regions := strings.Split(regionStr, ",")
-
-	logger.Debugw("generating data", "regions", regions)
-
-	if err := h.generate(ctx, regions); err != nil {
-		logger.Errorw("failed to generate", "error", err)
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, err.Error())
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, "successfully generated exposure keys")
-}
-
-func (h *generateHandler) generate(ctx context.Context, regions []string) error {
+func (s *Server) generate(ctx context.Context, regions []string) error {
 	for _, r := range regions {
-		if err := h.generateKeysInRegion(ctx, r); err != nil {
+		if err := s.generateKeysInRegion(ctx, r); err != nil {
 			return fmt.Errorf("generateKeysInRegion: %w", err)
 		}
 	}
 	return nil
 }
 
-func (h *generateHandler) generateKeysInRegion(ctx context.Context, region string) error {
+func (s *Server) generateKeysInRegion(ctx context.Context, region string) error {
+	logger := logging.FromContext(ctx).Named("generateKeysInRegion")
+
 	// We require at least 2 keys because revision only revises a subset of keys,
 	// and that subset selects a random sample from (0-len(keys)], and rand panics
 	// if you try to generate a random number between 0 and 0 :).
-	if h.config.KeysPerExposure < 2 {
+	if s.config.KeysPerExposure < 2 {
 		return fmt.Errorf("number of keys to publish must be at least 2")
 	}
 
-	logger := h.logger.Named("generate")
 	// API calls treat region as a list, for legacy regions.
 	regions := []string{region}
 
 	traveler := false
 	if val, err := util.RandomInt(100); err != nil {
 		return fmt.Errorf("failed to determien traveler status: %w", err)
-	} else if val < h.config.ChanceOfTraveler {
+	} else if val < s.config.ChanceOfTraveler {
 		traveler = true
 	}
 
 	now := time.Now().UTC()
 	// Find the valid intervals - starting with today and working backwards
-	minInterval := publishmodel.IntervalNumber(timeutils.UTCMidnight(now.Add(-1 * h.config.MaxIntervalAge).Add(24 * time.Hour)))
+	minInterval := publishmodel.IntervalNumber(timeutils.UTCMidnight(now.Add(-1 * s.config.MaxIntervalAge).Add(24 * time.Hour)))
 	curInterval := publishmodel.IntervalNumber(timeutils.UTCMidnight(now))
-	intervals := make([]int32, 0, h.config.KeysPerExposure)
-	for i := 0; i < h.config.KeysPerExposure && curInterval >= minInterval; i++ {
+	intervals := make([]int32, 0, s.config.KeysPerExposure)
+	for i := 0; i < s.config.KeysPerExposure && curInterval >= minInterval; i++ {
 		intervals = append(intervals, curInterval)
 		curInterval -= verifyapi.MaxIntervalCount
 	}
 
 	batchTime := now
-	for i := 0; i < h.config.NumExposures; i++ {
-		logger.Debugf("generating exposure %d of %d", i+1, h.config.NumExposures)
+	for i := 0; i < s.config.NumExposures; i++ {
+		logger.Debugf("generating exposure %d of %d", i+1, s.config.NumExposures)
 
 		exposures, err := util.GenerateExposuresForIntervals(intervals)
 		if err != nil {
@@ -146,7 +114,7 @@ func (h *generateHandler) generateKeysInRegion(ctx context.Context, region strin
 			Traveler:          traveler,
 		}
 
-		if h.config.SimulateSameDayRelease {
+		if s.config.SimulateSameDayRelease {
 			sort.Slice(publish.Keys, func(i int, j int) bool {
 				return publish.Keys[i].IntervalNumber < publish.Keys[j].IntervalNumber
 			})
@@ -165,7 +133,7 @@ func (h *generateHandler) generateKeysInRegion(ctx context.Context, region strin
 		if err != nil {
 			return fmt.Errorf("failed to decide revised key status: %w", err)
 		}
-		generateRevisedKeys := val <= h.config.ChanceOfKeyRevision
+		generateRevisedKeys := val <= s.config.ChanceOfKeyRevision
 
 		reportType := verifyapi.ReportTypeClinical
 		if !generateRevisedKeys {
@@ -185,12 +153,12 @@ func (h *generateHandler) generateKeysInRegion(ctx context.Context, region strin
 			SymptomOnsetInterval: uint32(publish.Keys[intervalIdx].IntervalNumber),
 		}
 
-		result, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
+		result, err := s.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
 		if err != nil {
 			return fmt.Errorf("failed to transform generated exposures: %w", err)
 		}
 
-		n, err := h.database.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+		n, err := s.database.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
 			Incoming:     result.Exposures,
 			RequireToken: true,
 		})
@@ -206,9 +174,9 @@ func (h *generateHandler) generateKeysInRegion(ctx context.Context, region strin
 			}
 
 			claims.ReportType = revisedReportType
-			batchTime = batchTime.Add(h.config.KeyRevisionDelay)
+			batchTime = batchTime.Add(s.config.KeyRevisionDelay)
 
-			result, err := h.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
+			result, err := s.transformer.TransformPublish(ctx, publish, regions, &claims, batchTime)
 			if err != nil {
 				return fmt.Errorf("failed to transform generated exposures: %w", err)
 			}
@@ -224,7 +192,7 @@ func (h *generateHandler) generateKeysInRegion(ctx context.Context, region strin
 			}
 
 			// Bypass revision token enforcement on generated data.
-			n, err := h.database.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
+			n, err := s.database.InsertAndReviseExposures(ctx, &publishdb.InsertAndReviseExposuresRequest{
 				Incoming:     result.Exposures,
 				Token:        &token,
 				RequireToken: true,

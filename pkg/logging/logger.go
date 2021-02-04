@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/project"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -75,7 +74,7 @@ func NewLogger(level string, development bool) *zap.SugaredLogger {
 // parameters.
 func NewLoggerFromEnv() *zap.SugaredLogger {
 	level := os.Getenv("LOG_LEVEL")
-	development := strings.ToLower(project.TrimSpaceAndNonPrintable(os.Getenv("LOG_MODE"))) == "development"
+	development := strings.ToLower(strings.TrimSpace(os.Getenv("LOG_MODE"))) == "development"
 	return NewLogger(level, development)
 }
 
@@ -155,7 +154,7 @@ var developmentEncoderConfig = zapcore.EncoderConfig{
 // levelToZapLevel converts the given string to the appropriate zap level
 // value.
 func levelToZapLevel(s string) zapcore.Level {
-	switch strings.ToUpper(project.TrimSpaceAndNonPrintable(s)) {
+	switch strings.ToUpper(strings.TrimSpace(s)) {
 	case levelDebug:
 		return zapcore.DebugLevel
 	case levelInfo:
