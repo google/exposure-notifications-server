@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
+	pgx "github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -33,15 +34,25 @@ type DB struct {
 // NewFromEnv sets up the database connections using the configuration in the
 // process's environment variables. This should be called just once per server
 // instance.
-func NewFromEnv(ctx context.Context, config *Config) (*DB, error) {
-	logger := logging.FromContext(ctx)
-	logger.Infof("Creating connection pool.")
-
-	connStr := dbConnectionString(config)
-
-	pool, err := pgxpool.Connect(ctx, connStr)
+func NewFromEnv(ctx context.Context, cfg *Config) (*DB, error) {
+	pgxConfig, err := pgxpool.ParseConfig(dbDSN(cfg))
 	if err != nil {
-		return nil, fmt.Errorf("creating connection pool: %v", err)
+		return nil, fmt.Errorf("failed to parse connection string: %w", err)
+	}
+
+	// BeforeAcquire is called before before a connection is acquired from the
+	// pool. It must return true to allow the acquision or false to indicate that
+	// the connection should be destroyed and a different connection should be
+	// acquired.
+	pgxConfig.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool {
+		// Ping the connection to see if it is still valid. Ping returns an error if
+		// it fails.
+		return conn.Ping(ctx) == nil
+	}
+
+	pool, err := pgxpool.ConnectConfig(ctx, pgxConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create connection pool: %v", err)
 	}
 
 	return &DB{Pool: pool}, nil
@@ -54,11 +65,11 @@ func (db *DB) Close(ctx context.Context) {
 	db.Pool.Close()
 }
 
-// dbConnectionString builds a connection string suitable for the pgx Postgres driver, using the
-// values of vars.
-func dbConnectionString(config *Config) string {
-	vals := dbValues(config)
-	var p []string
+// dbDSN builds a connection string suitable for the pgx Postgres driver, using
+// the values of vars.
+func dbDSN(cfg *Config) string {
+	vals := dbValues(cfg)
+	p := make([]string, 0, len(vals))
 	for k, v := range vals {
 		p = append(p, fmt.Sprintf("%s=%s", k, v))
 	}
@@ -83,22 +94,22 @@ func setIfPositiveDuration(m map[string]string, key string, d time.Duration) {
 	}
 }
 
-func dbValues(config *Config) map[string]string {
+func dbValues(cfg *Config) map[string]string {
 	p := map[string]string{}
-	setIfNotEmpty(p, "dbname", config.Name)
-	setIfNotEmpty(p, "user", config.User)
-	setIfNotEmpty(p, "host", config.Host)
-	setIfNotEmpty(p, "port", config.Port)
-	setIfNotEmpty(p, "sslmode", config.SSLMode)
-	setIfPositive(p, "connect_timeout", config.ConnectionTimeout)
-	setIfNotEmpty(p, "password", config.Password)
-	setIfNotEmpty(p, "sslcert", config.SSLCertPath)
-	setIfNotEmpty(p, "sslkey", config.SSLKeyPath)
-	setIfNotEmpty(p, "sslrootcert", config.SSLRootCertPath)
-	setIfNotEmpty(p, "pool_min_conns", config.PoolMinConnections)
-	setIfNotEmpty(p, "pool_max_conns", config.PoolMaxConnections)
-	setIfPositiveDuration(p, "pool_max_conn_lifetime", config.PoolMaxConnLife)
-	setIfPositiveDuration(p, "pool_max_conn_idle_time", config.PoolMaxConnIdle)
-	setIfPositiveDuration(p, "pool_health_check_period", config.PoolHealthCheck)
+	setIfNotEmpty(p, "dbname", cfg.Name)
+	setIfNotEmpty(p, "user", cfg.User)
+	setIfNotEmpty(p, "host", cfg.Host)
+	setIfNotEmpty(p, "port", cfg.Port)
+	setIfNotEmpty(p, "sslmode", cfg.SSLMode)
+	setIfPositive(p, "connect_timeout", cfg.ConnectionTimeout)
+	setIfNotEmpty(p, "password", cfg.Password)
+	setIfNotEmpty(p, "sslcert", cfg.SSLCertPath)
+	setIfNotEmpty(p, "sslkey", cfg.SSLKeyPath)
+	setIfNotEmpty(p, "sslrootcert", cfg.SSLRootCertPath)
+	setIfNotEmpty(p, "pool_min_conns", cfg.PoolMinConnections)
+	setIfNotEmpty(p, "pool_max_conns", cfg.PoolMaxConnections)
+	setIfPositiveDuration(p, "pool_max_conn_lifetime", cfg.PoolMaxConnLife)
+	setIfPositiveDuration(p, "pool_max_conn_idle_time", cfg.PoolMaxConnIdle)
+	setIfPositiveDuration(p, "pool_health_check_period", cfg.PoolHealthCheck)
 	return p
 }
