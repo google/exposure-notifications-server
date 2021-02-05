@@ -56,7 +56,7 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 func (s *Server) Routes(ctx context.Context) *mux.Router {
 	r := mux.NewRouter()
 	r.HandleFunc("/", s.handleDebug(ctx))
-	r.Handle("/health", server.HandleHealthz(ctx))
+	r.Handle("/health", server.HandleHealthz())
 
 	return r
 }

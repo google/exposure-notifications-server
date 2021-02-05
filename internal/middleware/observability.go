@@ -22,8 +22,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// WithObservability sets common observability context fields.
-func WithObservability() mux.MiddlewareFunc {
+// PopulateObservability sets common observability context fields.
+func PopulateObservability() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
