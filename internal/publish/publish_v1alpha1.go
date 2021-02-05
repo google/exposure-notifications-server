@@ -26,7 +26,6 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
-	"github.com/mikehelmick/go-chaff"
 )
 
 func (s *Server) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) *response {
@@ -78,34 +77,33 @@ func (s *Server) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) *r
 }
 
 func (s *Server) handlePublishV1Alpha1() http.Handler {
-	return s.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 
-			logger := logging.FromContext(ctx).Named("handlePublishV1Alpha1")
+		logger := logging.FromContext(ctx).Named("handlePublishV1Alpha1")
 
-			response := s.handleV1Apha1Request(w, r)
+		response := s.handleV1Apha1Request(w, r)
 
-			if padding, err := generatePadding(s.config.ResponsePaddingMinBytes, s.config.ResponsePaddingRange); err != nil {
-				stats.Record(ctx, mPaddingFailed.M(1))
-				logger.Errorw("failed to pad response", "error", err)
-			} else {
-				response.pubResponse.Padding = padding
-			}
+		if padding, err := generatePadding(s.config.ResponsePaddingMinBytes, s.config.ResponsePaddingRange); err != nil {
+			stats.Record(ctx, mPaddingFailed.M(1))
+			logger.Errorw("failed to pad response", "error", err)
+		} else {
+			response.pubResponse.Padding = padding
+		}
 
-			// Downgrade the v1 response to a v1alpha1 response.
-			alpha1Response := &v1alpha1.PublishResponse{
-				RevisionToken:     response.pubResponse.RevisionToken,
-				InsertedExposures: response.pubResponse.InsertedExposures,
-				Error:             response.pubResponse.ErrorMessage,
-				Padding:           response.pubResponse.Padding,
-				Warnings:          response.pubResponse.Warnings,
-			}
+		// Downgrade the v1 response to a v1alpha1 response.
+		alpha1Response := &v1alpha1.PublishResponse{
+			RevisionToken:     response.pubResponse.RevisionToken,
+			InsertedExposures: response.pubResponse.InsertedExposures,
+			Error:             response.pubResponse.ErrorMessage,
+			Padding:           response.pubResponse.Padding,
+			Warnings:          response.pubResponse.Warnings,
+		}
 
-			if response.metrics != nil {
-				response.metrics()
-			}
+		if response.metrics != nil {
+			response.metrics()
+		}
 
-			jsonutil.MarshalResponse(w, response.status, alpha1Response)
-		}))
+		jsonutil.MarshalResponse(w, response.status, alpha1Response)
+	})
 }
