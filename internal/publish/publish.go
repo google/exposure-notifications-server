@@ -29,6 +29,7 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
+	"github.com/google/exposure-notifications-server/internal/middleware"
 	"github.com/google/exposure-notifications-server/internal/pb"
 	"github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
@@ -40,6 +41,8 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/server"
+	"github.com/gorilla/mux"
 	"github.com/mikehelmick/go-chaff"
 )
 
@@ -127,6 +130,33 @@ func NewServer(ctx context.Context, cfg *Config, env *serverenv.ServerEnv) (*Ser
 	}, nil
 }
 
+func (s *Server) Routes(ctx context.Context, cfg *Config) *mux.Router {
+	logger := logging.FromContext(ctx).Named("publish")
+
+	r := mux.NewRouter()
+	r.Use(middleware.PopulateRequestID())
+	r.Use(middleware.PopulateObservability())
+	r.Use(middleware.PopulateLogger(logger))
+
+	r.Handle("/health", server.HandleHealthz())
+
+	// Handle v1 API - this route has to come before the v1alpha route because of
+	// path matching.
+	r.Handle("/v1/publish", s.handlePublishV1())
+	r.Handle("/v1/publish/", http.NotFoundHandler())
+
+	// Handle stats retrieval API
+	r.Handle("/v1/stats", s.handleStats())
+	r.Handle("/v1/stats/", http.NotFoundHandler())
+
+	// Serving of v1alpha1 is on by default, but can be disabled through env var.
+	if cfg.EnableV1Alpha1API {
+		r.Handle("/", s.handlePublishV1Alpha1())
+	}
+
+	return r
+}
+
 type response struct {
 	status      int
 	pubResponse *verifyapi.PublishResponse
@@ -182,7 +212,8 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 	ctx, span := trace.StartSpan(ctx, "(*publish.PublishHandler).process")
 	defer span.End()
 
-	logger := logging.FromContext(ctx).With("health_authority_id", data.HealthAuthorityID)
+	logger := logging.FromContext(ctx).Named("process").
+		With("health_authority_id", data.HealthAuthorityID)
 
 	logger.Info("publish API request")
 

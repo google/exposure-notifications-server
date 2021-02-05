@@ -124,7 +124,7 @@ func TestRetrieveMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to create publish handler: %v", err)
 	}
-	metricsHandler := publishServer.HandleStats()
+	metricsHandler := publishServer.handleStats()
 
 	// get the authentication token.
 	jwtConfig := &testutil.StatsJWTConfig{
@@ -243,7 +243,7 @@ func TestRetrieveMetrics_AuthErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to create publish handler: %v", err)
 	}
-	metricsHandler := publishServer.HandleStats()
+	metricsHandler := publishServer.handleStats()
 
 	// get the authentication token.
 	jwtConfig := &testutil.StatsJWTConfig{

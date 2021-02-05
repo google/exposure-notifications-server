@@ -78,18 +78,20 @@ func (s *Server) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) *r
 	return s.process(ctx, &publish, clientPlatform, bridge)
 }
 
-func (s *Server) HandleV1Alpha1() http.Handler {
+func (s *Server) handlePublishV1Alpha1() http.Handler {
 	mResponder := maintenance.New(s.config)
 	return s.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
 		mResponder.Handle(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				response := s.handleV1Apha1Request(w, r)
-
 				ctx := r.Context()
+
+				logger := logging.FromContext(ctx).Named("handlePublishV1Alpha1")
+
+				response := s.handleV1Apha1Request(w, r)
 
 				if padding, err := generatePadding(s.config.ResponsePaddingMinBytes, s.config.ResponsePaddingRange); err != nil {
 					stats.Record(ctx, mPaddingFailed.M(1))
-					logging.FromContext(ctx).Errorw("failed to padd response", "error", err)
+					logger.Errorw("failed to pad response", "error", err)
 				} else {
 					response.pubResponse.Padding = padding
 				}
