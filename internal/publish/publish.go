@@ -130,14 +130,15 @@ func NewServer(ctx context.Context, cfg *Config, env *serverenv.ServerEnv) (*Ser
 	}, nil
 }
 
-func (s *Server) Routes(ctx context.Context, cfg *Config) *mux.Router {
+func (s *Server) Routes(ctx context.Context) *mux.Router {
 	logger := logging.FromContext(ctx).Named("publish")
 
 	r := mux.NewRouter()
+	r.Use(middleware.ProcessChaff(s.tracker))
 	r.Use(middleware.PopulateRequestID())
 	r.Use(middleware.PopulateObservability())
 	r.Use(middleware.PopulateLogger(logger))
-	r.Use(middleware.ProcessMaintenance(cfg))
+	r.Use(middleware.ProcessMaintenance(s.config))
 
 	r.Handle("/health", server.HandleHealthz())
 
@@ -151,7 +152,7 @@ func (s *Server) Routes(ctx context.Context, cfg *Config) *mux.Router {
 	r.Handle("/v1/stats/", http.NotFoundHandler())
 
 	// Serving of v1alpha1 is on by default, but can be disabled through env var.
-	if cfg.EnableV1Alpha1API {
+	if s.config.EnableV1Alpha1API {
 		r.Handle("/", s.handlePublishV1Alpha1())
 	}
 

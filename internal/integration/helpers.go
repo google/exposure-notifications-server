@@ -234,7 +234,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	r.PathPrefix("/publish/").Handler(http.StripPrefix("/publish", publishServer.Routes(ctx, &publishConfig)))
+	r.PathPrefix("/publish/").Handler(http.StripPrefix("/publish", publishServer.Routes(ctx)))
 
 	srv, err := server.New("")
 	if err != nil {

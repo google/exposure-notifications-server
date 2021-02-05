@@ -26,39 +26,36 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"go.opencensus.io/trace"
-
-	"github.com/mikehelmick/go-chaff"
 )
 
 func (s *Server) handleStats() http.Handler {
-	return s.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "(*publish.HandleStats)")
-			defer span.End()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, span := trace.StartSpan(r.Context(), "(*publish.HandleStats)")
+		defer span.End()
 
-			var request verifyapi.StatsRequest
-			response := &verifyapi.StatsResponse{}
-			code, err := jsonutil.Unmarshal(w, r, &request)
-			if err != nil {
-				message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
-				span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-				errorCode := verifyapi.ErrorBadRequest
-				if code == http.StatusInternalServerError {
-					errorCode = verifyapi.ErrorInternalError
-				}
-				s.addMetricsPadding(ctx, response)
-				jsonutil.MarshalResponse(w, http.StatusBadRequest, &verifyapi.StatsResponse{
-					ErrorMessage: message,
-					ErrorCode:    errorCode,
-				})
-				return
+		var request verifyapi.StatsRequest
+		response := &verifyapi.StatsResponse{}
+		code, err := jsonutil.Unmarshal(w, r, &request)
+		if err != nil {
+			message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
+			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+			errorCode := verifyapi.ErrorBadRequest
+			if code == http.StatusInternalServerError {
+				errorCode = verifyapi.ErrorInternalError
 			}
-
-			response, status := s.handleMetricsRequest(ctx, r.Header.Get("Authorization"), &request)
 			s.addMetricsPadding(ctx, response)
+			jsonutil.MarshalResponse(w, http.StatusBadRequest, &verifyapi.StatsResponse{
+				ErrorMessage: message,
+				ErrorCode:    errorCode,
+			})
+			return
+		}
 
-			jsonutil.MarshalResponse(w, status, response)
-		}))
+		response, status := s.handleMetricsRequest(ctx, r.Header.Get("Authorization"), &request)
+		s.addMetricsPadding(ctx, response)
+
+		jsonutil.MarshalResponse(w, status, response)
+	})
 }
 
 func (s *Server) addMetricsPadding(ctx context.Context, response *verifyapi.StatsResponse) {

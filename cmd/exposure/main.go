@@ -76,5 +76,5 @@ func realMain(ctx context.Context) error {
 		return fmt.Errorf("server.New: %w", err)
 	}
 	logger.Infow("server listening", "port", cfg.Port)
-	return srv.ServeHTTPHandler(ctx, publishServer.Routes(ctx, &cfg))
+	return srv.ServeHTTPHandler(ctx, publishServer.Routes(ctx))
 }
