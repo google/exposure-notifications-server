@@ -17,7 +17,6 @@
 package performance
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"path"
@@ -54,7 +53,7 @@ func TestExport(t *testing.T) {
 		totalBatches   = 24 * 6
 	)
 	var (
-		ctx      = context.Background()
+		ctx      = project.TestContext(t)
 		criteria = publishdb.IterateExposuresCriteria{
 			OnlyLocalProvenance: false,
 		}
@@ -64,7 +63,7 @@ func TestExport(t *testing.T) {
 		batchStartTime = time.Now().Add(time.Duration(-totalBatches-10) * exportPeriod)
 	)
 	c := testConfig{}
-	if err := envconfig.ProcessWith(context.Background(), &c, envconfig.OsLookuper()); err != nil {
+	if err := envconfig.ProcessWith(project.TestContext(t), &c, envconfig.OsLookuper()); err != nil {
 		t.Fatalf("unable to process env: %v", err)
 	}
 
@@ -75,7 +74,7 @@ func TestExport(t *testing.T) {
 	roughPerBatch := numPublishes/totalBatches + 1
 
 	makoQuickstore, cancel := setup(t)
-	defer cancel(context.Background())
+	defer cancel(project.TestContext(t))
 
 	env, client := integration.NewTestServer(t)
 	db := env.Database()

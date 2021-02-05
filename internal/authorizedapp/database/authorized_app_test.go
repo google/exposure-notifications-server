@@ -15,12 +15,12 @@
 package database
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"strings"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -28,7 +28,7 @@ import (
 func TestAuthorizedAppInsert_Errors(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	aadb := New(testDB)
 
@@ -55,7 +55,7 @@ func TestAuthorizedAppInsert_Errors(t *testing.T) {
 func TestAuthorizedAppLifecycle(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	aadb := New(testDB)
 
@@ -114,7 +114,7 @@ func TestAuthorizedAppLifecycle(t *testing.T) {
 func TestUpdateAuthorizedApp_NoRows(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	aadb := New(testDB)
 
@@ -139,7 +139,7 @@ func TestUpdateAuthorizedApp_NoRows(t *testing.T) {
 func TestUpdateAuthorizedApp_Errors(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	aadb := New(testDB)
 
@@ -174,7 +174,7 @@ func TestUpdateAuthorizedApp_Errors(t *testing.T) {
 func TestGetAuthorizedApp(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 
 	cases := []struct {
 		name string
@@ -254,7 +254,7 @@ func TestGetAuthorizedApp(t *testing.T) {
 func TestListAuthorizedApps(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	aadb := New(testDB)
 

@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/federationin/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
@@ -408,7 +409,7 @@ func TestFederationPull(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			query := &model.FederationInQuery{
 				QueryID: queryID,
 			}

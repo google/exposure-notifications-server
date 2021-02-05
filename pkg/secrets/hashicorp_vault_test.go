@@ -15,11 +15,11 @@
 package secrets
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/google/exposure-notifications-server/internal/project"
 	vaultlog "github.com/hashicorp/go-hclog"
 	vaultkv "github.com/hashicorp/vault-plugin-secrets-kv"
 	vaultapi "github.com/hashicorp/vault/api"
@@ -156,7 +156,7 @@ func TestHashiCorpVault_GetSecretValue(t *testing.T) {
 			t.Parallel()
 
 			// Create a Vault server.
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
 				DisableMlock: true,
 				DisableCache: true,

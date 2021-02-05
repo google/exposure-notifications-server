@@ -15,17 +15,18 @@
 package secrets
 
 import (
-	"context"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/google/exposure-notifications-server/internal/project"
 )
 
 func TestResolver(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 
 	sm, err := NewInMemoryFromMap(ctx, map[string]string{
 		"my-secret1": "value1",
@@ -99,7 +100,7 @@ func TestResolver(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			config := &Config{SecretsDir: tc.dir}
 			result, err := Resolver(sm, config)(ctx, tc.key, tc.value)
 			if (err != nil) != tc.err {

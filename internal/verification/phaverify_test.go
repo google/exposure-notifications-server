@@ -18,7 +18,6 @@
 package verification
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -33,6 +32,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/go-cmp/cmp"
@@ -90,7 +90,7 @@ func TestVerifyCertificate(t *testing.T) {
 	}
 
 	// Set up database. Create HealthAuthority + HAKey for the test.
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	haDB := database.New(testDB)
 

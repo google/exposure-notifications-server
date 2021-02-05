@@ -15,7 +15,6 @@
 package exportimport
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -23,6 +22,7 @@ import (
 
 	exportimportdb "github.com/google/exposure-notifications-server/internal/exportimport/database"
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -30,7 +30,7 @@ import (
 func TestSyncFileFromIndexErrorsInExportRoot(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := exportimportdb.New(testDB)
 
@@ -59,7 +59,7 @@ func TestSyncFileFromIndexErrorsInExportRoot(t *testing.T) {
 func TestSyncFilenameShapes(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := exportimportdb.New(testDB)
 
@@ -239,7 +239,7 @@ func TestSyncFilenameShapes(t *testing.T) {
 func TestSyncFileFromIndex(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := exportimportdb.New(testDB)
 

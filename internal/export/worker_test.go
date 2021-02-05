@@ -15,11 +15,11 @@
 package export
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/export/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -165,7 +165,7 @@ func TestBatchExposures(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			testDB, _ := testDatabaseInstance.NewDatabase(t)
 			testPublishDB := publishdb.New(testDB)
 
@@ -387,7 +387,7 @@ func TestBatchExposures(t *testing.T) {
 func TestVariableBatchMaxSize(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	testPublishDB := publishdb.New(testDB)
 

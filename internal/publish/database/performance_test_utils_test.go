@@ -14,9 +14,9 @@
 package database
 
 import (
-	"context"
 	"testing"
 
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 )
 
@@ -54,7 +54,7 @@ func TestBulkInsertExposures(t *testing.T) {
 			want: 3},
 	}
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	testPublishDB := New(testDB)
 

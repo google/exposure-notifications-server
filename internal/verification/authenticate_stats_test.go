@@ -15,7 +15,6 @@
 package verification
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -26,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 
@@ -155,7 +155,7 @@ func TestAuthenticateStatsToken(t *testing.T) {
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			// Set up database. Create HealthAuthority + HAKey for the test.
 			testDB, _ := testDatabaseInstance.NewDatabase(t)
 			haDB := database.New(testDB)

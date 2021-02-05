@@ -15,7 +15,6 @@
 package mirror
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -29,6 +28,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	mirrordatabase "github.com/google/exposure-notifications-server/internal/mirror/database"
 	mirrormodel "github.com/google/exposure-notifications-server/internal/mirror/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/go-cmp/cmp"
@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 func TestServer_ProcessMirror(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	zipFileContents := "data data data"
 
 	cases := []struct {
@@ -255,7 +255,7 @@ func TestServer_ProcessMirror(t *testing.T) {
 func TestServer_DownloadIndex(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	emptyDB := &database.DB{}
 	testBlobstore, err := storage.NewNoop(ctx)
 	if err != nil {

@@ -15,18 +15,19 @@
 package database
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/exposure-notifications-server/internal/project"
 )
 
 func TestLock(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	const (
@@ -93,7 +94,7 @@ func TestLock(t *testing.T) {
 func TestLock_contention(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	var wg sync.WaitGroup
@@ -138,7 +139,7 @@ func TestLock_contention(t *testing.T) {
 func TestMultiLock(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	neededLocks := []string{"traveler", "US", "CA", "MX"}

@@ -28,6 +28,7 @@ import (
 	exportapi "github.com/google/exposure-notifications-server/internal/export"
 	exportdb "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/pb/export"
+	"github.com/google/exposure-notifications-server/internal/project"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
@@ -82,7 +83,7 @@ func TestIntegration(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			env, client := NewTestServer(t)
 			db := env.Database()
 			jwtCfg, exportDir, exportRoot, appName := Seed(t, ctx, db, 2*time.Second)
@@ -135,7 +136,7 @@ func TestIntegration(t *testing.T) {
 
 			// Assert there are 3 exposures in the database
 			{
-				exposures, err := getExposures(db, criteria)
+				exposures, err := getExposures(ctx, db, criteria)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -264,7 +265,7 @@ func TestIntegration(t *testing.T) {
 
 			// Assert there are one less exposures in the database now
 			{
-				exposures, err := getExposures(db, criteria)
+				exposures, err := getExposures(ctx, db, criteria)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -314,7 +315,7 @@ func TestIntegration(t *testing.T) {
 
 			// Assert there are 5 exposures in the database
 			{
-				exposures, err := getExposures(db, criteria)
+				exposures, err := getExposures(ctx, db, criteria)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -439,8 +440,7 @@ func TestIntegration(t *testing.T) {
 }
 
 // getExposures finds the exposures that match the given criteria.
-func getExposures(db *database.DB, criteria publishdb.IterateExposuresCriteria) ([]*publishmodel.Exposure, error) {
-	ctx := context.Background()
+func getExposures(ctx context.Context, db *database.DB, criteria publishdb.IterateExposuresCriteria) ([]*publishmodel.Exposure, error) {
 	var exposures []*publishmodel.Exposure
 	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
 		exposures = append(exposures, m)

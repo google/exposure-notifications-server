@@ -15,12 +15,12 @@
 package cleanup
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 func TestNewExposureHandler(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	testCases := []struct {
@@ -84,7 +84,7 @@ func TestNewExposureHandler(t *testing.T) {
 func TestNewExportHandler(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	noopBlobstore, _ := storage.NewNoop(ctx)
 
@@ -158,7 +158,7 @@ func TestCutoffDate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := cutoffDate(context.Background(), tc.d, tc.override)
+			got, err := cutoffDate(project.TestContext(t), tc.d, tc.override)
 			if tc.wantDur == 0 {
 				if err == nil {
 					t.Errorf("%q: got no error, wanted one", tc.d)

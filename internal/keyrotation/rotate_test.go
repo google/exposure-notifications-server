@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/revision"
 	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -34,7 +35,7 @@ import (
 func TestRotateKeys(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 
 	kms := keys.TestKeyManager(t)
 	keyID := keys.TestEncryptionKey(t, kms)

@@ -15,11 +15,11 @@
 package export
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/keys"
@@ -32,7 +32,7 @@ func TestNewServer(t *testing.T) {
 	emptyStorage := &storage.GoogleCloudStorage{}
 	emptyKMS := &keys.GoogleCloudKMS{}
 	emptyDB := &database.DB{}
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 
 	testCases := []struct {
 		name string

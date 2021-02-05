@@ -15,11 +15,11 @@
 package database
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -28,7 +28,7 @@ import (
 func TestRevisionKey(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	kms := keys.TestKeyManager(t)
@@ -58,7 +58,7 @@ func TestRevisionKey(t *testing.T) {
 func TestMultipleRevisionKeys(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	kms := keys.TestKeyManager(t)

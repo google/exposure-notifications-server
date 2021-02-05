@@ -15,7 +15,6 @@
 package setup_test
 
 import (
-	"context"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -23,6 +22,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/keys"
@@ -100,7 +100,7 @@ func TestSetupWith(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := context.Background()
+		ctx := project.TestContext(t)
 		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
@@ -114,7 +114,7 @@ func TestSetupWith(t *testing.T) {
 	t.Run("database", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := context.Background()
+		ctx := project.TestContext(t)
 		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
@@ -133,7 +133,7 @@ func TestSetupWith(t *testing.T) {
 	t.Run("authorizedapp", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := context.Background()
+		ctx := project.TestContext(t)
 		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
@@ -156,7 +156,7 @@ func TestSetupWith(t *testing.T) {
 	t.Run("blobstore", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := context.Background()
+		ctx := project.TestContext(t)
 		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
@@ -179,7 +179,7 @@ func TestSetupWith(t *testing.T) {
 	t.Run("key_manager", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := context.Background()
+		ctx := project.TestContext(t)
 		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
@@ -202,7 +202,7 @@ func TestSetupWith(t *testing.T) {
 	t.Run("secret_manager", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := context.Background()
+		ctx := project.TestContext(t)
 		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}
@@ -225,7 +225,7 @@ func TestSetupWith(t *testing.T) {
 	t.Run("observability_exporter", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := context.Background()
+		ctx := project.TestContext(t)
 		_, dbconfig := testDatabaseInstance.NewDatabase(t)
 
 		config := &testConfig{Database: dbconfig}

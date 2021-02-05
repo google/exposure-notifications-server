@@ -16,7 +16,6 @@ package keys
 
 import (
 	"bytes"
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -26,12 +25,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/google/exposure-notifications-server/internal/project"
 )
 
 func TestNewFilesystem(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 
 	t.Run("root_empty", func(t *testing.T) {
 		t.Parallel()
@@ -141,7 +142,7 @@ func TestFilesystem_NewSigner(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 
 			dir, err := ioutil.TempDir("", "")
 			if err != nil {
@@ -203,7 +204,7 @@ func TestFilesystem_EncryptDecrypt(t *testing.T) {
 			keyID:     "apple",
 			plaintext: []byte("bacon"),
 			setup: func(fs *Filesystem) error {
-				ctx := context.Background()
+				ctx := project.TestContext(t)
 				id, err := fs.CreateEncryptionKey(ctx, "", "apple")
 				if err != nil {
 					return err
@@ -219,7 +220,7 @@ func TestFilesystem_EncryptDecrypt(t *testing.T) {
 			keyID:     "apple",
 			plaintext: []byte("bacon"),
 			setup: func(fs *Filesystem) error {
-				ctx := context.Background()
+				ctx := project.TestContext(t)
 				id, err := fs.CreateEncryptionKey(ctx, "", "apple")
 				if err != nil {
 					return err
@@ -241,7 +242,7 @@ func TestFilesystem_EncryptDecrypt(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 
 			dir, err := ioutil.TempDir("", "")
 			if err != nil {
@@ -312,7 +313,7 @@ func TestFilesystem_SigningKeyVersions(t *testing.T) {
 			name:  "happy",
 			keyID: "apple",
 			setup: func(fs *Filesystem) error {
-				ctx := context.Background()
+				ctx := project.TestContext(t)
 				id, err := fs.CreateSigningKey(ctx, "", "apple")
 				if err != nil {
 					return err
@@ -328,7 +329,7 @@ func TestFilesystem_SigningKeyVersions(t *testing.T) {
 			name:  "multi",
 			keyID: "apple",
 			setup: func(fs *Filesystem) error {
-				ctx := context.Background()
+				ctx := project.TestContext(t)
 				id, err := fs.CreateSigningKey(ctx, "", "apple")
 				if err != nil {
 					return err
@@ -351,7 +352,7 @@ func TestFilesystem_SigningKeyVersions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 
 			dir, err := ioutil.TempDir("", "")
 			if err != nil {

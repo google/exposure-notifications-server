@@ -16,7 +16,6 @@ package storage
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
@@ -28,6 +27,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/google/exposure-notifications-server/internal/project"
 )
 
 func maybeSkipCloudStorage(tb testing.TB) {
@@ -47,7 +47,7 @@ func testGoogleCloudStorageClient(tb testing.TB) *storage.Client {
 
 	maybeSkipCloudStorage(tb)
 
-	ctx := context.Background()
+	ctx := project.TestContext(tb)
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		tb.Fatal(err)
@@ -84,7 +84,7 @@ func testGoogleCloudStorageObject(tb testing.TB, r io.Reader) string {
 
 	maybeSkipCloudStorage(tb)
 
-	ctx := context.Background()
+	ctx := project.TestContext(tb)
 	client := testGoogleCloudStorageClient(tb)
 	bucket := testGoogleCloudStorageBucket(tb)
 	name := testName(tb)
@@ -111,7 +111,7 @@ func testGoogleCloudStorageObject(tb testing.TB, r io.Reader) string {
 func TestGoogleCloudStorage_CreateObject(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	client := testGoogleCloudStorageClient(t)
 	bucket := testGoogleCloudStorageBucket(t)
 	object := testGoogleCloudStorageObject(t, strings.NewReader("contents"))
@@ -183,7 +183,7 @@ func TestGoogleCloudStorage_CreateObject(t *testing.T) {
 func TestGoogleCloudStorage_DeleteObject(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	client := testGoogleCloudStorageClient(t)
 	bucket := testGoogleCloudStorageBucket(t)
 	object := testGoogleCloudStorageObject(t, strings.NewReader("contents"))

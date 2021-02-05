@@ -15,7 +15,6 @@
 package database
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -33,7 +33,7 @@ import (
 func TestAddGetUpdateExportConfig(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := New(testDB)
 
@@ -119,7 +119,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 func TestAddImportFiles(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := New(testDB)
 
@@ -171,7 +171,7 @@ func TestAddImportFiles(t *testing.T) {
 func TestLeaseAndCompleteImportFile(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := New(testDB)
 
@@ -236,7 +236,7 @@ func TestLeaseAndCompleteImportFile(t *testing.T) {
 func TestImportFilePublicKey(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := New(testDB)
 
@@ -305,7 +305,7 @@ func TestImportFilePublicKey(t *testing.T) {
 func TestRetryToClose(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportImportDB := New(testDB)
 

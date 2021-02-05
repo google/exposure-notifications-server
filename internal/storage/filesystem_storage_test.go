@@ -16,11 +16,12 @@ package storage
 
 import (
 	"bytes"
-	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/google/exposure-notifications-server/internal/project"
 )
 
 func TestFilesystemStorage_CreateObject(t *testing.T) {
@@ -60,7 +61,7 @@ func TestFilesystemStorage_CreateObject(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 
 			storage, err := NewFilesystemStorage(ctx)
 			if err != nil {
@@ -117,7 +118,7 @@ func TestFilesystemStorage_DeleteObject(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 
 			storage, err := NewFilesystemStorage(ctx)
 			if err != nil {
@@ -169,7 +170,7 @@ func TestFilesystemStorage_GetObject(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 
 			storage, err := NewFilesystemStorage(ctx)
 			if err != nil {

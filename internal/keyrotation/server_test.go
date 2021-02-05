@@ -15,10 +15,10 @@
 package keyrotation
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/keys"
@@ -27,7 +27,7 @@ import (
 func TestNewRotationHandler(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	kms := keys.TestKeyManager(t)

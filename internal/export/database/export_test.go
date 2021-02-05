@@ -15,7 +15,6 @@
 package database
 
 import (
-	"context"
 	"errors"
 	"reflect"
 	"sort"
@@ -24,6 +23,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 
@@ -34,7 +34,7 @@ import (
 func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	want := &model.SignatureInfo{
@@ -76,7 +76,7 @@ func TestAddRetrieveUpdateSignatureInfo(t *testing.T) {
 func TestLookupSignatureInfos(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	testTime := time.Now().UTC()
@@ -126,7 +126,7 @@ func TestLookupSignatureInfos(t *testing.T) {
 func TestAddGetUpdateExportConfig(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportDB := New(testDB)
 
@@ -181,7 +181,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 func TestIterateExportConfigs(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	now := time.Now().Truncate(time.Microsecond)
@@ -259,7 +259,7 @@ func TestBatches(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 			now := time.Now().Truncate(time.Microsecond)
@@ -376,7 +376,7 @@ func TestBatches(t *testing.T) {
 func TestFinalizeBatch(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportDB := New(testDB)
 	now := time.Now().Truncate(time.Microsecond)
@@ -480,7 +480,7 @@ func TestFinalizeBatch(t *testing.T) {
 func TestTravelerKeys(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	now := time.Now()
 
@@ -629,7 +629,7 @@ func TestExcludeRegions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 			// Add a config.
@@ -718,7 +718,7 @@ func TestExcludeRegions(t *testing.T) {
 func TestKeysInBatch(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	now := time.Now()
 
@@ -817,7 +817,7 @@ func TestKeysInBatch(t *testing.T) {
 func TestAddExportFileSkipsDuplicates(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	exportDB := New(testDB)
 

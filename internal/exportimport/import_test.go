@@ -15,12 +15,12 @@
 package exportimport
 
 import (
-	"context"
 	"sync"
 	"testing"
 	"time"
 
 	exportproto "github.com/google/exposure-notifications-server/internal/pb/export"
+	"github.com/google/exposure-notifications-server/internal/project"
 	pubmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -59,7 +59,7 @@ func (k *keyGenerator) fakeExposureKey(t testing.TB) []byte {
 func TestTransform(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	logger := logging.FromContext(ctx)
 
 	gen := &keyGenerator{}

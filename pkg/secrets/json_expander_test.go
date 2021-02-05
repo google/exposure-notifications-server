@@ -15,14 +15,15 @@
 package secrets
 
 import (
-	"context"
 	"testing"
+
+	"github.com/google/exposure-notifications-server/internal/project"
 )
 
 func TestJSONExpander_GetSecretValue(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 
 	testSM := &testSecretManager{}
 

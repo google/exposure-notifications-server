@@ -15,7 +15,6 @@
 package model
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
@@ -27,6 +26,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/pb/export"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
@@ -133,7 +133,7 @@ func TestInvalidNew(t *testing.T) {
 func TestInvalidBase64(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	transformer, err := NewTransformer(&testConfig{
 		maxExposureKeys:     1,
 		maxSameDayKeys:      1,
@@ -349,7 +349,7 @@ func TestPublishValidation(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			tf, err := NewTransformer(&testConfig{
 				maxExposureKeys:     2,
 				maxSameDayKeys:      1,
@@ -453,7 +453,7 @@ func TestStillValidKey(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			result, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
 			if err != nil {
 				t.Fatal(err)
@@ -1036,7 +1036,7 @@ func TestTransform(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewTransformer returned unexpected error: %v", err)
 	}
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 
 	for _, tc := range cases {
 		tc := tc
@@ -1149,7 +1149,7 @@ func TestDefaultSymptomOnset(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			result, err := transformer.TransformPublish(ctx, &tc.source, []string{}, nil, now)
 			if err != nil {
 				t.Fatal(err)
@@ -1312,7 +1312,7 @@ func TestTransformOverlapping(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			transformer, err := NewTransformer(&testConfig{
 				maxExposureKeys:     10,
 				maxSameDayKeys:      tc.maxSameIntervalKeys,
@@ -1548,7 +1548,7 @@ func TestReviseKeys_FromFederation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			existing := make(map[string]*Exposure)
 			existing[tc.existing.ExposureKeyBase64()] = tc.existing
 
@@ -1627,7 +1627,7 @@ func TestReviseKeys(t *testing.T) {
 		ReportType:        verifyapi.ReportTypeConfirmed,
 	}
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	existing := make(map[string]*Exposure)
 	existing[allExposures[0].ExposureKeyBase64()] = allExposures[0]
 	existing[allExposures[1].ExposureKeyBase64()] = allExposures[1]
