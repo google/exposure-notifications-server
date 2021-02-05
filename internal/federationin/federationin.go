@@ -34,7 +34,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/project"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
-	"github.com/google/exposure-notifications-server/internal/serverenv"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
@@ -70,148 +69,134 @@ type pullDependencies struct {
 	startFederationSync startFederationSyncFn
 }
 
-// NewHandler returns a handler that will fetch server-to-server
-// federation results for a single federation query.
-func NewHandler(env *serverenv.ServerEnv, config *Config) http.Handler {
-	return &handler{
-		env:       env,
-		db:        database.New(env.Database()),
-		publishdb: publishdb.New(env.Database()),
-		config:    config,
-	}
-}
+func (s *Server) handleSync() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 
-type handler struct {
-	env       *serverenv.ServerEnv
-	db        *database.FederationInDB
-	publishdb *publishdb.PublishDB
-	config    *Config
-}
+		logger := logging.FromContext(ctx).Named("handleSync")
 
-func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, span := trace.StartSpan(r.Context(), "(*federationin.handler).ServeHTTP")
-	defer span.End()
+		ctx, span := trace.StartSpan(ctx, "(*federationin.handler).ServeHTTP")
+		defer span.End()
 
-	logger := logging.FromContext(ctx)
-
-	queryIDs, ok := r.URL.Query()[queryParam]
-	if !ok {
-		stats.Record(ctx, mPullInvalidRequest.M(1))
-		badRequestf(ctx, w, "%s is required", queryParam)
-		return
-	}
-	if len(queryIDs) > 1 {
-		stats.Record(ctx, mPullInvalidRequest.M(1))
-		badRequestf(ctx, w, "only one %s allowed", queryParam)
-		return
-	}
-	queryID := queryIDs[0]
-	if queryID == "" {
-		stats.Record(ctx, mPullInvalidRequest.M(1))
-		badRequestf(ctx, w, "%s is required", queryParam)
-		return
-	}
-
-	// Obtain lock to make sure there are no other processes working on this batch.
-	lock := "query_" + queryID
-	unlockFn, err := h.db.Lock(ctx, lock, h.config.Timeout)
-	if err != nil {
-		if errors.Is(err, coredb.ErrAlreadyLocked) {
-			stats.Record(ctx, mPullLockContention.M(1))
-			msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
-			logger.Infof(msg)
-			fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
+		queryIDs, ok := r.URL.Query()[queryParam]
+		if !ok {
+			stats.Record(ctx, mPullInvalidRequest.M(1))
+			badRequestf(ctx, w, "%s is required", queryParam)
 			return
 		}
-		internalErrorf(ctx, w, "Could not acquire lock %s for query %s: %v", lock, queryID, err)
-		return
-	}
-	defer func() {
-		if err := unlockFn(); err != nil {
-			logger.Errorf("failed to unlock: %v", err)
-		}
-	}()
-
-	query, err := h.db.GetFederationInQuery(ctx, queryID)
-	if err != nil {
-		if errors.Is(err, coredb.ErrNotFound) {
-			badRequestf(ctx, w, "unknown %s", queryParam)
+		if len(queryIDs) > 1 {
+			stats.Record(ctx, mPullInvalidRequest.M(1))
+			badRequestf(ctx, w, "only one %s allowed", queryParam)
 			return
 		}
-		internalErrorf(ctx, w, "Failed getting query %q: %v", queryID, err)
-		return
-	}
+		queryID := queryIDs[0]
+		if queryID == "" {
+			stats.Record(ctx, mPullInvalidRequest.M(1))
+			badRequestf(ctx, w, "%s is required", queryParam)
+			return
+		}
 
-	cp, err := x509.SystemCertPool()
-	if err != nil {
-		internalErrorf(ctx, w, "Failed to access system cert pool: %v", err)
-		return
-	}
-
-	if h.config.TLSCertFile != "" {
-		b, err := ioutil.ReadFile(h.config.TLSCertFile)
+		// Obtain lock to make sure there are no other processes working on this batch.
+		lock := "query_" + queryID
+		unlockFn, err := s.db.Lock(ctx, lock, s.config.Timeout)
 		if err != nil {
-			internalErrorf(ctx, w, "Failed to read cert file %q: %v", h.config.TLSCertFile, err)
+			if errors.Is(err, coredb.ErrAlreadyLocked) {
+				stats.Record(ctx, mPullLockContention.M(1))
+				msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
+				logger.Infof(msg)
+				fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
+				return
+			}
+			internalErrorf(ctx, w, "Could not acquire lock %s for query %s: %v", lock, queryID, err)
 			return
 		}
-		if !cp.AppendCertsFromPEM(b) {
-			internalErrorf(ctx, w, "Failed to append credentials")
+		defer func() {
+			if err := unlockFn(); err != nil {
+				logger.Errorf("failed to unlock: %v", err)
+			}
+		}()
+
+		query, err := s.db.GetFederationInQuery(ctx, queryID)
+		if err != nil {
+			if errors.Is(err, coredb.ErrNotFound) {
+				badRequestf(ctx, w, "unknown %s", queryParam)
+				return
+			}
+			internalErrorf(ctx, w, "Failed getting query %q: %v", queryID, err)
 			return
 		}
-	}
 
-	tlsConfig := &tls.Config{RootCAs: cp, InsecureSkipVerify: h.config.TLSSkipVerify}
-	dialOpts := []grpc.DialOption{
-		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
-		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
-	}
+		cp, err := x509.SystemCertPool()
+		if err != nil {
+			internalErrorf(ctx, w, "Failed to access system cert pool: %v", err)
+			return
+		}
 
-	var clientOpts []idtoken.ClientOption
-	if h.config.CredentialsFile != "" {
-		clientOpts = append(clientOpts, idtoken.WithCredentialsFile(h.config.CredentialsFile))
-	}
-	ts, err := idtoken.NewTokenSource(ctx, query.Audience, clientOpts...)
-	if err != nil {
-		internalErrorf(ctx, w, "Failed to create token source: %v", err)
-		return
-	}
-	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{
-		TokenSource: ts,
-	}))
+		if s.config.TLSCertFile != "" {
+			b, err := ioutil.ReadFile(s.config.TLSCertFile)
+			if err != nil {
+				internalErrorf(ctx, w, "Failed to read cert file %q: %v", s.config.TLSCertFile, err)
+				return
+			}
+			if !cp.AppendCertsFromPEM(b) {
+				internalErrorf(ctx, w, "Failed to append credentials")
+				return
+			}
+		}
 
-	logger.Infof("Dialing %s", query.ServerAddr)
-	conn, err := grpc.Dial(query.ServerAddr, dialOpts...)
-	if err != nil {
-		internalErrorf(ctx, w, "Failed to dial for query %q %s: %v", queryID, query.ServerAddr, err)
-		return
-	}
-	defer conn.Close()
-	client := federation.NewFederationClient(conn)
+		tlsConfig := &tls.Config{RootCAs: cp, InsecureSkipVerify: s.config.TLSSkipVerify}
+		dialOpts := []grpc.DialOption{
+			grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
+			grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+		}
 
-	timeoutContext, cancel := context.WithTimeout(ctx, h.config.Timeout)
-	defer cancel()
+		var clientOpts []idtoken.ClientOption
+		if s.config.CredentialsFile != "" {
+			clientOpts = append(clientOpts, idtoken.WithCredentialsFile(s.config.CredentialsFile))
+		}
+		ts, err := idtoken.NewTokenSource(ctx, query.Audience, clientOpts...)
+		if err != nil {
+			internalErrorf(ctx, w, "Failed to create token source: %v", err)
+			return
+		}
+		dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(oauth.TokenSource{
+			TokenSource: ts,
+		}))
 
-	opts := pullOptions{
-		deps: pullDependencies{
-			fetch:               client.Fetch,
-			insertExposures:     h.publishdb.InsertAndReviseExposures,
-			startFederationSync: h.db.StartFederationInSync,
-		},
-		query:                        query,
-		batchStart:                   time.Now(),
-		truncateWindow:               h.config.TruncateWindow,
-		maxIntervalStartAge:          h.config.MaxIntervalAge,
-		maxMagnitudeSymptomOnsetDays: h.config.MaxMagnitudeSymptomOnsetDays,
-		debugReleaseSameDay:          h.config.ReleaseSameDayKeys,
-	}
-	if err := pull(timeoutContext, &opts); err != nil {
-		internalErrorf(ctx, w, "Federation query %q failed: %v", queryID, err)
-		return
-	}
+		logger.Infof("Dialing %s", query.ServerAddr)
+		conn, err := grpc.Dial(query.ServerAddr, dialOpts...)
+		if err != nil {
+			internalErrorf(ctx, w, "Failed to dial for query %q %s: %v", queryID, query.ServerAddr, err)
+			return
+		}
+		defer conn.Close()
+		client := federation.NewFederationClient(conn)
 
-	if errors.Is(timeoutContext.Err(), context.DeadlineExceeded) {
-		logger.Infof("Federation puller timed out at %v before fetching entire set.", h.config.Timeout)
-	}
+		timeoutContext, cancel := context.WithTimeout(ctx, s.config.Timeout)
+		defer cancel()
+
+		opts := pullOptions{
+			deps: pullDependencies{
+				fetch:               client.Fetch,
+				insertExposures:     s.publishdb.InsertAndReviseExposures,
+				startFederationSync: s.db.StartFederationInSync,
+			},
+			query:                        query,
+			batchStart:                   time.Now(),
+			truncateWindow:               s.config.TruncateWindow,
+			maxIntervalStartAge:          s.config.MaxIntervalAge,
+			maxMagnitudeSymptomOnsetDays: s.config.MaxMagnitudeSymptomOnsetDays,
+			debugReleaseSameDay:          s.config.ReleaseSameDayKeys,
+		}
+		if err := pull(timeoutContext, &opts); err != nil {
+			internalErrorf(ctx, w, "Federation query %q failed: %v", queryID, err)
+			return
+		}
+
+		if errors.Is(timeoutContext.Err(), context.DeadlineExceeded) {
+			logger.Infof("Federation puller timed out at %v before fetching entire set.", s.config.Timeout)
+		}
+	})
 }
 
 type pullOptions struct {
