@@ -31,9 +31,9 @@ import (
 	"github.com/mikehelmick/go-chaff"
 )
 
-func (h *PublishHandler) HandleStats() http.Handler {
-	mResponder := maintenance.New(h.config)
-	return h.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"), mResponder.Handle(
+func (s *Server) HandleStats() http.Handler {
+	mResponder := maintenance.New(s.config)
+	return s.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"), mResponder.Handle(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "(*publish.HandleStats)")
 			defer span.End()
@@ -48,7 +48,7 @@ func (h *PublishHandler) HandleStats() http.Handler {
 				if code == http.StatusInternalServerError {
 					errorCode = verifyapi.ErrorInternalError
 				}
-				h.addMetricsPadding(ctx, response)
+				s.addMetricsPadding(ctx, response)
 				jsonutil.MarshalResponse(w, http.StatusBadRequest, &verifyapi.StatsResponse{
 					ErrorMessage: message,
 					ErrorCode:    errorCode,
@@ -56,22 +56,22 @@ func (h *PublishHandler) HandleStats() http.Handler {
 				return
 			}
 
-			response, status := h.handleMetricsRequest(ctx, r.Header.Get("Authorization"), &request)
-			h.addMetricsPadding(ctx, response)
+			response, status := s.handleMetricsRequest(ctx, r.Header.Get("Authorization"), &request)
+			s.addMetricsPadding(ctx, response)
 
 			jsonutil.MarshalResponse(w, status, response)
 		})))
 }
 
-func (h *PublishHandler) addMetricsPadding(ctx context.Context, response *verifyapi.StatsResponse) {
-	if padding, err := generatePadding(h.config.StatsResponsePaddingMinBytes, h.config.StatsResponsePaddingRange); err != nil {
+func (s *Server) addMetricsPadding(ctx context.Context, response *verifyapi.StatsResponse) {
+	if padding, err := generatePadding(s.config.StatsResponsePaddingMinBytes, s.config.StatsResponsePaddingRange); err != nil {
 		logging.FromContext(ctx).Errorw("failed to pad response", "error", err)
 	} else {
 		response.Padding = padding
 	}
 }
 
-func (h *PublishHandler) handleMetricsRequest(ctx context.Context, bearerToken string, request *verifyapi.StatsRequest) (*verifyapi.StatsResponse, int) {
+func (s *Server) handleMetricsRequest(ctx context.Context, bearerToken string, request *verifyapi.StatsRequest) (*verifyapi.StatsResponse, int) {
 	logger := logging.FromContext(ctx)
 	response := &verifyapi.StatsResponse{}
 
@@ -84,7 +84,7 @@ func (h *PublishHandler) handleMetricsRequest(ctx context.Context, bearerToken s
 	bearerToken = bearerToken[7:]
 
 	// Validate JWT - if valid, the health authority ID (based on issuer) is returned.
-	healthAuthorityID, err := h.verifier.AuthenticateStatsToken(ctx, bearerToken)
+	healthAuthorityID, err := s.verifier.AuthenticateStatsToken(ctx, bearerToken)
 	if err != nil {
 		logger.Infow("stats authorization failure", "error", err)
 		response.ErrorMessage = err.Error()
@@ -93,7 +93,7 @@ func (h *PublishHandler) handleMetricsRequest(ctx context.Context, bearerToken s
 	}
 
 	// retrieve stats
-	stats, err := h.database.ReadStats(ctx, healthAuthorityID)
+	stats, err := s.database.ReadStats(ctx, healthAuthorityID)
 	if err != nil {
 		logger.Errorw("error reading stats", "error", err)
 		response.ErrorMessage = "error reading stats"
@@ -105,7 +105,7 @@ func (h *PublishHandler) handleMetricsRequest(ctx context.Context, bearerToken s
 	onlyBefore := time.Now().UTC().Truncate(time.Hour)
 
 	// Combine days - this also filters things that are "too new" and days that don't meet the threshold.
-	response.Days = model.ReduceStats(stats, onlyBefore, h.config.StatsUploadMinimum)
+	response.Days = model.ReduceStats(stats, onlyBefore, s.config.StatsUploadMinimum)
 
 	// return
 	return response, http.StatusOK
