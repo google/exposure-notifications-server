@@ -31,7 +31,7 @@ import (
 	"github.com/mikehelmick/go-chaff"
 )
 
-func (s *Server) HandleStats() http.Handler {
+func (s *Server) handleStats() http.Handler {
 	mResponder := maintenance.New(s.config)
 	return s.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"), mResponder.Handle(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -64,15 +64,18 @@ func (s *Server) HandleStats() http.Handler {
 }
 
 func (s *Server) addMetricsPadding(ctx context.Context, response *verifyapi.StatsResponse) {
+	logger := logging.FromContext(ctx).Named("addMetricsPadding")
+
 	if padding, err := generatePadding(s.config.StatsResponsePaddingMinBytes, s.config.StatsResponsePaddingRange); err != nil {
-		logging.FromContext(ctx).Errorw("failed to pad response", "error", err)
+		logger.Errorw("failed to pad response", "error", err)
 	} else {
 		response.Padding = padding
 	}
 }
 
 func (s *Server) handleMetricsRequest(ctx context.Context, bearerToken string, request *verifyapi.StatsRequest) (*verifyapi.StatsResponse, int) {
-	logger := logging.FromContext(ctx)
+	logger := logging.FromContext(ctx).Named("handleMetricsRequest")
+
 	response := &verifyapi.StatsResponse{}
 
 	if !strings.HasPrefix(bearerToken, "Bearer ") {

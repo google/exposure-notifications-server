@@ -192,8 +192,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	federationInHandler := http.StripPrefix("/federation-in", federationInServer.Routes(ctx))
-	r.PathPrefix("/federation-in/").Handler(federationInHandler)
+	r.PathPrefix("/federation-in/").Handler(http.StripPrefix("/federation-in", federationInServer.Routes(ctx)))
 
 	// Federation out
 	// TODO: this is a grpc listener and requires a lot of setup.
@@ -235,7 +234,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	r.Handle("/publish", publishServer.Handle())
+	r.PathPrefix("/publish/").Handler(http.StripPrefix("/publish", publishServer.Routes(ctx, &publishConfig)))
 
 	srv, err := server.New("")
 	if err != nil {

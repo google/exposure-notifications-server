@@ -514,9 +514,9 @@ func TestPublishWithBypass(t *testing.T) {
 				if err != nil {
 					t.Fatalf("unable to create publish handler: %v", err)
 				}
-				handler := publishServer.Handle()
+				handler := publishServer.handlePublishV1()
 				if ver == useV1Alpha1 {
-					handler = publishServer.HandleV1Alpha1()
+					handler = publishServer.handlePublishV1Alpha1()
 				}
 
 				// See if there is a health authority to set up.
@@ -878,7 +878,7 @@ func TestKeyRevision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to create publish handler: %v", err)
 	}
-	handler := publishServer.Handle()
+	handler := publishServer.handlePublishV1()
 	pubDB := pubdb.New(testDB)
 
 	// the first key in each publish will be at this time.

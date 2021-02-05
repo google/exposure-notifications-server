@@ -37,7 +37,7 @@ func (c *Client) PublishKeys(payload *verifyapi.Publish) (*verifyapi.PublishResp
 		return nil, fmt.Errorf("failed to marshal json: %w", err)
 	}
 
-	resp, err := c.client.Post("/publish", "application/json", bytes.NewReader(j))
+	resp, err := c.client.Post("/publish/v1/publish", "application/json", bytes.NewReader(j))
 	if err != nil {
 		return nil, fmt.Errorf("failed to POST /publish: %w", err)
 	}

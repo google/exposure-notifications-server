@@ -18,8 +18,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"os"
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/internal/publish"
@@ -27,7 +25,6 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	_ "github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/server"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/sethvargo/go-signalcontext"
 )
@@ -59,8 +56,8 @@ func main() {
 func realMain(ctx context.Context) error {
 	logger := logging.FromContext(ctx)
 
-	var config publish.Config
-	env, err := setup.Setup(ctx, &config)
+	var cfg publish.Config
+	env, err := setup.Setup(ctx, &cfg)
 	if err != nil {
 		return fmt.Errorf("setup.Setup: %w", err)
 	}
@@ -69,30 +66,15 @@ func realMain(ctx context.Context) error {
 	r := mux.NewRouter()
 	r.Handle("/health", server.HandleHealthz())
 
-	publishServer, err := publish.NewServer(ctx, &config, env)
+	publishServer, err := publish.NewServer(ctx, &cfg, env)
 	if err != nil {
-		return fmt.Errorf("publish.NewHandler: %w", err)
+		return fmt.Errorf("publish.NewServer: %w", err)
 	}
 
-	// Handle v1 API - this route has to come before the v1alpha route because of
-	// path matching.
-	r.Handle("/v1/publish", publishServer.Handle())
-	r.Handle("/v1/publish/", http.NotFoundHandler())
-
-	// Handle stats retrieval API
-	r.Handle("/v1/stats", publishServer.HandleStats())
-	r.Handle("/v1/stats/", http.NotFoundHandler())
-
-	// Serving of v1alpha1 is on by default, but can be disabled through env var.
-	if config.EnableV1Alpha1API {
-		r.Handle("/", publishServer.HandleV1Alpha1())
-	}
-
-	srv, err := server.New(config.Port)
+	srv, err := server.New(cfg.Port)
 	if err != nil {
 		return fmt.Errorf("server.New: %w", err)
 	}
-	logger.Infof("listening on :%s", config.Port)
-
-	return srv.ServeHTTPHandler(ctx, handlers.CombinedLoggingHandler(os.Stdout, r))
+	logger.Infow("server listening", "port", cfg.Port)
+	return srv.ServeHTTPHandler(ctx, publishServer.Routes(ctx, &cfg))
 }

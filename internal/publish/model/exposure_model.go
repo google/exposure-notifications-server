@@ -489,7 +489,6 @@ func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName stri
 // Only keys that need to be revised or are being created for the first time
 // are returned in the output set.
 func ReviseKeys(ctx context.Context, existing map[string]*Exposure, incoming []*Exposure) ([]*Exposure, error) {
-	//logger := logging.FromContext(ctx)
 	output := make([]*Exposure, 0, len(incoming))
 
 	// Iterate over incoming keys.
@@ -561,9 +560,10 @@ type TransformPublishResult struct {
 // errors that occur.
 //
 func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) (*TransformPublishResult, error) {
-	logger := logging.FromContext(ctx)
+	logger := logging.FromContext(ctx).Named("TransformPublish")
+
 	if t.debugReleaseSameDay {
-		logger.Warnw("DEBUG SERVER - current day keys are not being embargoed!")
+		logger.Warnw("DEBUG SERVER - CURRENT DAYS KEYS ARE NOT EMBARGOED!")
 	}
 
 	// Validate the number of keys that want to be published.
