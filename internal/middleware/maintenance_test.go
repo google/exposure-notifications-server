@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package maintenance provides utilities for maintenance mode handling
-package maintenance
+package middleware
 
 import (
 	"net/http"
@@ -29,36 +28,36 @@ func (t *testConfig) MaintenanceMode() bool {
 	return t.enabled
 }
 
-func testHandler(invoked *bool) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		*invoked = true
-	})
-}
-
 func TestHandle_Enabled(t *testing.T) {
-	responder := New(&testConfig{true})
+	responder := ProcessMaintenance(&testConfig{true})
 
 	r := &http.Request{}
 	w := httptest.NewRecorder()
 
-	invoked := false
-	responder.Handle(testHandler(&invoked)).ServeHTTP(w, r)
+	responder(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("handler was invoked")
+	})).ServeHTTP(w, r)
 
-	if invoked {
-		t.Fatalf("handler was invoked while in maintenance mode")
+	w.Flush()
+
+	if got, want := w.Code, 429; got != want {
+		t.Errorf("expected %d to be %d", got, want)
 	}
 }
 
 func TestHandle_Disabled(t *testing.T) {
-	responder := New(&testConfig{false})
+	responder := ProcessMaintenance(&testConfig{false})
 
 	r := &http.Request{}
 	w := httptest.NewRecorder()
 
-	invoked := false
-	responder.Handle(testHandler(&invoked)).ServeHTTP(w, r)
+	responder(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	})).ServeHTTP(w, r)
 
-	if !invoked {
-		t.Fatalf("handler was not invoked while not in maintenance mode")
+	w.Flush()
+
+	if got, want := w.Code, 200; got != want {
+		t.Errorf("expected %d to be %d", got, want)
 	}
 }

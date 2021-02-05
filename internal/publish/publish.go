@@ -137,6 +137,7 @@ func (s *Server) Routes(ctx context.Context, cfg *Config) *mux.Router {
 	r.Use(middleware.PopulateRequestID())
 	r.Use(middleware.PopulateObservability())
 	r.Use(middleware.PopulateLogger(logger))
+	r.Use(middleware.ProcessMaintenance(cfg))
 
 	r.Handle("/health", server.HandleHealthz())
 
