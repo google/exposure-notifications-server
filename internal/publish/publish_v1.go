@@ -29,7 +29,7 @@ import (
 	"github.com/mikehelmick/go-chaff"
 )
 
-func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) *response {
+func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) *response {
 	ctx, span := trace.StartSpan(r.Context(), "(*publish.PublishHandler).handleRequest")
 	defer span.End()
 
@@ -57,20 +57,20 @@ func (h *PublishHandler) handleRequest(w http.ResponseWriter, r *http.Request) *
 	}
 
 	clientPlatform := platform(r.UserAgent())
-	return h.process(ctx, &data, clientPlatform, newVersionBridge([]string{}))
+	return s.process(ctx, &data, clientPlatform, newVersionBridge([]string{}))
 }
 
 // Handle returns an http.Handler that can process V1 publish requests.
-func (h *PublishHandler) Handle() http.Handler {
-	mResponder := maintenance.New(h.config)
-	return h.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
+func (s *Server) Handle() http.Handler {
+	mResponder := maintenance.New(s.config)
+	return s.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
 		mResponder.Handle(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				response := h.handleRequest(w, r)
+				response := s.handleRequest(w, r)
 
 				ctx := r.Context()
 
-				if padding, err := generatePadding(h.config.ResponsePaddingMinBytes, h.config.ResponsePaddingRange); err != nil {
+				if padding, err := generatePadding(s.config.ResponsePaddingMinBytes, s.config.ResponsePaddingRange); err != nil {
 					stats.Record(ctx, mPaddingFailed.M(1))
 					logging.FromContext(ctx).Errorw("failed to pad response", "error", err)
 				} else {

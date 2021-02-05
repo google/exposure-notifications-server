@@ -120,11 +120,11 @@ func TestRetrieveMetrics(t *testing.T) {
 		}
 	}
 
-	pubHandler, err := NewHandler(ctx, &config, env)
+	publishServer, err := NewServer(ctx, &config, env)
 	if err != nil {
 		t.Fatalf("unable to create publish handler: %v", err)
 	}
-	metricsHandler := pubHandler.HandleStats()
+	metricsHandler := publishServer.HandleStats()
 
 	// get the authentication token.
 	jwtConfig := &testutil.StatsJWTConfig{
@@ -239,11 +239,11 @@ func TestRetrieveMetrics_AuthErrors(t *testing.T) {
 	}
 	_ = testutil.InitializeVerificationDB(ctx, t, testDB, healthAuthority, healthAuthorityKey, authKey)
 
-	pubHandler, err := NewHandler(ctx, &config, env)
+	publishServer, err := NewServer(ctx, &config, env)
 	if err != nil {
 		t.Fatalf("unable to create publish handler: %v", err)
 	}
-	metricsHandler := pubHandler.HandleStats()
+	metricsHandler := publishServer.HandleStats()
 
 	// get the authentication token.
 	jwtConfig := &testutil.StatsJWTConfig{

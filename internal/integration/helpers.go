@@ -231,11 +231,11 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	publishConfig.ReleaseSameDayKeys = true
 	publishConfig.RevisionKeyCacheDuration = time.Second
 
-	publishHandler, err := publish.NewHandler(ctx, &publishConfig, env)
+	publishServer, err := publish.NewServer(ctx, &publishConfig, env)
 	if err != nil {
 		tb.Fatal(err)
 	}
-	r.Handle("/publish", publishHandler.Handle())
+	r.Handle("/publish", publishServer.Handle())
 
 	srv, err := server.New("")
 	if err != nil {

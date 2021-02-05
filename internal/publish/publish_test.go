@@ -510,13 +510,13 @@ func TestPublishWithBypass(t *testing.T) {
 					serverenv.WithKeyManager(kms))
 				// Some config overrides for test.
 
-				pubHandler, err := NewHandler(ctx, &config, env)
+				publishServer, err := NewServer(ctx, &config, env)
 				if err != nil {
 					t.Fatalf("unable to create publish handler: %v", err)
 				}
-				handler := pubHandler.Handle()
+				handler := publishServer.Handle()
 				if ver == useV1Alpha1 {
-					handler = pubHandler.HandleV1Alpha1()
+					handler = publishServer.HandleV1Alpha1()
 				}
 
 				// See if there is a health authority to set up.
@@ -874,11 +874,11 @@ func TestKeyRevision(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pubHandler, err := NewHandler(ctx, &config, env)
+	publishServer, err := NewServer(ctx, &config, env)
 	if err != nil {
 		t.Fatalf("unable to create publish handler: %v", err)
 	}
-	handler := pubHandler.Handle()
+	handler := publishServer.Handle()
 	pubDB := pubdb.New(testDB)
 
 	// the first key in each publish will be at this time.

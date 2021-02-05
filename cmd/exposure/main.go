@@ -68,23 +68,24 @@ func realMain(ctx context.Context) error {
 
 	r := mux.NewRouter()
 	r.Handle("/health", server.HandleHealthz())
-	handler, err := publish.NewHandler(ctx, &config, env)
+
+	publishServer, err := publish.NewServer(ctx, &config, env)
 	if err != nil {
 		return fmt.Errorf("publish.NewHandler: %w", err)
 	}
 
 	// Handle v1 API - this route has to come before the v1alpha route because of
 	// path matching.
-	r.Handle("/v1/publish", handler.Handle())
+	r.Handle("/v1/publish", publishServer.Handle())
 	r.Handle("/v1/publish/", http.NotFoundHandler())
 
 	// Handle stats retrieval API
-	r.Handle("/v1/stats", handler.HandleStats())
+	r.Handle("/v1/stats", publishServer.HandleStats())
 	r.Handle("/v1/stats/", http.NotFoundHandler())
 
 	// Serving of v1alpha1 is on by default, but can be disabled through env var.
 	if config.EnableV1Alpha1API {
-		r.Handle("/", handler.HandleV1Alpha1())
+		r.Handle("/", publishServer.HandleV1Alpha1())
 	}
 
 	srv, err := server.New(config.Port)

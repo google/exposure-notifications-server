@@ -47,76 +47,7 @@ const (
 	HeaderAPIVersion = "x-api-version"
 )
 
-// NewHandler creates common API handler for the publish API.
-// This supports all current versions of the API and each defines it's own entry point via
-// an http.HandlerFunc
-func NewHandler(ctx context.Context, config *Config, env *serverenv.ServerEnv) (*PublishHandler, error) {
-	logger := logging.FromContext(ctx)
-
-	if env.Database() == nil {
-		return nil, fmt.Errorf("missing database in server environment")
-	}
-	if env.AuthorizedAppProvider() == nil {
-		return nil, fmt.Errorf("missing AuthorizedApp provider in server environment")
-	}
-
-	transformer, err := model.NewTransformer(config)
-	if err != nil {
-		return nil, fmt.Errorf("model.NewTransformer: %w", err)
-	}
-	logger.Infof("max keys per upload: %v", config.MaxKeysOnPublish)
-	logger.Infof("max same start interval keys: %v", config.MaxSameStartIntervalKeys)
-	logger.Infof("max interval start age: %v", config.MaxIntervalAge)
-	logger.Infof("truncate window: %v", config.TruncateWindow)
-	if config.DebugReleaseSameDayKeys() {
-		logger.Warnf("SERVER IS IN DEBUG MODE. KEYS MAY BE RELEASED EARLY.")
-	}
-
-	verifier, err := verification.New(verifydb.New(env.Database()), &config.Verification)
-	if err != nil {
-		return nil, fmt.Errorf("verification.New: %w", err)
-	}
-
-	aadBytes := config.RevisionToken.AAD
-	if len(aadBytes) == 0 {
-		return nil, fmt.Errorf("must provide Additional Authenticated Data (AAD) for revision token encryption in REVISION_TOKEN_AAD env variable")
-	}
-	revisionKeyConfig := revisiondb.KMSConfig{
-		WrapperKeyID: config.RevisionToken.KeyID,
-		KeyManager:   env.GetKeyManager(),
-	}
-	revisionDB, err := revisiondb.New(env.Database(), &revisionKeyConfig)
-	if err != nil {
-		return nil, fmt.Errorf("revisiondb.New: %w", err)
-	}
-	tm, err := revision.New(ctx, revisionDB, config.RevisionKeyCacheDuration, config.RevisionToken.MinLength)
-	if err != nil {
-		return nil, fmt.Errorf("revision.New: %w", err)
-	}
-
-	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("config validation: %w", err)
-	}
-
-	chaffer, err := chaff.NewTracker(chaff.NewJSONResponder(chaffPublishResponse), chaff.DefaultCapacity)
-	if err != nil {
-		return nil, fmt.Errorf("error making chaffer: %v", err)
-	}
-
-	return &PublishHandler{
-		serverenv:             env,
-		transformer:           transformer,
-		config:                config,
-		database:              database.New(env.Database()),
-		tracker:               chaffer,
-		tokenManager:          tm,
-		tokenAAD:              aadBytes,
-		authorizedAppProvider: env.AuthorizedAppProvider(),
-		verifier:              verifier,
-	}, nil
-}
-
-type PublishHandler struct {
+type Server struct {
 	config                *Config
 	serverenv             *serverenv.ServerEnv
 	transformer           *model.Transformer
@@ -126,6 +57,74 @@ type PublishHandler struct {
 	tokenAAD              []byte
 	authorizedAppProvider authorizedapp.Provider
 	verifier              *verification.Verifier
+}
+
+func NewServer(ctx context.Context, cfg *Config, env *serverenv.ServerEnv) (*Server, error) {
+	logger := logging.FromContext(ctx).Named("publish")
+
+	logger.Debugw("creating server",
+		"max_keys_on_publish", cfg.MaxKeysOnPublish,
+		"max_same_start_interval_keys", cfg.MaxSameStartIntervalKeys,
+		"max_interval_age", cfg.MaxIntervalAge,
+		"truncate_window", cfg.TruncateWindow)
+	if cfg.DebugReleaseSameDayKeys() {
+		logger.Warnw("SERVER IS IN DEBUG MODE - KEYS MAY BE RELEASED EARLY!")
+	}
+
+	if env.Database() == nil {
+		return nil, fmt.Errorf("missing database in server environment")
+	}
+	if env.AuthorizedAppProvider() == nil {
+		return nil, fmt.Errorf("missing AuthorizedApp provider in server environment")
+	}
+
+	transformer, err := model.NewTransformer(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("model.NewTransformer: %w", err)
+	}
+
+	verifier, err := verification.New(verifydb.New(env.Database()), &cfg.Verification)
+	if err != nil {
+		return nil, fmt.Errorf("verification.New: %w", err)
+	}
+
+	aadBytes := cfg.RevisionToken.AAD
+	if len(aadBytes) == 0 {
+		return nil, fmt.Errorf("must provide Additional Authenticated Data (AAD) for revision token encryption in REVISION_TOKEN_AAD env variable")
+	}
+	revisionKeyConfig := revisiondb.KMSConfig{
+		WrapperKeyID: cfg.RevisionToken.KeyID,
+		KeyManager:   env.GetKeyManager(),
+	}
+	revisionDB, err := revisiondb.New(env.Database(), &revisionKeyConfig)
+	if err != nil {
+		return nil, fmt.Errorf("revisiondb.New: %w", err)
+	}
+	tm, err := revision.New(ctx, revisionDB, cfg.RevisionKeyCacheDuration, cfg.RevisionToken.MinLength)
+	if err != nil {
+		return nil, fmt.Errorf("revision.New: %w", err)
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation: %w", err)
+	}
+
+	chaffer, err := chaff.NewTracker(chaff.NewJSONResponder(chaffPublishResponse), chaff.DefaultCapacity)
+	if err != nil {
+		return nil, fmt.Errorf("error making chaffer: %w", err)
+	}
+
+	return &Server{
+		serverenv:             env,
+		transformer:           transformer,
+		config:                cfg,
+		database:              database.New(env.Database()),
+		tracker:               chaffer,
+		tokenManager:          tm,
+		tokenAAD:              aadBytes,
+		authorizedAppProvider: env.AuthorizedAppProvider(),
+		verifier:              verifier,
+	}, nil
 }
 
 type response struct {
@@ -179,7 +178,7 @@ func newVersionBridge(regions []string) *versionBridge {
 
 // process runs the publish business logic over a "v1" version of the publish request
 // and knows how to join in data from previous versions (the provided versionBridge)
-func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, platform string, bridge *versionBridge) *response {
+func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform string, bridge *versionBridge) *response {
 	ctx, span := trace.StartSpan(ctx, "(*publish.PublishHandler).process")
 	defer span.End()
 
@@ -187,7 +186,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 
 	logger.Info("publish API request")
 
-	appConfig, err := h.authorizedAppProvider.AppConfig(ctx, data.HealthAuthorityID)
+	appConfig, err := s.authorizedAppProvider.AppConfig(ctx, data.HealthAuthorityID)
 	if err != nil {
 		// Config loaded, but app with that name isn't registered. This can also
 		// happen if the app was recently registered but the cache hasn't been
@@ -255,8 +254,8 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 		regions = appConfig.AllAllowedRegions()
 	}
 	// And - worse case, still no regions and server default set.
-	if len(regions) == 0 && h.config.DefaultRegion != "" {
-		regions = append(regions, h.config.DefaultRegion)
+	if len(regions) == 0 && s.config.DefaultRegion != "" {
+		regions = append(regions, s.config.DefaultRegion)
 	}
 
 	// Verify that there is at least one region set by API call or by one of the
@@ -279,14 +278,14 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 	}
 
 	// Perform health authority certificate verification.
-	verifiedClaims, err := h.verifier.VerifyDiagnosisCertificate(ctx, appConfig, data)
+	verifiedClaims, err := s.verifier.VerifyDiagnosisCertificate(ctx, appConfig, data)
 	if err != nil {
 		if appConfig.BypassHealthAuthorityVerification {
 			logger.Warnf("bypassing health authority certificate verification health authority: %v", appConfig.AppPackageName)
 			stats.Record(ctx, mVerificationBypassed.M(1))
 		} else {
 			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
-			if h.config.DebugLogBadCertificates {
+			if s.config.DebugLogBadCertificates {
 				logger.Errorw(message, "error", err, "jwt", data.VerificationPayload)
 			} else {
 				logger.Errorw(message, "error", err)
@@ -313,7 +312,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 		if err != nil {
 			logger.Errorf("unable to decode revision token, proceeding without: %v", err)
 		} else {
-			token, err = h.tokenManager.UnmarshalRevisionToken(ctx, encryptedToken, h.tokenAAD)
+			token, err = s.tokenManager.UnmarshalRevisionToken(ctx, encryptedToken, s.tokenAAD)
 			if err != nil {
 				logger.Errorf("unable to unmarshall / decrypt revision token. Treating as if none was provided: %v", err)
 				token = nil // just in case.
@@ -323,7 +322,7 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 	}
 
 	batchTime := time.Now()
-	result, transformError := h.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
+	result, transformError := s.transformer.TransformPublish(ctx, data, regions, verifiedClaims, batchTime)
 	// Break apart the result object for easier usage below.
 	exposures := result.Exposures
 	publishInfo := result.PublishInfo
@@ -353,13 +352,13 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 		publishInfo.Platform = platform
 	}
 
-	resp, err := h.database.InsertAndReviseExposures(ctx, &database.InsertAndReviseExposuresRequest{
+	resp, err := s.database.InsertAndReviseExposures(ctx, &database.InsertAndReviseExposuresRequest{
 		Incoming:    exposures,
 		Token:       token,
 		PublishInfo: publishInfo,
 
 		RequireToken:          !appConfig.BypassRevisionToken,
-		AllowPartialRevisions: h.config.AllowPartialRevisions,
+		AllowPartialRevisions: s.config.AllowPartialRevisions,
 	})
 	if err != nil {
 		status := http.StatusBadRequest
@@ -412,14 +411,14 @@ func (h *PublishHandler) process(ctx context.Context, data *verifyapi.Publish, p
 	var keep pb.RevisionTokenData
 	if token != nil {
 		// put existing tokens that aren't too old back in the token.
-		retainInterval := model.IntervalNumber(batchTime.Add(-1 * h.config.MaxIntervalAge))
+		retainInterval := model.IntervalNumber(batchTime.Add(-1 * s.config.MaxIntervalAge))
 		for _, rk := range token.RevisableKeys {
 			if rk.IntervalNumber+rk.IntervalCount >= retainInterval {
 				keep.RevisableKeys = append(keep.RevisableKeys, rk)
 			}
 		}
 	}
-	newToken, err := h.tokenManager.MakeRevisionToken(ctx, &keep, resp.Exposures, h.tokenAAD)
+	newToken, err := s.tokenManager.MakeRevisionToken(ctx, &keep, resp.Exposures, s.tokenAAD)
 	if err != nil {
 		// In this case, an empty revision token is returned. The rest of the request
 		// was handled correctly.
