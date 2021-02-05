@@ -84,7 +84,7 @@ func realMain(ctx context.Context) error {
 
 	// Serving of v1alpha1 is on by default, but can be disabled through env var.
 	if config.EnableV1Alpha1API {
-		r.Handle("/", handler.HandleV1Alpha1())
+		r.PathPrefix("/").Handler(handler.HandleV1Alpha1())
 	}
 
 	srv, err := server.New(config.Port)
