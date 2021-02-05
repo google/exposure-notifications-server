@@ -67,7 +67,7 @@ func (s *Server) Routes(ctx context.Context) *mux.Router {
 
 	r.HandleFunc("/schedule", s.handleSchedule(ctx))
 	r.HandleFunc("/import", s.handleImport(ctx))
-	r.Handle("/health", server.HandleHealthz(ctx))
+	r.Handle("/health", server.HandleHealthz())
 
 	return r
 }

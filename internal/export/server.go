@@ -18,14 +18,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/exposure-notifications-server/internal/middleware"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 )
 
 // NewServer makes a Server.
-func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
-	// Validate config.
+func NewServer(cfg *Config, env *serverenv.ServerEnv) (*Server, error) {
 	if env.Blobstore() == nil {
 		return nil, fmt.Errorf("export.NewBatchServer requires Blobstore present in the ServerEnv")
 	}
@@ -35,12 +36,12 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	if env.KeyManager() == nil {
 		return nil, fmt.Errorf("export.NewBatchServer requires KeyManager present in the ServerEnv")
 	}
-	if config.MinWindowAge < 0 {
+	if cfg.MinWindowAge < 0 {
 		return nil, fmt.Errorf("MIN_WINDOW_AGE must be a duration of >= 0")
 	}
 
 	return &Server{
-		config: config,
+		config: cfg,
 		env:    env,
 	}, nil
 }
@@ -53,11 +54,16 @@ type Server struct {
 
 // Routes defines and returns the routes for this server.
 func (s *Server) Routes(ctx context.Context) *mux.Router {
-	r := mux.NewRouter()
+	logger := logging.FromContext(ctx).Named("export")
 
-	r.HandleFunc("/create-batches", s.handleCreateBatches(ctx))
-	r.HandleFunc("/do-work", s.handleDoWork(ctx))
-	r.Handle("/health", server.HandleHealthz(ctx))
+	r := mux.NewRouter()
+	r.Use(middleware.PopulateRequestID())
+	r.Use(middleware.PopulateObservability())
+	r.Use(middleware.PopulateLogger(logger))
+
+	r.Handle("/health", server.HandleHealthz())
+	r.Handle("/create-batches", s.handleCreateBatches())
+	r.Handle("/do-work", s.handleDoWork())
 
 	return r
 }

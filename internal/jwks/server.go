@@ -57,9 +57,10 @@ func (s *Server) Routes(ctx context.Context) *mux.Router {
 
 	r := mux.NewRouter()
 	r.Use(middleware.PopulateRequestID())
+	r.Use(middleware.PopulateObservability())
 	r.Use(middleware.PopulateLogger(logger))
 
-	r.Handle("/health", server.HandleHealthz(ctx))
+	r.Handle("/health", server.HandleHealthz())
 	r.Handle("/", s.handleUpdateAll())
 
 	return r

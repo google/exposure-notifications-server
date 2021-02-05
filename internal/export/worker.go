@@ -49,11 +49,14 @@ const (
 
 // handleDoWork is a handler to iterate the rows of ExportBatch, and creates
 // export files.
-func (s *Server) handleDoWork(ctx context.Context) http.HandlerFunc {
-	logger := logging.FromContext(ctx)
+func (s *Server) handleDoWork() http.Handler {
 	db := s.env.Database()
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		logger := logging.FromContext(ctx).Named("handleDoWork")
+
 		ctx, cancel := context.WithTimeout(r.Context(), s.config.WorkerTimeout)
 		defer cancel()
 
@@ -137,7 +140,7 @@ func (s *Server) handleDoWork(ctx context.Context) http.HandlerFunc {
 
 			fmt.Fprintf(w, "Batch %d marked completed. \n", batch.BatchID)
 		}
-	}
+	})
 }
 
 type group struct {

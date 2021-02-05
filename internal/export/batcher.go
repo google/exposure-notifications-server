@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"time"
 
-	coredb "github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/database"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
@@ -30,77 +30,90 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
+const createBatchesLock = "create_batches"
+
 // handleCreateBatches is a handler to iterate the rows of ExportConfig and
 // create entries in ExportBatchJob as appropriate.
-func (s *Server) handleCreateBatches(ctx context.Context) http.HandlerFunc {
-	logger := logging.FromContext(ctx)
+func (s *Server) handleCreateBatches() http.Handler {
 	db := s.env.Database()
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), s.config.CreateTimeout)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		logger := logging.FromContext(ctx).Named("handleCreateBatches")
+
+		ctx, cancel := context.WithTimeout(ctx, s.config.CreateTimeout)
 		defer cancel()
 
 		// Obtain lock to make sure there are no other processes working to create batches.
-		lock := "create_batches"
-		unlockFn, err := db.Lock(ctx, lock, s.config.CreateTimeout)
+		unlockFn, err := db.Lock(ctx, createBatchesLock, s.config.CreateTimeout)
 		if err != nil {
-			if errors.Is(err, coredb.ErrAlreadyLocked) {
+			if errors.Is(err, database.ErrAlreadyLocked) {
 				stats.Record(ctx, mBatcherLockContention.M(1))
-				msg := fmt.Sprintf("Lock %s already in use, no work will be performed", lock)
-				logger.Infof(msg)
-				fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
+				logger.Infow("already locked")
+				w.WriteHeader(200)
 				return
 			}
-			logger.Errorf("Could not acquire lock %s: %v", lock, err)
-			http.Error(w, fmt.Sprintf("Could not acquire lock %s, check logs.", lock), http.StatusInternalServerError)
+
+			logger.Errorw("failed to lock", "error", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 		defer func() {
 			if err := unlockFn(); err != nil {
-				logger.Errorf("failed to unlock: %v", err)
+				logger.Errorw("failed to unlock", "error", err)
 			}
 		}()
 
 		totalConfigs := 0
 		totalBatches := 0
 		totalConfigsWithBatches := 0
-		defer func() {
-			logger.Infof("Processed %d configs creating %d batches across %d configs", totalConfigs, totalBatches, totalConfigsWithBatches)
-		}()
+		defer logger.Debugw("finished",
+			"configs", totalConfigs,
+			"batches", totalBatches,
+			"total", totalConfigsWithBatches)
 
 		effectiveTime := time.Now().Add(-1 * s.config.MinWindowAge)
-		err = exportdatabase.New(db).IterateExportConfigs(ctx, effectiveTime, func(ec *model.ExportConfig) error {
+		if err := exportdatabase.New(db).IterateExportConfigs(ctx, effectiveTime, func(ec *model.ExportConfig) error {
 			totalConfigs++
-			if batchesCreated, err := s.maybeCreateBatches(ctx, ec, effectiveTime); err != nil {
-				logger.Errorf("Failed to create batches for config %d: %v, continuing to next config", ec.ConfigID, err)
-			} else {
-				totalBatches += batchesCreated
-				if batchesCreated > 0 {
-					totalConfigsWithBatches++
-				}
+			batchesCreated, err := s.maybeCreateBatches(ctx, ec, effectiveTime)
+			if err != nil {
+				logger.Errorw("failed to create batches", "config", ec.ConfigID, "error", err)
+				return nil
+			}
+
+			totalBatches += batchesCreated
+			if batchesCreated > 0 {
+				totalConfigsWithBatches++
 			}
 			return nil
-		})
-		if err != nil {
+		}); err != nil {
 			// some specific error handling below, but just need one metric.
 			stats.Record(ctx, mBatcherFailure.M(1))
+
+			switch {
+			case errors.Is(err, context.DeadlineExceeded):
+				logger.Infow("batch creation timed out")
+				w.WriteHeader(200)
+				return
+			case errors.Is(err, context.Canceled):
+				logger.Infow("batch creation canceled")
+				w.WriteHeader(200)
+				return
+			default:
+				logger.Errorw("failed to create batches", "error", err)
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
 		}
-		switch {
-		case err == nil:
-			return
-		case errors.Is(err, context.DeadlineExceeded):
-			logger.Infof("Timed out creating batches, batch creation will continue on next invocation")
-		case errors.Is(err, context.Canceled):
-			logger.Infof("Canceled while creating batches, batch creation will continue on next invocation")
-		default:
-			logger.Errorf("creating batches: %v", err)
-			http.Error(w, "Failed to create batches, check logs.", http.StatusInternalServerError)
-		}
-	}
+
+		w.WriteHeader(200)
+	})
 }
 
 func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig, now time.Time) (int, error) {
-	logger := logging.FromContext(ctx)
+	logger := logging.FromContext(ctx).Named("maybeCreateBatches").
+		With("config", ec.ConfigID)
 	exportDB := exportdatabase.New(s.env.Database())
 
 	latestEnd, err := exportDB.LatestExportBatchEnd(ctx, ec)
@@ -111,7 +124,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 	ranges := makeBatchRanges(ec.Period, latestEnd, now, s.config.TruncateWindow)
 	if len(ranges) == 0 {
 		stats.Record(ctx, mBatcherNoWork.M(1))
-		logger.Debugf("Batch creation for config %d is not required, skipping", ec.ConfigID)
+		logger.Debugw("skipping batch creation")
 		return 0, nil
 	}
 
@@ -141,7 +154,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 	}
 
 	stats.Record(ctx, mBatcherCreated.M(int64(len(batches))))
-	logger.Infof("Created %d batch(es) for config %d", len(batches), ec.ConfigID)
+	logger.Debugw("created batches", "batches", len(batches))
 	return len(batches), nil
 }
 

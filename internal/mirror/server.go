@@ -60,7 +60,7 @@ func (s *Server) Routes(ctx context.Context) *mux.Router {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", s.handleMirror(ctx))
-	r.Handle("/health", server.HandleHealthz(ctx))
+	r.Handle("/health", server.HandleHealthz())
 
 	return r
 }
