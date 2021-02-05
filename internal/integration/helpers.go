@@ -188,8 +188,12 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 		TruncateWindow: 1 * time.Hour,
 	}
 
-	federationinHandler := federationin.NewHandler(env, federationInConfig)
-	r.Handle("/federation-in", federationinHandler)
+	federationInServer, err := federationin.NewServer(federationInConfig, env)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	federationInHandler := http.StripPrefix("/federation-in", federationInServer.Routes(ctx))
+	r.PathPrefix("/federation-in/").Handler(federationInHandler)
 
 	// Federation out
 	// TODO: this is a grpc listener and requires a lot of setup.
