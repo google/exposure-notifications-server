@@ -15,7 +15,6 @@
 package publish
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -27,6 +26,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
+	"github.com/google/exposure-notifications-server/internal/project"
 	pubdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -43,7 +43,7 @@ import (
 func TestRetrieveMetrics(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	authKey := testutil.GetSigningKey(t)
 	kms := keys.TestKeyManager(t)
@@ -199,7 +199,7 @@ func TestRetrieveMetrics(t *testing.T) {
 func TestRetrieveMetrics_AuthErrors(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	authKey := testutil.GetSigningKey(t)
 	kms := keys.TestKeyManager(t)

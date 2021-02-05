@@ -15,12 +15,12 @@
 package database
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 	"google.golang.org/protobuf/proto"
 
@@ -38,7 +38,7 @@ IBSEEHOdgpAynz0yrHpkWL6vxjNHxRdWcImZxPgL0NVHMdY4TlsL7qaxBQ==
 func TestMissingHealthAuthority(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	haDB := New(testDB)
 
@@ -91,7 +91,7 @@ func TestAddHealthAuthorityErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			if err := haDB.AddHealthAuthority(ctx, tc.ha); err == nil {
 				t.Error("missing expected error")
 			} else if !strings.Contains(err.Error(), tc.want) {
@@ -104,7 +104,7 @@ func TestAddHealthAuthorityErrors(t *testing.T) {
 func TestAddRetrieveHealthAuthority(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	want := &model.HealthAuthority{
@@ -146,7 +146,7 @@ func TestAddRetrieveHealthAuthority(t *testing.T) {
 func TestAddRetrieveHealthAuthorityKeys(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	want := &model.HealthAuthority{
@@ -215,7 +215,7 @@ func TestAddRetrieveHealthAuthorityKeys(t *testing.T) {
 func TestListAllHealthAuthoritiesWithoutKeys(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	want := []*model.HealthAuthority{

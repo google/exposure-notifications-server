@@ -15,12 +15,12 @@
 package database
 
 import (
-	"context"
 	"errors"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -29,7 +29,7 @@ import (
 func TestFederationOutAuthorization(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
 	want := &model.FederationOutAuthorization{

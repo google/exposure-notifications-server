@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/pb/federation"
+	"github.com/google/exposure-notifications-server/internal/project"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
@@ -506,7 +507,7 @@ func TestFetch(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			env := serverenv.New(ctx)
 			server := Server{
 				env: env,
@@ -527,7 +528,7 @@ func TestFetch(t *testing.T) {
 				revised: tc.revisedIterations,
 			}
 
-			got, err := server.fetch(context.Background(), req, fakeDB.provideInput, time.Now())
+			got, err := server.fetch(project.TestContext(t), req, fakeDB.provideInput, time.Now())
 			if err != nil {
 				t.Fatalf("fetch() returned err=%v, want err=nil", err)
 			}
@@ -544,7 +545,7 @@ func TestRawToken(t *testing.T) {
 
 	want := "Abc123"
 	md := metadata.New(map[string]string{"authorization": fmt.Sprintf("Bearer %s", want)})
-	ctx := metadata.NewIncomingContext(context.Background(), md)
+	ctx := metadata.NewIncomingContext(project.TestContext(t), md)
 
 	got, err := rawToken(ctx)
 	if err != nil {
@@ -588,7 +589,7 @@ func TestRawTokenErrors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := metadata.NewIncomingContext(context.Background(), tc.mdMap)
+			ctx := metadata.NewIncomingContext(project.TestContext(t), tc.mdMap)
 			_, gotErr := rawToken(ctx)
 			if gotErr == nil {
 				t.Errorf("missing error response")

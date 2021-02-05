@@ -15,7 +15,6 @@
 package database
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -23,6 +22,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/pb/federation"
+	"github.com/google/exposure-notifications-server/internal/project"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -32,7 +32,7 @@ import (
 func TestFederationIn(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	db := New(testDB)
 

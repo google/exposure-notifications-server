@@ -28,6 +28,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	pgx "github.com/jackc/pgx/v4"
@@ -43,7 +44,7 @@ var (
 func TestReadExposures(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	testPublishDB := New(testDB)
 
@@ -145,7 +146,7 @@ func TestReadExposures(t *testing.T) {
 func TestExposures(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	testPublishDB := New(testDB)
 
@@ -325,7 +326,7 @@ func testExposure(tb testing.TB) *model.Exposure {
 func TestInsertAndReviseExposures_MissingRequest(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	pubDB := New(testDB)
 
@@ -339,7 +340,7 @@ func TestInsertAndReviseExposures_MissingRequest(t *testing.T) {
 func TestInsertAndReviseExposures_ConfigParadox(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	pubDB := New(testDB)
 
@@ -358,7 +359,7 @@ func TestInsertAndReviseExposures_ConfigParadox(t *testing.T) {
 func TestReviseExposures(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	pubDB := New(testDB)
 
@@ -755,7 +756,7 @@ func TestReviseExposures(t *testing.T) {
 func TestIterateExposuresCursor(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(project.TestContext(t))
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	testPublishDB := New(testDB)
 
@@ -806,7 +807,7 @@ func TestIterateExposuresCursor(t *testing.T) {
 		t.Fatalf("cursor: got %q, want %q", cursor, want)
 	}
 	// Resume from the cursor.
-	ctx = context.Background()
+	ctx = project.TestContext(t)
 	cursor, err = testPublishDB.IterateExposures(ctx, IterateExposuresCriteria{LastCursor: cursor},
 		func(e *model.Exposure) error { seen = append(seen, e); return nil })
 	if err != nil {

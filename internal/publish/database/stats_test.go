@@ -15,10 +15,10 @@
 package database
 
 import (
-	"context"
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 	hamodel "github.com/google/exposure-notifications-server/internal/verification/model"
@@ -27,7 +27,7 @@ import (
 func TestDeleteStatsBefore(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	testPublishDB := New(testDB)
 
@@ -55,7 +55,7 @@ func TestDeleteStatsBefore(t *testing.T) {
 func TestUpdateStats(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	testPublishDB := New(testDB)
 
@@ -93,7 +93,7 @@ func TestUpdateStats(t *testing.T) {
 func TestReadStats(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	testPublishDB := New(testDB)
 

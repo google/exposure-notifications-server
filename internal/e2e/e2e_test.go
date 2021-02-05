@@ -32,6 +32,7 @@ import (
 	exportapi "github.com/google/exposure-notifications-server/internal/export"
 	exportdb "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/integration"
+	"github.com/google/exposure-notifications-server/internal/project"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
@@ -106,7 +107,7 @@ func checkResp(r *http.Response) ([]byte, error) {
 
 func TestPublishEndpoint(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 
 	tc := initConfig(t, ctx)
 	if tc.ExposureURL == "" {
@@ -288,7 +289,7 @@ func TestPublishEndpoint(t *testing.T) {
 
 // getExposures finds the exposures that match the given criteria.
 func getExposures(db *database.DB, criteria publishdb.IterateExposuresCriteria) ([]*publishmodel.Exposure, error) {
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	var exposures []*publishmodel.Exposure
 	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
 		exposures = append(exposures, m)

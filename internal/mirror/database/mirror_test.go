@@ -15,10 +15,10 @@
 package database
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/mirror/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -26,7 +26,7 @@ import (
 func TestMirror_Lifecycle(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	mirrorDB := New(testDB)
 
@@ -105,7 +105,7 @@ func TestMirror_Lifecycle(t *testing.T) {
 func TestFileLifecycle(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	mirrorDB := New(testDB)
 
@@ -182,7 +182,7 @@ func TestFileLifecycle(t *testing.T) {
 func TestFileLifecycleWithRewrite(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	mirrorDB := New(testDB)
 

@@ -34,6 +34,7 @@ import (
 	aamodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/pb"
+	"github.com/google/exposure-notifications-server/internal/project"
 	pubdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/revision"
@@ -464,7 +465,7 @@ func TestPublishWithBypass(t *testing.T) {
 			}
 
 			t.Run(addVer+tc.Name, func(t *testing.T) {
-				ctx := context.Background()
+				ctx := project.TestContext(t)
 
 				// Database init for all modules that will be used.
 				testDB, _ := testDatabaseInstance.NewDatabase(t)
@@ -812,7 +813,7 @@ func TestKeyRevision(t *testing.T) {
 		From:    time.Now().Add(-1 * time.Minute),
 	}
 
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 
 	// Database init for all modules that will be used.
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
@@ -1082,7 +1083,7 @@ func TestKeyRevision(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.Name, func(t *testing.T) {
-			ctx = context.Background()
+			ctx = project.TestContext(t)
 
 			revisionToken := ""
 			// Do the initial insert

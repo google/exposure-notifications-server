@@ -18,6 +18,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/google/exposure-notifications-server/internal/project"
 )
 
 type testSecretManager struct {
@@ -32,7 +34,7 @@ func (sm *testSecretManager) GetSecretValue(ctx context.Context, name string) (s
 
 func TestCacher_GetSecretValue(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 
 	sm := &testSecretManager{value: "first"}
 	cached, err := WrapCacher(ctx, sm, 250*time.Millisecond)

@@ -15,12 +15,12 @@
 package mirror
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
 )
@@ -30,7 +30,7 @@ func TestNewServer(t *testing.T) {
 
 	emptyDB := &database.DB{}
 	emptyBlobstore := &storage.Noop{}
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 
 	testCases := []struct {
 		name string

@@ -15,7 +15,6 @@
 package keys
 
 import (
-	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rand"
@@ -26,6 +25,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/exposure-notifications-server/internal/project"
 	vaultlog "github.com/hashicorp/go-hclog"
 	vaultapi "github.com/hashicorp/vault/api"
 	vaulttransit "github.com/hashicorp/vault/builtin/logical/transit"
@@ -66,7 +66,7 @@ func TestNewHashiCorpVaultSigner(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			_, err := NewHashiCorpVaultSigner(ctx, tc.client, tc.keyName, tc.keyVersion)
 			if err == nil {
 				t.Fatal("expected error")
@@ -125,7 +125,7 @@ func TestHashiCorpVault_SigningKeyVersions(t *testing.T) {
 			t.Parallel()
 
 			// Create a Vault server.
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
 				DisableMlock: true,
 				DisableCache: true,
@@ -196,7 +196,7 @@ func TestHashiCorpVault_CreateSigningKey(t *testing.T) {
 			t.Parallel()
 
 			// Create a Vault server.
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
 				DisableMlock: true,
 				DisableCache: true,
@@ -267,7 +267,7 @@ func TestHashiCorpVault_CreateKeyVersion(t *testing.T) {
 			t.Parallel()
 
 			// Create a Vault server.
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
 				DisableMlock: true,
 				DisableCache: true,
@@ -362,7 +362,7 @@ func TestHashiCorpVaultEncryptDecrypt(t *testing.T) {
 			t.Parallel()
 
 			// Create a Vault server.
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
 				DisableMlock: true,
 				DisableCache: true,
@@ -487,7 +487,7 @@ func TestHashiCorpVaultSigner_Public(t *testing.T) {
 			t.Parallel()
 
 			// Create a Vault server.
-			ctx := context.Background()
+			ctx := project.TestContext(t)
 			core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
 				DisableMlock: true,
 				DisableCache: true,
@@ -544,7 +544,7 @@ func TestHashiCorpVaultSigner_Sign(t *testing.T) {
 	t.Parallel()
 
 	// Create a Vault server.
-	ctx := context.Background()
+	ctx := project.TestContext(t)
 	core, _, token := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
 		DisableMlock: true,
 		DisableCache: true,
