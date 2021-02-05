@@ -53,8 +53,6 @@ variable "alert-notification-channel-non-paging" {
   description = "Non-paging notification channels"
 }	
 
-
-
 variable "alert_on_human_accessed_secret" {
   type    = bool
   default = true
