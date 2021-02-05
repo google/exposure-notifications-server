@@ -23,7 +23,6 @@ import (
 	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
-	"github.com/google/exposure-notifications-server/internal/maintenance"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/mikehelmick/go-chaff"
@@ -62,27 +61,25 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) *response
 
 // handlePublishV1 returns an http.Handler that can process V1 publish requests.
 func (s *Server) handlePublishV1() http.Handler {
-	mResponder := maintenance.New(s.config)
 	return s.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
-		mResponder.Handle(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				ctx := r.Context()
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
 
-				logger := logging.FromContext(ctx).Named("handlePublishV1")
+			logger := logging.FromContext(ctx).Named("handlePublishV1")
 
-				response := s.handleRequest(w, r)
+			response := s.handleRequest(w, r)
 
-				if padding, err := generatePadding(s.config.ResponsePaddingMinBytes, s.config.ResponsePaddingRange); err != nil {
-					stats.Record(ctx, mPaddingFailed.M(1))
-					logger.Errorw("failed to pad response", "error", err)
-				} else {
-					response.pubResponse.Padding = padding
-				}
+			if padding, err := generatePadding(s.config.ResponsePaddingMinBytes, s.config.ResponsePaddingRange); err != nil {
+				stats.Record(ctx, mPaddingFailed.M(1))
+				logger.Errorw("failed to pad response", "error", err)
+			} else {
+				response.pubResponse.Padding = padding
+			}
 
-				if response.metrics != nil {
-					response.metrics()
-				}
+			if response.metrics != nil {
+				response.metrics()
+			}
 
-				jsonutil.MarshalResponse(w, response.status, response.pubResponse)
-			})))
+			jsonutil.MarshalResponse(w, response.status, response.pubResponse)
+		}))
 }

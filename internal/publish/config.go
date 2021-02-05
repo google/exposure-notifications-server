@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/database"
-	"github.com/google/exposure-notifications-server/internal/maintenance"
+	"github.com/google/exposure-notifications-server/internal/middleware"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/internal/revision"
 	"github.com/google/exposure-notifications-server/internal/setup"
@@ -39,7 +39,7 @@ var _ setup.SecretManagerConfigProvider = (*Config)(nil)
 var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
 var _ model.TransformerConfig = (*Config)(nil)
 var _ setup.KeyManagerConfigProvider = (*Config)(nil)
-var _ maintenance.Config = (*Config)(nil)
+var _ middleware.Maintainable = (*Config)(nil)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.

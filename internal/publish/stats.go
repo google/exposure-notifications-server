@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
-	"github.com/google/exposure-notifications-server/internal/maintenance"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -32,8 +31,7 @@ import (
 )
 
 func (s *Server) handleStats() http.Handler {
-	mResponder := maintenance.New(s.config)
-	return s.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"), mResponder.Handle(
+	return s.tracker.HandleTrack(chaff.HeaderDetector("X-Chaff"),
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := trace.StartSpan(r.Context(), "(*publish.HandleStats)")
 			defer span.End()
@@ -60,7 +58,7 @@ func (s *Server) handleStats() http.Handler {
 			s.addMetricsPadding(ctx, response)
 
 			jsonutil.MarshalResponse(w, status, response)
-		})))
+		}))
 }
 
 func (s *Server) addMetricsPadding(ctx context.Context, response *verifyapi.StatsResponse) {
