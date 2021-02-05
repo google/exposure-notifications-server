@@ -35,11 +35,13 @@ import (
 
 const schedulerLockID = "import-scheduler-lock"
 
-func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
-	logger := logging.FromContext(ctx).Named("exportimport.HandleSchedule")
+func (s *Server) handleSchedule() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		_, span := trace.StartSpan(r.Context(), "(*exportimport.handleSchedule).ServeHTTP")
+		logger := logging.FromContext(ctx).Named("handleSchedule")
+
+		ctx, span := trace.StartSpan(ctx, "(*exportimport.handleSchedule).ServeHTTP")
 		defer span.End()
 
 		unlock, err := s.db.Lock(ctx, schedulerLockID, s.config.MaxRuntime)
@@ -48,7 +50,7 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			logger.Warn(err)
+			logger.Error("failed to lock", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -58,7 +60,7 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 			}
 		}()
 
-		ctx, cancelFn := context.WithDeadline(r.Context(), time.Now().Add(s.config.MaxRuntime))
+		ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(s.config.MaxRuntime))
 		defer cancelFn()
 		logger.Info("starting export import scheduler")
 
@@ -105,7 +107,7 @@ func (s *Server) handleSchedule(ctx context.Context) http.HandlerFunc {
 		}
 		w.WriteHeader(status)
 		w.Write([]byte(http.StatusText(status)))
-	}
+	})
 }
 
 func buildArchiveURLs(ctx context.Context, config *model.ExportImport, index string) ([]string, error) {

@@ -48,12 +48,13 @@ type MirrorStatus struct {
 	Errors    []string `json:"errors,omitempty"`
 }
 
-func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
-	logger := logging.FromContext(ctx).Named("mirror.handleMirror")
+func (s *Server) handleMirror() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := logging.WithLogger(r.Context(), logger)
-		_, span := trace.StartSpan(ctx, "(*mirror.handleMirror).ServeHTTP")
+		logger := logging.FromContext(ctx).Named("handleMirror")
+
+		ctx, span := trace.StartSpan(ctx, "(*mirror.handleMirror).ServeHTTP")
 		defer span.End()
 
 		ctx, cancelFn := context.WithTimeout(ctx, s.config.MaxRuntime)
@@ -129,7 +130,7 @@ func (s *Server) handleMirror(ctx context.Context) http.HandlerFunc {
 		}
 		w.WriteHeader(status)
 		fmt.Fprint(w, string(b))
-	}
+	})
 }
 
 // processMirror processes all files in the mirror, deleting files that have

@@ -20,8 +20,10 @@ import (
 	"fmt"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/middleware"
 	mirrordb "github.com/google/exposure-notifications-server/internal/mirror/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 )
@@ -57,10 +59,15 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 
 // Routes defines and returns the routes for this server.
 func (s *Server) Routes(ctx context.Context) *mux.Router {
-	r := mux.NewRouter()
+	logger := logging.FromContext(ctx).Named("mirror")
 
-	r.HandleFunc("/", s.handleMirror(ctx))
+	r := mux.NewRouter()
+	r.Use(middleware.PopulateRequestID())
+	r.Use(middleware.PopulateObservability())
+	r.Use(middleware.PopulateLogger(logger))
+
 	r.Handle("/health", server.HandleHealthz())
+	r.Handle("/", s.handleMirror())
 
 	return r
 }

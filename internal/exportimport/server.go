@@ -21,9 +21,11 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	eidb "github.com/google/exposure-notifications-server/internal/exportimport/database"
+	"github.com/google/exposure-notifications-server/internal/middleware"
 	pubdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 )
@@ -63,11 +65,16 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 
 // Routes defines and returns the routes for this server.
 func (s *Server) Routes(ctx context.Context) *mux.Router {
-	r := mux.NewRouter()
+	logger := logging.FromContext(ctx).Named("exportimport")
 
-	r.HandleFunc("/schedule", s.handleSchedule(ctx))
-	r.HandleFunc("/import", s.handleImport(ctx))
+	r := mux.NewRouter()
+	r.Use(middleware.PopulateRequestID())
+	r.Use(middleware.PopulateObservability())
+	r.Use(middleware.PopulateLogger(logger))
+
 	r.Handle("/health", server.HandleHealthz())
+	r.Handle("/schedule", s.handleSchedule())
+	r.Handle("/import", s.handleImport())
 
 	return r
 }

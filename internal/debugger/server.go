@@ -18,7 +18,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/exposure-notifications-server/internal/middleware"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 )
@@ -54,9 +56,15 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 }
 
 func (s *Server) Routes(ctx context.Context) *mux.Router {
+	logger := logging.FromContext(ctx).Named("debugger")
+
 	r := mux.NewRouter()
-	r.HandleFunc("/", s.handleDebug(ctx))
+	r.Use(middleware.PopulateRequestID())
+	r.Use(middleware.PopulateObservability())
+	r.Use(middleware.PopulateLogger(logger))
+
 	r.Handle("/health", server.HandleHealthz())
+	r.Handle("/", s.handleDebug())
 
 	return r
 }
