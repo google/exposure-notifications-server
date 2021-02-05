@@ -17,11 +17,13 @@ package keyrotation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/revision/database"
+	"github.com/google/exposure-notifications-server/internal/database"
+	revisiondatabase "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/stats"
@@ -31,22 +33,31 @@ import (
 // Global lock id for key rotation.
 const lockID = "key-rotation-lock"
 
-func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
-	logger := logging.FromContext(ctx).Named("keyrotation.HandleRotate")
+func (s *Server) handleRotateKeys() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := trace.StartSpan(r.Context(), "(*keyrotation.handler).ServeHTTP")
+		logger := logging.FromContext(ctx).Named("handleRotate").
+			With("lock_id", lockID)
+
+		ctx, span := trace.StartSpan(ctx, "(*keyrotation.handler).ServeHTTP")
 		defer span.End()
 
 		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
 		if err != nil {
-			logger.Warn(err)
+			if errors.Is(err, database.ErrAlreadyLocked) {
+				logger.Debugw("already locked")
+				w.WriteHeader(200)
+				return
+			}
+
+			logger.Errorw("failed to lock", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		defer func() {
 			if err := unlock(); err != nil {
-				logger.Errorf("failed to unlock: %v", err)
+				logger.Errorw("failed to unlock", "error", err)
 			}
 		}()
 
@@ -56,9 +67,9 @@ func (s *Server) handleRotateKeys(ctx context.Context) http.HandlerFunc {
 			return
 		}
 
-		logger.Info("key rotation complete.")
+		logger.Info("key rotation complete")
 		w.WriteHeader(http.StatusOK)
-	}
+	})
 }
 
 func (s *Server) doRotate(ctx context.Context) error {
@@ -103,7 +114,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 
 func (s *Server) maybeDeleteKey(
 	ctx context.Context,
-	key *database.RevisionKey,
+	key *revisiondatabase.RevisionKey,
 	effectiveID int64,
 	previousCreated time.Time) (bool, error) {
 

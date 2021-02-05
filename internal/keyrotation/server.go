@@ -20,8 +20,10 @@ import (
 	"fmt"
 
 	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/internal/middleware"
 	revisiondb "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 )
@@ -64,10 +66,15 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 
 // Routes defines and returns the routes for this server.
 func (s *Server) Routes(ctx context.Context) *mux.Router {
-	r := mux.NewRouter()
+	logger := logging.FromContext(ctx).Named("keyrotation")
 
-	r.HandleFunc("/rotate-keys", s.handleRotateKeys(ctx))
+	r := mux.NewRouter()
+	r.Use(middleware.PopulateRequestID())
+	r.Use(middleware.PopulateObservability())
+	r.Use(middleware.PopulateLogger(logger))
+
 	r.Handle("/health", server.HandleHealthz())
+	r.Handle("/rotate-keys", s.handleRotateKeys())
 
 	return r
 }

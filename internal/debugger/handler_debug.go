@@ -33,11 +33,10 @@ import (
 	"google.golang.org/api/iam/v1"
 )
 
-func (s *Server) handleDebug(ctx context.Context) http.HandlerFunc {
+func (s *Server) handleDebug() http.Handler {
 	db := s.env.Database()
 	authorizedappDB := authorizedappdatabase.New(db)
 	exportDB := exportdatabase.New(db)
-	logger := logging.FromContext(ctx)
 
 	services := []string{
 		"cleanup-export",
@@ -62,8 +61,10 @@ func (s *Server) handleDebug(ctx context.Context) http.HandlerFunc {
 		SignatureInfos []*exportmodel.SignatureInfo
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+
+		logger := logging.FromContext(ctx).Named("handleDebug")
 
 		errCh := make(chan error, 1)
 
@@ -165,7 +166,7 @@ func (s *Server) handleDebug(ctx context.Context) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%s", b)
-	}
+	})
 }
 
 // queue creates a job, adding it to the given wg. Errors are pushed onto the

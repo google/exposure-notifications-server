@@ -107,6 +107,7 @@ func checkResp(r *http.Response) ([]byte, error) {
 
 func TestPublishEndpoint(t *testing.T) {
 	t.Parallel()
+
 	ctx := project.TestContext(t)
 
 	tc := initConfig(t, ctx)
@@ -148,7 +149,7 @@ func TestPublishEndpoint(t *testing.T) {
 	criteria := publishdb.IterateExposuresCriteria{
 		OnlyLocalProvenance: false,
 	}
-	exposures, err := getExposures(db, criteria)
+	exposures, err := getExposures(ctx, db, criteria)
 	if err != nil {
 		t.Fatalf("Failed getting exposures: %v", err)
 	}
@@ -288,8 +289,7 @@ func TestPublishEndpoint(t *testing.T) {
 }
 
 // getExposures finds the exposures that match the given criteria.
-func getExposures(db *database.DB, criteria publishdb.IterateExposuresCriteria) ([]*publishmodel.Exposure, error) {
-	ctx := project.TestContext(t)
+func getExposures(ctx context.Context, db *database.DB, criteria publishdb.IterateExposuresCriteria) ([]*publishmodel.Exposure, error) {
 	var exposures []*publishmodel.Exposure
 	if _, err := publishdb.New(db).IterateExposures(ctx, criteria, func(m *publishmodel.Exposure) error {
 		exposures = append(exposures, m)

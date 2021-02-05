@@ -29,14 +29,16 @@ import (
 
 const lockPrefix = "import-lock-"
 
-func (s *Server) handleImport(ctx context.Context) http.HandlerFunc {
-	logger := logging.FromContext(ctx).Named("exportimport.HandleImport")
+func (s *Server) handleImport() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		_, span := trace.StartSpan(r.Context(), "(*keyrotation.handler).ServeHTTP")
+		logger := logging.FromContext(ctx).Named("handleImport")
+
+		ctx, span := trace.StartSpan(ctx, "(*keyrotation.handler).ServeHTTP")
 		defer span.End()
 
-		ctx, cancelFn := context.WithDeadline(r.Context(), time.Now().Add(s.config.MaxRuntime))
+		ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(s.config.MaxRuntime))
 		defer cancelFn()
 		logger.Info("starting export importer")
 		defer func() {
@@ -63,7 +65,7 @@ func (s *Server) handleImport(ctx context.Context) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-	}
+	})
 }
 
 func (s *Server) runImport(ctx context.Context, config *model.ExportImport) error {
