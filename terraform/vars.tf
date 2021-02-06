@@ -295,8 +295,9 @@ variable "enable_lb_logging" {
 locals {
   default_revision_annotations = {
     "autoscaling.knative.dev/maxScale" : "10",
-    "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
+    "run.googleapis.com/sandbox" : "gvisor"
     "run.googleapis.com/vpc-access-connector" : google_vpc_access_connector.connector.id
+    "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
   }
   default_service_annotations = {
     "run.googleapis.com/ingress" : "all"
