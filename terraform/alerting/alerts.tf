@@ -43,10 +43,10 @@ resource "google_monitoring_alert_policy" "CloudSchedulerJobFailed" {
     mime_type = "text/markdown"
   }
 
-  notification_channels = [for x in values(google_monitoring_notification_channel.channels) : x.id]
+  notification_channels = [for x in values(google_monitoring_notification_channel.non-paging) : x.id]
 
   depends_on = [
-    google_monitoring_notification_channel.channels
+    null_resource.manual-step-to-enable-workspace,
   ]
 }
 
@@ -145,7 +145,7 @@ resource "google_monitoring_alert_policy" "HumanAccessedSecret" {
     mime_type = "text/markdown"
   }
 
-  notification_channels = [for x in values(google_monitoring_notification_channel.channels) : x.id]
+  notification_channels = [for x in values(google_monitoring_notification_channel.paging) : x.id]
 }
 
 resource "google_monitoring_alert_policy" "HumanDecryptedValue" {
@@ -182,5 +182,5 @@ resource "google_monitoring_alert_policy" "HumanDecryptedValue" {
     mime_type = "text/markdown"
   }
 
-  notification_channels = [for x in values(google_monitoring_notification_channel.channels) : x.id]
+  notification_channels = [for x in values(google_monitoring_notification_channel.paging) : x.id]
 }

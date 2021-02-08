@@ -17,7 +17,7 @@ variable "project" {
   description = "GCP project for key server. Required."
 }
 
-variable "alert-notification-channels" {
+variable "alert-notification-channel-paging" {
   type = map(any)
   default = {
     email = {
@@ -27,12 +27,30 @@ variable "alert-notification-channels" {
     }
     slack = {
       labels = {
-        channel_name = "#foo"
+        channel_name = "#paging-channel"
         auth_token   = "abr"
       }
     }
   }
-  description = "Notification channels"
+  description = "Paging notification channels"
+}
+
+variable "alert-notification-channel-non-paging" {
+  type = map(any)
+  default = {
+    email = {
+      labels = {
+        email_address = "nobody@example.com"
+      }
+    }
+    slack = {
+      labels = {
+        channel_name = "#non-paging-channel"
+        auth_token   = "non-paging channel"
+      }
+    }
+  }
+  description = "Non-paging notification channels"
 }
 
 variable "alert_on_human_accessed_secret" {
