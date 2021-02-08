@@ -74,7 +74,7 @@ For full instructions on deploying, view the [deployment docs](../docs/getting-s
     for disaster recovery.
 
     ```text
-    $ gsutil versioning set on gs://${PROJECT_ID}-terraform
+    $ gsutil versioning set on gs://${PROJECT_ID}-tf-state
     ```
 
     You can also create a [lifecycle
