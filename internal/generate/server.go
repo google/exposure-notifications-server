@@ -29,7 +29,7 @@ import (
 
 type Server struct {
 	config      *Config
-	serverenv   *serverenv.ServerEnv
+	env         *serverenv.ServerEnv
 	transformer *publishmodel.Transformer
 	database    *publishdb.PublishDB
 }
@@ -45,7 +45,7 @@ func NewServer(cfg *Config, env *serverenv.ServerEnv) (*Server, error) {
 	}
 
 	return &Server{
-		serverenv:   env,
+		env:         env,
 		transformer: transformer,
 		config:      cfg,
 		database:    publishdb.New(env.Database()),
@@ -61,7 +61,7 @@ func (s *Server) Routes(ctx context.Context) *mux.Router {
 	r.Use(middleware.PopulateObservability())
 	r.Use(middleware.PopulateLogger(logger))
 
-	r.Handle("/health", server.HandleHealthz())
+	r.Handle("/health", server.HandleHealthz(s.env.Database()))
 	r.Handle("/", s.handleGenerate())
 
 	return r
