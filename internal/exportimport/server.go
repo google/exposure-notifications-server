@@ -72,7 +72,7 @@ func (s *Server) Routes(ctx context.Context) *mux.Router {
 	r.Use(middleware.PopulateObservability())
 	r.Use(middleware.PopulateLogger(logger))
 
-	r.Handle("/health", server.HandleHealthz())
+	r.Handle("/health", server.HandleHealthz(s.env.Database()))
 	r.Handle("/schedule", s.handleSchedule())
 	r.Handle("/import", s.handleImport())
 

@@ -52,7 +52,7 @@ const (
 
 type Server struct {
 	config                *Config
-	serverenv             *serverenv.ServerEnv
+	env                   *serverenv.ServerEnv
 	transformer           *model.Transformer
 	database              *database.PublishDB
 	tokenManager          *revision.TokenManager
@@ -118,7 +118,7 @@ func NewServer(ctx context.Context, cfg *Config, env *serverenv.ServerEnv) (*Ser
 	}
 
 	return &Server{
-		serverenv:             env,
+		env:                   env,
 		transformer:           transformer,
 		config:                cfg,
 		database:              database.New(env.Database()),
@@ -140,7 +140,7 @@ func (s *Server) Routes(ctx context.Context) *mux.Router {
 	r.Use(middleware.PopulateLogger(logger))
 	r.Use(middleware.ProcessMaintenance(s.config))
 
-	r.Handle("/health", server.HandleHealthz())
+	r.Handle("/health", server.HandleHealthz(s.env.Database()))
 
 	// Handle v1 API - this route has to come before the v1alpha route because of
 	// path matching.

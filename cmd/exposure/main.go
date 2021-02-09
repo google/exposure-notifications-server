@@ -25,7 +25,6 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	_ "github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/server"
-	"github.com/gorilla/mux"
 	"github.com/sethvargo/go-signalcontext"
 )
 
@@ -62,9 +61,6 @@ func realMain(ctx context.Context) error {
 		return fmt.Errorf("setup.Setup: %w", err)
 	}
 	defer env.Close(ctx)
-
-	r := mux.NewRouter()
-	r.Handle("/health", server.HandleHealthz())
 
 	publishServer, err := publish.NewServer(ctx, &cfg, env)
 	if err != nil {

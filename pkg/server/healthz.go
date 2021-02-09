@@ -17,10 +17,43 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/pkg/logging"
+
+	"golang.org/x/time/rate"
 )
 
-func HandleHealthz() http.Handler {
+// dbPingLimiter limits when we actually ping the database to at most 1/sec to
+// prevent a DOS since this is an unauthenticated endpoint.
+var dbPingLimiter = rate.NewLimiter(rate.Every(1*time.Second), 0)
+
+func HandleHealthz(db *database.DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		logger := logging.FromContext(ctx).Named("server.HandleHealthz")
+
+		if dbPingLimiter.Allow() {
+			conn, err := db.Pool.Acquire(ctx)
+			if err != nil {
+				logger.Errorw("failed to acquire database connection", "error", err)
+				http.Error(w, http.StatusText(http.StatusInternalServerError),
+					http.StatusInternalServerError)
+				return
+			}
+			defer conn.Release()
+
+			if err := conn.Conn().Ping(ctx); err != nil {
+				logger.Errorw("failed to ping database", "error", err)
+				http.Error(w, http.StatusText(http.StatusInternalServerError),
+					http.StatusInternalServerError)
+				return
+			}
+		}
+
+		w.WriteHeader(200)
 		fmt.Fprintf(w, `{"status": "ok"}`)
 	})
 }
