@@ -12,26 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package middleware
+package observability
 
-import (
-	"net/http"
-
-	"github.com/google/exposure-notifications-server/internal/buildinfo"
-	"github.com/google/exposure-notifications-server/pkg/observability"
-
-	"github.com/gorilla/mux"
-)
-
-// PopulateObservability sets common observability context fields.
-func PopulateObservability() mux.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			ctx = observability.WithBuildInfo(ctx, buildinfo.KeyServer)
-
-			r = r.Clone(ctx)
-			next.ServeHTTP(w, r)
-		})
-	}
+// BuildInfo is the interface to provide build information.
+type BuildInfo interface {
+	ID() string
+	Tag() string
 }
