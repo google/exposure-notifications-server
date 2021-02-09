@@ -109,7 +109,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		}
 
 		var err error
-		sm, err = secrets.SecretManagerFor(ctx, smConfig.SecretManagerType)
+		sm, err = secrets.SecretManagerFor(ctx, smConfig)
 		if err != nil {
 			return nil, fmt.Errorf("unable to connect to secret manager: %w", err)
 		}
@@ -192,7 +192,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		logger.Info("configuring blobstore")
 
 		bsConfig := provider.BlobstoreConfig()
-		blobStore, err := storage.BlobstoreFor(ctx, bsConfig.BlobstoreType)
+		blobStore, err := storage.BlobstoreFor(ctx, bsConfig)
 		if err != nil {
 			return nil, fmt.Errorf("unable to connect to storage system: %v", err)
 		}

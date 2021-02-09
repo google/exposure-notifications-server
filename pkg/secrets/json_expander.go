@@ -25,18 +25,6 @@ type JSONExpander struct {
 	sm SecretManager
 }
 
-// NewJSONExpander creates a new secret manager that allows secret values to be stored as json.
-// When resolving secrets, if "dot-notation" is provided via the secret-name, the secret value
-// will be json-decoded and the dot-notation will be used to resolve the secret value.
-func NewJSONExpander(ctx context.Context, f SecretManagerFunc) (SecretManager, error) {
-	sm, err := f(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new JSONExpander SecretManager: %w", err)
-	}
-
-	return WrapJSONExpander(ctx, sm)
-}
-
 // WrapJSONExpander wraps an existing SecretManager with json-expansion logic.
 func WrapJSONExpander(ctx context.Context, sm SecretManager) (SecretManager, error) {
 	return &JSONExpander{

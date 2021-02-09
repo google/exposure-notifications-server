@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build integration google all
+
 package integration
 
 import (
@@ -67,12 +69,12 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	var err error
 	if v := os.Getenv("E2E_GOOGLE_CLOUD_BUCKET"); v != "" {
 		// Use a real Cloud Storage bucket if this envvar is set.
-		bs, err = storage.NewGoogleCloudStorage(ctx)
+		bs, err = storage.NewGoogleCloudStorage(ctx, &storage.Config{})
 		if err != nil {
 			tb.Fatal(err)
 		}
 	} else {
-		bs, err = storage.NewMemory(ctx)
+		bs, err = storage.NewMemory(ctx, &storage.Config{})
 		if err != nil {
 			tb.Fatal(err)
 		}
@@ -82,7 +84,9 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 	if v := os.Getenv("E2E_DB_NAME"); v != "" {
 		// Use the real database if this envvar is set.
 		var dbConfig database.Config
-		sm, err := secrets.SecretManagerFor(ctx, secrets.SecretManagerTypeGoogleSecretManager)
+		sm, err := secrets.SecretManagerFor(ctx, &secrets.Config{
+			Type: "GOOGLE_SECRET_MANAGER",
+		})
 		if err != nil {
 			tb.Fatalf("unable to connect to secret manager: %v", err)
 		}
@@ -123,7 +127,7 @@ func NewTestServer(tb testing.TB) (*serverenv.ServerEnv, *Client) {
 		tb.Fatal(err)
 	}
 
-	sm, err := secrets.NewInMemory(ctx)
+	sm, err := secrets.NewInMemory(ctx, &secrets.Config{})
 	if err != nil {
 		tb.Fatal(err)
 	}

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build aws all
+
 package secrets
 
 import (
@@ -23,6 +25,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 )
 
+func init() {
+	RegisterManager("AWS_SECRETS_MANAGER", NewAWSSecretsManager)
+}
+
 // Compile-time check to verify implements interface.
 var _ SecretManager = (*AWSSecretsManager)(nil)
 
@@ -33,7 +39,7 @@ type AWSSecretsManager struct {
 
 // NewAWSSecretsManager creates a new secret manager for AWS. Configuration is
 // provided via the standard AWS environment variables.
-func NewAWSSecretsManager(ctx context.Context) (SecretManager, error) {
+func NewAWSSecretsManager(ctx context.Context, _ *Config) (SecretManager, error) {
 	sess, err := session.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)

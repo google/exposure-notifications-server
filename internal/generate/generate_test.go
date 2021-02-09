@@ -48,7 +48,7 @@ func testServer(tb testing.TB) *Server {
 	cfg := &Config{
 		Database: *dbConfig,
 		SecretManager: secrets.Config{
-			SecretManagerType: secrets.SecretManagerTypeInMemory,
+			Type: "IN_MEMORY",
 		},
 		ObservabilityExporter: observability.Config{
 			ExporterType: observability.ExporterNoop,

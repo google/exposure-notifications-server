@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build google all
+
 package storage
 
 import (
@@ -24,6 +26,10 @@ import (
 	"cloud.google.com/go/storage"
 )
 
+func init() {
+	RegisterBlobstore("GOOGLE_CLOUD_STORAGE", NewGoogleCloudStorage)
+}
+
 // Compile-time check to verify implements interface.
 var _ Blobstore = (*GoogleCloudStorage)(nil)
 
@@ -35,7 +41,7 @@ type GoogleCloudStorage struct {
 
 // NewGoogleCloudStorage creates a Google Cloud Storage Client, suitable
 // for use with serverenv.ServerEnv.
-func NewGoogleCloudStorage(ctx context.Context) (Blobstore, error) {
+func NewGoogleCloudStorage(ctx context.Context, _ *Config) (Blobstore, error) {
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %w", err)

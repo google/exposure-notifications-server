@@ -37,6 +37,10 @@ import (
 	"time"
 )
 
+func init() {
+	RegisterManager("FILESYSTEM", NewFilesystem)
+}
+
 var _ EncryptionKeyManager = (*Filesystem)(nil)
 var _ KeyManager = (*Filesystem)(nil)
 var _ SigningKeyManager = (*Filesystem)(nil)
@@ -57,7 +61,8 @@ type Filesystem struct {
 //
 // In general, root should either be a hardcoded path like $(pwd)/local or a
 // temporary directory like os.TempDir().
-func NewFilesystem(ctx context.Context, root string) (*Filesystem, error) {
+func NewFilesystem(ctx context.Context, cfg *Config) (KeyManager, error) {
+	root := cfg.FilesystemRoot
 	if root != "" {
 		if err := os.MkdirAll(root, 0700); err != nil {
 			return nil, err

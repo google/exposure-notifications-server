@@ -18,7 +18,7 @@ GO_FILES = $(shell find . -name \*.go)
 
 bodyclose:
 	@command -v bodyclose > /dev/null 2>&1 || go get github.com/timakin/bodyclose
-	@go vet -vettool=$$(which bodyclose) ./...
+	@go vet -tags=all -vettool=$$(which bodyclose) ./...
 .PHONY: bodyclose
 
 fmtcheck:
@@ -44,7 +44,7 @@ spellcheck:
 # SA3000 is not required in Go 1.15+: https://github.com/dominikh/go-tools/issues/708
 staticcheck:
 	@command -v staticcheck > /dev/null 2>&1 || go get honnef.co/go/tools/cmd/staticcheck
-	@staticcheck -checks="all,-SA3000" -tests $(GOFMT_FILES)
+	@staticcheck -tags=all -checks="all,-SA3000" -tests $(GOFMT_FILES)
 .PHONY: staticcheck
 
 zapcheck:

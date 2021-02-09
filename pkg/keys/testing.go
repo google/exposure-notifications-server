@@ -37,7 +37,9 @@ func TestKeyManager(tb testing.TB) KeyManager {
 		}
 	})
 
-	kms, err := NewFilesystem(ctx, tmpdir)
+	kms, err := NewFilesystem(ctx, &Config{
+		FilesystemRoot: tmpdir,
+	})
 	if err != nil {
 		tb.Fatal(err)
 	}

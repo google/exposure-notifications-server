@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build azure all
+
 package secrets
 
 import (
@@ -23,6 +25,10 @@ import (
 	"github.com/google/exposure-notifications-server/internal/azurekeyvault"
 )
 
+func init() {
+	RegisterManager("AZURE_KEY_VAULT", NewAzureKeyVault)
+}
+
 // Compile-time check to verify implements interface.
 var _ SecretManager = (*AzureKeyVault)(nil)
 
@@ -32,7 +38,7 @@ type AzureKeyVault struct {
 }
 
 // NewAzureKeyVault creates a new KeyVault that can interact fetch secrets.
-func NewAzureKeyVault(ctx context.Context) (SecretManager, error) {
+func NewAzureKeyVault(ctx context.Context, _ *Config) (SecretManager, error) {
 	authorizer, err := azurekeyvault.GetKeyVaultAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("secrets.NewAzureKeyVault: auth: %w", err)

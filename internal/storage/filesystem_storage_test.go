@@ -63,7 +63,7 @@ func TestFilesystemStorage_CreateObject(t *testing.T) {
 
 			ctx := project.TestContext(t)
 
-			storage, err := NewFilesystemStorage(ctx)
+			storage, err := NewFilesystemStorage(ctx, &Config{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -120,7 +120,7 @@ func TestFilesystemStorage_DeleteObject(t *testing.T) {
 
 			ctx := project.TestContext(t)
 
-			storage, err := NewFilesystemStorage(ctx)
+			storage, err := NewFilesystemStorage(ctx, &Config{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -172,7 +172,7 @@ func TestFilesystemStorage_GetObject(t *testing.T) {
 
 			ctx := project.TestContext(t)
 
-			storage, err := NewFilesystemStorage(ctx)
+			storage, err := NewFilesystemStorage(ctx, &Config{})
 			if err != nil {
 				t.Fatal(err)
 			}

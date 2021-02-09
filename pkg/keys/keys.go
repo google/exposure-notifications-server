@@ -23,9 +23,9 @@ package keys
 import (
 	"context"
 	"crypto"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
+	"sort"
+	"sync"
 	"time"
 )
 
@@ -100,36 +100,50 @@ type EncryptionKeyManager interface {
 	KeyVersionDestroyer
 }
 
-// KeyManagerFor returns the appropriate key manager for the given type.
-func KeyManagerFor(ctx context.Context, config *Config) (KeyManager, error) {
-	typ := config.KeyManagerType
-	switch typ {
-	case KeyManagerTypeAWSKMS:
-		return NewAWSKMS(ctx)
-	case KeyManagerTypeAzureKeyVault:
-		return NewAzureKeyVault(ctx)
-	case KeyManagerTypeGoogleCloudKMS:
-		return NewGoogleCloudKMS(ctx, config)
-	case KeyManagerTypeHashiCorpVault:
-		return NewHashiCorpVault(ctx)
-	case KeyManagerTypeFilesystem:
-		return NewFilesystem(ctx, config.FilesystemRoot)
-	}
+// KeyManagerFunc is a func that returns a key manager or error.
+type KeyManagerFunc func(context.Context, *Config) (KeyManager, error)
 
-	return nil, fmt.Errorf("unknown key manager type: %v", typ)
+// managers is the list of registered key managers.
+var managers = make(map[string]KeyManagerFunc)
+var managersLock sync.RWMutex
+
+// RegisterManager registers a new key manager with the given name. If a
+// manager is already registered with the given name, it panics. Managers are
+// usually registered via an init function.
+func RegisterManager(name string, fn KeyManagerFunc) {
+	managersLock.Lock()
+	defer managersLock.Unlock()
+
+	if _, ok := managers[name]; ok {
+		panic(fmt.Sprintf("key manager %q is already registered", name))
+	}
+	managers[name] = fn
 }
 
-// parsePublicKeyPEM parses the public key in PEM-encoded format into a public
-// key.
-func parsePublicKeyPEM(s string) (interface{}, error) {
-	block, _ := pem.Decode([]byte(s))
-	if block == nil {
-		return nil, fmt.Errorf("pem is invalid")
-	}
+// RegisteredManagers returns the list of the names of the registered key
+// managers.
+func RegisteredManagers() []string {
+	managersLock.RLock()
+	defer managersLock.RUnlock()
 
-	key, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse public key PEM: %w", err)
+	list := make([]string, 0, len(managers))
+	for k := range managers {
+		list = append(list, k)
 	}
-	return key, nil
+	sort.Strings(list)
+	return list
+}
+
+// KeyManagerFor returns the key manager with the given name, or an error
+// if one does not exist.
+func KeyManagerFor(ctx context.Context, cfg *Config) (KeyManager, error) {
+	managersLock.RLock()
+	defer managersLock.RUnlock()
+
+	name := cfg.Type
+	fn, ok := managers[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown or uncompiled key manager %q", name)
+	}
+	return fn(ctx, cfg)
 }

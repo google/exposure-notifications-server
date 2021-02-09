@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build azure all
+
 package storage
 
 import (
@@ -28,6 +30,10 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/signal"
 	"github.com/prometheus/common/log"
 )
+
+func init() {
+	RegisterBlobstore("AZURE_BLOB_STORAGE", NewAzureBlobstore)
+}
 
 // Compile-time check to verify implements interface.
 var _ Blobstore = (*AzureBlobstore)(nil)
@@ -89,7 +95,7 @@ func newMSITokenCredential(blobstoreURL string) (azblob.Credential, error) {
 
 // NewAzureBlobstore creates a storage client, suitable for use with
 // serverenv.ServerEnv.
-func NewAzureBlobstore(ctx context.Context) (Blobstore, error) {
+func NewAzureBlobstore(ctx context.Context, _ *Config) (Blobstore, error) {
 	accountName := os.Getenv("AZURE_STORAGE_ACCOUNT")
 	if accountName == "" {
 		return nil, fmt.Errorf("missing AZURE_STORAGE_ACCOUNT")

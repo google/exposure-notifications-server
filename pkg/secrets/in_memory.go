@@ -19,6 +19,10 @@ import (
 	"fmt"
 )
 
+func init() {
+	RegisterManager("IN_MEMORY", NewInMemory)
+}
+
 // Compile-time check to verify implements interface.
 var _ SecretManager = (*InMemory)(nil)
 
@@ -28,7 +32,7 @@ type InMemory struct {
 }
 
 // NewInMemory creates a new in-memory secret manager.
-func NewInMemory(ctx context.Context) (SecretManager, error) {
+func NewInMemory(ctx context.Context, _ *Config) (SecretManager, error) {
 	return &InMemory{
 		secrets: make(map[string]string),
 	}, nil

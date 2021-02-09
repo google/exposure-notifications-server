@@ -16,7 +16,6 @@ package secrets
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/google/exposure-notifications-server/pkg/cache"
@@ -30,16 +29,6 @@ var _ SecretManager = (*Cacher)(nil)
 type Cacher struct {
 	sm    SecretManager
 	cache *cache.Cache
-}
-
-// NewCacher creates a new secret manager that caches results for the given ttl.
-func NewCacher(ctx context.Context, f SecretManagerFunc, ttl time.Duration) (SecretManager, error) {
-	sm, err := f(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("cacher: %w", err)
-	}
-
-	return WrapCacher(ctx, sm, ttl)
 }
 
 // WrapCacher wraps an existing SecretManager with caching.

@@ -1,5 +1,3 @@
-// +build e2e
-
 // Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +10,8 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific la
+
+// +build e2e google all
 
 package e2etest
 
@@ -56,7 +56,9 @@ type testConfig struct {
 
 func initConfig(tb testing.TB, ctx context.Context) *testConfig {
 	c := &testConfig{}
-	sm, err := secrets.SecretManagerFor(ctx, secrets.SecretManagerTypeGoogleSecretManager)
+	sm, err := secrets.SecretManagerFor(ctx, &secrets.Config{
+		Type: "GOOGLE_SECRET_MANAGER",
+	})
 	if err != nil {
 		tb.Fatalf("unable to connect to secret manager: %v", err)
 	}
@@ -166,7 +168,7 @@ func TestPublishEndpoint(t *testing.T) {
 		}
 	}
 
-	blobStore, err := storage.NewGoogleCloudStorage(ctx)
+	blobStore, err := storage.NewGoogleCloudStorage(ctx, &storage.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

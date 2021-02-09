@@ -125,16 +125,22 @@ func createEncryptionKey(ctx context.Context, name string) error {
 	}
 
 	localDir := filepath.Join(filepath.Dir(self), "../../local/keys")
-	kms, err := keys.NewFilesystem(ctx, localDir)
+	kms, err := keys.NewFilesystem(ctx, &keys.Config{
+		FilesystemRoot: localDir,
+	})
 	if err != nil {
 		return err
+	}
+	kmst, ok := kms.(keys.EncryptionKeyManager)
+	if !ok {
+		return fmt.Errorf("not EncryptionKeyManager, %T", kms)
 	}
 
-	parent, err := kms.CreateEncryptionKey(ctx, "system", name)
+	parent, err := kmst.CreateEncryptionKey(ctx, "system", name)
 	if err != nil {
 		return err
 	}
-	if _, err := kms.CreateKeyVersion(ctx, parent); err != nil {
+	if _, err := kmst.CreateKeyVersion(ctx, parent); err != nil {
 		return err
 	}
 
@@ -148,26 +154,32 @@ func createSigningKey(ctx context.Context, name string) (string, error) {
 	}
 
 	localDir := filepath.Join(filepath.Dir(self), "../../local/keys")
-	kms, err := keys.NewFilesystem(ctx, localDir)
+	kms, err := keys.NewFilesystem(ctx, &keys.Config{
+		FilesystemRoot: localDir,
+	})
 	if err != nil {
 		return "", err
+	}
+	kmst, ok := kms.(keys.SigningKeyManager)
+	if !ok {
+		return "", fmt.Errorf("not SigningKeyManager, %T", kms)
 	}
 
-	parent, err := kms.CreateSigningKey(ctx, "system", name)
+	parent, err := kmst.CreateSigningKey(ctx, "system", name)
 	if err != nil {
 		return "", err
 	}
-	list, err := kms.SigningKeyVersions(ctx, parent)
+	list, err := kmst.SigningKeyVersions(ctx, parent)
 	if err != nil {
 		return "", err
 	}
 
 	if len(list) == 0 {
-		if _, err := kms.CreateKeyVersion(ctx, parent); err != nil {
+		if _, err := kmst.CreateKeyVersion(ctx, parent); err != nil {
 			return "", err
 		}
 
-		list, err = kms.SigningKeyVersions(ctx, parent)
+		list, err = kmst.SigningKeyVersions(ctx, parent)
 		if err != nil {
 			return "", err
 		}

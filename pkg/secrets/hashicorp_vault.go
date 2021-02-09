@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build vault all
+
 package secrets
 
 import (
@@ -24,6 +26,10 @@ import (
 	vaultapi "github.com/hashicorp/vault/api"
 )
 
+func init() {
+	RegisterManager("HASHICORP_VAULT", NewHashiCorpVault)
+}
+
 // Compile-time check to verify implements interface.
 var _ SecretManager = (*HashiCorpVault)(nil)
 
@@ -32,7 +38,7 @@ type HashiCorpVault struct {
 }
 
 // NewHashiCorpVault fetches secrets from HashiCorp Vault.
-func NewHashiCorpVault(ctx context.Context) (SecretManager, error) {
+func NewHashiCorpVault(ctx context.Context, _ *Config) (SecretManager, error) {
 	client, err := vaultapi.NewClient(nil)
 	if err != nil {
 		return nil, fmt.Errorf("secrets.NewHashiCorpVault: client: %w", err)

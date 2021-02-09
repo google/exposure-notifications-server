@@ -44,7 +44,7 @@ options. Configuration options are specified via environment variables.
 | federation-out   | cmd/federation-out   | gRPC federation requests listener |
 | generate         | cmd/generate         | Sample service that generates data |
 | key-rotation     | cmd/key-rotation     | Generates new revision keys and retires old ones |
-| jwks             | cmd/jwks     | Updates any HealthAuthority keys with public jwks endpoints |
+| jwks             | cmd/jwks             | Updates any HealthAuthority keys with public jwks endpoints |
 
 
 ## Before you begin
@@ -274,45 +274,66 @@ the public Internet!**
 The blob storage component defines where and how export files are written. The
 following configurations are available:
 
-| Name                   | `BLOBSTORE` value      | Description
-| ---------------------- | ---------------------- | -----------
-| AWS S3                 | `AWS_S3`               | Store data in AWS S3.
-| Azure Blobstore        | `AZURE_BLOB_STORAGE`   | Store data in Azure Storage.
-| Google Cloud Storage\* | `GOOGLE_CLOUD_STORAGE` | Store data in Google Cloud Storage.
-| Filesystem             | `FILESYSTEM`           | Store data on a filesystem.
-| Noop                   | `NOOP`                 | No files are written.
+| Name                 | Build tag | `BLOBSTORE` value      | Description
+| -------------------- | --------- | ---------------------- | -----------
+| AWS S3               | `aws`     | `AWS_S3`               | Store data in AWS S3.
+| Azure Blobstore      | `azure`   | `AZURE_BLOB_STORAGE`   | Store data in Azure Storage.
+| Google Cloud Storage | `google`  | `GOOGLE_CLOUD_STORAGE` | Store data in Google Cloud Storage.
+| Filesystem           | (none)    | `FILESYSTEM`           | Store data on a filesystem.
+| Memory\*             | (none)    | `MEMORY`               | Store data in memory.
 
 \* default
+
+Note that you must compile the server with the appropriate build tag in order to
+use certain blobstore:
+
+```shell
+go build -tags=TAG
+```
 
 ### Key management
 
-The key management component is responsible for signing exports. The following
-configurations are available:
+The key management component is responsible for signing and verifying data. The
+following configurations are available:
 
-| Name               | `KEY_MANAGER` value | Description
-| ------------------ | ------------------- | -----------
-| AWS KMS            | `AWS_KMS`           | Perform signing using AWS KMS.
-| Google Cloud KMS\* | `GOOGLE_CLOUD_KMS`  | Perform signing using Google Cloud KMS.
-| HashiCorp Vault    | `HASHICORP_VAULT`   | Perform signing using HashiCorp Vault.
-| Noop               | `NOOP`              | No keys are managed.
+| Name               | Build tag | `KEY_MANAGER` value | Description
+| ------------------ | --------- | ------------------- | -----------
+| AWS KMS            | `aws`     | `AWS_KMS`           | Perform signing using AWS KMS.
+| Azure Keyvault     | `azure`   | `AZURE_KEY_VAULT`   | Perform signing using Azure Keyvault.
+| Google Cloud KMS   | `google`  | `GOOGLE_CLOUD_KMS`  | Perform signing using Google Cloud KMS.
+| HashiCorp Vault    | `vault`   | `HASHICORP_VAULT`   | Perform signing using HashiCorp Vault.
+| Filesystem\*       | (none)    | `FILESYSTEM`        | Keys are generated and stored on the local filesystem.
 
 \* default
 
+Note that you must compile the server with the appropriate build tag in order to
+use certain key managers:
+
+```shell
+go build -tags=TAG
+```
 
 ### Secrets management
 
 The secrets management component is responsible for acquiring secrets. The
 following configurations are available:
 
-| Name                    | `SECRET_MANAGER` value  | Description
-| ----------------------- | ----------------------- | -----------
-| AWS Secrets Manager     | `AWS_SECRETS_MANAGER`   | Resolve with Secrets Manager.
-| Azure Key Vault         | `AZURE_KEY_VAULT`       | Resolve with Key Vault.
-| Google Secret Manager\* | `GOOGLE_SECRET_MANAGER` | Resolve with Secret Manager.
-| HashiCorp Vault         | `HASHICORP_VAULT`       | Resolve with Vault.
-| Noop                    | `NOOP`                  | No secrets are resolved.
+| Name                    | Build tag | `SECRET_MANAGER` value  | Description
+| ----------------------- | --------- | ---------------------- | -----------
+| AWS Secrets Manager     | `aws`     | `AWS_SECRETS_MANAGER`   | Resolve with AWS Secrets Manager.
+| Azure Key Vault         | `azure`   | `AZURE_KEY_VAULT`       | Resolve with Azure Keyvault.
+| Google Secret Manager   | `google`  | `GOOGLE_SECRET_MANAGER` | Resolve with Google Secret Manager.
+| HashiCorp Vault         | `vault`   | `HASHICORP_VAULT`       | Resolve with HashiCorp Vault.
+| Memory\*                | (none)    | `IN_MEMORY`             | Resolve secrets using an in-memory store.
 
 \* default
+
+Note that you must compile the server with the appropriate build tag in order to
+use certain secret managers:
+
+```shell
+go build -tags=TAG
+```
 
 In the interest of performance, secrets are TTL-cached to eliminate the secret
 manager from most hot paths. Configure this TTL with `SECRET_CACHE_TTL` which is

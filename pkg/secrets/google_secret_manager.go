@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build google all
+
 package secrets
 
 import (
@@ -22,6 +24,10 @@ import (
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 )
 
+func init() {
+	RegisterManager("GOOGLE_SECRET_MANAGER", NewGoogleSecretManager)
+}
+
 // Compile-time check to verify implements interface.
 var _ SecretManager = (*GoogleSecretManager)(nil)
 
@@ -31,7 +37,7 @@ type GoogleSecretManager struct {
 }
 
 // NewGoogleSecretManager creates a new secret manager for GCP.
-func NewGoogleSecretManager(ctx context.Context) (SecretManager, error) {
+func NewGoogleSecretManager(ctx context.Context, _ *Config) (SecretManager, error) {
 	client, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("secretmanager.NewClient: %w", err)
