@@ -41,12 +41,6 @@ var (
 	// https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
 	// but feel free to use any text as long as it's easy to filter.
 	ResultTagKey = tag.MustNewKey("result")
-
-	// buildIDTagKey is the tag key for the build_id.
-	buildIDTagKey = tag.MustNewKey("build_id")
-
-	// buildTagTagKey is the tag key for the build_tag.
-	buildTagTagKey = tag.MustNewKey("build_tag")
 )
 
 var (
@@ -71,12 +65,6 @@ var (
 	ResultOK = tag.Upsert(ResultTagKey, "OK")
 	// ResultNotOK add a tag indicating the API call is a failure.
 	ResultNotOK = ResultError("NOT_OK")
-)
-
-var (
-	knativeServiceTagKey       = tag.MustNewKey("k_service")
-	knativeRevisionTagKey      = tag.MustNewKey("k_revision")
-	knativeConfigurationTagKey = tag.MustNewKey("k_configuration")
 )
 
 // ResultError add a tag with the given string as the result.
