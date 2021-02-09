@@ -301,6 +301,9 @@ locals {
   }
   default_service_annotations = {
     "run.googleapis.com/ingress" : "all"
+    // This is added due to the run.googleapis.com/sandbox annotation above.
+    // The sandbox anntation it added to remove the permanent diff.
+    "run.googleapis.com/launch-stage" : "BETA"
   }
 }
 
