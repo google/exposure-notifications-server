@@ -23,8 +23,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/google/exposure-notifications-server/internal/buildinfo"
-
 	"contrib.go.opencensus.io/integrations/ocsql"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/plugin/ochttp"
@@ -121,10 +119,10 @@ func NewFromEnv(config *Config) (Exporter, error) {
 
 // WithBuildInfo creates a new context with the build and revision info attached
 // to the observability context.
-func WithBuildInfo(ctx context.Context) context.Context {
+func WithBuildInfo(ctx context.Context, info BuildInfo) context.Context {
 	tags := make([]tag.Mutator, 0, 5)
-	tags = append(tags, tag.Upsert(BuildIDTagKey, buildinfo.BuildID))
-	tags = append(tags, tag.Upsert(BuildTagTagKey, buildinfo.BuildTag))
+	tags = append(tags, tag.Upsert(BuildIDTagKey, info.ID()))
+	tags = append(tags, tag.Upsert(BuildTagTagKey, info.Tag()))
 
 	if knativeService != "" {
 		tags = append(tags, tag.Upsert(KnativeServiceTagKey, knativeService))
