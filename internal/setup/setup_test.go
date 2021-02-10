@@ -59,7 +59,7 @@ func (t *testConfig) AuthorizedAppConfig() *authorizedapp.Config {
 
 func (t *testConfig) BlobstoreConfig() *storage.Config {
 	return &storage.Config{
-		BlobstoreType: storage.BlobstoreType("NOOP"),
+		Type: "MEMORY",
 	}
 }
 
@@ -69,14 +69,14 @@ func (t *testConfig) DatabaseConfig() *database.Config {
 
 func (t *testConfig) KeyManagerConfig() *keys.Config {
 	return &keys.Config{
-		KeyManagerType: keys.KeyManagerType("FILESYSTEM"),
+		Type: "FILESYSTEM",
 	}
 }
 
 func (t *testConfig) SecretManagerConfig() *secrets.Config {
 	return &secrets.Config{
-		SecretManagerType: secrets.SecretManagerType("IN_MEMORY"),
-		SecretCacheTTL:    10 * time.Minute,
+		Type:           "IN_MEMORY",
+		SecretCacheTTL: 10 * time.Minute,
 	}
 }
 
@@ -171,7 +171,7 @@ func TestSetupWith(t *testing.T) {
 			t.Errorf("expected blobstore to exist")
 		}
 
-		if _, ok := bs.(*storage.Noop); !ok {
+		if _, ok := bs.(*storage.Memory); !ok {
 			t.Errorf("expected %T to be Noop", bs)
 		}
 	})

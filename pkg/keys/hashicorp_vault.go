@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build vault all
+
 package keys
 
 import (
@@ -31,6 +33,10 @@ import (
 	vaultapi "github.com/hashicorp/vault/api"
 )
 
+func init() {
+	RegisterManager("HASHICORP_VAULT", NewHashiCorpVault)
+}
+
 // Compile-time check to verify implements interface.
 var _ KeyManager = (*HashiCorpVault)(nil)
 var _ SigningKeyManager = (*HashiCorpVault)(nil)
@@ -46,7 +52,7 @@ type HashiCorpVault struct {
 }
 
 // NewHashiCorpVault creates a new Vault key manager instance.
-func NewHashiCorpVault(ctx context.Context) (KeyManager, error) {
+func NewHashiCorpVault(ctx context.Context, _ *Config) (KeyManager, error) {
 	client, err := vaultapi.NewClient(nil)
 	if err != nil {
 		return nil, fmt.Errorf("secrets.NewHashiCorpVault: client: %w", err)
@@ -131,7 +137,7 @@ func (v *HashiCorpVault) SigningKeyVersions(ctx context.Context, parent string) 
 	}
 
 	for k, ver := range response.Versions {
-		publicKey, err := parsePublicKeyPEM(ver.PublicKeyPEM)
+		publicKey, err := ParseECDSAPublicKey(ver.PublicKeyPEM)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse public key for %s/%s", k, ver)
 		}

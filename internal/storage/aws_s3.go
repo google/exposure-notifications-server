@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build aws all
+
 package storage
 
 import (
@@ -26,6 +28,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+func init() {
+	RegisterBlobstore("AWS_S3", NewAWSS3)
+}
+
 // Compile-time check to verify implements interface.
 var _ Blobstore = (*AWSS3)(nil)
 
@@ -37,7 +43,7 @@ type AWSS3 struct {
 
 // NewAWSS3 creates a AWS S3 Service, suitable
 // for use with serverenv.ServerEnv.
-func NewAWSS3(ctx context.Context) (Blobstore, error) {
+func NewAWSS3(ctx context.Context, _ *Config) (Blobstore, error) {
 	sess, err := session.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)

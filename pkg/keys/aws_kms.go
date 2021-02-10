@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build aws all
+
 package keys
 
 import (
@@ -26,6 +28,10 @@ import (
 	"github.com/lstoll/awskms"
 )
 
+func init() {
+	RegisterManager("AWS_KMS", NewAWSKMS)
+}
+
 // Compile-time check to verify implements interface.
 var _ KeyManager = (*AWSKMS)(nil)
 
@@ -35,7 +41,7 @@ type AWSKMS struct {
 	svc *kms.KMS
 }
 
-func NewAWSKMS(ctx context.Context) (KeyManager, error) {
+func NewAWSKMS(ctx context.Context, _ *Config) (KeyManager, error) {
 	sess, err := session.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build azure all
+
 package keys
 
 import (
@@ -36,6 +38,10 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/v7.0/keyvault"
 	"github.com/Azure/go-autorest/autorest"
 )
+
+func init() {
+	RegisterManager("AZURE_KEY_VAULT", NewAzureKeyVault)
+}
 
 // Compile-time check to verify implements interface.
 var _ KeyManager = (*AzureKeyVault)(nil)
@@ -66,7 +72,7 @@ func ParseAZKeyID(keyID string) (*AZKeyID, error) {
 }
 
 // NewAzureKeyVault creates a new KeyVault key manager instance.
-func NewAzureKeyVault(ctx context.Context) (KeyManager, error) {
+func NewAzureKeyVault(ctx context.Context, _ *Config) (KeyManager, error) {
 	authorizer, err := azurekeyvault.GetKeyVaultAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("secrets.NewAzureKeyVault: auth: %w", err)

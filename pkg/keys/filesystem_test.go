@@ -37,7 +37,9 @@ func TestNewFilesystem(t *testing.T) {
 	t.Run("root_empty", func(t *testing.T) {
 		t.Parallel()
 
-		if _, err := NewFilesystem(ctx, ""); err != nil {
+		if _, err := NewFilesystem(ctx, &Config{
+			FilesystemRoot: "",
+		}); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -51,12 +53,18 @@ func TestNewFilesystem(t *testing.T) {
 			}
 		})
 
-		fs, err := NewFilesystem(ctx, "tmp1")
+		fs, err := NewFilesystem(ctx, &Config{
+			FilesystemRoot: "tmp1",
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
+		fst, ok := fs.(SigningKeyManager)
+		if !ok {
+			t.Fatal("not SigningKeyManager")
+		}
 
-		if _, err := fs.CreateSigningKey(ctx, "foo", "bar"); err != nil {
+		if _, err := fst.CreateSigningKey(ctx, "foo", "bar"); err != nil {
 			t.Fatal(err)
 		}
 
@@ -79,12 +87,18 @@ func TestNewFilesystem(t *testing.T) {
 			}
 		})
 
-		fs, err := NewFilesystem(ctx, tmp)
+		fs, err := NewFilesystem(ctx, &Config{
+			FilesystemRoot: tmp,
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
+		fst, ok := fs.(SigningKeyManager)
+		if !ok {
+			t.Fatal("not SigningKeyManager")
+		}
 
-		if _, err := fs.CreateSigningKey(ctx, "foo", "bar"); err != nil {
+		if _, err := fst.CreateSigningKey(ctx, "foo", "bar"); err != nil {
 			t.Fatal(err)
 		}
 
@@ -156,7 +170,9 @@ func TestFilesystem_NewSigner(t *testing.T) {
 				}
 			}
 
-			fs, err := NewFilesystem(ctx, dir)
+			fs, err := NewFilesystem(ctx, &Config{
+				FilesystemRoot: dir,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -250,13 +266,19 @@ func TestFilesystem_EncryptDecrypt(t *testing.T) {
 			}
 			t.Cleanup(func() { os.RemoveAll(dir) })
 
-			fs, err := NewFilesystem(ctx, dir)
+			fs, err := NewFilesystem(ctx, &Config{
+				FilesystemRoot: dir,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}
+			fst, ok := fs.(*Filesystem)
+			if !ok {
+				t.Fatal("not Filesystem")
+			}
 
 			if tc.setup != nil {
-				if err := tc.setup(fs); err != nil {
+				if err := tc.setup(fst); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -276,7 +298,7 @@ func TestFilesystem_EncryptDecrypt(t *testing.T) {
 				// Create another key version - this will ensure our ciphertext -> key
 				// version mapping works.
 				for i := 0; i < 3; i++ {
-					if _, err := fs.CreateKeyVersion(ctx, tc.keyID); err != nil {
+					if _, err := fst.CreateKeyVersion(ctx, tc.keyID); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -360,18 +382,24 @@ func TestFilesystem_SigningKeyVersions(t *testing.T) {
 			}
 			t.Cleanup(func() { os.RemoveAll(dir) })
 
-			fs, err := NewFilesystem(ctx, dir)
+			fs, err := NewFilesystem(ctx, &Config{
+				FilesystemRoot: dir,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}
+			fst, ok := fs.(*Filesystem)
+			if !ok {
+				t.Fatal("not Filesystem")
+			}
 
 			if tc.setup != nil {
-				if err := tc.setup(fs); err != nil {
+				if err := tc.setup(fst); err != nil {
 					t.Fatal(err)
 				}
 			}
 
-			versions, err := fs.SigningKeyVersions(ctx, tc.keyID)
+			versions, err := fst.SigningKeyVersions(ctx, tc.keyID)
 			if err != nil {
 				if tc.err == "" {
 					t.Fatal(err)

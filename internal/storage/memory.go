@@ -20,6 +20,10 @@ import (
 	"sync"
 )
 
+func init() {
+	RegisterBlobstore("MEMORY", NewMemory)
+}
+
 // Compile-time check to verify implements interface.
 var _ Blobstore = (*Memory)(nil)
 
@@ -31,7 +35,7 @@ type Memory struct {
 }
 
 // NewMemory creates a Blobstore that writes data in memory.
-func NewMemory(_ context.Context) (Blobstore, error) {
+func NewMemory(_ context.Context, _ *Config) (Blobstore, error) {
 	return &Memory{
 		data: make(map[string][]byte),
 	}, nil

@@ -161,7 +161,7 @@ func TestServer_ProcessMirror(t *testing.T) {
 
 			testDB, _ := testDatabaseInstance.NewDatabase(t)
 			mirrorDB := mirrordatabase.New(testDB)
-			testBlobstore, err := storage.NewMemory(ctx)
+			testBlobstore, err := storage.NewMemory(ctx, &storage.Config{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -257,7 +257,7 @@ func TestServer_DownloadIndex(t *testing.T) {
 
 	ctx := project.TestContext(t)
 	emptyDB := &database.DB{}
-	testBlobstore, err := storage.NewNoop(ctx)
+	testBlobstore, err := storage.NewMemory(ctx, &storage.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

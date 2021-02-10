@@ -29,8 +29,8 @@ import (
 func TestNewServer(t *testing.T) {
 	t.Parallel()
 
-	emptyStorage := &storage.GoogleCloudStorage{}
-	emptyKMS := &keys.GoogleCloudKMS{}
+	emptyStorage := &storage.Memory{}
+	emptyKMS := &keys.Filesystem{}
 	emptyDB := &database.DB{}
 	ctx := project.TestContext(t)
 

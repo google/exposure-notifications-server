@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build google all
+
 package keys
 
 import (
@@ -28,6 +30,10 @@ import (
 	grpccodes "google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
 )
+
+func init() {
+	RegisterManager("GOOGLE_CLOUD_KMS", NewGoogleCloudKMS)
+}
 
 // Compile-time check to verify implements interface.
 var _ KeyManager = (*GoogleCloudKMS)(nil)
@@ -54,12 +60,12 @@ func (k *CloudKMSSigningKeyVersion) Signer(ctx context.Context) (crypto.Signer, 
 	return k.keyManager.NewSigner(ctx, k.keyID)
 }
 
-func NewGoogleCloudKMS(ctx context.Context, config *Config) (KeyManager, error) {
+func NewGoogleCloudKMS(ctx context.Context, cfg *Config) (KeyManager, error) {
 	client, err := kms.NewKeyManagementClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &GoogleCloudKMS{client, config.CreateHSMKeys}, nil
+	return &GoogleCloudKMS{client, cfg.CreateHSMKeys}, nil
 }
 
 func (kms *GoogleCloudKMS) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {

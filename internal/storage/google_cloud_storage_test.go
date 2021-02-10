@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build google all
+
 package storage
 
 import (
@@ -150,7 +152,7 @@ func TestGoogleCloudStorage_CreateObject(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			gcsStorage, err := NewGoogleCloudStorage(ctx)
+			gcsStorage, err := NewGoogleCloudStorage(ctx, &Config{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -216,7 +218,7 @@ func TestGoogleCloudStorage_DeleteObject(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			gcsStorage, err := NewGoogleCloudStorage(ctx)
+			gcsStorage, err := NewGoogleCloudStorage(ctx, &Config{})
 			if err != nil {
 				t.Fatal(err)
 			}

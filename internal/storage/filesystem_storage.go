@@ -23,6 +23,10 @@ import (
 	"path/filepath"
 )
 
+func init() {
+	RegisterBlobstore("FILESYSTEM", NewFilesystemStorage)
+}
+
 // Compile-time check to verify implements interface.
 var _ Blobstore = (*FilesystemStorage)(nil)
 
@@ -32,7 +36,7 @@ type FilesystemStorage struct{}
 
 // NewFilesystemStorage creates a Blobsstore compatible storage for the
 // filesystem.
-func NewFilesystemStorage(ctx context.Context) (Blobstore, error) {
+func NewFilesystemStorage(ctx context.Context, _ *Config) (Blobstore, error) {
 	return &FilesystemStorage{}, nil
 }
 

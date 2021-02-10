@@ -86,7 +86,7 @@ func TestNewExportHandler(t *testing.T) {
 
 	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
-	noopBlobstore, _ := storage.NewNoop(ctx)
+	noopBlobstore, _ := storage.NewMemory(ctx, &storage.Config{})
 
 	testCases := []struct {
 		name string

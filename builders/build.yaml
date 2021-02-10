@@ -33,6 +33,7 @@ options:
 substitutions:
   _BINAUTHZ_ATTESTOR:
   _BINAUTHZ_KEY_VERSION:
+  _GO_TAGS: google
   _REPO: 'github.com/google/exposure-notifications-server'
   _TAG:
 
@@ -78,6 +79,7 @@ steps:
   args:
   - 'go'
   - 'build'
+  - '-tags=${_GO_TAGS}'
   - '-trimpath'
   - '-ldflags=-s -w -X=${_REPO}/internal/buildinfo.BuildID=${BUILD_ID} -X=${_REPO}/internal/buildinfo.BuildTag=${_TAG} -extldflags=-static'
   - '-o=./bin/'

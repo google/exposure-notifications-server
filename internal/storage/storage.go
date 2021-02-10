@@ -18,6 +18,8 @@ package storage
 import (
 	"context"
 	"fmt"
+	"sort"
+	"sync"
 )
 
 var ErrNotFound = fmt.Errorf("storage object not found")
@@ -40,23 +42,50 @@ type Blobstore interface {
 	GetObject(ctx context.Context, parent, name string) ([]byte, error)
 }
 
-// BlobstoreFor returns the blob store for the given type, or an error if one
-// does not exist.
-func BlobstoreFor(ctx context.Context, typ BlobstoreType) (Blobstore, error) {
-	switch typ {
-	case BlobstoreTypeAWSS3:
-		return NewAWSS3(ctx)
-	case BlobstoreTypeAzureBlobStorage:
-		return NewAzureBlobstore(ctx)
-	case BlobstoreTypeGoogleCloudStorage:
-		return NewGoogleCloudStorage(ctx)
-	case BlobstoreTypeFilesystem:
-		return NewFilesystemStorage(ctx)
-	case BlobstoreTypeMemory:
-		return NewMemory(ctx)
-	case BlobstoreTypeNoop:
-		return NewNoop(ctx)
-	default:
-		return nil, fmt.Errorf("unknown blob store: %v", typ)
+// BlobstoreFunc is a func that returns a blobstore or error.
+type BlobstoreFunc func(context.Context, *Config) (Blobstore, error)
+
+// blobstores is the list of registered blobstores.
+var blobstores = make(map[string]BlobstoreFunc)
+var blobstoresLock sync.RWMutex
+
+// RegisterBlobstore registers a new blobstore with the given name. If a blobstore
+// is already registered with the given name, it panics. Blobstores are usually
+// registered via an init function.
+func RegisterBlobstore(name string, fn BlobstoreFunc) {
+	blobstoresLock.Lock()
+	defer blobstoresLock.Unlock()
+
+	if _, ok := blobstores[name]; ok {
+		panic(fmt.Sprintf("blobstore %q is already registered", name))
 	}
+	blobstores[name] = fn
+}
+
+// RegisteredBlobstores returns the list of the names of the registered
+// blobstores.
+func RegisteredBlobstores() []string {
+	blobstoresLock.RLock()
+	defer blobstoresLock.RUnlock()
+
+	list := make([]string, 0, len(blobstores))
+	for k := range blobstores {
+		list = append(list, k)
+	}
+	sort.Strings(list)
+	return list
+}
+
+// BlobstoreFor returns the blobstore with the given name, or an error if one
+// does not exist.
+func BlobstoreFor(ctx context.Context, cfg *Config) (Blobstore, error) {
+	blobstoresLock.RLock()
+	defer blobstoresLock.RUnlock()
+
+	name := cfg.Type
+	fn, ok := blobstores[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown or uncompiled blobstore %q", name)
+	}
+	return fn(ctx, cfg)
 }

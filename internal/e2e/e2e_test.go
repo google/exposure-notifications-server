@@ -14,6 +14,8 @@
 
 // +build e2e
 
+// +build e2e google all
+
 package e2etest
 
 import (
@@ -57,7 +59,9 @@ type testConfig struct {
 
 func initConfig(tb testing.TB, ctx context.Context) *testConfig {
 	c := &testConfig{}
-	sm, err := secrets.SecretManagerFor(ctx, secrets.SecretManagerTypeGoogleSecretManager)
+	sm, err := secrets.SecretManagerFor(ctx, &secrets.Config{
+		Type: "GOOGLE_SECRET_MANAGER",
+	})
 	if err != nil {
 		tb.Fatalf("unable to connect to secret manager: %v", err)
 	}
@@ -167,7 +171,7 @@ func TestPublishEndpoint(t *testing.T) {
 		}
 	}
 
-	blobStore, err := storage.NewGoogleCloudStorage(ctx)
+	blobStore, err := storage.NewGoogleCloudStorage(ctx, &storage.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

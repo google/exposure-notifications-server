@@ -28,9 +28,10 @@ import (
 func TestNewServer(t *testing.T) {
 	t.Parallel()
 
-	emptyDB := &database.DB{}
-	emptyBlobstore := &storage.Noop{}
 	ctx := project.TestContext(t)
+
+	emptyDB := &database.DB{}
+	emptyBlobstore, _ := storage.NewMemory(ctx, &storage.Config{})
 
 	testCases := []struct {
 		name string
