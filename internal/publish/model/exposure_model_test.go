@@ -309,7 +309,7 @@ func TestPublishValidation(t *testing.T) {
 					},
 				},
 			},
-			m: fmt.Sprintf("key expires before minimum window; %v + %v = %v which is too old, must be >= %v",
+			m: fmt.Sprintf("key expires before minimum window; %v + %v = %v which is too old, must be <= %v",
 				minInterval-verifyapi.MaxIntervalCount-1,
 				verifyapi.MaxIntervalCount,
 				minInterval-verifyapi.MaxIntervalCount-1+verifyapi.MaxIntervalCount,
