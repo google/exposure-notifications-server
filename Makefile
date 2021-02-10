@@ -21,14 +21,6 @@ bodyclose:
 	@go vet -vettool=$$(which bodyclose) ./...
 .PHONY: bodyclose
 
-copyrightcheck:
-	@CHANGES="$$(grep -L "Copyright" $(GO_FILES))"; \
-		if [ -n "$${CHANGES}" ]; then \
-			echo "$${CHANGES}\n\n"; \
-			exit 1; \
-		fi
-.PHONY: copyrightcheck
-
 fmtcheck:
 	@command -v goimports > /dev/null 2>&1 || go get golang.org/x/tools/cmd/goimports
 	@CHANGES="$$(goimports -d $(GOFMT_FILES))"; \
