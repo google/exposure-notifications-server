@@ -80,16 +80,7 @@ test-acc:
 
 test-coverage:
 	@go tool cover -func ./coverage.out | grep total
-.PHONY: test-coverage		
-
-performance-test:
-	@go test \
-		-count=1 \
-		-timeout=30m \
-		-v \
-		-tags=performance \
-		./internal/performance
-.PHONY: performance-test
+.PHONY: test-coverage
 
 e2e-test:
 	@go test \

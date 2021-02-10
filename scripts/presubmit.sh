@@ -36,14 +36,14 @@ if [ -n "${CI_REDIS_IMAGE:-}" ]; then
 fi
 
 
-OUT="$(go get -t -tags=performance,e2e ./... 2>&1)" || {
+OUT="$(go get -t -tags=e2e ./... 2>&1)" || {
   echo "✋ Error fetching dependencies"
   echo "\n\n${OUT}\n\n"
   exit 1
 }
 
 
-OUT="$(go test -i -tags=performance,e2e ./... 2>&1)" || {
+OUT="$(go test -i -tags=e2e ./... 2>&1)" || {
   echo "✋ Error fetching test dependencies"
   echo "\n\n${OUT}\n\n"
   exit 1
@@ -82,11 +82,6 @@ make copyrightcheck || {
   echo "✋ Missing copyrights."
   exit 1
 }
-
-echo "🔨 Building"
-# Compiling *_test.go files with performance tag
-go test -c -tags=performance ./internal/performance/...
-
 
 echo "🌌 Verify and tidy module"
 OUT="$(go mod verify 2>&1 && go mod tidy 2>&1)" || {
