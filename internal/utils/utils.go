@@ -26,6 +26,7 @@ package utils
 
 import (
 	"context"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -87,7 +88,7 @@ type JWTConfig struct {
 	HealthAuthority      *vm.HealthAuthority
 	HealthAuthorityKey   *vm.HealthAuthorityKey
 	ExposureKeys         []verifyapi.ExposureKey
-	Key                  *ecdsa.PrivateKey
+	Key                  crypto.Signer
 	JWTWarp              time.Duration
 	ReportType           string
 	SymptomOnsetInterval uint32
