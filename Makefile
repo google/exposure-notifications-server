@@ -73,12 +73,3 @@ test-acc:
 test-coverage:
 	@go tool cover -func ./coverage.out | grep total
 .PHONY: test-coverage
-
-e2e-test:
-	@go test \
-		-count=1 \
-		-timeout=30m \
-		-v \
-		-tags=e2e \
-		./internal/e2e
-.PHONY: e2e-test
