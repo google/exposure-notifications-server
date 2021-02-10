@@ -348,8 +348,8 @@ func (e *Exposure) AdjustAndValidate(settings *KeyTransform) error {
 	}
 
 	// Validate the IntervalNumber, if the key was ever valid during this period, we'll accept it.
-	if validUntil := e.IntervalNumber + e.IntervalCount; validUntil <= settings.MinStartInterval {
-		return fmt.Errorf("key expires before minimum window; %v + %v = %v which is too old, must be <= %v", e.IntervalNumber, e.IntervalCount, validUntil, settings.MinStartInterval)
+	if validUntil := e.IntervalNumber + e.IntervalCount; validUntil < settings.MinStartInterval {
+		return fmt.Errorf("key expires before minimum window; %v + %v = %v which is too old, must be >= %v", e.IntervalNumber, e.IntervalCount, validUntil, settings.MinStartInterval)
 	}
 	if e.IntervalNumber > settings.MaxStartInterval {
 		return fmt.Errorf("interval number %v is in the future, must be <= %v", e.IntervalNumber, settings.MaxStartInterval)
