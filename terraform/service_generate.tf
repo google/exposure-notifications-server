@@ -162,7 +162,7 @@ resource "google_cloud_scheduler_job" "generate-worker" {
   attempt_deadline = "60s"
 
   retry_config {
-    retry_count = 1
+    retry_count = 3
   }
 
   http_target {
