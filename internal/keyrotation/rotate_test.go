@@ -57,7 +57,6 @@ func TestHandleRotate(t *testing.T) {
 	handler := server.handleRotateKeys()
 
 	r := httptest.NewRequest("GET", "/", nil)
-	r = r.Clone(ctx)
 	r.Header.Set("Content-Type", "text/html")
 
 	w := httptest.NewRecorder()
