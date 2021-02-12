@@ -163,7 +163,7 @@ resource "google_cloud_scheduler_job" "export-importer-worker" {
   attempt_deadline = "600s"
 
   retry_config {
-    retry_count = 1
+    retry_count = 3
   }
 
   http_target {
@@ -190,7 +190,7 @@ resource "google_cloud_scheduler_job" "export-importer-schedule" {
   attempt_deadline = "600s"
 
   retry_config {
-    retry_count = 1
+    retry_count = 3
   }
 
   http_target {
