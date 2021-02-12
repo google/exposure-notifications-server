@@ -94,11 +94,11 @@ func (s *Server) handleCreateBatches() http.Handler {
 			switch {
 			case errors.Is(err, context.DeadlineExceeded):
 				logger.Infow("batch creation timed out")
-				w.WriteHeader(http.StatusOK)
+				http.Error(w, http.StatusText(http.StatusGatewayTimeout), http.StatusGatewayTimeout)
 				return
 			case errors.Is(err, context.Canceled):
 				logger.Infow("batch creation canceled")
-				w.WriteHeader(http.StatusOK)
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			default:
 				logger.Errorw("failed to create batches", "error", err)
