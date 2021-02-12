@@ -25,9 +25,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	_ monitoredresource.Interface = (*stackdriverMonitoredResource)(nil)
-)
+var _ monitoredresource.Interface = (*stackdriverMonitoredResource)(nil)
 
 type stackdriverMonitoredResource struct {
 	Resource string

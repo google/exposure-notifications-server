@@ -19,6 +19,8 @@ import (
 )
 
 func TestTrimSpaceAndNonPrintable_unicode(t *testing.T) {
+	t.Parallel()
+
 	extraChars := "state\uFEFF"
 	want := "state"
 	got := TrimSpaceAndNonPrintable(extraChars)
@@ -29,6 +31,8 @@ func TestTrimSpaceAndNonPrintable_unicode(t *testing.T) {
 }
 
 func TestTrimSpaceAndNonPrintable_space(t *testing.T) {
+	t.Parallel()
+
 	extraChars := " state  \r\t"
 	want := "state"
 	got := TrimSpaceAndNonPrintable(extraChars)
@@ -39,6 +43,8 @@ func TestTrimSpaceAndNonPrintable_space(t *testing.T) {
 }
 
 func TestTrimSpace_unicode(t *testing.T) {
+	t.Parallel()
+
 	extraChars := "state\uFEFF"
 	want := "state"
 	got := TrimSpace(extraChars)
@@ -49,6 +55,8 @@ func TestTrimSpace_unicode(t *testing.T) {
 }
 
 func TestTrimSpace_space(t *testing.T) {
+	t.Parallel()
+
 	extraChars := " state  \r\t"
 	want := "state"
 	got := TrimSpace(extraChars)

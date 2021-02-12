@@ -44,8 +44,10 @@ func init() {
 }
 
 // Compile-time check to verify implements interface.
-var _ KeyManager = (*AzureKeyVault)(nil)
-var _ crypto.Signer = (*AzureKeyVaultSigner)(nil)
+var (
+	_ KeyManager    = (*AzureKeyVault)(nil)
+	_ crypto.Signer = (*AzureKeyVaultSigner)(nil)
+)
 
 // AzureKeyVault implements the keys.KeyManager interface and can be used to
 // sign export files.
@@ -251,7 +253,6 @@ func (v *AzureKeyVault) Decrypt(ctx context.Context, keyID string, ciphertext []
 	}
 
 	return plaintext, nil
-
 }
 
 // NewSigner creates a new signer that uses a key in HashiCorp Vault's transit

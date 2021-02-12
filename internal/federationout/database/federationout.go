@@ -86,5 +86,4 @@ func (db *FederationOutDB) GetFederationOutAuthorization(ctx context.Context, is
 	}
 
 	return &auth, nil
-
 }

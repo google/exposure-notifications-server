@@ -104,8 +104,10 @@ type EncryptionKeyManager interface {
 type KeyManagerFunc func(context.Context, *Config) (KeyManager, error)
 
 // managers is the list of registered key managers.
-var managers = make(map[string]KeyManagerFunc)
-var managersLock sync.RWMutex
+var (
+	managers     = make(map[string]KeyManagerFunc)
+	managersLock sync.RWMutex
+)
 
 // RegisterManager registers a new key manager with the given name. If a
 // manager is already registered with the given name, it panics. Managers are

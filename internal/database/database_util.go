@@ -62,10 +62,8 @@ const (
 	defaultPostgresImageRef = "postgres:13-alpine"
 )
 
-var (
-	// ApproxTime is a compare helper for clock skew.
-	ApproxTime = cmp.Options{cmpopts.EquateApproxTime(1 * time.Second)}
-)
+// ApproxTime is a compare helper for clock skew.
+var ApproxTime = cmp.Options{cmpopts.EquateApproxTime(1 * time.Second)}
 
 // TestInstance is a wrapper around the Docker-based database instance.
 type TestInstance struct {

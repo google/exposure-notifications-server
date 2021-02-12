@@ -25,15 +25,7 @@ func TestJSONExpander_GetSecretValue(t *testing.T) {
 
 	ctx := project.TestContext(t)
 
-	testSM := &testSecretManager{}
-
-	sm, err := WrapJSONExpander(ctx, testSM)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	testSM.value = "test"
-	testCases := []struct {
+	cases := []struct {
 		testName      string
 		secretName    string
 		secretValue   string
@@ -125,22 +117,33 @@ func TestJSONExpander_GetSecretValue(t *testing.T) {
 			err:           true,
 		},
 	}
-	for _, tt := range testCases {
-		t.Run(tt.testName, func(t *testing.T) {
-			testSM.value = tt.secretValue
-			actualValue, err := sm.GetSecretValue(ctx, tt.secretName)
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
+			testSM := &testSecretManager{}
+			testSM.value = "test"
+
+			sm, err := WrapJSONExpander(ctx, testSM)
 			if err != nil {
-				if !tt.err {
+				t.Fatal(err)
+			}
+
+			testSM.value = tc.secretValue
+			actualValue, err := sm.GetSecretValue(ctx, tc.secretName)
+			if err != nil {
+				if !tc.err {
 					t.Errorf("got error: %w, did not expect one", err)
 				}
 			}
-			if tt.err && err == nil {
+			if tc.err && err == nil {
 				t.Errorf("expected to error, but did not, actualValue: %s", actualValue)
 			}
-			if tt.expectedValue != actualValue {
-				t.Errorf("expected %s, got %s", tt.expectedValue, actualValue)
+			if tc.expectedValue != actualValue {
+				t.Errorf("expected %s, got %s", tc.expectedValue, actualValue)
 			}
 		})
 	}
-
 }

@@ -244,7 +244,6 @@ func (db *ExportImportDB) AddImportFilePublicKey(ctx context.Context, ifpk *mode
 			VALUES
 				($1, $2, $3, $4, $5, $6)
 			`, ifpk.ExportImportID, ifpk.KeyID, ifpk.KeyVersion, ifpk.PublicKeyPEM, ifpk.From, ifpk.Thru)
-
 		if err != nil {
 			return fmt.Errorf("inserting importfilepublickey: %w", err)
 		}
@@ -356,7 +355,7 @@ func (db *ExportImportDB) CreateNewFilesAndFailOld(ctx context.Context, ei *mode
 		// Go through incoming list and insert a new entry for each filename we haven't seen before.
 		insertStmt, err := prepareInsertImportFile(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("preparing insert statement: %v", err)
+			return fmt.Errorf("preparing insert statement: %w", err)
 		}
 
 		for _, fname := range filenames {

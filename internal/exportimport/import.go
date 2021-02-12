@@ -33,9 +33,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	ErrArchiveNotFound = errors.New("archive file not found")
-)
+var ErrArchiveNotFound = errors.New("archive file not found")
 
 type ImportRequest struct {
 	config       *Config
@@ -67,11 +65,18 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 	}
 
 	logger := logging.FromContext(ctx)
+
 	// Download zip file.
-	client := &http.Client{
+	httpClient := &http.Client{
 		Timeout: s.config.ExportFileDownloadTimeout,
 	}
-	resp, err := client.Get(ir.file.ZipFilename)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", ir.file.ZipFilename, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request to download export file: %w", err)
+	}
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error downloading export file: %w", err)
 	}

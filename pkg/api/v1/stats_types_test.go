@@ -22,6 +22,8 @@ import (
 )
 
 func TestTotal(t *testing.T) {
+	t.Parallel()
+
 	p := &PublishRequests{
 		UnknownPlatform: 6,
 		Android:         22,

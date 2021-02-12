@@ -52,13 +52,11 @@ const (
 	TransmissionRiskNegative          = 6
 )
 
-var (
-	ValidReportTypes = map[string]bool{
-		ReportTypeConfirmed: true,
-		ReportTypeClinical:  true,
-		ReportTypeNegative:  true,
-	}
-)
+var ValidReportTypes = map[string]bool{
+	ReportTypeConfirmed: true,
+	ReportTypeClinical:  true,
+	ReportTypeNegative:  true,
+}
 
 // VerificationClaims represents the accepted Claims portion of the verification certificate JWT.
 // This data is used to set data on the uploaded TEKs and will be reflected on export. See the export file format:

@@ -112,12 +112,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 	return result.ErrorOrNil()
 }
 
-func (s *Server) maybeDeleteKey(
-	ctx context.Context,
-	key *revisiondatabase.RevisionKey,
-	effectiveID int64,
-	previousCreated time.Time) (bool, error) {
-
+func (s *Server) maybeDeleteKey(ctx context.Context, key *revisiondatabase.RevisionKey, effectiveID int64, previousCreated time.Time) (bool, error) {
 	if key.KeyID == effectiveID {
 		return false, nil
 	}

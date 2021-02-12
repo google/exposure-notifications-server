@@ -23,9 +23,11 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
-var _ setup.DatabaseConfigProvider = (*Config)(nil)
-var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
-var _ setup.SecretManagerConfigProvider = (*Config)(nil)
+var (
+	_ setup.DatabaseConfigProvider              = (*Config)(nil)
+	_ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
+	_ setup.SecretManagerConfigProvider         = (*Config)(nil)
+)
 
 type Config struct {
 	Database              database.Config

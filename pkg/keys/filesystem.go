@@ -41,9 +41,11 @@ func init() {
 	RegisterManager("FILESYSTEM", NewFilesystem)
 }
 
-var _ EncryptionKeyManager = (*Filesystem)(nil)
-var _ KeyManager = (*Filesystem)(nil)
-var _ SigningKeyManager = (*Filesystem)(nil)
+var (
+	_ EncryptionKeyManager = (*Filesystem)(nil)
+	_ KeyManager           = (*Filesystem)(nil)
+	_ SigningKeyManager    = (*Filesystem)(nil)
+)
 
 // Filesystem is a key manager that uses the filesystem to store and retrieve
 // keys. It should only be used for local development and testing.
@@ -64,7 +66,7 @@ type Filesystem struct {
 func NewFilesystem(ctx context.Context, cfg *Config) (KeyManager, error) {
 	root := cfg.FilesystemRoot
 	if root != "" {
-		if err := os.MkdirAll(root, 0700); err != nil {
+		if err := os.MkdirAll(root, 0o700); err != nil {
 			return nil, err
 		}
 	}
@@ -264,7 +266,7 @@ func (k *Filesystem) CreateSigningKey(_ context.Context, parent, name string) (s
 	defer k.mu.Unlock()
 
 	pth := filepath.Join(k.root, parent, name)
-	if err := os.MkdirAll(pth, 0700); err != nil {
+	if err := os.MkdirAll(pth, 0o700); err != nil {
 		return "", fmt.Errorf("failed to create directory for key: %w", err)
 	}
 
@@ -290,7 +292,7 @@ func (k *Filesystem) CreateSigningKey(_ context.Context, parent, name string) (s
 	if err != nil {
 		return "", fmt.Errorf("failed to generate metadata file: %w", err)
 	}
-	if err := ioutil.WriteFile(metadataPath, b, 0600); err != nil {
+	if err := ioutil.WriteFile(metadataPath, b, 0o600); err != nil {
 		return "", fmt.Errorf("failed to create metadata file: %w", err)
 	}
 	return strings.TrimPrefix(pth, k.root), nil
@@ -304,7 +306,7 @@ func (k *Filesystem) CreateEncryptionKey(_ context.Context, parent, name string)
 	defer k.mu.Unlock()
 
 	pth := filepath.Join(k.root, parent, name)
-	if err := os.MkdirAll(pth, 0700); err != nil {
+	if err := os.MkdirAll(pth, 0o700); err != nil {
 		return "", fmt.Errorf("failed to create directory for key: %w", err)
 	}
 
@@ -330,7 +332,7 @@ func (k *Filesystem) CreateEncryptionKey(_ context.Context, parent, name string)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate metadata file: %w", err)
 	}
-	if err := ioutil.WriteFile(metadataPath, b, 0600); err != nil {
+	if err := ioutil.WriteFile(metadataPath, b, 0o600); err != nil {
 		return "", fmt.Errorf("failed to create metadata file: %w", err)
 	}
 	return strings.TrimPrefix(pth, k.root), nil
@@ -359,7 +361,7 @@ func (k *Filesystem) CreateKeyVersion(_ context.Context, parent string) (string,
 			return "", fmt.Errorf("failed to marshal signing key: %w", err)
 		}
 		pth := filepath.Join(k.root, parent, strconv.FormatInt(time.Now().UnixNano(), 10))
-		if err := ioutil.WriteFile(pth, b, 0600); err != nil {
+		if err := ioutil.WriteFile(pth, b, 0o600); err != nil {
 			return "", fmt.Errorf("failed to write signing key to disk: %w", err)
 		}
 		return strings.TrimPrefix(pth, k.root), nil
@@ -369,7 +371,7 @@ func (k *Filesystem) CreateKeyVersion(_ context.Context, parent string) (string,
 			return "", fmt.Errorf("failed to generate encryption key: %w", err)
 		}
 		pth := filepath.Join(k.root, parent, strconv.FormatInt(time.Now().UnixNano(), 10))
-		if err := ioutil.WriteFile(pth, ek, 0600); err != nil {
+		if err := ioutil.WriteFile(pth, ek, 0o600); err != nil {
 			return "", fmt.Errorf("failed to write encryption key to disk: %w", err)
 		}
 		return strings.TrimPrefix(pth, k.root), nil

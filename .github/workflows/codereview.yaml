@@ -6,9 +6,24 @@ on:
     - 'main'
 
 jobs:
-  only-user-errors:
-    name: errorw-bot
+  golangci-lint:
+    name: go-lint
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.36.0
+          only-new-issues: true
+
+  reviewdog:
+    name: reviewdog
+    runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - name: Check out code
@@ -16,7 +31,10 @@ jobs:
 
       - uses: reviewdog/action-setup@v1
 
-      - name: Check
+      - name: Install pcregrep
+        run: sudo apt-get -yqq install pcregrep
+
+      - name: errorw
         shell: bash
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
@@ -32,17 +50,7 @@ jobs:
             -fail-on-error="false" \
             -level="warning"
 
-  copyright-check:
-    name: copyright-check
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-
-      - uses: reviewdog/action-setup@v1
-
-      - name: Check
+      - name: copyright-check
         shell: bash
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
@@ -54,6 +62,23 @@ jobs:
           find . -type f -name '*.go' -exec awk 'FNR==1{if ($0!~"Copyright '"${YEAR}"'") print FILENAME ":1:missing copyright or invalid copyright year";}' '{}' + | \
           reviewdog -efm="%f:%l:%m" \
             -name="copyright-check" \
+            -reporter="github-pr-review" \
+            -filter-mode="diff_context" \
+            -fail-on-error="true" \
+            -level="error"
+
+      - name: tab-check
+        shell: bash
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+        run: |-
+          set -eEu
+          set +o pipefail
+
+          YEAR=$(date +"%Y")
+          make tabcheck | \
+          reviewdog -efm="%f:%l:%m" \
+            -name="tab-check" \
             -reporter="github-pr-review" \
             -filter-mode="diff_context" \
             -fail-on-error="true" \

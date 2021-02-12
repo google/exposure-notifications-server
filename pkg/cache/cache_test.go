@@ -169,7 +169,7 @@ func TestConcurrentReaders(t *testing.T) {
 		go func() {
 			gotCache, err := cache.WriteThruLookup("foo", lookerUpper)
 			if err != nil {
-				done <- fmt.Errorf("routine: %v got unexpected error: %v", ver, err)
+				done <- fmt.Errorf("routine: %v got unexpected error: %w", ver, err)
 				return
 			}
 			got, ok := gotCache.(*order)

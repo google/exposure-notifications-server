@@ -39,12 +39,14 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-var _ setup.AuthorizedAppConfigProvider = (*testConfig)(nil)
-var _ setup.BlobstoreConfigProvider = (*testConfig)(nil)
-var _ setup.DatabaseConfigProvider = (*testConfig)(nil)
-var _ setup.KeyManagerConfigProvider = (*testConfig)(nil)
-var _ setup.SecretManagerConfigProvider = (*testConfig)(nil)
-var _ setup.ObservabilityExporterConfigProvider = (*testConfig)(nil)
+var (
+	_ setup.AuthorizedAppConfigProvider         = (*testConfig)(nil)
+	_ setup.BlobstoreConfigProvider             = (*testConfig)(nil)
+	_ setup.DatabaseConfigProvider              = (*testConfig)(nil)
+	_ setup.KeyManagerConfigProvider            = (*testConfig)(nil)
+	_ setup.SecretManagerConfigProvider         = (*testConfig)(nil)
+	_ setup.ObservabilityExporterConfigProvider = (*testConfig)(nil)
+)
 
 type testConfig struct {
 	Database *database.Config

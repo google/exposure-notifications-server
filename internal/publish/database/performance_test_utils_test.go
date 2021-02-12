@@ -31,7 +31,8 @@ func TestBulkInsertExposures(t *testing.T) {
 		{
 			name:      "No Exposures",
 			exposures: []*model.Exposure{},
-			want:      0},
+			want:      0,
+		},
 		{
 			name: "Few Exposures",
 			exposures: []*model.Exposure{
@@ -51,7 +52,8 @@ func TestBulkInsertExposures(t *testing.T) {
 					Regions:        []string{"MX", "CA"},
 				},
 			},
-			want: 3},
+			want: 3,
+		},
 	}
 
 	ctx := project.TestContext(t)

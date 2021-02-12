@@ -22,21 +22,21 @@ import (
 )
 
 // RandomHexString generates a random string of the provided length.
-func RandomHexString(len int) (string, error) {
-	b, err := RandomBytes((len + 1) / 2)
+func RandomHexString(length int) (string, error) {
+	b, err := RandomBytes((length + 1) / 2)
 	if err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(b)[:len], nil
+	return hex.EncodeToString(b)[:length], nil
 }
 
 // RandomBase64String encodes a random base64 string of a given length.
-func RandomBase64String(len int) (string, error) {
-	b, err := RandomBytes(len)
+func RandomBase64String(length int) (string, error) {
+	b, err := RandomBytes(length)
 	if err != nil {
 		return "", err
 	}
-	return base64.URLEncoding.EncodeToString(b)[:len], nil
+	return base64.URLEncoding.EncodeToString(b)[:length], nil
 }
 
 // RandomBytes returns a byte slice of random values of the given length.

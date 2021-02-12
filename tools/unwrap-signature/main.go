@@ -53,7 +53,7 @@ func main() {
 	log.Printf("Data: \n%v", teksl)
 	sig := teksl.Signatures[0].Signature
 
-	err = ioutil.WriteFile(*outFile, sig, 0600)
+	err = ioutil.WriteFile(*outFile, sig, 0o600)
 	if err != nil {
 		log.Fatalf("unable to write output file: %v", err)
 	}

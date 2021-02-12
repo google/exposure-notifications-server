@@ -57,7 +57,6 @@ func (aa *AuthorizedAppDB) InsertAuthorizedApp(ctx context.Context, m *model.Aut
 		`, m.AppPackageName, m.AllAllowedRegions(),
 			m.AllAllowedHealthAuthorityIDs(), m.BypassHealthAuthorityVerification,
 			m.BypassRevisionToken)
-
 		if err != nil {
 			return fmt.Errorf("inserting authorizedapp: %w", err)
 		}

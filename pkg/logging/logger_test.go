@@ -85,7 +85,11 @@ func TestLevelToZapLevls(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
 			got := levelToZapLevel(tc.input)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Fatalf("mismatch (-want, +got):\n%s", diff)

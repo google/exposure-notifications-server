@@ -118,14 +118,14 @@ func GetSigningKey(tb testing.TB) *SigningKey {
 
 // IssueJWT generates a JWT as if it came from the
 // authorized health authority.
-func IssueJWT(t *testing.T, cfg *JWTConfig) (jwtText, hmacKey string) {
+func IssueJWT(t *testing.T, cfg *JWTConfig) (string, string) {
 	t.Helper()
 
 	hmacKeyBytes := make([]byte, 32)
 	if _, err := rand.Read(hmacKeyBytes); err != nil {
 		t.Fatal(err)
 	}
-	hmacKey = base64.StdEncoding.EncodeToString(hmacKeyBytes)
+	hmacKey := base64.StdEncoding.EncodeToString(hmacKeyBytes)
 
 	hmacBytes, err := vutil.CalculateExposureKeyHMAC(cfg.ExposureKeys, hmacKeyBytes)
 	if err != nil {
@@ -148,11 +148,12 @@ func IssueJWT(t *testing.T, cfg *JWTConfig) (jwtText, hmacKey string) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
 	token.Header[verifyapi.KeyIDHeader] = cfg.HealthAuthorityKey.Version
-	jwtText, err = token.SignedString(cfg.Key)
+	jwtText, err := token.SignedString(cfg.Key)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return
+
+	return jwtText, hmacKey
 }
 
 // InitializeVerificationDB links the vdb, HA and SigningKeys together

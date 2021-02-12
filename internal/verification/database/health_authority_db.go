@@ -27,9 +27,7 @@ import (
 	pgx "github.com/jackc/pgx/v4"
 )
 
-var (
-	ErrHealthAuthorityNotFound = errors.New("health authority not found")
-)
+var ErrHealthAuthorityNotFound = errors.New("health authority not found")
 
 // HealthAuthorityDB allows for opreations against authorized health authorities
 // for diagnosis signature verification.

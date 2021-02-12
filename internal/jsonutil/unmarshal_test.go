@@ -80,6 +80,7 @@ func TestEmptyBody(t *testing.T) {
 	}
 	unmarshalTestHelper(t, invalidJSON, errors, http.StatusBadRequest)
 }
+
 func TestMultipleJson(t *testing.T) {
 	t.Parallel()
 
@@ -130,10 +131,10 @@ func TestInvalidStructure(t *testing.T) {
 		`{"badField": "doesn't exist"}`,
 	}
 	errors := []string{
-		`invalid value temporaryExposureKeys at position 28`,
-		`invalid value temporaryExposureKeys at position 31`,
-		`invalid value appPackageName at position 22`,
-		`invalid value regions at position 16`,
+		`invalid value "temporaryExposureKeys" at position 28`,
+		`invalid value "temporaryExposureKeys" at position 31`,
+		`invalid value "appPackageName" at position 22`,
+		`invalid value "regions" at position 16`,
 		`unknown field "badField"`,
 	}
 	unmarshalTestHelper(t, invalidJSON, errors, http.StatusBadRequest)
@@ -142,7 +143,7 @@ func TestInvalidStructure(t *testing.T) {
 func TestValidPublishMessage(t *testing.T) {
 	t.Parallel()
 
-	intervalNumber := int32(time.Date(2020, 04, 17, 20, 04, 01, 1, time.UTC).Unix() / 600)
+	intervalNumber := int32(time.Date(2020, 4, 17, 20, 4, 1, 1, time.UTC).Unix() / 600)
 	json := `{"temporaryExposureKeys": [
 		  {"key": "ABC", "rollingStartNumber": %v, "rollingPeriod": 144, "TransmissionRisk": 2},
 		  {"key": "DEF", "rollingStartNumber": %v, "rollingPeriod": 122, "TransmissionRisk": 2},

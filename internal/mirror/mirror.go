@@ -38,11 +38,11 @@ import (
 
 const mirrorLockPrefix = "mirror-lock"
 
-type MirrorResponse struct {
-	Mirrors []*MirrorStatus `json:"mirrors"`
+type Response struct {
+	Mirrors []*Status `json:"mirrors"`
 }
 
-type MirrorStatus struct {
+type Status struct {
 	ID        int64    `json:"id"`
 	Processed bool     `json:"processed"`
 	Errors    []string `json:"errors,omitempty"`
@@ -77,12 +77,12 @@ func (s *Server) handleMirror() http.Handler {
 		}
 
 		// Start building a response for all mirrors.
-		var resp MirrorResponse
+		var resp Response
 		var hasError bool
 
 		for _, mirror := range mirrors {
 			// Build the initial status
-			status := &MirrorStatus{ID: mirror.ID}
+			status := &Status{ID: mirror.ID}
 
 			// If the deadline has passed, do not attempt to process additional
 			// mirrors. Note that exceeding the deadline is NOT considered an error.
@@ -175,7 +175,7 @@ func (s *Server) processMirror(ctx context.Context, deadline time.Time, mirror *
 
 	// Download the index, which will return the fully qualified download links
 	// for the files.
-	indexFiles, err := s.downloadIndex(mirror)
+	indexFiles, err := s.downloadIndex(ctx, mirror)
 	if err != nil {
 		return fmt.Errorf("failed to download index: %w", err)
 	}
@@ -268,7 +268,7 @@ func (s *Server) processMirror(ctx context.Context, deadline time.Time, mirror *
 			"file", filename,
 			"download_path", status.DownloadPath)
 
-		b, err := downloadFile(status.DownloadPath, s.config.ExportFileDownloadTimeout, s.config.MaxZipBytes)
+		b, err := downloadFile(ctx, status.DownloadPath, s.config.ExportFileDownloadTimeout, s.config.MaxZipBytes)
 		if err != nil {
 			merr = multierror.Append(merr, fmt.Errorf("failed to download export file %s: %w", filename, err))
 			status.Failed = true
@@ -384,11 +384,16 @@ func computeActions(knownFiles []*model.MirrorFile, indexFiles []string) map[str
 // URL does not return a 200, an error is returned. If the process takes longer
 // than the provided timeout, an error is returned. If more bytes remain after
 // maxBytes, an error is returned. Otherwise, the raw bytes are returned.
-func downloadFile(u string, timeout time.Duration, maxBytes int64) ([]byte, error) {
+func downloadFile(ctx context.Context, u string, timeout time.Duration, maxBytes int64) ([]byte, error) {
 	client := &http.Client{Timeout: timeout}
 
 	// Start the download.
-	resp, err := client.Get(u)
+	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request %s: %w", u, err)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download %s: %w", u, err)
 	}
@@ -407,7 +412,7 @@ func downloadFile(u string, timeout time.Duration, maxBytes int64) ([]byte, erro
 	}
 	if r.N == 0 {
 		// Check if there's more data to be read and return an error if so.
-		if _, err := r.R.Read(make([]byte, 1)); err != io.EOF {
+		if _, err := r.R.Read(make([]byte, 1)); !errors.Is(err, io.EOF) {
 			return nil, fmt.Errorf("failed to read %s: response exceeds %d bytes", u, maxBytes)
 		}
 	}
@@ -426,8 +431,8 @@ func downloadFile(u string, timeout time.Duration, maxBytes int64) ([]byte, erro
 //
 // The values are returned in the order in which they appear in the file, joined
 // with the configured mirror ExportRoot.
-func (s *Server) downloadIndex(mirror *model.Mirror) ([]string, error) {
-	b, err := downloadFile(mirror.IndexFile, s.config.IndexFileDownloadTimeout, s.config.MaxIndexBytes)
+func (s *Server) downloadIndex(ctx context.Context, mirror *model.Mirror) ([]string, error) {
+	b, err := downloadFile(ctx, mirror.IndexFile, s.config.IndexFileDownloadTimeout, s.config.MaxIndexBytes)
 	if err != nil {
 		return nil, err
 	}

@@ -114,7 +114,7 @@ func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExpos
 
 	query, args, err := generateExposureQuery(criteria)
 	if err != nil {
-		return "", fmt.Errorf("generating where: %v", err)
+		return "", fmt.Errorf("generating where: %w", err)
 	}
 
 	logger := logging.FromContext(ctx).Named("IterateExposures")
@@ -358,7 +358,7 @@ func executeInsertExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 		exp.HealthAuthorityID, exp.ReportType, exp.DaysSinceSymptomOnset,
 		exp.ExportImportID, exp.ImportFileID)
 	if err != nil {
-		return fmt.Errorf("inserting exposure: %v", err)
+		return fmt.Errorf("inserting exposure: %w", err)
 	}
 	return nil
 }
@@ -385,7 +385,7 @@ func executeReviseExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 		exp.RevisedImportFileID,
 		encodeExposureKey(exp.ExposureKey))
 	if err != nil {
-		return fmt.Errorf("revising exposure: %v", err)
+		return fmt.Errorf("revising exposure: %w", err)
 	}
 	if result.RowsAffected() != 1 {
 		return fmt.Errorf("invalid key revision request")
@@ -629,11 +629,11 @@ func (db *PublishDB) InsertAndReviseExposures(ctx context.Context, req *InsertAn
 		// Prepare the insert and update statements.
 		insertStmt, err := prepareInsertExposure(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("preparing insert statement: %v", err)
+			return fmt.Errorf("preparing insert statement: %w", err)
 		}
 		updateStmt, err := prepareReviseExposure(ctx, tx)
 		if err != nil {
-			return fmt.Errorf("preparing update statement: %v", err)
+			return fmt.Errorf("preparing update statement: %w", err)
 		}
 
 		// only possible if all passed in keys are already existing and not revisions.
@@ -696,7 +696,7 @@ func (db *PublishDB) DeleteExposuresBefore(ctx context.Context, before time.Time
 				created_at < $1
 			`, before)
 		if err != nil {
-			return fmt.Errorf("deleting exposures: %v", err)
+			return fmt.Errorf("deleting exposures: %w", err)
 		}
 		count = result.RowsAffected()
 		return nil
@@ -714,7 +714,7 @@ func encodeCursor(s string) string {
 func decodeCursor(encoded string) (string, error) {
 	b, err := base64util.DecodeString(encoded)
 	if err != nil {
-		return "", fmt.Errorf("decoding cursor: %v", err)
+		return "", fmt.Errorf("decoding cursor: %w", err)
 	}
 	return string(b), nil
 }

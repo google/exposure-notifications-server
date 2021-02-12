@@ -37,9 +37,11 @@ var (
 )
 
 // Compile-time check to assert this config matches requirements.
-var _ setup.DatabaseConfigProvider = (*Config)(nil)
-var _ setup.SecretManagerConfigProvider = (*Config)(nil)
-var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
+var (
+	_ setup.DatabaseConfigProvider              = (*Config)(nil)
+	_ setup.SecretManagerConfigProvider         = (*Config)(nil)
+	_ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
+)
 
 // Config is the configuration for federation-pull components (data pulled from other servers).
 type Config struct {

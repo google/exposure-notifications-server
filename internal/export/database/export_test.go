@@ -867,7 +867,7 @@ func TestAddExportFileSkipsDuplicates(t *testing.T) {
 	ef.BucketName = "bucket-2"
 	err = testDB.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		if err := addExportFile(ctx, tx, ef); err != nil {
-			if err == database.ErrKeyConflict {
+			if errors.Is(err, database.ErrKeyConflict) {
 				return nil // Expected result.
 			}
 			return err

@@ -72,13 +72,15 @@ func addDaysSinceOnset(e *model.Exposure, daysSince int32) *model.Exposure {
 	return e
 }
 
-func reviseExposure(e *model.Exposure, newReportType string, clearOnset bool) *model.Exposure {
+func reviseExposure(tb testing.TB, e *model.Exposure, newReportType string, clearOnset bool) *model.Exposure {
 	e.SetRevisedReportType(newReportType)
 	if e.HasDaysSinceSymptomOnset() && !clearOnset {
 		e.SetRevisedDaysSinceSymptomOnset(*e.DaysSinceSymptomOnset)
 	}
 	e.SetRevisedTransmissionRisk(model.ReportTypeTransmissionRisk(newReportType, 0))
-	e.SetRevisedAt(e.CreatedAt.Add(time.Second))
+	if err := e.SetRevisedAt(e.CreatedAt.Add(time.Second)); err != nil {
+		tb.Fatal(err)
+	}
 	return e
 }
 
@@ -133,7 +135,9 @@ func (t *testIterator) provideInput(_ context.Context, _ publishdb.IterateExposu
 func TestFetch(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct {
+	ctx := project.TestContext(t)
+
+	cases := []struct {
 		name              string
 		includeRegions    []string
 		excludeRegions    []string
@@ -234,7 +238,7 @@ func TestFetch(t *testing.T) {
 				addDaysSinceOnset(makeExposure(aaa, "confirmed", "US", false), 2),
 			},
 			revisedIterations: []interface{}{
-				reviseExposure(addDaysSinceOnset(makeExposure(bbb, "likely", "US", true), 1), "confirmed", false),
+				reviseExposure(t, addDaysSinceOnset(makeExposure(bbb, "likely", "US", true), 1), "confirmed", false),
 			},
 			want: &federation.FederationFetchResponse{
 				Keys: []*federation.ExposureKey{
@@ -284,7 +288,7 @@ func TestFetch(t *testing.T) {
 				addDaysSinceOnset(makeExposure(aaa, "likely", "US", false), 2),
 			},
 			revisedIterations: []interface{}{
-				reviseExposure(addDaysSinceOnset(makeExposure(aaa, "likely", "US", false), 2), "negative", true),
+				reviseExposure(t, addDaysSinceOnset(makeExposure(aaa, "likely", "US", false), 2), "negative", true),
 			},
 			want: &federation.FederationFetchResponse{
 				Keys: []*federation.ExposureKey{
@@ -338,7 +342,7 @@ func TestFetch(t *testing.T) {
 			},
 			revisedIterations: []interface{}{
 				// In this test, we shouldn't get here because of the timeout in the initial set.
-				reviseExposure(addDaysSinceOnset(makeExposure(aaa, "likely", "US", true), 2), "confirmed", true),
+				reviseExposure(t, addDaysSinceOnset(makeExposure(aaa, "likely", "US", true), 2), "confirmed", true),
 			},
 			want: &federation.FederationFetchResponse{
 				Keys: []*federation.ExposureKey{
@@ -389,9 +393,9 @@ func TestFetch(t *testing.T) {
 			},
 			revisedIterations: []interface{}{
 				// In this test, we shouldn't get here because of the timeout in the initial set.
-				reviseExposure(addDaysSinceOnset(makeExposure(aaa, "likely", "US", true), -1), "confirmed", false),
+				reviseExposure(t, addDaysSinceOnset(makeExposure(aaa, "likely", "US", true), -1), "confirmed", false),
 				timeout{},
-				reviseExposure(addDaysSinceOnset(makeExposure(bbb, "likely", "US", true), -1), "confirmed", false),
+				reviseExposure(t, addDaysSinceOnset(makeExposure(bbb, "likely", "US", true), -1), "confirmed", false),
 			},
 			want: &federation.FederationFetchResponse{
 				Keys: []*federation.ExposureKey{
@@ -505,9 +509,12 @@ func TestFetch(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
+	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := project.TestContext(t)
+			t.Parallel()
+
 			env := serverenv.New(ctx)
 			server := Server{
 				env: env,
@@ -561,7 +568,7 @@ func TestRawToken(t *testing.T) {
 func TestRawTokenErrors(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct {
+	cases := []struct {
 		name  string
 		mdMap map[string][]string
 	}{
@@ -587,11 +594,14 @@ func TestRawTokenErrors(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
+	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := metadata.NewIncomingContext(project.TestContext(t), tc.mdMap)
-			_, gotErr := rawToken(ctx)
-			if gotErr == nil {
+			if _, err := rawToken(ctx); err == nil {
 				t.Errorf("missing error response")
 			}
 		})
@@ -602,7 +612,7 @@ func TestRawTokenErrors(t *testing.T) {
 func TestIntersect(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct {
+	cases := []struct {
 		name string
 		aa   []string
 		bb   []string
@@ -646,10 +656,13 @@ func TestIntersect(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := intersect(tc.aa, tc.bb)
+	for _, tc := range cases {
+		tc := tc
 
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := intersect(tc.aa, tc.bb)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
@@ -661,7 +674,7 @@ func TestIntersect(t *testing.T) {
 func TestUnion(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct {
+	cases := []struct {
 		name string
 		aa   []string
 		bb   []string
@@ -705,10 +718,13 @@ func TestUnion(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := union(tc.aa, tc.bb)
+	for _, tc := range cases {
+		tc := tc
 
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := union(tc.aa, tc.bb)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}

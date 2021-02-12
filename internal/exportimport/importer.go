@@ -43,7 +43,7 @@ func (s *Server) handleImport() http.Handler {
 		logger.Info("starting export importer")
 		defer func() {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("ok"))
+			fmt.Fprint(w, "ok")
 		}()
 		ctx = logging.WithLogger(ctx, logger)
 
@@ -100,7 +100,6 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 	keys, err := s.exportImportDB.AllowedKeys(ctx, config)
 	if err != nil {
 		return fmt.Errorf("unable to read public keys: %w", err)
-
 	}
 	logger.Debugw("allowed public keys for file", "publicKeys", keys)
 
@@ -127,7 +126,7 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 		if err != nil {
 			errs = append(errs, err)
 			str := fmt.Sprintf("import file error [retry %d]", file.Retries)
-			file.Retries += 1
+			file.Retries++
 			if errors.Is(err, ErrArchiveNotFound) {
 				str += ", file not found"
 			}
@@ -149,6 +148,7 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 	}
 	return nil
 }
+
 func deadlinePassed(ctx context.Context) bool {
 	deadline, ok := ctx.Deadline()
 	if !ok {

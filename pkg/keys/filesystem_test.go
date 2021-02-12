@@ -127,7 +127,7 @@ func TestFilesystem_NewSigner(t *testing.T) {
 			keyID: "banana",
 			setup: func(dir string) error {
 				pth := filepath.Join(dir, "banana")
-				return ioutil.WriteFile(pth, []byte("dafd"), 0600)
+				return ioutil.WriteFile(pth, []byte("dafd"), 0o600)
 			},
 			err: "failed to parse signing key",
 		},
@@ -145,7 +145,7 @@ func TestFilesystem_NewSigner(t *testing.T) {
 				}
 
 				pth := filepath.Join(dir, "apple")
-				return ioutil.WriteFile(pth, b, 0600)
+				return ioutil.WriteFile(pth, b, 0o600)
 			},
 		},
 	}
@@ -211,7 +211,7 @@ func TestFilesystem_EncryptDecrypt(t *testing.T) {
 			keyID: "banana",
 			setup: func(fs *Filesystem) error {
 				dir := filepath.Join(fs.root, "banana")
-				return os.MkdirAll(dir, 0700)
+				return os.MkdirAll(dir, 0o700)
 			},
 			err: "no key versions",
 		},

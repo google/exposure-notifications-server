@@ -166,6 +166,7 @@ func TestRotateKeys(t *testing.T) {
 			}
 
 			for _, k := range tc.keys {
+				k := k
 				if err := testInsertRawKey(ctx, t, testDB, &k); err != nil {
 					t.Error("Failed to insert keys: ", err)
 				}

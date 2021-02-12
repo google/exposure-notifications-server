@@ -40,7 +40,7 @@ func ServeMetricsIfPrometheus(ctx context.Context) error {
 
 		exporter, err := prometheus.NewExporter(prometheus.Options{})
 		if err != nil {
-			return fmt.Errorf("failed to create prometheus exporter: %v", err)
+			return fmt.Errorf("failed to create prometheus exporter: %w", err)
 		}
 
 		go func() {

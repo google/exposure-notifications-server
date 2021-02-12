@@ -19,6 +19,7 @@ package storage
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 
@@ -98,8 +99,8 @@ func (s *AWSS3) GetObject(ctx context.Context, bucket, key string) ([]byte, erro
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok &&
-			aerr.Code() == s3.ErrCodeNoSuchBucket || aerr.Code() == s3.ErrCodeNoSuchKey {
+		var aerr awserr.Error
+		if errors.As(err, &aerr) && (aerr.Code() == s3.ErrCodeNoSuchBucket || aerr.Code() == s3.ErrCodeNoSuchKey) {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to get object: %w", err)

@@ -253,6 +253,9 @@ func (db *MirrorDB) SaveFiles(ctx context.Context, mirrorID int64, filenames []*
 			}
 
 			for fName, rewrittenFilename := range wantFiles {
+				fName := fName
+				rewrittenFilename := rewrittenFilename
+
 				var localFilename *string
 				if fName != rewrittenFilename {
 					localFilename = &rewrittenFilename

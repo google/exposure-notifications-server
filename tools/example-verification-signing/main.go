@@ -181,12 +181,16 @@ func main() {
 		// 3. Concatenate the two octet sequences in the order R and then S.
 		//	 	(Note that many ECDSA implementations will directly produce this
 		//	 	concatenation as their output.)
-		sig = append(rBytesPadded, sBytesPadded...)
+		sig = make([]byte, 0, len(rBytesPadded)+len(sBytesPadded))
+		sig = append(sig, rBytesPadded...)
+		sig = append(sig, sBytesPadded...)
 
 		// 4.  The resulting 64-octet sequence is the JWS Signature value.
 		response.VerificationCertificate = strings.Join([]string{signingString, jwt.EncodeSegment(sig)}, ".")
 		c.JSON(http.StatusOK, response)
 	})
 
-	router.Run()
+	if err := router.Run(); err != nil {
+		log.Fatal(err)
+	}
 }

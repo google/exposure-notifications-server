@@ -70,7 +70,7 @@ func (s *Server) handleSchedule() http.Handler {
 			return
 		}
 
-		client := &http.Client{
+		httpClient := &http.Client{
 			Timeout: s.config.IndexFileDownloadTimeout,
 		}
 
@@ -78,7 +78,13 @@ func (s *Server) handleSchedule() http.Handler {
 		for _, config := range configs {
 			logger.Infow("checking index file", "config", config)
 
-			resp, err := client.Get(config.IndexFile)
+			req, err := http.NewRequestWithContext(ctx, "GET", config.IndexFile, nil)
+			if err != nil {
+				logger.Errorw("failed to create request to download index file", "file", config.IndexFile, "error", err)
+				continue
+			}
+
+			resp, err := httpClient.Do(req)
 			if err != nil {
 				anyErrors = true
 				logger.Errorw("error downloading index file", "file", config.IndexFile, "error", err)
@@ -106,7 +112,7 @@ func (s *Server) handleSchedule() http.Handler {
 			status = http.StatusInternalServerError
 		}
 		w.WriteHeader(status)
-		w.Write([]byte(http.StatusText(status)))
+		fmt.Fprint(w, http.StatusText(status))
 	})
 }
 
