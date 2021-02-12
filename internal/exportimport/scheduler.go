@@ -47,7 +47,7 @@ func (s *Server) handleSchedule() http.Handler {
 		unlock, err := s.db.Lock(ctx, schedulerLockID, s.config.MaxRuntime)
 		if err != nil {
 			if errors.Is(err, database.ErrAlreadyLocked) {
-				w.WriteHeader(http.StatusOK)
+				w.WriteHeader(http.StatusOK) // don't report conflict/failure to scheduler (will retry later)
 				return
 			}
 			logger.Error("failed to lock", "error", err)

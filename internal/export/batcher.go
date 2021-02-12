@@ -51,7 +51,7 @@ func (s *Server) handleCreateBatches() http.Handler {
 			if errors.Is(err, database.ErrAlreadyLocked) {
 				stats.Record(ctx, mBatcherLockContention.M(1))
 				logger.Infow("already locked")
-				w.WriteHeader(http.StatusOK)
+				w.WriteHeader(http.StatusOK) // don't report conflict/failure to scheduler (will retry later)
 				return
 			}
 

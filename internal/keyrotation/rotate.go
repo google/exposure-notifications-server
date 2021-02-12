@@ -47,7 +47,7 @@ func (s *Server) handleRotateKeys() http.Handler {
 		if err != nil {
 			if errors.Is(err, database.ErrAlreadyLocked) {
 				logger.Debugw("already locked")
-				w.WriteHeader(http.StatusOK)
+				w.WriteHeader(http.StatusOK) // don't report conflict/failure to scheduler (will retry later)
 				return
 			}
 
