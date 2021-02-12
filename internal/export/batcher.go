@@ -51,7 +51,7 @@ func (s *Server) handleCreateBatches() http.Handler {
 			if errors.Is(err, database.ErrAlreadyLocked) {
 				stats.Record(ctx, mBatcherLockContention.M(1))
 				logger.Infow("already locked")
-				w.WriteHeader(200)
+				w.WriteHeader(http.StatusOK)
 				return
 			}
 
@@ -94,11 +94,11 @@ func (s *Server) handleCreateBatches() http.Handler {
 			switch {
 			case errors.Is(err, context.DeadlineExceeded):
 				logger.Infow("batch creation timed out")
-				w.WriteHeader(200)
+				w.WriteHeader(http.StatusOK)
 				return
 			case errors.Is(err, context.Canceled):
 				logger.Infow("batch creation canceled")
-				w.WriteHeader(200)
+				w.WriteHeader(http.StatusOK)
 				return
 			default:
 				logger.Errorw("failed to create batches", "error", err)
@@ -107,7 +107,7 @@ func (s *Server) handleCreateBatches() http.Handler {
 			}
 		}
 
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 	})
 }
 
