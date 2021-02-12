@@ -26,10 +26,12 @@ import (
 )
 
 // Compile-time check to assert this config matches requirements.
-var _ setup.DatabaseConfigProvider = (*Config)(nil)
-var _ setup.SecretManagerConfigProvider = (*Config)(nil)
-var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
-var _ model.TransformerConfig = (*Config)(nil)
+var (
+	_ setup.DatabaseConfigProvider              = (*Config)(nil)
+	_ setup.SecretManagerConfigProvider         = (*Config)(nil)
+	_ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
+	_ model.TransformerConfig                   = (*Config)(nil)
+)
 
 // Config represents the configuration and associated environment variables for
 // the publish components.

@@ -35,14 +35,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var (
-	// Used for padding only.
-	zeroTEK = pb.RevisableKey{
-		TemporaryExposureKey: make([]byte, 16),
-		IntervalCount:        0,
-		IntervalNumber:       0,
-	}
-)
+// Used for padding only.
+var zeroTEK = pb.RevisableKey{
+	TemporaryExposureKey: make([]byte, 16),
+	IntervalCount:        0,
+	IntervalNumber:       0,
+}
 
 // TokenManager is responsible for creating and unlocking revision tokens.
 type TokenManager struct {

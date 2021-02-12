@@ -141,7 +141,7 @@ func TestRetrieveMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	httpRequest, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
+	httpRequest, err := http.NewRequestWithContext(ctx, "POST", "", strings.NewReader(string(jsonString)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,7 +291,7 @@ func TestRetrieveMetrics_AuthErrors(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			httpRequest, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
+			httpRequest, err := http.NewRequestWithContext(ctx, "POST", "", strings.NewReader(string(jsonString)))
 			if err != nil {
 				t.Fatal(err)
 			}

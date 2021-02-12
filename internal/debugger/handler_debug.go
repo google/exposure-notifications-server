@@ -208,7 +208,11 @@ func cloudRunEnv(ctx context.Context, name string) (map[string]string, error) {
 	// Lookup service to get revision
 	serviceURL := fmt.Sprintf("https://%s-run.googleapis.com/apis/serving.knative.dev/v1/namespaces/%s/services/%s",
 		region, project, name)
-	serviceResp, err := client.Get(serviceURL)
+	serviceReq, err := http.NewRequestWithContext(ctx, "GET", serviceURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create service request: %w", err)
+	}
+	serviceResp, err := client.Do(serviceReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup service: %w", err)
 	}
@@ -227,7 +231,11 @@ func cloudRunEnv(ctx context.Context, name string) (map[string]string, error) {
 	// Lookup revision to get environment.
 	revisionURL := fmt.Sprintf("https://%s-run.googleapis.com/apis/serving.knative.dev/v1/namespaces/%s/revisions/%s",
 		region, project, s.Status.Revision)
-	revisionResp, err := client.Get(revisionURL)
+	revisionReq, err := http.NewRequestWithContext(ctx, "GET", revisionURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create revision request: %w", err)
+	}
+	revisionResp, err := client.Do(revisionReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup revision: %w", err)
 	}

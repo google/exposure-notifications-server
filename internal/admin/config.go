@@ -29,10 +29,12 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
-var _ setup.BlobstoreConfigProvider = (*Config)(nil)
-var _ setup.DatabaseConfigProvider = (*Config)(nil)
-var _ setup.KeyManagerConfigProvider = (*Config)(nil)
-var _ setup.SecretManagerConfigProvider = (*Config)(nil)
+var (
+	_ setup.BlobstoreConfigProvider     = (*Config)(nil)
+	_ setup.DatabaseConfigProvider      = (*Config)(nil)
+	_ setup.KeyManagerConfigProvider    = (*Config)(nil)
+	_ setup.SecretManagerConfigProvider = (*Config)(nil)
+)
 
 type Config struct {
 	Database      database.Config

@@ -172,7 +172,7 @@ func generatePadding(minPadding, paddingRange int64) (string, error) {
 	if minBytes <= 0 {
 		minBytes = 1024
 	}
-	padRange := int64(paddingRange)
+	padRange := paddingRange
 	if padRange <= 0 {
 		padRange = 1024
 	}

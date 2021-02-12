@@ -198,8 +198,8 @@ func (c *client) do(req *http.Request, out interface{}) (*http.Response, error) 
 
 	var errResp errorResponse
 	if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error() != "" {
-		return nil, fmt.Errorf("%s: error response from API: %s, body: %s",
-			errPrefix, errResp.Error(), body)
+		return nil, fmt.Errorf("%s: error response from API: %s, err: %w, body: %s",
+			errPrefix, errResp.Error(), err, body)
 	}
 
 	if err := json.Unmarshal(body, out); err != nil {

@@ -189,11 +189,12 @@ func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) err
 	}
 
 	// Get the keys for the health authority
-	if keys, err := haDB.GetHealthAuthorityKeys(ctx, ha); err != nil {
-		return fmt.Errorf("error getting keys: %v", err)
-	} else {
-		ha.Keys = keys
+	keys, err := haDB.GetHealthAuthorityKeys(ctx, ha)
+	if err != nil {
+		return fmt.Errorf("error getting keys: %w", err)
 	}
+
+	ha.Keys = keys
 
 	resp, err := mgr.getKeys(ctx, ha)
 	if err != nil {

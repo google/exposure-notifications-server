@@ -152,7 +152,7 @@ func TestAddImportFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var want []*model.ImportFile
+	want := make([]*model.ImportFile, 0, len(filenames))
 	for _, fname := range filenames {
 		want = append(want,
 			&model.ImportFile{

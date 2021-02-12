@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -102,7 +103,7 @@ func testGoogleCloudStorageObject(tb testing.TB, r io.Reader) string {
 
 	// Schedule cleanup.
 	tb.Cleanup(func() {
-		if err := client.Bucket(bucket).Object(name).Delete(ctx); err != nil && err != storage.ErrObjectNotExist {
+		if err := client.Bucket(bucket).Object(name).Delete(ctx); err != nil && !errors.Is(err, storage.ErrObjectNotExist) {
 			tb.Fatalf("failed cleaning up %s: %v", name, err)
 		}
 	})
@@ -227,7 +228,7 @@ func TestGoogleCloudStorage_DeleteObject(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if _, err := client.Bucket(tc.bucket).Object(tc.object).Attrs(ctx); err != storage.ErrObjectNotExist {
+			if _, err := client.Bucket(tc.bucket).Object(tc.object).Attrs(ctx); !errors.Is(err, storage.ErrObjectNotExist) {
 				t.Errorf("expected object %v to be deleted", tc.object)
 			}
 		})

@@ -72,11 +72,11 @@ func realMain() error {
 	}
 
 	var errors *multierror.Error
-	var results []*analysis
+	results := make([]*analysis, 0, len(matches))
 	for _, m := range matches {
 		result, err := analyzeOne(m, *showSig, *printJSON)
 		if err != nil {
-			errors = multierror.Append(errors, fmt.Errorf("%s: %s", m, err))
+			errors = multierror.Append(errors, fmt.Errorf("%s: %w", m, err))
 			continue
 		}
 		results = append(results, result)

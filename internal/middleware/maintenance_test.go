@@ -29,6 +29,8 @@ func (t *testConfig) MaintenanceMode() bool {
 }
 
 func TestHandle_Enabled(t *testing.T) {
+	t.Parallel()
+
 	responder := ProcessMaintenance(&testConfig{true})
 
 	r := &http.Request{}
@@ -46,6 +48,8 @@ func TestHandle_Enabled(t *testing.T) {
 }
 
 func TestHandle_Disabled(t *testing.T) {
+	t.Parallel()
+
 	responder := ProcessMaintenance(&testConfig{false})
 
 	r := &http.Request{}

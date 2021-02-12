@@ -51,7 +51,7 @@
           <option value="false" {{if not .export.IncludeTravelers}}selected{{end}}>No</option>
         </select>
         <small class="form-text text-muted">
-          Should federeated-in traveler keys be included in this export. If this
+          Should federated-in traveler keys be included in this export. If this
           server is sharing keys with anouther server, the recommended setting
           is 'yes'. Even if you are not yet federating, but may in the future,
           'yes' is still the recommended setting.
@@ -65,9 +65,8 @@
           <option value="false" {{if not .export.OnlyNonTravelers}}selected{{end}}>No</option>
         </select>
         <small class="form-text text-muted">
-		  Should only federeated-in non-traveler keys be included in this
-		  export. Note, setting this with 'Include Travelers' will result in an
-		  error.
+          Should only federated-in non-traveler keys be included in this export.
+          Note, setting this with 'Include Travelers' will result in an error.
         </small>
       </div>
 
@@ -77,7 +76,7 @@
         <label for="exclude-regions">Exclude regions</label>
         <small class="form-text text-muted">
           One per line, leave blank for only using the output region (above).
-		  Allows you to exclude travelers from certain regions.
+          Allows you to exclude travelers from certain regions.
         </small>
       </div>
 

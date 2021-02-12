@@ -92,8 +92,8 @@ func (s *Server) handleDoWork() http.Handler {
 			// In the export lease selection, we attempt to order export batch filling such that
 			// earlier batches are filled before later batches. This helps to reduce the possibility
 			// of non-overlapping generated data.
-			locks := make([]string, len(batch.EffectiveInputRegions()))
-			copy(locks, batch.EffectiveInputRegions())
+			locks := make([]string, 0, len(batch.EffectiveInputRegions())+1)
+			locks = append(locks, batch.EffectiveInputRegions()...)
 			if batch.IncludeTravelers {
 				locks = append(locks, travelerLockID)
 			}
@@ -313,7 +313,7 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 	// Create the export files.
 	batchSize := len(groups)
 	splitBatch := batchSize > 1
-	var objectNames []string
+	objectNames := make([]string, 0, len(groups))
 	for i, group := range groups {
 		if ctx.Err() != nil {
 			logger.Infof("Timed out writing export files for batch %s, the entire batch will be retried once the batch lease expires on %v", eb.BatchID, eb.LeaseExpires)
@@ -366,7 +366,7 @@ type createFileInfo struct {
 func (s *Server) createFile(ctx context.Context, cfi *createFileInfo) (string, error) {
 	logger := logging.FromContext(ctx)
 
-	var signers []*Signer
+	signers := make([]*Signer, 0, len(cfi.signatureInfos))
 	for _, si := range cfi.signatureInfos {
 		signer, err := s.env.GetSignerForKey(ctx, si.SigningKey)
 		if err != nil {
@@ -420,7 +420,7 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 
 		// Mark files that we've previously cared about as expired.
 		if err := s.markExpiredFiles(ctx, eb); err != nil {
-			return fmt.Errorf("marking expired: %v", err)
+			return fmt.Errorf("marking expired: %w", err)
 		}
 
 		indexName, entries, err := s.createIndex(ctx, eb, objectNames)

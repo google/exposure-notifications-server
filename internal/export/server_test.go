@@ -71,7 +71,11 @@ func TestNewServer(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			got, err := NewServer(&Config{}, tc.env)
 			if tc.err != nil {
 				if err.Error() != tc.err.Error() {

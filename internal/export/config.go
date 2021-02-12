@@ -27,11 +27,13 @@ import (
 )
 
 // Compile-time check to assert this config matches requirements.
-var _ setup.BlobstoreConfigProvider = (*Config)(nil)
-var _ setup.DatabaseConfigProvider = (*Config)(nil)
-var _ setup.KeyManagerConfigProvider = (*Config)(nil)
-var _ setup.SecretManagerConfigProvider = (*Config)(nil)
-var _ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
+var (
+	_ setup.BlobstoreConfigProvider             = (*Config)(nil)
+	_ setup.DatabaseConfigProvider              = (*Config)(nil)
+	_ setup.KeyManagerConfigProvider            = (*Config)(nil)
+	_ setup.SecretManagerConfigProvider         = (*Config)(nil)
+	_ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
+)
 
 // Config represents the configuration and associated environment variables for
 // the export components.

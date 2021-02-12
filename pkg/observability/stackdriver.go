@@ -64,14 +64,14 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 		},
 	}
 	exporter, err := stackdriver.NewExporter(options)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Stackdriver exporter: %w", err)
 	}
 	return &stackdriverExporter{
 		exporter: exporter,
 		config:   config,
-		options:  &options}, nil
+		options:  &options,
+	}, nil
 }
 
 func (e *stackdriverExporter) metricClient() (*monitoring.MetricClient, error) {

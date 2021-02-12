@@ -167,7 +167,7 @@ func RandomExposureKey(intervalNumber int32, intervalCount int32, transmissionRi
 	}
 	return v1.ExposureKey{
 		Key:              key,
-		IntervalNumber:   int32(intervalNumber),
+		IntervalNumber:   intervalNumber,
 		IntervalCount:    intervalCount,
 		TransmissionRisk: transmissionRisk,
 	}, nil

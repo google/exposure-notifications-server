@@ -97,6 +97,8 @@ func TestVerifyCertificate(t *testing.T) {
 	for iteration := 0; iteration < 2; iteration++ {
 		for version := 0; version <= 1; version++ {
 			for _, tc := range cases {
+				iteration := iteration
+				version := version
 				tc := tc
 
 				vname := "v1alpha1"

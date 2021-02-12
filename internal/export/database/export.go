@@ -26,6 +26,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/cryptorand"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	pgx "github.com/jackc/pgx/v4"
@@ -554,9 +555,11 @@ func (db *ExportDB) LeaseBatch(ctx context.Context, ttl time.Duration, batchMaxC
 	}
 
 	// Randomize openBatchIDs so that workers aren't competing for the same job.
-	openBatchIDs = shuffle(openBatchIDs)
+	shuffle(openBatchIDs)
 
 	for _, bid := range openBatchIDs {
+		bid := bid
+
 		// In a serialized transaction, fetch the existing batch and make sure it can be leased, then lease it.
 		leased := false
 		err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
@@ -639,7 +642,7 @@ func lookupExportBatch(ctx context.Context, batchID int64, queryRow queryRowFn) 
 	var expires *time.Time
 	eb := model.ExportBatch{}
 	if err := row.Scan(&eb.BatchID, &eb.ConfigID, &eb.BucketName, &eb.FilenameRoot, &eb.StartTimestamp, &eb.EndTimestamp, &eb.OutputRegion, &eb.Status, &expires, &eb.SignatureInfoIDs, &eb.InputRegions, &eb.IncludeTravelers, &eb.ExcludeRegions, &eb.OnlyNonTravelers, &eb.MaxRecordsOverride); err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, database.ErrNotFound
 		}
 		return nil, err
@@ -669,7 +672,7 @@ func (db *ExportDB) FinalizeBatch(ctx context.Context, eb *model.ExportBatch, fi
 				Status:           model.ExportBatchComplete,
 			}
 			if err := addExportFile(ctx, tx, &ef); err != nil {
-				if err == database.ErrKeyConflict {
+				if errors.Is(err, database.ErrKeyConflict) {
 					logging.FromContext(ctx).Infof("ExportFile %q already exists in database, skipping without overwriting. This can occur when reprocessing a failed batch.", file)
 				} else {
 					return fmt.Errorf("adding export file entry: %w", err)
@@ -855,6 +858,8 @@ func (db *ExportDB) DeleteFilesBefore(ctx context.Context, before time.Time, blo
 	batchFileDeleteCounter := make(map[int64]int)
 
 	for _, f := range files {
+		f := f
+
 		// If file is already deleted, skip to the next.
 		if f.fileStatus == model.ExportBatchDeleted {
 			batchFileDeleteCounter[f.batchID]++
@@ -970,12 +975,11 @@ func completeBatch(ctx context.Context, tx pgx.Tx, batchID int64) error {
 	return nil
 }
 
-func shuffle(vals []int64) []int64 {
-	r := rand.New(rand.NewSource(time.Now().Unix()))
-	ret := make([]int64, len(vals))
-	perm := r.Perm(len(vals))
-	for i, randIndex := range perm {
-		ret[i] = vals[randIndex]
-	}
-	return ret
+// shuffle shuffles the values in vals in-place.
+func shuffle(vals []int64) {
+	//nolint:gosec // cryptorand.NewSource is a random source
+	r := rand.New(cryptorand.NewSource())
+	r.Shuffle(len(vals), func(i, j int) {
+		vals[i], vals[j] = vals[j], vals[i]
+	})
 }

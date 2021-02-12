@@ -41,12 +41,12 @@ type Server struct {
 
 // NewServer creates a Server that manages deletion of
 // old export files that are no longer needed by clients for download.
-func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
+func NewServer(cfg *Config, env *serverenv.ServerEnv) (*Server, error) {
 	if env.Database() == nil {
 		return nil, fmt.Errorf("missing database in server environment")
 	}
 
-	if rt := config.BackfillReportType; !(rt == "" || rt == verifyapi.ReportTypeConfirmed || rt == verifyapi.ReportTypeClinical) {
+	if rt := cfg.BackfillReportType; !(rt == "" || rt == verifyapi.ReportTypeConfirmed || rt == verifyapi.ReportTypeClinical) {
 		return nil, fmt.Errorf("BACKFILL_REPORT_TYPE value is invalid, must be %q, %q, or %q", "", verifyapi.ReportTypeConfirmed, verifyapi.ReportTypeClinical)
 	}
 
@@ -55,7 +55,7 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	publishDB := pubdb.New(db)
 
 	return &Server{
-		config:         config,
+		config:         cfg,
 		env:            env,
 		db:             db,
 		exportImportDB: exportImportDB,

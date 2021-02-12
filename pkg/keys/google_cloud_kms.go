@@ -19,6 +19,7 @@ package keys
 import (
 	"context"
 	"crypto"
+	"errors"
 	"fmt"
 	"time"
 
@@ -36,8 +37,10 @@ func init() {
 }
 
 // Compile-time check to verify implements interface.
-var _ KeyManager = (*GoogleCloudKMS)(nil)
-var _ SigningKeyManager = (*GoogleCloudKMS)(nil)
+var (
+	_ KeyManager        = (*GoogleCloudKMS)(nil)
+	_ SigningKeyManager = (*GoogleCloudKMS)(nil)
+)
 
 // GoogleCloudKMS implements the keys.KeyManager interface and can be used to sign
 // export files.
@@ -135,7 +138,7 @@ func (kms *GoogleCloudKMS) SigningKeyVersions(ctx context.Context, parent string
 	})
 	for {
 		resp, err := it.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
 		}
 		if err != nil {

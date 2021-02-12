@@ -17,6 +17,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
@@ -24,12 +25,14 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/util"
+	"github.com/sethvargo/go-signalcontext"
 )
 
 var (
@@ -41,14 +44,29 @@ var (
 )
 
 func main() {
-	if err := realMain(); err != nil {
-		fmt.Printf("failed to create exposures: %v\n", err)
-		os.Exit(1)
+	ctx, done := signalcontext.OnInterrupt()
+
+	logger := logging.NewLoggerFromEnv().
+		With("build_id", buildinfo.BuildID).
+		With("build_tag", buildinfo.BuildTag)
+	ctx = logging.WithLogger(ctx, logger)
+
+	defer func() {
+		done()
+		if r := recover(); r != nil {
+			logger.Fatalw("application panic", "panic", r)
+		}
+	}()
+
+	err := realMain(ctx)
+	done()
+
+	if err != nil {
+		logger.Fatal(err)
 	}
-	fmt.Printf("success!\n")
 }
 
-func realMain() error {
+func realMain(ctx context.Context) error {
 	flag.Parse()
 
 	exposureKeys := util.GenerateExposureKeys(*numKeys, *transmissionRiskFlag, false)
@@ -75,13 +93,13 @@ func realMain() error {
 	}
 	fmt.Printf("generated json: \n%s\n", body)
 
-	if _, err := sendRequest(bytes.NewReader(body)); err != nil {
+	if _, err := sendRequest(ctx, bytes.NewReader(body)); err != nil {
 		return fmt.Errorf("failed to send first request: %w", err)
 	}
 
 	if *twice {
 		time.Sleep(1 * time.Second)
-		if _, err := sendRequest(bytes.NewReader(body)); err != nil {
+		if _, err := sendRequest(ctx, bytes.NewReader(body)); err != nil {
 			return fmt.Errorf("failed to send second request: %w", err)
 		}
 	}
@@ -89,9 +107,9 @@ func realMain() error {
 	return nil
 }
 
-func sendRequest(data io.Reader) ([]byte, error) {
+func sendRequest(ctx context.Context, data io.Reader) ([]byte, error) {
 	url := strings.ReplaceAll(*host+"/v1/publish", "//v1", "/v1")
-	req, err := http.NewRequest("POST", url, data)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build request: %w", err)
 	}

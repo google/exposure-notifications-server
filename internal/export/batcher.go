@@ -128,7 +128,7 @@ func (s *Server) maybeCreateBatches(ctx context.Context, ec *model.ExportConfig,
 		return 0, nil
 	}
 
-	var batches []*model.ExportBatch
+	batches := make([]*model.ExportBatch, 0, len(ranges))
 	for _, br := range ranges {
 		infoIds := make([]int64, len(ec.SignatureInfoIDs))
 		copy(infoIds, ec.SignatureInfoIDs)

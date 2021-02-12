@@ -109,7 +109,7 @@ func (r *secretResolver) resolve(ctx context.Context, envName, secretRef string)
 
 		secretFileName := r.filenameForSecret(envName + "." + secretRef)
 		secretFilePath := filepath.Join(r.dir, secretFileName)
-		if err := ioutil.WriteFile(secretFilePath, []byte(secretVal), 0600); err != nil {
+		if err := ioutil.WriteFile(secretFilePath, []byte(secretVal), 0o600); err != nil {
 			return "", fmt.Errorf("failed to write secret file for %q: %w", envName, err)
 		}
 
@@ -121,7 +121,7 @@ func (r *secretResolver) resolve(ctx context.Context, envName, secretRef string)
 
 // filenameForSecret returns the sha1 of the secret name.
 func (r *secretResolver) filenameForSecret(name string) string {
-	return fmt.Sprintf("%x", sha1.Sum([]byte(name)))
+	return fmt.Sprintf("%x", sha1.Sum([]byte(name))) //nolint:gosec
 }
 
 // ensureSecureDir creates the parent secretsDir with minimal permissions. If
@@ -133,11 +133,11 @@ func (r *secretResolver) ensureSecureDir() error {
 		return fmt.Errorf("failed to check if secure directory %q exists: %w", r.dir, err)
 	}
 	if os.IsNotExist(err) {
-		if err := os.MkdirAll(r.dir, 0700); err != nil {
+		if err := os.MkdirAll(r.dir, 0o700); err != nil {
 			return fmt.Errorf("failed to create secure directory %q: %w", r.dir, err)
 		}
 	} else {
-		if stat.Mode().Perm() != os.FileMode(0700) {
+		if stat.Mode().Perm() != os.FileMode(0o700) {
 			return fmt.Errorf("secure directory %q exists and is not restricted %v", r.dir, stat.Mode())
 		}
 	}

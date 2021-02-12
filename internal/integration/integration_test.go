@@ -156,7 +156,7 @@ func TestEndToEnd(t *testing.T) {
 
 			// Try to marshal the result as JSON to verify its API compatible
 			if _, err := json.Marshal(key); err != nil {
-				return fmt.Errorf("failed to marshal as json: %v", err)
+				return fmt.Errorf("failed to marshal as json: %w", err)
 			}
 
 			if got, want := *key.BatchSize, int32(1); got != want {

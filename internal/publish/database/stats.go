@@ -37,7 +37,7 @@ func (db *PublishDB) DeleteStatsBefore(ctx context.Context, before time.Time) (i
 				hour < $1
 			`, before)
 		if err != nil {
-			return fmt.Errorf("deleting exposures: %v", err)
+			return fmt.Errorf("deleting exposures: %w", err)
 		}
 		count = result.RowsAffected()
 		return nil
@@ -90,7 +90,7 @@ func (db *PublishDB) ReadStats(ctx context.Context, healthAuthorityID int64) ([]
 	return results, nil
 }
 
-func scanOneHealthAuthorityStats(rows pgx.Rows, stats *model.HealthAuthorityStats) error {
+func scanOneHealthAuthorityStats(rows pgx.Row, stats *model.HealthAuthorityStats) error {
 	return rows.Scan(
 		&stats.HealthAuthorityID, &stats.Hour, &stats.PublishCount, &stats.TEKCount,
 		&stats.RevisionCount, &stats.OldestTekDays, &stats.OnsetAgeDays, &stats.MissingOnset)

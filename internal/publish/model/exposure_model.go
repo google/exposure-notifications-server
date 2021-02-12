@@ -143,9 +143,8 @@ func FromExportKey(key *export.TemporaryExposureKey, config *ExportImportConfig)
 		return nil, fmt.Errorf("saw likely key when not allowed")
 	}
 
-	//lint:ignore SA1019 may be set on v1 files.
+	//nolint:staticcheck // SA1019: may be set on v1 files.
 	if key.TransmissionRiskLevel != nil {
-		//lint:ignore SA1019 may be set on v1 files.
 		if tr := *key.TransmissionRiskLevel; tr < verifyapi.MinTransmissionRisk {
 			return nil, fmt.Errorf("transmission risk too low: %d, must be >= %d", tr, verifyapi.MinTransmissionRisk)
 		} else if tr > verifyapi.MaxTransmissionRisk {

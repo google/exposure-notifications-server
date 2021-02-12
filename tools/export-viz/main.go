@@ -29,9 +29,7 @@ import (
 	exportpb "github.com/google/exposure-notifications-server/internal/pb/export"
 )
 
-var (
-	filePath = flag.String("file", "", "path to the export file")
-)
+var filePath = flag.String("file", "", "path to the export file")
 
 // Example usage - requires graphviz
 //
@@ -137,7 +135,7 @@ func sameReportType(a, b *exportpb.TemporaryExposureKey) bool {
 }
 
 func sameTransmissionRisk(a, b *exportpb.TemporaryExposureKey) bool {
-	//lint:ignore SA1019 may be set on v1 files.
+	//nolint:staticcheck // may be set on v1 files.
 	return a.GetTransmissionRiskLevel() == b.GetTransmissionRiskLevel()
 }
 
