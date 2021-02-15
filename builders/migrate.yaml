@@ -33,6 +33,7 @@ steps:
 - id: 'migrate'
   name: 'gcr.io/${PROJECT_ID}/${_REPO}/migrate:${_TAG}'
   env:
+  - 'BLOBSTORE=GOOGLE_CLOUD_STORAGE'
   - 'DB_CONN=${_DB_CONN}'
   - 'DB_HOST=${_DB_HOST}'
   - 'DB_NAME=${_DB_NAME}'
@@ -40,6 +41,8 @@ steps:
   - 'DB_PORT=${_DB_PORT}'
   - 'DB_SSLMODE=${_DB_SSLMODE}'
   - 'DB_USER=${_DB_USER}'
+  - 'KEY_MANAGER=GOOGLE_CLOUD_KMS'
+  - 'SECRET_MANAGER=GOOGLE_SECRET_MANAGER'
   args:
   - '/migrate'
   - '-path=/migrations'
