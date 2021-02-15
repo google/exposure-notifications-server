@@ -127,10 +127,14 @@ resource "google_cloud_run_service" "export-importer" {
       metadata[0].annotations["run.googleapis.com/client-name"],
       metadata[0].annotations["run.googleapis.com/client-version"],
       metadata[0].annotations["run.googleapis.com/ingress-status"],
+      metadata[0].annotations["serving.knative.dev/creator"],
+      metadata[0].annotations["serving.knative.dev/lastModifier"],
       metadata[0].labels["cloud.googleapis.com/location"],
       template[0].metadata[0].annotations["client.knative.dev/user-image"],
       template[0].metadata[0].annotations["run.googleapis.com/client-name"],
       template[0].metadata[0].annotations["run.googleapis.com/client-version"],
+      template[0].metadata[0].annotations["serving.knative.dev/creator"],
+      template[0].metadata[0].annotations["serving.knative.dev/lastModifier"],
       template[0].spec[0].containers[0].image,
     ]
   }
