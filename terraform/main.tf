@@ -155,6 +155,12 @@ locals {
     DB_SSLMODE        = "verify-ca"
     DB_SSLROOTCERT    = "secret://${google_secret_manager_secret_version.db-secret-version["sslrootcert"].id}?target=file"
     DB_USER           = google_sql_user.user.name
+
+    # Use Google-managed services by default (can be overridden on a per-service
+    # basis as needed).
+    BLOBSTORE      = "GOOGLE_CLOUD_STORAGE"
+    KEY_MANAGER    = "GOOGLE_CLOUD_KMS"
+    SECRET_MANAGER = "GOOGLE_SECRET_MANAGER"
   }
 }
 
