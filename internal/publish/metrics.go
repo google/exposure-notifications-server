@@ -25,6 +25,8 @@ import (
 var (
 	publishMetricsPrefix = metrics.MetricRoot + "publish/"
 
+	mLatencyMs = stats.Int64(publishMetricsPrefix+"requests", "publish requests", stats.UnitMilliseconds)
+
 	mHealthAuthorityNotAuthorized = stats.Int64(publishMetricsPrefix+"pha_not_authorized",
 		"Public health authority authorized failures", stats.UnitDimensionless)
 	mErrorLoadingAuthorizedApp = stats.Int64(publishMetricsPrefix+"error_loading_app",
@@ -57,6 +59,12 @@ var (
 
 func init() {
 	observability.CollectViews([]*view.View{
+		{
+			Name:        metrics.MetricRoot + "requests_count",
+			Description: "Total count of publish requests",
+			Measure:     mRequestCount,
+			Aggregation: view.Sum(),
+		},
 		{
 			Name:        metrics.MetricRoot + "pha_not_authorized_count",
 			Description: "Total count of authorization failures for the Public Health Authority",
