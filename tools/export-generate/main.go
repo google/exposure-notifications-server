@@ -211,7 +211,7 @@ func (e *exportFileWriter) writeFile() {
 	}
 	fileName := fmt.Sprintf(e.exportBatch.FilenameRoot+"%d-records-%d-of-%d"+filenameSuffix, e.totalKeys, e.curBatch, e.numBatches)
 	log.Printf("Creating %v", fileName)
-	err = ioutil.WriteFile(fileName, data, 0666)
+	err = ioutil.WriteFile(fileName, data, 0o600)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -68,9 +68,7 @@ const (
 
 // Publish represents the body of the PublishInfectedIds API call.
 // temporaryExposureKeys: Required and must have length >= 1 and <= 21 (`maxKeysPerPublish`)
-// healthAuthorityID: The identifier for the mobile application.
-//  - Android: The App Package AppPackageName
-//  - iOS: The BundleID
+// healthAuthorityID: assigned by the server operator
 // verificationPayload: The Verification Certificate from a verification server.
 // hmacKey: the device generated secret that is used to recalculate the HMAC value
 //  that is present in the verification payload.
@@ -84,12 +82,12 @@ const (
 //    key uploads)
 //
 // traveler - set to true if the TEKs in this publish set are consider to be the
-//  keys of a "traveler" who has left the home region represented by this server
-//  (or by the home health authority in case of a multi-tenant installation).
+// keys of a "traveler" who has left the home region represented by this server
+// (or by the home health authority in case of a multi-tenant installation).
 //
 // revisionToken: An opaque string that must be passed intact on additional
-//   publish requests from the same device, where the same TEKs may be published
-//   again.
+// publish requests from the same device, where the same TEKs may be published
+// again.
 //
 // Padding: random base64 encoded data to obscure the request size. The server will
 // not process this data in any way. The recommendation is that padding be

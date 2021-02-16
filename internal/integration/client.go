@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,127 +12,199 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build integration google all
-
-// Package integration contains EN Server integration tests.
+// Package integration defines the integration test.
 package integration
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"strings"
+	"time"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 )
 
-// Client provides Exposure Notifications API client to support
-// integration testing.
-type Client struct {
-	client *http.Client
+// client provides an API client.
+type client struct {
+	baseURL    *url.URL
+	httpClient *http.Client
 }
 
-func (c *Client) PublishKeys(payload *verifyapi.Publish) (*verifyapi.PublishResponse, error) {
-	j, err := json.Marshal(payload)
+// newClient creates a new HTTP client with the given base URL.
+func newClient(base string) (*client, error) {
+	u, err := url.Parse(base)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal json: %w", err)
+		return nil, err
 	}
 
-	resp, err := c.client.Post("/publish/v1/publish", "application/json", bytes.NewReader(j))
-	if err != nil {
-		return nil, fmt.Errorf("failed to POST /publish: %w", err)
+	client := &client{
+		httpClient: &http.Client{
+			Timeout: 5 * time.Second,
+		},
+		baseURL: u,
 	}
 
-	body, err := checkResp(resp)
-	if err != nil {
-		return nil, fmt.Errorf("failed to POST /publish: %w: %s", err, body)
-	}
-
-	var pubResponse verifyapi.PublishResponse
-	if err := json.Unmarshal(body, &pubResponse); err != nil {
-		return nil, fmt.Errorf("bad publish response")
-	}
-
-	return &pubResponse, nil
+	return client, nil
 }
 
-func (c *Client) CleanupExposures() error {
-	resp, err := c.client.Get("/cleanup-exposure")
+// CleanupExport triggers the cleanup worker.
+func (c *client) CleanupExport(ctx context.Context) error {
+	req, err := c.newRequest(ctx, "GET", "/cleanup-export", nil)
 	if err != nil {
-		return fmt.Errorf("failed to GET /cleanup-exposure: %w", err)
+		return err
 	}
 
-	body, err := checkResp(resp)
-	if err != nil {
-		return fmt.Errorf("failed to GET /cleanup-exposure: %w: %s", err, body)
+	if err := c.doOK(req, nil); err != nil {
+		return err
 	}
 	return nil
 }
 
-func (c *Client) CleanupExports() error {
-	resp, err := c.client.Get("/cleanup-export")
+// CleanupExposure triggers the cleanup worker.
+func (c *client) CleanupExposure(ctx context.Context) error {
+	req, err := c.newRequest(ctx, "GET", "/cleanup-exposure", nil)
 	if err != nil {
-		return fmt.Errorf("failed to GET /cleanup-export: %w", err)
+		return err
 	}
 
-	body, err := checkResp(resp)
-	if err != nil {
-		return fmt.Errorf("failed to GET /cleanup-export: %w: %s", err, body)
+	if err := c.doOK(req, nil); err != nil {
+		return err
 	}
 	return nil
 }
 
-func (c *Client) ExportBatches() error {
-	resp, err := c.client.Get("/export/create-batches")
+// ExportCreateBatches triggers the batch creation.
+func (c *client) ExportCreateBatches(ctx context.Context) error {
+	req, err := c.newRequest(ctx, "POST", "/export/create-batches", nil)
 	if err != nil {
-		return fmt.Errorf("failed to GET /export/create-batches: %w", err)
+		return err
 	}
 
-	body, err := checkResp(resp)
-	if err != nil {
-		return fmt.Errorf("failed to GET /export/create-batches: %w: %s", err, body)
+	if err := c.doOK(req, nil); err != nil {
+		return err
 	}
 	return nil
 }
 
-func (c *Client) RotateKeys() error {
-	resp, err := c.client.Get("/key-rotation/rotate-keys")
+// ExportDoWork triggers export creation.
+func (c *client) ExportDoWork(ctx context.Context) error {
+	req, err := c.newRequest(ctx, "POST", "/export/do-work", nil)
 	if err != nil {
-		return fmt.Errorf("failed to GET /key-rotation/rotate-keys: %w", err)
+		return err
 	}
 
-	body, err := checkResp(resp)
-	if err != nil {
-		return fmt.Errorf("failed to GET /key-rotation/rotate-keys: %w: %s", err, body)
+	if err := c.doOK(req, nil); err != nil {
+		return err
 	}
 	return nil
 }
 
-func (c *Client) StartExportWorkers() error {
-	resp, err := c.client.Get("/export/do-work")
+// Publish publishes keys.
+func (c *client) Publish(ctx context.Context, payload *verifyapi.Publish) (*verifyapi.PublishResponse, error) {
+	req, err := c.newRequest(ctx, "POST", "/publish/v1/publish", payload)
 	if err != nil {
-		return fmt.Errorf("failed to GET /export/do-work: %w", err)
+		return nil, err
 	}
 
-	body, err := checkResp(resp)
+	var out verifyapi.PublishResponse
+	if err := c.doOK(req, &out); err != nil {
+		return &out, err
+	}
+	return &out, nil
+}
+
+// newRequest creates a new request with the given method, path (relative to the
+// baseURL), and optional body. If the body is given, it's encoded as json.
+func (c *client) newRequest(ctx context.Context, method, pth string, body interface{}) (*http.Request, error) {
+	pth = strings.TrimPrefix(pth, "/")
+	u := c.baseURL.ResolveReference(&url.URL{Path: pth})
+
+	var b bytes.Buffer
+	if body != nil {
+		if err := json.NewEncoder(&b).Encode(body); err != nil {
+			return nil, fmt.Errorf("failed to encode JSON: %w", err)
+		}
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), &b)
 	if err != nil {
-		return fmt.Errorf("failed to GET /export/do-work: %w: %s", err, body)
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	return req, nil
+}
+
+// doOK is like do, but expects a 200 response.
+func (c *client) doOK(req *http.Request, out interface{}) error {
+	resp, err := c.do(req, out)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode > 299 {
+		return fmt.Errorf("expected 200 response, got %d", resp.StatusCode)
 	}
 	return nil
 }
 
-func checkResp(r *http.Response) ([]byte, error) {
-	defer r.Body.Close()
+// errorResponse is used to extract an error from the response, if it exists.
+// This is a fallback for when all else fails.
+type errorResponse struct {
+	Error1 string `json:"error"`
+	Error2 string `json:"Error"`
+}
 
-	body, err := ioutil.ReadAll(r.Body)
+// Error returns the error string, if any.
+func (e *errorResponse) Error() string {
+	if e.Error1 != "" {
+		return e.Error1
+	}
+	return e.Error2
+}
+
+// do executes the request and decodes the result into out. It returns the http
+// response. It does NOT do error checking on the response code.
+func (c *client) do(req *http.Request, out interface{}) (*http.Response, error) {
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if out == nil {
+		return resp, nil
 	}
 
-	if r.StatusCode != 200 {
-		return nil, fmt.Errorf("response was not 200 OK: %s", body)
+	errPrefix := fmt.Sprintf("%s %s - %d", strings.ToUpper(req.Method), req.URL.String(), resp.StatusCode)
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to read body: %w", errPrefix, err)
 	}
 
-	return body, nil
+	ct := resp.Header.Get("Content-Type")
+	if !strings.HasPrefix(ct, "application/json") {
+		return nil, fmt.Errorf("%s: response content-type is not application/json (got %s): body: %s",
+			errPrefix, ct, body)
+	}
+
+	var errResp errorResponse
+	if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error() != "" {
+		return nil, fmt.Errorf("%s: error response from API: %s, err: %w, body: %s",
+			errPrefix, errResp.Error(), err, body)
+	}
+
+	if err := json.Unmarshal(body, out); err != nil {
+		return nil, fmt.Errorf("%s: failed to decode JSON response: %w: body: %s",
+			errPrefix, err, body)
+	}
+	return resp, nil
 }

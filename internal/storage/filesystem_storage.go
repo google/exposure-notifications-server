@@ -45,7 +45,7 @@ func NewFilesystemStorage(ctx context.Context, _ *Config) (Blobstore, error) {
 // contentType is ignored for this storage implementation.
 func (s *FilesystemStorage) CreateObject(ctx context.Context, folder, filename string, contents []byte, cacheable bool, contentType string) error {
 	pth := filepath.Join(folder, filename)
-	if err := ioutil.WriteFile(pth, contents, 0644); err != nil {
+	if err := ioutil.WriteFile(pth, contents, 0o600); err != nil {
 		return fmt.Errorf("failed to create object: %w", err)
 	}
 	return nil

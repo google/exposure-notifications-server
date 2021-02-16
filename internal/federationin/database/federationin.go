@@ -17,6 +17,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -81,7 +82,7 @@ func getFederationInQuery(ctx context.Context, queryID string, queryRow queryRow
 	if err := row.Scan(&q.QueryID, &q.ServerAddr, &q.Audience, &q.IncludeRegions, &q.ExcludeRegions,
 		&q.OnlyLocalProvenance, &q.OnlyTravelers,
 		&lastTimestamp, &lastCursor, &revisedTimestamp, &revisedCursor); err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, database.ErrNotFound
 		}
 		return nil, fmt.Errorf("scanning results: %w", err)
@@ -155,7 +156,7 @@ func getFederationInSync(ctx context.Context, syncID int64, queryRowContext quer
 		insertions                 *int
 	)
 	if err := row.Scan(&s.SyncID, &s.QueryID, &s.Started, &completed, &insertions, &max, &maxRevised); err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, database.ErrNotFound
 		}
 		return nil, fmt.Errorf("scanning results: %w", err)

@@ -105,7 +105,11 @@ func TestMakeBatchRanges(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			nowT := fromSimpleTime(t, now)
 			latestEndT := fromSimpleTime(t, tc.latestEnd)
 
@@ -154,7 +158,7 @@ func toSimpleTime(t *testing.T, tm time.Time) string {
 
 func toSimpleBatchRange(t *testing.T, batches []batchRange) []simpleBatchRange {
 	t.Helper()
-	var simple []simpleBatchRange
+	simple := make([]simpleBatchRange, 0, len(batches))
 	for _, br := range batches {
 		simple = append(simple, simpleBatchRange{start: toSimpleTime(t, br.start), end: toSimpleTime(t, br.end)})
 	}

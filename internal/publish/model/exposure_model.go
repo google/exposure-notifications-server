@@ -143,9 +143,8 @@ func FromExportKey(key *export.TemporaryExposureKey, config *ExportImportConfig)
 		return nil, fmt.Errorf("saw likely key when not allowed")
 	}
 
-	//lint:ignore SA1019 may be set on v1 files.
+	//nolint:staticcheck // SA1019: may be set on v1 files.
 	if key.TransmissionRiskLevel != nil {
-		//lint:ignore SA1019 may be set on v1 files.
 		if tr := *key.TransmissionRiskLevel; tr < verifyapi.MinTransmissionRisk {
 			return nil, fmt.Errorf("transmission risk too low: %d, must be >= %d", tr, verifyapi.MinTransmissionRisk)
 		} else if tr > verifyapi.MaxTransmissionRisk {
@@ -570,12 +569,12 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 	if len(inData.Keys) == 0 {
 		msg := "no exposure keys in publish request"
 		logger.Debugf(msg)
-		return nil, fmt.Errorf(msg)
+		return &TransformPublishResult{}, fmt.Errorf(msg)
 	}
 	if len(inData.Keys) > t.maxExposureKeys {
 		msg := fmt.Sprintf("too many exposure keys in publish: %v, max of %v is allowed", len(inData.Keys), t.maxExposureKeys)
 		logger.Debugf(msg)
-		return nil, fmt.Errorf(msg)
+		return &TransformPublishResult{}, fmt.Errorf(msg)
 	}
 
 	defaultCreatedAt := TruncateWindow(batchTime, t.truncateWindow)

@@ -37,8 +37,10 @@ type SecretManager interface {
 type SecretManagerFunc func(context.Context, *Config) (SecretManager, error)
 
 // managers is the list of registered secret managers.
-var managers = make(map[string]SecretManagerFunc)
-var managersLock sync.RWMutex
+var (
+	managers     = make(map[string]SecretManagerFunc)
+	managersLock sync.RWMutex
+)
 
 // RegisterManager registers a new secret manager with the given name. If a
 // manager is already registered with the given name, it panics. Managers are

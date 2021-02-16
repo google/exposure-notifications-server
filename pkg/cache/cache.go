@@ -106,7 +106,6 @@ func (c *Cache) WriteThruLookup(name string, primaryLookup Func) (interface{}, e
 		expiresAt: time.Now().Add(c.expireAfter).UnixNano(),
 	}
 	return newData, nil
-
 }
 
 // Lookup checks the cache for a non-expired object by the supplied key name.

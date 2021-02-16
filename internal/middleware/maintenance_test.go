@@ -29,6 +29,8 @@ func (t *testConfig) MaintenanceMode() bool {
 }
 
 func TestHandle_Enabled(t *testing.T) {
+	t.Parallel()
+
 	responder := ProcessMaintenance(&testConfig{true})
 
 	r := &http.Request{}
@@ -46,18 +48,20 @@ func TestHandle_Enabled(t *testing.T) {
 }
 
 func TestHandle_Disabled(t *testing.T) {
+	t.Parallel()
+
 	responder := ProcessMaintenance(&testConfig{false})
 
 	r := &http.Request{}
 	w := httptest.NewRecorder()
 
 	responder(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 	})).ServeHTTP(w, r)
 
 	w.Flush()
 
-	if got, want := w.Code, 200; got != want {
+	if got, want := w.Code, http.StatusOK; got != want {
 		t.Errorf("expected %d to be %d", got, want)
 	}
 }

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"contrib.go.opencensus.io/integrations/ocsql"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats"
@@ -202,12 +203,16 @@ func WithBuildInfo(ctx context.Context, info BuildInfo) context.Context {
 //   // remaining of the function body.
 // }
 func RecordLatency(ctx context.Context, start time.Time, m *stats.Float64Measure, mutators ...*tag.Mutator) {
-	var additionalMutators []tag.Mutator
+	additionalMutators := make([]tag.Mutator, 0, len(mutators))
 	for _, t := range mutators {
 		additionalMutators = append(additionalMutators, *t)
 	}
+
 	// Calculate the millisecond number as float64. time.Duration.Millisecond()
 	// returns an integer.
 	latency := float64(time.Since(start)) / float64(time.Millisecond)
-	stats.RecordWithTags(ctx, additionalMutators, m.M(latency))
+	if err := stats.RecordWithTags(ctx, additionalMutators, m.M(latency)); err != nil {
+		logging.FromContext(ctx).Named("observability").
+			Errorw("failed to record latency", "error", err)
+	}
 }

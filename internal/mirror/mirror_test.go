@@ -283,7 +283,7 @@ func TestServer_DownloadIndex(t *testing.T) {
 		}))
 		t.Cleanup(ts.Close)
 
-		_, err = s.downloadIndex(&mirrormodel.Mirror{
+		_, err = s.downloadIndex(ctx, &mirrormodel.Mirror{
 			IndexFile: ts.URL,
 		})
 
@@ -308,11 +308,11 @@ func TestServer_DownloadIndex(t *testing.T) {
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}))
 		t.Cleanup(ts.Close)
 
-		_, err = s.downloadIndex(&mirrormodel.Mirror{
+		_, err = s.downloadIndex(ctx, &mirrormodel.Mirror{
 			IndexFile: ts.URL,
 		})
 		if err == nil {
@@ -340,7 +340,7 @@ func TestServer_DownloadIndex(t *testing.T) {
 		}))
 		t.Cleanup(ts.Close)
 
-		_, err = s.downloadIndex(&mirrormodel.Mirror{
+		_, err = s.downloadIndex(ctx, &mirrormodel.Mirror{
 			IndexFile: ts.URL,
 		})
 		if got, want := err.Error(), "response exceeds 1 bytes"; !strings.Contains(got, want) {
@@ -361,7 +361,7 @@ func TestServer_DownloadIndex(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 		t.Cleanup(ts.Close)
 
-		results, err := s.downloadIndex(&mirrormodel.Mirror{
+		results, err := s.downloadIndex(ctx, &mirrormodel.Mirror{
 			IndexFile: ts.URL,
 		})
 		if err != nil {
@@ -386,7 +386,7 @@ func TestServer_DownloadIndex(t *testing.T) {
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			now := int(time.Now().UTC().Second())
+			now := time.Now().UTC().Second()
 
 			for i := 1; i <= 50; i++ {
 				for j := 1; j <= 5; j++ {
@@ -396,7 +396,7 @@ func TestServer_DownloadIndex(t *testing.T) {
 		}))
 		t.Cleanup(ts.Close)
 
-		results, err := s.downloadIndex(&mirrormodel.Mirror{
+		results, err := s.downloadIndex(ctx, &mirrormodel.Mirror{
 			IndexFile: ts.URL,
 		})
 		if err != nil {
@@ -430,7 +430,7 @@ func TestServer_DownloadIndex(t *testing.T) {
 			"https://example.com/path",
 			"https://example.com/path/",
 		} {
-			results, err := s.downloadIndex(&mirrormodel.Mirror{
+			results, err := s.downloadIndex(ctx, &mirrormodel.Mirror{
 				IndexFile:  ts.URL,
 				ExportRoot: root,
 			})

@@ -356,7 +356,8 @@ func TestPublishValidation(t *testing.T) {
 				maxIntervalStartAge: maxAge,
 				truncateWindow:      time.Hour,
 				maxSymptomOnsetDays: maxSymptomOnsetDays,
-				debugReleaseSameDay: c.sameDay})
+				debugReleaseSameDay: c.sameDay,
+			})
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -435,8 +436,8 @@ func TestStillValidKey(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-
 		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -846,7 +847,7 @@ func TestTransform(t *testing.T) {
 					},
 				},
 				HealthAuthorityID:    appPackage,
-				SymptomOnsetInterval: int32(intervalNumber + +verifyapi.MaxIntervalCount),
+				SymptomOnsetInterval: intervalNumber + +verifyapi.MaxIntervalCount,
 			},
 			Regions: wantRegions,
 			Claims: &verification.VerifiedClaims{
@@ -1373,7 +1374,9 @@ func TestExposureRevisionFields(t *testing.T) {
 	if e.HasBeenRevised() {
 		t.Error("reports revised before revisedAt is set")
 	}
-	e.SetRevisedAt(revTime)
+	if err := e.SetRevisedAt(revTime); err != nil {
+		t.Fatal(err)
+	}
 	e.SetRevisedReportType(revType)
 	e.SetRevisedDaysSinceSymptomOnset(5)
 	e.SetRevisedTransmissionRisk(2)
@@ -1886,7 +1889,7 @@ func TestExposureFromExportFile(t *testing.T) {
 	validTEK := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	invalidTEK := []byte{0, 1}
 
-	validInterval := int32(IntervalNumber(timeutils.UTCMidnight(time.Now()).Add(-24 * time.Hour)))
+	validInterval := IntervalNumber(timeutils.UTCMidnight(time.Now()).Add(-24 * time.Hour))
 
 	config := &ExportImportConfig{
 		DefaultReportType:         verifyapi.ReportTypeConfirmed,

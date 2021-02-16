@@ -46,8 +46,10 @@ type Blobstore interface {
 type BlobstoreFunc func(context.Context, *Config) (Blobstore, error)
 
 // blobstores is the list of registered blobstores.
-var blobstores = make(map[string]BlobstoreFunc)
-var blobstoresLock sync.RWMutex
+var (
+	blobstores     = make(map[string]BlobstoreFunc)
+	blobstoresLock sync.RWMutex
+)
 
 // RegisterBlobstore registers a new blobstore with the given name. If a blobstore
 // is already registered with the given name, it panics. Blobstores are usually

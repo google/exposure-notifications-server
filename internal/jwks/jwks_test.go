@@ -37,10 +37,13 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-var key1 = `{"kid":"r2v1","kty":"EC","crv":"P-256","x":"qcMMcLX1Z2afVAzypTMw1g3KN_OcdgvRDwOgpDWiswU","y":"RjK8Hc7pLLO_JADNhwZIxCXjCH95VHuWPoKVaCGkXiA"}`
-var key2 = `{"kid":"r2v2","kty":"EC","crv":"P-256","x":"F2MgtKg_cm-JfcJlrEUJMgXqXq1vHWRPMbBWEjzmN0U","y":"4U6g0nX9mVOGaHL8kYX10gL4Fsj-wNb4V9GMSJ7iLKk"}`
-var enc1 = `MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqcMMcLX1Z2afVAzypTMw1g3KN/Oc
+var (
+	key1 = `{"kid":"r2v1","kty":"EC","crv":"P-256","x":"qcMMcLX1Z2afVAzypTMw1g3KN_OcdgvRDwOgpDWiswU","y":"RjK8Hc7pLLO_JADNhwZIxCXjCH95VHuWPoKVaCGkXiA"}`
+	key2 = `{"kid":"r2v2","kty":"EC","crv":"P-256","x":"F2MgtKg_cm-JfcJlrEUJMgXqXq1vHWRPMbBWEjzmN0U","y":"4U6g0nX9mVOGaHL8kYX10gL4Fsj-wNb4V9GMSJ7iLKk"}`
+	enc1 = `MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqcMMcLX1Z2afVAzypTMw1g3KN/Oc
 dgvRDwOgpDWiswVGMrwdzukss78kAM2HBkjEJeMIf3lUe5Y+gpVoIaReIA==`
+)
+
 var enc2 = `MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEF2MgtKg/cm+JfcJlrEUJMgXqXq1v
 HWRPMbBWEjzmN0XhTqDSdf2ZU4ZocvyRhfXSAvgWyP7A1vhX0YxInuIsqQ==`
 
@@ -123,25 +126,25 @@ func TestUpdateHA(t *testing.T) {
 	//
 	// Again, each test tests individual pieces of the service, and then an
 	// "end-to-end" test is run where the DB is validated.
-	for i, test := range tests {
-		test := test
+	for _, tc := range tests {
+		tc := tc
 
-		t.Run(test.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			// Start a local server to serve JSON data for the test.
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprintf(w, test.resp)
+				fmt.Fprintf(w, tc.resp)
 				w.Header().Set("Content-Type", "application/json")
 			}))
 			defer ts.Close()
 
-			// Set up the test.
+			// Set up the tc.
 			ctx := project.TestContext(t)
 			testDB, _ := testDatabaseInstance.NewDatabase(t)
 			mgr, err := NewManager(testDB, time.Minute, 5*time.Second)
 			if err != nil {
-				t.Fatalf("[%d] unexpected error: %v", i, err)
+				t.Fatalf("unexpected error: %v", err)
 			}
 			jwksURI := ts.URL
 			ha := &model.HealthAuthority{JwksURI: &jwksURI}
@@ -149,10 +152,10 @@ func TestUpdateHA(t *testing.T) {
 			// Test networking.
 			rxKeys, err := mgr.getKeys(ctx, ha)
 			if err != nil {
-				t.Fatalf("[%d] unexpected error: %v", i, err)
+				t.Fatalf("unexpected error: %v", err)
 			}
-			if string(rxKeys) != test.resp {
-				t.Fatalf("[%d] expected %v, got %v", i, test.resp, rxKeys)
+			if string(rxKeys) != tc.resp {
+				t.Fatalf("expected %v, got %v", tc.resp, rxKeys)
 			}
 
 			// Test the encoding of the keys/versions. (basically, can we decode the
@@ -161,71 +164,71 @@ func TestUpdateHA(t *testing.T) {
 			var versions map[string]string
 			encoded, versions, err = parseKeys(rxKeys)
 			if err != nil {
-				t.Fatalf("[%d] unexpected error: %v", i, err)
+				t.Fatalf("unexpected error: %v", err)
 			}
-			if !reflect.DeepEqual(encoded, test.encoded) {
-				t.Fatalf("[%d] encoded strings aren't equal expected %v, got %v", i, test.encoded, encoded)
+			if !reflect.DeepEqual(encoded, tc.encoded) {
+				t.Fatalf("encoded strings aren't equal expected %v, got %v", tc.encoded, encoded)
 			}
-			if !reflect.DeepEqual(versions, test.versions) {
-				t.Fatalf("[%d] versions aren't equal expected %v, got %v", i, test.versions, versions)
+			if !reflect.DeepEqual(versions, tc.versions) {
+				t.Fatalf("versions aren't equal expected %v, got %v", tc.versions, versions)
 			}
 
 			// Test we have correctly identified if keys are deleted or new, etc.
-			deadKeys, newKeys := findKeyMods(&test.ha, encoded)
-			if !reflect.DeepEqual(deadKeys, test.deadKeys) {
-				t.Fatalf("[%d] dead keys aren't equal expected %v, got %v", i, test.deadKeys, deadKeys)
+			deadKeys, newKeys := findKeyMods(&tc.ha, encoded)
+			if !reflect.DeepEqual(deadKeys, tc.deadKeys) {
+				t.Fatalf("dead keys aren't equal expected %v, got %v", tc.deadKeys, deadKeys)
 			}
-			if !reflect.DeepEqual(newKeys, test.newKeys) {
-				t.Fatalf("[%d] new keys aren't equal expected %v, got %v", i, test.newKeys, newKeys)
+			if !reflect.DeepEqual(newKeys, tc.newKeys) {
+				t.Fatalf("new keys aren't equal expected %v, got %v", tc.newKeys, newKeys)
 			}
 
 			//
 			// Now test end-to-end.
 			//
-			test.ha.JwksURI = &jwksURI
+			tc.ha.JwksURI = &jwksURI
 
 			// Add the HealthAuthority & Keys to the DB. Note, we need to remove all
 			// keys from the testing HealthAuthority before adding it to the DB as it's
 			// checked for empty. Also the function we're calling below (updateHA)
 			// expects the keys to be empty in the HealthAuthority.
 			var keys []*model.HealthAuthorityKey
-			keys, test.ha.Keys = test.ha.Keys, nil
+			keys, tc.ha.Keys = tc.ha.Keys, nil
 			haDB := hadb.New(mgr.db)
-			test.ha.Issuer, test.ha.Audience, test.ha.Name = "ISSUER", "AUDIENCE", "NAME"
-			if err := haDB.AddHealthAuthority(ctx, &test.ha); err != nil {
-				t.Fatalf("[%d] error adding the HealthAuthority, %v", i, err)
+			tc.ha.Issuer, tc.ha.Audience, tc.ha.Name = "ISSUER", "AUDIENCE", "NAME"
+			if err := haDB.AddHealthAuthority(ctx, &tc.ha); err != nil {
+				t.Fatalf("error adding the HealthAuthority, %v", err)
 			}
 			for _, key := range keys {
-				if err := haDB.AddHealthAuthorityKey(ctx, &test.ha, key); err != nil {
-					t.Errorf("[%d] error adding key: %v", i, err)
+				if err := haDB.AddHealthAuthorityKey(ctx, &tc.ha, key); err != nil {
+					t.Errorf("error adding key: %v", err)
 				}
 			}
 
 			// Now, run the whole flow for a HealthAuthority.
-			if err := mgr.updateHA(ctx, &test.ha); err != nil {
-				t.Fatalf("[%d] error updating: %v", i, err)
+			if err := mgr.updateHA(ctx, &tc.ha); err != nil {
+				t.Fatalf("error updating: %v", err)
 			}
 
 			// Check the DB.
-			if ha, err := haDB.GetHealthAuthorityByID(ctx, test.ha.ID); err != nil {
-				t.Fatalf("[%d] error retreiving HealthAuthority: %v", i, err)
+			if ha, err := haDB.GetHealthAuthorityByID(ctx, tc.ha.ID); err != nil {
+				t.Fatalf("error retreiving HealthAuthority: %v", err)
 			} else {
 				// Check the resultant keys.
-				if len(ha.Keys) != len(test.resKeys) {
-					t.Fatalf("[%d] key lengths different %d, expected %d", i, len(ha.Keys), len(test.resKeys))
+				if len(ha.Keys) != len(tc.resKeys) {
+					t.Fatalf("key lengths different %d, expected %d", len(ha.Keys), len(tc.resKeys))
 				}
 				for j := range ha.Keys {
-					if key := ha.Keys[j].PublicKeyPEM; key != test.resKeys[j] {
-						t.Errorf("[%d] wrong key[%d] %q, expected %q", i, j, key, test.resKeys[j])
+					if key := ha.Keys[j].PublicKeyPEM; key != tc.resKeys[j] {
+						t.Errorf("wrong key %q, expected %q", key, tc.resKeys[j])
 					}
 				}
 
 				// Check to see if we've deleted keys as needed as well, (ie the From time is
 				// populated).
 				var emptyTime time.Time
-				for _, j := range test.deadKeys {
+				for _, j := range tc.deadKeys {
 					if delTime := ha.Keys[j].From; reflect.DeepEqual(emptyTime, delTime) {
-						t.Errorf("[%d:%d] key not deleted %v", i, j, delTime)
+						t.Errorf("key not deleted %v", delTime)
 					}
 				}
 			}
@@ -244,10 +247,12 @@ func TestStrip(t *testing.T) {
 		{enc1, enc1},
 		{encodeKey(enc1), enc1},
 	}
-	for i, test := range tests {
-		k2 := strings.ReplaceAll(test.k2, "\n", "")
-		if stripped := stripKey(test.k1); stripped != k2 {
-			t.Errorf("[%d] compareKeys(%q) = %q, want %q", i, test.k1, stripped, k2)
+	for _, tc := range tests {
+		tc := tc
+
+		k2 := strings.ReplaceAll(tc.k2, "\n", "")
+		if stripped := stripKey(tc.k1); stripped != k2 {
+			t.Errorf("compareKeys(%q) = %q, want %q", tc.k1, stripped, k2)
 		}
 	}
 }

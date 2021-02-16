@@ -37,9 +37,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-var (
-	ignoreUnexportedExposure = cmpopts.IgnoreUnexported(model.Exposure{})
-)
+var ignoreUnexportedExposure = cmpopts.IgnoreUnexported(model.Exposure{})
 
 func TestReadExposures(t *testing.T) {
 	t.Parallel()

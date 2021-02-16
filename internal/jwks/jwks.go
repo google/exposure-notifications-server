@@ -73,9 +73,7 @@ func (mgr *Manager) getKeys(ctx context.Context, ha *model.HealthAuthority) ([]b
 		return nil, nil
 	}
 
-	reqCtxt, done := context.WithTimeout(ctx, 5*time.Second)
-	defer done()
-	req, err := http.NewRequestWithContext(reqCtxt, "GET", jwksURI, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", jwksURI, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
 	}
@@ -189,11 +187,12 @@ func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) err
 	}
 
 	// Get the keys for the health authority
-	if keys, err := haDB.GetHealthAuthorityKeys(ctx, ha); err != nil {
-		return fmt.Errorf("error getting keys: %v", err)
-	} else {
-		ha.Keys = keys
+	keys, err := haDB.GetHealthAuthorityKeys(ctx, ha)
+	if err != nil {
+		return fmt.Errorf("error getting keys: %w", err)
 	}
+
+	ha.Keys = keys
 
 	resp, err := mgr.getKeys(ctx, ha)
 	if err != nil {

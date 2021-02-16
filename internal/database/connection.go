@@ -52,7 +52,7 @@ func NewFromEnv(ctx context.Context, cfg *Config) (*DB, error) {
 
 	pool, err := pgxpool.ConnectConfig(ctx, pgxConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create connection pool: %v", err)
+		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}
 
 	return &DB{Pool: pool}, nil

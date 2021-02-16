@@ -38,9 +38,11 @@ func init() {
 }
 
 // Compile-time check to verify implements interface.
-var _ KeyManager = (*HashiCorpVault)(nil)
-var _ SigningKeyManager = (*HashiCorpVault)(nil)
-var _ crypto.Signer = (*HashiCorpVaultSigner)(nil)
+var (
+	_ KeyManager        = (*HashiCorpVault)(nil)
+	_ SigningKeyManager = (*HashiCorpVault)(nil)
+	_ crypto.Signer     = (*HashiCorpVaultSigner)(nil)
+)
 
 // HashiCorpVault implements the keys.KeyManager interface and can be used to
 // sign export files and encrypt/decrypt data.
@@ -111,8 +113,6 @@ func (v *vaultKeyVersion) Signer(ctx context.Context) (crypto.Signer, error) {
 
 // SigningKeyVersions returns the signing keys for the given key name.
 func (v *HashiCorpVault) SigningKeyVersions(ctx context.Context, parent string) ([]SigningKeyVersion, error) {
-	var versions []SigningKeyVersion
-
 	pth := fmt.Sprintf("transit/keys/%s", parent)
 	result, err := v.client.Logical().Read(pth)
 	if err != nil {
@@ -136,6 +136,7 @@ func (v *HashiCorpVault) SigningKeyVersions(ctx context.Context, parent string) 
 		return nil, fmt.Errorf("failed to decode result: %w", err)
 	}
 
+	versions := make([]SigningKeyVersion, 0, len(response.Versions))
 	for k, ver := range response.Versions {
 		publicKey, err := ParseECDSAPublicKey(ver.PublicKeyPEM)
 		if err != nil {

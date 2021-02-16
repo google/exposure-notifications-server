@@ -296,5 +296,4 @@ func TestListAuthorizedApps(t *testing.T) {
 	if diff := cmp.Diff(apps, got); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
-
 }

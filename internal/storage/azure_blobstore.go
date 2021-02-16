@@ -19,6 +19,7 @@ package storage
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -60,7 +61,7 @@ func newMSITokenCredential(blobstoreURL string) (azblob.Credential, error) {
 
 	spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, blobstoreURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get service principal token from msi %v: %v", msiEndpoint, err)
+		return nil, fmt.Errorf("failed to get service principal token from msi %v: %w", msiEndpoint, err)
 	}
 
 	tokenRefresher := func(credential azblob.TokenCredential) time.Duration {
@@ -104,7 +105,7 @@ func NewAzureBlobstore(ctx context.Context, _ *Config) (Blobstore, error) {
 	primaryURLRaw := fmt.Sprintf("https://%s.blob.core.windows.net", accountName)
 	primaryURL, err := url.Parse(primaryURLRaw)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse URL %v: %v", primaryURLRaw, err)
+		return nil, fmt.Errorf("failed to parse URL %v: %w", primaryURLRaw, err)
 	}
 
 	accountKey := os.Getenv("AZURE_STORAGE_ACCESS_KEY")
@@ -158,7 +159,8 @@ func (s *AzureBlobstore) CreateObject(ctx context.Context, container, name strin
 func (s *AzureBlobstore) DeleteObject(ctx context.Context, container, name string) error {
 	blobURL := s.serviceURL.NewContainerURL(container).NewBlockBlobURL(name)
 	if _, err := blobURL.Delete(ctx, azblob.DeleteSnapshotsOptionInclude, azblob.BlobAccessConditions{}); err != nil {
-		if terr, ok := err.(azblob.StorageError); ok && terr.ServiceCode() == azblob.ServiceCodeBlobNotFound {
+		var terr azblob.StorageError
+		if errors.As(err, &terr) && terr.ServiceCode() == azblob.ServiceCodeBlobNotFound {
 			// already deleted
 			return nil
 		}

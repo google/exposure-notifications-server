@@ -22,6 +22,8 @@ import (
 )
 
 func TestNewVerificationClaims(t *testing.T) {
+	t.Parallel()
+
 	got := NewVerificationClaims()
 	want := &VerificationClaims{
 		TransmissionRisks: []TransmissionRiskOverride{},

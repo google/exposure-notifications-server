@@ -143,6 +143,8 @@ func (sdb *syncDB) startFederationSync(ctx context.Context, query *model.Federat
 func TestFederationPull(t *testing.T) {
 	t.Parallel()
 
+	ctx := project.TestContext(t)
+
 	batchTime := time.Now().Truncate(time.Second)
 	// Make all items have reasonable interval numbers based on test time.
 	intervalNumber := publishmodel.IntervalNumber(batchTime.Add(-2 * 24 * time.Hour))
@@ -151,7 +153,7 @@ func TestFederationPull(t *testing.T) {
 	ccc = setIntervalNumber(ccc, intervalNumber)
 	ddd = setIntervalNumber(ddd, intervalNumber)
 
-	testCases := []struct {
+	cases := []struct {
 		name           string
 		batchSize      int
 		fetchResponses []*federation.FederationFetchResponse
@@ -407,9 +409,12 @@ func TestFederationPull(t *testing.T) {
 		*/
 	}
 
-	for _, tc := range testCases {
+	for _, tc := range cases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := project.TestContext(t)
+			t.Parallel()
+
 			query := &model.FederationInQuery{
 				QueryID: queryID,
 			}

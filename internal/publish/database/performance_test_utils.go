@@ -35,14 +35,17 @@ func executeBulkInsertExposure(ctx context.Context, tx pgx.Tx, expos []*model.Ex
 		if exp.FederationSyncID != 0 {
 			syncID = &exp.FederationSyncID
 		}
-		inputRows = append(inputRows, []interface{}{encodeExposureKey(exp.ExposureKey), exp.TransmissionRisk,
+		inputRows = append(inputRows, []interface{}{
+			encodeExposureKey(exp.ExposureKey), exp.TransmissionRisk,
 			exp.AppPackageName, exp.Regions, exp.Traveler, exp.IntervalNumber, exp.IntervalCount,
 			exp.CreatedAt, exp.LocalProvenance, syncID,
-			exp.HealthAuthorityID, exp.ReportType, exp.DaysSinceSymptomOnset})
+			exp.HealthAuthorityID, exp.ReportType, exp.DaysSinceSymptomOnset,
+		})
 	}
 
 	copyCount, err := tx.CopyFrom(ctx, pgx.Identifier{"public", "exposure"},
-		[]string{"exposure_key",
+		[]string{
+			"exposure_key",
 			"transmission_risk",
 			"app_package_name",
 			"regions",
@@ -54,9 +57,10 @@ func executeBulkInsertExposure(ctx context.Context, tx pgx.Tx, expos []*model.Ex
 			"sync_id",
 			"health_authority_id",
 			"report_type",
-			"days_since_symptom_onset"}, pgx.CopyFromRows(inputRows))
+			"days_since_symptom_onset",
+		}, pgx.CopyFromRows(inputRows))
 	if err != nil {
-		return 0, fmt.Errorf("unexpected error for Bulk Insert: %v", err)
+		return 0, fmt.Errorf("unexpected error for Bulk Insert: %w", err)
 	}
 	if int(copyCount) != len(inputRows) {
 		return 0, fmt.Errorf("expected Bulk Insert to return %d copied rows, but got %d", len(inputRows), copyCount)

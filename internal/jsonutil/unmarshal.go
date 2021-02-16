@@ -48,11 +48,11 @@ func Unmarshal(w http.ResponseWriter, r *http.Request, data interface{}) (int, e
 		var unmarshalError *json.UnmarshalTypeError
 		switch {
 		case errors.As(err, &syntaxErr):
-			return http.StatusBadRequest, fmt.Errorf("malformed json at position %v", syntaxErr.Offset)
+			return http.StatusBadRequest, fmt.Errorf("malformed json at position %d", syntaxErr.Offset)
 		case errors.Is(err, io.ErrUnexpectedEOF):
 			return http.StatusBadRequest, fmt.Errorf("malformed json")
 		case errors.As(err, &unmarshalError):
-			return http.StatusBadRequest, fmt.Errorf("invalid value %v at position %v", unmarshalError.Field, unmarshalError.Offset)
+			return http.StatusBadRequest, fmt.Errorf("invalid value %q at position %d", unmarshalError.Field, unmarshalError.Offset)
 		case strings.HasPrefix(err.Error(), "json: unknown field"):
 			fieldName := strings.TrimPrefix(err.Error(), "json: unknown field ")
 			return http.StatusBadRequest, fmt.Errorf("unknown field %s", fieldName)
@@ -61,7 +61,7 @@ func Unmarshal(w http.ResponseWriter, r *http.Request, data interface{}) (int, e
 		case err.Error() == "http: request body too large":
 			return http.StatusRequestEntityTooLarge, err
 		default:
-			return http.StatusInternalServerError, fmt.Errorf("failed to decode json %v", err)
+			return http.StatusInternalServerError, fmt.Errorf("failed to decode json: %w", err)
 		}
 	}
 	if d.More() {

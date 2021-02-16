@@ -76,7 +76,7 @@ func Setup(ctx context.Context, config interface{}) (*serverenv.ServerEnv, error
 // responsible for establishing database connections, resolving secrets, and
 // accessing app configs. The provided interface must implement the various
 // interfaces.
-func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*serverenv.ServerEnv, error) {
+func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*serverenv.ServerEnv, error) { //nolint:golint
 	logger := logging.FromContext(ctx)
 
 	// Build a list of mutators. This list will grow as we initialize more of the
@@ -174,7 +174,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		oeConfig := provider.ObservabilityExporterConfig()
 		oe, err := observability.NewFromEnv(oeConfig)
 		if err != nil {
-			return nil, fmt.Errorf("unable to create observability provider: %v", err)
+			return nil, fmt.Errorf("unable to create observability provider: %w", err)
 		}
 		if err := oe.StartExporter(ctx); err != nil {
 			return nil, fmt.Errorf("failed to start observability: %w", err)
@@ -194,7 +194,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		bsConfig := provider.BlobstoreConfig()
 		blobStore, err := storage.BlobstoreFor(ctx, bsConfig)
 		if err != nil {
-			return nil, fmt.Errorf("unable to connect to storage system: %v", err)
+			return nil, fmt.Errorf("unable to connect to storage system: %w", err)
 		}
 		blobStorage := serverenv.WithBlobStorage(blobStore)
 
@@ -211,7 +211,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		dbConfig := provider.DatabaseConfig()
 		db, err := database.NewFromEnv(ctx, dbConfig)
 		if err != nil {
-			return nil, fmt.Errorf("unable to connect to database: %v", err)
+			return nil, fmt.Errorf("unable to connect to database: %w", err)
 		}
 
 		// Update serverEnv setup.
@@ -228,7 +228,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 			if err != nil {
 				// Ensure the database is closed on an error.
 				defer db.Close(ctx)
-				return nil, fmt.Errorf("unable to create AuthorizedApp provider: %v", err)
+				return nil, fmt.Errorf("unable to create AuthorizedApp provider: %w", err)
 			}
 
 			// Update serverEnv setup.

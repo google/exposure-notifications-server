@@ -34,9 +34,7 @@ import (
 	"github.com/sethvargo/go-signalcontext"
 )
 
-var (
-	messageToSign = flag.String("message", "hello world", "string message to sign")
-)
+var messageToSign = flag.String("message", "hello world", "string message to sign")
 
 func main() {
 	ctx, done := signalcontext.OnInterrupt()

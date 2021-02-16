@@ -47,10 +47,10 @@ func (s *Server) handleSchedule() http.Handler {
 		unlock, err := s.db.Lock(ctx, schedulerLockID, s.config.MaxRuntime)
 		if err != nil {
 			if errors.Is(err, database.ErrAlreadyLocked) {
-				w.WriteHeader(http.StatusOK)
+				w.WriteHeader(http.StatusOK) // don't report conflict/failure to scheduler (will retry later)
 				return
 			}
-			logger.Error("failed to lock", "error", err)
+			logger.Errorw("failed to obtain lock", "lock", schedulerLockID, "err", "error")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -70,7 +70,7 @@ func (s *Server) handleSchedule() http.Handler {
 			return
 		}
 
-		client := &http.Client{
+		httpClient := &http.Client{
 			Timeout: s.config.IndexFileDownloadTimeout,
 		}
 
@@ -78,7 +78,13 @@ func (s *Server) handleSchedule() http.Handler {
 		for _, config := range configs {
 			logger.Infow("checking index file", "config", config)
 
-			resp, err := client.Get(config.IndexFile)
+			req, err := http.NewRequestWithContext(ctx, "GET", config.IndexFile, nil)
+			if err != nil {
+				logger.Errorw("failed to create request to download index file", "file", config.IndexFile, "error", err)
+				continue
+			}
+
+			resp, err := httpClient.Do(req)
 			if err != nil {
 				anyErrors = true
 				logger.Errorw("error downloading index file", "file", config.IndexFile, "error", err)
@@ -106,7 +112,7 @@ func (s *Server) handleSchedule() http.Handler {
 			status = http.StatusInternalServerError
 		}
 		w.WriteHeader(status)
-		w.Write([]byte(http.StatusText(status)))
+		fmt.Fprint(w, http.StatusText(status))
 	})
 }
 

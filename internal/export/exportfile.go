@@ -99,7 +99,7 @@ func MarshalExportFile(eb *model.ExportBatch, exposures, revisedExposures []*pub
 func UnmarshalExportFile(zippedProtoPayload []byte) (*export.TemporaryExposureKeyExport, []byte, error) {
 	zp, err := zip.NewReader(bytes.NewReader(zippedProtoPayload), int64(len(zippedProtoPayload)))
 	if err != nil {
-		return nil, nil, fmt.Errorf("can't read payload: %v", err)
+		return nil, nil, fmt.Errorf("can't read payload: %w", err)
 	}
 
 	for _, file := range zp.File {
@@ -193,7 +193,7 @@ func marshalContents(eb *model.ExportBatch, exposures, revisedExposures []*publi
 	// This could be done at the db layer but doing it here makes it explicit that its
 	// important to the serialization
 	sortExposures(exposures)
-	var pbeks []*export.TemporaryExposureKey
+	pbeks := make([]*export.TemporaryExposureKey, 0, len(exposures))
 	for _, exp := range exposures {
 		pbek := makeTEK(exp)
 		assignReportType(&exp.ReportType, pbek)
@@ -204,7 +204,7 @@ func marshalContents(eb *model.ExportBatch, exposures, revisedExposures []*publi
 	}
 
 	sortExposures(revisedExposures)
-	var pbRevisedKeys []*export.TemporaryExposureKey
+	pbRevisedKeys := make([]*export.TemporaryExposureKey, 0, len(revisedExposures))
 	for _, exp := range revisedExposures {
 		pbek := makeTEK(exp)
 		assignReportType(exp.RevisedReportType, pbek)
@@ -212,7 +212,7 @@ func marshalContents(eb *model.ExportBatch, exposures, revisedExposures []*publi
 		pbRevisedKeys = append(pbRevisedKeys, pbek)
 	}
 
-	var exportSigInfos []*export.SignatureInfo
+	exportSigInfos := make([]*export.SignatureInfo, 0, len(signers))
 	for _, si := range signers {
 		exportSigInfos = append(exportSigInfos, createSignatureInfo(si.SignatureInfo))
 	}
@@ -253,7 +253,7 @@ func createSignatureInfo(si *model.SignatureInfo) *export.SignatureInfo {
 func UnmarshalSignatureFile(zippedProtoPayload []byte) (*export.TEKSignatureList, error) {
 	zp, err := zip.NewReader(bytes.NewReader(zippedProtoPayload), int64(len(zippedProtoPayload)))
 	if err != nil {
-		return nil, fmt.Errorf("can't read payload: %v", err)
+		return nil, fmt.Errorf("can't read payload: %w", err)
 	}
 
 	for _, file := range zp.File {
@@ -287,11 +287,11 @@ func unmarshalSignatureContent(file *zip.File) (*export.TEKSignatureList, error)
 }
 
 func marshalSignature(exportContents []byte, signers []*Signer) ([]byte, error) {
-	var signatures []*export.TEKSignature
+	signatures := make([]*export.TEKSignature, 0, len(signers))
 	for _, s := range signers {
 		sig, err := generateSignature(exportContents, s.Signer)
 		if err != nil {
-			return nil, fmt.Errorf("unable to generate signature: %v", err)
+			return nil, fmt.Errorf("unable to generate signature: %w", err)
 		}
 		teks := &export.TEKSignature{
 			SignatureInfo: createSignatureInfo(s.SignatureInfo),
@@ -306,7 +306,7 @@ func marshalSignature(exportContents []byte, signers []*Signer) ([]byte, error) 
 	}
 	protoBytes, err := proto.Marshal(&teksl)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal signature file: %v", err)
+		return nil, fmt.Errorf("unable to marshal signature file: %w", err)
 	}
 	return protoBytes, nil
 }

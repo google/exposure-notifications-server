@@ -141,7 +141,6 @@ func (s *Server) HandleHealthAuthorityKeys() func(c *gin.Context) {
 				ErrorPage(c, fmt.Sprintf("Error saving health authority key: %v", err))
 				return
 			}
-
 		} else if action == "revoke" || action == "reinstate" || action == "activate" {
 			version := c.Param("version")
 
@@ -173,7 +172,6 @@ func (s *Server) HandleHealthAuthorityKeys() func(c *gin.Context) {
 				ErrorPage(c, fmt.Sprintf("Error saving health authority key: %v", err))
 				return
 			}
-
 		} else {
 			ErrorPage(c, "invalid action")
 			return

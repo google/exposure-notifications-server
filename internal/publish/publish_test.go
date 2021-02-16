@@ -72,9 +72,7 @@ const (
 	useV1Alpha1
 )
 
-var (
-	versions = []version{useV1, useV1Alpha1}
-)
+var versions = []version{useV1, useV1Alpha1}
 
 type nameAssigner struct {
 	baseAPK  string
@@ -423,6 +421,7 @@ func TestPublishWithBypass(t *testing.T) {
 	}
 
 	for _, ver := range versions {
+		ver := ver
 		addVer := "v1_"
 		if ver == useV1Alpha1 {
 			addVer = "v1Alpha1_"
@@ -552,7 +551,7 @@ func TestPublishWithBypass(t *testing.T) {
 				if tc.ContentType != "" {
 					contentType = tc.ContentType
 				}
-				request, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
+				request, err := http.NewRequestWithContext(ctx, "POST", "", strings.NewReader(string(jsonString)))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -721,7 +720,6 @@ func TestPublishWithBypass(t *testing.T) {
 								t.Errorf("mismatch (-want, +got):\n%s", diff)
 							}
 						}
-
 					} else {
 						if !strings.Contains(response.ErrorMessage, tc.Error) {
 							t.Errorf("missing error text '%v', got '%+v'", tc.Error, response)
@@ -1073,7 +1071,7 @@ func TestKeyRevision(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				request, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
+				request, err := http.NewRequestWithContext(ctx, "POST", "", strings.NewReader(string(jsonString)))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1137,7 +1135,7 @@ func TestKeyRevision(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				request, err := http.NewRequest("POST", "", strings.NewReader(string(jsonString)))
+				request, err := http.NewRequestWithContext(ctx, "POST", "", strings.NewReader(string(jsonString)))
 				if err != nil {
 					t.Fatal(err)
 				}

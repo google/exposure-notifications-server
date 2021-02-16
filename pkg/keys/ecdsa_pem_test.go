@@ -35,7 +35,7 @@ func TestParseECDSAPublicKey_DecodeError(t *testing.T) {
 func TestParseECDSAPublicKey_WrongKeyType(t *testing.T) {
 	t.Parallel()
 
-	pk, err := rsa.GenerateKey(rand.Reader, 1024)
+	pk, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		t.Fatal(err)
 	}

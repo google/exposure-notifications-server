@@ -80,7 +80,6 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 		return config, nil
 	}
 	cached, err := p.cache.WriteThruLookup(name, lookup)
-
 	// Indicates an error on the write thru lookup.
 	if err != nil {
 		return nil, err
