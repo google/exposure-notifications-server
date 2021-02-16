@@ -73,9 +73,7 @@ func (mgr *Manager) getKeys(ctx context.Context, ha *model.HealthAuthority) ([]b
 		return nil, nil
 	}
 
-	reqCtxt, done := context.WithTimeout(ctx, 5*time.Second)
-	defer done()
-	req, err := http.NewRequestWithContext(reqCtxt, "GET", jwksURI, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", jwksURI, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
 	}
