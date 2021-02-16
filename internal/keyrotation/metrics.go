@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package keyrotation contains OpenCensus metrics and views for rotate operations
 package keyrotation
 
 import (
@@ -29,6 +28,8 @@ var (
 		"Instance of revision key being created", stats.UnitDimensionless)
 	mRevisionKeysDeleted = stats.Int64(rotateMetricsPrefix+"revision_keys_deleted",
 		"Instance of revision keys being deleted", stats.UnitDimensionless)
+	mRotationSuccess = stats.Int64(rotateMetricsPrefix+"success",
+		"Number of successful completions of rotate handler", stats.UnitDimensionless)
 )
 
 func init() {
@@ -43,6 +44,12 @@ func init() {
 			Name:        metrics.MetricRoot + "revision_keys_deleted_count",
 			Description: "Total count of revision key deletion instances",
 			Measure:     mRevisionKeysDeleted,
+			Aggregation: view.Sum(),
+		},
+		{
+			Name:        metrics.MetricRoot + "rotation_success",
+			Description: "Number of successful completions of rotate handler",
+			Measure:     mRotationSuccess,
 			Aggregation: view.Sum(),
 		},
 	}...)

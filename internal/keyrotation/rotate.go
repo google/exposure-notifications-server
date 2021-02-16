@@ -65,6 +65,7 @@ func (s *Server) handleRotateKeys() http.Handler {
 			return
 		}
 
+		mRotationSuccess.M(1)
 		logger.Info("key rotation complete")
 		w.WriteHeader(http.StatusOK)
 	})

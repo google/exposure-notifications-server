@@ -53,6 +53,7 @@ func (s *Server) handleUpdateAll() http.Handler {
 			return
 		}
 
+		mJWKSSuccess.M(1)
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, http.StatusText(http.StatusOK))
 	})
