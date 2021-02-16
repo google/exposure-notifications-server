@@ -41,6 +41,7 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	obs "github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 	"github.com/mikehelmick/go-chaff"
@@ -214,6 +215,10 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 	ctx, span := trace.StartSpan(ctx, "(*publish.PublishHandler).process")
 	defer span.End()
 
+	blame := obs.BlameNone
+	result := obs.ResultOK
+	defer obs.RecordLatency(ctx, time.Now(), mLatencyMs, &blame, &result)
+
 	logger := logging.FromContext(ctx).Named("process").
 		With("health_authority_id", data.HealthAuthorityID)
 
@@ -227,14 +232,13 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 		if errors.Is(err, authorizedapp.ErrAppNotFound) {
 			message := fmt.Sprintf("unauthorized health authority: %v", data.HealthAuthorityID)
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+			blame = obs.BlameClient
+			result = obs.ResultError("ERROR_UNAUTHORIZED_HEALTH_AUTHORITY")
 			return &response{
 				status: http.StatusUnauthorized,
 				pubResponse: &verifyapi.PublishResponse{
 					ErrorMessage: message,
 					Code:         verifyapi.ErrorUnknownHealthAuthorityID,
-				},
-				metrics: func() {
-					stats.Record(ctx, mHealthAuthorityNotAuthorized.M(1))
 				},
 			}
 		}
@@ -246,14 +250,13 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 		// and no other data from the request.
 		message := fmt.Sprintf("error loading health authority config: %v", err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+		blame = obs.BlameServer
+		result = obs.ResultError("ERROR_LOADING_HEALTH_AUTHORITY")
 		return &response{
 			status: http.StatusNotFound,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         verifyapi.ErrorUnableToLoadHealthAuthority,
-			},
-			metrics: func() {
-				stats.Record(ctx, mErrorLoadingAuthorizedApp.M(1))
 			},
 		}
 	}
@@ -269,13 +272,12 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 				err := fmt.Errorf("app %v tried to write to unauthorized region %v", appConfig.AppPackageName, r)
 				message := fmt.Sprintf("verifying allowed regions: %v", err)
 				span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
+				blame = obs.BlameClient
+				result = obs.ResultError("ERROR_REGION_NOT_AUTHORIZED")
 				return &response{
 					status: http.StatusUnauthorized,
 					pubResponse: &verifyapi.PublishResponse{
 						ErrorMessage: message, // Error code omitted, since this isn't in the v1 path.
-					},
-					metrics: func() {
-						stats.Record(ctx, mRegionNotAuthorized.M(1))
 					},
 				}
 			}
@@ -298,14 +300,13 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 		logger.Errorf("No regions present in request or configured for HealthAuthorityID: %v", data.HealthAuthorityID)
 		message := fmt.Sprintf("unknown health authority regions for %v", data.HealthAuthorityID)
 		span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
+		blame = obs.BlameClient
+		result = obs.ResultError("ERROR_REGION_NOT_SPECIFIED")
 		return &response{
 			status: http.StatusInternalServerError,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         verifyapi.ErrorHealthAuthorityMissingRegionConfiguration,
-			},
-			metrics: func() {
-				stats.Record(ctx, mRegionNotSpecified.M(1))
 			},
 		}
 	}
@@ -324,14 +325,13 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 				logger.Errorw(message, "error", err)
 			}
 			span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
+			blame = obs.BlameClient
+			result = obs.ResultError("BAD_VERIFICATION")
 			return &response{
 				status: http.StatusUnauthorized,
 				pubResponse: &verifyapi.PublishResponse{
 					ErrorMessage: message,
 					Code:         verifyapi.ErrorVerificationCertificateInvalid,
-				},
-				metrics: func() {
-					stats.Record(ctx, mBadVerification.M(1))
 				},
 			}
 		}
@@ -367,15 +367,14 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 		message := fmt.Sprintf("unable to read request data: %v", transformError)
 		logger.Error(message)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInvalidArgument, Message: message})
+		blame = obs.BlameClient
+		result = obs.ResultError("TRANSFORM_FAILED")
 		return &response{
 			status: http.StatusBadRequest,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         verifyapi.ErrorBadRequest,
 				Warnings:     transformWarnings,
-			},
-			metrics: func() {
-				stats.Record(ctx, mTransformFail.M(1))
 			},
 		}
 	}
@@ -397,30 +396,38 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 		status := http.StatusBadRequest
 		var logMessage, errorMessage, errorCode string
 		var errInvalidReportTypeTransition *model.ErrorKeyInvalidReportTypeTransition
-		metric := "publish-revision-token-issue"
 		switch {
 		case decryptFail || errors.Is(err, database.ErrExistingKeyNotInToken) || errors.Is(err, database.ErrRevisionTokenMetadataMismatch):
 			logMessage = fmt.Sprintf("revision token present, but invalid: %v", err)
 			errorMessage = "revision token is invalid"
 			errorCode = verifyapi.ErrorInvalidRevisionToken
+			blame = obs.BlameClient
+			result = obs.ResultError("INVALID_REVISION_TOKEN")
 		case errors.Is(err, database.ErrNoRevisionToken):
 			logMessage = "no revision token"
 			errorMessage = "no revision token, but sent existing keys"
 			errorCode = verifyapi.ErrorMissingRevisionToken
+			blame = obs.BlameClient
+			result = obs.ResultError("MISSING_REVISION_TOKEN")
 		case errors.Is(err, model.ErrorKeyAlreadyRevised):
 			logMessage = "key already revised"
 			errorMessage = "key was already revised"
 			errorCode = verifyapi.ErrorKeyAlreadyRevised
+			blame = obs.BlameClient
+			result = obs.ResultError("KEY_ALREADY_REVISED")
 		case errors.As(err, &errInvalidReportTypeTransition):
 			logMessage = errInvalidReportTypeTransition.Error()
 			errorMessage = errInvalidReportTypeTransition.Error()
 			errorCode = verifyapi.ErrorInvalidReportTypeTransition
+			blame = obs.BlameClient
+			result = obs.ResultError("INVALID_REPORT_TYPE_TRANSISION")
 		default:
 			logMessage = fmt.Sprintf("error writing exposure record: %v", err)
 			errorMessage = http.StatusText(http.StatusInternalServerError)
 			errorCode = verifyapi.ErrorInternalError
-			metric = "publish-db-write-error"
 			logger.Errorw("publish error", "error", logMessage)
+			blame = obs.BlameServer
+			result = obs.ResultError("ERROR_DB_WRITE")
 		}
 		logger.Debugw("publish error", "error", logMessage)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: logMessage})
@@ -430,12 +437,6 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 				ErrorMessage: errorMessage,
 				Code:         errorCode,
 				Warnings:     transformWarnings,
-			},
-			metrics: func() {
-				// TODO(yegle): we want to use this string later when we
-				// refactor the metrics.
-				_ = metric
-				stats.Record(ctx, mRevisionTokenIssue.M(1))
 			},
 		}
 	}
@@ -481,11 +482,6 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 	return &response{
 		status:      http.StatusOK,
 		pubResponse: &publishResponse,
-		metrics: func() {
-			stats.Record(ctx, mExposuresInserted.M(int64(resp.Inserted)))
-			stats.Record(ctx, mExposuresInserted.M(int64(resp.Revised)))
-			stats.Record(ctx, mExposuresInserted.M(int64(resp.Dropped)))
-		},
 	}
 }
 
