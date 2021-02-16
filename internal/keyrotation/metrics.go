@@ -50,7 +50,7 @@ func init() {
 			Name:        metrics.MetricRoot + "rotation_success",
 			Description: "Number of successful completions of rotate handler",
 			Measure:     mRotationSuccess,
-			Aggregation: view.Sum(),
+			Aggregation: view.Count(),
 		},
 	}...)
 }

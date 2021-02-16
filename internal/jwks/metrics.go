@@ -34,7 +34,7 @@ func init() {
 			Name:        metrics.MetricRoot + "jwks_success",
 			Description: "Number of successful completions of jwks handler",
 			Measure:     mJWKSSuccess,
-			Aggregation: view.Sum(),
+			Aggregation: view.Count(),
 		},
 	}...)
 }

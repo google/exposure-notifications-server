@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"go.opencensus.io/stats"
 )
 
 const jwksLockID = "jwks-import"
@@ -33,11 +34,11 @@ func (s *Server) handleUpdateAll() http.Handler {
 
 		unlock, err := s.manager.db.Lock(ctx, jwksLockID, time.Minute)
 		if err != nil {
-			logger.Warnw("unable to obtain lock", "lock", jwksLockID, "error", err)
 			if errors.Is(err, database.ErrAlreadyLocked) {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
+			logger.Errorw("unable to obtain lock", "lock", jwksLockID, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -53,7 +54,7 @@ func (s *Server) handleUpdateAll() http.Handler {
 			return
 		}
 
-		mJWKSSuccess.M(1)
+		stats.Record(ctx, mJWKSSuccess.M(1))
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, http.StatusText(http.StatusOK))
 	})
