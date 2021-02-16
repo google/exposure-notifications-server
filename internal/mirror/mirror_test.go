@@ -308,7 +308,7 @@ func TestServer_DownloadIndex(t *testing.T) {
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}))
 		t.Cleanup(ts.Close)
 

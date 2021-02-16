@@ -53,7 +53,7 @@ func HandleHealthz(db *database.DB) http.Handler {
 			}
 		}
 
-		w.WriteHeader(200)
+		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, `{"status": "ok"}`)
 	})
 }

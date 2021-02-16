@@ -20,6 +20,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -31,6 +33,41 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/jackc/pgx/v4"
 )
+
+func TestHandleRotate(t *testing.T) {
+	t.Parallel()
+
+	ctx := project.TestContext(t)
+
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	kms := keys.TestKeyManager(t)
+	keyID := keys.TestEncryptionKey(t, kms)
+
+	config := &Config{
+		RevisionToken:      revision.Config{KeyID: keyID},
+		DeleteOldKeyPeriod: 14 * 24 * time.Hour, // two weeks
+		NewKeyPeriod:       24 * time.Hour,      // one day
+	}
+
+	env := serverenv.New(ctx, serverenv.WithKeyManager(kms), serverenv.WithDatabase(testDB))
+	server, err := NewServer(config, env)
+	if err != nil {
+		t.Fatalf("got unexpected error: %v", err)
+	}
+	handler := server.handleRotateKeys()
+
+	r := httptest.NewRequest("GET", "/", nil)
+	r.Header.Set("Content-Type", "text/html")
+
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+	w.Flush()
+
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Errorf("expected %d to be %d", got, want)
+	}
+}
 
 func TestRotateKeys(t *testing.T) {
 	t.Parallel()
@@ -80,7 +117,7 @@ func TestRotateKeys(t *testing.T) {
 			},
 		},
 		{
-			name:           "dont delete old effective",
+			name:           "don't delete old effective",
 			expectKeyCount: 2, // should generate a new one
 			expectAllowed:  []int64{111},
 			keys: []revisiondb.RevisionKey{
