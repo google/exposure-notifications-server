@@ -483,8 +483,8 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 		pubResponse: &publishResponse,
 		metrics: func() {
 			stats.Record(ctx, mExposuresInserted.M(int64(resp.Inserted)))
-			stats.Record(ctx, mExposuresInserted.M(int64(resp.Revised)))
-			stats.Record(ctx, mExposuresInserted.M(int64(resp.Dropped)))
+			stats.Record(ctx, mExposuresRevised.M(int64(resp.Revised)))
+			stats.Record(ctx, mExposuresDropped.M(int64(resp.Dropped)))
 		},
 	}
 }
