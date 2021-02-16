@@ -45,19 +45,17 @@ func (s *Server) handleRotateKeys() http.Handler {
 
 		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
 		if err != nil {
+			logger.Warnw("unable to obtain lock", "lock", lockID, "error", err)
 			if errors.Is(err, database.ErrAlreadyLocked) {
-				logger.Debugw("already locked")
-				w.WriteHeader(http.StatusOK) // don't report conflict/failure to scheduler (will retry later)
+				w.WriteHeader(http.StatusOK)
 				return
 			}
-
-			logger.Errorw("failed to lock", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		defer func() {
 			if err := unlock(); err != nil {
-				logger.Errorw("failed to unlock", "error", err)
+				logger.Errorw("failed to unlock", "lock", lockID, "error", err)
 			}
 		}()
 
@@ -67,6 +65,7 @@ func (s *Server) handleRotateKeys() http.Handler {
 			return
 		}
 
+		stats.Record(ctx, mRotationSuccess.M(1))
 		logger.Info("key rotation complete")
 		w.WriteHeader(http.StatusOK)
 	})

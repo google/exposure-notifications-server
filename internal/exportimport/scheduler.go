@@ -50,7 +50,7 @@ func (s *Server) handleSchedule() http.Handler {
 				w.WriteHeader(http.StatusOK) // don't report conflict/failure to scheduler (will retry later)
 				return
 			}
-			logger.Error("failed to lock", "error", err)
+			logger.Errorw("failed to obtain lock", "lock", schedulerLockID, "err", "error")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
