@@ -15,6 +15,7 @@
 package jwks
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -29,7 +30,9 @@ const jwksLockID = "jwks-import"
 
 func (s *Server) handleUpdateAll() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+		ctx, cancel := context.WithTimeout(r.Context(), s.config.MaxRuntime)
+		defer cancel()
+
 		logger := logging.FromContext(ctx).Named("handleUpdateAll")
 
 		unlock, err := s.manager.db.Lock(ctx, jwksLockID, time.Minute)

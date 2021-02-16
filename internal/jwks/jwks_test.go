@@ -27,6 +27,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/project"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 )
 
 var testDatabaseInstance *database.TestInstance
@@ -142,7 +143,7 @@ func TestUpdateHA(t *testing.T) {
 			// Set up the tc.
 			ctx := project.TestContext(t)
 			testDB, _ := testDatabaseInstance.NewDatabase(t)
-			mgr, err := NewManager(testDB, time.Minute, 5*time.Second)
+			mgr, err := NewManager(testDB, time.Minute, 5*time.Second, 2)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -254,5 +255,65 @@ func TestStrip(t *testing.T) {
 		if stripped := stripKey(tc.k1); stripped != k2 {
 			t.Errorf("compareKeys(%q) = %q, want %q", tc.k1, stripped, k2)
 		}
+	}
+}
+
+func TestUpdateAll(t *testing.T) {
+	t.Parallel()
+
+	docContents := encodeKeys(key1, key2)
+
+	cases := []struct {
+		name  string
+		delay time.Duration
+		err   string
+	}{
+		{
+			name:  "successful",
+			delay: time.Duration(0),
+			err:   "",
+		},
+		{
+			name:  "failure",
+			delay: 2 * time.Second,
+			err:   "failed to processes ha.1: reading connection",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Set up the tc.
+			ctx := project.TestContext(t)
+			testDB, _ := testDatabaseInstance.NewDatabase(t)
+			haDB := hadb.New(testDB)
+			mgr, err := NewManager(testDB, time.Minute, 1*time.Second, 2)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				time.Sleep(tc.delay)
+				fmt.Fprintf(w, docContents)
+				w.Header().Set("Content-Type", "application/json")
+			}))
+			defer ts.Close()
+
+			// Add test health authorities.
+			healthAuthorities := make([]*model.HealthAuthority, 0, 5)
+			for i := 0; i < cap(healthAuthorities); i++ {
+				ha := &model.HealthAuthority{
+					Issuer:   fmt.Sprintf("iss.%d", i),
+					Audience: "aud",
+					Name:     fmt.Sprintf("ha.%d", i),
+					JwksURI:  &ts.URL,
+				}
+				if err := haDB.AddHealthAuthority(ctx, ha); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			errcmp.MustMatch(t, mgr.UpdateAll(ctx), tc.err)
+		})
+
 	}
 }

@@ -37,6 +37,11 @@ type HealthAuthority struct {
 	EnableStatsAPI bool
 }
 
+// JWKS returns true if JWKS discovery is enabled for this health authority.
+func (ha *HealthAuthority) JWKS() bool {
+	return !(ha.JwksURI == nil || len(*ha.JwksURI) == 0)
+}
+
 // SetJWKS sets the optional JwksURI property of the HealthAuthority.
 func (ha *HealthAuthority) SetJWKS(uri string) {
 	uri = project.TrimSpaceAndNonPrintable(uri)
