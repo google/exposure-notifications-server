@@ -8,9 +8,9 @@ only fires once in the period, even if multiple decryption events occur.
 Go to Logs Explorer, use the following filter:
 
 ```
-resource.type="audited_resource"
-resource.labels.service="cloudkms.googleapis.com"
-resource.labels.method:"Decrypt"
+protoPayload.@type="type.googleapis.com/google.cloud.audit.AuditLog"
+protoPayload.serviceName="cloudkms.googleapis.com"
+protoPayload.methodName="Decrypt"
 protoPayload.authenticationInfo.principalEmail!~"gserviceaccount.com$"
 ```
 
