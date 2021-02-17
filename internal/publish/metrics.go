@@ -29,25 +29,44 @@ var (
 
 	mLatencyMs = stats.Float64(publishMetricsPrefix+"requests", "publish requests", stats.UnitMilliseconds)
 
+	mExposuresCount = stats.Int64(publishMetricsPrefix+"exposures_count",
+		"exposure count", stats.UnitDimensionless)
+
 	mVerificationBypassed = stats.Int64(publishMetricsPrefix+"verification_bypassed",
 		"Instances of health authority verification being bypassed", stats.UnitDimensionless)
+	mExposuresInserted = stats.Int64(publishMetricsPrefix+"exposures_insertions",
+		"Instances of exposure being inserted", stats.UnitDimensionless)
 	mExposuresRevised = stats.Int64(publishMetricsPrefix+"exposures_revisions",
 		"Instances of exposure being revised", stats.UnitDimensionless)
 	mExposuresDropped = stats.Int64(publishMetricsPrefix+"exposures_drops",
 		"Instances of exposure being dropped", stats.UnitDimensionless)
 	// v1 and v1alpha1
-	mBadJSON = stats.Int64(publishMetricsPrefix+"bad_json",
-		"Instances of bad JSON in incoming request", stats.UnitDimensionless)
-	// v1 and v1alpha1
 	mPaddingFailed = stats.Int64(publishMetricsPrefix+"padding_failed",
 		"Instances of response padding failures", stats.UnitDimensionless)
 
-	tagKeys = []tag.Key{
+	exposureTypeTag = tag.MustNewKey("type")
+
+	requestTagKeys = []tag.Key{
 		observability.BuildIDTagKey,
 		observability.BuildTagTagKey,
 		observability.BlameTagKey,
 		observability.ResultTagKey,
 	}
+	exposureTagKeys = []tag.Key{
+		observability.BuildIDTagKey,
+		observability.BuildTagTagKey,
+		exposureTypeTag,
+	}
+)
+
+func exposureType(s string) tag.Mutator {
+	return tag.Upsert(exposureTypeTag, s)
+}
+
+var (
+	exposuresInserted = exposureType("INSERTED")
+	exposuresRevised  = exposureType("REVISED")
+	exposuresDropped  = exposureType("DROPPED")
 )
 
 func init() {
@@ -57,38 +76,25 @@ func init() {
 			Description: "Total count of publish requests",
 			Measure:     mLatencyMs,
 			Aggregation: view.Count(),
-			TagKeys:     tagKeys,
+			TagKeys:     requestTagKeys,
 		},
 		{
 			Name:        metrics.MetricRoot + "requests_latency",
 			Description: "Latency distribution of publish requests",
 			Measure:     mLatencyMs,
 			Aggregation: ochttp.DefaultLatencyDistribution,
-			TagKeys:     tagKeys,
+			TagKeys:     requestTagKeys,
+		},
+		{
+			Name:        metrics.MetricRoot + "exposures_count",
+			Description: "Total count of published exposures.",
+			Measure:     mExposuresCount,
+			TagKeys:     exposureTagKeys,
 		},
 		{
 			Name:        metrics.MetricRoot + "verification_bypassed_count",
 			Description: "Total count of health authority verification being bypassed",
 			Measure:     mVerificationBypassed,
-			Aggregation: view.Sum(),
-		},
-		{
-			Name:        metrics.MetricRoot + "exposures_revisions_count",
-			Description: "Total count of exposure revisions",
-			Measure:     mExposuresRevised,
-			Aggregation: view.Sum(),
-		},
-		{
-			Name:        metrics.MetricRoot + "exposures_drops_count",
-			Description: "Total count of exposure drops",
-			Measure:     mExposuresDropped,
-			Aggregation: view.Sum(),
-		},
-		// v1 and v1alpha1
-		{
-			Name:        metrics.MetricRoot + "bad_json",
-			Description: "Total count of bad JSON in incoming requests",
-			Measure:     mBadJSON,
 			Aggregation: view.Sum(),
 		},
 		// v1 and v1alpha1

@@ -18,6 +18,7 @@ package publish
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
@@ -26,6 +27,7 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	obs "github.com/google/exposure-notifications-server/pkg/observability"
 )
 
 func (s *Server) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) *response {
@@ -39,12 +41,12 @@ func (s *Server) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) *r
 	if err != nil {
 		message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
+		blame := obs.BlameClient
+		obsResult := obs.ResultError("BAD_JSON")
+		defer obs.RecordLatency(ctx, time.Now(), mLatencyMs, &blame, &obsResult)
 		return &response{
 			status:      code,
 			pubResponse: &verifyapi.PublishResponse{ErrorMessage: message}, // will be down-converted in ServeHTTP
-			metrics: func() {
-				stats.Record(ctx, mBadJSON.M(1))
-			},
 		}
 	}
 
@@ -98,10 +100,6 @@ func (s *Server) handlePublishV1Alpha1() http.Handler {
 			Error:             response.pubResponse.ErrorMessage,
 			Padding:           response.pubResponse.Padding,
 			Warnings:          response.pubResponse.Warnings,
-		}
-
-		if response.metrics != nil {
-			response.metrics()
 		}
 
 		jsonutil.MarshalResponse(w, response.status, alpha1Response)
