@@ -23,7 +23,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"math/rand" /* #nosec */
+	"math/rand" //nolint:gosec
 	"net/http"
 	"sort"
 	"strings"
@@ -265,6 +265,7 @@ func (mgr *Manager) UpdateAll(ctx context.Context) error {
 		}
 	}
 
+	//nolint:gosec
 	r := rand.New(cryptorand.NewSource())
 	r.Shuffle(len(healthAuthorities), func(i, j int) {
 		healthAuthorities[i], healthAuthorities[j] = healthAuthorities[j], healthAuthorities[i]
