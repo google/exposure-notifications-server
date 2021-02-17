@@ -34,12 +34,6 @@ var (
 
 	mVerificationBypassed = stats.Int64(publishMetricsPrefix+"verification_bypassed",
 		"Instances of health authority verification being bypassed", stats.UnitDimensionless)
-	mExposuresInserted = stats.Int64(publishMetricsPrefix+"exposures_insertions",
-		"Instances of exposure being inserted", stats.UnitDimensionless)
-	mExposuresRevised = stats.Int64(publishMetricsPrefix+"exposures_revisions",
-		"Instances of exposure being revised", stats.UnitDimensionless)
-	mExposuresDropped = stats.Int64(publishMetricsPrefix+"exposures_drops",
-		"Instances of exposure being dropped", stats.UnitDimensionless)
 	// v1 and v1alpha1
 	mPaddingFailed = stats.Int64(publishMetricsPrefix+"padding_failed",
 		"Instances of response padding failures", stats.UnitDimensionless)
