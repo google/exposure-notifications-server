@@ -16,6 +16,8 @@ package keys
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -59,7 +61,7 @@ func TestEncryptionKey(tb testing.TB, kms KeyManager) string {
 	}
 
 	ctx := context.Background()
-	parent, err := typ.CreateEncryptionKey(ctx, "parent", "key")
+	parent, err := typ.CreateEncryptionKey(ctx, randomPrefix(tb, 8), "key")
 	if err != nil {
 		tb.Fatal(err)
 	}
@@ -82,7 +84,7 @@ func TestSigningKey(tb testing.TB, kms KeyManager) string {
 	}
 
 	ctx := context.Background()
-	parent, err := typ.CreateSigningKey(ctx, "parent", "key")
+	parent, err := typ.CreateSigningKey(ctx, randomPrefix(tb, 8), "key")
 	if err != nil {
 		tb.Fatal(err)
 	}
@@ -91,4 +93,18 @@ func TestSigningKey(tb testing.TB, kms KeyManager) string {
 	}
 
 	return parent
+}
+
+func randomPrefix(tb testing.TB, length int) string {
+	tb.Helper()
+
+	b := make([]byte, length)
+	n, err := rand.Read(b)
+	if err != nil {
+		tb.Fatalf("failed to generate random: %v", err)
+	}
+	if n < length {
+		tb.Fatalf("insufficient bytes read: %v, expected %v", n, length)
+	}
+	return hex.EncodeToString(b)[:length]
 }
