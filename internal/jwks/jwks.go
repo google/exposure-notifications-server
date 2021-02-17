@@ -23,6 +23,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"sort"
 	"strings"
@@ -33,9 +34,11 @@ import (
 	"github.com/google/exposure-notifications-server/internal/project"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
+	"github.com/google/exposure-notifications-server/pkg/cryptorand"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
 	"github.com/rakutentech/jwk-go/jwk"
+	"golang.org/x/sync/semaphore"
 )
 
 // Manager handles updating all HealthAuthorities if they've specified a JWKS
@@ -44,10 +47,11 @@ type Manager struct {
 	db         *database.DB
 	client     *http.Client
 	cleanupTTL time.Duration
+	maxWorkers uint
 }
 
 // NewManager creates a new Manager.
-func NewManager(db *database.DB, cleanupTTL, requestTimeout time.Duration) (*Manager, error) {
+func NewManager(db *database.DB, cleanupTTL, requestTimeout time.Duration, maxWorkers uint) (*Manager, error) {
 	if cleanupTTL < 0 {
 		cleanupTTL *= -1
 	}
@@ -60,6 +64,7 @@ func NewManager(db *database.DB, cleanupTTL, requestTimeout time.Duration) (*Man
 		db:         db,
 		client:     client,
 		cleanupTTL: cleanupTTL,
+		maxWorkers: maxWorkers,
 	}, nil
 }
 
@@ -73,7 +78,7 @@ func (mgr *Manager) getKeys(ctx context.Context, ha *model.HealthAuthority) ([]b
 		return nil, nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", jwksURI, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jwksURI, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
 	}
@@ -171,8 +176,7 @@ func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) err
 		With("health_authority_name", ha.Name).
 		With("health_authority_id", ha.ID)
 
-	if ha.JwksURI == nil || len(*ha.JwksURI) == 0 {
-		logger.Infow("skipping jwks, no URI specified")
+	if !ha.JWKSEnabled() {
 		return nil
 	}
 
@@ -248,18 +252,42 @@ func (mgr *Manager) UpdateAll(ctx context.Context) error {
 	defer logger.Debug("finished jwks update")
 
 	haDB := hadb.New(mgr.db)
-	healthAuthorities, err := haDB.ListAllHealthAuthoritiesWithoutKeys(ctx)
+	allHealthAuthorities, err := haDB.ListAllHealthAuthoritiesWithoutKeys(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to query db: %w", err)
 	}
 
+	// Pre-filter out health authorities where discovery isn't enabled.
+	healthAuthorities := make([]*model.HealthAuthority, 0, len(allHealthAuthorities))
+	for _, ha := range allHealthAuthorities {
+		if ha.JWKSEnabled() {
+			healthAuthorities = append(healthAuthorities, ha)
+		}
+	}
+
+	//nolint:gosec
+	r := rand.New(cryptorand.NewSource())
+	r.Shuffle(len(healthAuthorities), func(i, j int) {
+		healthAuthorities[i], healthAuthorities[j] = healthAuthorities[j], healthAuthorities[i]
+	})
+
 	var merr *multierror.Error
 	var merrLock sync.Mutex
-
+	sem := semaphore.NewWeighted(int64(mgr.maxWorkers))
 	var wg sync.WaitGroup
 	for _, ha := range healthAuthorities {
+		// Rate limit the number of concurrent workers with a semaphore.
+		if err := sem.Acquire(ctx, 1); err != nil {
+			logger.Errorw("failed to acquire semaphore", "error", err)
+			merrLock.Lock()
+			merr = multierror.Append(merr, fmt.Errorf("failed to processes %v: %w", ha.Name, err))
+			merrLock.Unlock()
+			break
+		}
+
 		wg.Add(1)
 		go func(ha *model.HealthAuthority) {
+			defer sem.Release(1)
 			defer wg.Done()
 			err := mgr.updateHA(ctx, ha)
 			if err != nil {

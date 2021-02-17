@@ -33,11 +33,17 @@ type Config struct {
 
 	Port string `env:"PORT, default=8080"`
 
-	// RequestTimeout is the per-request amount of time to wait for a response
-	// before timing out.
-	RequestTimeout time.Duration `env:"REQUEST_TIMEOUT, default=5s"`
+	// MaxRuntime is how long an individual handler should run.
+	MaxRuntime time.Duration `env:"MAX_RUNTIME, default=10m"`
+
+	// RequestTimeout is the client per-request timeout when accessing
+	// remote JWKS documents.
+	RequestTimeout time.Duration `env:"REQUEST_TIMEOUT, default=30s"`
 
 	KeyCleanupTTL time.Duration `env:"HEALTH_AUTHORITY_KEY_CLEANUP_TTL, default=720h"` // 30 days
+
+	// MaxWorkers is the number of parallel JWKS updates that can occur.
+	MaxWorkers uint `env:"MAX_WORKERS, default=5"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {

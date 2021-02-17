@@ -158,7 +158,7 @@ resource "google_cloud_run_service_iam_member" "jwks-invoker" {
 resource "google_cloud_scheduler_job" "jwks-worker" {
   name             = "jwks-worker"
   region           = var.cloudscheduler_location
-  schedule         = "*/5 * * * *"
+  schedule         = "*/2 * * * *"
   time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 
