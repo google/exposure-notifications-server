@@ -176,7 +176,7 @@ func (mgr *Manager) updateHA(ctx context.Context, ha *model.HealthAuthority) err
 		With("health_authority_name", ha.Name).
 		With("health_authority_id", ha.ID)
 
-	if !ha.JWKS() {
+	if !ha.JWKSEnabled() {
 		return nil
 	}
 
@@ -260,7 +260,7 @@ func (mgr *Manager) UpdateAll(ctx context.Context) error {
 	// Pre-filter out health authorities where discovery isn't enabled.
 	healthAuthorities := make([]*model.HealthAuthority, 0, len(allHealthAuthorities))
 	for _, ha := range allHealthAuthorities {
-		if ha.JWKS() {
+		if ha.JWKSEnabled() {
 			healthAuthorities = append(healthAuthorities, ha)
 		}
 	}
