@@ -54,9 +54,9 @@ resource "google_logging_metric" "human_accessed_secret" {
   name    = "human_accessed_secret"
   project = var.project
   filter  = <<EOT
-resource.type="audited_resource"
-resource.labels.service="secretmanager.googleapis.com"
-resource.labels.method:"AccessSecretVersion"
+protoPayload.@type="type.googleapis.com/google.cloud.audit.AuditLog"
+protoPayload.serviceName="secretmanager.googleapis.com"
+protoPayload.methodName=~"AccessSecretVersion$"
 protoPayload.authenticationInfo.principalEmail!~"gserviceaccount.com$"
 EOT
 
@@ -80,13 +80,14 @@ EOT
     "secret" = "EXTRACT(protoPayload.resourceName)"
   }
 }
+
 resource "google_logging_metric" "human_decrypted_value" {
   name    = "human_decrypted_value"
   project = var.project
   filter  = <<EOT
-resource.type="audited_resource"
-resource.labels.service="cloudkms.googleapis.com"
-resource.labels.method:"Decrypt"
+protoPayload.@type="type.googleapis.com/google.cloud.audit.AuditLog"
+protoPayload.serviceName="cloudkms.googleapis.com"
+protoPayload.methodName="Decrypt"
 protoPayload.authenticationInfo.principalEmail!~"gserviceaccount.com$"
 EOT
 
@@ -122,7 +123,7 @@ resource "google_monitoring_alert_policy" "HumanAccessedSecret" {
     display_name = "A non-service account accessed a secret."
 
     condition_monitoring_query_language {
-      duration = "60s"
+      duration = "0s"
 
       query = <<-EOT
       fetch audited_resource
@@ -159,10 +160,10 @@ resource "google_monitoring_alert_policy" "HumanDecryptedValue" {
     display_name = "A non-service account decrypted something."
 
     condition_monitoring_query_language {
-      duration = "60s"
+      duration = "0s"
 
       query = <<-EOT
-      fetch audited_resource
+      fetch global
       | metric 'logging.googleapis.com/user/${google_logging_metric.human_decrypted_value.name}'
       | align rate(5m)
       | every 1m

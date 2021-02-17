@@ -7,10 +7,10 @@ once in the period, even if multiple secrets are accessed.
 
 Go to Logs Explorer, use the following filter:
 
-```
-resource.type="audited_resource"
-resource.labels.service="secretmanager.googleapis.com"
-resource.labels.method="google.cloud.secretmanager.v1.SecretManagerService.AccessSecretVersion"
+```text
+protoPayload.@type="type.googleapis.com/google.cloud.audit.AuditLog"
+protoPayload.serviceName="secretmanager.googleapis.com"
+protoPayload.methodName=~"AccessSecretVersion$"
 protoPayload.authenticationInfo.principalEmail!~"gserviceaccount.com$"
 ```
 
