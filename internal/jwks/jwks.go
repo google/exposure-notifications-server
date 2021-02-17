@@ -34,6 +34,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/project"
 	hadb "github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
+	"github.com/google/exposure-notifications-server/pkg/cryptorand"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
 	"github.com/rakutentech/jwk-go/jwk"
@@ -46,11 +47,11 @@ type Manager struct {
 	db         *database.DB
 	client     *http.Client
 	cleanupTTL time.Duration
-	maxWorkers int64
+	maxWorkers uint
 }
 
 // NewManager creates a new Manager.
-func NewManager(db *database.DB, cleanupTTL, requestTimeout time.Duration, maxWorkers int64) (*Manager, error) {
+func NewManager(db *database.DB, cleanupTTL, requestTimeout time.Duration, maxWorkers uint) (*Manager, error) {
 	if cleanupTTL < 0 {
 		cleanupTTL *= -1
 	}
@@ -264,8 +265,8 @@ func (mgr *Manager) UpdateAll(ctx context.Context) error {
 		}
 	}
 
-	// Crypto secure random isn't necessary here, just shuffling the scheduling order on each run.
-	rand.Shuffle(len(healthAuthorities), func(i, j int) {
+	r := rand.New(cryptorand.NewSource())
+	r.Shuffle(len(healthAuthorities), func(i, j int) {
 		healthAuthorities[i], healthAuthorities[j] = healthAuthorities[j], healthAuthorities[i]
 	})
 

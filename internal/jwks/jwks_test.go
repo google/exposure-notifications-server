@@ -282,6 +282,7 @@ func TestUpdateAll(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Set up the tc.
 			ctx := project.TestContext(t)
 			testDB, _ := testDatabaseInstance.NewDatabase(t)
@@ -293,7 +294,7 @@ func TestUpdateAll(t *testing.T) {
 
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				time.Sleep(tc.delay)
-				fmt.Fprintf(w, docContents)
+				fmt.Fprint(w, docContents)
 				w.Header().Set("Content-Type", "application/json")
 			}))
 			defer ts.Close()
@@ -314,6 +315,5 @@ func TestUpdateAll(t *testing.T) {
 
 			errcmp.MustMatch(t, mgr.UpdateAll(ctx), tc.err)
 		})
-
 	}
 }

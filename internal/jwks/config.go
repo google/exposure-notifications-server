@@ -34,7 +34,7 @@ type Config struct {
 	Port string `env:"PORT, default=8080"`
 
 	// MaxRuntime is how long an individual handler should run.
-	MaxRuntime time.Duration `env:"MAX_RUNTIME, default=9m"`
+	MaxRuntime time.Duration `env:"MAX_RUNTIME, default=10m"`
 
 	// RequestTimeout is the client per-request timeout when accessing
 	// remote JWKS documents.
