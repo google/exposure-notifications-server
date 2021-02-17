@@ -484,7 +484,7 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 	}
 	for t, n := range exposureCounts {
 		if err := stats.RecordWithTags(ctx, []tag.Mutator{t}, mExposuresCount.M(int64(n))); err != nil {
-			logger.Warnf("failed to record stats: %v", err)
+			logger.Errorw("failed to record stats", "error", err)
 		}
 	}
 
