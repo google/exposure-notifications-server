@@ -18,6 +18,7 @@ package publish
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
@@ -25,6 +26,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/jsonutil"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	obs "github.com/google/exposure-notifications-server/pkg/observability"
 )
 
 func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) *response {
@@ -36,6 +38,9 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) *response
 	var data verifyapi.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
+		blame := obs.BlameClient
+		obsResult := obs.ResultError("BAD_JSON")
+		defer obs.RecordLatency(ctx, time.Now(), mLatencyMs, &blame, &obsResult)
 		message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		errorCode := verifyapi.ErrorBadRequest
@@ -47,9 +52,6 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) *response
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         errorCode,
-			},
-			metrics: func() {
-				stats.Record(ctx, mBadJSON.M(1))
 			},
 		}
 	}
@@ -72,10 +74,6 @@ func (s *Server) handlePublishV1() http.Handler {
 			logger.Errorw("failed to pad response", "error", err)
 		} else {
 			response.pubResponse.Padding = padding
-		}
-
-		if response.metrics != nil {
-			response.metrics()
 		}
 
 		jsonutil.MarshalResponse(w, response.status, response.pubResponse)
