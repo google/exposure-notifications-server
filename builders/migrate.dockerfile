@@ -15,7 +15,7 @@
 FROM alpine
 RUN apk add --no-cache bash
 
-ADD https://storage.googleapis.com/cloudsql-proxy/v1.19.1/cloud_sql_proxy.linux.amd64 /cloud-sql-proxy
+ADD https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 /cloud-sql-proxy
 COPY ./bin/migrate /migrate
 COPY ./builders/cloud-sql-exec /cloud-sql-exec
 COPY ./migrations /migrations
