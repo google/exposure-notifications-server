@@ -281,6 +281,7 @@ func TestUpdateAll(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		//scopelint:ignore
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			// Set up the tc.
