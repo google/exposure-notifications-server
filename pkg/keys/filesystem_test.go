@@ -23,10 +23,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/project"
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 )
 
 func TestNewFilesystem(t *testing.T) {
@@ -177,15 +177,8 @@ func TestFilesystem_NewSigner(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if _, err := fs.NewSigner(ctx, tc.keyID); err != nil {
-				if tc.err == "" {
-					t.Fatal(err)
-				}
-
-				if !strings.Contains(err.Error(), tc.err) {
-					t.Fatalf("expected %#v to contain %#v", err.Error(), tc.err)
-				}
-			}
+			_, err = fs.NewSigner(ctx, tc.keyID)
+			errcmp.MustMatch(t, err, tc.err)
 		})
 	}
 }
@@ -284,15 +277,7 @@ func TestFilesystem_EncryptDecrypt(t *testing.T) {
 			}
 
 			ciphertext, err := fs.Encrypt(ctx, tc.keyID, tc.plaintext, tc.aad)
-			if err != nil {
-				if tc.err == "" {
-					t.Fatal(err)
-				}
-
-				if !strings.Contains(err.Error(), tc.err) {
-					t.Fatalf("expected %#v to contain %#v", err.Error(), tc.err)
-				}
-			}
+			errcmp.MustMatch(t, err, tc.err)
 
 			if len(ciphertext) > 0 {
 				// Create another key version - this will ensure our ciphertext -> key
@@ -400,15 +385,7 @@ func TestFilesystem_SigningKeyVersions(t *testing.T) {
 			}
 
 			versions, err := fst.SigningKeyVersions(ctx, tc.keyID)
-			if err != nil {
-				if tc.err == "" {
-					t.Fatal(err)
-				}
-
-				if !strings.Contains(err.Error(), tc.err) {
-					t.Fatalf("expected %#v to contain %#v", err.Error(), tc.err)
-				}
-			}
+			errcmp.MustMatch(t, err, tc.err)
 
 			if got, want := len(versions), tc.exp; got != want {
 				t.Errorf("expected %d version to be %d", got, want)

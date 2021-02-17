@@ -25,7 +25,6 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -39,6 +38,7 @@ import (
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"
 )
 
@@ -250,15 +250,7 @@ func TestVerifyCertificate(t *testing.T) {
 						t.Fatal(err)
 					}
 					verifiedClaims, err := verifier.VerifyDiagnosisCertificate(ctx, authApp, &publish)
-					if err != nil {
-						if tc.Error == "" {
-							t.Fatalf("unexpected error: %v", err)
-						} else if !strings.Contains(err.Error(), tc.Error) {
-							t.Fatalf("wanted error '%v', got error '%v'", tc.Error, err.Error())
-						}
-					} else if tc.Error != "" {
-						t.Fatalf("wanted error '%v', but got nil", tc.Error)
-					}
+					errcmp.MustMatch(t, err, tc.Error)
 
 					if tc.Error == "" {
 						if verifiedClaims == nil {

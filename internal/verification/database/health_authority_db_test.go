@@ -16,12 +16,12 @@ package database
 
 import (
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/google/go-cmp/cmp"
@@ -92,11 +92,8 @@ func TestAddHealthAuthorityErrors(t *testing.T) {
 			t.Parallel()
 
 			ctx := project.TestContext(t)
-			if err := haDB.AddHealthAuthority(ctx, tc.ha); err == nil {
-				t.Error("missing expected error")
-			} else if !strings.Contains(err.Error(), tc.want) {
-				t.Errorf("wrong error: want: %q got: %q", tc.want, err.Error())
-			}
+			err := haDB.AddHealthAuthority(ctx, tc.ha)
+			errcmp.MustMatch(t, err, tc.want)
 		})
 	}
 }

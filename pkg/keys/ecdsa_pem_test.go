@@ -19,8 +19,9 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"strings"
 	"testing"
+
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 )
 
 func TestParseECDSAPublicKey_DecodeError(t *testing.T) {
@@ -45,10 +46,5 @@ func TestParseECDSAPublicKey_WrongKeyType(t *testing.T) {
 	pemPublicKey := string(pemEncodedPub)
 
 	_, err = ParseECDSAPublicKey(pemPublicKey)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if want := "x509.ParsePKIXPublicKey"; !strings.Contains(err.Error(), want) {
-		t.Fatalf("wrong error, want: %q got: %q", want, err.Error())
-	}
+	errcmp.MustMatch(t, err, "x509.ParsePKIXPublicKey")
 }

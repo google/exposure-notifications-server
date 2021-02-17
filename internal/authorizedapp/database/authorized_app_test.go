@@ -16,11 +16,11 @@ package database
 
 import (
 	"crypto/ecdsa"
-	"strings"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/project"
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -34,12 +34,8 @@ func TestAuthorizedAppInsert_Errors(t *testing.T) {
 
 	source := &model.AuthorizedApp{}
 
-	validationError := "AuthorizedApp invalid: Health Authority ID cannot be empty"
-	if err := aadb.InsertAuthorizedApp(ctx, source); err == nil {
-		t.Fatal("expected validation error")
-	} else if !strings.Contains(err.Error(), validationError) {
-		t.Fatalf("wrong error, want: %q got: %q", validationError, err.Error())
-	}
+	err := aadb.InsertAuthorizedApp(ctx, source)
+	errcmp.MustMatch(t, err, "AuthorizedApp invalid: Health Authority ID cannot be empty")
 
 	source.AppPackageName = "foo"
 	source.AllowedRegions = map[string]struct{}{"US": {}}
@@ -103,12 +99,8 @@ func TestAuthorizedAppLifecycle(t *testing.T) {
 	}
 
 	// attempt to delete already deleted app.
-	expectedError := "no rows were deleted"
-	if err := aadb.DeleteAuthorizedApp(ctx, source.AppPackageName); err == nil {
-		t.Fatal("expected error deleting already deleted app")
-	} else if !strings.Contains(err.Error(), expectedError) {
-		t.Fatalf("wrong error, want: %q got: %q", expectedError, err.Error())
-	}
+	err = aadb.DeleteAuthorizedApp(ctx, source.AppPackageName)
+	errcmp.MustMatch(t, err, "no rows were deleted")
 }
 
 func TestUpdateAuthorizedApp_NoRows(t *testing.T) {
@@ -128,12 +120,8 @@ func TestUpdateAuthorizedApp_NoRows(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedError := "no rows updated"
-	if err := aadb.UpdateAuthorizedApp(ctx, "wrongKey", source); err == nil {
-		t.Fatal("expected error, but didn't get one")
-	} else if !strings.Contains(err.Error(), expectedError) {
-		t.Fatalf("wrong error, want: %q got: %q", expectedError, err.Error())
-	}
+	err := aadb.UpdateAuthorizedApp(ctx, "wrongKey", source)
+	errcmp.MustMatch(t, err, "no rows updated")
 }
 
 func TestUpdateAuthorizedApp_Errors(t *testing.T) {
@@ -163,12 +151,8 @@ func TestUpdateAuthorizedApp_Errors(t *testing.T) {
 
 	appB.AppPackageName = appA.AppPackageName
 
-	expectedError := "updating authorizedapp: ERROR: duplicate key value violates unique constraint"
-	if err := aadb.UpdateAuthorizedApp(ctx, "appB", appB); err == nil {
-		t.Fatal("expected error, but didn't get one")
-	} else if !strings.Contains(err.Error(), expectedError) {
-		t.Fatalf("wrong error, want: %q got: %q", expectedError, err.Error())
-	}
+	err := aadb.UpdateAuthorizedApp(ctx, "appB", appB)
+	errcmp.MustMatch(t, err, "updating authorizedapp: ERROR: duplicate key value violates unique constraint")
 }
 
 func TestGetAuthorizedApp(t *testing.T) {

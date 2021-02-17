@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -30,6 +29,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"google.golang.org/protobuf/proto"
 
@@ -102,7 +102,6 @@ func TestIntervalNumber(t *testing.T) {
 func TestInvalidNew(t *testing.T) {
 	t.Parallel()
 
-	errMsg := "maxExposureKeys must be > 0"
 	cases := []struct {
 		maxKeys        uint
 		maxSameDayKeys uint
@@ -114,7 +113,7 @@ func TestInvalidNew(t *testing.T) {
 		{5, 0, "maxSameDayKeys must be >= 1, got"},
 	}
 
-	for i, c := range cases {
+	for _, c := range cases {
 		_, err := NewTransformer(&testConfig{
 			maxExposureKeys:     c.maxKeys,
 			maxSameDayKeys:      c.maxSameDayKeys,
@@ -122,11 +121,7 @@ func TestInvalidNew(t *testing.T) {
 			truncateWindow:      time.Hour,
 			maxSymptomOnsetDays: maxSymptomOnsetDays,
 		})
-		if err != nil && errMsg == "" {
-			t.Errorf("%v unexpected error: %v", i, err)
-		} else if err != nil && !strings.Contains(err.Error(), c.message) {
-			t.Errorf("%v error want '%v', got '%v'", i, c.message, err)
-		}
+		errcmp.MustMatch(t, err, c.message)
 	}
 }
 
@@ -157,10 +152,7 @@ func TestInvalidBase64(t *testing.T) {
 	batchTime := time.Date(2020, 3, 1, 10, 43, 1, 0, time.UTC)
 
 	_, err = transformer.TransformPublish(ctx, source, regions, nil, batchTime)
-	expErr := `key 0 cannot be imported: illegal base64 data at input byte 4`
-	if err == nil || !strings.Contains(err.Error(), expErr) {
-		t.Errorf("expected error '%v', got: %v", expErr, err)
-	}
+	errcmp.MustMatch(t, err, `key 0 cannot be imported: illegal base64 data at input byte 4`)
 }
 
 func TestDifferentEncodings(t *testing.T) {
@@ -363,15 +355,7 @@ func TestPublishValidation(t *testing.T) {
 			}
 
 			_, err = tf.TransformPublish(ctx, c.p, []string{}, nil, captureStartTime)
-			if err == nil {
-				if c.m != "" {
-					t.Errorf("want error '%v', got nil", c.m)
-				}
-			} else if !strings.Contains(err.Error(), c.m) {
-				t.Errorf("want error '%v', got '%v'", c.m, err)
-			} else if err != nil && c.m == "" {
-				t.Errorf("want error nil, got '%v'", err)
-			}
+			errcmp.MustMatch(t, err, c.m)
 		})
 	}
 }
@@ -1046,15 +1030,7 @@ func TestTransform(t *testing.T) {
 			t.Parallel()
 
 			result, err := transformer.TransformPublish(ctx, tc.Publish, tc.Regions, tc.Claims, batchTime)
-			if err != nil && tc.PartialError == "" {
-				t.Fatalf("TransformPublish returned unexpected error: %v", err)
-			} else if tc.PartialError != "" {
-				if err == nil {
-					t.Fatalf("TransformPublish didn't return expected error: %v", tc.PartialError)
-				} else if !strings.Contains(err.Error(), tc.PartialError) {
-					t.Fatalf("TransformPublish didn't return expected error: %q, got: %v", tc.PartialError, err)
-				}
-			}
+			errcmp.MustMatch(t, err, tc.PartialError)
 
 			if exp := tc.Warnings; len(exp) > 0 {
 				sort.Strings(exp)
@@ -1325,13 +1301,7 @@ func TestTransformOverlapping(t *testing.T) {
 				t.Fatalf("NewTransformer returned unexpected error: %v", err)
 			}
 			_, err = transformer.TransformPublish(ctx, &tc.source, tc.regions, nil, now)
-			if err != nil && tc.error == "" {
-				t.Fatalf("unexpected error, want: nil, got: %v", err)
-			} else if err != nil && !strings.Contains(err.Error(), tc.error) {
-				t.Fatalf("wrong error: want '%v', got: %v", tc.error, err.Error())
-			} else if err == nil && tc.error != "" {
-				t.Fatalf("missing error: want '%v', got: nil", tc.error)
-			}
+			errcmp.MustMatch(t, err, tc.error)
 		})
 	}
 }
@@ -1865,13 +1835,7 @@ func TestExposureReview(t *testing.T) {
 			if result != tc.needsRevision {
 				t.Errorf("revision decision mismatch: want: %v got: %v", tc.needsRevision, result)
 			}
-			if err != nil && tc.err == "" {
-				t.Fatalf("unexpected error: %v", err)
-			} else if err != nil && !strings.Contains(err.Error(), tc.err) {
-				t.Fatalf("wrong error: want '%v', got: '%v'", tc.err, err)
-			} else if err == nil && tc.err != "" {
-				t.Fatalf("expected error: want '%v', got: nil", tc.err)
-			}
+			errcmp.MustMatch(t, err, tc.err)
 			if tc.err != "" || !tc.needsRevision {
 				return
 			}
@@ -2140,15 +2104,7 @@ func TestExposureFromExportFile(t *testing.T) {
 			}
 
 			got, err := FromExportKey(tc.key, thisConfig)
-
-			if err != nil && tc.wantError == "" {
-				t.Fatalf("unexpected error: %v", err)
-			} else if err == nil && tc.wantError != "" {
-				t.Fatalf("missing expected error: %q", tc.wantError)
-			} else if err != nil && tc.wantError != "" && !strings.Contains(err.Error(), tc.wantError) {
-				t.Fatalf("wrong error, want: %q, got: %v", tc.wantError, err)
-			}
-
+			errcmp.MustMatch(t, err, tc.wantError)
 			if tc.wantError != "" {
 				return
 			}
