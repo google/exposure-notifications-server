@@ -23,7 +23,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"math/rand" //nolint:gosec
+	"math/rand"
 	"net/http"
 	"sort"
 	"strings"
