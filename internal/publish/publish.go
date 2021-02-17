@@ -418,7 +418,7 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 			errorMessage = errInvalidReportTypeTransition.Error()
 			errorCode = verifyapi.ErrorInvalidReportTypeTransition
 			blame = obs.BlameClient
-			obsResult = obs.ResultError("INVALID_REPORT_TYPE_TRANSISION")
+			obsResult = obs.ResultError("INVALID_REPORT_TYPE_TRANSITION")
 		default:
 			logMessage = fmt.Sprintf("error writing exposure record: %v", err)
 			errorMessage = http.StatusText(http.StatusInternalServerError)
@@ -477,9 +477,16 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 		publishResponse.ErrorMessage = transformError.Error()
 	}
 
-	stats.RecordWithTags(ctx, []tag.Mutator{exposuresInserted}, mExposuresCount.M(int64(resp.Inserted)))
-	stats.RecordWithTags(ctx, []tag.Mutator{exposuresRevised}, mExposuresCount.M(int64(resp.Revised)))
-	stats.RecordWithTags(ctx, []tag.Mutator{exposuresDropped}, mExposuresCount.M(int64(resp.Dropped)))
+	exposureCounts := map[tag.Mutator]uint32{
+		exposuresInserted: resp.Inserted,
+		exposuresRevised:  resp.Revised,
+		exposuresDropped:  resp.Dropped,
+	}
+	for t, n := range exposureCounts {
+		if err := stats.RecordWithTags(ctx, []tag.Mutator{t}, mExposuresCount.M(int64(n))); err != nil {
+			logger.Warnf("failed to record stats: %v", err)
+		}
+	}
 
 	return &response{
 		status:      http.StatusOK,
