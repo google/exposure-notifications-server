@@ -52,7 +52,7 @@ require (
 	github.com/lib/pq v1.9.0 // indirect
 	github.com/lstoll/awskms v0.0.0-20200603175638-a388516467f1
 	github.com/mattn/go-colorable v0.1.7 // indirect
-	github.com/mikehelmick/go-chaff v0.4.1
+	github.com/mikehelmick/go-chaff v0.5.0
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/opencontainers/runc v1.0.0-rc9 // indirect
 	github.com/ory/dockertest v3.3.5+incompatible
@@ -81,5 +81,5 @@ require (
 	google.golang.org/grpc v1.35.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	honnef.co/go/tools v0.0.1-2020.1.4
+	honnef.co/go/tools v0.1.1
 )
