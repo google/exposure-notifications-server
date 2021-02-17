@@ -23,6 +23,7 @@ import (
 	exportimportdb "github.com/google/exposure-notifications-server/internal/exportimport/database"
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 	"github.com/google/exposure-notifications-server/internal/project"
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -49,11 +50,8 @@ func TestSyncFileFromIndexErrorsInExportRoot(t *testing.T) {
 	// test data ensures that URL parsing strips extra slashes.
 	index := strings.Join([]string{"a.zip", "/b.zip", "//c.zip", ""}, "\n")
 
-	if _, _, err := syncFilesFromIndex(ctx, exportImportDB, config, index); err == nil {
-		t.Fatalf("expected error")
-	} else if !strings.Contains(err.Error(), "invalid URL escape") {
-		t.Fatalf("wrong error, wanted: invalid URL escape, got: %v", err)
-	}
+	_, _, err := syncFilesFromIndex(ctx, exportImportDB, config, index)
+	errcmp.MustMatch(t, err, "invalid URL escape")
 }
 
 func TestSyncFilenameShapes(t *testing.T) {

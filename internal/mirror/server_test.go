@@ -15,14 +15,13 @@
 package mirror
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 )
 
 func TestNewServer(t *testing.T) {
@@ -36,24 +35,24 @@ func TestNewServer(t *testing.T) {
 	testCases := []struct {
 		name string
 		env  *serverenv.ServerEnv
-		err  error
+		err  string
 	}{
 		{
 			name: "nil_database",
 			env:  serverenv.New(ctx),
-			err:  fmt.Errorf("missing database in server environment"),
+			err:  "missing database in server environment",
 		},
 		{
 			name: "nil_blobstore",
 			env:  serverenv.New(ctx, serverenv.WithDatabase(emptyDB)),
-			err:  fmt.Errorf("missing blobstore in server environment"),
+			err:  "missing blobstore in server environment",
 		},
 		{
 			name: "fully_specified",
 			env: serverenv.New(ctx,
 				serverenv.WithDatabase(emptyDB),
 				serverenv.WithBlobStorage(emptyBlobstore)),
-			err: nil,
+			err: "",
 		},
 	}
 
@@ -64,13 +63,8 @@ func TestNewServer(t *testing.T) {
 			t.Parallel()
 
 			got, err := NewServer(&Config{}, tc.env)
-			if tc.err != nil {
-				if got, want := err.Error(), tc.err.Error(); !strings.Contains(got, want) {
-					t.Fatalf("expected %q to be %q", got, want)
-				}
-			} else if err != nil {
-				t.Fatal(err)
-			} else {
+			errcmp.MustMatch(t, err, tc.err)
+			if err == nil {
 				if got, want := got.env, tc.env; got != want {
 					t.Fatalf("expected %#v to be %#v", got, want)
 				}

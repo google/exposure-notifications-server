@@ -31,6 +31,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 	pgx "github.com/jackc/pgx/v4"
 
 	"github.com/google/go-cmp/cmp"
@@ -328,11 +329,8 @@ func TestInsertAndReviseExposures_MissingRequest(t *testing.T) {
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 	pubDB := New(testDB)
 
-	if _, err := pubDB.InsertAndReviseExposures(ctx, nil); err == nil {
-		t.Fatal("missing error")
-	} else if !strings.Contains(err.Error(), "missing request") {
-		t.Fatalf("wrong error, want: %v got: %v", "missing request", err.Error())
-	}
+	_, err := pubDB.InsertAndReviseExposures(ctx, nil)
+	errcmp.MustMatch(t, err, "missing request")
 }
 
 func TestInsertAndReviseExposures_ConfigParadox(t *testing.T) {
@@ -347,11 +345,8 @@ func TestInsertAndReviseExposures_ConfigParadox(t *testing.T) {
 		OnlyRevisions: true,
 	}
 
-	if _, err := pubDB.InsertAndReviseExposures(ctx, req); err == nil {
-		t.Fatal("missing error")
-	} else if !strings.Contains(err.Error(), "configuration paradox") {
-		t.Fatalf("wrong error, want: %v got: %v", "configuration paradox", err.Error())
-	}
+	_, err := pubDB.InsertAndReviseExposures(ctx, req)
+	errcmp.MustMatch(t, err, "configuration paradox")
 }
 
 func TestReviseExposures(t *testing.T) {

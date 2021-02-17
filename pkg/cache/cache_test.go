@@ -17,10 +17,10 @@ package cache
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -137,11 +137,8 @@ func TestWriteThruError(t *testing.T) {
 func TestInvalidDuration(t *testing.T) {
 	t.Parallel()
 
-	if _, err := New(-1 * time.Second); err == nil {
-		t.Fatal("expected error, got nil")
-	} else if !strings.Contains(err.Error(), "duration cannot be negative") {
-		t.Fatalf("wrong error: want: `duration cannot be negative` got: %v", err.Error())
-	}
+	_, err := New(-1 * time.Second)
+	errcmp.MustMatch(t, err, "duration cannot be negative")
 }
 
 func TestConcurrentReaders(t *testing.T) {

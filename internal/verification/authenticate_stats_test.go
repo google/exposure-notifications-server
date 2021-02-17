@@ -21,13 +21,13 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/verification/database"
 	"github.com/google/exposure-notifications-server/internal/verification/model"
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -226,16 +226,7 @@ func TestAuthenticateStatsToken(t *testing.T) {
 			}
 
 			gotID, err := verifier.AuthenticateStatsToken(ctx, jwtString)
-
-			if err != nil {
-				if tc.Error == "" {
-					t.Fatalf("unexpected error: %v", err)
-				} else if !strings.Contains(err.Error(), tc.Error) {
-					t.Fatalf("wanted error '%v', got error '%v'", tc.Error, err.Error())
-				}
-			} else if tc.Error != "" {
-				t.Fatalf("wanted error '%v', but got nil", tc.Error)
-			}
+			errcmp.MustMatch(t, err, tc.Error)
 
 			if tc.Error == "" {
 				if gotID != healthAuthority.ID {

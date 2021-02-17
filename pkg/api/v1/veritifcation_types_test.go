@@ -15,8 +15,9 @@
 package v1
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 )
 
 func TestValidateClaims(t *testing.T) {
@@ -25,11 +26,8 @@ func TestValidateClaims(t *testing.T) {
 	c := NewVerificationClaims()
 	c.ReportType = "bogus"
 
-	if err := c.CustomClaimsValid(); err == nil {
-		t.Fatal("expected an error, got nil")
-	} else if !strings.Contains(err.Error(), "bogus") {
-		t.Fatalf("wanted an error that contained bogus, got: %v", err)
-	}
+	err := c.CustomClaimsValid()
+	errcmp.MustMatch(t, err, "bogus")
 
 	for k := range ValidReportTypes {
 		c.ReportType = k

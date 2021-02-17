@@ -21,7 +21,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +30,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 	"github.com/google/go-cmp/cmp"
 	"github.com/gorilla/mux"
 	"github.com/sethvargo/go-envconfig"
@@ -315,12 +315,7 @@ func TestServer_DownloadIndex(t *testing.T) {
 		_, err = s.downloadIndex(ctx, &mirrormodel.Mirror{
 			IndexFile: ts.URL,
 		})
-		if err == nil {
-			t.Fatal("expected error")
-		}
-		if got, want := err.Error(), "failed to download"; !strings.Contains(got, want) {
-			t.Errorf("expected %q to contain %q", got, want)
-		}
+		errcmp.MustMatch(t, err, "failed to download")
 	})
 
 	// Client only reads up to configured bytes limit
@@ -343,9 +338,7 @@ func TestServer_DownloadIndex(t *testing.T) {
 		_, err = s.downloadIndex(ctx, &mirrormodel.Mirror{
 			IndexFile: ts.URL,
 		})
-		if got, want := err.Error(), "response exceeds 1 bytes"; !strings.Contains(got, want) {
-			t.Errorf("expected %q to contain %q", got, want)
-		}
+		errcmp.MustMatch(t, err, "response exceeds 1 bytes")
 	})
 
 	// Client handles empty index file

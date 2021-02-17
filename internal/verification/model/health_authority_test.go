@@ -15,10 +15,10 @@
 package model
 
 import (
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/pkg/errcmp"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 )
@@ -196,13 +196,8 @@ NTG3+oqI0Q6a3kPOuAAAupr373j7O1YXrM2KAix966EPwTNlK7YCcJa0m6PKz9DT
 			}
 
 			k, err := hak.PublicKey()
-			if err != nil {
-				if tc.msg == "" {
-					t.Errorf("unexpected error: %v", err)
-				} else if !strings.Contains(err.Error(), tc.msg) {
-					t.Errorf("missing error text: want '%v', got '%v'", tc.msg, err.Error())
-				}
-			} else if k == nil {
+			errcmp.MustMatch(t, err, tc.msg)
+			if err == nil && k == nil {
 				t.Errorf("ECDSA public key is unexpectedly nil")
 			}
 		})
