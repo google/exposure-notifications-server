@@ -125,6 +125,11 @@ func (c *Config) Validate() error {
 			fmt.Errorf("env var `MAX_VALID_SYMPTOM_ONSET_REPORT_DAYS` must be > 0, got: %v", c.MaxSymptomOnsetReportDays))
 	}
 
+	if c.StatsUploadMinimum < 10 {
+		result = multierror.Append(result,
+			fmt.Errorf("env var `STATS_UPLOAD_MINIMUM` must be >= 10, got: %v", c.StatsUploadMinimum))
+	}
+
 	return result.ErrorOrNil()
 }
 
