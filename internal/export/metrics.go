@@ -35,6 +35,9 @@ var (
 		"Number of export batchers created", stats.UnitDimensionless)
 	mWorkerBadKeyLength = stats.Int64(exportMetricsPrefix+"export_worker_bad_key_length",
 		"Number of dropped keys caused by bad key length", stats.UnitDimensionless)
+
+	mExportBatchCompletion = stats.Int64(exportMetricsPrefix+"export_batch_completion",
+		"Number of batches complete by output region", stats.UnitDimensionless)
 )
 
 func init() {
@@ -68,6 +71,12 @@ func init() {
 			Description: "Latest number of dropped keys caused by bad key length",
 			Measure:     mWorkerBadKeyLength,
 			Aggregation: view.LastValue(),
+		},
+		{
+			Name:        metrics.MetricRoot + "export_batch_completion",
+			Description: "Number of batches complete by output region",
+			Measure:     mExportBatchCompletion,
+			Aggregation: view.Sum(),
 		},
 	}...)
 }

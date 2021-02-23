@@ -30,6 +30,7 @@ import (
 	publishdatabase "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
@@ -45,6 +46,12 @@ const (
 
 	travelerLockID       = "TRAVELERS"
 	exportAppPackageName = "export-generated"
+)
+
+var (
+	ExportConfigIDTagKey  = tag.MustNewKey("export_config_id")
+	ExportRegionTagKey    = tag.MustNewKey("export_region")
+	ExportTravelersTagKey = tag.MustNewKey("includes_travelers")
 )
 
 // handleDoWork is a handler to iterate the rows of ExportBatch, and creates
@@ -351,6 +358,16 @@ func (s *Server) exportBatch(ctx context.Context, eb *model.ExportBatch, emitInd
 		return fmt.Errorf("completing batch: %w", err)
 	}
 	logger.Infof("Batch %d completed", eb.BatchID)
+
+	tags := []tag.Mutator{
+		tag.Upsert(ExportConfigIDTagKey, fmt.Sprintf("%d", eb.ConfigID)),
+		tag.Upsert(ExportRegionTagKey, eb.OutputRegion),
+		tag.Upsert(ExportTravelersTagKey, fmt.Sprintf("%v", eb.IncludeTravelers)),
+	}
+	if err := stats.RecordWithTags(ctx, tags, mExportBatchCompletion.M(1)); err != nil {
+		logger.Errorw("failed to record export batch completion", "error", err)
+	}
+
 	return nil
 }
 
