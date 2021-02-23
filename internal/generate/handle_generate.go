@@ -133,7 +133,7 @@ func (s *Server) generateKeysInRegion(ctx context.Context, region string) error 
 		if err != nil {
 			return fmt.Errorf("failed to decide revised key status: %w", err)
 		}
-		generateRevisedKeys := val <= s.config.ChanceOfKeyRevision
+		generateRevisedKeys := val < s.config.ChanceOfKeyRevision
 
 		reportType := verifyapi.ReportTypeClinical
 		if !generateRevisedKeys {
