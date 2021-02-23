@@ -137,7 +137,7 @@ func (s *Server) generateKeysInRegion(ctx context.Context, region string) error 
 
 		reportType := verifyapi.ReportTypeClinical
 		if !generateRevisedKeys {
-			if forceConfirmed := s.config.ForceConfirmed; forceConfirmed {
+			if s.config.ForceConfirmed {
 				reportType = verifyapi.ReportTypeConfirmed
 			} else {
 				reportType, err = util.RandomReportType()
