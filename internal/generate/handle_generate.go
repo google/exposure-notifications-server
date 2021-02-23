@@ -141,9 +141,9 @@ func (s *Server) generateKeysInRegion(ctx context.Context, region string) error 
 				reportType = verifyapi.ReportTypeConfirmed
 			} else {
 				reportType, err = util.RandomReportType()
-			}
-			if err != nil {
-				return fmt.Errorf("failed to generate report type: %w", err)
+				if err != nil {
+					return fmt.Errorf("failed to generate report type: %w", err)
+				}
 			}
 		}
 
