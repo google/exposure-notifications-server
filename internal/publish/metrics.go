@@ -83,6 +83,7 @@ func init() {
 			Name:        metrics.MetricRoot + "exposures_count",
 			Description: "Total count of published exposures.",
 			Measure:     mExposuresCount,
+			Aggregation: view.Count(),
 			TagKeys:     exposureTagKeys,
 		},
 		{
