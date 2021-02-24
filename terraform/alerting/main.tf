@@ -13,6 +13,8 @@
 # limitations under the License.
 
 resource "google_project_service" "services" {
+  project = var.project
+
   for_each = toset([
     "monitoring.googleapis.com",
   ])
