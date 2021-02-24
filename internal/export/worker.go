@@ -48,12 +48,6 @@ const (
 	exportAppPackageName = "export-generated"
 )
 
-var (
-	ExportConfigIDTagKey  = tag.MustNewKey("export_config_id")
-	ExportRegionTagKey    = tag.MustNewKey("export_region")
-	ExportTravelersTagKey = tag.MustNewKey("includes_travelers")
-)
-
 // handleDoWork is a handler to iterate the rows of ExportBatch, and creates
 // export files.
 func (s *Server) handleDoWork() http.Handler {
