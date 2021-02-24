@@ -20,6 +20,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/observability"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
+	"go.opencensus.io/tag"
 )
 
 var (
@@ -38,6 +39,10 @@ var (
 
 	mExportBatchCompletion = stats.Int64(exportMetricsPrefix+"export_batch_completion",
 		"Number of batches complete by output region", stats.UnitDimensionless)
+
+	ExportConfigIDTagKey  = tag.MustNewKey("export_config_id")
+	ExportRegionTagKey    = tag.MustNewKey("export_region")
+	ExportTravelersTagKey = tag.MustNewKey("includes_travelers")
 )
 
 func init() {
@@ -77,6 +82,7 @@ func init() {
 			Description: "Number of batches complete by output region",
 			Measure:     mExportBatchCompletion,
 			Aggregation: view.Sum(),
+			TagKeys:     []tag.Key{ExportConfigIDTagKey, ExportRegionTagKey, ExportTravelersTagKey},
 		},
 	}...)
 }
