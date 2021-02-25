@@ -27,7 +27,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -83,7 +83,7 @@ func (k *Filesystem) NewSigner(ctx context.Context, keyID string) (crypto.Signer
 	defer k.mu.RUnlock()
 
 	pth := filepath.Join(k.root, keyID)
-	b, err := ioutil.ReadFile(pth)
+	b, err := os.ReadFile(pth)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read signing key: %w", err)
 	}
@@ -104,14 +104,14 @@ func (k *Filesystem) Encrypt(ctx context.Context, keyID string, plaintext []byte
 
 	// Find the most recent DEK - that's what we'll use for encryption
 	pth := filepath.Join(k.root, keyID)
-	infos, err := ioutil.ReadDir(pth)
+	infos, err := os.ReadDir(pth)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list keys: %w", err)
 	}
 	if len(infos) < 1 {
 		return nil, fmt.Errorf("there are no key versions")
 	}
-	var latest os.FileInfo
+	var latest fs.DirEntry
 	for _, info := range infos {
 		if info.Name() == "metadata" {
 			continue
@@ -129,7 +129,7 @@ func (k *Filesystem) Encrypt(ctx context.Context, keyID string, plaintext []byte
 	}
 
 	latestPath := filepath.Join(pth, latest.Name())
-	dek, err := ioutil.ReadFile(latestPath)
+	dek, err := os.ReadFile(latestPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read encryption key: %w", err)
 	}
@@ -169,7 +169,7 @@ func (k *Filesystem) Decrypt(ctx context.Context, keyID string, ciphertext []byt
 	version, ciphertext := parts[0], parts[1]
 
 	versionPath := filepath.Join(k.root, keyID, string(version))
-	dek, err := ioutil.ReadFile(versionPath)
+	dek, err := os.ReadFile(versionPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read encryption key: %w", err)
 	}
@@ -227,7 +227,7 @@ func (k *Filesystem) SigningKeyVersions(ctx context.Context, parent string) ([]S
 			return nil
 		}
 
-		b, err := ioutil.ReadFile(curr)
+		b, err := os.ReadFile(curr)
 		if err != nil {
 			return err
 		}
@@ -271,7 +271,7 @@ func (k *Filesystem) CreateSigningKey(_ context.Context, parent, name string) (s
 	}
 
 	metadataPath := filepath.Join(pth, "metadata")
-	b, err := ioutil.ReadFile(metadataPath)
+	b, err := os.ReadFile(metadataPath)
 	if err != nil && !os.IsNotExist(err) {
 		return "", fmt.Errorf("failed to read metadata file: %w", err)
 	}
@@ -292,7 +292,7 @@ func (k *Filesystem) CreateSigningKey(_ context.Context, parent, name string) (s
 	if err != nil {
 		return "", fmt.Errorf("failed to generate metadata file: %w", err)
 	}
-	if err := ioutil.WriteFile(metadataPath, b, 0o600); err != nil {
+	if err := os.WriteFile(metadataPath, b, 0o600); err != nil {
 		return "", fmt.Errorf("failed to create metadata file: %w", err)
 	}
 	return strings.TrimPrefix(pth, k.root), nil
@@ -311,7 +311,7 @@ func (k *Filesystem) CreateEncryptionKey(_ context.Context, parent, name string)
 	}
 
 	metadataPath := filepath.Join(pth, "metadata")
-	b, err := ioutil.ReadFile(metadataPath)
+	b, err := os.ReadFile(metadataPath)
 	if err != nil && !os.IsNotExist(err) {
 		return "", fmt.Errorf("failed to read metadata file: %w", err)
 	}
@@ -332,7 +332,7 @@ func (k *Filesystem) CreateEncryptionKey(_ context.Context, parent, name string)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate metadata file: %w", err)
 	}
-	if err := ioutil.WriteFile(metadataPath, b, 0o600); err != nil {
+	if err := os.WriteFile(metadataPath, b, 0o600); err != nil {
 		return "", fmt.Errorf("failed to create metadata file: %w", err)
 	}
 	return strings.TrimPrefix(pth, k.root), nil
@@ -361,7 +361,7 @@ func (k *Filesystem) CreateKeyVersion(_ context.Context, parent string) (string,
 			return "", fmt.Errorf("failed to marshal signing key: %w", err)
 		}
 		pth := filepath.Join(k.root, parent, strconv.FormatInt(time.Now().UnixNano(), 10))
-		if err := ioutil.WriteFile(pth, b, 0o600); err != nil {
+		if err := os.WriteFile(pth, b, 0o600); err != nil {
 			return "", fmt.Errorf("failed to write signing key to disk: %w", err)
 		}
 		return strings.TrimPrefix(pth, k.root), nil
@@ -371,7 +371,7 @@ func (k *Filesystem) CreateKeyVersion(_ context.Context, parent string) (string,
 			return "", fmt.Errorf("failed to generate encryption key: %w", err)
 		}
 		pth := filepath.Join(k.root, parent, strconv.FormatInt(time.Now().UnixNano(), 10))
-		if err := ioutil.WriteFile(pth, ek, 0o600); err != nil {
+		if err := os.WriteFile(pth, ek, 0o600); err != nil {
 			return "", fmt.Errorf("failed to write encryption key to disk: %w", err)
 		}
 		return strings.TrimPrefix(pth, k.root), nil
@@ -412,7 +412,7 @@ type filesystemKeyInfo struct {
 
 func (k *Filesystem) metadataForKey(parent string) (*filesystemKeyInfo, error) {
 	metadataPath := filepath.Join(k.root, parent, "metadata")
-	b, err := ioutil.ReadFile(metadataPath)
+	b, err := os.ReadFile(metadataPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open metadata (does the key exist?): %w", err)
 	}

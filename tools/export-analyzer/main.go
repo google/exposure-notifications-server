@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -104,7 +103,7 @@ type analysis struct {
 }
 
 func analyzeOne(pth string, includeSig, includeExport bool) (*analysis, error) {
-	blob, err := ioutil.ReadFile(pth)
+	blob, err := os.ReadFile(pth)
 	if err != nil {
 		return nil, fmt.Errorf("can't read export file: %w", err)
 	}

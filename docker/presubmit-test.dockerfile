@@ -14,7 +14,7 @@
 
 # This image is used to run ./scripts/presubmit.sh on CI
 
-FROM golang:1.15.2
+FROM golang:1.16
 
 # Install sudo
 RUN apt-get update -yqq && apt-get install -yqq sudo unzip

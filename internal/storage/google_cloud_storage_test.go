@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -170,7 +169,7 @@ func TestGoogleCloudStorage_CreateObject(t *testing.T) {
 				}
 				defer r.Close()
 
-				contents, err := ioutil.ReadAll(r)
+				contents, err := io.ReadAll(r)
 				if err != nil {
 					t.Fatal(err)
 				}

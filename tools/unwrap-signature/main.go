@@ -18,8 +18,8 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 	"google.golang.org/protobuf/proto"
@@ -40,7 +40,7 @@ func main() {
 		log.Fatalf("no out file passed in, --out")
 	}
 
-	inData, err := ioutil.ReadFile(*inFile)
+	inData, err := os.ReadFile(*inFile)
 	if err != nil {
 		log.Fatalf("unable to read input file: %v", err)
 	}
@@ -53,7 +53,7 @@ func main() {
 	log.Printf("Data: \n%v", teksl)
 	sig := teksl.Signatures[0].Signature
 
-	err = ioutil.WriteFile(*outFile, sig, 0o600)
+	err = os.WriteFile(*outFile, sig, 0o600)
 	if err != nil {
 		log.Fatalf("unable to write output file: %v", err)
 	}

@@ -21,7 +21,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"sort"
 
 	"github.com/google/exposure-notifications-server/internal/export/model"
@@ -118,7 +118,7 @@ func unmarshalContent(file *zip.File) (*export.TemporaryExposureKeyExport, []byt
 	}
 	defer f.Close()
 
-	content, err := ioutil.ReadAll(f)
+	content, err := io.ReadAll(f)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -272,7 +272,7 @@ func unmarshalSignatureContent(file *zip.File) (*export.TEKSignatureList, error)
 	}
 	defer f.Close()
 
-	content, err := ioutil.ReadAll(f)
+	content, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}

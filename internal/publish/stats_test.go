@@ -18,7 +18,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -152,7 +152,7 @@ func TestRetrieveMetrics(t *testing.T) {
 	resp := rr.Result()
 
 	defer resp.Body.Close()
-	respBytes, err := ioutil.ReadAll(resp.Body)
+	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +304,7 @@ func TestRetrieveMetrics_AuthErrors(t *testing.T) {
 			resp := rr.Result()
 
 			defer resp.Body.Close()
-			respBytes, err := ioutil.ReadAll(resp.Body)
+			respBytes, err := io.ReadAll(resp.Body)
 			if err != nil {
 				t.Fatal(err)
 			}

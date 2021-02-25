@@ -22,14 +22,15 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"math/big"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/logging"
-	"github.com/sethvargo/go-signalcontext"
 )
 
 var (
@@ -40,7 +41,7 @@ var (
 )
 
 func main() {
-	ctx, done := signalcontext.OnInterrupt()
+	ctx, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	logger := logging.NewLoggerFromEnv().Named("tools.verify")
 	logger = logger.With("build_id", buildinfo.BuildID)
@@ -74,7 +75,7 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("--signature must be base64 encoded, error: %w", err)
 	}
-	pemBytes, err := ioutil.ReadFile(*pemFileFlag)
+	pemBytes, err := os.ReadFile(*pemFileFlag)
 	if err != nil {
 		return fmt.Errorf("--pem-file could not be read: %w", err)
 	}

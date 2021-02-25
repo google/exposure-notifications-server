@@ -15,7 +15,6 @@
 package secrets
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -36,7 +35,7 @@ func TestResolver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tmpdir, err := ioutil.TempDir("", "")
+	tmpdir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}

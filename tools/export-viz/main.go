@@ -20,7 +20,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -50,7 +49,7 @@ func realMain() error {
 		return fmt.Errorf("--file is required")
 	}
 
-	blob, err := ioutil.ReadFile(*filePath)
+	blob, err := os.ReadFile(*filePath)
 	if err != nil {
 		return fmt.Errorf("can't read export file: %w", err)
 	}

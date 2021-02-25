@@ -21,8 +21,8 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -133,7 +133,7 @@ func (s *Server) handleSync() http.Handler {
 		}
 
 		if s.config.TLSCertFile != "" {
-			b, err := ioutil.ReadFile(s.config.TLSCertFile)
+			b, err := os.ReadFile(s.config.TLSCertFile)
 			if err != nil {
 				internalErrorf(ctx, w, "Failed to read cert file %q: %v", s.config.TLSCertFile, err)
 				return

@@ -22,8 +22,10 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"os/signal"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
 
 	authorizedappdatabase "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
@@ -35,12 +37,10 @@ import (
 	verificationmodel "github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/logging"
-
-	"github.com/sethvargo/go-signalcontext"
 )
 
 func main() {
-	ctx, done := signalcontext.OnInterrupt()
+	ctx, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	logger := logging.NewLoggerFromEnv().Named("tools.seed")
 	logger = logger.With("build_id", buildinfo.BuildID)

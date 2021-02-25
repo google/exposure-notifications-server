@@ -21,7 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -107,7 +107,7 @@ func (s *AWSS3) GetObject(ctx context.Context, bucket, key string) ([]byte, erro
 	}
 	defer o.Body.Close()
 
-	b, err := ioutil.ReadAll(o.Body)
+	b, err := io.ReadAll(o.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read object: %w", err)
 	}

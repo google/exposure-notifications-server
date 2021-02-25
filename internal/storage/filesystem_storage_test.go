@@ -16,7 +16,6 @@ package storage
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,7 +26,7 @@ import (
 func TestFilesystemStorage_CreateObject(t *testing.T) {
 	t.Parallel()
 
-	tmp, err := ioutil.TempDir("", "")
+	tmp, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +73,7 @@ func TestFilesystemStorage_CreateObject(t *testing.T) {
 			}
 
 			if !tc.err {
-				contents, err := ioutil.ReadFile(filepath.Join(tc.folder, tc.filepath))
+				contents, err := os.ReadFile(filepath.Join(tc.folder, tc.filepath))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -90,7 +89,7 @@ func TestFilesystemStorage_CreateObject(t *testing.T) {
 func TestFilesystemStorage_DeleteObject(t *testing.T) {
 	t.Parallel()
 
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +134,7 @@ func TestFilesystemStorage_DeleteObject(t *testing.T) {
 func TestFilesystemStorage_GetObject(t *testing.T) {
 	t.Parallel()
 
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
