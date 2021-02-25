@@ -20,7 +20,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -76,7 +75,7 @@ func TestNewFilesystem(t *testing.T) {
 	t.Run("root_absolute", func(t *testing.T) {
 		t.Parallel()
 
-		tmp, err := ioutil.TempDir("", "")
+		tmp, err := os.MkdirTemp("", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -127,7 +126,7 @@ func TestFilesystem_NewSigner(t *testing.T) {
 			keyID: "banana",
 			setup: func(dir string) error {
 				pth := filepath.Join(dir, "banana")
-				return ioutil.WriteFile(pth, []byte("dafd"), 0o600)
+				return os.WriteFile(pth, []byte("dafd"), 0o600)
 			},
 			err: "failed to parse signing key",
 		},
@@ -145,7 +144,7 @@ func TestFilesystem_NewSigner(t *testing.T) {
 				}
 
 				pth := filepath.Join(dir, "apple")
-				return ioutil.WriteFile(pth, b, 0o600)
+				return os.WriteFile(pth, b, 0o600)
 			},
 		},
 	}
@@ -158,7 +157,7 @@ func TestFilesystem_NewSigner(t *testing.T) {
 
 			ctx := project.TestContext(t)
 
-			dir, err := ioutil.TempDir("", "")
+			dir, err := os.MkdirTemp("", "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -253,7 +252,7 @@ func TestFilesystem_EncryptDecrypt(t *testing.T) {
 
 			ctx := project.TestContext(t)
 
-			dir, err := ioutil.TempDir("", "")
+			dir, err := os.MkdirTemp("", "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -361,7 +360,7 @@ func TestFilesystem_SigningKeyVersions(t *testing.T) {
 
 			ctx := project.TestContext(t)
 
-			dir, err := ioutil.TempDir("", "")
+			dir, err := os.MkdirTemp("", "")
 			if err != nil {
 				t.Fatal(err)
 			}

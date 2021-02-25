@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -29,7 +28,7 @@ func TestKeyManager(tb testing.TB) KeyManager {
 
 	ctx := context.Background()
 
-	tmpdir, err := ioutil.TempDir("", "")
+	tmpdir, err := os.MkdirTemp("", "")
 	if err != nil {
 		tb.Fatal(err)
 	}

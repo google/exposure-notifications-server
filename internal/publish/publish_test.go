@@ -21,7 +21,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -570,7 +570,7 @@ func TestPublishWithBypass(t *testing.T) {
 
 				// For non success status, check that they body contains the expected message
 				defer resp.Body.Close()
-				respBytes, err := ioutil.ReadAll(resp.Body)
+				respBytes, err := io.ReadAll(resp.Body)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1084,7 +1084,7 @@ func TestKeyRevision(t *testing.T) {
 
 				// For non success status, check that they body contains the expected message
 				defer resp.Body.Close()
-				respBytes, err := ioutil.ReadAll(resp.Body)
+				respBytes, err := io.ReadAll(resp.Body)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1148,7 +1148,7 @@ func TestKeyRevision(t *testing.T) {
 
 				// For non success status, check that they body contains the expected message
 				defer resp.Body.Close()
-				respBytes, err := ioutil.ReadAll(resp.Body)
+				respBytes, err := io.ReadAll(resp.Body)
 				if err != nil {
 					t.Fatal(err)
 				}

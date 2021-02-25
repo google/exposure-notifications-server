@@ -18,7 +18,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -45,7 +44,7 @@ func NewFilesystemStorage(ctx context.Context, _ *Config) (Blobstore, error) {
 // contentType is ignored for this storage implementation.
 func (s *FilesystemStorage) CreateObject(ctx context.Context, folder, filename string, contents []byte, cacheable bool, contentType string) error {
 	pth := filepath.Join(folder, filename)
-	if err := ioutil.WriteFile(pth, contents, 0o600); err != nil {
+	if err := os.WriteFile(pth, contents, 0o600); err != nil {
 		return fmt.Errorf("failed to create object: %w", err)
 	}
 	return nil
@@ -65,7 +64,7 @@ func (s *FilesystemStorage) DeleteObject(ctx context.Context, folder, filename s
 // exist, it returns ErrNotFound.
 func (s *FilesystemStorage) GetObject(ctx context.Context, folder, filename string) ([]byte, error) {
 	pth := filepath.Join(folder, filename)
-	b, err := ioutil.ReadFile(pth)
+	b, err := os.ReadFile(pth)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrNotFound

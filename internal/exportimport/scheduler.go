@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -92,7 +92,7 @@ func (s *Server) handleSchedule() http.Handler {
 			}
 
 			defer resp.Body.Close()
-			bytes, err := ioutil.ReadAll(resp.Body)
+			bytes, err := io.ReadAll(resp.Body)
 			if err != nil {
 				anyErrors = true
 				logger.Errorw("unable to read index file", "file", config.IndexFile, "error", err)

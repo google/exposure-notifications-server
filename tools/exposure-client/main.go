@@ -23,16 +23,16 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/util"
-	"github.com/sethvargo/go-signalcontext"
 )
 
 var (
@@ -44,7 +44,7 @@ var (
 )
 
 func main() {
-	ctx, done := signalcontext.OnInterrupt()
+	ctx, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	logger := logging.NewLoggerFromEnv().
 		With("build_id", buildinfo.BuildID).
@@ -122,7 +122,7 @@ func sendRequest(ctx context.Context, data io.Reader) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read body: %w", err)
 	}

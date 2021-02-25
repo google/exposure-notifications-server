@@ -48,7 +48,7 @@ steps:
   - '-allow-failure'
 
 - id: 'download-modules'
-  name: 'golang:1.15.2'
+  name: 'golang:1.16'
   args:
   - 'go'
   - 'install'
@@ -75,7 +75,7 @@ steps:
   - 'bin'
 
 - id: 'build'
-  name: 'golang:1.15.2'
+  name: 'golang:1.16'
   args:
   - 'go'
   - 'build'

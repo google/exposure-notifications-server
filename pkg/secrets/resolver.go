@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/sha1"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,7 +108,7 @@ func (r *secretResolver) resolve(ctx context.Context, envName, secretRef string)
 
 		secretFileName := r.filenameForSecret(envName + "." + secretRef)
 		secretFilePath := filepath.Join(r.dir, secretFileName)
-		if err := ioutil.WriteFile(secretFilePath, []byte(secretVal), 0o600); err != nil {
+		if err := os.WriteFile(secretFilePath, []byte(secretVal), 0o600); err != nil {
 			return "", fmt.Errorf("failed to write secret file for %q: %w", envName, err)
 		}
 

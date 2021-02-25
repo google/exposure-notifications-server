@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -219,7 +219,7 @@ func cloudRunEnv(ctx context.Context, name string) (map[string]string, error) {
 	defer serviceResp.Body.Close()
 
 	if serviceResp.StatusCode != 200 {
-		b, _ := ioutil.ReadAll(serviceResp.Body)
+		b, _ := io.ReadAll(serviceResp.Body)
 		return nil, fmt.Errorf("failed to lookup service: %d: %s", serviceResp.StatusCode, b)
 	}
 
@@ -242,7 +242,7 @@ func cloudRunEnv(ctx context.Context, name string) (map[string]string, error) {
 	defer revisionResp.Body.Close()
 
 	if revisionResp.StatusCode != 200 {
-		b, _ := ioutil.ReadAll(revisionResp.Body)
+		b, _ := io.ReadAll(revisionResp.Body)
 		return nil, fmt.Errorf("failed to lookup revision: %d: %s", revisionResp.StatusCode, b)
 	}
 

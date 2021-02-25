@@ -20,7 +20,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -89,7 +89,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 	}
 
 	defer resp.Body.Close()
-	bytes, err := ioutil.ReadAll(resp.Body)
+	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}

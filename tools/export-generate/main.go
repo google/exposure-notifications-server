@@ -24,9 +24,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
+	"os"
 	"time"
 
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
@@ -96,7 +96,7 @@ func main() {
 	var exposureKeys []publishmodel.Exposure
 	if *tekFile != "" {
 		log.Printf("Using TEKs provided in: %s", *tekFile)
-		file, err := ioutil.ReadFile(*tekFile)
+		file, err := os.ReadFile(*tekFile)
 		if err != nil {
 			log.Fatalf("unable to read file: %v", err)
 		}
@@ -211,14 +211,14 @@ func (e *exportFileWriter) writeFile() {
 	}
 	fileName := fmt.Sprintf(e.exportBatch.FilenameRoot+"%d-records-%d-of-%d"+filenameSuffix, e.totalKeys, e.curBatch, e.numBatches)
 	log.Printf("Creating %v", fileName)
-	err = ioutil.WriteFile(fileName, data, 0o600)
+	err = os.WriteFile(fileName, data, 0o600)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
 func getSigningKey(fileName string) (*ecdsa.PrivateKey, error) {
-	keyBytes, _ := ioutil.ReadFile(fileName)
+	keyBytes, _ := os.ReadFile(fileName)
 	return ParseECPrivateKeyFromPEM(keyBytes)
 }
 

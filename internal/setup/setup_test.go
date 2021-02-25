@@ -15,7 +15,6 @@
 package setup_test
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -91,7 +90,7 @@ func (t *testConfig) ObservabilityExporterConfig() *observability.Config {
 func TestSetupWith(t *testing.T) {
 	t.Parallel()
 
-	tmp, err := ioutil.TempDir("", "")
+	tmp, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -24,6 +24,8 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
@@ -31,13 +33,12 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/logging"
-	"github.com/sethvargo/go-signalcontext"
 )
 
 var messageToSign = flag.String("message", "hello world", "string message to sign")
 
 func main() {
-	ctx, done := signalcontext.OnInterrupt()
+	ctx, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	logger := logging.NewLoggerFromEnv().Named("tools.sign")
 	logger = logger.With("build_id", buildinfo.BuildID)

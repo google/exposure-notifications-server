@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -50,7 +50,7 @@ func TestBodyTooLarge(t *testing.T) {
 func TestInvalidHeader(t *testing.T) {
 	t.Parallel()
 
-	body := ioutil.NopCloser(bytes.NewReader([]byte("")))
+	body := io.NopCloser(bytes.NewReader([]byte("")))
 	r := httptest.NewRequest("POST", "/", body)
 	r.Header.Set("content-type", "application/text")
 
@@ -153,7 +153,7 @@ func TestValidPublishMessage(t *testing.T) {
     "VerificationPayload": "1234-ABCD-EFGH-5678"}`
 	json = fmt.Sprintf(json, intervalNumber, intervalNumber, intervalNumber)
 
-	body := ioutil.NopCloser(bytes.NewReader([]byte(json)))
+	body := io.NopCloser(bytes.NewReader([]byte(json)))
 	r := httptest.NewRequest("POST", "/", body)
 	r.Header.Set("content-type", "application/json")
 
@@ -186,7 +186,7 @@ func TestValidPublishMessage(t *testing.T) {
 func unmarshalTestHelper(t *testing.T, payloads []string, errors []string, expCode int) {
 	t.Helper()
 	for i, testStr := range payloads {
-		body := ioutil.NopCloser(bytes.NewReader([]byte(testStr)))
+		body := io.NopCloser(bytes.NewReader([]byte(testStr)))
 		r := httptest.NewRequest("POST", "/", body)
 		r.Header.Set("content-type", "application/json; charset=utf-8")
 
