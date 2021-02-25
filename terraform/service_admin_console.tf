@@ -58,6 +58,12 @@ resource "google_project_iam_member" "admin-console-observability" {
   member  = "serviceAccount:${google_service_account.admin-console.email}"
 }
 
+resource "google_kms_key_ring_iam_member" "admin-console-signerverifier" {
+  key_ring_id = google_kms_key_ring.export-signing.self_link
+  role        = "roles/cloudkms.signerVerifier"
+  member      = "serviceAccount:${google_service_account.admin-console.email}"
+}
+
 resource "google_cloud_run_service" "admin-console" {
   name     = "admin-console"
   location = var.cloudrun_location
