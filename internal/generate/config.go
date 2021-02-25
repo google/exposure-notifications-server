@@ -55,6 +55,7 @@ type Config struct {
 	ChanceOfTraveler             int           `env:"CHANCE_OF_TRAVELER, default=20"`     // 0-100 are valid values
 	KeyRevisionDelay             time.Duration `env:"KEY_REVISION_DELAY, default=2h"`     // key revision will be forward dates this amount.
 	SymptomOnsetDaysAgo          uint          `env:"DEFAULT_SYMPTOM_ONSET_DAYS_AGO, default=4"`
+	ForceConfirmed               bool          `env:"FORCE_CONFIRMED, default=false"` // force report type to be confirmed for all exposures
 }
 
 func (c *Config) MaxExposureKeys() uint {
