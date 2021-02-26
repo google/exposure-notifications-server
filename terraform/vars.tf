@@ -53,6 +53,21 @@ variable "db_version" {
   description = "Version of the database to use. Must be at least 13 or higher."
 }
 
+variable "database_backup_location" {
+  type    = string
+  default = "us"
+
+  description = "Location in which to backup the database."
+}
+
+variable "database_backup_schedule" {
+  type    = string
+  default = "0 */6 * * *"
+
+  description = "Cron schedule in which to do a full backup of the database to Cloud Storage."
+}
+
+
 variable "db_failover_replica_regions" {
   type    = list(string)
   default = []
