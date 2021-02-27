@@ -58,6 +58,13 @@ resource "google_sql_database_instance" "db-inst" {
       require_ssl     = true
       private_network = google_service_networking_connection.private_vpc_connection.network
     }
+
+    insights_config {
+      query_insights_enabled  = true
+      query_string_length     = 1024
+      record_application_tags = true
+      record_client_address   = false
+    }
   }
 
   depends_on = [
