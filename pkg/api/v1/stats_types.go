@@ -91,8 +91,29 @@ type PublishRequests struct {
 	IOS             int64 `json:"ios"`
 }
 
+// Total returns the number of publish requests across all platforms.
 func (p *PublishRequests) Total() int64 {
 	return p.UnknownPlatform + p.Android + p.IOS
+}
+
+// TEKAgeDistributionAsString returns an array of TEKAgeDistribution
+// as strings instead of int64
+func (s *StatsDay) TEKAgeDistributionAsString() []string {
+	rtn := make([]string, 0, len(s.TEKAgeDistribution))
+	for _, v := range s.TEKAgeDistribution {
+		rtn = append(rtn, strconv.FormatInt(v, 10))
+	}
+	return rtn
+}
+
+// OnsetToUploadDistributionAsString returns an array of OnsetToUploadDistribution
+// as strings instead of int64
+func (s *StatsDay) OnsetToUploadDistributionAsString() []string {
+	rtn := make([]string, 0, len(s.OnsetToUploadDistribution))
+	for _, v := range s.OnsetToUploadDistribution {
+		rtn = append(rtn, strconv.FormatInt(v, 10))
+	}
+	return rtn
 }
 
 // MarshalCSV returns bytes in CSV format.
@@ -122,8 +143,8 @@ func (s StatsDays) MarshalCSV() ([]byte, error) {
 			strconv.FormatInt(stat.TotalTEKsPublished, 10),
 			strconv.FormatInt(stat.RevisionRequests, 10),
 			strconv.FormatInt(stat.RequestsMissingOnsetDate, 10),
-			join(stat.TEKAgeDistribution, "|"),
-			join(stat.OnsetToUploadDistribution, "|"),
+			strings.Join(stat.TEKAgeDistributionAsString(), "|"),
+			strings.Join(stat.OnsetToUploadDistributionAsString(), "|"),
 		}); err != nil {
 			return nil, fmt.Errorf("failed to write CSV entry %d: %w", i, err)
 		}
@@ -135,15 +156,4 @@ func (s StatsDays) MarshalCSV() ([]byte, error) {
 	}
 
 	return b.Bytes(), nil
-}
-
-func join(arr []int64, sep string) string {
-	var sb strings.Builder
-	for i, d := range arr {
-		sb.WriteString(strconv.FormatInt(d, 10))
-		if i != len(arr)-1 {
-			sb.WriteString(sep)
-		}
-	}
-	return sb.String()
 }
