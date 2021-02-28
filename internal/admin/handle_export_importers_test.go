@@ -29,11 +29,7 @@ func TestRenderExportImporters(t *testing.T) {
 	m["model"] = model
 
 	recorder := httptest.NewRecorder()
-	config := Config{
-		TemplatePath: "../../cmd/admin-console/templates",
-		TopFile:      "top",
-		BotFile:      "bottom",
-	}
+	config := Config{}
 	err := config.RenderTemplate(recorder, "export-importer", m)
 	if err != nil {
 		t.Fatalf("error rendering template: %v", err)

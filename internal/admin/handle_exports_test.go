@@ -37,11 +37,7 @@ func TestRenderExports(t *testing.T) {
 	m["siginfos"] = sigInfos
 
 	recorder := httptest.NewRecorder()
-	config := Config{
-		TemplatePath: "../../cmd/admin-console/templates",
-		TopFile:      "top",
-		BotFile:      "bottom",
-	}
+	config := Config{}
 	err := config.RenderTemplate(recorder, "export", m)
 	if err != nil {
 		t.Fatalf("error rendering template: %v", err)

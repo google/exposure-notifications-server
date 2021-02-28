@@ -42,9 +42,14 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 }
 
 func (s *Server) Routes(ctx context.Context) http.Handler {
+	tmpl, err := s.config.TemplateRenderer()
+	if err != nil {
+		panic(fmt.Errorf("failed to load templates: %w", err))
+	}
+
 	mux := gin.Default()
 	mux.SetFuncMap(TemplateFuncMap)
-	mux.LoadHTMLGlob(s.config.TemplatePath + "/*")
+	mux.SetHTMLTemplate(tmpl)
 
 	// Landing page.
 	mux.GET("/", s.HandleIndex())
