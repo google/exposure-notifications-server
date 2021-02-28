@@ -17,9 +17,9 @@
 package admin
 
 import (
+	"embed"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/database"
@@ -28,6 +28,9 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
+
+//go:embed templates/*
+var assetsFS embed.FS
 
 var (
 	_ setup.BlobstoreConfigProvider     = (*Config)(nil)
@@ -42,10 +45,7 @@ type Config struct {
 	SecretManager secrets.Config
 	Storage       storage.Config
 
-	Port         string `env:"PORT, default=8080"`
-	TemplatePath string `env:"TEMPLATE_DIR, default=./cmd/admin-console/templates"`
-	TopFile      string `env:"TOP_FILE, default=top"`
-	BotFile      string `env:"BOTTOM_FILE, default=bottom"`
+	Port string `env:"PORT, default=8080"`
 }
 
 func (c *Config) DatabaseConfig() *database.Config {
@@ -64,30 +64,30 @@ func (c *Config) BlobstoreConfig() *storage.Config {
 	return &c.Storage
 }
 
-func (c *Config) RenderTemplate(w http.ResponseWriter, tmpl string, p TemplateMap) error {
-	files := []string{
-		fmt.Sprintf("%s/%s.html", c.TemplatePath, c.TopFile),
-		fmt.Sprintf("%s/%s.html", c.TemplatePath, tmpl),
-		fmt.Sprintf("%s/%s.html", c.TemplatePath, c.BotFile),
-	}
-
-	t, err := template.
-		New(tmpl).
+func (c *Config) TemplateRenderer() (*template.Template, error) {
+	tmpl, err := template.New("").
+		Option("missingkey=zero").
 		Funcs(TemplateFuncMap).
-		ParseFiles(files...)
+		ParseFS(assetsFS, "templates/*.html")
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, err)
-		log.Printf("ERROR: %v", err)
+		return nil, fmt.Errorf("failed to parse templates from fs: %w", err)
+	}
+	return tmpl, nil
+}
+
+func (c *Config) RenderTemplate(w http.ResponseWriter, name string, p TemplateMap) error {
+	tmpl, err := c.TemplateRenderer()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return err
 	}
-	if err := t.ExecuteTemplate(w, tmpl, p); err != nil {
-		message := fmt.Sprintf("error rendering template: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, message)
-		log.Printf("ERROR: %v", err)
-		return fmt.Errorf("error rendering template: %w", err)
+
+	if err := tmpl.ExecuteTemplate(w, name, p); err != nil {
+		err = fmt.Errorf("failed to render template %q: %w", name, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return err
 	}
 
+	w.WriteHeader(http.StatusOK)
 	return nil
 }

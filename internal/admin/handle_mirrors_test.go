@@ -29,11 +29,7 @@ func TestRenderMirrors(t *testing.T) {
 	m["mirror"] = mirror
 
 	recorder := httptest.NewRecorder()
-	config := Config{
-		TemplatePath: "../../cmd/admin-console/templates",
-		TopFile:      "top",
-		BotFile:      "bottom",
-	}
+	config := Config{}
 	err := config.RenderTemplate(recorder, "mirror", m)
 	if err != nil {
 		t.Fatalf("error rendering template: %v", err)

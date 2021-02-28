@@ -98,7 +98,7 @@ steps:
   name: 'docker:19'
   args:
   - 'build'
-  - '--file=builders/admin-console.dockerfile'
+  - '--file=builders/service.dockerfile'
   - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/admin-console:${_TAG}'
   - '--build-arg=SERVICE=admin-console'
   - '.'

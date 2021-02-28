@@ -29,11 +29,7 @@ func TestRenderAuthorizedApps(t *testing.T) {
 	m["app"] = authorizedApp
 
 	recorder := httptest.NewRecorder()
-	config := Config{
-		TemplatePath: "../../cmd/admin-console/templates",
-		TopFile:      "top",
-		BotFile:      "bottom",
-	}
+	config := Config{}
 	err := config.RenderTemplate(recorder, "authorizedapp", m)
 	if err != nil {
 		t.Fatalf("error rendering template: %v", err)
