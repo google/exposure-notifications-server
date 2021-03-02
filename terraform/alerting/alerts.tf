@@ -50,6 +50,41 @@ resource "google_monitoring_alert_policy" "CloudSchedulerJobFailed" {
   ]
 }
 
+resource "google_monitoring_alert_policy" "probers" {
+  project = var.project
+
+  display_name = "HostDown"
+  combiner     = "OR"
+  conditions {
+    display_name = "Host is unreachable"
+    condition_monitoring_query_language {
+      duration = "300s"
+      query    = <<-EOT
+      fetch
+      uptime_url :: monitoring.googleapis.com/uptime_check/check_passed
+      | align next_older(1m)
+      | every 1m
+      | group_by [resource.host], [val: fraction_true(value.check_passed)]
+      | condition val < 20 '%'
+      EOT
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  documentation {
+    content   = "${local.playbook_prefix}/HostDown.md"
+    mime_type = "text/markdown"
+  }
+
+  notification_channels = [for x in values(google_monitoring_notification_channel.paging) : x.id]
+
+  depends_on = [
+    null_resource.manual-step-to-enable-workspace,
+  ]
+}
+
 resource "google_logging_metric" "human_accessed_secret" {
   name    = "human_accessed_secret"
   project = var.project
