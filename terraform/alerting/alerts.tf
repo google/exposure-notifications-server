@@ -58,7 +58,7 @@ resource "google_monitoring_alert_policy" "probers" {
   conditions {
     display_name = "Host is unreachable"
     condition_monitoring_query_language {
-      duration = "300s"
+      duration = "60s"
       query    = <<-EOT
       fetch
       uptime_url :: monitoring.googleapis.com/uptime_check/check_passed
