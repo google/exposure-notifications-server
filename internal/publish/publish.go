@@ -295,7 +295,8 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 	// generous defaults. If there isn't a region set, then the TEKs
 	// won't be retrievable, so we ensure there is something set.
 	if len(regions) == 0 {
-		logger.Errorf("No regions present in request or configured for HealthAuthorityID: %v", data.HealthAuthorityID)
+		logger.Errorw("no regions present in request or configured for HealthAuthorityID",
+			"health_authority_id", data.HealthAuthorityID)
 		message := fmt.Sprintf("unknown health authority regions for %v", data.HealthAuthorityID)
 		span.SetStatus(trace.Status{Code: trace.StatusCodePermissionDenied, Message: message})
 		blame = obs.BlameClient
@@ -341,11 +342,11 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 	if len(data.RevisionToken) != 0 {
 		encryptedToken, err := base64util.DecodeString(data.RevisionToken)
 		if err != nil {
-			logger.Errorf("unable to decode revision token, proceeding without: %v", err)
+			logger.Warnw("failed to decode revision token, proceeding without", "error", err)
 		} else {
 			token, err = s.tokenManager.UnmarshalRevisionToken(ctx, encryptedToken, s.tokenAAD)
 			if err != nil {
-				logger.Errorf("unable to unmarshall / decrypt revision token. Treating as if none was provided: %v", err)
+				logger.Errorw("failed to unmarshal revision token, treating as if none was provided", "error", err)
 				token = nil // just in case.
 				decryptFail = true
 			}
@@ -454,7 +455,7 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 	if err != nil {
 		// In this case, an empty revision token is returned. The rest of the request
 		// was handled correctly.
-		logger.Errorf("unable to make new revision token: %v", err)
+		logger.Errorw("failed to make new revision token", "error", err)
 		newToken = make([]byte, 0)
 	}
 

@@ -69,10 +69,13 @@ func (s *Server) handleImport() http.Handler {
 }
 
 func (s *Server) runImport(ctx context.Context, config *model.ExportImport) error {
-	logger := logging.FromContext(ctx)
+	lockID := fmt.Sprintf("%s%d", lockPrefix, config.ID)
+
+	logger := logging.FromContext(ctx).Named("runImport").
+		With("lock", lockID)
 
 	// Obtain a lock to work on this import config.
-	unlock, err := s.db.Lock(ctx, fmt.Sprintf("%s%d", lockPrefix, config.ID), s.config.MaxRuntime)
+	unlock, err := s.db.Lock(ctx, lockID, s.config.MaxRuntime)
 	if err != nil {
 		if errors.Is(err, database.ErrAlreadyLocked) {
 			logger.Warnw("import already locked", "config", config)
@@ -82,7 +85,7 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 	}
 	defer func() {
 		if err := unlock(); err != nil {
-			logger.Errorf("failed to unlock: %v", err)
+			logger.Errorw("failed to unlock", "error", err)
 		}
 	}()
 
@@ -140,7 +143,7 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 		}
 
 		if err := s.exportImportDB.CompleteImportFile(ctx, file, status); err != nil {
-			logger.Errorf("failed to mark file completed", "file", file, "error", err)
+			logger.Errorw("failed to mark file completed", "file", file, "error", err)
 		}
 	}
 	if len(errs) != 0 {

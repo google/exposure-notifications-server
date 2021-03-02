@@ -98,13 +98,13 @@ func (s *Server) handleSync() http.Handler {
 
 		// Obtain lock to make sure there are no other processes working on this batch.
 		lock := "query_" + queryID
+		logger = logger.With("lock", lock)
 		unlockFn, err := s.db.Lock(ctx, lock, s.config.Timeout)
 		if err != nil {
 			if errors.Is(err, coredb.ErrAlreadyLocked) {
 				stats.Record(ctx, mPullLockContention.M(1))
-				msg := fmt.Sprintf("Lock %s already in use. No work will be performed.", lock)
-				logger.Infof(msg)
-				fmt.Fprint(w, msg) // We return status 200 here so that Cloud Scheduler does not retry.
+				logger.Warnw("already locked")
+				w.WriteHeader(http.StatusOK) // We return status 200 here so that Cloud Scheduler does not retry.
 				return
 			}
 			internalErrorf(ctx, w, "Could not acquire lock %s for query %s: %v", lock, queryID, err)
@@ -112,7 +112,7 @@ func (s *Server) handleSync() http.Handler {
 		}
 		defer func() {
 			if err := unlockFn(); err != nil {
-				logger.Errorf("failed to unlock: %v", err)
+				logger.Errorw("failed to unlock", "error", err)
 			}
 		}()
 

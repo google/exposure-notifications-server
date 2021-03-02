@@ -39,7 +39,8 @@ func (s *Server) handleSchedule() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		logger := logging.FromContext(ctx).Named("handleSchedule")
+		logger := logging.FromContext(ctx).Named("handleSchedule").
+			With("lock", schedulerLockID)
 
 		ctx, span := trace.StartSpan(ctx, "(*exportimport.handleSchedule).ServeHTTP")
 		defer span.End()
@@ -50,13 +51,13 @@ func (s *Server) handleSchedule() http.Handler {
 				w.WriteHeader(http.StatusOK) // don't report conflict/failure to scheduler (will retry later)
 				return
 			}
-			logger.Errorw("failed to obtain lock", "lock", schedulerLockID, "err", "error")
+			logger.Errorw("failed to obtain lock", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		defer func() {
 			if err := unlock(); err != nil {
-				logger.Errorf("failed to unlock: %v", err)
+				logger.Errorw("failed to unlock", "error", err)
 			}
 		}()
 

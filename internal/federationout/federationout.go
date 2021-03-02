@@ -74,20 +74,22 @@ type authKey struct{}
 
 // Fetch implements the FederationServer Fetch endpoint.
 func (s Server) Fetch(ctx context.Context, req *federation.FederationFetchRequest) (*federation.FederationFetchResponse, error) {
+	logger := logging.FromContext(ctx).Named("federationout.Fetch")
+
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
-	logger := logging.FromContext(ctx)
+
 	response, err := s.fetch(ctx, req, s.publishdb.IterateExposures, publishmodel.TruncateWindow(time.Now(), s.config.TruncateWindow)) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?
 	if err != nil {
 		stats.Record(ctx, mFetchFailed.M(1))
-		logger.Errorf("Fetch error: %v", err)
+		logger.Errorw("failed to fetch", "error", err)
 		return nil, errors.New("internal error")
 	}
 	return response, nil
 }
 
 func (s Server) fetch(ctx context.Context, req *federation.FederationFetchRequest, itFunc iterateExposuresFunc, fetchUntil time.Time) (*federation.FederationFetchResponse, error) {
-	logger := logging.FromContext(ctx)
+	logger := logging.FromContext(ctx).Named("federationout.fetch")
 
 	if in := intersect(req.IncludeRegions, req.ExcludeRegions); len(in) > 0 {
 		logger.Errorw("overlap in included and excluded regions", "intersection", in)
@@ -335,7 +337,7 @@ func buildIteratorFunction(request *BuildIteratorRequest) publishdb.IteratorFunc
 
 // AuthInterceptor validates incoming OIDC bearer token and adds corresponding FederationAuthorization record to the context.
 func (s Server) AuthInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	logger := logging.FromContext(ctx)
+	logger := logging.FromContext(ctx).Named("federationout.AuthInterceptor")
 
 	raw, err := rawToken(ctx)
 	if err != nil {
@@ -357,7 +359,7 @@ func (s Server) AuthInterceptor(ctx context.Context, req interface{}, info *grpc
 			logger.Infof("Authorization not found (issuer %q, subject %s)", token.Issuer, token.Subject)
 			return nil, status.Errorf(codes.Unauthenticated, "Invalid issuer/subject")
 		}
-		logger.Errorf("Failed to fetch authorization (issuer %q, subject %s): %v", token.Issuer, token.Subject, err)
+		logger.Errorw("failed to fetch authorization", "issuer", token.Issuer, "subject", token.Subject, "error", err)
 		stats.Record(ctx, mFetchInternalError.M(1))
 		return nil, status.Errorf(codes.Internal, "Internal error")
 	}
