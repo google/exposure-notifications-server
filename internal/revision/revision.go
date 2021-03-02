@@ -212,12 +212,12 @@ func buildTokenBufer(previous *pb.RevisionTokenData, eKeys []*model.Exposure) *p
 // into an encrypted protocol buffer revision token.
 // This is using envelope encryption, based on the currently active revision key.
 func (tm *TokenManager) MakeRevisionToken(ctx context.Context, previous *pb.RevisionTokenData, eKeys []*model.Exposure, aad []byte) ([]byte, error) {
-	if len(eKeys) == 0 && len(previous.RevisableKeys) == 0 {
-		return nil, fmt.Errorf("no keys to build token for")
+	if len(eKeys) == 0 && (previous == nil || len(previous.RevisableKeys) == 0) {
+		return nil, fmt.Errorf("no keys or previous keys for which to build revision token")
 	}
 
 	if err := tm.maybeRefreshCache(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to refresh cache: %w", err)
 	}
 	// Capture DEK and KID in read lock, but don't do encryption with the lock
 	var dek []byte
@@ -237,7 +237,7 @@ func (tm *TokenManager) MakeRevisionToken(ctx context.Context, previous *pb.Revi
 
 	plaintext, err := proto.Marshal(tokenData)
 	if err != nil {
-		return nil, fmt.Errorf("unable to masrhal token data: %w", err)
+		return nil, fmt.Errorf("failed to marshal token data: %w", err)
 	}
 
 	// encrypt the serialized proto.
