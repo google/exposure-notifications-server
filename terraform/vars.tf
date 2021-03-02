@@ -293,6 +293,12 @@ variable "enable_lb_logging" {
   EOT
 }
 
+variable "log_retention_period" {
+  type        = number
+  default     = 14
+  description = "Number of days to retain logs for all services in the project"
+}
+
 // Note: in Cloud Run/Knative, there are two kinds of annotations.
 // - Service level annotations: applies to all revisions in the service. E.g.
 //   the ingress restriction
