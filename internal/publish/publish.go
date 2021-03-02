@@ -451,12 +451,15 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 			}
 		}
 	}
-	newToken, err := s.tokenManager.MakeRevisionToken(ctx, &keep, resp.Exposures, s.tokenAAD)
-	if err != nil {
-		// In this case, an empty revision token is returned. The rest of the request
-		// was handled correctly.
-		logger.Errorw("failed to make new revision token", "error", err)
-		newToken = make([]byte, 0)
+
+	newToken := make([]byte, 0)
+	if len(keep.RevisableKeys) != 0 || len(resp.Exposures) != 0 {
+		var err error
+		newToken, err = s.tokenManager.MakeRevisionToken(ctx, &keep, resp.Exposures, s.tokenAAD)
+		if err != nil {
+			// Something failed with the revision token generation or encryption.
+			logger.Errorw("failed to make updated revision token", "error", err)
+		}
 	}
 
 	span.AddAttributes(trace.Int64Attribute("exposures_inserted", int64(resp.Inserted)))
