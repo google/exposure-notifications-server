@@ -17,6 +17,26 @@ variable "project" {
   description = "GCP project for key server. Required."
 }
 
+variable "debugger_hosts" {
+  type        = list(string)
+  description = "List of domains upon which the debugger is served."
+}
+
+variable "export_hosts" {
+  type        = list(string)
+  description = "List of domains upon which exports should be served."
+}
+
+variable "exposure_hosts" {
+  type        = list(string)
+  description = "List of domains upon which the exposure uploads are served."
+}
+
+variable "federationout_hosts" {
+  type        = list(string)
+  description = "List of domains upon which the federationout service is served."
+}
+
 variable "alert-notification-channel-paging" {
   type = map(any)
   default = {
