@@ -158,7 +158,7 @@ func (s *Server) handleDebug() http.Handler {
 		// Marshall the json.
 		b, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
-			logger.Errorf("failed to marshal json: %v", err)
+			logger.Errorw("failed to marshal json", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, http.StatusText(http.StatusInternalServerError))
 			return

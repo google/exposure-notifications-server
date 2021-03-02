@@ -195,7 +195,6 @@ func (s *Server) processMirror(ctx context.Context, deadline time.Time, mirror *
 			func() {
 				localFilename := filename
 				if status.MirrorFile != nil && status.MirrorFile.LocalFilename != nil {
-					// TODO(sethvargo): empty string "" check was not here before
 					val := *status.MirrorFile.LocalFilename
 					if val != "" {
 						localFilename = val

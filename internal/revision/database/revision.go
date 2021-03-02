@@ -105,7 +105,7 @@ func (rdb *RevisionDB) DestroyKey(ctx context.Context, keyID int64) error {
 		}
 		return nil
 	}); err != nil {
-		logger.Errorf("failed to destroy revision kid: %v: %v", keyID, err)
+		logger.Errorw("failed to destroy revision key", "kid", keyID, "error", err)
 	}
 	return nil
 }
@@ -206,7 +206,8 @@ func (rdb *RevisionDB) GetAllowedRevisionKeys(ctx context.Context) (int64, []*Re
 	for _, wk := range keys {
 		unwrapped, err := rdb.decrypt(ctx, wk.WrappedCipher, wk.AAD)
 		if err != nil {
-			logger.Errorf("still allowed revision key that can't be unwrapped: kid: %v error: %v", wk.KeyID, err)
+			logger.Errorw("still allowed revision key that can't be unwrapped",
+				"kid", wk.KeyID, "error", err)
 			return 0, nil, fmt.Errorf("unable to unwrap revision key: %w", err)
 		}
 		wk.DEK = unwrapped

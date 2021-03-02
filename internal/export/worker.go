@@ -73,7 +73,7 @@ func (s *Server) handleDoWork() http.Handler {
 			// Check for a batch and obtain a lease for it.
 			batch, err := exportdatabase.New(db).LeaseBatch(ctx, s.config.WorkerTimeout, time.Now())
 			if err != nil {
-				logger.Errorf("Failed to lease batch: %v", err)
+				logger.Errorw("failed to lease batch", "error", err)
 				continue
 			}
 			if batch == nil {
@@ -133,7 +133,7 @@ func (s *Server) handleDoWork() http.Handler {
 
 			// Ensure that the locks are released on either success or failure path.
 			if err = s.exportBatch(ctx, batch, emitIndexForEmptyBatch); err != nil {
-				logger.Errorf("Failed to create files for batch: %v.", err)
+				logger.Errorw("failed to create files for batch", "error", err)
 				unlock()
 				continue
 			}
@@ -202,7 +202,7 @@ func (s *Server) batchExposures(ctx context.Context, criteria publishdatabase.It
 	}
 
 	if droppedKeys > 0 {
-		logger.Errorf("Export found keys of invalid length, %v keys were dropped", droppedKeys)
+		logger.Errorw("export found keys of invalid length", "dropped_keys", droppedKeys)
 		stats.Record(ctx, mWorkerBadKeyLength.M(int64(droppedKeys)))
 	}
 

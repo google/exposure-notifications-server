@@ -101,7 +101,7 @@ func realMain(ctx context.Context) error {
 	if ecdsa.VerifyASN1(publicKey, digest, signature) {
 		logger.Infof("SIGNATURE IS VALID")
 	} else {
-		logger.Errorf("SIGNATURE IS NOT VALID")
+		return fmt.Errorf("signature is NOT valid")
 	}
 
 	return nil
