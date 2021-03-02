@@ -19,6 +19,7 @@ layout: default
   - [Secrets management](#secrets-management)
   - [Observability](#observability)
 - [Running the admin console](#running-the-admin-console)
+- [Running the debugger](#running-the-debugger)
 
 <!-- /TOC -->
 
@@ -38,6 +39,7 @@ options. Configuration options are specified via environment variables.
 |------------------|----------------------|-------------|
 | cleanup-export   | cmd/cleanup-export   | Deletes old exported files published by the exposure key export service |
 | cleanup-exposure | cmd/cleanup-exposure | Deletes old exposure keys |
+| debugger         | cmd/debugger         | Server-side debugging component; do not deploy in production |
 | export           | cmd/export           | Publishes exposure keys |
 | exposure         | cmd/exposure         | Stores infection keys |
 | federation-in    | cmd/federation-in    | Pulls federation results from federation partners |
@@ -371,7 +373,33 @@ access it, you need:
 Start the proxy with the URL to the Admin Console:
 
 ```text
-cloud-run-proxy -host https://admin-console-fda.a.run.app
+cloud-run-proxy -host https://admin-console-fda.a.run.app # example URL
+```
+
+Point your browser to http://localhost:8080.
+
+
+## Running the debugger
+
+The debugger is deployed as a Cloud Run service, protected by Cloud IAM. It
+displays debugging information including the environment variables set on all
+services, list of authorized apps, list of export configs and signature infos,
+and recent batch files. The debugger is most helpful when you're building a
+custom Exposure Notifications app and are trying to debug issues. You should not
+deploy the debugger in production. To access a deployed debugger, you need:
+
+-   The URL to the service, which you can find in the Terraform output or by looking for `debugger` in the Cloud Run web UI.
+
+-   `roles/run.invoker` permission on the Cloud Run service.
+
+-   [gcloud](https://cloud.google.com/sdk).
+
+-   [Cloud Run Proxy](https://github.com/sethvargo/cloud-run-proxy).
+
+Start the proxy with the URL to the Debugger:
+
+```text
+cloud-run-proxy -host https://debugger-fda.a.run.app # example URL
 ```
 
 Point your browser to http://localhost:8080.
