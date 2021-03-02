@@ -51,6 +51,7 @@ resource "google_project_service" "services" {
     "containeranalysis.googleapis.com",
     "containerregistry.googleapis.com",
     "iam.googleapis.com",
+    "logging.googleapis.com",
     "monitoring.googleapis.com",
     "redis.googleapis.com",
     "run.googleapis.com",
@@ -105,6 +106,18 @@ resource "google_vpc_access_connector" "connector" {
     google_service_networking_connection.private_vpc_connection,
     google_project_service.services["compute.googleapis.com"],
     google_project_service.services["vpcaccess.googleapis.com"],
+  ]
+}
+
+resource "google_logging_project_bucket_config" "basic" {
+  project        = var.project
+  location       = "global"
+  retention_days = var.log_retention_period
+  bucket_id      = "_Default"
+
+  depends_on = [
+    google_project_service.services["logging.googleapis.com"],
+    google_project_service.services["stackdriver.googleapis.com"],
   ]
 }
 
