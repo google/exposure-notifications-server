@@ -15,7 +15,7 @@
 resource "google_monitoring_uptime_check_config" "https" {
   project = var.project
 
-  for_each = toset(compact(concat(var.debugger_hosts, var.export_hosts, var.exposure_hosts, var.federationout_hosts)))
+  for_each = toset(compact(concat(var.export_hosts, var.exposure_hosts, var.federationout_hosts)))
 
   display_name = each.key
   timeout      = "10s"
