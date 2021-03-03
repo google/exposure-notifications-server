@@ -17,21 +17,9 @@ variable "project" {
   description = "GCP project for key server. Required."
 }
 
-variable "export_hosts" {
-  type        = list(string)
-  description = "List of domains upon which exports should be served."
-  default     = []
-}
-
 variable "exposure_hosts" {
   type        = list(string)
   description = "List of domains upon which the exposure uploads are served."
-  default     = []
-}
-
-variable "federationout_hosts" {
-  type        = list(string)
-  description = "List of domains upon which the federationout service is served."
   default     = []
 }
 
