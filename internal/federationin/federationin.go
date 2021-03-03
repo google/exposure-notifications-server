@@ -396,7 +396,7 @@ func pull(ctx context.Context, opts *pullOptions) (err error) {
 				exposure.FederationQueryID = opts.query.QueryID
 
 				if err := exposure.AdjustAndValidate(&transformSettings); err != nil {
-					logger.Errorw("invalid key on federation, skipping", "error", err)
+					logger.Warnw("invalid key on federation, skipping", "error", err)
 					continue
 				}
 
