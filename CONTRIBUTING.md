@@ -28,6 +28,9 @@ This project follows
 All submissions will be reviewed before merging. Submissions are reviewed using
 [GitHub pull requests](https://help.github.com/articles/about-pull-requests/).
 
+Please note that the `federation*` packages are reference-only, and we do not 
+actively support them.
+
 ## Source and build
 
 ### Source code layout
