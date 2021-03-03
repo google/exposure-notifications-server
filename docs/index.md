@@ -49,7 +49,7 @@ Key Server here:
 * [Data validation guide](tek_validation.md)
 * [Server Deployment Options](server_deployment_options.md)
 * [Reference documentation](https://pkg.go.dev/mod/github.com/google/exposure-notifications-server)
-* [API Definitions](https://github.com/google/exposure-notifications-server/tree/main/pkg/api/v1alpha1)
+* [API Definitions](https://github.com/google/exposure-notifications-server/tree/main/pkg/api/v1)
 
 ## Issues and Questions
 

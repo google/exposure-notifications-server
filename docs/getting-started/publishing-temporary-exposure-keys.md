@@ -26,9 +26,9 @@ an HTTP POST request to the `exposure` server.
 
 The structure of the API is defined in [pkg/api/v1/exposure_types.go](https://github.com/google/exposure-notifications-server/blob/main/pkg/api/v1/exposure_types.go),
 in the `Publish` type. Please see the documentation in the source file for details of the
-fields themselves. The 'publish' API is hosted at `/v1/publish` on the `exposure` service. The legacy version (v1alpha1) _may_ also be posted on that same service.
+fields themselves. The 'publish' API is hosted at `/v1/publish` on the `exposure` service.
 
-Access to the API depends ont he provided `healthAuthorityID` in the publish request, the
+Access to the API depends on the provided `healthAuthorityID` in the publish request, the
 the verification certificate provided in the `verificationPayload` and how things are configured
 at the server. Any region metadata assigned to TEKS will be done automatically
 at the server. If a TEK is known to be outside of the "home area," then the `traveler` field
