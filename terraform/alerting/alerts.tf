@@ -85,6 +85,70 @@ resource "google_monitoring_alert_policy" "probers" {
   ]
 }
 
+resource "google_logging_metric" "stackdriver_export_error_count" {
+  project     = var.project
+  name        = "stackdriver_export_error_count"
+  description = "Error occurred trying to export metrics to stackdriver"
+
+  filter = <<-EOT
+  resource.type="cloud_run_revision"
+  jsonPayload.logger="stackdriver"
+  jsonPayload.message="failed to export metric"
+  EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    unit        = "1"
+    value_type  = "INT64"
+  }
+}
+
+resource "google_monitoring_alert_policy" "StackdriverExportFailed" {
+  project      = var.project
+  display_name = "StackdriverExportFailed"
+  combiner     = "OR"
+  conditions {
+    display_name = "Stackdriver metric export error rate"
+    condition_monitoring_query_language {
+      duration = "900s"
+      # NOTE: this query calculates the rate over a 5min window instead of
+      # usual 1min window. This is intentional:
+      # The rate window should be larger than the interval of the errors.
+      # Currently we export to stackdriver every 2min, meaning if the export is
+      # constantly failing, our calculated error rate with 1min window will
+      # have the number oscillating between 0 and 1, and we would never get an
+      # alert beacuase each time the value reaches 0 the timer to trigger the
+      # alert is reset.
+      #
+      # Changing this to 5min window means the condition is "on" as soon as
+      # there's a single export error and last at least 5min. The alert is
+      # firing if the condition is "on" for >15min.
+      query = <<-EOT
+      fetch
+      cloud_run_revision::logging.googleapis.com/user/stackdriver_export_error_count
+      | align rate(5m)
+      | group_by [resource.service_name], [val: sum(value.stackdriver_export_error_count)]
+      | condition val > 0
+      EOT
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  documentation {
+    content   = "${local.playbook_prefix}/StackdriverExportFailed.md"
+    mime_type = "text/markdown"
+  }
+
+  notification_channels = [for x in values(google_monitoring_notification_channel.non-paging) : x.id]
+
+  depends_on = [
+    null_resource.manual-step-to-enable-workspace,
+    google_logging_metric.stackdriver_export_error_count
+  ]
+}
+
 resource "google_logging_metric" "human_accessed_secret" {
   name    = "human_accessed_secret"
   project = var.project
