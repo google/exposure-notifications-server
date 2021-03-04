@@ -44,6 +44,7 @@ You can read tutorials on deploying and using the reference Exposure Notificatio
 Key Server here:
 
 * [Deployment guide](getting-started/deploying.md)
+* [Application Configuration](getting-started/configure_application.md)
 * [Contributor guide](https://github.com/google/exposure-notifications-server/blob/main/CONTRIBUTING.md)
 * [Server Functional Requirements](server_functional_requirements.md)
 * [Data validation guide](tek_validation.md)
