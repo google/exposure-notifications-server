@@ -10,14 +10,14 @@ layout: default
     - [Configure Realm](#configure-realm)
     - [Signing Keys](#signing-keys)
 - [Configure the Key Server](#configure-the-key-server)
-    - [Connect to the admin console](#connect-to-the-admin-console)
+    - [Connect to the Admin Console](#connect-to-the-admin-console)
     - [Admission Control](#admission-control)
-        - [Create a verification key](#create-a-verification-key)
-        - [Create authorized health authority](#create-authorized-health-authority)
+        - [Create a Verification Key](#create-a-verification-key)
+        - [Create Authorized Health Authority](#create-authorized-health-authority)
     - [Export Configuration](#export-configuration)
-        - [Signing key configuration](#signing-key-configuration)
-        - [Create export configuration](#create-export-configuration)
-- [Follow up](#follow-up)
+        - [Signing Key Configuration](#signing-key-configuration)
+        - [Create Export Configuration](#create-export-configuration)
+- [Next Steps](#next-steps)
 
 <!-- /TOC -->
 
@@ -83,7 +83,7 @@ free to deviate from this.
 
 * On the __General__ tab
     * Select `Enable key-server statistics`
-    * leave everything as as defaults.
+    * Leave everything as as defaults.
 * On the __Codes__ tab
     * Set `Bulk issue codes` to `Allow`
     * Set `Allowed test types` to `Positive`
@@ -116,7 +116,7 @@ For this section, you will need to first:
     * Install [cloud-run-proxy](https://github.com/sethvargo/cloud-run-proxy#cloud-run-proxy)
 * Be an owner on the cloud project hosting the key server
 
-### Connect to the admin console
+### Connect to the Admin Console
 
 As part of the standard terraform deployment, the key sever has an admin console that
 is used to configure the system.
@@ -145,7 +145,7 @@ Open a browser to http://localhost:8080
 The first step is making sure your application can publish temporary exposure
 keys to the key server.
 
-#### Create a verification key
+#### Create a Verification Key
 
 Click on the `New Verification Key` button.
 
@@ -168,7 +168,7 @@ key after being imported.
 
 Once confirmed, click `Home` in the navigation menu.
 
-#### Create authorized health authority
+#### Create Authorized Health Authority
 
 Click on the `New Authorized Health Authority` button.
 
@@ -196,7 +196,7 @@ export signing key and then configuring the export.
 We will be using both the Google Cloud console and and the key server admin
 console (using the cloud-run-proxy from the previous section).
 
-#### Signing key configuration
+#### Signing Key Configuration
 
 In the Google cloud console, navigate to `☰` -> `Security` -> `Cryptographic Keys`.
 
@@ -246,7 +246,7 @@ jUYCYP+f8hRT9qIsBTFXkAQ4mKVeivRJJvbCi+QMCSh9W2yvX46SbgXGvQ==
 -----END PUBLIC KEY-----
 ```
 
-#### Create export configuration
+#### Create Export Configuration
 
 Back on the Google Cloud console, we need to find the cloud storage bucket
 that is used for your deployment. Navigate to `☰` -> `Storage` -> `Browser`.
@@ -285,7 +285,7 @@ for information on how to download export files.
 
 This completes the the server configurations.
 
-## Follow up
+## Next Steps
 
 Your application will need to know the correct URLs for the verification
 server APIs and key server publish APIs. In our example domains, the following

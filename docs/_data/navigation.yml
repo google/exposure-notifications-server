@@ -7,6 +7,8 @@ docs:
       children:
         - title: How to Deploy
           url: /getting-started/deploying
+        - title: Application Configuration
+          url: /getting-started/configure_application
         - title: How to Publish Keys
           url: /getting-started/publishing-temporary-exposure-keys
         - title: How to Download Keys
