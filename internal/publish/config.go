@@ -87,7 +87,7 @@ type Config struct {
 	AllowPartialRevisions bool `env:"ALLOW_PARTIAL_REVISIONS, default=false"`
 
 	// API Versions.
-	EnableV1Alpha1API bool `env:"ENABLE_V1ALPHA1_API, default=true"`
+	EnableV1Alpha1API bool `env:"ENABLE_V1ALPHA1_API, default=false"`
 
 	// If set and if a publish request has no regions (v1alpha1) and the health authority
 	// has no regions configured, then this default will be assumed.

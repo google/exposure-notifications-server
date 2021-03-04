@@ -24,4 +24,4 @@ docs:
         - title: Verification Protocol Design
           url: /design/verification_protocol
         - title: API Definitions
-          url: https://github.com/google/exposure-notifications-server/tree/main/pkg/api/v1alpha1
+          url: https://github.com/google/exposure-notifications-server/tree/main/pkg/api/v1

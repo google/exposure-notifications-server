@@ -62,7 +62,7 @@ information to be shared. The information described in this section is the
 minimum required set in order to validate the uploads and to generate the
 necessary client batches for ingestion into the device for key matching.
 
-We have provides a sample API in [exposure_types.go](https://github.com/google/exposure-notifications-server/blob/main/pkg/api/v1alpha1/exposure_types.go).
+We have provides a sample API in [exposure_types.go](https://github.com/google/exposure-notifications-server/blob/main/pkg/api/v1/exposure_types.go).
 
 Minimum required fields, followed by a JSON example:
 
@@ -144,7 +144,7 @@ The following snippet is an example POST request payload in JSON format.
 }
 ```
 
-The publish request should respond with a structure described in [exposure_types.go](https://github.com/google/exposure-notifications-server/blob/main/pkg/api/v1alpha1/exposure_types.go).
+The publish request should respond with a structure described in [exposure_types.go](https://github.com/google/exposure-notifications-server/blob/main/pkg/api/v1/exposure_types.go).
 
 The revision token is a critical piece of ensuring that revised keys that ensures that a different device cannot revise a previously uploaded key. We have a reference implementation in the [revision package](https://github.com/google/exposure-notifications-server/blob/main/internal/revision/revision.go).
 
@@ -160,8 +160,8 @@ The revision token is a critical piece of ensuring that revised keys that ensure
 
 ### Requirements and recommendations
 
-* Required 
-   * An allow-list check for `healthAuthorityID` that specifies the 
+* Required
+   * An allow-list check for `healthAuthorityID` that specifies the
   verification certificate signing keys allowed and the region information
   for those keys.
   * Validation of all uploaded data, in particular that TEK data is 16 bytes in length
