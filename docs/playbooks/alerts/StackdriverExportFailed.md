@@ -1,9 +1,7 @@
 # StackdriverExportFailed
 
-OpenCensus failed to export metrics to Stackdriver.
-
-This means all other alerts we have configured won't work as the alert depend
-on the export metrics.
+OpenCensus failed to export metrics to Stackdriver. This means that alerts
+that depends on the exports metrics may not work.
 
 NOTE: metric export may spontanously fail. If the failure rate is low it's
 likely the threshold is too sensitive.
@@ -21,9 +19,9 @@ fetch cloud_run_revision
     [row_count: row_count()]
 ```
 
-If the error can be correlated to a new release, reach out to the Slack
-channel and ping the dev team for help.
+If the error can be correlated to a new release, please open a new Github 
+issue and provide the log information you have.
 
 If it's not correlated to a release, chances are the issue is on Google
-Cloud Monitoring's end. Open a ticket with the Cloud Support team and
-ping Slack channel to raise awareness.
+Cloud Monitoring's end. Consider checking [Google Cloud Status Dashboard](https://status.cloud.google.com/)
+or opening a Support ticket with your Cloud provider.
