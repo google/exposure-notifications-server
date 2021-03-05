@@ -66,6 +66,34 @@ const (
 	ErrorPartialFailure = "partial_failure"
 )
 
+// Vaccine types
+const (
+	// VaccineType_RNA is used for mRNA vaccines: Pfizer-BioNTech / Moderna
+	VaccineType_RNA = "RNA"
+	// VaccineType_ViralVector is used for: Johnson & Johnson, AstraZeneca, Sputnik V, Janssen
+	VaccineType_ViralVector = "viral vector"
+	// VaccineType_Inactivated is used for: CoronaVac
+	VaccineType_Inactivated = "inactivated"
+	// VaccineType_Protein is used for: Novavax
+	VaccineType_Protein = "protein"
+	// VaccineType_Unknown is for if the user doesn't know or declines to answer, or an unsupported type.
+	VaccineType_Unknown = "unknown"
+)
+
+// VaccineStatus represents if the TEK upload is being done by someone who has
+// received a COVID-19 vaccine and associated details.
+//
+// vaccinated: true if vaccinated, false if not (or declines to answer)
+// type: see the type constants above
+// complete: has the user completed their vaccination regimine
+// vaccinationInterval: the date on which they had their most recent vaccine using EN interval timing system.
+type VaccineStatus struct {
+	Vaccinated          bool   `json:"vaccinated"`
+	Type                string `json:"type,omitempty"`
+	Complete            bool   `json:"complete,omitempty"`
+	VaccinationInterval int32  `json:"vaccinationInterval,omitempty"`
+}
+
 // Publish represents the body of the PublishInfectedIds API call.
 // temporaryExposureKeys: Required and must have length >= 1 and <= 21 (`maxKeysPerPublish`)
 // healthAuthorityID: assigned by the server operator
@@ -108,6 +136,7 @@ type Publish struct {
 	SymptomOnsetInterval int32         `json:"symptomOnsetInterval,omitempty"`
 	Traveler             bool          `json:"traveler,omitempty"`
 	RevisionToken        string        `json:"revisionToken"`
+	VaccineStatus        VaccineStatus `json:"vaccineStatus,omitempty"`
 
 	Padding string `json:"padding"`
 }

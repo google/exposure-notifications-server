@@ -108,6 +108,23 @@ message TemporaryExposureKey {
   // Number of days elapsed between symptom onset and the TEK being used.
   // E.g. 2 means TEK is 2 days after onset of symptoms.
   optional sint32 days_since_onset_of_symptoms = 6;
+
+  // If true, these keys come from a vacinnated user.
+  optional bool vaccinated = 7;
+
+  enum VaccineType {
+    UNKNOWN_VACCINE = 0;
+    RNA = 1;
+    VIRAL_VECTOR = 2;
+    INACTIVATED_VIRUS = 3;
+    PROTEIN_BASED = 4;
+  }
+
+  optional VaccineType vaccine_type = 8;
+
+  optional bool vaccination_complete = 9;
+
+  optional sint32 days_since_last_vaccination = 10;
 }
 
 message TEKSignatureList {
