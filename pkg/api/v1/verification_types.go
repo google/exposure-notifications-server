@@ -45,17 +45,21 @@ const (
 	ReportTypeClinical = "likely"
 	// ReportTypeNegative is allowed by the verification flow. These keys are not saved in the system.
 	ReportTypeNegative = "negative"
+	// ReportTypeSelfReport indicates to set ReportType.SELF_REPORT
+	ReportTypeSelfReport = "selfreport"
 
 	TransmissionRiskUnknown           = 0
 	TransmissionRiskConfirmedStandard = 2
 	TransmissionRiskClinical          = 4
+	TransmissionRiskSelfReport        = 5
 	TransmissionRiskNegative          = 6
 )
 
 var ValidReportTypes = map[string]bool{
-	ReportTypeConfirmed: true,
-	ReportTypeClinical:  true,
-	ReportTypeNegative:  true,
+	ReportTypeConfirmed:  true,
+	ReportTypeClinical:   true,
+	ReportTypeNegative:   true,
+	ReportTypeSelfReport: true,
 }
 
 // VerificationClaims represents the accepted Claims portion of the verification certificate JWT.

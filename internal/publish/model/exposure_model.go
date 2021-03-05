@@ -193,6 +193,18 @@ func FromExportKey(key *export.TemporaryExposureKey, config *ExportImportConfig)
 	return exp, nil
 }
 
+// ValidReportTypeTransition checks if a TEK is allowed to transition
+// from the `from` type to the `to` type.
+func ValidReportTypeTransition(from, to string) bool {
+	if from == verifyapi.ReportTypeClinical {
+		return to == verifyapi.ReportTypeConfirmed || to == verifyapi.ReportTypeNegative
+	}
+	if from == verifyapi.ReportTypeSelfReport {
+		return to == verifyapi.ReportTypeConfirmed || to == verifyapi.ReportTypeClinical || to == verifyapi.ReportTypeNegative
+	}
+	return false
+}
+
 // Revise updates the Revised fields of a key
 func (e *Exposure) Revise(in *Exposure) (bool, error) {
 	if e.ExposureKeyBase64() != in.ExposureKeyBase64() {
@@ -234,7 +246,7 @@ func (e *Exposure) Revise(in *Exposure) (bool, error) {
 	if eReportType == "" {
 		eReportType = verifyapi.ReportTypeClinical
 	}
-	if !(eReportType == verifyapi.ReportTypeClinical && (in.ReportType == verifyapi.ReportTypeConfirmed || in.ReportType == verifyapi.ReportTypeNegative)) {
+	if !ValidReportTypeTransition(eReportType, in.ReportType) {
 		return false, &ErrorKeyInvalidReportTypeTransition{
 			from: e.ReportType,
 			to:   in.ReportType,

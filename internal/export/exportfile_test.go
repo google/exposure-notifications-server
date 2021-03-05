@@ -24,7 +24,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -73,6 +73,17 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 			DaysSinceSymptomOnset: proto.Int32(-1),
 			ReportType:            verifyapi.ReportTypeConfirmed,
 		},
+		{
+			ExposureKey:           []byte("GHI"),
+			Regions:               []string{"CA"},
+			IntervalNumber:        118,
+			IntervalCount:         1,
+			CreatedAt:             batchEndTime,
+			LocalProvenance:       true,
+			TransmissionRisk:      5,
+			DaysSinceSymptomOnset: proto.Int32(-1),
+			ReportType:            verifyapi.ReportTypeSelfReport,
+		},
 	}
 	revisedExposures := []*publishmodel.Exposure{
 		{
@@ -109,7 +120,7 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 		t.Fatalf("Unmarshal failed: %v", err)
 	}
 
-	wantDigest := "jN+W9DnqfXx5hp+6LaI8JuilsFWoiyF8DE/73OGZMJM="
+	wantDigest := "ho9AqUPleXoGs4wc5PEUU7MvbToDryEnQ+rJ8Fb1Hvc="
 	if b64digest := base64.StdEncoding.EncodeToString(digest); b64digest != wantDigest {
 		t.Errorf("wrong message digest want: %v, got: %v", wantDigest, b64digest)
 	}
@@ -137,6 +148,14 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 			RollingStartIntervalNumber: proto.Int32(118),
 			RollingPeriod:              proto.Int32(1),
 			ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
+			DaysSinceOnsetOfSymptoms:   proto.Int32(-1),
+		},
+		{
+			KeyData:                    []byte("GHI"),
+			TransmissionRiskLevel:      proto.Int32(5),
+			RollingStartIntervalNumber: proto.Int32(118),
+			RollingPeriod:              proto.Int32(1),
+			ReportType:                 export.TemporaryExposureKey_SELF_REPORT.Enum(),
 			DaysSinceOnsetOfSymptoms:   proto.Int32(-1),
 		},
 	}

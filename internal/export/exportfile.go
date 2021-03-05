@@ -26,7 +26,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
-	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
+	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 
 	"github.com/google/exposure-notifications-server/internal/pb/export"
 
@@ -170,6 +170,8 @@ func assignReportType(reportType *string, pbek *export.TemporaryExposureKey) {
 		pbek.ReportType = export.TemporaryExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS.Enum()
 	case verifyapi.ReportTypeNegative:
 		pbek.ReportType = export.TemporaryExposureKey_REVOKED.Enum()
+	case verifyapi.ReportTypeSelfReport:
+		pbek.ReportType = export.TemporaryExposureKey_SELF_REPORT.Enum()
 	}
 }
 
