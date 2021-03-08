@@ -1,0 +1,186 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+  schedule:
+    - cron: '0 0 */1 * *'
+
+
+env:
+  GOMAXPROCS: 7
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Cancel previous
+        uses: styfle/cancel-workflow-action@0.7.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-test-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-test-
+            ${{ runner.os }}-go-
+
+      - name: go-test
+        shell: bash
+        env:
+          # probably needs some envs for GCS tests
+        run: make test-acc
+
+      - name: go-coverage
+        shell: bash
+        run: |-
+          OUTPUT="$(make test-coverage)"
+          TOTAL="$(echo $OUTPUT | awk 'END{print $3}')"
+          echo "::group::Coverage (${TOTAL})"
+          echo "${OUTPUT}"
+          echo "::endgroup::"
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: Cancel previous
+        uses: styfle/cancel-workflow-action@0.7.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - uses: reviewdog/action-setup@v1
+
+      - name: Install pcregrep
+        run: sudo apt-get -yqq install pcregrep
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-lint-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-lint-
+            ${{ runner.os }}-go-
+
+      - name: go-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: 'v1.37'
+          skip-go-installation: true
+          skip-pkg-cache: true
+          skip-build-cache: true
+
+      - name: zapw-logger
+        shell: bash
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+        run: |-
+          set -eEu
+          set +o pipefail
+          make zapcheck 2>&1 | \
+          reviewdog -efm="%f:%l:%c: %m" \
+            -name="zap-logger" \
+            -reporter="github-pr-check" \
+            -filter-mode="diff_context" \
+            -fail-on-error="true" \
+            -level="error"
+
+      - name: errorw
+        shell: bash
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+        run: |-
+          set -eEu
+          set +o pipefail
+
+          grep --recursive --line-number --exclude-dir=.git --exclude-dir=.github ".Errorw" . |
+          reviewdog -efm="%f:%l:%m" \
+            -name="errorw-bot" \
+            -reporter="github-pr-check" \
+            -filter-mode="added" \
+            -fail-on-error="false" \
+            -level="warning"
+
+      - name: controller-without-returns
+        shell: bash
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+        run: |-
+          set -eEu
+          set +o pipefail
+
+          pcregrep \
+            --recursive \
+            --line-number --multiline \
+            --include '.+\.go$' \
+            '\b(Back|InternalError|NotFound|Unauthorized|MissingRealm|MissingAuthorizedApp|MissingSession|MissingUser|RedirectToMFA|RedirectToChangePassword)\(.+\)\s+(//.*\s+)?^((?!return).)*$' \
+            . | \
+          reviewdog -efm="%f:%l:%m" \
+            -name="controller-returns" \
+            -reporter="github-pr-check" \
+            -filter-mode="diff_context" \
+            -fail-on-error="true" \
+            -level="error"
+
+      - name: copyright-check
+        shell: bash
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+        run: |-
+          set -eEu
+          set +o pipefail
+
+          YEAR=$(date +"%Y")
+          find . -type f -name '*.go' -exec awk 'FNR==1{if ($0!~"Copyright '"${YEAR}"'") print FILENAME ":1:missing copyright or invalid copyright year";}' '{}' + | \
+          reviewdog -efm="%f:%l:%m" \
+            -name="copyright-check" \
+            -reporter="github-pr-check" \
+            -filter-mode="diff_context" \
+            -fail-on-error="true" \
+            -level="error"
+
+      - name: tab-check
+        shell: bash
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+        run: |-
+          set -eEu
+          set +o pipefail
+
+          YEAR=$(date +"%Y")
+          make tabcheck | \
+          reviewdog -efm="%f:%l:%m" \
+            -name="tab-check" \
+            -reporter="github-pr-check" \
+            -filter-mode="diff_context" \
+            -fail-on-error="true" \
+            -level="error"
