@@ -44,7 +44,7 @@ func (db *ExportImportDB) GetConfig(ctx context.Context, id int64) (*model.Expor
 	if err := db.db.InTx(ctx, pgx.RepeatableRead, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			SELECT
-				id, index_file, export_root, region, from_timestamp, thru_timestamp
+				id, index_file, export_root, region, traveler, from_timestamp, thru_timestamp
 			FROM
 				exportimport
 			WHERE
@@ -71,7 +71,7 @@ func (db *ExportImportDB) ListConfigs(ctx context.Context) ([]*model.ExportImpor
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT
-				id, index_file, export_root, region, from_timestamp, thru_timestamp
+				id, index_file, export_root, region, traveler, from_timestamp, thru_timestamp
 			FROM
 				exportimport
 			ORDER BY id ASC
@@ -107,7 +107,7 @@ func (db *ExportImportDB) ActiveConfigs(ctx context.Context) ([]*model.ExportImp
 	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT
-				id, index_file, export_root, region, from_timestamp, thru_timestamp
+				id, index_file, export_root, region, traveler, from_timestamp, thru_timestamp
 			FROM
 				exportimport
 			WHERE
@@ -146,7 +146,7 @@ func scanOneConfig(row pgx.Row) (*model.ExportImport, error) {
 		thru *time.Time
 	)
 
-	if err := row.Scan(&m.ID, &m.IndexFile, &m.ExportRoot, &m.Region, &m.From, &thru); err != nil {
+	if err := row.Scan(&m.ID, &m.IndexFile, &m.ExportRoot, &m.Region, &m.Traveler, &m.From, &thru); err != nil {
 		return nil, err
 	}
 	if thru != nil {
@@ -166,11 +166,11 @@ func (db *ExportImportDB) AddConfig(ctx context.Context, ei *model.ExportImport)
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
 			ExportImport
-				(index_file, export_root, region, from_timestamp, thru_timestamp)
+				(index_file, export_root, region, traveler, from_timestamp, thru_timestamp)
 			VALUES
-				($1, $2, $3, $4, $5)
+				($1, $2, $3, $4, $5, $6)
 			RETURNING id
-		`, ei.IndexFile, ei.ExportRoot, ei.Region, ei.From, ei.Thru)
+		`, ei.IndexFile, ei.ExportRoot, ei.Region, ei.Traveler, ei.From, ei.Thru)
 
 		if err := row.Scan(&ei.ID); err != nil {
 			return fmt.Errorf("fetching exportimport.ID: %w", err)
@@ -191,9 +191,9 @@ func (db *ExportImportDB) UpdateConfig(ctx context.Context, c *model.ExportImpor
 			UPDATE
 				ExportImport
 			SET
-				index_file = $1, export_root = $2, region = $3, from_timestamp = $4, thru_timestamp = $5
-			WHERE id = $6
-		`, c.IndexFile, c.ExportRoot, c.Region, from, c.Thru, c.ID)
+				index_file = $1, export_root = $2, region = $3, traveler = $4, from_timestamp = $5, thru_timestamp = $6
+			WHERE id = $7
+		`, c.IndexFile, c.ExportRoot, c.Region, c.Traveler, from, c.Thru, c.ID)
 		if err != nil {
 			return fmt.Errorf("failed to update export importer config: %w", err)
 		}

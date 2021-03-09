@@ -28,6 +28,7 @@ type ExportImport struct {
 	IndexFile  string
 	ExportRoot string
 	Region     string
+	Traveler   bool
 	From       time.Time
 	Thru       *time.Time
 }
