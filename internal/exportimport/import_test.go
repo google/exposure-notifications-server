@@ -159,7 +159,6 @@ func TestTransform(t *testing.T) {
 			if diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(pubmodel.Exposure{})); diff != "" {
 				t.Errorf("mismatch (-want, +got):\n%s", diff)
 			}
-
 		})
 	}
 }
