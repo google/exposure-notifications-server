@@ -22,6 +22,9 @@ import (
 	mrand "math/rand"
 )
 
+// Compile time type check
+var _ mrand.Source64 = (*src)(nil)
+
 // NewSource returns a new math/rand.Source that uses crypto/rand as the random
 // generation.
 func NewSource() mrand.Source64 {
