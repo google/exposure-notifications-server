@@ -16,6 +16,9 @@ BEGIN;
 
 ALTER TABLE exportimport
   ADD COLUMN traveler BOOL DEFAULT false;
+
+UPDATE exportimport SET traveler=false;
+
 ALTER TABLE exportimport
   ALTER COLUMN traveler SET NOT NULL;
 
