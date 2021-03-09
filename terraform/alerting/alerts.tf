@@ -26,11 +26,25 @@ resource "google_monitoring_alert_policy" "CloudSchedulerJobFailed" {
     condition_monitoring_query_language {
       duration = "0s"
       query    = <<-EOT
-      fetch cloud_scheduler_job::logging.googleapis.com/log_entry_count
-      | filter (metric.severity == 'ERROR')
-      | align rate(1m)
-      | group_by [resource.job_id], [val: aggregate(value.log_entry_count)]
-      | condition val > 0
+      # NOTE: The query below will be evaluated every 30s. It will look at the latest point that
+      # represents the total count of log entries for the past 10m (align delta (10m)),
+      # and fork it to two streams, one representing only ERROR logs, one representing ALL logs,
+      # and do an outer join with default value 0 for the first stream.
+      # Then it computes the first stream / second stream getting the ratio of ERROR logs over ALL logs,
+      # and finally group by. The alert will fire when the error rate was 100% for the last 10 mins.
+      query = <<-EOT
+      fetch cloud_scheduler_job
+      | metric 'logging.googleapis.com/log_entry_count'
+      | align delta(10m)
+      | { t_0: filter metric.severity == 'ERROR'
+        ; t_1: ident }
+      | outer_join [0]
+      | value
+          [t_0_value_log_entry_count_div:
+            div(t_0.value.log_entry_count, t_1.value.log_entry_count)]
+      | group_by [resource.job_id],
+          [t_0_value_log_entry_count_div_sum: sum(t_0_value_log_entry_count_div)]
+      | condition t_0_value_log_entry_count_div_sum >= 1
       EOT
       trigger {
         count = 1
