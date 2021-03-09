@@ -69,6 +69,16 @@ func TestValidate(t *testing.T) {
 			},
 			want: "",
 		},
+		{
+			name: "valid2",
+			ei: &ExportImport{
+				Region:     "US",
+				IndexFile:  "a/index.txt",
+				ExportRoot: "a",
+				Traveler:   true,
+			},
+			want: "",
+		},
 	}
 
 	for _, tc := range cases {

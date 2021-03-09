@@ -146,6 +146,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 	exKeyTransform := transformer{
 		appPackageName: s.config.ImportAPKName,
 		importRegions:  []string{ir.exportImport.Region},
+		traveler:       ir.exportImport.Traveler,
 		batchTime:      time.Now().UTC().Truncate(s.config.CreatedAtTruncateWindow),
 		truncateWindow: s.config.CreatedAtTruncateWindow,
 		exportImportID: ir.exportImport.ID,
@@ -223,6 +224,7 @@ func (s *Server) insertAndReviseKeys(ctx context.Context, mode string, exposures
 type transformer struct {
 	appPackageName     string
 	importRegions      []string
+	traveler           bool
 	batchTime          time.Time
 	truncateWindow     time.Duration
 	exportImportID     int64
@@ -244,6 +246,7 @@ func (t *transformer) transform(keys []*exportproto.TemporaryExposureKey) ([]*pu
 		// Fill in items that are specific to this import.
 		exp.AppPackageName = t.appPackageName
 		exp.Regions = t.importRegions
+		exp.Traveler = t.traveler
 		exp.CreatedAt = t.batchTime
 		exp.LocalProvenance = false
 		exp.ExportImportID = &t.exportImportID

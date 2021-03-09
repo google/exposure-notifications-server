@@ -59,82 +59,106 @@ func (k *keyGenerator) fakeExposureKey(t testing.TB) []byte {
 func TestTransform(t *testing.T) {
 	t.Parallel()
 
-	ctx := project.TestContext(t)
-	logger := logging.FromContext(ctx)
-
-	gen := &keyGenerator{}
-
-	// batch time, one hour after midnight.
-	// Will be used as the offset when creating TEKs.
-	batchTime := timeutils.UTCMidnight(time.Now().UTC()).Add(time.Hour)
-
-	sameDay := timeutils.UTCMidnight(batchTime)
-
-	input := []*exportproto.TemporaryExposureKey{
-		{ // Valid key, fully expired, missing report type and transmission risk
-			KeyData:                    gen.fakeExposureKey(t),
-			RollingStartIntervalNumber: proto.Int32(pubmodel.IntervalNumber(sameDay.Add(-24 * time.Hour))),
-			RollingPeriod:              proto.Int32(144),
-		},
-		{ // same day key, should be future dated
-			KeyData:                    gen.fakeExposureKey(t),
-			RollingStartIntervalNumber: proto.Int32(pubmodel.IntervalNumber(sameDay)),
-			RollingPeriod:              proto.Int32(144),
-		},
-	}
-
-	appPackageName := "import-export-test"
-	regions := []string{"US"}
-	settings := &transformer{
-		appPackageName: appPackageName,
-		importRegions:  regions,
-		batchTime:      batchTime,
-		truncateWindow: time.Hour,
-		exportImportID: 7,
-		importFileID:   42,
-		exportImportConfig: &pubmodel.ExportImportConfig{
-			DefaultReportType:         verifyapi.ReportTypeConfirmed,
-			BackfillSymptomOnset:      true,
-			BackfillSymptomOnsetValue: 10,
-			MaxSymptomOnsetDays:       28,
-			AllowClinical:             false,
-			AllowRevoked:              false,
-		},
-		logger: logger,
-	}
-
-	got, _ := settings.transform(input)
-
-	want := []*pubmodel.Exposure{
+	cases := []struct {
+		name     string
+		traveler bool
+	}{
 		{
-			ExposureKey:           input[0].KeyData,
-			TransmissionRisk:      2,
-			AppPackageName:        appPackageName,
-			Regions:               regions,
-			IntervalNumber:        input[0].GetRollingStartIntervalNumber(),
-			IntervalCount:         input[0].GetRollingPeriod(),
-			CreatedAt:             batchTime,
-			ExportImportID:        &settings.exportImportID,
-			ImportFileID:          &settings.importFileID,
-			ReportType:            verifyapi.ReportTypeConfirmed,
-			DaysSinceSymptomOnset: &settings.exportImportConfig.BackfillSymptomOnsetValue,
+			name:     "not_travler",
+			traveler: false,
 		},
-		{ // Key hasn't yet expired, so it is future dated into tomorrow.
-			ExposureKey:           input[1].KeyData,
-			TransmissionRisk:      2,
-			AppPackageName:        appPackageName,
-			Regions:               regions,
-			IntervalNumber:        input[1].GetRollingStartIntervalNumber(),
-			IntervalCount:         input[1].GetRollingPeriod(),
-			CreatedAt:             timeutils.UTCMidnight(batchTime.Add(24 * time.Hour)).Add(settings.truncateWindow),
-			ExportImportID:        &settings.exportImportID,
-			ImportFileID:          &settings.importFileID,
-			ReportType:            verifyapi.ReportTypeConfirmed,
-			DaysSinceSymptomOnset: &settings.exportImportConfig.BackfillSymptomOnsetValue,
+		{
+			name:     "traveler",
+			traveler: true,
 		},
 	}
 
-	if diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(pubmodel.Exposure{})); diff != "" {
-		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := project.TestContext(t)
+			logger := logging.FromContext(ctx)
+
+			gen := &keyGenerator{}
+
+			// batch time, one hour after midnight.
+			// Will be used as the offset when creating TEKs.
+			batchTime := timeutils.UTCMidnight(time.Now().UTC()).Add(time.Hour)
+
+			sameDay := timeutils.UTCMidnight(batchTime)
+
+			input := []*exportproto.TemporaryExposureKey{
+				{ // Valid key, fully expired, missing report type and transmission risk
+					KeyData:                    gen.fakeExposureKey(t),
+					RollingStartIntervalNumber: proto.Int32(pubmodel.IntervalNumber(sameDay.Add(-24 * time.Hour))),
+					RollingPeriod:              proto.Int32(144),
+				},
+				{ // same day key, should be future dated
+					KeyData:                    gen.fakeExposureKey(t),
+					RollingStartIntervalNumber: proto.Int32(pubmodel.IntervalNumber(sameDay)),
+					RollingPeriod:              proto.Int32(144),
+				},
+			}
+
+			appPackageName := "import-export-test"
+			regions := []string{"US"}
+			settings := &transformer{
+				appPackageName: appPackageName,
+				importRegions:  regions,
+				traveler:       tc.traveler,
+				batchTime:      batchTime,
+				truncateWindow: time.Hour,
+				exportImportID: 7,
+				importFileID:   42,
+				exportImportConfig: &pubmodel.ExportImportConfig{
+					DefaultReportType:         verifyapi.ReportTypeConfirmed,
+					BackfillSymptomOnset:      true,
+					BackfillSymptomOnsetValue: 10,
+					MaxSymptomOnsetDays:       28,
+					AllowClinical:             false,
+					AllowRevoked:              false,
+				},
+				logger: logger,
+			}
+
+			got, _ := settings.transform(input)
+
+			want := []*pubmodel.Exposure{
+				{
+					ExposureKey:           input[0].KeyData,
+					TransmissionRisk:      2,
+					AppPackageName:        appPackageName,
+					Regions:               regions,
+					Traveler:              tc.traveler,
+					IntervalNumber:        input[0].GetRollingStartIntervalNumber(),
+					IntervalCount:         input[0].GetRollingPeriod(),
+					CreatedAt:             batchTime,
+					ExportImportID:        &settings.exportImportID,
+					ImportFileID:          &settings.importFileID,
+					ReportType:            verifyapi.ReportTypeConfirmed,
+					DaysSinceSymptomOnset: &settings.exportImportConfig.BackfillSymptomOnsetValue,
+				},
+				{ // Key hasn't yet expired, so it is future dated into tomorrow.
+					ExposureKey:           input[1].KeyData,
+					TransmissionRisk:      2,
+					AppPackageName:        appPackageName,
+					Regions:               regions,
+					Traveler:              tc.traveler,
+					IntervalNumber:        input[1].GetRollingStartIntervalNumber(),
+					IntervalCount:         input[1].GetRollingPeriod(),
+					CreatedAt:             timeutils.UTCMidnight(batchTime.Add(24 * time.Hour)).Add(settings.truncateWindow),
+					ExportImportID:        &settings.exportImportID,
+					ImportFileID:          &settings.importFileID,
+					ReportType:            verifyapi.ReportTypeConfirmed,
+					DaysSinceSymptomOnset: &settings.exportImportConfig.BackfillSymptomOnsetValue,
+				},
+			}
+
+			if diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(pubmodel.Exposure{})); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
+			}
+		})
 	}
 }

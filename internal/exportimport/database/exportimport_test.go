@@ -50,6 +50,7 @@ func TestAddGetUpdateExportConfig(t *testing.T) {
 			IndexFile:  "https://myserver2/exports/index.txt",
 			ExportRoot: "https://myserver2/",
 			Region:     "US",
+			Traveler:   true,
 			From:       fromTime.Add(time.Hour),
 			Thru:       nil,
 		},
