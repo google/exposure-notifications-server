@@ -73,6 +73,13 @@ variable "alert_on_human_decrypted_value" {
   description = "Alert when a human accesses a secret. You must enable DATA_READ audit logs for Cloud KMS."
 }
 
+variable "capture_export_file_downloads" {
+  type    = bool
+  default = true
+
+  description = "Capture metrics about mobile devices downloading export files. This can be used to create alerts when values drop below acceptable thresholds."
+}
+
 terraform {
   required_version = ">= 0.14.2"
 

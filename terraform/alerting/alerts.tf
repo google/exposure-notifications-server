@@ -298,3 +298,37 @@ resource "google_monitoring_alert_policy" "HumanDecryptedValue" {
 
   notification_channels = [for x in values(google_monitoring_notification_channel.paging) : x.id]
 }
+
+resource "google_logging_metric" "export_file_downloaded" {
+  count = var.capture_export_file_downloads ? 1 : 0
+
+  name    = "export_file_downloaded"
+  project = var.project
+  filter  = <<EOT
+resource.type="http_load_balancer"
+httpRequest.requestUrl=~"/index.txt$"
+httpRequest.status=200
+EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+
+    labels {
+      key         = "path"
+      value_type  = "STRING"
+      description = "Path of the export"
+    }
+
+    labels {
+      key         = "platform"
+      value_type  = "STRING"
+      description = "Mobile operating system"
+    }
+  }
+
+  label_extractors = {
+    "path"     = "REGEXP_EXTRACT(httpRequest.requestUrl, 'https?://.+/(.+)/index\\.txt')"
+    "platform" = "REGEXP_EXTRACT(httpRequest.userAgent, '(Android|Darwin)')"
+  }
+}
