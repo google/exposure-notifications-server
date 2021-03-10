@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/exposure-notifications-server/internal/exportimport/database"
@@ -61,8 +62,8 @@ func (s *Server) HandleExportImportersSave() func(c *gin.Context) {
 		}
 
 		m.AddSuccess("Successfully updated export importer config!")
-		m["model"] = record
-		c.HTML(http.StatusOK, "export-importer", m)
+
+		c.Redirect(http.StatusFound, fmt.Sprintf("/export-importers/%d", record.ID))
 		c.Abort()
 	}
 }
@@ -80,8 +81,21 @@ func (s *Server) HandleExportImportersShow() func(c *gin.Context) {
 			return
 		}
 
+		// Load public keys
+		var publicKeys []*model.ImportFilePublicKey
+		if c.Param("id") != "0" {
+			publicKeys, err = db.AllPublicKeys(ctx, record)
+			if err != nil {
+				ErrorPage(c, fmt.Sprintf("Failed to load public keys: %s", err))
+				return
+			}
+		}
+
 		m := make(TemplateMap)
+		m.AddTitle(fmt.Sprintf("import %q", record.IndexFile))
 		m["model"] = record
+		m["keys"] = publicKeys
+		m["newkey"] = &model.ImportFilePublicKey{}
 		c.HTML(http.StatusOK, "export-importer", m)
 		c.Abort()
 	}
@@ -107,6 +121,7 @@ type exportImporterFormData struct {
 	IndexFile  string `form:"index-file"`
 	ExportRoot string `form:"export-root"`
 	Region     string `form:"region"`
+	Travelers  bool   `form:"travelers"`
 
 	// FromDate and FromTime are combined into FromTimestamp.
 	FromDate string `form:"from-date"`
@@ -141,8 +156,12 @@ func (f *exportImporterFormData) BuildExportImporterModel(c *model.ExportImport)
 		c.Region = val
 	}
 
+	c.Traveler = f.Travelers
+
 	if !from.IsZero() {
 		c.From = from
+	} else {
+		c.From = time.Now().UTC().Add(-1 * time.Minute)
 	}
 
 	if !thru.IsZero() {

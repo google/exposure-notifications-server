@@ -235,6 +235,28 @@ func (db *ExportImportDB) ExpireImportFilePublicKey(ctx context.Context, ifpk *m
 	})
 }
 
+func (db *ExportImportDB) SavePublicKeyTimestamps(ctx context.Context, ifpk *model.ImportFilePublicKey) error {
+	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		result, err := tx.Exec(ctx, `
+			UPDATE ImportFilePublicKey
+			SET
+				from_timestamp = $1,
+				thru_timestamp = $2
+			WHERE
+				export_import_id = $3 AND
+				key_id = $4 AND
+				key_version = $5
+			`, ifpk.From, ifpk.Thru, ifpk.ExportImportID, ifpk.KeyID, ifpk.KeyVersion)
+		if err != nil {
+			return fmt.Errorf("changing times importfilepublickey: %w", err)
+		}
+		if result.RowsAffected() != 1 {
+			return fmt.Errorf("importfilepublickey not found")
+		}
+		return nil
+	})
+}
+
 func (db *ExportImportDB) AddImportFilePublicKey(ctx context.Context, ifpk *model.ImportFilePublicKey) error {
 	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
@@ -254,6 +276,43 @@ func (db *ExportImportDB) AddImportFilePublicKey(ctx context.Context, ifpk *mode
 	})
 }
 
+func (db *ExportImportDB) AllPublicKeys(ctx context.Context, ei *model.ExportImport) ([]*model.ImportFilePublicKey, error) {
+	var publicKeys []*model.ImportFilePublicKey
+
+	if err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT
+				export_import_id, key_id, key_version, public_key, from_timestamp, thru_timestamp
+			FROM
+				ImportFilePublicKey
+			WHERE
+				export_import_id = $1
+			ORDER BY
+				from_timestamp DESC
+		`, ei.ID)
+		if err != nil {
+			return fmt.Errorf("failed to list: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("failed to iterate: %w", err)
+			}
+
+			publicKey, err := scanOnePublicKey(rows)
+			if err != nil {
+				return err
+			}
+			publicKeys = append(publicKeys, publicKey)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return publicKeys, nil
+}
+
 func (db *ExportImportDB) AllowedKeys(ctx context.Context, ei *model.ExportImport) ([]*model.ImportFilePublicKey, error) {
 	var publicKeys []*model.ImportFilePublicKey
 
@@ -267,6 +326,8 @@ func (db *ExportImportDB) AllowedKeys(ctx context.Context, ei *model.ExportImpor
 				export_import_id = $1
 			AND
 				(thru_timestamp IS NULL OR thru_timestamp > $2)
+			ORDER BY
+				from_timestamp DESC
 		`, ei.ID, time.Now().UTC())
 		if err != nil {
 			return fmt.Errorf("failed to list: %w", err)
