@@ -70,6 +70,7 @@ func (s *Server) Routes(ctx context.Context) http.Handler {
 	// Export importer configuration
 	mux.GET("/export-importers/:id", s.HandleExportImportersShow())
 	mux.POST("/export-importers/:id", s.HandleExportImportersSave())
+	mux.POST("/export-importers-key/:id/:action/:keyid", s.HandleExportImportKeys())
 
 	// Mirror handling.
 	mux.GET("/mirrors/:id", s.HandleMirrorsShow())

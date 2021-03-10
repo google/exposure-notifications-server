@@ -37,3 +37,18 @@ type ImportFilePublicKey struct {
 func (pk *ImportFilePublicKey) PublicKey() (*ecdsa.PublicKey, error) {
 	return keys.ParseECDSAPublicKey(pk.PublicKeyPEM)
 }
+
+func (pk *ImportFilePublicKey) Revoke() {
+	now := time.Now().UTC()
+	pk.Thru = &now
+}
+
+func (pk *ImportFilePublicKey) Active() bool {
+	now := time.Now().UTC()
+	return pk.From.Before(now) && (pk.Thru == nil || now.Before(*pk.Thru))
+}
+
+func (pk *ImportFilePublicKey) Future() bool {
+	now := time.Now().UTC()
+	return now.Before(pk.From)
+}
