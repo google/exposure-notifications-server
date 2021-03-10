@@ -302,9 +302,10 @@ resource "google_monitoring_alert_policy" "HumanDecryptedValue" {
 resource "google_logging_metric" "export_file_downloaded" {
   count = var.capture_export_file_downloads ? 1 : 0
 
-  name    = "export_file_downloaded"
-  project = var.project
-  filter  = <<EOT
+  name        = "export_file_downloaded"
+  description = "Incremented on each export file download."
+  project     = var.project
+  filter      = <<EOT
 resource.type="http_load_balancer"
 httpRequest.requestUrl=~"/index.txt$"
 httpRequest.status=200
@@ -328,7 +329,7 @@ EOT
   }
 
   label_extractors = {
-    "path"     = "REGEXP_EXTRACT(httpRequest.requestUrl, 'https?://.+/(.+)/index\\.txt')"
-    "platform" = "REGEXP_EXTRACT(httpRequest.userAgent, '(Android|Darwin)')"
+    "path"     = "REGEXP_EXTRACT(httpRequest.requestUrl, \"https?://.+/(.+)/index\\\\\\\\.txt\")"
+    "platform" = "REGEXP_EXTRACT(httpRequest.userAgent, \"(Android|Darwin)\")"
   }
 }
