@@ -321,6 +321,7 @@ locals {
     "run.googleapis.com/vpc-access-egress" : "private-ranges-only"
   }
   default_service_annotations = {
+    "run.googleapis.com/binary-authorization" : "default"
     "run.googleapis.com/ingress" : "all"
     // This is added due to the run.googleapis.com/sandbox annotation above.
     // The sandbox anntation it added to remove the permanent diff.
