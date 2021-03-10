@@ -43,7 +43,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: go-test
-        shell: bash        
+        shell: bash
         run: make test-acc
 
       - name: go-coverage
