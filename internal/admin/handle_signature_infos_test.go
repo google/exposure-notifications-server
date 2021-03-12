@@ -15,10 +15,14 @@
 package admin
 
 import (
+	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
+	"github.com/google/exposure-notifications-server/internal/project"
 )
 
 func TestRenderSignatureInfo(t *testing.T) {
@@ -33,5 +37,67 @@ func TestRenderSignatureInfo(t *testing.T) {
 	err := config.RenderTemplate(recorder, "siginfo", m)
 	if err != nil {
 		t.Fatalf("error rendering template: %v", err)
+	}
+}
+
+func TestHandleSigntureInfosShow(t *testing.T) {
+	t.Parallel()
+	ctx := project.TestContext(t)
+
+	db, s := newTestServer(t)
+
+	info := &model.SignatureInfo{
+		SigningKey:        "/path/to/signing/key",
+		SigningKeyVersion: "v1",
+		SigningKeyID:      "mvv",
+	}
+	exportDB := database.New(db)
+	if err := exportDB.AddSignatureInfo(ctx, info); err != nil {
+		t.Fatalf("error adding signature info: %v", err)
+	}
+
+	cases := []struct {
+		name string
+		id   string
+		want []string
+	}{
+		{
+			name: "lookup_existing",
+			id:   fmt.Sprintf("%d", info.ID),
+			want: []string{info.SigningKey, info.SigningKeyVersion, info.SigningKeyID},
+		},
+		{
+			name: "show_new",
+			id:   "0",
+			want: []string{"New Signature Info"},
+		},
+		{
+			name: "non_existing",
+			id:   "42",
+			want: []string{"error loading signature info"},
+		},
+		{
+			name: "invalid_id",
+			id:   "nan",
+			want: []string{"Unable to parse `id` param."},
+		},
+	}
+
+	server := newHTTPServer(t, http.MethodGet, "/:id", s.HandleSignatureInfosShow())
+	defer server.Close()
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s", server.URL, tc.id), nil)
+			client := server.Client()
+
+			resp, err := client.Do(req)
+			if err != nil {
+				t.Fatalf("error making http call: %v", err)
+			}
+
+			mustFindStrings(t, resp, tc.want...)
+		})
 	}
 }
