@@ -33,6 +33,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
+	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 )
 
@@ -127,6 +128,8 @@ func (s *Server) handleMirror() http.Handler {
 		status := http.StatusOK
 		if hasError {
 			status = http.StatusInternalServerError
+		} else {
+			stats.Record(ctx, mMirrorJobCompletion.M(1))
 		}
 		w.WriteHeader(status)
 		fmt.Fprint(w, string(b))

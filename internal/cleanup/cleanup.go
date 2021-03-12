@@ -101,7 +101,7 @@ func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "internal processing error", http.StatusInternalServerError)
 		return
 	}
-	stats.Record(ctx, mExposuresStatsDeleted.M(statsCount))
+	stats.Record(ctx, mExposuresStatsDeleted.M(statsCount), mExposuresCleanupRun.M(1))
 	logger.Infof("stats cleanup run complete, deleted %v records.", statsCount)
 
 	w.WriteHeader(http.StatusOK)
@@ -164,7 +164,7 @@ func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	stats.Record(ctx, mExportsDeleted.M(int64(count)))
+	stats.Record(ctx, mExportsDeleted.M(int64(count)), mExportsCleanupRun.M(1))
 	logger.Infof("cleanup run complete, deleted %v files.", count)
 	w.WriteHeader(http.StatusOK)
 }
