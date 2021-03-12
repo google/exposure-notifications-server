@@ -121,7 +121,7 @@ func (s *Server) HandleSignatureInfosShow() func(c *gin.Context) {
 			exportDB := database.New(s.env.Database())
 			sigInfo, err = exportDB.GetSignatureInfo(ctx, sigID)
 			if err != nil {
-				ErrorPage(c, "error loading signtaure info.")
+				ErrorPage(c, "error loading signature info.")
 				return
 			}
 		}
