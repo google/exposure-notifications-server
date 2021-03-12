@@ -83,12 +83,14 @@ func TestHandleSigntureInfosShow(t *testing.T) {
 		},
 	}
 
-	server := newHTTPServer(t, http.MethodGet, "/:id", s.HandleSignatureInfosShow())
-	defer server.Close()
-
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := newHTTPServer(t, http.MethodGet, "/:id", s.HandleSignatureInfosShow())
+			defer server.Close()
+
 			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s", server.URL, tc.id), nil)
 			client := server.Client()
 
