@@ -90,7 +90,6 @@ func TestHandleSigntureInfosShow(t *testing.T) {
 			t.Parallel()
 
 			server := newHTTPServer(t, http.MethodGet, "/:id", s.HandleSignatureInfosShow())
-			defer server.Close()
 
 			ctx := context.Background()
 			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s", server.URL, tc.id), nil)
