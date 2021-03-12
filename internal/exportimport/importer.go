@@ -26,7 +26,6 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	"go.opencensus.io/stats"
-	"go.opencensus.io/tag"
 	"go.opencensus.io/trace"
 )
 
@@ -55,7 +54,7 @@ func (s *Server) handleImport() http.Handler {
 			logger.Errorw("unable to read active configs", "error", err)
 		}
 
-		anyErrors := false
+		success := true
 		for _, config := range configs {
 			// Check how we're doing on max runtime.
 			if deadlinePassed(ctx) {
@@ -65,11 +64,11 @@ func (s *Server) handleImport() http.Handler {
 
 			if err := s.runImport(ctx, config); err != nil {
 				logger.Errorw("error running export-import", "config", config, "error", err)
-				anyErrors = true
+				success = false
 			}
 		}
 
-		if !anyErrors {
+		if !success {
 			stats.Record(ctx, mImportCompletion.M(1))
 		}
 
@@ -159,10 +158,7 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 		}
 	}
 
-	tags := []tag.Mutator{
-		tag.Upsert(exportImportIDTagKey, fmt.Sprintf("%d", config.ID)),
-	}
-	if err := stats.RecordWithTags(ctx, tags, mFilesImported.M(completedFiles), mFilesFailed.M(failedFiles)); err != nil {
+	if err := stats.RecordWithTags(ctx, metricsForConfig(config), mFilesImported.M(completedFiles), mFilesFailed.M(failedFiles)); err != nil {
 		logger.Errorw("failed to export-import config completion", "error", err, "export-import-id", config.ID)
 	}
 

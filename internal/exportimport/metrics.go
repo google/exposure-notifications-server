@@ -15,8 +15,12 @@
 package exportimport
 
 import (
+	"fmt"
+
+	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 	"github.com/google/exposure-notifications-server/internal/metrics"
 	"github.com/google/exposure-notifications-server/pkg/observability"
+
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
@@ -78,4 +82,11 @@ func init() {
 			Aggregation: view.Sum(),
 		},
 	}...)
+}
+
+// metricsForConfig creates metrics tags for a specific config.
+func metricsForConfig(config *model.ExportImport) []tag.Mutator {
+	return []tag.Mutator{
+		tag.Upsert(exportImportIDTagKey, fmt.Sprintf("%d", config.ID)),
+	}
 }
