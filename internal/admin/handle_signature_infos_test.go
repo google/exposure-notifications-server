@@ -15,6 +15,7 @@
 package admin
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -91,7 +92,8 @@ func TestHandleSigntureInfosShow(t *testing.T) {
 			server := newHTTPServer(t, http.MethodGet, "/:id", s.HandleSignatureInfosShow())
 			defer server.Close()
 
-			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s", server.URL, tc.id), nil)
+			ctx := context.Background()
+			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s", server.URL, tc.id), nil)
 			client := server.Client()
 
 			resp, err := client.Do(req)
