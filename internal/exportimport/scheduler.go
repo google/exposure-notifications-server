@@ -30,6 +30,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 	"go.opencensus.io/trace"
 )
 
@@ -105,12 +107,18 @@ func (s *Server) handleSchedule() http.Handler {
 				anyErrors = true
 			} else {
 				logger.Infow("import index sync result", "exportImportID", config.ID, "index", config.IndexFile, "newFiles", n, "failedFiles", f)
+				tags := []tag.Mutator{tag.Upsert(exportImportIDTagKey, fmt.Sprintf("%d", config.ID))}
+				if err := stats.RecordWithTags(ctx, tags, mFilesScheduled.M(int64(n))); err != nil {
+					logger.Errorw("recording schedule metrics", "exportImprotID", config.ID, "error", err, "scheduled", n)
+				}
 			}
 		}
 
 		status := http.StatusOK
 		if anyErrors {
 			status = http.StatusInternalServerError
+		} else {
+			stats.Record(ctx, mScheduleCompletion.M(1))
 		}
 		w.WriteHeader(status)
 		fmt.Fprint(w, http.StatusText(status))

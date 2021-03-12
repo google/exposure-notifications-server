@@ -24,6 +24,9 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+
+	"go.opencensus.io/stats"
+	"go.opencensus.io/tag"
 	"go.opencensus.io/trace"
 )
 
@@ -52,6 +55,7 @@ func (s *Server) handleImport() http.Handler {
 			logger.Errorw("unable to read active configs", "error", err)
 		}
 
+		anyErrors := false
 		for _, config := range configs {
 			// Check how we're doing on max runtime.
 			if deadlinePassed(ctx) {
@@ -61,7 +65,12 @@ func (s *Server) handleImport() http.Handler {
 
 			if err := s.runImport(ctx, config); err != nil {
 				logger.Errorw("error running export-import", "config", config, "error", err)
+				anyErrors = true
 			}
+		}
+
+		if !anyErrors {
+			stats.Record(ctx, mImportCompletion.M(1))
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -107,6 +116,7 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 	logger.Debugw("allowed public keys for file", "publicKeys", keys)
 
 	errs := []error{}
+	var completedFiles, failedFiles int64
 	for _, file := range openFiles {
 		// Check how we're doing on max runtime.
 		if deadlinePassed(ctx) {
@@ -136,9 +146,11 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 
 			// Check the retries.
 			logger.Errorw(str, "exportImportID", config.ID, "filename", file.ZipFilename)
+			failedFiles++
 		}
 		// the not found error is passed through.
 		if result != nil {
+			completedFiles++
 			logger.Infow("completed file import", "inserted", result.insertedKeys, "revised", result.revisedKeys, "dropped", result.droppedKeys)
 		}
 
@@ -146,6 +158,14 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 			logger.Errorw("failed to mark file completed", "file", file, "error", err)
 		}
 	}
+
+	tags := []tag.Mutator{
+		tag.Upsert(exportImportIDTagKey, fmt.Sprintf("%d", config.ID)),
+	}
+	if err := stats.RecordWithTags(ctx, tags, mFilesImported.M(completedFiles), mFilesFailed.M(failedFiles)); err != nil {
+		logger.Errorw("failed to export-import config completion", "error", err, "export-import-id", config.ID)
+	}
+
 	if len(errs) != 0 {
 		return fmt.Errorf("%d errors processing import file: %v", len(errs), errs)
 	}

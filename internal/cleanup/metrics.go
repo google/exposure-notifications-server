@@ -25,6 +25,11 @@ import (
 var (
 	cleanupMetricsPrefix = metrics.MetricRoot + "cleanup"
 
+	mExposuresCleanupRun = stats.Int64(cleanupMetricsPrefix+"exposures_run",
+		"Number of times cleanup exposures has run", stats.UnitDimensionless)
+	mExportsCleanupRun = stats.Int64(cleanupMetricsPrefix+"exports_run",
+		"Number of times cleanup exports has run", stats.UnitDimensionless)
+
 	mExposuresSetupFailed = stats.Int64(cleanupMetricsPrefix+"exposures_setup_failed",
 		"Instances of exposures setup failures", stats.UnitDimensionless)
 	mExposuresCleanupBefore = stats.Int64(cleanupMetricsPrefix+"exposures_cleanup_before",
