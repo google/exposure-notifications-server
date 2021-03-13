@@ -17,7 +17,6 @@ package admin
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -103,7 +102,6 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unable to serialize form: %v", err)
 			}
-			log.Printf("FORM DATA: %+v", form.Encode())
 			client := server.Client()
 			resp, err := client.PostForm(fmt.Sprintf("%s/%s", server.URL, id), form)
 

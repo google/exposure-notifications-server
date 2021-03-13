@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -43,8 +42,6 @@ func (s *Server) HandleSignatureInfosSave() func(c *gin.Context) {
 			ErrorPage(c, err.Error())
 			return
 		}
-
-		log.Printf("WHAT I GOT: %+v", form)
 
 		ctx := c.Request.Context()
 		m := TemplateMap{}
