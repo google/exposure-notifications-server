@@ -21,7 +21,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -29,6 +31,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 )
 
 var testDatabaseInstance *database.TestInstance
@@ -40,19 +43,38 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func newTestServer(t testing.TB) (*database.DB, *Server) {
+func newTestServer(t testing.TB) (*serverenv.ServerEnv, *Server) {
+	t.Helper()
+
 	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
-	env := serverenv.New(ctx,
-		serverenv.WithDatabase(testDB))
+	_, self, _, ok := runtime.Caller(1)
+	if !ok {
+		t.Fatal("failed to get caller")
+	}
 
-	server, err := NewServer(&Config{}, env)
+	localDir := filepath.Join(filepath.Dir(self), "../../local/keys")
+	keyConfig := &keys.Config{
+		FilesystemRoot: localDir,
+	}
+	keys, err := keys.NewFilesystem(ctx, keyConfig)
+	if err != nil {
+		t.Fatalf("unable to init key manager: %v", err)
+	}
+
+	env := serverenv.New(ctx,
+		serverenv.WithDatabase(testDB),
+		serverenv.WithKeyManager(keys))
+
+	config := &Config{}
+
+	server, err := NewServer(config, env)
 	if err != nil {
 		t.Fatalf("error creating test server: %v", err)
 	}
 
-	return testDB, server
+	return env, server
 }
 
 // Reflectively serialize the fields in f into form
@@ -127,7 +149,7 @@ func mustFindStrings(t testing.TB, resp *http.Response, want ...string) {
 
 	for _, wants := range want {
 		if !strings.Contains(result, wants) {
-			t.Errorf("result missing expected string: %v", wants)
+			t.Errorf("result missing expected string: %v, got: %v", wants, result)
 		}
 	}
 }
