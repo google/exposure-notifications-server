@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/export/database"
@@ -102,9 +103,12 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unable to serialize form: %v", err)
 			}
-			client := server.Client()
-			resp, err := client.PostForm(fmt.Sprintf("%s/%s", server.URL, id), form)
 
+			ctx := context.Background()
+			req, _ := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/%s", server.URL, id), strings.NewReader(form.Encode()))
+			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			client := server.Client()
+			resp, err := client.Do(req)
 			if err != nil {
 				t.Fatalf("error making http call: %v", err)
 			}
