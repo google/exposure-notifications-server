@@ -25,6 +25,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/exposure-notifications-server/internal/project"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 )
 
 func TestRenderSignatureInfo(t *testing.T) {
@@ -46,8 +47,26 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 	t.Parallel()
 	ctx := project.TestContext(t)
 
-	db, s := newTestServer(t)
+	env, s := newTestServer(t)
+	db := env.Database()
 	exportDB := database.New(db)
+
+	keyManager := env.KeyManager()
+	var fileSystemKeys *keys.Filesystem
+	switch v := keyManager.(type) {
+	case *keys.Filesystem:
+		fileSystemKeys = v
+	default:
+		t.Fatalf("non filesystem key manager installed")
+	}
+	key, err := fileSystemKeys.CreateSigningKey(ctx, "test/siginfo", "key")
+	if err != nil {
+		t.Fatalf("failed to create test signing key: %v", err)
+	}
+	keyVersion, err := fileSystemKeys.CreateKeyVersion(ctx, key)
+	if err != nil {
+		t.Fatalf("failed to create key version: %v", err)
+	}
 
 	cases := []struct {
 		name     string
@@ -74,6 +93,62 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 			},
 			want:     []string{"Unable to parse `id` param"},
 			idChange: func(s string) string { return "garbage" },
+		},
+		{
+			name: "update_existing",
+			seed: &model.SignatureInfo{
+				SigningKey:        "/test/case/key/3",
+				SigningKeyVersion: "wrong",
+				SigningKeyID:      "v43-2",
+			},
+			form: &signatureInfoFormData{
+				SigningKey:        "/test/case/key/3",
+				SigningKeyID:      "foo-3",
+				SigningKeyVersion: "v42-3",
+			},
+			want: []string{"foo-3"},
+		},
+		{
+			name: "update_id_mismatch",
+			seed: &model.SignatureInfo{
+				SigningKey:        "/test/case/key/4",
+				SigningKeyVersion: "wrong",
+				SigningKeyID:      "v43-4",
+			},
+			form: &signatureInfoFormData{
+				SigningKey:        "/test/case/key/4",
+				SigningKeyID:      "foo-4",
+				SigningKeyVersion: "v42-4",
+			},
+			idChange: func(s string) string { return fmt.Sprintf("100%s", s) },
+			want:     []string{"error processing signature info", "no rows in result set"},
+		},
+		{
+			name: "invalid_timestamp",
+			form: &signatureInfoFormData{
+				SigningKey:        "/test/case/key/5",
+				SigningKeyID:      "foo",
+				SigningKeyVersion: "v42",
+				EndDate:           "tomorrow",
+				EndTime:           "midnight",
+			},
+			want: []string{
+				"error processing signature info: parsing time",
+				"cannot parse",
+				"tomorrow midnight",
+			},
+		},
+		{
+			name: "sign_hello_world",
+			form: &signatureInfoFormData{
+				SigningKey:        keyVersion,
+				SigningKeyID:      "foo-6",
+				SigningKeyVersion: "v42-6",
+			},
+			want: []string{
+				"The signature for the string \"hello world\" for this key is <code>",
+				"Updated signture info #",
+			},
 		},
 	}
 
@@ -122,7 +197,8 @@ func TestHandleSigntureInfosShow(t *testing.T) {
 	t.Parallel()
 	ctx := project.TestContext(t)
 
-	db, s := newTestServer(t)
+	env, s := newTestServer(t)
+	db := env.Database()
 
 	info := &model.SignatureInfo{
 		SigningKey:        "/path/to/signing/key",
