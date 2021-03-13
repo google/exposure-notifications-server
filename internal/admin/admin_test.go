@@ -15,10 +15,13 @@
 package admin
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -50,6 +53,36 @@ func newTestServer(t testing.TB) (*database.DB, *Server) {
 	}
 
 	return testDB, server
+}
+
+// Reflectively serialize the fields in f into form
+// fields on the https request, r.
+func serializeForm(i interface{}) (url.Values, error) {
+	if i == nil {
+		return nil, nil
+	}
+
+	v := reflect.ValueOf(i)
+	if v.Kind() != reflect.Ptr {
+		return nil, fmt.Errorf("provided interface is not a pointer")
+	}
+
+	e := v.Elem()
+	if e.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("provided interface is not a struct")
+	}
+
+	t := e.Type()
+
+	form := url.Values{}
+	for i := 0; i < t.NumField(); i++ {
+		ef := e.Field(i)
+		tf := t.Field(i)
+		tag := tf.Tag.Get("form")
+
+		form.Add(tag, fmt.Sprintf("%v", ef))
+	}
+	return form, nil
 }
 
 func newHTTPServer(t testing.TB, method string, path string, handler gin.HandlerFunc) *httptest.Server {
