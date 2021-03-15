@@ -37,10 +37,10 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/google/exposure-notifications-server/internal/database"
 	vdb "github.com/google/exposure-notifications-server/internal/verification/database"
 	vm "github.com/google/exposure-notifications-server/internal/verification/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/exposure-notifications-server/pkg/database"
 	vutil "github.com/google/exposure-notifications-server/pkg/verification"
 )
 

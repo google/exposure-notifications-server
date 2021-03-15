@@ -17,7 +17,7 @@ package database
 import (
 	"testing"
 
-	"github.com/google/exposure-notifications-server/internal/database"
+	"github.com/google/exposure-notifications-server/pkg/database"
 )
 
 var testDatabaseInstance *database.TestInstance

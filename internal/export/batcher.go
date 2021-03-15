@@ -21,10 +21,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
+	"github.com/google/exposure-notifications-server/pkg/database"
 	"go.opencensus.io/stats"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"

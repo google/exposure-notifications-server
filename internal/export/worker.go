@@ -25,10 +25,10 @@ import (
 	"strings"
 	"time"
 
-	coredb "github.com/google/exposure-notifications-server/internal/database"
 	exportdatabase "github.com/google/exposure-notifications-server/internal/export/database"
 	publishdatabase "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	coredb "github.com/google/exposure-notifications-server/pkg/database"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 

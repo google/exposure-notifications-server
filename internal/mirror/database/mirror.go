@@ -19,8 +19,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/mirror/model"
+	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/jackc/pgx/v4"
 )
 
