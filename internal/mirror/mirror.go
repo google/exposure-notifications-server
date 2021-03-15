@@ -27,10 +27,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	mirrordatabase "github.com/google/exposure-notifications-server/internal/mirror/database"
 	"github.com/google/exposure-notifications-server/internal/mirror/model"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/stats"

@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/federationout/database"
 	"github.com/google/exposure-notifications-server/internal/pb/federation"
@@ -32,6 +31,7 @@ import (
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	coredb "github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"go.opencensus.io/stats"
 

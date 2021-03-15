@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export"
 	exportpb "github.com/google/exposure-notifications-server/internal/pb/export"
 	"github.com/google/exposure-notifications-server/internal/project"
@@ -35,6 +34,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/utils"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/base64util"
+	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/enkstest"
 	"github.com/google/exposure-notifications-server/pkg/util"
 	"github.com/google/go-cmp/cmp"

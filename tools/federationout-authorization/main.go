@@ -21,12 +21,12 @@ import (
 	"flag"
 	"log"
 
-	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	"github.com/google/exposure-notifications-server/internal/federationout/database"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	coredb "github.com/google/exposure-notifications-server/pkg/database"
 )
 
 const (

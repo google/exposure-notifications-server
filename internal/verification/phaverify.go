@@ -123,7 +123,7 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 				return hak.PublicKey()
 			}
 		}
-		return nil, fmt.Errorf("key not found: iss: %v kid: %v", claims.Issuer, kid)
+		return nil, fmt.Errorf("key not found: iss: %v, kid: %v", claims.Issuer, kid)
 	})
 	if err != nil {
 		return nil, err

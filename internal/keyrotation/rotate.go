@@ -22,8 +22,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	revisiondatabase "github.com/google/exposure-notifications-server/internal/revision/database"
+	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/stats"

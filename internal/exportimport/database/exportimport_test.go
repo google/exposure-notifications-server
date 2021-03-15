@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 	"github.com/google/exposure-notifications-server/internal/project"
+	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )

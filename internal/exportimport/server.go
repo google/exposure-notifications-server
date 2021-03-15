@@ -19,12 +19,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/exposure-notifications-server/internal/database"
 	eidb "github.com/google/exposure-notifications-server/internal/exportimport/database"
 	"github.com/google/exposure-notifications-server/internal/middleware"
 	pubdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
+	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"

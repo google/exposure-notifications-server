@@ -23,7 +23,6 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/authorizedapp"
 	"github.com/google/exposure-notifications-server/internal/cleanup"
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/export"
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	"github.com/google/exposure-notifications-server/internal/keyrotation"
@@ -34,6 +33,9 @@ import (
 	revisiondatabase "github.com/google/exposure-notifications-server/internal/revision/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
+	verificationdatabase "github.com/google/exposure-notifications-server/internal/verification/database"
+	verificationmodel "github.com/google/exposure-notifications-server/internal/verification/model"
+	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 	"github.com/google/exposure-notifications-server/pkg/server"
@@ -234,6 +236,12 @@ func NewServer(tb testing.TB, testDatabaseInstance *database.TestInstance) *Serv
 		Server: srv,
 		Env:    env,
 	}
+}
+
+// AddHealthAuthorityKey updates the health authority. This exists so tests
+// can override the PEM without exposing all the internal packages.
+func (s *Server) AddHealthAuthorityKey(ctx context.Context, healthAuthority *verificationmodel.HealthAuthority, healthAuthorityKey *verificationmodel.HealthAuthorityKey) error {
+	return verificationdatabase.New(s.Env.Database()).AddHealthAuthorityKey(ctx, healthAuthority, healthAuthorityKey)
 }
 
 func processDefaults(tb testing.TB, i interface{}) {

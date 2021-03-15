@@ -22,12 +22,12 @@ import (
 	"regexp"
 	"time"
 
-	coredb "github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/federationin"
 	"github.com/google/exposure-notifications-server/internal/federationin/database"
 	"github.com/google/exposure-notifications-server/internal/federationin/model"
 	cflag "github.com/google/exposure-notifications-server/internal/flag"
 	"github.com/google/exposure-notifications-server/internal/setup"
+	coredb "github.com/google/exposure-notifications-server/pkg/database"
 )
 
 var (

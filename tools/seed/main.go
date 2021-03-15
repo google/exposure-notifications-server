@@ -31,10 +31,10 @@ import (
 	authorizedappdatabase "github.com/google/exposure-notifications-server/internal/authorizedapp/database"
 	authorizedappmodel "github.com/google/exposure-notifications-server/internal/authorizedapp/model"
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
-	"github.com/google/exposure-notifications-server/internal/database"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	verificationdatabase "github.com/google/exposure-notifications-server/internal/verification/database"
 	verificationmodel "github.com/google/exposure-notifications-server/internal/verification/model"
+	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/keys"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 )
