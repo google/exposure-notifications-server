@@ -79,20 +79,25 @@ func (c *Cache) Size() int {
 // and if not found or expired, invokes the provided primaryLookup function
 // to local the value.
 func (c *Cache) WriteThruLookup(name string, primaryLookup Func) (interface{}, error) {
-	// This call takes a read lock.
-	val, hit := c.Lookup(name)
+	c.mu.RLock()
+	val, hit := c.lookup(name)
+	if hit {
+		c.mu.RUnlock()
+		return val, nil
+	}
+	c.mu.RUnlock()
+
+	// Ensure the value hasn't been set by another goroutine by escalating to a RW
+	// lock. We need the W lock anyway if we're about to write.
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	val, hit = c.lookup(name)
 	if hit {
 		return val, nil
 	}
 
-	// Escalate the lock to a RW lock.
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	// double check that the value hasn't been set by another goroutine.
-	if val, hit := c.data[name]; hit && !val.expired() {
-		return val.object, nil
-	}
-	// Either a miss, or hit w/ expired value.
+	// If we got this far, it was either a miss, or hit w/ expired value, execute
+	// the function.
 
 	// Value does indeed need to be refreshed. Used the provided function.
 	newData, err := primaryLookup()
@@ -117,16 +122,7 @@ func (c *Cache) Lookup(name string) (interface{}, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if item, ok := c.data[name]; ok && item.expired() {
-		// Cache hit, but expired. The removal from the cache is deferred.
-		go c.purgeExpired(name, item.expiresAt)
-		return nil, false
-	} else if ok {
-		// Cache hit, not expired.
-		return item.object, true
-	}
-	// Cache miss.
-	return nil, false
+	return c.lookup(name)
 }
 
 // Set saves the current value of an object in the cache, with the supplied
@@ -141,4 +137,21 @@ func (c *Cache) Set(name string, object interface{}) error {
 	}
 
 	return nil
+}
+
+// lookup finds an unexpired item at the given name. The bool indicates if a hit
+// occurred. This is an internal API that is NOT thread-safe. Consumers must
+// take out a read or read-write lock.
+func (c *Cache) lookup(name string) (interface{}, bool) {
+	if item, ok := c.data[name]; ok && item.expired() {
+		// Cache hit, but expired. The removal from the cache is deferred.
+		go c.purgeExpired(name, item.expiresAt)
+		return nil, false
+	} else if ok {
+		// Cache hit, not expired.
+		return item.object, true
+	}
+
+	// Cache miss.
+	return nil, false
 }
