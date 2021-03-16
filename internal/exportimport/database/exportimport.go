@@ -185,7 +185,7 @@ func (db *ExportImportDB) UpdateConfig(ctx context.Context, c *model.ExportImpor
 		return err
 	}
 
-	from := db.db.NullableTime(c.From)
+	from := database.NullableTime(c.From)
 	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE

@@ -224,7 +224,7 @@ func (db *HealthAuthorityDB) AddHealthAuthorityKey(ctx context.Context, ha *mode
 	}
 
 	hak.AuthorityID = ha.ID
-	thru := db.db.NullableTime(hak.Thru)
+	thru := database.NullableTime(hak.Thru)
 	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			INSERT INTO
@@ -268,7 +268,7 @@ func (db *HealthAuthorityDB) UpdateHealthAuthorityKey(ctx context.Context, hak *
 		return err
 	}
 
-	thru := db.db.NullableTime(hak.Thru)
+	thru := database.NullableTime(hak.Thru)
 	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE HealthAuthorityKey

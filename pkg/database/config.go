@@ -62,9 +62,12 @@ func (c *Config) ConnectionURL() string {
 
 	u := &url.URL{
 		Scheme: "postgres",
-		User:   url.UserPassword(c.User, c.Password),
 		Host:   host,
 		Path:   c.Name,
+	}
+
+	if c.User != "" || c.Password != "" {
+		u.User = url.UserPassword(c.User, c.Password)
 	}
 
 	q := u.Query()

@@ -18,8 +18,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/go-cmp/cmp"
 )
+
+func TestNewFromEnv(t *testing.T) {
+	t.Parallel()
+
+	ctx := project.TestContext(t)
+
+	t.Run("bad_conn", func(t *testing.T) {
+		t.Parallel()
+
+		if _, err := NewFromEnv(ctx, &Config{}); err == nil {
+			t.Errorf("expected error, got nil")
+		}
+	})
+}
 
 func TestDBValues(t *testing.T) {
 	t.Parallel()
