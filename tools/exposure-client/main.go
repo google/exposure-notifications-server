@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/internal/buildinfo"
+	"github.com/google/exposure-notifications-server/internal/project"
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/util"
@@ -76,7 +77,7 @@ func realMain(ctx context.Context) error {
 		return fmt.Errorf("failed to get random int: %w", err)
 	}
 
-	padding, err := util.RandomBytes(i + 1000)
+	padding, err := project.RandomBytes(i + 1000)
 	if err != nil {
 		return fmt.Errorf("failed to get random padding: %w", err)
 	}

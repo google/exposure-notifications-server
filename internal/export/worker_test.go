@@ -99,11 +99,7 @@ func TestEnsureMinExposures(t *testing.T) {
 	}
 
 	for _, k := range exposures {
-		b64, err := util.GenerateKey()
-		if err != nil {
-			t.Fatalf("unable to generate exposure keys: %v", err)
-		}
-		k.ExposureKey = util.DecodeKey(b64)
+		k.ExposureKey = randomTEK(t)
 	}
 
 	numKeys := 100
@@ -134,15 +130,6 @@ func TestEnsureMinExposures(t *testing.T) {
 			t.Errorf("distribution not random, expected >= 20 keys with start interval %v, got %v", k, v)
 		}
 	}
-}
-
-func getKey(t *testing.T) []byte {
-	t.Helper()
-	eKey, err := util.RandomBytes(verifyapi.KeyLength)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return eKey
 }
 
 func TestBatchExposures(t *testing.T) {
@@ -192,7 +179,7 @@ func TestBatchExposures(t *testing.T) {
 			for i := 0; i < tc.count; i++ {
 				// home country non-traveler
 				exposures[i*3] = &publishmodel.Exposure{
-					ExposureKey:     getKey(t),
+					ExposureKey:     randomTEK(t),
 					Regions:         []string{"US"},
 					IntervalNumber:  100,
 					IntervalCount:   144,
@@ -203,7 +190,7 @@ func TestBatchExposures(t *testing.T) {
 				}
 				// foreign country traveler
 				exposures[i*3+1] = &publishmodel.Exposure{
-					ExposureKey:     getKey(t),
+					ExposureKey:     randomTEK(t),
 					Regions:         []string{"CA"},
 					IntervalNumber:  100,
 					IntervalCount:   144,
@@ -214,7 +201,7 @@ func TestBatchExposures(t *testing.T) {
 				}
 				// foreign country non-traveler
 				exposures[i*3+2] = &publishmodel.Exposure{
-					ExposureKey:     getKey(t),
+					ExposureKey:     randomTEK(t),
 					Regions:         []string{"CA"},
 					IntervalNumber:  100,
 					IntervalCount:   144,
@@ -401,7 +388,7 @@ func TestVariableBatchMaxSize(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		// All keys aligned to the same hour.
 		exposures[i] = &publishmodel.Exposure{
-			ExposureKey:     getKey(t),
+			ExposureKey:     randomTEK(t),
 			Regions:         []string{"US"},
 			IntervalNumber:  100,
 			IntervalCount:   144,
@@ -465,6 +452,17 @@ func TestVariableBatchMaxSize(t *testing.T) {
 			t.Errorf("ReadExposures mismatch (-want, +got):\n%s", diff)
 		}
 	}
+}
+
+// randomTEK is like util.RandomTEK, but handles the error from tb.
+func randomTEK(tb testing.TB) []byte {
+	tb.Helper()
+
+	b, err := util.RandomTEK()
+	if err != nil {
+		tb.Fatalf("failed to generate tek: %v", err)
+	}
+	return b
 }
 
 func TestExportFilename(t *testing.T) {
