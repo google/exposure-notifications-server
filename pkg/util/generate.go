@@ -23,8 +23,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/google/exposure-notifications-server/internal/project"
 	v1 "github.com/google/exposure-notifications-server/pkg/api/v1"
-	"github.com/google/exposure-notifications-server/pkg/base64util"
 	"github.com/google/exposure-notifications-server/pkg/timeutils"
 )
 
@@ -50,15 +50,6 @@ func RandomInt(maxValue int) (int, error) {
 		return 0, err
 	}
 	return int(n.Int64()), nil
-}
-
-// RandomIntWithMin is inclusive, [min:max].
-func RandomIntWithMin(min, max int) (int, error) {
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(max-min+1)))
-	if err != nil {
-		return 0, err
-	}
-	return int(n.Int64()) + min, nil
 }
 
 func RandomRevisedReportType() (string, error) {
@@ -95,15 +86,6 @@ func RandomReportType() (string, error) {
 func RandomTransmissionRisk() (int, error) {
 	n, err := RandomInt(v1.MaxTransmissionRisk)
 	return n + 1, err
-}
-
-// RandomArrValue chooses a random element from the array.
-func RandomArrValue(arr []string) (string, error) {
-	n, err := RandomInt(len(arr))
-	if err != nil {
-		return "", err
-	}
-	return arr[n], nil
 }
 
 // GenerateExposuresForIntervals generates a key for each interval start passed in
@@ -161,10 +143,12 @@ func GenerateExposureKeys(numKeys, tr int, randomInterval bool) []v1.ExposureKey
 
 // RandomExposureKey creates a random exposure key.
 func RandomExposureKey(intervalNumber int32, intervalCount int32, transmissionRisk int) (v1.ExposureKey, error) {
-	key, err := GenerateKey()
+	b, err := RandomTEK()
 	if err != nil {
 		return v1.ExposureKey{}, err
 	}
+	key := base64.StdEncoding.EncodeToString(b)
+
 	return v1.ExposureKey{
 		Key:              key,
 		IntervalNumber:   intervalNumber,
@@ -173,35 +157,11 @@ func RandomExposureKey(intervalNumber int32, intervalCount int32, transmissionRi
 	}, nil
 }
 
-// RandomBytes generates a random byte sequence.
-func RandomBytes(arrLen int) ([]byte, error) {
-	padding := make([]byte, arrLen)
-	_, err := rand.Read(padding)
+// RandomTEK generates a new random 16-byte TEK.
+func RandomTEK() ([]byte, error) {
+	b, err := project.RandomBytes(dkLen)
 	if err != nil {
 		return nil, err
 	}
-	return padding, nil
-}
-
-// GenerateKey generates a key.
-func GenerateKey() (string, error) {
-	b, err := RandomBytes(dkLen)
-	if err != nil {
-		return "", err
-	}
-	return ToBase64(b), nil
-}
-
-// ToBase64 encodes bytes array to base64.
-func ToBase64(key []byte) string {
-	return base64.StdEncoding.EncodeToString(key)
-}
-
-// DecodeKey decodes base64 string to []byte.
-func DecodeKey(b64key string) []byte {
-	k, err := base64util.DecodeString(b64key)
-	if err != nil {
-		log.Fatalf("unable to decode key: %v", err)
-	}
-	return k
+	return b, nil
 }
