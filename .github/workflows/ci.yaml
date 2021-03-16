@@ -50,7 +50,7 @@ jobs:
         shell: bash
         run: |-
           OUTPUT="$(make test-coverage)"
-          TOTAL="$(echo $OUTPUT | awk 'END{print $3}')"
+          TOTAL="$(echo $OUTPUT | awk 'END{print $NF}')"
           echo "::group::Coverage (${TOTAL})"
           echo "${OUTPUT}"
           echo "::endgroup::"
