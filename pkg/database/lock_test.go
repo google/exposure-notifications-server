@@ -142,6 +142,10 @@ func TestMultiLock(t *testing.T) {
 	ctx := project.TestContext(t)
 	testDB, _ := testDatabaseInstance.NewDatabase(t)
 
+	if _, err := testDB.MultiLock(ctx, nil, time.Minute); err == nil {
+		t.Errorf("expected error, got nil")
+	}
+
 	neededLocks := []string{"traveler", "US", "CA", "MX"}
 
 	unlock1, err := testDB.MultiLock(ctx, neededLocks, time.Minute)

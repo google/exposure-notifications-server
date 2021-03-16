@@ -48,7 +48,7 @@ func (db *ExportDB) AddExportConfig(ctx context.Context, ec *model.ExportConfig)
 		return err
 	}
 
-	thru := db.db.NullableTime(ec.Thru)
+	thru := database.NullableTime(ec.Thru)
 	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			INSERT INTO
@@ -77,7 +77,7 @@ func (db *ExportDB) UpdateExportConfig(ctx context.Context, ec *model.ExportConf
 		return err
 	}
 
-	thru := db.db.NullableTime(ec.Thru)
+	thru := database.NullableTime(ec.Thru)
 	return db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
 		result, err := tx.Exec(ctx, `
 			UPDATE

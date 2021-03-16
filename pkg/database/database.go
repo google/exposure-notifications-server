@@ -31,7 +31,7 @@ var (
 	ErrKeyConflict = errors.New("key conflict")
 )
 
-func (db *DB) NullableTime(t time.Time) *time.Time {
+func NullableTime(t time.Time) *time.Time {
 	if t.IsZero() {
 		return nil
 	}
