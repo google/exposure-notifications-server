@@ -113,7 +113,7 @@ func newHTTPServer(t testing.TB, method string, path string, handler gin.Handler
 	tmpl, err := template.New("").
 		Option("missingkey=zero").
 		Funcs(TemplateFuncMap).
-		ParseFS(assetsFS, "templates/*.html")
+		ParseFS(templatesFS, "templates/*.html")
 	if err != nil {
 		t.Fatalf("failed to parse templates from fs: %v", err)
 	}
