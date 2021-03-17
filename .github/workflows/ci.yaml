@@ -4,9 +4,11 @@ on:
   push:
     branches:
     - main
+    - experimental
   pull_request:
     branches:
     - main
+    - experimental
   schedule:
     - cron: '0 0 */1 * *'
 
