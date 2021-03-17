@@ -29,6 +29,6 @@ type Controller interface {
 
 func ErrorPage(c *gin.Context, messages ...string) {
 	log.Printf("error: %v", messages)
-	c.HTML(http.StatusOK, "error", gin.H{"error": messages})
+	c.HTML(http.StatusInternalServerError, "error", gin.H{"error": messages})
 	c.Abort()
 }

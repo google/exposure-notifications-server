@@ -147,6 +147,6 @@ func (s *Server) HandleExportImportKeys() func(c *gin.Context) {
 			ErrorPage(c, "invalid action")
 			return
 		}
-		c.Redirect(http.StatusFound, fmt.Sprintf("/export-importers/%d", exportImport.ID))
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/export-importers/%d", exportImport.ID))
 	}
 }
