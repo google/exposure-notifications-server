@@ -63,7 +63,7 @@ func (s *Server) HandleExportImportersSave() func(c *gin.Context) {
 
 		m.AddSuccess("Successfully updated export importer config!")
 
-		c.Redirect(http.StatusFound, fmt.Sprintf("/export-importers/%d", record.ID))
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/export-importers/%d", record.ID))
 		c.Abort()
 	}
 }
@@ -137,11 +137,11 @@ type exportImporterFormData struct {
 func (f *exportImporterFormData) BuildExportImporterModel(c *model.ExportImport) error {
 	from, err := CombineDateAndTime(f.FromDate, f.FromTime)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid from time: %w", err)
 	}
 	thru, err := CombineDateAndTime(f.ThruDate, f.ThruTime)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid thru time: %w", err)
 	}
 
 	if val := f.IndexFile; val != "" {
