@@ -102,7 +102,13 @@ func serializeForm(i interface{}) (url.Values, error) {
 		tf := t.Field(i)
 		tag := tf.Tag.Get("form")
 
-		form.Add(tag, fmt.Sprintf("%v", ef))
+		if ef.Kind() == reflect.Slice || ef.Kind() == reflect.Array {
+			for i := 0; i < ef.Len(); i++ {
+				form.Add(tag, fmt.Sprintf("%v", ef.Index(i)))
+			}
+		} else {
+			form.Add(tag, fmt.Sprintf("%v", ef))
+		}
 	}
 	return form, nil
 }

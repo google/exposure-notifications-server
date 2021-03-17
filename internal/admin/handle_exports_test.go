@@ -15,7 +15,6 @@
 package admin
 
 import (
-	"net/http/httptest"
 	"reflect"
 	"testing"
 
@@ -36,12 +35,7 @@ func TestRenderExports(t *testing.T) {
 	m["usedSigInfos"] = usedSigInfos
 	m["siginfos"] = sigInfos
 
-	recorder := httptest.NewRecorder()
-	config := Config{}
-	err := config.RenderTemplate(recorder, "export", m)
-	if err != nil {
-		t.Fatalf("error rendering template: %v", err)
-	}
+	testRenderTemplate(t, "export", m)
 }
 
 func TestSplitRegions(t *testing.T) {

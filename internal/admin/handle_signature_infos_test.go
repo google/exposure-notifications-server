@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -35,12 +34,7 @@ func TestRenderSignatureInfo(t *testing.T) {
 	sigInfo := &model.SignatureInfo{}
 	m["siginfo"] = sigInfo
 
-	recorder := httptest.NewRecorder()
-	config := Config{}
-	err := config.RenderTemplate(recorder, "siginfo", m)
-	if err != nil {
-		t.Fatalf("error rendering template: %v", err)
-	}
+	testRenderTemplate(t, "siginfo", m)
 }
 
 func TestHandleSignatureInfoSave(t *testing.T) {
@@ -180,7 +174,10 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			req, _ := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/%s", server.URL, id), strings.NewReader(form.Encode()))
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/%s", server.URL, id), strings.NewReader(form.Encode()))
+			if err != nil {
+				t.Fatal(err)
+			}
 			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 			client := server.Client()
 			resp, err := client.Do(req)
@@ -245,7 +242,10 @@ func TestHandleSigntureInfosShow(t *testing.T) {
 			server := newHTTPServer(t, http.MethodGet, "/:id", s.HandleSignatureInfosShow())
 
 			ctx := context.Background()
-			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s", server.URL, tc.id), nil)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s", server.URL, tc.id), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
 			client := server.Client()
 
 			resp, err := client.Do(req)
