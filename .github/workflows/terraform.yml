@@ -4,12 +4,14 @@ on:
   push:
     branches:
     - main
+    - experimental
     paths:
     - 'terraform/**'
     - '.github/workflows/terraform*'
   pull_request:
     branches:
     - main
+    - experimental
     paths:
     - 'terraform/**'
     - '.github/workflows/terraform*'

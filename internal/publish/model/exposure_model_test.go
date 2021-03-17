@@ -1006,6 +1006,42 @@ func TestTransform(t *testing.T) {
 			},
 			Warnings: []string{"key 1 symptom onset is too large, 15 > 14 - saving without this key"},
 		},
+		{
+			Name: "with_vaccine_status",
+			Publish: &verifyapi.Publish{
+				Keys: []verifyapi.ExposureKey{
+					{
+						Key:              encodeKey(testKeys[0]),
+						IntervalNumber:   intervalNumber,
+						IntervalCount:    verifyapi.MaxIntervalCount,
+						TransmissionRisk: 1,
+					},
+				},
+				HealthAuthorityID: appPackage,
+				Vaccinated:        true,
+			},
+			Regions: []string{"US"}, // will be uppercased
+			Claims:  nil,
+			Want: []*Exposure{
+				{
+					ExposureKey:           testKeys[0],
+					IntervalNumber:        intervalNumber,
+					IntervalCount:         verifyapi.MaxIntervalCount,
+					TransmissionRisk:      1,
+					VaccineStatus:         true,
+					AppPackageName:        appPackage,
+					Regions:               []string{"US"},
+					CreatedAt:             batchTimeRounded,
+					LocalProvenance:       true,
+					DaysSinceSymptomOnset: int32Ptr(-3),
+				},
+			},
+			WantStats: &PublishInfo{
+				CreatedAt:    batchTimeRounded,
+				OldestDays:   7,
+				MissingOnset: true,
+			},
+		},
 	}
 
 	allowedAge := 14 * 24 * time.Hour
