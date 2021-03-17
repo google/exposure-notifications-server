@@ -686,6 +686,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		}
 
 		exposure.Traveler = inData.Traveler
+		exposure.VaccineStatus = inData.Vaccinated
 		entities = append(entities, exposure)
 	}
 
