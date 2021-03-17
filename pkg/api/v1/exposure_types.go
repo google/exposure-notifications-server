@@ -109,6 +109,9 @@ type Publish struct {
 	Traveler             bool          `json:"traveler,omitempty"`
 	RevisionToken        string        `json:"revisionToken"`
 
+	// Experimental field, this is not supported by apple and google.
+	Vaccinated bool `json:"vaccinated,omitempty"`
+
 	Padding string `json:"padding"`
 }
 

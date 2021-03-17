@@ -66,6 +66,7 @@ type Exposure struct {
 	AppPackageName    string
 	Regions           []string
 	Traveler          bool
+	VaccineStatus     bool
 	IntervalNumber    int32
 	IntervalCount     int32
 	CreatedAt         time.Time

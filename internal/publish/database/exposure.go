@@ -145,7 +145,7 @@ func (db *PublishDB) IterateExposures(ctx context.Context, criteria IterateExpos
 			var encodedKey string
 			var syncID *int64
 			var queryID *string
-			if err := rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.Traveler,
+			if err := rows.Scan(&encodedKey, &m.TransmissionRisk, &m.AppPackageName, &m.Regions, &m.Traveler, &m.VaccineStatus,
 				&m.IntervalNumber, &m.IntervalCount, &m.CreatedAt, &m.LocalProvenance, &syncID, &queryID, &m.HealthAuthorityID,
 				&m.ReportType, &m.DaysSinceSymptomOnset, &m.RevisedReportType, &m.RevisedAt, &m.RevisedDaysSinceSymptomOnset); err != nil {
 				return fmt.Errorf("failed to parse: %w", err)
@@ -180,7 +180,7 @@ func generateExposureQuery(criteria IterateExposuresCriteria) (string, []interfa
 	var args []interface{}
 	q := `
 		SELECT
-			exposure_key, transmission_risk, LOWER(app_package_name), regions, traveler,
+			exposure_key, transmission_risk, LOWER(app_package_name), regions, traveler, vaccine_status,
 			interval_number, interval_count,
 			created_at, local_provenance, sync_id, sync_query_id, health_authority_id, report_type,
 			days_since_symptom_onset, revised_report_type, revised_at, revised_days_since_symptom_onset
@@ -276,7 +276,7 @@ func (db *PublishDB) ReadExposures(ctx context.Context, tx pgx.Tx, b64keys []str
 
 	rows, err := tx.Query(ctx, `
 			SELECT
-				exposure_key, transmission_risk, app_package_name, regions, traveler,
+				exposure_key, transmission_risk, app_package_name, regions, traveler, vaccine_status,
 				interval_number, interval_count, created_at, local_provenance, sync_id,
 				health_authority_id, report_type, days_since_symptom_onset,
 				revised_report_type, revised_at, revised_days_since_symptom_onset,
@@ -302,7 +302,8 @@ func (db *PublishDB) ReadExposures(ctx context.Context, tx pgx.Tx, b64keys []str
 		var exposure model.Exposure
 		if err := rows.Scan(
 			&encodedKey, &exposure.TransmissionRisk, &exposure.AppPackageName,
-			&exposure.Regions, &exposure.Traveler, &exposure.IntervalNumber, &exposure.IntervalCount,
+			&exposure.Regions, &exposure.Traveler, &exposure.VaccineStatus,
+			&exposure.IntervalNumber, &exposure.IntervalCount,
 			&exposure.CreatedAt, &exposure.LocalProvenance, &syncID,
 			&exposure.HealthAuthorityID, &exposure.ReportType, &exposure.DaysSinceSymptomOnset,
 			&exposure.RevisedReportType, &exposure.RevisedAt, &exposure.RevisedDaysSinceSymptomOnset,
@@ -332,11 +333,11 @@ func prepareInsertExposure(ctx context.Context, tx pgx.Tx) (string, error) {
 	_, err := tx.Prepare(ctx, stmtName, `
 		INSERT INTO
 			Exposure
-				(exposure_key, transmission_risk, app_package_name, regions, traveler, interval_number, interval_count,
+				(exposure_key, transmission_risk, app_package_name, regions, traveler, vaccine_status, interval_number, interval_count,
 				 created_at, local_provenance, sync_id, sync_query_id, health_authority_id, report_type, days_since_symptom_onset,
 				 export_import_id, import_file_id)
 		VALUES
-			($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+			($1, $2, LOWER($3), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		ON CONFLICT (exposure_key) DO NOTHING
 	`)
 	return stmtName, err
@@ -353,7 +354,8 @@ func executeInsertExposure(ctx context.Context, tx pgx.Tx, stmtName string, exp 
 	}
 
 	_, err := tx.Exec(ctx, stmtName, encodeExposureKey(exp.ExposureKey), exp.TransmissionRisk,
-		exp.AppPackageName, exp.Regions, exp.Traveler, exp.IntervalNumber, exp.IntervalCount,
+		exp.AppPackageName, exp.Regions, exp.Traveler, exp.VaccineStatus,
+		exp.IntervalNumber, exp.IntervalCount,
 		exp.CreatedAt, exp.LocalProvenance, syncID, queryID,
 		exp.HealthAuthorityID, exp.ReportType, exp.DaysSinceSymptomOnset,
 		exp.ExportImportID, exp.ImportFileID)
