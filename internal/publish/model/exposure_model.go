@@ -66,6 +66,7 @@ type Exposure struct {
 	AppPackageName    string
 	Regions           []string
 	Traveler          bool
+	VaccineStatus     bool
 	IntervalNumber    int32
 	IntervalCount     int32
 	CreatedAt         time.Time
@@ -697,6 +698,7 @@ func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Pu
 		}
 
 		exposure.Traveler = inData.Traveler
+		exposure.VaccineStatus = inData.Vaccinated
 		entities = append(entities, exposure)
 	}
 
