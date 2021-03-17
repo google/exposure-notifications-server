@@ -15,7 +15,6 @@
 package admin
 
 import (
-	"net/http/httptest"
 	"testing"
 
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
@@ -28,10 +27,5 @@ func TestRenderExportImporters(t *testing.T) {
 	model := new(model.ExportImport)
 	m["model"] = model
 
-	recorder := httptest.NewRecorder()
-	config := Config{}
-	err := config.RenderTemplate(recorder, "export-importer", m)
-	if err != nil {
-		t.Fatalf("error rendering template: %v", err)
-	}
+	testRenderTemplate(t, "export-importer", m)
 }

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
-	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/storage"
@@ -80,21 +79,4 @@ func (c *Config) TemplateRenderer() (*template.Template, error) {
 		return nil, fmt.Errorf("failed to parse templates from fs: %w", err)
 	}
 	return tmpl, nil
-}
-
-func (c *Config) RenderTemplate(w http.ResponseWriter, name string, p TemplateMap) error {
-	tmpl, err := c.TemplateRenderer()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	}
-
-	if err := tmpl.ExecuteTemplate(w, name, p); err != nil {
-		err = fmt.Errorf("failed to render template %q: %w", name, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return err
-	}
-
-	w.WriteHeader(http.StatusOK)
-	return nil
 }

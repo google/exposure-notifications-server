@@ -54,11 +54,14 @@ func (s *Server) HandleAuthorizedAppsSave() func(c *gin.Context) {
 					ErrorPage(c, "Invalid request, app to edit not found.")
 					return
 				}
+				if authApp == nil {
+					ErrorPage(c, "Unknown authorized app")
+					return
+				}
 			}
-			if err := form.PopulateAuthorizedApp(authApp); err != nil {
-				ErrorPage(c, err.Error())
-				return
-			}
+
+			form.PopulateAuthorizedApp(authApp)
+
 			errors := authApp.Validate()
 			if len(errors) > 0 {
 				m.AddErrors(errors...)
@@ -141,6 +144,10 @@ func (s *Server) HandleAuthorizedAppsShow() func(c *gin.Context) {
 				ErrorPage(c, err.Error())
 				return
 			}
+			if authorizedApp == nil {
+				ErrorPage(c, "error loading authorized app")
+				return
+			}
 		}
 
 		// Load the health authorities.
@@ -198,7 +205,7 @@ func (f *authorizedAppFormData) PriorKey() string {
 	return string(bytes)
 }
 
-func (f *authorizedAppFormData) PopulateAuthorizedApp(a *model.AuthorizedApp) error {
+func (f *authorizedAppFormData) PopulateAuthorizedApp(a *model.AuthorizedApp) {
 	a.AppPackageName = project.TrimSpaceAndNonPrintable(f.AppPackageName)
 	a.AllowedRegions = make(map[string]struct{})
 	for _, region := range strings.Split(f.AllowedRegions, "\n") {
@@ -213,5 +220,4 @@ func (f *authorizedAppFormData) PopulateAuthorizedApp(a *model.AuthorizedApp) er
 	}
 	a.BypassHealthAuthorityVerification = f.BypassHealthAuthorityVerification
 	a.BypassRevisionToken = f.BypassRevisionToken
-	return nil
 }
