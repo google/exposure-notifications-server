@@ -81,12 +81,16 @@ func newTestServer(t testing.TB) (*serverenv.ServerEnv, *Server) {
 // fields on the https request, r.
 func serializeForm(i interface{}) (url.Values, error) {
 	if i == nil {
-		return nil, nil
+		return url.Values{}, nil
 	}
 
 	v := reflect.ValueOf(i)
 	if v.Kind() != reflect.Ptr {
 		return nil, fmt.Errorf("provided interface is not a pointer")
+	}
+
+	if v.IsNil() {
+		return url.Values{}, nil
 	}
 
 	e := v.Elem()

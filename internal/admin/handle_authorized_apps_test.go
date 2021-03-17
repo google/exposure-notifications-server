@@ -94,6 +94,7 @@ func TestHandleAuthorizedAppsShow(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error making http call: %v", err)
 			}
+			defer resp.Body.Close()
 
 			mustFindStrings(t, resp, tc.want...)
 		})
@@ -226,6 +227,7 @@ func TestHandleAuthorizedAppsSave(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error making http call: %v", err)
 			}
+			defer resp.Body.Close()
 
 			mustFindStrings(t, resp, tc.want...)
 		})

@@ -184,6 +184,7 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error making http call: %v", err)
 			}
+			defer resp.Body.Close()
 
 			mustFindStrings(t, resp, tc.want...)
 		})
@@ -252,6 +253,7 @@ func TestHandleSigntureInfosShow(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error making http call: %v", err)
 			}
+			defer resp.Body.Close()
 
 			mustFindStrings(t, resp, tc.want...)
 		})
