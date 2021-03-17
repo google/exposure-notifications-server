@@ -16,7 +16,6 @@ package integration
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -74,11 +73,12 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b := make([]byte, 1)
-	if n, err := rand.Read(b); err != nil || n != 1 {
-		t.Errorf("unable to randomly assign vaccine status")
+	n, err := util.RandomInt(2)
+	if err != nil {
+		t.Errorf("unable to generat random vaccine status: %v", err)
+		n = 0 // log error, but let the test run with vaccine = false.
 	}
-	vaccineStatus := (b[0]%2 == 1)
+	vaccineStatus := (n%2 == 1)
 
 	// Publish some keys
 	publishRequest := &verifyapi.Publish{
