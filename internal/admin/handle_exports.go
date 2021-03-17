@@ -52,6 +52,7 @@ func (s *Server) HandleExportsSave() func(c *gin.Context) {
 
 		if err := form.PopulateExportConfig(record); err != nil {
 			ErrorPage(c, fmt.Sprintf("error processing export config: %v", err))
+			return
 		}
 
 		updateFn := db.AddExportConfig
@@ -64,21 +65,7 @@ func (s *Server) HandleExportsSave() func(c *gin.Context) {
 		}
 
 		m.AddSuccess(fmt.Sprintf("Updated export config #%v", record.ConfigID))
-
-		usedSigInfos := make(map[int64]bool)
-		for _, id := range record.SignatureInfoIDs {
-			usedSigInfos[id] = true
-		}
-
-		sigInfos, err := db.ListAllSignatureInfos(ctx)
-		if err != nil {
-			ErrorPage(c, fmt.Sprintf("Error reading the database: %v", err))
-		}
-
-		m["export"] = record
-		m["usedSigInfos"] = usedSigInfos
-		m["siginfos"] = sigInfos
-		c.HTML(http.StatusOK, "export", m)
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/exports/%d", record.ConfigID))
 	}
 }
 
@@ -103,6 +90,7 @@ func (s *Server) HandleExportsShow() func(c *gin.Context) {
 		sigInfos, err := db.ListAllSignatureInfos(ctx)
 		if err != nil {
 			ErrorPage(c, fmt.Sprintf("Error reading the database: %v", err))
+			return
 		}
 
 		m["export"] = record
@@ -165,11 +153,11 @@ func splitRegions(regions string) []string {
 func (f *exportFormData) PopulateExportConfig(ec *model.ExportConfig) error {
 	from, err := CombineDateAndTime(f.FromDate, f.FromTime)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid from time: %w", err)
 	}
 	thru, err := CombineDateAndTime(f.ThruDate, f.ThruTime)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid thru time: %w", err)
 	}
 	if f.IncludeTravelers && f.OnlyNonTravelers {
 		return fmt.Errorf("cannot have both 'include travelers', and 'only non-travelers' set")
@@ -192,8 +180,8 @@ func (f *exportFormData) PopulateExportConfig(ec *model.ExportConfig) error {
 		ec.MaxRecordsOverride = nil
 	}
 
-	if len(ec.SignatureInfoIDs) > 10 {
-		return fmt.Errorf("too many signing keys selected, there is a limit of 10")
+	if limit := 10; len(ec.SignatureInfoIDs) > limit {
+		return fmt.Errorf("too many signing keys selected, there is a limit of %d", limit)
 	}
 
 	return nil

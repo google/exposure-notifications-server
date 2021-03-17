@@ -163,3 +163,10 @@ func mustFindStrings(t testing.TB, resp *http.Response, want ...string) {
 		}
 	}
 }
+
+func intPtr(i int) *int {
+	if i == 0 {
+		return nil
+	}
+	return &i
+}
