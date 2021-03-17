@@ -23,7 +23,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 )
 
-// Server is the debugger server.
+// Server is the admin server.
 type Server struct {
 	config *Config
 	env    *serverenv.ServerEnv
@@ -50,6 +50,9 @@ func (s *Server) Routes(ctx context.Context) http.Handler {
 	mux := gin.Default()
 	mux.SetFuncMap(TemplateFuncMap)
 	mux.SetHTMLTemplate(tmpl)
+
+	// Static assets.
+	mux.StaticFS("/assets/", http.FS(assetsFS))
 
 	// Landing page.
 	mux.GET("/", s.HandleIndex())

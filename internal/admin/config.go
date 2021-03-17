@@ -20,6 +20,7 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net/http"
 
 	"github.com/google/exposure-notifications-server/internal/setup"
@@ -29,8 +30,14 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
-//go:embed templates/*
-var assetsFS embed.FS
+var (
+	//go:embed templates/*
+	templatesFS embed.FS
+
+	//go:embed assets/*
+	assetsFolderFS embed.FS
+	assetsFS, _    = fs.Sub(assetsFolderFS, "assets")
+)
 
 var (
 	_ setup.BlobstoreConfigProvider     = (*Config)(nil)
@@ -68,7 +75,7 @@ func (c *Config) TemplateRenderer() (*template.Template, error) {
 	tmpl, err := template.New("").
 		Option("missingkey=zero").
 		Funcs(TemplateFuncMap).
-		ParseFS(assetsFS, "templates/*.html")
+		ParseFS(templatesFS, "templates/*.html")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse templates from fs: %w", err)
 	}
