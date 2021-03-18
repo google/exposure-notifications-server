@@ -45,7 +45,7 @@ func (s *Server) HandleHealthAuthoritySave() func(c *gin.Context) {
 		healthAuthority := &model.HealthAuthority{}
 		haID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			ErrorPage(c, "Unable to parse `id` param")
+			ErrorPage(c, fmt.Sprintf("failed to parse %q as int: %v", c.Param("id"), err))
 			return
 		}
 		if haID != 0 {
@@ -68,9 +68,8 @@ func (s *Server) HandleHealthAuthoritySave() func(c *gin.Context) {
 		}
 
 		m.AddSuccess(fmt.Sprintf("Updated Health Authority '%v'", healthAuthority.Issuer))
-		m["ha"] = healthAuthority
-		m["hak"] = &model.HealthAuthorityKey{From: time.Now()} // For create form.
-		c.HTML(http.StatusOK, "healthauthority", m)
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/healthauthority/%d", healthAuthority.ID))
+		c.Abort()
 	}
 }
 
@@ -176,7 +175,9 @@ func (s *Server) HandleHealthAuthorityKeys() func(c *gin.Context) {
 			ErrorPage(c, "invalid action")
 			return
 		}
-		c.Redirect(http.StatusFound, fmt.Sprintf("/healthauthority/%v", healthAuthority.ID))
+
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/healthauthority/%d", healthAuthority.ID))
+		c.Abort()
 	}
 }
 
@@ -216,11 +217,11 @@ func (f *keyhealthAuthorityFormData) ThruTimestamp() (time.Time, error) {
 func (f *keyhealthAuthorityFormData) PopulateHealthAuthorityKey(hak *model.HealthAuthorityKey) error {
 	fTime, err := f.FromTimestamp()
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid from timestamp: %w", err)
 	}
 	tTime, err := f.ThruTimestamp()
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid thru timestamp: %w", err)
 	}
 	hak.Version = project.TrimSpaceAndNonPrintable(f.Version)
 	hak.From = fTime

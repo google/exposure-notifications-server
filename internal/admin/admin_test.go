@@ -170,3 +170,10 @@ func intPtr(i int) *int {
 	}
 	return &i
 }
+
+func stringPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
