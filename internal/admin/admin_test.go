@@ -26,6 +26,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/exposure-notifications-server/internal/project"
@@ -171,9 +172,79 @@ func intPtr(i int) *int {
 	return &i
 }
 
+func int8Ptr(i int8) *int8 {
+	if i == 0 {
+		return nil
+	}
+	return &i
+}
+
+func int16Ptr(i int16) *int16 {
+	if i == 0 {
+		return nil
+	}
+	return &i
+}
+
+func int32Ptr(i int32) *int32 {
+	if i == 0 {
+		return nil
+	}
+	return &i
+}
+
+func int64Ptr(i int64) *int64 {
+	if i == 0 {
+		return nil
+	}
+	return &i
+}
+
+func uintPtr(i uint) *uint {
+	if i == 0 {
+		return nil
+	}
+	return &i
+}
+
+func uint8Ptr(i uint8) *uint8 {
+	if i == 0 {
+		return nil
+	}
+	return &i
+}
+
+func uint16Ptr(i uint16) *uint16 {
+	if i == 0 {
+		return nil
+	}
+	return &i
+}
+
+func uint32Ptr(i uint32) *uint32 {
+	if i == 0 {
+		return nil
+	}
+	return &i
+}
+
+func uint64Ptr(i uint64) *uint64 {
+	if i == 0 {
+		return nil
+	}
+	return &i
+}
+
 func stringPtr(s string) *string {
 	if s == "" {
 		return nil
 	}
 	return &s
+}
+
+func timePtr(t time.Time) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+	return &t
 }

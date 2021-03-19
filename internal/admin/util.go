@@ -20,10 +20,6 @@ func (t TemplateMap) AddTitle(title string) {
 	t["title"] = title
 }
 
-func (t TemplateMap) AddSubNav(name string) {
-	t["subnav"] = name
-}
-
 func (t TemplateMap) AddErrors(errors ...string) {
 	t["error"] = errors
 }
