@@ -57,14 +57,9 @@ func (s *Server) HandleMirrorsSave() func(c *gin.Context) {
 				ErrorPage(c, fmt.Sprintf("Failed to delete mirror: %v", err))
 				return
 			}
-
 			m.AddSuccess(fmt.Sprintf("Deleted mirror %d", mirror.ID))
-			c.Redirect(http.StatusSeeOther, "/")
 		case "save":
-			if err := form.PopulateMirror(mirror); err != nil {
-				ErrorPage(c, fmt.Sprintf("error processing mirror: %v", err))
-				return
-			}
+			form.PopulateMirror(mirror)
 
 			updateFn := db.AddMirror
 			if mirror.ID != 0 {
@@ -74,14 +69,14 @@ func (s *Server) HandleMirrorsSave() func(c *gin.Context) {
 				ErrorPage(c, fmt.Sprintf("Error writing mirror: %v", err))
 				return
 			}
-
 			m.AddSuccess(fmt.Sprintf("Updated mirror %d", mirror.ID))
-
-			m["mirror"] = mirror
-			c.HTML(http.StatusOK, "mirror", m)
 		default:
 			ErrorPage(c, "Invalid form action")
+			return
 		}
+
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/mirrors/%d", mirror.ID))
+		c.Abort()
 	}
 }
 
@@ -132,15 +127,15 @@ type mirrorFormData struct {
 	FilenameRewrite    string `form:"filename-rewrite"`
 }
 
-func (f *mirrorFormData) PopulateMirror(m *model.Mirror) error {
+func (f *mirrorFormData) PopulateMirror(m *model.Mirror) {
 	m.IndexFile = f.IndexFile
 	m.ExportRoot = f.ExportRoot
 	m.CloudStorageBucket = f.CloudStorageBucket
 	m.FilenameRoot = f.FilenameRoot
+
 	if f.FilenameRewrite != "" {
 		m.FilenameRewrite = &f.FilenameRewrite
 	} else {
 		m.FilenameRewrite = nil
 	}
-	return nil
 }
