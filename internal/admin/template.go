@@ -55,6 +55,8 @@ func timestampFormatter(f string) func(i interface{}) (string, error) {
 // deref dereferences a pointer into its concrete type.
 func deref(i interface{}) (string, error) {
 	switch t := i.(type) {
+	case nil:
+		return "", nil
 	case *string:
 		if t == nil {
 			return "", nil
