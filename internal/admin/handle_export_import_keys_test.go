@@ -15,7 +15,6 @@
 package admin
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -288,7 +287,6 @@ func TestHandleExportImportKeys(t *testing.T) {
 				t.Fatalf("unable to serialize form: %v", err)
 			}
 
-			ctx := context.Background()
 			req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/%s/%s/%s", server.URL, tc.id, tc.action, tc.keyID), strings.NewReader(form.Encode()))
 			if err != nil {
 				t.Fatal(err)
