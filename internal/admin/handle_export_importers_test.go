@@ -15,7 +15,6 @@
 package admin
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -191,7 +190,6 @@ func TestHandleExportImportersShow(t *testing.T) {
 
 			server := newHTTPServer(t, http.MethodGet, "/:id", s.HandleExportImportersShow())
 
-			ctx := context.Background()
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s", server.URL, tc.id), nil)
 			if err != nil {
 				t.Fatal(err)
@@ -320,7 +318,6 @@ func TestHandleExportImportersSave(t *testing.T) {
 				t.Fatalf("unable to serialize form: %v", err)
 			}
 
-			ctx := context.Background()
 			req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/%s", server.URL, tc.id), strings.NewReader(form.Encode()))
 			if err != nil {
 				t.Fatal(err)

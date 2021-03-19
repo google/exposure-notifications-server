@@ -15,7 +15,6 @@
 package admin
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -83,7 +82,6 @@ func TestHandleAuthorizedAppsShow(t *testing.T) {
 
 			server := newHTTPServer(t, http.MethodGet, "/", s.HandleAuthorizedAppsShow())
 
-			ctx := context.Background()
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/?apn=%s", server.URL, tc.apn), nil)
 			if err != nil {
 				t.Fatal(err)
@@ -216,7 +214,6 @@ func TestHandleAuthorizedAppsSave(t *testing.T) {
 				t.Fatalf("unable to serialize form: %v", err)
 			}
 
-			ctx := context.Background()
 			req, err := http.NewRequestWithContext(ctx, http.MethodPost, server.URL, strings.NewReader(form.Encode()))
 			if err != nil {
 				t.Fatal(err)
