@@ -46,7 +46,7 @@ const (
 	// ReportTypeNegative is allowed by the verification flow. These keys are not saved in the system.
 	ReportTypeNegative = "negative"
 	// ReportTypeSelfReport indicates to set ReportType.SELF_REPORT
-	ReportTypeSelfReport = "self_report"
+	ReportTypeSelfReport = "user-report"
 
 	TransmissionRiskUnknown           = 0
 	TransmissionRiskConfirmedStandard = 2
