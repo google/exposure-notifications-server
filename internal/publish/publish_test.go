@@ -287,6 +287,44 @@ func TestPublishWithBypass(t *testing.T) {
 			Code:       http.StatusOK,
 		},
 		{
+			Name: "valid_self_report_cert",
+			HealthAuthority: &vermodel.HealthAuthority{
+				Issuer:   issNames.next(),
+				Audience: "unit.test.server",
+				Name:     "Unit Test Gov DOH",
+			},
+			HealthAuthorityKey: &vermodel.HealthAuthorityKey{
+				Version: "v1",
+				From:    time.Now().Add(-1 * time.Minute),
+			},
+			TestRegion: regions.next(),
+			AuthorizedApp: func() *aamodel.AuthorizedApp {
+				authApp := aamodel.NewAuthorizedApp()
+				authApp.AppPackageName = names.next()
+				authApp.AllowedRegions[regions.current()] = struct{}{}
+				return authApp
+			}(),
+			Publish: verifyapi.Publish{
+				Keys:                 util.GenerateExposureKeys(2, 5, false),
+				Traveler:             true,
+				HealthAuthorityID:    names.current(),
+				VerificationPayload:  "totally not a JWT",
+				SymptomOnsetInterval: model.IntervalNumber(time.Now().Add(-24 * time.Hour)),
+			},
+			UserAgent: "an android phone",
+			WantStats: []*model.HealthAuthorityStats{
+				{
+					PublishCount:  []int64{0, 1, 0},
+					TEKCount:      2,
+					OldestTekDays: []int64{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					OnsetAgeDays:  []int64{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				},
+			},
+			ReportType: verifyapi.ReportTypeSelfReport,
+			Regions:    []string{}, // will receive defaults
+			Code:       http.StatusOK,
+		},
+		{
 			Name: "valid_HA_certificate_with_overrides",
 			HealthAuthority: &vermodel.HealthAuthority{
 				Issuer:   issNames.next(),
