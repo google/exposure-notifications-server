@@ -162,9 +162,6 @@ func main() {
 		}
 
 		keyBytes := 256 / 8
-		if 256%8 > 0 {
-			keyBytes++
-		}
 
 		// 2. Turn R and S into octet sequences in big-endian order, with each
 		// 		array being be 32 octets long.  The octet sequence
