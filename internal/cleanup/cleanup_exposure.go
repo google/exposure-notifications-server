@@ -23,6 +23,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/render"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-multierror"
@@ -33,6 +34,7 @@ type ExposureServer struct {
 	config   *Config
 	env      *serverenv.ServerEnv
 	database *database.PublishDB
+	h        *render.Renderer
 }
 
 // NewExposureServer creates a http.Handler for deleting exposure keys
@@ -46,6 +48,7 @@ func NewExposureServer(cfg *Config, env *serverenv.ServerEnv) (*ExposureServer, 
 		config:   cfg,
 		env:      env,
 		database: database.New(env.Database()),
+		h:        render.NewRenderer(),
 	}, nil
 }
 
@@ -74,7 +77,7 @@ func (s *ExposureServer) handleCleanup() http.Handler {
 		cutoff, err := cutoffDate(s.config.TTL, s.config.DebugOverrideCleanupMinDuration)
 		if err != nil {
 			logger.Errorw("failed to calculate cutoff date", "error", err)
-			respondWithError(w, http.StatusInternalServerError, err)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -108,11 +111,11 @@ func (s *ExposureServer) handleCleanup() http.Handler {
 
 		if merr != nil {
 			logger.Errorw("failed to cleanup exposures", "errors", merr.WrappedErrors())
-			respondWithError(w, http.StatusInternalServerError, merr)
+			s.h.RenderJSON(w, http.StatusInternalServerError, merr)
 			return
 		}
 
 		stats.Record(ctx, mExposureSuccess.M(1))
-		respond(w, http.StatusOK)
+		s.h.RenderJSON(w, http.StatusOK, nil)
 	})
 }

@@ -16,6 +16,17 @@
 locals {
   playbook_prefix = "https://github.com/google/exposure-notifications-server/blob/main/docs/playbooks/alerts"
   custom_prefix   = "custom.googleapis.com/opencensus/en-server"
+
+  forward_progress_indicators = merge(
+    {
+      // cleanup-export runs every 4h, alert after 2 failures
+      "cleanup-export" = { metric = "cleanup/export/success", window = "485m" },
+
+      // cleanup-exposure runs every 4h, alert after 2 failures
+      "cleanup-exposure" = { metric = "cleanup/exposure/success", window = "485m" },
+    },
+    var.forward_progress_indicators,
+  )
 }
 
 resource "google_monitoring_alert_policy" "CloudSchedulerJobFailed" {
@@ -65,7 +76,7 @@ resource "google_monitoring_alert_policy" "CloudSchedulerJobFailed" {
 }
 
 resource "google_monitoring_alert_policy" "ForwardProgressFailed" {
-  for_each = var.forward_progress_indicators
+  for_each = local.forward_progress_indicators
 
   project      = var.project
   display_name = "ForwardProgressFailed-${each.key}"

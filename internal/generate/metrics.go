@@ -12,20 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package cleanup implements the API handlers for running data deletion jobs.
-package cleanup
+package generate
 
 import (
-	"fmt"
-	"time"
+	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/pkg/observability"
+	"go.opencensus.io/stats"
+	"go.opencensus.io/stats/view"
 )
 
-const minTTL = 10 * 24 * time.Hour
+const metricPrefix = metrics.MetricRoot + "generate"
 
-func cutoffDate(d time.Duration, override bool) (time.Time, error) {
-	if d >= minTTL || override {
-		return time.Now().UTC().Add(-d), nil
-	}
+var mSuccess = stats.Int64(metricPrefix+"/success", "successful execution", stats.UnitDimensionless)
 
-	return time.Time{}, fmt.Errorf("cleanup ttl %s is less than configured minimum ttl of %s", d, minTTL)
+func init() {
+	observability.CollectViews([]*view.View{
+		{
+			Name:        metricPrefix + "/success",
+			Description: "Number of successes",
+			Measure:     mSuccess,
+			Aggregation: view.Count(),
+		},
+	}...)
 }

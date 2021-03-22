@@ -30,15 +30,13 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/timeutils"
 	"github.com/google/exposure-notifications-server/pkg/util"
-	"go.opencensus.io/trace"
+	"go.opencensus.io/stats"
 )
 
 func (s *Server) handleGenerate() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := trace.StartSpan(r.Context(), "(*generate.Server).handleGenerate")
-		defer span.End()
-
-		logger := logging.FromContext(ctx).Named("handleGenerate")
+		ctx := r.Context()
+		logger := logging.FromContext(ctx).Named("generate.handleGenerate")
 
 		regionStr := s.config.DefaultRegion
 		if v := r.URL.Query().Get("region"); v != "" {
@@ -46,18 +44,14 @@ func (s *Server) handleGenerate() http.Handler {
 		}
 		regions := strings.Split(regionStr, ",")
 
-		logger.Debugw("generating data", "regions", regions)
-
 		if err := s.generate(ctx, regions); err != nil {
-			logger.Errorw("failed to generate", "error", err)
-			span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: err.Error()})
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, err.Error())
+			logger.Errorw("generate", "error", err, "regions", regions)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "successfully generated exposure keys")
+		stats.Record(ctx, mSuccess.M(1))
+		s.h.RenderJSON(w, http.StatusOK, nil)
 	})
 }
 
@@ -71,7 +65,7 @@ func (s *Server) generate(ctx context.Context, regions []string) error {
 }
 
 func (s *Server) generateKeysInRegion(ctx context.Context, region string) error {
-	logger := logging.FromContext(ctx).Named("generateKeysInRegion")
+	logger := logging.FromContext(ctx).Named("generate.generateKeysInRegion")
 
 	// We require at least 2 keys because revision only revises a subset of keys,
 	// and that subset selects a random sample from (0-len(keys)], and rand panics

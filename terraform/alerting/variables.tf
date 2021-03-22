@@ -86,13 +86,8 @@ variable "forward_progress_indicators" {
     window = string
   }))
 
-  default = {
-    // cleanup-export runs every 4h, alert after 2 failures
-    "cleanup-export" = { metric = "cleanup/export/success", window = "485m" },
-
-    // cleanup-exposure runs every 4h, alert after 2 failures
-    "cleanup-exposure" = { metric = "cleanup/exposure/success", window = "485m" },
-  }
+  description = "Map of overrides for forward progress indicators. These are merged with the default variables."
+  default     = {}
 }
 
 terraform {

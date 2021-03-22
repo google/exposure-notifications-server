@@ -24,6 +24,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/render"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-multierror"
@@ -35,6 +36,7 @@ type ExportServer struct {
 	env       *serverenv.ServerEnv
 	database  *database.ExportDB
 	blobstore storage.Blobstore
+	h         *render.Renderer
 }
 
 // NewExportServer creates a server that manages deletion of old export files
@@ -52,6 +54,7 @@ func NewExportServer(cfg *Config, env *serverenv.ServerEnv) (*ExportServer, erro
 		env:       env,
 		database:  database.New(env.Database()),
 		blobstore: env.Blobstore(),
+		h:         render.NewRenderer(),
 	}, nil
 }
 
@@ -80,7 +83,7 @@ func (s *ExportServer) handleCleanup() http.Handler {
 		cutoff, err := cutoffDate(s.config.TTL, s.config.DebugOverrideCleanupMinDuration)
 		if err != nil {
 			logger.Errorw("failed to calculate cutoff date", "error", err)
-			respondWithError(w, http.StatusInternalServerError, err)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -102,11 +105,11 @@ func (s *ExportServer) handleCleanup() http.Handler {
 
 		if merr != nil {
 			logger.Errorw("failed to cleanup exports", "errors", merr.WrappedErrors())
-			respondWithError(w, http.StatusInternalServerError, merr)
+			s.h.RenderJSON(w, http.StatusInternalServerError, merr)
 			return
 		}
 
 		stats.Record(ctx, mExportSuccess.M(1))
-		respond(w, http.StatusOK)
+		s.h.RenderJSON(w, http.StatusOK, nil)
 	})
 }
