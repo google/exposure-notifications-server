@@ -112,7 +112,7 @@ func TestServer_smoke(t *testing.T) {
 			t.Errorf("expected %#v to be %#v", got, want)
 		}
 
-		if got, want := w.Body.String(), "successfully generated exposure keys"; got != want {
+		if got, want := w.Body.String(), `{"ok":true}`; got != want {
 			t.Errorf("expected %#v to be %#v", got, want)
 		}
 	})
