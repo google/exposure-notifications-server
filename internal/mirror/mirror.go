@@ -50,7 +50,7 @@ type Status struct {
 func (s *Server) handleMirror() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		logger := logging.FromContext(ctx).Named("mirror.handleMirror")
+		logger := logging.FromContext(ctx).Named("handleMirror")
 
 		ctx, cancel := context.WithTimeout(ctx, s.config.MaxRuntime)
 		defer cancel()
@@ -133,7 +133,7 @@ func (s *Server) handleMirror() http.Handler {
 // uploading in parallel wouldn't guarantee upload order. Thus, a client could
 // skip files and that would be bad.
 func (s *Server) processMirror(ctx context.Context, deadline time.Time, mirror *model.Mirror) (retErr error) {
-	logger := logging.FromContext(ctx).Named("mirror.processMirror").
+	logger := logging.FromContext(ctx).Named("processMirror").
 		With("mirror_id", mirror.ID)
 	blobstore := s.env.Blobstore()
 
