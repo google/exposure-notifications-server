@@ -24,6 +24,9 @@ locals {
 
       // cleanup-exposure runs every 4h, alert after 2 failures
       "cleanup-exposure" = { metric = "cleanup/exposure/success", window = "485m" },
+
+      // mirror runs every 5m but has a default lock time of 15m, alert after 2 failures
+      "mirror" = { metric = "mirro/success", window = "35m" },
     },
     var.forward_progress_indicators,
   )

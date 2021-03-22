@@ -18,7 +18,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -34,7 +33,6 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/stats"
-	"go.opencensus.io/trace"
 )
 
 const mirrorLockPrefix = "mirror-lock"
@@ -52,14 +50,10 @@ type Status struct {
 func (s *Server) handleMirror() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+		logger := logging.FromContext(ctx).Named("mirror.handleMirror")
 
-		logger := logging.FromContext(ctx).Named("handleMirror")
-
-		ctx, span := trace.StartSpan(ctx, "(*mirror.handleMirror).ServeHTTP")
-		defer span.End()
-
-		ctx, cancelFn := context.WithTimeout(ctx, s.config.MaxRuntime)
-		defer cancelFn()
+		ctx, cancel := context.WithTimeout(ctx, s.config.MaxRuntime)
+		defer cancel()
 
 		// Chop off 30 seconds to save state at the end.
 		runtime := s.config.MaxRuntime
@@ -72,8 +66,8 @@ func (s *Server) handleMirror() http.Handler {
 		// Get all possible mirror candidates.
 		mirrors, err := s.mirrorDB.Mirrors(ctx)
 		if err != nil {
-			logger.Errorw("unable to list mirrors", "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logger.Errorw("failed to list mirrors", "error", err)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -118,21 +112,14 @@ func (s *Server) handleMirror() http.Handler {
 			status.Processed = true
 		}
 
-		// Marshal response.
-		b, err := json.Marshal(resp)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if hasError {
+			logger.Errorw("failed to process al mirrors", "response", resp)
+			s.h.RenderJSON(w, http.StatusInternalServerError, resp)
 			return
 		}
 
-		status := http.StatusOK
-		if hasError {
-			status = http.StatusInternalServerError
-		} else {
-			stats.Record(ctx, mMirrorJobCompletion.M(1))
-		}
-		w.WriteHeader(status)
-		fmt.Fprint(w, string(b))
+		stats.Record(ctx, mSuccess.M(1))
+		s.h.RenderJSON(w, http.StatusOK, resp)
 	})
 }
 
