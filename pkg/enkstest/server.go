@@ -113,11 +113,11 @@ func NewServer(tb testing.TB, testDatabaseInstance *database.TestInstance) *Serv
 		TTL:     336 * time.Hour,
 	}
 	processDefaults(tb, cleanupExportConfig)
-	cleanupExportHandler, err := cleanup.NewExportHandler(cleanupExportConfig, env)
+	cleanupExportServer, err := cleanup.NewExportServer(cleanupExportConfig, env)
 	if err != nil {
 		tb.Fatal(err)
 	}
-	r.Handle("/cleanup-export", cleanupExportHandler)
+	r.PathPrefix("/cleanup-export/").Handler(http.StripPrefix("/cleanup-export", cleanupExportServer.Routes(ctx)))
 
 	// cleanup-exposure
 	cleanupExposureConfig := &cleanup.Config{
@@ -125,11 +125,11 @@ func NewServer(tb testing.TB, testDatabaseInstance *database.TestInstance) *Serv
 		TTL:     336 * time.Hour,
 	}
 	processDefaults(tb, cleanupExposureConfig)
-	cleanupExposureHandler, err := cleanup.NewExposureHandler(cleanupExposureConfig, env)
+	cleanupExposureServer, err := cleanup.NewExposureServer(cleanupExposureConfig, env)
 	if err != nil {
 		tb.Fatal(err)
 	}
-	r.Handle("/cleanup-exposure", cleanupExposureHandler)
+	r.PathPrefix("/cleanup-exposure/").Handler(http.StripPrefix("/cleanup-exposure", cleanupExposureServer.Routes(ctx)))
 
 	// export
 	exportConfig := &export.Config{
