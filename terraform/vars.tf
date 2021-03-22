@@ -195,7 +195,7 @@ variable "cleanup_exposure_worker_cron_schedule" {
 
 variable "cleanup_export_worker_cron_schedule" {
   type    = string
-  default = "0 */6 * * *"
+  default = "0 */4 * * *"
 
   description = "Schedule to execute the cleanup export worker service."
 }

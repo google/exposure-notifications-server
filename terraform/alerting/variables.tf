@@ -80,6 +80,21 @@ variable "capture_export_file_downloads" {
   description = "Capture metrics about mobile devices downloading export files. This can be used to create alerts when values drop below acceptable thresholds."
 }
 
+variable "forward_progress_indicators" {
+  type = map(object({
+    metric = string
+    window = string
+  }))
+
+  default = {
+    // cleanup-export runs every 4h, alert after 2 failures
+    "cleanup-export" = { metric = "cleanup/export/success", window = "485m" },
+
+    // cleanup-exposure runs every 4h, alert after 2 failures
+    "cleanup-exposure" = { metric = "cleanup/exposure/success", window = "485m" },
+  }
+}
+
 terraform {
   required_version = ">= 0.14.2"
 
