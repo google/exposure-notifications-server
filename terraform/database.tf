@@ -252,59 +252,6 @@ resource "google_storage_bucket_iam_member" "instance-objectAdmin" {
   member = "serviceAccount:${google_sql_database_instance.db-inst.service_account_email_address}"
 }
 
-# Create a service account that can initiate backups.
-resource "google_service_account" "database-backuper" {
-  project      = data.google_project.project.project_id
-  account_id   = "en-database-backuper"
-  display_name = "Key Server database backuper"
-}
-
-# Give the service account the ability to initiate backups - unfortunately this
-# has to be granted at the project level and isn't scoped to a single database
-# instance.
-resource "google_project_iam_member" "database-backuper-cloudsql-viewer" {
-  project = var.project
-  role    = "roles/cloudsql.viewer"
-  member  = "serviceAccount:${google_service_account.database-backuper.email}"
-}
-
-# Create a Cloud Scheduler job that generates a backup every interval.
-resource "google_cloud_scheduler_job" "backup-database-worker" {
-  name             = "backup-database-worker"
-  region           = var.cloudscheduler_location
-  schedule         = var.database_backup_schedule
-  time_zone        = "America/Los_Angeles"
-  attempt_deadline = "1800s"
-
-  retry_config {
-    retry_count = 3
-  }
-
-  http_target {
-    http_method = "POST"
-    uri         = "${google_sql_database_instance.db-inst.self_link}/export"
-
-    body = base64encode(jsonencode({
-      exportContext = {
-        fileType  = "SQL"
-        uri       = "gs://${google_storage_bucket.backups.name}/database/${google_sql_database.db.name}",
-        databases = [google_sql_database.db.name]
-        offload   = false,
-      }
-    }))
-
-    oauth_token {
-      service_account_email = google_service_account.database-backuper.email
-    }
-  }
-
-  depends_on = [
-    google_app_engine_application.app,
-    google_project_iam_member.database-backuper-cloudsql-viewer,
-    google_project_service.services["cloudscheduler.googleapis.com"],
-  ]
-}
-
 output "db_conn" {
   value = google_sql_database_instance.db-inst.connection_name
 }

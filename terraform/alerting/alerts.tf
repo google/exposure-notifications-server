@@ -19,6 +19,9 @@ locals {
 
   forward_progress_indicators = merge(
     {
+      // backup runs every 4h, alert after 2 failures
+      "backup" = { metric = "backup/success", window = "485m" },
+
       // cleanup-export runs every 4h, alert after 2 failures
       "cleanup-export" = { metric = "cleanup/export/success", window = "485m" },
 

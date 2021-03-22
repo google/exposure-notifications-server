@@ -131,6 +131,45 @@ steps:
   - 'push-admin-console'
 
 #
+# backup
+#
+- id: 'dockerize-backup'
+  name: 'docker:19'
+  args:
+  - 'build'
+  - '--file=builders/service.dockerfile'
+  - '--tag=gcr.io/${PROJECT_ID}/${_REPO}/backup:${_TAG}'
+  - '--build-arg=SERVICE=backup'
+  - '.'
+  waitFor:
+  - 'build'
+
+- id: 'push-backup'
+  name: 'docker:19'
+  args:
+  - 'push'
+  - 'gcr.io/${PROJECT_ID}/${_REPO}/backup:${_TAG}'
+  waitFor:
+  - 'dockerize-backup'
+
+- id: 'attest-backup'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    ARTIFACT_URL=$(docker inspect gcr.io/${PROJECT_ID}/${_REPO}/backup:${_TAG} --format='{{index .RepoDigests 0}}')
+    gcloud beta container binauthz attestations sign-and-create \
+      --project "${PROJECT_ID}" \
+      --artifact-url "$${ARTIFACT_URL}" \
+      --attestor "${_BINAUTHZ_ATTESTOR}" \
+      --keyversion "${_BINAUTHZ_KEY_VERSION}"
+  waitFor:
+  - 'push-backup'
+
+#
 # cleanup-export
 #
 - id: 'dockerize-cleanup-export'
