@@ -25,9 +25,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/cleanup"
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/logging"
-	_ "github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/server"
-	"github.com/gorilla/mux"
 )
 
 func main() {
@@ -64,20 +62,16 @@ func realMain(ctx context.Context) error {
 	}
 	defer env.Close(ctx)
 
-	handler, err := cleanup.NewExportHandler(&config, env)
+	cleanupExportServer, err := cleanup.NewExportServer(&config, env)
 	if err != nil {
-		return fmt.Errorf("cleanup.NewExportHandler: %w", err)
+		return fmt.Errorf("cleaup.NewExportServer: %w", err)
 	}
-
-	r := mux.NewRouter()
-	r.Handle("/", handler)
-	r.Handle("/health", server.HandleHealthz(env.Database()))
 
 	srv, err := server.New(config.Port)
 	if err != nil {
 		return fmt.Errorf("server.New: %w", err)
 	}
-	logger.Infof("listening on :%s", config.Port)
+	logger.Info("listening on: ", config.Port)
 
-	return srv.ServeHTTPHandler(ctx, r)
+	return srv.ServeHTTPHandler(ctx, cleanupExportServer.Routes(ctx))
 }
