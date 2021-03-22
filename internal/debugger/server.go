@@ -59,6 +59,7 @@ func (s *Server) Routes(ctx context.Context) *mux.Router {
 	logger := logging.FromContext(ctx).Named("debugger")
 
 	r := mux.NewRouter()
+	r.Use(middleware.Recovery())
 	r.Use(middleware.PopulateRequestID())
 	r.Use(middleware.PopulateObservability())
 	r.Use(middleware.PopulateLogger(logger))
