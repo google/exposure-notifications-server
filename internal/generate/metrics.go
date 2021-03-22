@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cleanup
+package generate
 
 import (
 	"github.com/google/exposure-notifications-server/internal/metrics"
@@ -21,25 +21,16 @@ import (
 	"go.opencensus.io/stats/view"
 )
 
-const metricPrefix = metrics.MetricRoot + "cleanup"
+const metricPrefix = metrics.MetricRoot + "generate"
 
-var (
-	mExportSuccess   = stats.Int64(metricPrefix+"/export_success", "successful execution", stats.UnitDimensionless)
-	mExposureSuccess = stats.Int64(metricPrefix+"/exposure_success", "successful execution", stats.UnitDimensionless)
-)
+var mSuccess = stats.Int64(metricPrefix+"/success", "successful execution", stats.UnitDimensionless)
 
 func init() {
 	observability.CollectViews([]*view.View{
 		{
-			Name:        metricPrefix + "/export/success",
-			Description: "Number of export cleanup successes",
-			Measure:     mExportSuccess,
-			Aggregation: view.Count(),
-		},
-		{
-			Name:        metricPrefix + "/exposure/success",
-			Description: "Number of exposure cleanup successes",
-			Measure:     mExposureSuccess,
+			Name:        metricPrefix + "/success",
+			Description: "Number of successes",
+			Measure:     mSuccess,
 			Aggregation: view.Count(),
 		},
 	}...)

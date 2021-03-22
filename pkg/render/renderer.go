@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package cleanup implements the API handlers for running data deletion jobs.
-package cleanup
+// Package render defines rendering functionality.
+package render
 
 import (
-	"fmt"
-	"time"
+	"bytes"
+	"sync"
 )
 
-const minTTL = 10 * 24 * time.Hour
+// Renderer is a structure that knows how to perform safe HTTP rendering.
+type Renderer struct {
+	pool *sync.Pool
+}
 
-func cutoffDate(d time.Duration, override bool) (time.Time, error) {
-	if d >= minTTL || override {
-		return time.Now().UTC().Add(-d), nil
+// NewRenderer returns an instantiated renderer.
+func NewRenderer() *Renderer {
+	return &Renderer{
+		pool: &sync.Pool{
+			New: func() interface{} {
+				return bytes.NewBuffer(make([]byte, 0, 1024))
+			},
+		},
 	}
-
-	return time.Time{}, fmt.Errorf("cleanup ttl %s is less than configured minimum ttl of %s", d, minTTL)
 }
