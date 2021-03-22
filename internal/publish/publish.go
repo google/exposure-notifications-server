@@ -136,6 +136,7 @@ func (s *Server) Routes(ctx context.Context) *mux.Router {
 	logger := logging.FromContext(ctx).Named("publish")
 
 	r := mux.NewRouter()
+	r.Use(middleware.Recovery())
 	r.Use(middleware.ProcessChaff(s.tracker))
 	r.Use(middleware.PopulateRequestID())
 	r.Use(middleware.PopulateObservability())
