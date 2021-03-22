@@ -16,156 +16,16 @@
 package cleanup
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
-	"go.opencensus.io/stats"
-
-	"github.com/google/exposure-notifications-server/internal/export/database"
-	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/hashicorp/go-multierror"
-
-	"github.com/google/exposure-notifications-server/internal/serverenv"
-	"github.com/google/exposure-notifications-server/internal/storage"
-	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
 const minTTL = 10 * 24 * time.Hour
-
-// NewExposureHandler creates a http.Handler for deleting exposure keys
-// from the database.
-func NewExposureHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
-	if env.Database() == nil {
-		return nil, fmt.Errorf("missing database in server environment")
-	}
-
-	return &exposureCleanupHandler{
-		config:   config,
-		env:      env,
-		database: publishdb.New(env.Database()),
-	}, nil
-}
-
-type exposureCleanupHandler struct {
-	config   *Config
-	env      *serverenv.ServerEnv
-	database *publishdb.PublishDB
-}
-
-func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	logger := logging.FromContext(ctx).Named("cleanup.exposure")
-
-	cutoff, err := cutoffDate(h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
-	if err != nil {
-		logger.Errorw("failed to calculate cutoff date", "error", err)
-		respondWithError(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	// Construct a multi-error. If one of the purges fails, we still want to
-	// attempt the other purges.
-	var merr *multierror.Error
-
-	// Exposures
-	func() {
-		ctx, cancel := context.WithTimeout(ctx, h.config.Timeout)
-		defer cancel()
-
-		if count, err := h.database.DeleteExposuresBefore(ctx, cutoff); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("failed to delete exposures: %w", err))
-		} else {
-			logger.Infow("purged exposures", "count", count)
-		}
-	}()
-
-	// Stats
-	func() {
-		ctx, cancel := context.WithTimeout(ctx, h.config.Timeout)
-		defer cancel()
-
-		if count, err := h.database.DeleteStatsBefore(ctx, cutoff); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("failed to delete stats: %w", err))
-		} else {
-			logger.Infow("purged statistics", "count", count)
-		}
-	}()
-
-	if merr != nil {
-		logger.Errorw("failed to cleanup exposures", "errors", merr.WrappedErrors())
-		respondWithError(w, http.StatusInternalServerError, merr)
-		return
-	}
-
-	stats.Record(ctx, mExposureSuccess.M(1))
-	respond(w, http.StatusOK)
-}
-
-// NewExportHandler creates a http.Handler that manages deletion of
-// old export files that are no longer needed by clients for download.
-func NewExportHandler(config *Config, env *serverenv.ServerEnv) (http.Handler, error) {
-	if env.Database() == nil {
-		return nil, fmt.Errorf("missing database in server environment")
-	}
-	if env.Blobstore() == nil {
-		return nil, fmt.Errorf("missing blobstore in server environment")
-	}
-
-	return &exportCleanupHandler{
-		config:    config,
-		env:       env,
-		database:  database.New(env.Database()),
-		blobstore: env.Blobstore(),
-	}, nil
-}
-
-type exportCleanupHandler struct {
-	config    *Config
-	env       *serverenv.ServerEnv
-	database  *database.ExportDB
-	blobstore storage.Blobstore
-}
-
-func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	logger := logging.FromContext(ctx).Named("cleanup.export")
-
-	cutoff, err := cutoffDate(h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
-	if err != nil {
-		logger.Errorw("failed to calculate cutoff date", "error", err)
-		respondWithError(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	// Construct a multi-error. If one of the purges fails, we still want to
-	// attempt the other purges.
-	var merr *multierror.Error
-
-	// Files
-	func() {
-		ctx, cancel := context.WithTimeout(ctx, h.config.Timeout)
-		defer cancel()
-
-		if count, err := h.database.DeleteFilesBefore(ctx, cutoff, h.blobstore); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("failed to delete files: %w", err))
-		} else {
-			logger.Infow("purged files", "count", count)
-		}
-	}()
-
-	if merr != nil {
-		logger.Errorw("failed to cleanup exports", "errors", merr.WrappedErrors())
-		respondWithError(w, http.StatusInternalServerError, merr)
-		return
-	}
-
-	stats.Record(ctx, mExportSuccess.M(1))
-	respond(w, http.StatusOK)
-}
 
 func cutoffDate(d time.Duration, override bool) (time.Time, error) {
 	if d >= minTTL || override {
