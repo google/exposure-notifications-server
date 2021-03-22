@@ -24,6 +24,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/render"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 )
@@ -34,6 +35,7 @@ type Server struct {
 	env      *serverenv.ServerEnv
 	db       *database.DB
 	mirrorDB *mirrordb.MirrorDB
+	h        *render.Renderer
 }
 
 // NewServer creates a Server that manages deletion of
@@ -54,6 +56,7 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 		env:      env,
 		db:       db,
 		mirrorDB: mdb,
+		h:        render.NewRenderer(),
 	}, nil
 }
 

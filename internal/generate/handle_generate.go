@@ -36,7 +36,7 @@ import (
 func (s *Server) handleGenerate() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		logger := logging.FromContext(ctx).Named("generate.handleGenerate")
+		logger := logging.FromContext(ctx).Named("handleGenerate")
 
 		regionStr := s.config.DefaultRegion
 		if v := r.URL.Query().Get("region"); v != "" {
@@ -65,7 +65,7 @@ func (s *Server) generate(ctx context.Context, regions []string) error {
 }
 
 func (s *Server) generateKeysInRegion(ctx context.Context, region string) error {
-	logger := logging.FromContext(ctx).Named("generate.generateKeysInRegion")
+	logger := logging.FromContext(ctx).Named("generateKeysInRegion")
 
 	// We require at least 2 keys because revision only revises a subset of keys,
 	// and that subset selects a random sample from (0-len(keys)], and rand panics

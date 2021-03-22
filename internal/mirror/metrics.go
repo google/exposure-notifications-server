@@ -22,20 +22,17 @@ import (
 	"go.opencensus.io/stats/view"
 )
 
-var (
-	mirrorMetricsPrefix = metrics.MetricRoot + "mirror"
+const metricPrefix = metrics.MetricRoot + "mirror"
 
-	mMirrorJobCompletion = stats.Int64(mirrorMetricsPrefix+"completion",
-		"Number of times cleanup exposures has run", stats.UnitDimensionless)
-)
+var mSuccess = stats.Int64(metricPrefix+"/success", "successful execution", stats.UnitDimensionless)
 
 func init() {
 	observability.CollectViews([]*view.View{
 		{
-			Name:        metrics.MetricRoot + "mirror_completion",
-			Description: "Total count of mirror job completion",
-			Measure:     mMirrorJobCompletion,
-			Aggregation: view.Sum(),
+			Name:        metricPrefix + "/success",
+			Description: "Number of successes",
+			Measure:     mSuccess,
+			Aggregation: view.Count(),
 		},
 	}...)
 }

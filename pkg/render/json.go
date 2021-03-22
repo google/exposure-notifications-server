@@ -61,17 +61,12 @@ func (r *Renderer) RenderJSON(w http.ResponseWriter, code int, data interface{})
 		for _, err := range errs {
 			msgs = append(msgs, err.Error())
 		}
-
-		data = map[string][]string{
-			"errors": msgs,
-		}
+		data = &multiError{Errors: msgs}
 	}
 
 	// If the provided value was an error, marshall accordingly.
 	if typ, ok := data.(error); ok {
-		data = map[string]string{
-			"error": typ.Error(),
-		}
+		data = &singleError{Error: typ.Error()}
 	}
 
 	// Acquire a renderer
@@ -100,3 +95,11 @@ const jsonErrTmpl = `{"error":"%s"}`
 
 // jsonOKResp is the return value for empty data responses.
 const jsonOKResp = `{"ok":true}`
+
+type singleError struct {
+	Error string `json:"error,omitempty"`
+}
+
+type multiError struct {
+	Errors []string `json:"errors,omitempty"`
+}
