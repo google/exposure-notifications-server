@@ -15,6 +15,7 @@
 
 locals {
   playbook_prefix = "https://github.com/google/exposure-notifications-server/blob/main/docs/playbooks/alerts"
+  custom_prefix   = "custom.googleapis.com/opencensus/en-server"
 }
 
 resource "google_monitoring_alert_policy" "CloudSchedulerJobFailed" {
@@ -57,6 +58,44 @@ resource "google_monitoring_alert_policy" "CloudSchedulerJobFailed" {
   }
 
   notification_channels = [for x in values(google_monitoring_notification_channel.non-paging) : x.id]
+
+  depends_on = [
+    null_resource.manual-step-to-enable-workspace,
+  ]
+}
+
+resource "google_monitoring_alert_policy" "ForwardProgressFailed" {
+  for_each = var.forward_progress_indicators
+
+  project      = var.project
+  display_name = "ForwardProgressFailed-${each.key}"
+  combiner     = "OR"
+
+  conditions {
+    display_name = each.key
+
+    condition_monitoring_query_language {
+      duration = "0s"
+      query    = <<-EOT
+      fetch generic_task
+      | metric '${local.custom_prefix}/${each.value.metric}'
+      | align delta_gauge(${each.value.window})
+      | group_by [], [val: aggregate(value.success)]
+      | absent_for ${each.value.window}
+      EOT
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  documentation {
+    content   = "${local.playbook_prefix}/ForwardProgressFailed.md"
+    mime_type = "text/markdown"
+  }
+
+  notification_channels = [for x in values(google_monitoring_notification_channel.paging) : x.id]
 
   depends_on = [
     null_resource.manual-step-to-enable-workspace,

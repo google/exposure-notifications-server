@@ -16,6 +16,8 @@ package cleanup
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -81,6 +83,30 @@ func TestNewExposureHandler(t *testing.T) {
 	}
 }
 
+func TestExposureHandler_ServeHTTP(t *testing.T) {
+	t.Parallel()
+
+	ctx := project.TestContext(t)
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+	env := serverenv.New(ctx, serverenv.WithDatabase(testDB))
+
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+
+	handler, err := NewExposureHandler(&Config{}, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler.ServeHTTP(w, r)
+
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Errorf("expected %d to be %d: %s", got, want, w.Body.String())
+	}
+}
+
 func TestNewExportHandler(t *testing.T) {
 	t.Parallel()
 
@@ -135,6 +161,40 @@ func TestNewExportHandler(t *testing.T) {
 	}
 }
 
+func TestExportHandler_ServeHTTP(t *testing.T) {
+	t.Parallel()
+
+	ctx := project.TestContext(t)
+	testDB, _ := testDatabaseInstance.NewDatabase(t)
+
+	bs, err := storage.NewMemory(ctx, &storage.Config{
+		Type: "MEMORY",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	env := serverenv.New(ctx,
+		serverenv.WithDatabase(testDB),
+		serverenv.WithBlobStorage(bs))
+
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+
+	handler, err := NewExportHandler(&Config{}, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler.ServeHTTP(w, r)
+
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Errorf("expected %d to be %d: %s", got, want, w.Body.String())
+	}
+}
+
 func TestCutoffDate(t *testing.T) {
 	t.Parallel()
 
@@ -158,7 +218,7 @@ func TestCutoffDate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := cutoffDate(project.TestContext(t), tc.d, tc.override)
+			got, err := cutoffDate(tc.d, tc.override)
 			if tc.wantDur == 0 {
 				if err == nil {
 					t.Errorf("%q: got no error, wanted one", tc.d)

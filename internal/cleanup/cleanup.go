@@ -17,24 +17,24 @@ package cleanup
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"go.opencensus.io/stats"
-	"go.opencensus.io/trace"
 
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	publishdb "github.com/google/exposure-notifications-server/internal/publish/database"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 )
 
-const (
-	minTTL = 10 * 24 * time.Hour
-)
+const minTTL = 10 * 24 * time.Hour
 
 // NewExposureHandler creates a http.Handler for deleting exposure keys
 // from the database.
@@ -57,54 +57,52 @@ type exposureCleanupHandler struct {
 }
 
 func (h *exposureCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, span := trace.StartSpan(r.Context(), "(*cleanup.exposureCleanupHandler).ServeHTTP")
-	defer span.End()
+	ctx := r.Context()
+	logger := logging.FromContext(ctx).Named("cleanup.exposure")
 
-	logger := logging.FromContext(ctx)
-
-	cutoff, err := cutoffDate(ctx, h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
+	cutoff, err := cutoffDate(h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
 	if err != nil {
-		message := fmt.Sprintf("error processing cutoff time: %v", err)
-		logger.Error(message)
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		stats.Record(ctx, mExposuresSetupFailed.M(1))
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
-		return
-	}
-	logger.Infof("Starting cleanup for records older than %v", cutoff.UTC())
-	stats.Record(ctx, mExposuresCleanupBefore.M(cutoff.Unix()))
-
-	// Set timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
-	defer cancel()
-
-	count, err := h.database.DeleteExposuresBefore(timeoutCtx, cutoff)
-	if err != nil {
-		message := fmt.Sprintf("Failed deleting exposures: %v", err)
-		logger.Error(message)
-		stats.Record(ctx, mExposuresDeleteFailed.M(1))
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		logger.Errorw("failed to calculate cutoff date", "error", err)
+		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	stats.Record(ctx, mExposuresDeleted.M(count))
-	logger.Infof("cleanup run complete, deleted %v records.", count)
+	// Construct a multi-error. If one of the purges fails, we still want to
+	// attempt the other purges.
+	var merr *multierror.Error
 
-	// Clean up associated stats.
-	statsCount, err := h.database.DeleteStatsBefore(timeoutCtx, cutoff)
-	if err != nil {
-		message := fmt.Sprintf("Failed deleting publish stats: %v", err)
-		logger.Error(message)
-		stats.Record(ctx, mExposuresStatsDeleteFailed.M(1))
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
+	// Exposures
+	func() {
+		ctx, cancel := context.WithTimeout(ctx, h.config.Timeout)
+		defer cancel()
+
+		if count, err := h.database.DeleteExposuresBefore(ctx, cutoff); err != nil {
+			merr = multierror.Append(merr, fmt.Errorf("failed to delete exposures: %w", err))
+		} else {
+			logger.Infow("purged exposures", "count", count)
+		}
+	}()
+
+	// Stats
+	func() {
+		ctx, cancel := context.WithTimeout(ctx, h.config.Timeout)
+		defer cancel()
+
+		if count, err := h.database.DeleteStatsBefore(ctx, cutoff); err != nil {
+			merr = multierror.Append(merr, fmt.Errorf("failed to delete stats: %w", err))
+		} else {
+			logger.Infow("purged statistics", "count", count)
+		}
+	}()
+
+	if merr != nil {
+		logger.Errorw("failed to cleanup exposures", "errors", merr.WrappedErrors())
+		respondWithError(w, http.StatusInternalServerError, merr)
 		return
 	}
-	stats.Record(ctx, mExposuresStatsDeleted.M(statsCount), mExposuresCleanupRun.M(1))
-	logger.Infof("stats cleanup run complete, deleted %v records.", statsCount)
 
-	w.WriteHeader(http.StatusOK)
+	stats.Record(ctx, mExposureSuccess.M(1))
+	respond(w, http.StatusOK)
 }
 
 // NewExportHandler creates a http.Handler that manages deletion of
@@ -133,49 +131,76 @@ type exportCleanupHandler struct {
 }
 
 func (h *exportCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx, span := trace.StartSpan(r.Context(), "(*cleanup.exportCleanupHandler).ServeHTTP")
-	defer span.End()
+	ctx := r.Context()
+	logger := logging.FromContext(ctx).Named("cleanup.export")
 
-	logger := logging.FromContext(ctx)
-
-	cutoff, err := cutoffDate(ctx, h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
+	cutoff, err := cutoffDate(h.config.TTL, h.config.DebugOverrideCleanupMinDuration)
 	if err != nil {
-		message := fmt.Sprintf("error calculating cutoff time: %v", err)
-		stats.Record(ctx, mExportsSetupFailed.M(1))
-		logger.Error(message)
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
-		return
-	}
-	logger.Infof("Starting cleanup for export files older than %v", cutoff.UTC())
-	stats.Record(ctx, mExportsCleanupBefore.M(cutoff.Unix()))
-
-	// Set h.Timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, h.config.Timeout)
-	defer cancel()
-
-	count, err := h.database.DeleteFilesBefore(timeoutCtx, cutoff, h.blobstore)
-	if err != nil {
-		message := fmt.Sprintf("Failed deleting export files: %v", err)
-		logger.Error(message)
-		stats.Record(ctx, mExposuresDeleteFailed.M(1))
-		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
-		http.Error(w, "internal processing error", http.StatusInternalServerError)
+		logger.Errorw("failed to calculate cutoff date", "error", err)
+		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	stats.Record(ctx, mExportsDeleted.M(int64(count)), mExportsCleanupRun.M(1))
-	logger.Infof("cleanup run complete, deleted %v files.", count)
-	w.WriteHeader(http.StatusOK)
+	// Construct a multi-error. If one of the purges fails, we still want to
+	// attempt the other purges.
+	var merr *multierror.Error
+
+	// Files
+	func() {
+		ctx, cancel := context.WithTimeout(ctx, h.config.Timeout)
+		defer cancel()
+
+		if count, err := h.database.DeleteFilesBefore(ctx, cutoff, h.blobstore); err != nil {
+			merr = multierror.Append(merr, fmt.Errorf("failed to delete files: %w", err))
+		} else {
+			logger.Infow("purged files", "count", count)
+		}
+	}()
+
+	if merr != nil {
+		logger.Errorw("failed to cleanup exports", "errors", merr.WrappedErrors())
+		respondWithError(w, http.StatusInternalServerError, merr)
+		return
+	}
+
+	stats.Record(ctx, mExportSuccess.M(1))
+	respond(w, http.StatusOK)
 }
 
-func cutoffDate(ctx context.Context, d time.Duration, overrideMinTTL bool) (time.Time, error) {
-	if d < minTTL {
-		if overrideMinTTL {
-			logging.FromContext(ctx).Warnf("Cleanup safety minimuim TTL is being overridden by the DEBUG_OVERRIDE_CLEANUP_MIN_DURATION=true environment variable")
+func cutoffDate(d time.Duration, override bool) (time.Time, error) {
+	if d >= minTTL || override {
+		return time.Now().UTC().Add(-d), nil
+	}
+
+	return time.Time{}, fmt.Errorf("cleanup ttl %s is less than configured minimum ttl of %s", d, minTTL)
+}
+
+type result struct {
+	OK     bool     `json:"ok"`
+	Errors []string `json:"errors,omitempty"`
+}
+
+func respond(w http.ResponseWriter, code int) {
+	respondWithError(w, code, nil)
+}
+
+func respondWithError(w http.ResponseWriter, code int, err error) {
+	var r result
+	r.OK = err == nil
+
+	if err != nil {
+		var merr *multierror.Error
+		if errors.As(err, &merr) {
+			for _, err := range merr.WrappedErrors() {
+				if err != nil {
+					r.Errors = append(r.Errors, err.Error())
+				}
+			}
 		} else {
-			return time.Time{}, fmt.Errorf("cleanup ttl is less than configured minimum ttl")
+			r.Errors = append(r.Errors, err.Error())
 		}
 	}
-	return time.Now().Add(-d), nil
+
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(r)
 }
