@@ -96,7 +96,10 @@ func TestExposureHandler_ServeHTTP(t *testing.T) {
 	}
 	w := httptest.NewRecorder()
 
-	handler, err := NewExposureHandler(&Config{}, env)
+	handler, err := NewExposureHandler(&Config{
+		Timeout: 5 * time.Second,
+		TTL:     336 * time.Hour,
+	}, env)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +187,10 @@ func TestExportHandler_ServeHTTP(t *testing.T) {
 	}
 	w := httptest.NewRecorder()
 
-	handler, err := NewExportHandler(&Config{}, env)
+	handler, err := NewExportHandler(&Config{
+		Timeout: 5 * time.Second,
+		TTL:     336 * time.Hour,
+	}, env)
 	if err != nil {
 		t.Fatal(err)
 	}
