@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2021 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,35 +21,16 @@ import (
 	"go.opencensus.io/stats/view"
 )
 
-var (
-	rotateMetricsPrefix = metrics.MetricRoot + "rotate"
+const metricPrefix = metrics.MetricRoot + "key-rotation"
 
-	mRevisionKeysCreated = stats.Int64(rotateMetricsPrefix+"revision_keys_created",
-		"Instance of revision key being created", stats.UnitDimensionless)
-	mRevisionKeysDeleted = stats.Int64(rotateMetricsPrefix+"revision_keys_deleted",
-		"Instance of revision keys being deleted", stats.UnitDimensionless)
-	mRotationSuccess = stats.Int64(rotateMetricsPrefix+"success",
-		"Number of successful completions of rotate handler", stats.UnitDimensionless)
-)
+var mSuccess = stats.Int64(metricPrefix+"/success", "successful execution", stats.UnitDimensionless)
 
 func init() {
 	observability.CollectViews([]*view.View{
 		{
-			Name:        metrics.MetricRoot + "revision_keys_created_count",
-			Description: "Total count of revision key creation instances",
-			Measure:     mRevisionKeysCreated,
-			Aggregation: view.Sum(),
-		},
-		{
-			Name:        metrics.MetricRoot + "revision_keys_deleted_count",
-			Description: "Total count of revision key deletion instances",
-			Measure:     mRevisionKeysDeleted,
-			Aggregation: view.Sum(),
-		},
-		{
-			Name:        metrics.MetricRoot + "rotation_success",
-			Description: "Number of successful completions of rotate handler",
-			Measure:     mRotationSuccess,
+			Name:        metricPrefix + "/success",
+			Description: "Number of successes",
+			Measure:     mSuccess,
 			Aggregation: view.Count(),
 		},
 	}...)

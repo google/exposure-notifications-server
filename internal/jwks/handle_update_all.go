@@ -26,39 +26,40 @@ import (
 	"go.opencensus.io/stats"
 )
 
-const jwksLockID = "jwks-import"
+const lockID = "jwks-import"
 
 func (s *Server) handleUpdateAll() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), s.config.MaxRuntime)
 		defer cancel()
 
-		logger := logging.FromContext(ctx).Named("handleUpdateAll")
+		logger := logging.FromContext(ctx).Named("handleUpdateAll").
+			With("lock", lockID)
 
-		unlock, err := s.manager.db.Lock(ctx, jwksLockID, time.Minute)
+		unlock, err := s.manager.db.Lock(ctx, lockID, time.Minute)
 		if err != nil {
 			if errors.Is(err, database.ErrAlreadyLocked) {
-				w.WriteHeader(http.StatusOK)
+				logger.Debugw("skipping (already locked)")
+				s.h.RenderJSON(w, http.StatusOK, fmt.Errorf("too early"))
 				return
 			}
-			logger.Errorw("unable to obtain lock", "lock", jwksLockID, "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logger.Errorw("unable to obtain lock", "error", err)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
 		defer func() {
 			if err := unlock(); err != nil {
-				logger.Errorw("failed to unlock", "lock", jwksLockID, "error", err)
+				logger.Errorw("failed to unlock", "error", err)
 			}
 		}()
 
 		if err := s.manager.UpdateAll(ctx); err != nil {
 			logger.Errorw("failed to update all", "error", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
 
-		stats.Record(ctx, mJWKSSuccess.M(1))
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, http.StatusText(http.StatusOK))
+		stats.Record(ctx, mSuccess.M(1))
+		s.h.RenderJSON(w, http.StatusOK, nil)
 	})
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/middleware"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/render"
 	"github.com/google/exposure-notifications-server/pkg/server"
 
 	"github.com/gorilla/mux"
@@ -31,6 +32,7 @@ type Server struct {
 	config  *Config
 	manager *Manager
 	env     *serverenv.ServerEnv
+	h       *render.Renderer
 }
 
 // NewServer makes a new server.
@@ -48,6 +50,7 @@ func NewServer(cfg *Config, env *serverenv.ServerEnv) (*Server, error) {
 		config:  cfg,
 		manager: manager,
 		env:     env,
+		h:       render.NewRenderer(),
 	}, nil
 }
 

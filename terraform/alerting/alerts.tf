@@ -28,6 +28,12 @@ locals {
       // cleanup-exposure runs every 4h, alert after 2 failures
       "cleanup-exposure" = { metric = "cleanup/exposure/success", window = "485m" },
 
+      // jwks runs every 2m, alert after ~15 failures
+      "jwks" = { metric = "jwks/success", window = "30m" },
+
+      // key-rotation runs every 4h, alert after 2 failures
+      "key-rotation" = { metric = "key-rotation/success", window = "485m" },
+
       // mirror runs every 5m but has a default lock time of 15m, alert after 2 failures
       "mirror" = { metric = "mirror/success", window = "35m" },
     },
@@ -96,7 +102,7 @@ resource "google_monitoring_alert_policy" "ForwardProgressFailed" {
       query    = <<-EOT
       fetch generic_task
       | metric '${local.custom_prefix}/${each.value.metric}'
-      | align delta()
+      | align delta_gauge(${each.value.window})
       | group_by [], [val: aggregate(value.success)]
       | absent_for ${each.value.window}
       EOT

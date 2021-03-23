@@ -27,7 +27,6 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/stats"
-	"go.opencensus.io/trace"
 )
 
 // Global lock id for key rotation.
@@ -36,43 +35,42 @@ const lockID = "key-rotation-lock"
 func (s *Server) handleRotateKeys() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-
 		logger := logging.FromContext(ctx).Named("handleRotate").
-			With("lock_id", lockID)
-
-		ctx, span := trace.StartSpan(ctx, "(*keyrotation.handler).ServeHTTP")
-		defer span.End()
+			With("lock", lockID)
 
 		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
 		if err != nil {
-			logger.Warnw("unable to obtain lock", "lock", lockID, "error", err)
 			if errors.Is(err, database.ErrAlreadyLocked) {
-				w.WriteHeader(http.StatusOK)
+				logger.Debugw("skipping (already locked)")
+				s.h.RenderJSON(w, http.StatusOK, fmt.Errorf("too early"))
 				return
 			}
-			w.WriteHeader(http.StatusInternalServerError)
+			logger.Errorw("failed to obtain lock", "error", err)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
 		defer func() {
 			if err := unlock(); err != nil {
-				logger.Errorw("failed to unlock", "lock", lockID, "error", err)
+				logger.Errorw("failed to unlock", "error", err)
 			}
 		}()
 
 		if err := s.doRotate(ctx); err != nil {
 			logger.Errorw("failed to rotate", "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
 
-		stats.Record(ctx, mRotationSuccess.M(1))
-		logger.Info("key rotation complete")
-		w.WriteHeader(http.StatusOK)
+		stats.Record(ctx, mSuccess.M(1))
+		s.h.RenderJSON(w, http.StatusOK, nil)
 	})
 }
 
+// doRotate rotates the key. It only rotates the key if the appropriate TTL has
+// elapsed. If the key is not due to be rotated, the function returns (no error
+// is returned.)
 func (s *Server) doRotate(ctx context.Context) error {
-	logger := logging.FromContext(ctx).Named("keyrotation.doRotate")
+	logger := logging.FromContext(ctx).Named("doRotate")
 
 	effectiveID, allowed, err := s.revisionDB.GetAllowedRevisionKeys(ctx)
 	if err != nil {
@@ -82,14 +80,14 @@ func (s *Server) doRotate(ctx context.Context) error {
 	// First allowed is newest due to sql orderby.
 	var previousCreated time.Time
 	if len(allowed) == 0 || time.Since(allowed[0].CreatedAt) >= s.config.NewKeyPeriod {
+		logger.Debugw("creating new revision key")
 		key, err := s.revisionDB.CreateRevisionKey(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to create revision key: %w", err)
 		}
 		effectiveID = key.KeyID
 		previousCreated = key.CreatedAt
-		logger.Info("Created new revision key.")
-		stats.Record(ctx, mRevisionKeysCreated.M(1))
+		logger.Debugw("finished creating new revision key")
 	} else {
 		previousCreated = allowed[0].CreatedAt
 	}
@@ -105,8 +103,7 @@ func (s *Server) doRotate(ctx context.Context) error {
 		previousCreated = key.CreatedAt
 	}
 	if deleted > 0 {
-		logger.Infof("Deleted %d old revision keys.", deleted)
-		stats.Record(ctx, mRevisionKeysDeleted.M(int64(deleted)))
+		logger.Debugw("deleted old revision keys", "count", deleted)
 	}
 	return result.ErrorOrNil()
 }
