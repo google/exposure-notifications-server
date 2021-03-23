@@ -30,8 +30,8 @@ import (
 	"github.com/google/exposure-notifications-server/internal/project"
 	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/stats"
-	"go.opencensus.io/trace"
 )
 
 const schedulerLockID = "import-scheduler-lock"
@@ -43,17 +43,18 @@ func (s *Server) handleSchedule() http.Handler {
 		logger := logging.FromContext(ctx).Named("handleSchedule").
 			With("lock", schedulerLockID)
 
-		ctx, span := trace.StartSpan(ctx, "(*exportimport.handleSchedule).ServeHTTP")
-		defer span.End()
+		logger.Debugw("starting exportimport scheduler")
+		defer logger.Debugw("finished exportimport scheduler")
 
 		unlock, err := s.db.Lock(ctx, schedulerLockID, s.config.MaxRuntime)
 		if err != nil {
 			if errors.Is(err, database.ErrAlreadyLocked) {
-				w.WriteHeader(http.StatusOK) // don't report conflict/failure to scheduler (will retry later)
+				logger.Debugw("skipping (already locked)")
+				s.h.RenderJSON(w, http.StatusOK, fmt.Errorf("too early"))
 				return
 			}
 			logger.Errorw("failed to obtain lock", "error", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
 		defer func() {
@@ -62,65 +63,75 @@ func (s *Server) handleSchedule() http.Handler {
 			}
 		}()
 
-		ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(s.config.MaxRuntime))
-		defer cancelFn()
-		logger.Info("starting export import scheduler")
+		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(s.config.MaxRuntime))
+		defer cancel()
 
 		configs, err := s.exportImportDB.ActiveConfigs(ctx)
 		if err != nil {
-			logger.Errorw("unable to read active configs", "error", err)
+			logger.Errorw("failed to read active configs", "error", err)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
 
-		httpClient := &http.Client{
-			Timeout: s.config.IndexFileDownloadTimeout,
-		}
+		var merr *multierror.Error
 
-		anyErrors := false
-		for _, config := range configs {
-			logger.Infow("checking index file", "config", config)
-
-			req, err := http.NewRequestWithContext(ctx, "GET", config.IndexFile, nil)
-			if err != nil {
-				logger.Errorw("failed to create request to download index file", "file", config.IndexFile, "error", err)
+		for _, cfg := range configs {
+			if err := s.syncOne(ctx, cfg); err != nil {
+				merr = multierror.Append(merr, fmt.Errorf("failed to sync exportimport config %d: %w", cfg.ID, err))
 				continue
-			}
-
-			resp, err := httpClient.Do(req)
-			if err != nil {
-				anyErrors = true
-				logger.Errorw("error downloading index file", "file", config.IndexFile, "error", err)
-				continue
-			}
-
-			defer resp.Body.Close()
-			bytes, err := io.ReadAll(resp.Body)
-			if err != nil {
-				anyErrors = true
-				logger.Errorw("unable to read index file", "file", config.IndexFile, "error", err)
-				continue
-			}
-
-			if n, f, err := syncFilesFromIndex(ctx, s.exportImportDB, config, string(bytes)); err != nil {
-				logger.Errorw("error syncing index file contents", "exportImportID", config.ID, "error", err)
-				anyErrors = true
-			} else {
-				logger.Infow("import index sync result", "exportImportID", config.ID, "index", config.IndexFile, "newFiles", n, "failedFiles", f)
-				if err := stats.RecordWithTags(ctx, metricsForConfig(config), mFilesScheduled.M(int64(n))); err != nil {
-					logger.Errorw("recording schedule metrics", "exportImprotID", config.ID, "error", err, "scheduled", n)
-				}
 			}
 		}
 
-		status := http.StatusOK
-		if anyErrors {
-			status = http.StatusInternalServerError
-		} else {
-			stats.Record(ctx, mScheduleCompletion.M(1))
+		if merr != nil {
+			if errs := merr.WrappedErrors(); len(errs) > 0 {
+				logger.Errorw("failed to sync", "errors", errs)
+				s.h.RenderJSON(w, http.StatusInternalServerError, errs)
+				return
+			}
 		}
-		w.WriteHeader(status)
-		fmt.Fprint(w, http.StatusText(status))
+
+		stats.Record(ctx, mScheduleSuccess.M(1))
+		s.h.RenderJSON(w, http.StatusOK, nil)
 	})
+}
+
+func (s *Server) syncOne(ctx context.Context, cfg *model.ExportImport) error {
+	ctx = metricsWithExportImportID(ctx, cfg.ID)
+
+	logger := logging.FromContext(ctx).Named("syncOne").
+		With("config", cfg)
+
+	logger.Debugw("syncing index file")
+	defer logger.Debugw("finished syncing index file")
+
+	client := &http.Client{
+		Timeout: s.config.IndexFileDownloadTimeout,
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfg.IndexFile, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request to download index file: %w", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to download index file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	bytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read index file: %w", err)
+	}
+
+	numNew, numFailed, err := syncFilesFromIndex(ctx, s.exportImportDB, cfg, string(bytes))
+	if err != nil {
+		return fmt.Errorf("failed to sync index file contents: %w", err)
+	}
+
+	logger.Debugw("sync result", "new_files", numNew, "failed_files", numFailed)
+	stats.Record(ctx, mFilesScheduled.M(int64(numNew)))
+	return nil
 }
 
 func buildArchiveURLs(ctx context.Context, config *model.ExportImport, index string) ([]string, error) {

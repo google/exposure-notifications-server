@@ -26,6 +26,7 @@ import (
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
 	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/render"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 )
@@ -37,6 +38,7 @@ type Server struct {
 	db             *database.DB
 	exportImportDB *eidb.ExportImportDB
 	publishDB      *pubdb.PublishDB
+	h              *render.Renderer
 }
 
 // NewServer creates a Server that manages deletion of
@@ -60,12 +62,13 @@ func NewServer(cfg *Config, env *serverenv.ServerEnv) (*Server, error) {
 		db:             db,
 		exportImportDB: exportImportDB,
 		publishDB:      publishDB,
+		h:              render.NewRenderer(),
 	}, nil
 }
 
 // Routes defines and returns the routes for this server.
 func (s *Server) Routes(ctx context.Context) *mux.Router {
-	logger := logging.FromContext(ctx).Named("exportimport")
+	logger := logging.FromContext(ctx).Named("exportimporter")
 
 	r := mux.NewRouter()
 	r.Use(middleware.Recovery())

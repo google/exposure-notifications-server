@@ -162,7 +162,7 @@ resource "google_cloud_run_service_iam_member" "export-importer-invoker" {
 resource "google_cloud_scheduler_job" "export-importer-worker" {
   name             = "export-importer-worker"
   region           = var.cloudscheduler_location
-  schedule         = "* * * * *"
+  schedule         = "*/5 * * * *"
   time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 
@@ -187,9 +187,9 @@ resource "google_cloud_scheduler_job" "export-importer-worker" {
 }
 
 resource "google_cloud_scheduler_job" "export-importer-schedule" {
-  name             = "export-importer-cschedule"
+  name             = "export-importer-schedule"
   region           = var.cloudscheduler_location
-  schedule         = "*/5 * * * *"
+  schedule         = "*/15 * * * *"
   time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 

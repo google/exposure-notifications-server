@@ -15,10 +15,11 @@
 package exportimport
 
 import (
-	"fmt"
+	"context"
+	"strconv"
 
-	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 	"github.com/google/exposure-notifications-server/internal/metrics"
+	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/observability"
 
 	"go.opencensus.io/stats"
@@ -26,67 +27,74 @@ import (
 	"go.opencensus.io/tag"
 )
 
+const metricPrefix = metrics.MetricRoot + "export-importer"
+
+var exportimportConfigIDTagKey = tag.MustNewKey("export_importer_config_id")
+
 var (
-	exportImportMetricsPrefix = metrics.MetricRoot + "exportimport"
+	// mImportSuccess is the overall success of the import job.
+	mImportSuccess = stats.Int64(metricPrefix+"/import/success", "successful import execution", stats.UnitDimensionless)
+
+	// mScheduleSuccess is the overall success of the scheduler job.
+	mScheduleSuccess = stats.Int64(metricPrefix+"/schedule/success", "successful schedule execution", stats.UnitDimensionless)
 
 	// Configuration specific metrics.
-	mFilesScheduled = stats.Int64(exportImportMetricsPrefix+"files_scheduled",
-		"Number of import files scheduled by ID", stats.UnitDimensionless)
-	mFilesImported = stats.Int64(exportImportMetricsPrefix+"files_imported",
-		"Number of import files completed by ID", stats.UnitDimensionless)
-	mFilesFailed = stats.Int64(exportImportMetricsPrefix+"files_failed",
-		"Number of import files failed by ID", stats.UnitDimensionless)
-
-	// Job specific metrics.
-	mScheduleCompletion = stats.Int64(exportImportMetricsPrefix+"schedule_completion",
-		"Number of times the export-import scheduler completes", stats.UnitDimensionless)
-	mImportCompletion = stats.Int64(exportImportMetricsPrefix+"import_completion",
-		"Number of times the export-import job completes", stats.UnitDimensionless)
-
-	exportImportIDTagKey = tag.MustNewKey("export_import_id")
+	mFilesScheduled = stats.Int64(metricPrefix+"/files_scheduled", "Number of import files scheduled by ID", stats.UnitDimensionless)
+	mFilesImported  = stats.Int64(metricPrefix+"/files_imported", "Number of import files completed by ID", stats.UnitDimensionless)
+	mFilesFailed    = stats.Int64(metricPrefix+"/files_failed", "Number of import files failed by ID", stats.UnitDimensionless)
 )
 
 func init() {
 	observability.CollectViews([]*view.View{
 		{
-			Name:        metrics.MetricRoot + "exportimport_files_scheduled",
+			Name:        metricPrefix + "/import/success",
+			Description: "Number of import successes",
+			Measure:     mImportSuccess,
+			Aggregation: view.Count(),
+		},
+		{
+			Name:        metricPrefix + "/schedule/success",
+			Description: "Number of scheduler successes",
+			Measure:     mScheduleSuccess,
+			Aggregation: view.Count(),
+		},
+		{
+			Name:        metricPrefix + "/files_scheduled",
 			Description: "Total count of files scheduled, by configuration",
 			Measure:     mFilesScheduled,
 			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{exportImportIDTagKey},
+			TagKeys:     metricsTagKeys(),
 		},
 		{
-			Name:        metrics.MetricRoot + "exportimport_files_imported",
+			Name:        metricPrefix + "/files_imported",
 			Description: "Total count of files imported, by configuration",
 			Measure:     mFilesImported,
 			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{exportImportIDTagKey},
+			TagKeys:     metricsTagKeys(),
 		},
 		{
-			Name:        metrics.MetricRoot + "exportimport_files_failed",
+			Name:        metricPrefix + "/files_failed",
 			Description: "Total count of files failed, by configuration",
 			Measure:     mFilesFailed,
 			Aggregation: view.Sum(),
-			TagKeys:     []tag.Key{exportImportIDTagKey},
-		},
-		{
-			Name:        metrics.MetricRoot + "exportimport_schedule_completion",
-			Description: "Total count of export-import schedule job completion",
-			Measure:     mScheduleCompletion,
-			Aggregation: view.Sum(),
-		},
-		{
-			Name:        metrics.MetricRoot + "exportimport_import_completion",
-			Description: "Total count of export-import import job completion",
-			Measure:     mImportCompletion,
-			Aggregation: view.Sum(),
+			TagKeys:     metricsTagKeys(),
 		},
 	}...)
 }
 
-// metricsForConfig creates metrics tags for a specific config.
-func metricsForConfig(config *model.ExportImport) []tag.Mutator {
-	return []tag.Mutator{
-		tag.Upsert(exportImportIDTagKey, fmt.Sprintf("%d", config.ID)),
+func metricsTagKeys() []tag.Key {
+	return []tag.Key{
+		exportimportConfigIDTagKey,
 	}
+}
+
+func metricsWithExportImportID(octx context.Context, id int64) context.Context {
+	idStr := strconv.FormatInt(id, 10)
+	ctx, err := tag.New(octx, tag.Upsert(exportimportConfigIDTagKey, idStr))
+	if err != nil {
+		logging.FromContext(octx).Named("metricsWithExportImportID").
+			Errorw("failed upsert exportimport on context", "error", err, "export_import_id", id)
+		return octx
+	}
+	return ctx
 }

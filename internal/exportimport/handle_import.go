@@ -24,72 +24,77 @@ import (
 	"github.com/google/exposure-notifications-server/internal/exportimport/model"
 	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/hashicorp/go-multierror"
 
 	"go.opencensus.io/stats"
-	"go.opencensus.io/trace"
 )
 
-const lockPrefix = "import-lock-"
+const lockPrefix = "exportimport-lock-"
 
 func (s *Server) handleImport() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		logger := logging.FromContext(ctx).Named("handleImport")
+		logger := logging.FromContext(ctx).Named("handleSchedule")
 
-		ctx, span := trace.StartSpan(ctx, "(*keyrotation.handler).ServeHTTP")
-		defer span.End()
+		logger.Debugw("starting exportimport import")
+		defer logger.Debugw("finished exportimport import")
 
-		ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(s.config.MaxRuntime))
-		defer cancelFn()
-		logger.Info("starting export importer")
-		defer func() {
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, "ok")
-		}()
-		ctx = logging.WithLogger(ctx, logger)
+		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(s.config.MaxRuntime))
+		defer cancel()
 
 		configs, err := s.exportImportDB.ActiveConfigs(ctx)
 		if err != nil {
-			logger.Errorw("unable to read active configs", "error", err)
+			logger.Errorw("failed to read active configs", "error", err)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
+			return
 		}
 
-		success := true
-		for _, config := range configs {
+		var merr *multierror.Error
+
+	OUTER:
+		for _, cfg := range configs {
 			// Check how we're doing on max runtime.
 			if deadlinePassed(ctx) {
-				logger.Warnf("deadline passed, still work to do")
+				logger.Warnw("deadline passed, but there is still work to do")
+				break OUTER
+			}
+
+			if err := s.runImport(ctx, cfg); err != nil {
+				merr = multierror.Append(merr, fmt.Errorf("failed to import %d: %w", cfg.ID, err))
+				continue
+			}
+		}
+
+		if merr != nil {
+			if errs := merr.WrappedErrors(); len(errs) > 0 {
+				logger.Errorw("failed to sync", "errors", errs)
+				s.h.RenderJSON(w, http.StatusInternalServerError, errs)
 				return
 			}
-
-			if err := s.runImport(ctx, config); err != nil {
-				logger.Errorw("error running export-import", "config", config, "error", err)
-				success = false
-			}
 		}
 
-		if !success {
-			stats.Record(ctx, mImportCompletion.M(1))
-		}
-
-		w.WriteHeader(http.StatusOK)
+		stats.Record(ctx, mImportSuccess.M(1))
+		s.h.RenderJSON(w, http.StatusOK, nil)
 	})
 }
 
-func (s *Server) runImport(ctx context.Context, config *model.ExportImport) error {
-	lockID := fmt.Sprintf("%s%d", lockPrefix, config.ID)
+func (s *Server) runImport(ctx context.Context, cfg *model.ExportImport) error {
+	ctx = metricsWithExportImportID(ctx, cfg.ID)
+
+	lockID := fmt.Sprintf("%s%d", lockPrefix, cfg.ID)
 
 	logger := logging.FromContext(ctx).Named("runImport").
-		With("lock", lockID)
+		With("lock", lockID).
+		With("config", cfg)
 
-	// Obtain a lock to work on this import config.
 	unlock, err := s.db.Lock(ctx, lockID, s.config.MaxRuntime)
 	if err != nil {
 		if errors.Is(err, database.ErrAlreadyLocked) {
-			logger.Warnw("import already locked", "config", config)
+			logger.Debugw("skipping (already locked)")
+			return nil
 		}
-		logger.Errorw("error locking import config", "config", config, "error", err)
-		return nil
+		return fmt.Errorf("failed to acquire lock: %w", err)
 	}
 	defer func() {
 		if err := unlock(); err != nil {
@@ -98,28 +103,30 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 	}()
 
 	// Get the list of files that needs to be processed.
-	openFiles, err := s.exportImportDB.GetOpenImportFiles(ctx, s.config.ImportLockTime, s.config.ImportRetryRate, config)
+	openFiles, err := s.exportImportDB.GetOpenImportFiles(ctx, s.config.ImportLockTime, s.config.ImportRetryRate, cfg)
 	if err != nil {
-		logger.Errorw("unable to read open import files", "config", config, "error", err)
+		return fmt.Errorf("failed to read open import files: %w", err)
 	}
 	if len(openFiles) == 0 {
-		logger.Infow("no work to do", "config", config)
 		return nil
 	}
 
 	// Read in public keys.
-	keys, err := s.exportImportDB.AllowedKeys(ctx, config)
+	keys, err := s.exportImportDB.AllowedKeys(ctx, cfg)
 	if err != nil {
 		return fmt.Errorf("unable to read public keys: %w", err)
 	}
-	logger.Debugw("allowed public keys for file", "publicKeys", keys)
+	logger.Debugw("allowed public keys for file", "public_keys", keys)
 
-	errs := []error{}
+	var merr *multierror.Error
+
 	var completedFiles, failedFiles int64
+OUTER:
 	for _, file := range openFiles {
 		// Check how we're doing on max runtime.
 		if deadlinePassed(ctx) {
-			return fmt.Errorf("deadline exceeded, work not done")
+			logger.Warnw("deadline passed, but there is still work to do")
+			break OUTER
 		}
 
 		if err := s.exportImportDB.LeaseImportFile(ctx, s.config.ImportLockTime, file); err != nil {
@@ -131,12 +138,13 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 		status := model.ImportFileComplete
 		result, err := s.ImportExportFile(ctx, &ImportRequest{
 			config:       s.config,
-			exportImport: config,
+			exportImport: cfg,
 			keys:         keys,
 			file:         file,
 		})
 		if err != nil {
-			errs = append(errs, err)
+			merr = multierror.Append(merr, err)
+
 			str := fmt.Sprintf("import file error [retry %d]", file.Retries)
 			file.Retries++
 			if errors.Is(err, ErrArchiveNotFound) {
@@ -144,9 +152,10 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 			}
 
 			// Check the retries.
-			logger.Errorw(str, "exportImportID", config.ID, "filename", file.ZipFilename)
+			logger.Errorw(str, "exportImportID", cfg.ID, "filename", file.ZipFilename)
 			failedFiles++
 		}
+
 		// the not found error is passed through.
 		if result != nil {
 			completedFiles++
@@ -158,14 +167,9 @@ func (s *Server) runImport(ctx context.Context, config *model.ExportImport) erro
 		}
 	}
 
-	if err := stats.RecordWithTags(ctx, metricsForConfig(config), mFilesImported.M(completedFiles), mFilesFailed.M(failedFiles)); err != nil {
-		logger.Errorw("failed to export-import config completion", "error", err, "export-import-id", config.ID)
-	}
-
-	if len(errs) != 0 {
-		return fmt.Errorf("%d errors processing import file: %v", len(errs), errs)
-	}
-	return nil
+	stats.Record(ctx, mFilesImported.M(completedFiles))
+	stats.Record(ctx, mFilesFailed.M(failedFiles))
+	return merr.ErrorOrNil()
 }
 
 func deadlinePassed(ctx context.Context) bool {
