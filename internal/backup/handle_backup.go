@@ -49,7 +49,7 @@ func (s *Server) handleBackup() http.Handler {
 		unlock, err := s.db.Lock(ctx, backupDatabaseLockID, s.config.MinTTL)
 		if err != nil {
 			if errors.Is(err, database.ErrAlreadyLocked) {
-				// don't report conflict/failure to scheduler (will retry later)
+				logger.Debugw("skipping (already locked)")
 				s.h.RenderJSON(w, http.StatusOK, fmt.Errorf("too early"))
 				return
 			}
