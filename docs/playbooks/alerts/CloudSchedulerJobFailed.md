@@ -1,5 +1,7 @@
 # CloudSchedulerJobFailed
 
+**Warning!** We are in the process of removing this alert in favor of `ForwardProgressFailed`. This alert and associated playbook will be removed in a future release.
+
 Cloud Scheduler produced some ERROR level logs, indicating the job is
 failing for some reason.
 
