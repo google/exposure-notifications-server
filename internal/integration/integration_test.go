@@ -235,7 +235,9 @@ func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey, vaccineStatus
 			ReportType:                 exportpb.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
 			// Keys are generated 1 day ago and then -1 day for each additional.
 			DaysSinceOnsetOfSymptoms: proto.Int32(daysSince),
-			Vaccinated:               proto.Bool(vaccineStatus),
+		}
+		if vaccineStatus {
+			s[i].Vaccinated = proto.Bool(vaccineStatus)
 		}
 		daysSince++
 	}
