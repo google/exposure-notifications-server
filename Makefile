@@ -21,7 +21,7 @@ MD_FILES = $(shell find . -name \*.md)
 # locally. There is a chance that CI detects linter errors that are not found
 # locally, but it should be rare.
 lint:
-	@command -v golangci-lint > /dev/null 2>&1 || (cd $${TMPDIR} && go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.37.1)
+	@command -v golangci-lint > /dev/null 2>&1 || (cd $${TMPDIR} && go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.38.0)
 	golangci-lint run --config .golangci.yaml
 .PHONY: lint
 
