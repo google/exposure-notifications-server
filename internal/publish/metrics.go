@@ -29,6 +29,9 @@ var (
 
 	mLatencyMs = stats.Float64(publishMetricsPrefix+"requests", "publish requests", stats.UnitMilliseconds)
 
+	mNoPublicKey = stats.Int64(publishMetricsPrefix+"no_public_keys",
+		"uploads where there is no public key", stats.UnitDimensionless)
+
 	mExposuresCount = stats.Int64(publishMetricsPrefix+"exposures_count",
 		"exposure count", stats.UnitDimensionless)
 
@@ -50,6 +53,11 @@ var (
 		observability.BuildIDTagKey,
 		observability.BuildTagTagKey,
 		exposureTypeTag,
+	}
+
+	healthAuthorityIDTag = tag.MustNewKey("healthAuthorityID")
+	missingPublicKeyTags = []tag.Key{
+		healthAuthorityIDTag,
 	}
 )
 
@@ -98,6 +106,13 @@ func init() {
 			Description: "Total count of response padding failures",
 			Measure:     mPaddingFailed,
 			Aggregation: view.Sum(),
+		},
+		{
+			Name:        metrics.MetricRoot + "no_public_key",
+			Description: "Publish request with no public key",
+			Measure:     mNoPublicKey,
+			Aggregation: view.Count(),
+			TagKeys:     missingPublicKeyTags,
 		},
 	}...)
 }

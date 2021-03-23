@@ -260,7 +260,7 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 		}
 	}
 
-	// In the v1 API - regions aren't passed. They may be passed from v1Apha1
+	// In the v1 API - regions aren't passed. They may be passed from v1alpha1
 	var regions []string
 	if bridge != nil && len(bridge.AdditionalRegions) > 0 {
 		regions = bridge.AdditionalRegions
@@ -318,6 +318,15 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 			logger.Warnf("bypassing health authority certificate verification health authority: %v", appConfig.AppPackageName)
 			stats.Record(ctx, mVerificationBypassed.M(1))
 		} else {
+			if errors.Is(err, verification.ErrNoPublicKeys) {
+				// This only happens if the health authority ID exists in the database.
+				logger.Warnw("received publish request for health authority with no public keys", "healthAuthorityID", data.HealthAuthorityID)
+				tags := []tag.Mutator{tag.Upsert(healthAuthorityIDTag, data.HealthAuthorityID)}
+				if err := stats.RecordWithTags(ctx, tags, mNoPublicKey.M(1)); err != nil {
+					logger.Errorw("failed to record stats for missing public key", "error", err, "healthAuthorityID", data.HealthAuthorityID)
+				}
+			}
+
 			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
 			if s.config.DebugLogBadCertificates {
 				logger.Errorw(message, "error", err, "jwt", data.VerificationPayload)

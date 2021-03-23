@@ -35,6 +35,9 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
+// ErrNoPublicKeys indicates no public keys were found when verifying the certificate.
+var ErrNoPublicKeys = errors.New("no active public keys for health authority")
+
 // Verifier can be used to verify public health authority diagnosis verification certificates.
 type Verifier struct {
 	db      *database.HealthAuthorityDB
@@ -123,7 +126,7 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 				return hak.PublicKey()
 			}
 		}
-		return nil, fmt.Errorf("key not found: iss: %v, kid: %v", claims.Issuer, kid)
+		return nil, ErrNoPublicKeys
 	})
 	if err != nil {
 		return nil, err
