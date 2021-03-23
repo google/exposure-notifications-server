@@ -132,7 +132,7 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 		t.Fatalf("Unmarshal failed: %v", err)
 	}
 
-	wantDigest := "XtkSP7PYIvzwL729M0QuDv4npgBDDMdGxFOAarg3paI="
+	wantDigest := "0RBEkToTJ0NmY7Yg0hrY1Ot8ZmVeY52rNDj4Jzg6ohs="
 	if b64digest := base64.StdEncoding.EncodeToString(digest); b64digest != wantDigest {
 		t.Errorf("wrong message digest want: %v, got: %v", wantDigest, b64digest)
 	}
@@ -153,7 +153,6 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 			RollingPeriod:              proto.Int32(0),
 			ReportType:                 export.TemporaryExposureKey_CONFIRMED_CLINICAL_DIAGNOSIS.Enum(),
 			DaysSinceOnsetOfSymptoms:   proto.Int32(0),
-			Vaccinated:                 proto.Bool(false),
 		},
 		{
 			KeyData:                    []byte("DEF"),
@@ -162,7 +161,6 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 			RollingPeriod:              proto.Int32(1),
 			ReportType:                 export.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
 			DaysSinceOnsetOfSymptoms:   proto.Int32(-1),
-			Vaccinated:                 proto.Bool(false),
 		},
 		{
 			KeyData:                    []byte("GHI"),
@@ -171,7 +169,6 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 			RollingPeriod:              proto.Int32(1),
 			ReportType:                 export.TemporaryExposureKey_SELF_REPORT.Enum(),
 			DaysSinceOnsetOfSymptoms:   proto.Int32(-1),
-			Vaccinated:                 proto.Bool(false),
 		},
 		{
 			KeyData:                    []byte("JKL"),
@@ -189,7 +186,6 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 			TransmissionRiskLevel:      proto.Int32(4),
 			RollingStartIntervalNumber: proto.Int32(100),
 			ReportType:                 export.TemporaryExposureKey_REVOKED.Enum(),
-			Vaccinated:                 proto.Bool(false),
 		},
 	}
 
