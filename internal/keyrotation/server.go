@@ -24,6 +24,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/render"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 )
@@ -34,11 +35,12 @@ type Server struct {
 	env        *serverenv.ServerEnv
 	db         *database.DB
 	revisionDB *revisiondb.RevisionDB
+	h          *render.Renderer
 }
 
 // NewServer creates a Server that manages deletion of
 // old export files that are no longer needed by clients for download.
-func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
+func NewServer(cfg *Config, env *serverenv.ServerEnv) (*Server, error) {
 	if env.Database() == nil {
 		return nil, fmt.Errorf("missing database in server environment")
 	}
@@ -47,7 +49,7 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	}
 
 	revisionKeyConfig := revisiondb.KMSConfig{
-		WrapperKeyID: config.RevisionToken.KeyID,
+		WrapperKeyID: cfg.RevisionToken.KeyID,
 		KeyManager:   env.GetKeyManager(),
 	}
 	db := env.Database()
@@ -57,10 +59,11 @@ func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
 	}
 
 	return &Server{
-		config:     config,
+		config:     cfg,
 		env:        env,
 		db:         db,
 		revisionDB: revisionDB,
+		h:          render.NewRenderer(),
 	}, nil
 }
 

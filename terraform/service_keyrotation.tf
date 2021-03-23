@@ -178,7 +178,7 @@ resource "google_cloud_run_service_iam_member" "key-rotation-invoker" {
 resource "google_cloud_scheduler_job" "key-rotation-worker" {
   name             = "key-rotation-worker"
   region           = var.cloudscheduler_location
-  schedule         = "0 0 * * *"
+  schedule         = "* */4 * * *"
   time_zone        = "America/Los_Angeles"
   attempt_deadline = "600s"
 

@@ -21,19 +21,16 @@ import (
 	"go.opencensus.io/stats/view"
 )
 
-var (
-	jwksMetricsPrefix = metrics.MetricRoot + "jwks"
+const metricPrefix = metrics.MetricRoot + "jwks"
 
-	mJWKSSuccess = stats.Int64(jwksMetricsPrefix+"success",
-		"Number of successful completions of jwks handler", stats.UnitDimensionless)
-)
+var mSuccess = stats.Int64(metricPrefix+"/success", "successful execution", stats.UnitDimensionless)
 
 func init() {
 	observability.CollectViews([]*view.View{
 		{
-			Name:        metrics.MetricRoot + "jwks_success",
-			Description: "Number of successful completions of jwks handler",
-			Measure:     mJWKSSuccess,
+			Name:        metricPrefix + "/success",
+			Description: "Number of successes",
+			Measure:     mSuccess,
 			Aggregation: view.Count(),
 		},
 	}...)
