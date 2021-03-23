@@ -19,17 +19,20 @@ import (
 
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/pkg/database"
+	"github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
 var (
-	_ setup.DatabaseConfigProvider      = (*Config)(nil)
-	_ setup.SecretManagerConfigProvider = (*Config)(nil)
+	_ setup.DatabaseConfigProvider              = (*Config)(nil)
+	_ setup.ObservabilityExporterConfigProvider = (*Config)(nil)
+	_ setup.SecretManagerConfigProvider         = (*Config)(nil)
 )
 
 type Config struct {
-	Database      database.Config
-	SecretManager secrets.Config
+	Database              database.Config
+	ObservabilityExporter observability.Config
+	SecretManager         secrets.Config
 
 	Port string `env:"PORT, default=8080"`
 
@@ -48,6 +51,10 @@ type Config struct {
 
 func (c *Config) DatabaseConfig() *database.Config {
 	return &c.Database
+}
+
+func (c *Config) ObservabilityExporterConfig() *observability.Config {
+	return &c.ObservabilityExporter
 }
 
 func (c *Config) SecretManagerConfig() *secrets.Config {
