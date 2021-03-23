@@ -57,13 +57,19 @@ func (s *Server) handleBackup() http.Handler {
 			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
-		defer func() {
+		releaseLock := func() {
+			// Note that we explicitly don't release the lock because it allows us to
+			// enforce the minimum TTL. By setting the maximum TTL to the minimum TTL
+			// and not releasing the lock, it means the next request will fail to
+			// acquire the lock (because it is held). However, after the TTL elapses,
+			// the lock will have been expired and the run can successfully continue.
 			if err := unlock(); err != nil {
 				logger.Errorw("failed to unlock", "error", err)
 			}
-		}()
+		}
 
 		if err := s.executeBackup(req); err != nil {
+			defer releaseLock()
 			logger.Errorw("failed to execute backup", "error", err)
 			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
