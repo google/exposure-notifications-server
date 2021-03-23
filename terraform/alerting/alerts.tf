@@ -96,7 +96,7 @@ resource "google_monitoring_alert_policy" "ForwardProgressFailed" {
       query    = <<-EOT
       fetch generic_task
       | metric '${local.custom_prefix}/${each.value.metric}'
-      | align delta_gauge(${each.value.window})
+      | align delta()
       | group_by [], [val: aggregate(value.success)]
       | absent_for ${each.value.window}
       EOT
