@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/kelseyhightower/run"
 	"go.opencensus.io/stats"
 )
 
@@ -80,6 +81,11 @@ func (s *Server) buildBackupRequest(ctx context.Context) (*http.Request, error) 
 	}
 	u.Path = path.Join(u.Path, "export")
 
+	token, err := s.authorizationToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get authorization token: %w", err)
+	}
+
 	var b bytes.Buffer
 	if err := json.NewEncoder(&b).Encode(&backupRequest{
 		ExportContext: &exportContext{
@@ -99,8 +105,21 @@ func (s *Server) buildBackupRequest(ctx context.Context) (*http.Request, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	return req, nil
+}
+
+func (s *Server) authorizationToken(ctx context.Context) (string, error) {
+	if v := s.overrideAuthToken; v != "" {
+		return v, nil
+	}
+
+	token, err := run.Token([]string{"https://www.googleapis.com/auth/cloud-platform"})
+	if err != nil {
+		return "", fmt.Errorf("failed to get token: %w", err)
+	}
+	return token.AccessToken, nil
 }
 
 // executeBackup calls the backup API. This is a *blocking* operation that can

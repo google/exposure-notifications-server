@@ -40,11 +40,12 @@ func TestServer_HandleBackup(t *testing.T) {
 		cfg := &Config{
 			DatabaseInstanceURL: "https://example.com",
 		}
-		c, err := NewServer(cfg, env)
+		s, err := NewServer(cfg, env)
 		if err != nil {
 			t.Fatal(err)
 		}
-		handler := c.handleBackup()
+		s.overrideAuthToken = "token"
+		handler := s.handleBackup()
 
 		r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 		if err != nil {
@@ -67,11 +68,12 @@ func TestServer_HandleBackup(t *testing.T) {
 		cfg := &Config{
 			DatabaseInstanceURL: "\x7f",
 		}
-		c, err := NewServer(cfg, env)
+		s, err := NewServer(cfg, env)
 		if err != nil {
 			t.Fatal(err)
 		}
-		handler := c.handleBackup()
+		s.overrideAuthToken = "token"
+		handler := s.handleBackup()
 
 		r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 		if err != nil {
@@ -97,11 +99,12 @@ func TestServer_HandleBackup(t *testing.T) {
 		cfg := &Config{
 			DatabaseInstanceURL: "https://not-a-real.web.site.no",
 		}
-		c, err := NewServer(cfg, env)
+		s, err := NewServer(cfg, env)
 		if err != nil {
 			t.Fatal(err)
 		}
-		handler := c.handleBackup()
+		s.overrideAuthToken = "token"
+		handler := s.handleBackup()
 
 		r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 		if err != nil {
@@ -136,11 +139,12 @@ func TestServer_HandleBackup(t *testing.T) {
 			DatabaseName:        "name",
 		}
 
-		c, err := NewServer(cfg, env)
+		s, err := NewServer(cfg, env)
 		if err != nil {
 			t.Fatal(err)
 		}
-		handler := c.handleBackup()
+		s.overrideAuthToken = "token"
+		handler := s.handleBackup()
 
 		r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 		if err != nil {
@@ -172,11 +176,12 @@ func TestServer_HandleBackup(t *testing.T) {
 			DatabaseName:        "name",
 		}
 
-		c, err := NewServer(cfg, env)
+		s, err := NewServer(cfg, env)
 		if err != nil {
 			t.Fatal(err)
 		}
-		handler := c.handleBackup()
+		s.overrideAuthToken = "token"
+		handler := s.handleBackup()
 
 		r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 		if err != nil {

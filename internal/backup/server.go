@@ -32,6 +32,10 @@ type Server struct {
 	env    *serverenv.ServerEnv
 	db     *database.DB
 	h      *render.Renderer
+
+	// overrideAuthToken is for testing to bypass API calls to get authentication
+	// information.
+	overrideAuthToken string
 }
 
 func NewServer(config *Config, env *serverenv.ServerEnv) (*Server, error) {
