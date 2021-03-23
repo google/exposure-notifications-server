@@ -95,8 +95,6 @@ resource "google_cloud_run_service" "admin-console" {
           for_each = merge(
             local.common_cloudrun_env_vars,
 
-            { "TEMPLATE_DIR" : "/templates" },
-
             // This MUST come last to allow overrides!
             lookup(var.service_environment, "admin-console", {}),
           )

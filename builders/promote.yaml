@@ -43,6 +43,26 @@ steps:
   - '-'
 
 #
+# backup
+#
+- id: 'promote-backup'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:324.0.0-alpine'
+  args:
+  - 'bash'
+  - '-eEuo'
+  - 'pipefail'
+  - '-c'
+  - |-
+    gcloud run services update-traffic "backup" \
+      --quiet \
+      --project "${PROJECT_ID}" \
+      --platform "managed" \
+      --region "${_REGION}" \
+      --to-revisions "${_REVISION}=${_PERCENTAGE}"
+  waitFor:
+  - '-'
+
+#
 # cleanup-exposure
 #
 - id: 'promote-cleanup-exposure'
