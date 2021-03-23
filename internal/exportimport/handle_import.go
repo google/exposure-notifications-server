@@ -29,7 +29,7 @@ import (
 	"go.opencensus.io/stats"
 )
 
-const lockPrefix = "exportimport-lock-"
+const lockPrefix = "export-importer-worker-lock-"
 
 func (s *Server) handleImport() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
