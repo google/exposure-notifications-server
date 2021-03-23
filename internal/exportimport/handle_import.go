@@ -35,10 +35,10 @@ func (s *Server) handleImport() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		logger := logging.FromContext(ctx).Named("handleSchedule")
+		logger := logging.FromContext(ctx).Named("handleImport")
 
-		logger.Debugw("starting exportimport import")
-		defer logger.Debugw("finished exportimport import")
+		logger.Debugw("starting export-importer worker")
+		defer logger.Debugw("finished export-importer worker")
 
 		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(s.config.MaxRuntime))
 		defer cancel()

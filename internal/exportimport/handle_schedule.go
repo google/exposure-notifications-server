@@ -43,8 +43,8 @@ func (s *Server) handleSchedule() http.Handler {
 		logger := logging.FromContext(ctx).Named("handleSchedule").
 			With("lock", schedulerLockID)
 
-		logger.Debugw("starting exportimport scheduler")
-		defer logger.Debugw("finished exportimport scheduler")
+		logger.Debugw("starting export-importer scheduler")
+		defer logger.Debugw("finished export-importer scheduler")
 
 		unlock, err := s.db.Lock(ctx, schedulerLockID, s.config.MaxRuntime)
 		if err != nil {
