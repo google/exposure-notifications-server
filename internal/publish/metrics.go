@@ -29,7 +29,7 @@ var (
 
 	mLatencyMs = stats.Float64(publishMetricsPrefix+"requests", "publish requests", stats.UnitMilliseconds)
 
-	mNoPublicKeys = stats.Int64(publishMetricsPrefix+"no_pub_keys",
+	mNoPublicKey = stats.Int64(publishMetricsPrefix+"no_public_keys",
 		"uploads where there is no public key", stats.UnitDimensionless)
 
 	mExposuresCount = stats.Int64(publishMetricsPrefix+"exposures_count",
@@ -110,7 +110,7 @@ func init() {
 		{
 			Name:        metrics.MetricRoot + "no_public_key",
 			Description: "Publish request with no public key",
-			Measure:     mNoPublicKeys,
+			Measure:     mNoPublicKey,
 			Aggregation: view.Count(),
 			TagKeys:     missingPublicKeyTags,
 		},

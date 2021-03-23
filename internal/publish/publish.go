@@ -321,7 +321,8 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 			if errors.Is(err, verification.ErrNoPublicKeys) {
 				// This only happens if the health authority ID exists in the database.
 				logger.Warnw("received publish request for health authority with no public keys", "healthAuthorityID", data.HealthAuthorityID)
-				if err := stats.RecordWithTags(ctx, []tag.Mutator{tag.Upsert(healthAuthorityIDTag, data.HealthAuthorityID)}, mNoPublicKeys.M(1)); err != nil {
+				tags := []tag.Mutator{tag.Upsert(healthAuthorityIDTag, data.HealthAuthorityID)}
+				if err := stats.RecordWithTags(ctx, tags, mNoPublicKey.M(1)); err != nil {
 					logger.Errorw("failed to record stats for missing public key", "error", err, "healthAuthorityID", data.HealthAuthorityID)
 				}
 			}
