@@ -157,6 +157,9 @@ func makeTEK(exp *publishmodel.Exposure) *export.TemporaryExposureKey {
 		pbek.RollingPeriod = proto.Int32(exp.IntervalCount)
 	}
 	if exp.VaccineStatus {
+		// This is an optional field in the proto, absence of the value represents
+		// the default value (false). This only sends a value down if true, which
+		// is the rarer value.
 		pbek.Vaccinated = proto.Bool(exp.VaccineStatus)
 	}
 	return &pbek
