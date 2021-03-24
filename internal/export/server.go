@@ -21,9 +21,17 @@ import (
 	"github.com/google/exposure-notifications-server/internal/middleware"
 	"github.com/google/exposure-notifications-server/internal/serverenv"
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/google/exposure-notifications-server/pkg/render"
 	"github.com/google/exposure-notifications-server/pkg/server"
 	"github.com/gorilla/mux"
 )
+
+// Server hosts end points to manage export batches.
+type Server struct {
+	config *Config
+	env    *serverenv.ServerEnv
+	h      *render.Renderer
+}
 
 // NewServer makes a Server.
 func NewServer(cfg *Config, env *serverenv.ServerEnv) (*Server, error) {
@@ -43,13 +51,8 @@ func NewServer(cfg *Config, env *serverenv.ServerEnv) (*Server, error) {
 	return &Server{
 		config: cfg,
 		env:    env,
+		h:      render.NewRenderer(),
 	}, nil
-}
-
-// Server hosts end points to manage export batches.
-type Server struct {
-	config *Config
-	env    *serverenv.ServerEnv
 }
 
 // Routes defines and returns the routes for this server.

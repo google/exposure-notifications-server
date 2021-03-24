@@ -25,6 +25,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	publishmodel "github.com/google/exposure-notifications-server/internal/publish/model"
 	"github.com/google/exposure-notifications-server/pkg/database"
+	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/stats"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -41,6 +42,8 @@ func (s *Server) handleCreateBatches() http.Handler {
 		ctx := r.Context()
 
 		logger := logging.FromContext(ctx).Named("handleCreateBatches")
+		logger.Debugw("starting create-batches worker")
+		defer logger.Debugw("finished create-batches worker")
 
 		ctx, cancel := context.WithTimeout(ctx, s.config.CreateTimeout)
 		defer cancel()
@@ -49,14 +52,12 @@ func (s *Server) handleCreateBatches() http.Handler {
 		unlockFn, err := db.Lock(ctx, createBatchesLock, s.config.CreateTimeout)
 		if err != nil {
 			if errors.Is(err, database.ErrAlreadyLocked) {
-				stats.Record(ctx, mBatcherLockContention.M(1))
-				logger.Infow("already locked")
-				w.WriteHeader(http.StatusOK) // don't report conflict/failure to scheduler (will retry later)
+				logger.Debugw("skipping (already locked)")
+				s.h.RenderJSON(w, http.StatusOK, fmt.Errorf("too early"))
 				return
 			}
-
-			logger.Errorw("failed to lock", "error", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			logger.Errorw("failed to obtain lock", "error", err)
+			s.h.RenderJSON(w, http.StatusInternalServerError, err)
 			return
 		}
 		defer func() {
@@ -68,46 +69,46 @@ func (s *Server) handleCreateBatches() http.Handler {
 		totalConfigs := 0
 		totalBatches := 0
 		totalConfigsWithBatches := 0
-		defer logger.Debugw("finished",
+		defer logger.Debugw("processed batches",
 			"configs", totalConfigs,
 			"batches", totalBatches,
 			"total", totalConfigsWithBatches)
+
+		var merr *multierror.Error
 
 		effectiveTime := time.Now().Add(-1 * s.config.MinWindowAge)
 		if err := exportdatabase.New(db).IterateExportConfigs(ctx, effectiveTime, func(ec *model.ExportConfig) error {
 			totalConfigs++
 			batchesCreated, err := s.maybeCreateBatches(ctx, ec, effectiveTime)
 			if err != nil {
-				logger.Errorw("failed to create batches", "config", ec.ConfigID, "error", err)
+				// Immediately stop if the context is expired.
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+
+				// Don't return an error because we want to keep processing the values.
+				merr = multierror.Append(merr, fmt.Errorf("failed to create batches for config %d: %w", ec.ConfigID, err))
 				return nil
 			}
-
 			totalBatches += batchesCreated
 			if batchesCreated > 0 {
 				totalConfigsWithBatches++
 			}
 			return nil
 		}); err != nil {
-			// some specific error handling below, but just need one metric.
-			stats.Record(ctx, mBatcherFailure.M(1))
+			merr = multierror.Append(merr, fmt.Errorf("failed to iterate export configs: %w", err))
+		}
 
-			switch {
-			case errors.Is(err, context.DeadlineExceeded):
-				logger.Infow("batch creation timed out")
-				http.Error(w, http.StatusText(http.StatusGatewayTimeout), http.StatusGatewayTimeout)
-				return
-			case errors.Is(err, context.Canceled):
-				logger.Infow("batch creation canceled")
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-				return
-			default:
-				logger.Errorw("failed to create batches", "error", err)
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		if merr != nil {
+			if errs := merr.WrappedErrors(); len(errs) > 0 {
+				logger.Errorw("failed to run batcher", "errors", errs)
+				s.h.RenderJSON(w, http.StatusInternalServerError, errs)
 				return
 			}
 		}
 
-		w.WriteHeader(http.StatusOK)
+		stats.Record(ctx, mBatcherSuccess.M(1))
+		s.h.RenderJSON(w, http.StatusOK, nil)
 	})
 }
 

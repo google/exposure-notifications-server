@@ -8,9 +8,13 @@ This alert fires when background jobs have not made forward progress in an accep
 
 - `cleanup-exposure` - Purges old exposures.
 
+- `export-batcher` - Creates batch files for export.
+
 - `export-importer-import` - Imports export files from another server.
 
 - `export-importer-schedule` - Downloads _index_ files from another server to be later imported by the `export-importer-import`
+
+- `export-worker` - Generates export files.
 
 - `jwks` - Fetches and purges public keys from a public key discovery service.
 
