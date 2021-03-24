@@ -28,6 +28,12 @@ locals {
       // cleanup-exposure runs every 4h, alert after 2 failures
       "cleanup-exposure" = { metric = "cleanup/exposure/success", window = "485m" },
 
+      // export-importer-schedule runs every 15m, alert after 2 failures
+      "export-importer-schedule" = { metric = "export-importer/schedule/success", window = "35m" },
+
+      // export-importer-import runs every 5m, alert after 3 failures
+      "export-importer-import" = { metric = "export-importer/import/success", window = "20m" },
+
       // jwks runs every 2m, alert after ~15 failures
       "jwks" = { metric = "jwks/success", window = "30m" },
 
