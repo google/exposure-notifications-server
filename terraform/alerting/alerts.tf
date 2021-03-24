@@ -28,6 +28,13 @@ locals {
       // cleanup-exposure runs every 4h, alert after 2 failures
       "cleanup-exposure" = { metric = "cleanup/exposure/success", window = "485m" },
 
+      // export-batcher runs every 5m, alert after 3 failures
+      "export-batcher" = { metric = "export/batcher/success", window = "20m" },
+
+      // export-worker runs every 1m but can take up to 5m to finish, alert
+      // after ~2 failures
+      "export-worker" = { metric = "export/worker/success", window = "10m" },
+
       // export-importer-schedule runs every 15m, alert after 2 failures
       "export-importer-schedule" = { metric = "export-importer/schedule/success", window = "35m" },
 

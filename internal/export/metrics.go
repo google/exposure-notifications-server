@@ -23,62 +23,58 @@ import (
 	"go.opencensus.io/tag"
 )
 
+const metricPrefix = metrics.MetricRoot + "export"
+
 var (
-	exportMetricsPrefix = metrics.MetricRoot + "export"
-
-	mBatcherLockContention = stats.Int64(exportMetricsPrefix+"export_batcher_lock_contention",
-		"Instances of export batcher lock contention", stats.UnitDimensionless)
-	mBatcherFailure = stats.Int64(exportMetricsPrefix+"export_batcher_failure",
-		"Instances of export batcher failures", stats.UnitDimensionless)
-	mBatcherNoWork = stats.Int64(exportMetricsPrefix+"export_batcher_no_work",
-		"Instances of export batcher having no work", stats.UnitDimensionless)
-	mBatcherCreated = stats.Int64(exportMetricsPrefix+"export_batches_created",
-		"Number of export batchers created", stats.UnitDimensionless)
-	mWorkerBadKeyLength = stats.Int64(exportMetricsPrefix+"export_worker_bad_key_length",
-		"Number of dropped keys caused by bad key length", stats.UnitDimensionless)
-
-	mExportBatchCompletion = stats.Int64(exportMetricsPrefix+"export_batch_completion",
-		"Number of batches complete by output region", stats.UnitDimensionless)
-
-	ExportConfigIDTagKey  = tag.MustNewKey("export_config_id")
-	ExportRegionTagKey    = tag.MustNewKey("export_region")
+	ExportConfigIDTagKey  = tag.MustNewKey("config_id")
+	ExportRegionTagKey    = tag.MustNewKey("region")
 	ExportTravelersTagKey = tag.MustNewKey("includes_travelers")
+)
+
+var (
+	mBatcherSuccess = stats.Int64(metricPrefix+"/batcher/success", "successful batcher execution", stats.UnitDimensionless)
+	mWorkerSuccess  = stats.Int64(metricPrefix+"/worker/success", "successful worker execution", stats.UnitDimensionless)
+
+	mBatcherNoWork         = stats.Int64(metricPrefix+"/batcher_no_work", "Instances of export batcher having no work", stats.UnitDimensionless)
+	mBatcherCreated        = stats.Int64(metricPrefix+"/batches_created", "Number of export batchers created", stats.UnitDimensionless)
+	mWorkerBadKeyLength    = stats.Int64(metricPrefix+"/worker_bad_key_length", "Number of dropped keys caused by bad key length", stats.UnitDimensionless)
+	mExportBatchCompletion = stats.Int64(metricPrefix+"/batch_completion", "Number of batches complete by output region", stats.UnitDimensionless)
 )
 
 func init() {
 	observability.CollectViews([]*view.View{
 		{
-			Name:        metrics.MetricRoot + "export_batcher_lock_contention_count",
-			Description: "Total count of lock contention instances",
-			Measure:     mBatcherLockContention,
-			Aggregation: view.Sum(),
+			Name:        metricPrefix + "/batcher/success",
+			Description: "Number of batcher successes",
+			Measure:     mBatcherSuccess,
+			Aggregation: view.Count(),
 		},
 		{
-			Name:        metrics.MetricRoot + "export_batcher_failure_count",
-			Description: "Total count of export batcher failures",
-			Measure:     mBatcherFailure,
-			Aggregation: view.Sum(),
+			Name:        metricPrefix + "/worker/success",
+			Description: "Number of worker successes",
+			Measure:     mWorkerSuccess,
+			Aggregation: view.Count(),
 		},
 		{
-			Name:        metrics.MetricRoot + "export_batcher_no_work_count",
+			Name:        metrics.MetricRoot + "/batcher_no_work_count",
 			Description: "Total count for instances of export batcher having no work",
 			Measure:     mBatcherNoWork,
 			Aggregation: view.Sum(),
 		},
 		{
-			Name:        metrics.MetricRoot + "export_batches_created_count",
+			Name:        metrics.MetricRoot + "/batches_created_count",
 			Description: "Total count for number of export batches created",
 			Measure:     mBatcherCreated,
 			Aggregation: view.Sum(),
 		},
 		{
-			Name:        metrics.MetricRoot + "export_worker_bad_key_length_latest",
+			Name:        metrics.MetricRoot + "/worker_bad_key_length_latest",
 			Description: "Latest number of dropped keys caused by bad key length",
 			Measure:     mWorkerBadKeyLength,
 			Aggregation: view.LastValue(),
 		},
 		{
-			Name:        metrics.MetricRoot + "export_batch_completion",
+			Name:        metrics.MetricRoot + "/batch_completion",
 			Description: "Number of batches complete by output region",
 			Measure:     mExportBatchCompletion,
 			Aggregation: view.Sum(),

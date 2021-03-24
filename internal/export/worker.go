@@ -29,6 +29,7 @@ import (
 	publishdatabase "github.com/google/exposure-notifications-server/internal/publish/database"
 	"github.com/google/exposure-notifications-server/internal/storage"
 	coredb "github.com/google/exposure-notifications-server/pkg/database"
+	"github.com/hashicorp/go-multierror"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 
@@ -57,91 +58,112 @@ func (s *Server) handleDoWork() http.Handler {
 		ctx := r.Context()
 
 		logger := logging.FromContext(ctx).Named("handleDoWork")
+		logger.Debugw("starting do-work worker")
+		defer logger.Debugw("finished do-work worker")
 
-		ctx, cancel := context.WithTimeout(r.Context(), s.config.WorkerTimeout)
+		ctx, cancel := context.WithTimeout(ctx, s.config.WorkerTimeout)
 		defer cancel()
 
-		indexWrittenForConfig := make(map[int64]struct{})
+		var merr *multierror.Error
+
+		indexesWritten := make(map[int64]struct{})
+
 		for {
 			if ctx.Err() != nil {
-				msg := "Timed out processing batches. Will continue on next invocation."
-				logger.Info(msg)
-				fmt.Fprintln(w, msg)
-				return
+				logger.Warnw("deadline passed, still work to do")
+				merr = multierror.Append(merr, fmt.Errorf("deadline exceeded"))
+				break
 			}
 
 			// Check for a batch and obtain a lease for it.
 			batch, err := exportdatabase.New(db).LeaseBatch(ctx, s.config.WorkerTimeout, time.Now())
 			if err != nil {
 				logger.Errorw("failed to lease batch", "error", err)
-				continue
+				merr = multierror.Append(merr, fmt.Errorf("failed to lease batch: %w", err))
+				break
 			}
 			if batch == nil {
-				msg := "No more work to do"
-				logger.Info(msg)
-				fmt.Fprintln(w, msg)
+				logger.Debugw("no more work to do")
+				break
+			}
+
+			if err := s.processBatch(ctx, batch, indexesWritten); err != nil {
+				merr = multierror.Append(merr, fmt.Errorf("failed to process batch %d/%d: %w", batch.BatchID, batch.ConfigID, err))
+				continue
+			}
+
+			logger.Debugw("completed batch", "batch_id", batch.BatchID, "config_id", batch.ConfigID)
+		}
+
+		if merr != nil {
+			if errs := merr.WrappedErrors(); len(errs) > 0 {
+				logger.Errorw("failed to run worker", "errors", errs)
+				s.h.RenderJSON(w, http.StatusInternalServerError, errs)
 				return
 			}
-
-			// Obtain the necessary locks for this export batch. Ensure that only
-			// one export worker is operating over a region at a time.
-			//
-			// In the event that more than one exportconfig covers the same region (and travelers), it
-			// is important that only one export worker be allowed to generate keys for that region.
-			// An exclusive lock is taken before processing the batch over the input regions.
-			//
-			// In the export lease selection, we attempt to order export batch filling such that
-			// earlier batches are filled before later batches. This helps to reduce the possibility
-			// of non-overlapping generated data.
-			locks := make([]string, 0, len(batch.EffectiveInputRegions())+1)
-			locks = append(locks, batch.EffectiveInputRegions()...)
-			if batch.IncludeTravelers {
-				locks = append(locks, travelerLockID)
-			}
-			unlockFn, err := db.MultiLock(ctx, locks, s.config.WorkerTimeout)
-			if err != nil {
-				if !errors.Is(err, coredb.ErrAlreadyLocked) {
-					logger.Errorw("failed to acquire region lock",
-						"config", batch.ConfigID,
-						"batch", batch.BatchID,
-						"regions", locks,
-						"error", err)
-				}
-				continue
-			}
-			unlock := func() {
-				if err := unlockFn(); err != nil {
-					logger.Errorw("failed to release region lock",
-						"config", batch.ConfigID,
-						"batch", batch.BatchID,
-						"regions", locks,
-						"error", err)
-				}
-			}
-
-			// We re-write the index file for empty batches for self-healing so that the
-			// index file reflects the ExportFile table in database. However, if a
-			// single worker processes a number of empty batches quickly, we want to
-			// avoid writing the same file repeatedly and hitting a rate limit. This
-			// ensures that we write the index file for an empty batch at most once
-			// per processed config each round.
-			emitIndexForEmptyBatch := false
-			if _, ok := indexWrittenForConfig[batch.ConfigID]; !ok {
-				emitIndexForEmptyBatch = true
-				indexWrittenForConfig[batch.ConfigID] = struct{}{}
-			}
-
-			// Ensure that the locks are released on either success or failure path.
-			if err = s.exportBatch(ctx, batch, emitIndexForEmptyBatch); err != nil {
-				logger.Errorw("failed to create files for batch", "error", err)
-				unlock()
-				continue
-			}
-			unlock()
-
-			fmt.Fprintf(w, "Batch %d marked completed. \n", batch.BatchID)
 		}
+
+		stats.Record(ctx, mWorkerSuccess.M(1))
+		s.h.RenderJSON(w, http.StatusOK, nil)
 	})
+}
+
+func (s *Server) processBatch(ctx context.Context, batch *model.ExportBatch, indexesWritten map[int64]struct{}) error {
+	db := s.env.Database()
+
+	// Obtain the necessary locks for this export batch. Ensure that only
+	// one export worker is operating over a region at a time.
+	//
+	// In the event that more than one exportconfig covers the same region (and travelers), it
+	// is important that only one export worker be allowed to generate keys for that region.
+	// An exclusive lock is taken before processing the batch over the input regions.
+	//
+	// In the export lease selection, we attempt to order export batch filling such that
+	// earlier batches are filled before later batches. This helps to reduce the possibility
+	// of non-overlapping generated data.
+	locks := make([]string, 0, len(batch.EffectiveInputRegions())+1)
+	locks = append(locks, batch.EffectiveInputRegions()...)
+	if batch.IncludeTravelers {
+		locks = append(locks, travelerLockID)
+	}
+
+	logger := logging.FromContext(ctx).Named("processBatch").
+		With("batch_id", batch.BatchID).
+		With("config_id", batch.ConfigID).
+		With("regions", locks)
+
+	unlock, err := db.MultiLock(ctx, locks, s.config.WorkerTimeout)
+	if err != nil {
+		if errors.Is(err, coredb.ErrAlreadyLocked) {
+			logger.Warnw("skipping (already locked)")
+			return nil
+		}
+		return fmt.Errorf("failed to obtain locks on %q: %w", locks, err)
+	}
+	defer func() {
+		if err := unlock(); err != nil {
+			logger.Errorw("failed to release lock", "error", err)
+		}
+	}()
+
+	// We re-write the index file for empty batches for self-healing so that the
+	// index file reflects the ExportFile table in database. However, if a
+	// single worker processes a number of empty batches quickly, we want to
+	// avoid writing the same file repeatedly and hitting a rate limit. This
+	// ensures that we write the index file for an empty batch at most once
+	// per processed config each round.
+	emitIndexForEmptyBatch := false
+	if _, ok := indexesWritten[batch.ConfigID]; !ok {
+		emitIndexForEmptyBatch = true
+		indexesWritten[batch.ConfigID] = struct{}{}
+	}
+
+	// Ensure that the locks are released on either success or failure path.
+	if err = s.exportBatch(ctx, batch, emitIndexForEmptyBatch); err != nil {
+		return fmt.Errorf("failed to create files for batch: %w", err)
+	}
+
+	return nil
 }
 
 type group struct {
