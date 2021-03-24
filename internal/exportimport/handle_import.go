@@ -52,12 +52,11 @@ func (s *Server) handleImport() http.Handler {
 
 		var merr *multierror.Error
 
-	OUTER:
 		for _, cfg := range configs {
 			// Check how we're doing on max runtime.
 			if deadlinePassed(ctx) {
 				logger.Warnw("deadline passed, but there is still work to do")
-				break OUTER
+				break
 			}
 
 			if err := s.runImport(ctx, cfg); err != nil {
@@ -121,12 +120,11 @@ func (s *Server) runImport(ctx context.Context, cfg *model.ExportImport) error {
 	var merr *multierror.Error
 
 	var completedFiles, failedFiles int64
-OUTER:
 	for _, file := range openFiles {
 		// Check how we're doing on max runtime.
 		if deadlinePassed(ctx) {
 			logger.Warnw("deadline passed, but there is still work to do")
-			break OUTER
+			break
 		}
 
 		if err := s.exportImportDB.LeaseImportFile(ctx, s.config.ImportLockTime, file); err != nil {

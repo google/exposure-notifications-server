@@ -68,12 +68,11 @@ func (s *Server) handleDoWork() http.Handler {
 
 		indexesWritten := make(map[int64]struct{})
 
-	OUTER:
 		for {
 			if ctx.Err() != nil {
 				logger.Warnw("deadline passed, still work to do")
 				merr = multierror.Append(merr, fmt.Errorf("deadline exceeded"))
-				break OUTER
+				break
 			}
 
 			// Check for a batch and obtain a lease for it.
@@ -81,11 +80,11 @@ func (s *Server) handleDoWork() http.Handler {
 			if err != nil {
 				logger.Errorw("failed to lease batch", "error", err)
 				merr = multierror.Append(merr, fmt.Errorf("failed to lease batch: %w", err))
-				break OUTER
+				break
 			}
 			if batch == nil {
 				logger.Debugw("no more work to do")
-				break OUTER
+				break
 			}
 
 			if err := s.processBatch(ctx, batch, indexesWritten); err != nil {
