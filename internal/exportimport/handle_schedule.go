@@ -34,7 +34,7 @@ import (
 	"go.opencensus.io/stats"
 )
 
-const schedulerLockID = "export-importer-scheduler-lock"
+const schedulerLockID = "import-scheduler-lock"
 
 func (s *Server) handleSchedule() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
