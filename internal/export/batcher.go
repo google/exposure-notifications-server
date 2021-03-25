@@ -42,8 +42,8 @@ func (s *Server) handleCreateBatches() http.Handler {
 		ctx := r.Context()
 
 		logger := logging.FromContext(ctx).Named("handleCreateBatches")
-		logger.Debugw("starting create-batches worker")
-		defer logger.Debugw("finished create-batches worker")
+		logger.Debugw("starting")
+		defer logger.Debugw("finishing")
 
 		ctx, cancel := context.WithTimeout(ctx, s.config.CreateTimeout)
 		defer cancel()
@@ -99,12 +99,10 @@ func (s *Server) handleCreateBatches() http.Handler {
 			merr = multierror.Append(merr, fmt.Errorf("failed to iterate export configs: %w", err))
 		}
 
-		if merr != nil {
-			if errs := merr.WrappedErrors(); len(errs) > 0 {
-				logger.Errorw("failed to run batcher", "errors", errs)
-				s.h.RenderJSON(w, http.StatusInternalServerError, errs)
-				return
-			}
+		if errs := merr.WrappedErrors(); len(errs) > 0 {
+			logger.Errorw("failed to run batcher", "errors", errs)
+			s.h.RenderJSON(w, http.StatusInternalServerError, errs)
+			return
 		}
 
 		stats.Record(ctx, mBatcherSuccess.M(1))

@@ -42,9 +42,8 @@ func (s *Server) handleSchedule() http.Handler {
 
 		logger := logging.FromContext(ctx).Named("handleSchedule").
 			With("lock", schedulerLockID)
-
-		logger.Debugw("starting export-importer scheduler")
-		defer logger.Debugw("finished export-importer scheduler")
+		logger.Debugw("starting")
+		defer logger.Debugw("finishing")
 
 		unlock, err := s.db.Lock(ctx, schedulerLockID, s.config.MaxRuntime)
 		if err != nil {
@@ -82,12 +81,10 @@ func (s *Server) handleSchedule() http.Handler {
 			}
 		}
 
-		if merr != nil {
-			if errs := merr.WrappedErrors(); len(errs) > 0 {
-				logger.Errorw("failed to sync", "errors", errs)
-				s.h.RenderJSON(w, http.StatusInternalServerError, errs)
-				return
-			}
+		if errs := merr.WrappedErrors(); len(errs) > 0 {
+			logger.Errorw("failed to sync", "errors", errs)
+			s.h.RenderJSON(w, http.StatusInternalServerError, errs)
+			return
 		}
 
 		stats.Record(ctx, mScheduleSuccess.M(1))

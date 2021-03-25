@@ -58,8 +58,8 @@ func (s *Server) handleDoWork() http.Handler {
 		ctx := r.Context()
 
 		logger := logging.FromContext(ctx).Named("handleDoWork")
-		logger.Debugw("starting do-work worker")
-		defer logger.Debugw("finished do-work worker")
+		logger.Debugw("starting")
+		defer logger.Debugw("finishing")
 
 		ctx, cancel := context.WithTimeout(ctx, s.config.WorkerTimeout)
 		defer cancel()
@@ -95,12 +95,10 @@ func (s *Server) handleDoWork() http.Handler {
 			logger.Debugw("completed batch", "batch_id", batch.BatchID, "config_id", batch.ConfigID)
 		}
 
-		if merr != nil {
-			if errs := merr.WrappedErrors(); len(errs) > 0 {
-				logger.Errorw("failed to run worker", "errors", errs)
-				s.h.RenderJSON(w, http.StatusInternalServerError, errs)
-				return
-			}
+		if errs := merr.WrappedErrors(); len(errs) > 0 {
+			logger.Errorw("failed to run worker", "errors", errs)
+			s.h.RenderJSON(w, http.StatusInternalServerError, errs)
+			return
 		}
 
 		stats.Record(ctx, mWorkerSuccess.M(1))

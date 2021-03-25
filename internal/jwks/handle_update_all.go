@@ -35,6 +35,8 @@ func (s *Server) handleUpdateAll() http.Handler {
 
 		logger := logging.FromContext(ctx).Named("handleUpdateAll").
 			With("lock", lockID)
+		logger.Debugw("starting")
+		defer logger.Debugw("finishing")
 
 		unlock, err := s.manager.db.Lock(ctx, lockID, time.Minute)
 		if err != nil {
