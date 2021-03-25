@@ -106,6 +106,7 @@ resource "google_cloud_run_service" "key-rotation" {
             },
 
             // This MUST come last to allow overrides!
+            lookup(var.service_environment, "_all", {}),
             lookup(var.service_environment, "key_rotation", {}),
           )
 
