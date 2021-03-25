@@ -134,7 +134,7 @@ func sameReportType(a, b *exportpb.TemporaryExposureKey) bool {
 }
 
 func sameTransmissionRisk(a, b *exportpb.TemporaryExposureKey) bool {
-	//nolint
+	//nolint:staticcheck // SA1019: may be set on v1 files.
 	return a.GetTransmissionRiskLevel() == b.GetTransmissionRiskLevel()
 }
 

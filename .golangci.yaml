@@ -57,7 +57,6 @@ linters:
   - 'makezero'
   - 'misspell'
   - 'noctx'
-  - 'nolintlint'
   - 'paralleltest'
   - 'prealloc'
   - 'predeclared'
