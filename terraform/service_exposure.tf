@@ -107,6 +107,7 @@ resource "google_cloud_run_service" "exposure" {
             },
 
             // This MUST come last to allow overrides!
+            lookup(var.service_environment, "_all", {}),
             lookup(var.service_environment, "exposure", {}),
           )
 

@@ -96,6 +96,7 @@ resource "google_cloud_run_service" "debugger" {
             local.common_cloudrun_env_vars,
 
             // This MUST come last to allow overrides!
+            lookup(var.service_environment, "_all", {}),
             lookup(var.service_environment, "debugger", {}),
           )
 

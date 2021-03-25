@@ -239,7 +239,7 @@ variable "service_environment" {
   type    = map(map(string))
   default = {}
 
-  description = "Per-service environment overrides."
+  description = "Per-service environment overrides. The special key \"_all\" will apply to all services. This is useful for common configuration like log-levels. A service-specific configuration overrides a value in \"_all\"."
 }
 
 variable "admin_console_hosts" {
