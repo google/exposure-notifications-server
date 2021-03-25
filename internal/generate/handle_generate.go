@@ -36,7 +36,10 @@ import (
 func (s *Server) handleGenerate() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+
 		logger := logging.FromContext(ctx).Named("handleGenerate")
+		logger.Debugw("starting")
+		defer logger.Debugw("finishing")
 
 		regionStr := s.config.DefaultRegion
 		if v := r.URL.Query().Get("region"); v != "" {

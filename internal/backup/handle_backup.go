@@ -38,6 +38,8 @@ func (s *Server) handleBackup() http.Handler {
 		ctx := r.Context()
 
 		logger := logging.FromContext(ctx).Named("backup.HandleBackup")
+		logger.Debugw("starting")
+		defer logger.Debugw("finishing")
 
 		req, err := s.buildBackupRequest(ctx)
 		if err != nil {

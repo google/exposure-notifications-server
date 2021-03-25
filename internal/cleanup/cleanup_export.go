@@ -78,7 +78,10 @@ func (s *ExportServer) Routes(ctx context.Context) *mux.Router {
 func (s *ExportServer) handleCleanup() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+
 		logger := logging.FromContext(ctx).Named("cleanup.export")
+		logger.Debugw("starting")
+		defer logger.Debugw("finishing")
 
 		cutoff, err := cutoffDate(s.config.TTL, s.config.DebugOverrideCleanupMinDuration)
 		if err != nil {
@@ -103,9 +106,9 @@ func (s *ExportServer) handleCleanup() http.Handler {
 			}
 		}()
 
-		if merr != nil {
-			logger.Errorw("failed to cleanup exports", "errors", merr.WrappedErrors())
-			s.h.RenderJSON(w, http.StatusInternalServerError, merr)
+		if errs := merr.WrappedErrors(); len(errs) > 0 {
+			logger.Errorw("failed to cleanup exports", "errors", errs)
+			s.h.RenderJSON(w, http.StatusInternalServerError, errs)
 			return
 		}
 

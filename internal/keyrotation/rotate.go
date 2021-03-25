@@ -35,8 +35,11 @@ const lockID = "key-rotation-lock"
 func (s *Server) handleRotateKeys() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+
 		logger := logging.FromContext(ctx).Named("handleRotate").
 			With("lock", lockID)
+		logger.Debugw("starting")
+		defer logger.Debugw("finishing")
 
 		unlock, err := s.db.Lock(ctx, lockID, time.Minute)
 		if err != nil {

@@ -36,9 +36,8 @@ func (s *Server) handleImport() http.Handler {
 		ctx := r.Context()
 
 		logger := logging.FromContext(ctx).Named("handleImport")
-
-		logger.Debugw("starting export-importer worker")
-		defer logger.Debugw("finished export-importer worker")
+		logger.Debugw("starting")
+		defer logger.Debugw("finishing")
 
 		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(s.config.MaxRuntime))
 		defer cancel()
@@ -65,12 +64,10 @@ func (s *Server) handleImport() http.Handler {
 			}
 		}
 
-		if merr != nil {
-			if errs := merr.WrappedErrors(); len(errs) > 0 {
-				logger.Errorw("failed to sync", "errors", errs)
-				s.h.RenderJSON(w, http.StatusInternalServerError, errs)
-				return
-			}
+		if errs := merr.WrappedErrors(); len(errs) > 0 {
+			logger.Errorw("failed to sync", "errors", errs)
+			s.h.RenderJSON(w, http.StatusInternalServerError, errs)
+			return
 		}
 
 		stats.Record(ctx, mImportSuccess.M(1))

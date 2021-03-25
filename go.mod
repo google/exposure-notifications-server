@@ -18,7 +18,6 @@ require (
 	github.com/Azure/go-autorest/autorest/validation v0.3.1 // indirect
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15 // indirect
 	github.com/aws/aws-sdk-go v1.37.30
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
@@ -43,7 +42,6 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-retryablehttp v0.6.8 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault // indirect
-	github.com/hashicorp/hcl/v2 v2.9.1
 	github.com/hashicorp/vault/api v1.0.5-0.20201001211907-38d91b749c77
 	github.com/hashicorp/vault/sdk v0.1.14-0.20210127182440-8477cfe632c0 // indirect
 	github.com/jackc/pgproto3/v2 v2.0.7 // indirect
@@ -54,7 +52,6 @@ require (
 	github.com/lstoll/awskms v0.0.0-20210310122415-d1696e9c112b
 	github.com/mattn/go-colorable v0.1.7 // indirect
 	github.com/mikehelmick/go-chaff v0.5.0
-	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/opencontainers/runc v1.0.0-rc93 // indirect
 	github.com/ory/dockertest v3.3.5+incompatible

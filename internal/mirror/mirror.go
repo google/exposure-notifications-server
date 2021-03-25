@@ -50,7 +50,10 @@ type Status struct {
 func (s *Server) handleMirror() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+
 		logger := logging.FromContext(ctx).Named("handleMirror")
+		logger.Debugw("starting")
+		defer logger.Debugw("finishing")
 
 		ctx, cancel := context.WithTimeout(ctx, s.config.MaxRuntime)
 		defer cancel()

@@ -72,7 +72,10 @@ func (s *ExposureServer) Routes(ctx context.Context) *mux.Router {
 func (s *ExposureServer) handleCleanup() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+
 		logger := logging.FromContext(ctx).Named("cleanup.exposure")
+		logger.Debugw("starting")
+		defer logger.Debugw("finishing")
 
 		cutoff, err := cutoffDate(s.config.TTL, s.config.DebugOverrideCleanupMinDuration)
 		if err != nil {
@@ -109,9 +112,9 @@ func (s *ExposureServer) handleCleanup() http.Handler {
 			}
 		}()
 
-		if merr != nil {
-			logger.Errorw("failed to cleanup exposures", "errors", merr.WrappedErrors())
-			s.h.RenderJSON(w, http.StatusInternalServerError, merr)
+		if errs := merr.WrappedErrors(); len(errs) > 0 {
+			logger.Errorw("failed to cleanup exposures", "errors", errs)
+			s.h.RenderJSON(w, http.StatusInternalServerError, errs)
 			return
 		}
 
