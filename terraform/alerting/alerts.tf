@@ -17,111 +17,93 @@ locals {
   playbook_prefix = "https://github.com/google/exposure-notifications-server/blob/main/docs/playbooks/alerts"
   custom_prefix   = "custom.googleapis.com/opencensus/en-server"
 
+  second = 1
+  minute = 60 * local.second
+  hour   = 60 * local.minute
+
   forward_progress_indicators = merge(
     {
-      // backup runs every 4h, alert after 2 failures
-      "backup" = { metric = "backup/success", window = "485m" },
+      # backup runs every 4h, alert after 2 failures
+      "backup" = { metric = "backup/success", window = 8 * local.hour + 10 * local.minute },
 
-      // cleanup-export runs every 4h, alert after 2 failures
-      "cleanup-export" = { metric = "cleanup/export/success", window = "485m" },
+      # cleanup-export runs every 4h, alert after 2 failures
+      "cleanup-export" = { metric = "cleanup/export/success", window = 8 * local.hour + 10 * local.minute },
 
-      // cleanup-exposure runs every 4h, alert after 2 failures
-      "cleanup-exposure" = { metric = "cleanup/exposure/success", window = "485m" },
+      # cleanup-exposure runs every 4h, alert after 2 failures
+      "cleanup-exposure" = { metric = "cleanup/exposure/success", window = 8 * local.hour + 10 * local.minute },
 
-      // export-batcher runs every 5m, alert after 3 failures
-      "export-batcher" = { metric = "export/batcher/success", window = "20m" },
+      # export-batcher runs every 5m, alert after 3 failures
+      "export-batcher" = { metric = "export/batcher/success", window = 15 * local.minute + 3 * local.minute },
 
-      // export-worker runs every 1m but can take up to 5m to finish, alert
-      // after ~2 failures
-      "export-worker" = { metric = "export/worker/success", window = "10m" },
+      # export-worker runs every 1m but can take up to 5m to finish, alert
+      # after ~2 failures
+      "export-worker" = { metric = "export/worker/success", window = 10 * local.minute + 2 * local.minute },
 
-      // export-importer-schedule runs every 15m, alert after 2 failures
-      "export-importer-schedule" = { metric = "export-importer/schedule/success", window = "35m" },
+      # export-importer-schedule runs every 15m, alert after 2 failures
+      "export-importer-schedule" = { metric = "export-importer/schedule/success", window = 30 * local.minute + 5 * local.minute },
 
-      // export-importer-import runs every 5m, alert after 3 failures
-      "export-importer-import" = { metric = "export-importer/import/success", window = "20m" },
+      # export-importer-import runs every 5m, alert after 3 failures
+      "export-importer-import" = { metric = "export-importer/import/success", window = 15 * local.minute + 3 * local.minute },
 
-      // jwks runs every 2m, alert after ~15 failures
-      "jwks" = { metric = "jwks/success", window = "30m" },
+      # jwks runs every 2m, alert after ~15 failures
+      "jwks" = { metric = "jwks/success", window = 30 * local.minute + 5 * local.minute },
 
-      // key-rotation runs every 4h, alert after 2 failures
-      "key-rotation" = { metric = "key-rotation/success", window = "485m" },
+      # key-rotation runs every 4h, alert after 2 failures
+      "key-rotation" = { metric = "key-rotation/success", window = 8 * local.hour + 10 * local.minute + 2 * local.minute },
 
-      // mirror runs every 5m but has a default lock time of 15m, alert after 2 failures
-      "mirror" = { metric = "mirror/success", window = "35m" },
+      # mirror runs every 5m but has a default lock time of 15m, alert after 2 failures
+      "mirror" = { metric = "mirror/success", window = 30 * local.minute + 5 * local.minute },
     },
     var.forward_progress_indicators,
   )
 }
 
-resource "google_monitoring_alert_policy" "CloudSchedulerJobFailed" {
+# This resource creates two conditions for each metric: one if the metric's
+# threshold is <= 0 for the duration, and another of the metric is missing for
+# the duration. This handles both the case when a job has never run and when a
+# job previously ran but is now failing.
+resource "google_monitoring_alert_policy" "ForwardProgress" {
+  for_each = local.forward_progress_indicators
+
   project      = var.project
-  display_name = "CloudSchedulerJobFailed"
+  display_name = "ForwardProgress-${each.key}"
   combiner     = "OR"
+
   conditions {
-    display_name = "Cloud Scheduler Job Error Ratio"
-    condition_monitoring_query_language {
-      duration = "0s"
-      query    = <<-EOT
-      # NOTE: The query below will be evaluated every 30s. It will look at the latest point that
-      # represents the total count of log entries for the past 10m (align delta (10m)),
-      # and fork it to two streams, one representing only ERROR logs, one representing ALL logs,
-      # and do an outer join with default value 0 for the first stream.
-      # Then it computes the first stream / second stream getting the ratio of ERROR logs over ALL logs,
-      # and finally group by. The alert will fire when the error rate was 100% for the last 10 mins.
-      fetch cloud_scheduler_job
-      | metric 'logging.googleapis.com/log_entry_count'
-      | align delta(10m)
-      | { t_0: filter metric.severity == 'ERROR'
-        ; t_1: ident }
-      | outer_join [0]
-      | value
-          [t_0_value_log_entry_count_div:
-            div(t_0.value.log_entry_count, t_1.value.log_entry_count)]
-      | group_by [resource.job_id],
-          [t_0_value_log_entry_count_div_sum: sum(t_0_value_log_entry_count_div)]
-      | condition t_0_value_log_entry_count_div_sum >= 1
-      EOT
+    display_name = "${each.key} failing"
+
+    condition_threshold {
+      filter   = "metric.type = \"${local.custom_prefix}/${each.value.metric}\" AND resource.type = \"generic_task\""
+      duration = "${each.value.window}s"
+
+      comparison      = "COMPARISON_LT"
+      threshold_value = 1
+
+      aggregations {
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_DELTA"
+        group_by_fields      = ["resource.labels.job"]
+        cross_series_reducer = "REDUCE_SUM"
+      }
+
       trigger {
         count = 1
       }
     }
   }
 
-  documentation {
-    content   = "${local.playbook_prefix}/CloudSchedulerJobFailed.md"
-    mime_type = "text/markdown"
-  }
-
-  notification_channels = [for x in values(google_monitoring_notification_channel.non-paging) : x.id]
-
-  depends_on = [
-    null_resource.manual-step-to-enable-workspace,
-  ]
-}
-
-resource "google_monitoring_alert_policy" "ForwardProgressFailed" {
-  for_each = local.forward_progress_indicators
-
-  project      = var.project
-  display_name = "ForwardProgressFailed-${each.key}"
-  combiner     = "OR"
-
   conditions {
-    display_name = each.key
+    display_name = "${each.key} missing"
 
-    condition_monitoring_query_language {
-      duration = "0s"
-      query    = <<-EOT
-      fetch generic_task
-      | metric '${local.custom_prefix}/${each.value.metric}'
-      | align delta(1m)
-      | group_by [], [val: aggregate(value.success)]
-      | absent_for ${each.value.window}
-      EOT
+    condition_absent {
+      filter   = "metric.type = \"${local.custom_prefix}/${each.value.metric}\" AND resource.type = \"generic_task\""
+      duration = "${each.value.window}s"
 
-      trigger {
-        count = 1
+      aggregations {
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_DELTA"
+        group_by_fields      = ["resource.labels.job"]
+        cross_series_reducer = "REDUCE_SUM"
       }
     }
   }
