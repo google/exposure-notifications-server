@@ -383,11 +383,11 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 3.51"
+      version = "~> 3.58"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "~> 3.51"
+      version = "~> 3.58"
     }
     local = {
       source  = "hashicorp/local"
