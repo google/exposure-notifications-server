@@ -43,7 +43,7 @@ type Config struct {
 	// backups. This is used to control whether the pull is actually attempted at
 	// the controller layer, independent of the data layer. In effect, it rate
 	// limits the number of requests.
-	MinTTL time.Duration `env:"BACKUP_MIN_PERIOD, default=4h"`
+	MinTTL time.Duration `env:"BACKUP_MIN_PERIOD, default=5m"`
 
 	// Timeout is the maximum amount of time to wait for a backup operation to
 	// complete.
