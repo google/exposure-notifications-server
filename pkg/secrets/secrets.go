@@ -33,6 +33,14 @@ type SecretManager interface {
 	GetSecretValue(ctx context.Context, name string) (string, error)
 }
 
+// SecretVersionManager is a secret manager that can manage secret versions.
+type SecretVersionManager interface {
+	SecretManager
+
+	CreateSecretVersion(ctx context.Context, parent string, data []byte) (string, error)
+	DestroySecretVersion(ctx context.Context, name string) error
+}
+
 // SecretManagerFunc is a func that returns a secret manager or error.
 type SecretManagerFunc func(context.Context, *Config) (SecretManager, error)
 
