@@ -326,6 +326,7 @@ following configurations are available:
 | Azure Key Vault         | `azure`   | `AZURE_KEY_VAULT`       | Resolve with Azure Keyvault.
 | Google Secret Manager   | `google`  | `GOOGLE_SECRET_MANAGER` | Resolve with Google Secret Manager.
 | HashiCorp Vault         | `vault`   | `HASHICORP_VAULT`       | Resolve with HashiCorp Vault.
+| Filesystem              | (none)    | `FILESYSTEM`            | Resolve secrets using a local filesystem store.
 | Memory\*                | (none)    | `IN_MEMORY`             | Resolve secrets using an in-memory store.
 
 \* default

@@ -22,6 +22,8 @@ import (
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
+	grpccodes "google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 )
 
 func init() {
@@ -29,7 +31,7 @@ func init() {
 }
 
 // Compile-time check to verify implements interface.
-var _ SecretManager = (*GoogleSecretManager)(nil)
+var _ SecretVersionManager = (*GoogleSecretManager)(nil)
 
 // GoogleSecretManager implements SecretManager.
 type GoogleSecretManager struct {
@@ -62,4 +64,34 @@ func (sm *GoogleSecretManager) GetSecretValue(ctx context.Context, name string) 
 		return "", fmt.Errorf("failed to access secret %v: %w", name, err)
 	}
 	return string(result.Payload.Data), nil
+}
+
+// CreateSecretVersion creates a new secret version on the given parent with the
+// provided data. It returns a reference to the created version.
+func (sm *GoogleSecretManager) CreateSecretVersion(ctx context.Context, parent string, data []byte) (string, error) {
+	version, err := sm.client.AddSecretVersion(ctx, &secretmanagerpb.AddSecretVersionRequest{
+		Parent: parent,
+		Payload: &secretmanagerpb.SecretPayload{
+			Data: data,
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create secret version: %w", err)
+	}
+	return version.GetName(), nil
+}
+
+// DestroySecretVersion destroys the secret version with the given name. If the
+// version does not exist, no action is taken.
+func (sm *GoogleSecretManager) DestroySecretVersion(ctx context.Context, name string) error {
+	if _, err := sm.client.DestroySecretVersion(ctx, &secretmanagerpb.DestroySecretVersionRequest{
+		Name: name,
+	}); err != nil {
+		if grpcstatus.Code(err) == grpccodes.NotFound {
+			return nil
+		}
+
+		return fmt.Errorf("failed to destroy secret version: %w", err)
+	}
+	return nil
 }
