@@ -98,7 +98,7 @@ func TestCacheClear(t *testing.T) {
 	cache.Clear()
 
 	if got, _ := cache.Lookup("foo"); got != nil {
-		t.Fatalf("lookup failed expeced nil got %#v", got)
+		t.Fatalf("lookup failed expected nil got %#v", got)
 	}
 }
 
