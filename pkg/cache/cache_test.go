@@ -80,6 +80,28 @@ func TestCache(t *testing.T) {
 	checkSize(t, cache, 0)
 }
 
+func TestCacheClear(t *testing.T) {
+	t.Parallel()
+
+	cache, err := New(30 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := cache.Set("foo", "bar"); err != nil {
+		t.Fatal(err)
+	}
+	if got, hit := cache.Lookup("foo"); got == nil || !hit {
+		t.Fatalf("lookup failed got %#v", got)
+	}
+
+	cache.Clear()
+
+	if got, _ := cache.Lookup("foo"); got != nil {
+		t.Fatalf("lookup failed expected nil got %#v", got)
+	}
+}
+
 func TestWriteThruCache(t *testing.T) {
 	t.Parallel()
 

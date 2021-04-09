@@ -27,6 +27,8 @@ import (
 
 var ErrInvalidDuration = errors.New("expireAfter duration cannot be negative")
 
+const initialSize = 16
+
 type Func func() (interface{}, error)
 
 type Cache struct {
@@ -51,7 +53,7 @@ func New(expireAfter time.Duration) (*Cache, error) {
 	}
 
 	return &Cache{
-		data:        make(map[string]item),
+		data:        make(map[string]item, initialSize),
 		expireAfter: expireAfter,
 	}, nil
 }
@@ -73,6 +75,13 @@ func (c *Cache) Size() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return len(c.data)
+}
+
+// Clear removes all items from the cache, regardless of their expiration.
+func (c *Cache) Clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.data = make(map[string]item, initialSize)
 }
 
 // WriteThruLookup checks the cache for the value associated with name,
