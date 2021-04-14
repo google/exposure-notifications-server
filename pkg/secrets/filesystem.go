@@ -72,12 +72,17 @@ func (sm *Filesystem) CreateSecretVersion(ctx context.Context, parent string, da
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
+	root := filepath.Join(sm.root, parent)
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		return "", fmt.Errorf("failed to create parent for secret version: %w", err)
+	}
+
 	version := strconv.FormatInt(time.Now().UnixNano(), 10)
-	pth := filepath.Join(sm.root, parent, version)
+	pth := filepath.Join(root, version)
 	if err := os.WriteFile(pth, data, 0o600); err != nil {
 		return "", fmt.Errorf("failed to create secret file: %w", err)
 	}
-	return strings.TrimPrefix(pth, sm.root), nil
+	return strings.TrimPrefix(strings.TrimPrefix(pth, sm.root), string(filepath.Separator)), nil
 }
 
 // DestroySecretVersion destroys the secret version with the given name. If the
