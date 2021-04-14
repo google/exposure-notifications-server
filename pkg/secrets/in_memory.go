@@ -20,7 +20,6 @@ import (
 	"path"
 	"strconv"
 	"sync"
-	"time"
 )
 
 func init() {
@@ -34,6 +33,7 @@ var _ SecretVersionManager = (*InMemory)(nil)
 type InMemory struct {
 	mu      sync.Mutex
 	secrets map[string][]byte
+	counter int64
 }
 
 // NewInMemory creates a new in-memory secret manager.
@@ -77,8 +77,8 @@ func (sm *InMemory) CreateSecretVersion(ctx context.Context, parent string, data
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	version := strconv.FormatInt(time.Now().UnixNano(), 10)
-	k := path.Join(parent, version)
+	sm.counter++
+	k := path.Join(parent, strconv.FormatInt(sm.counter, 10))
 	sm.secrets[k] = data
 	return k, nil
 }
