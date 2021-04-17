@@ -27,7 +27,7 @@ import (
 
 // dbPingLimiter limits when we actually ping the database to at most 1/sec to
 // prevent a DOS since this is an unauthenticated endpoint.
-var dbPingLimiter = rate.NewLimiter(rate.Every(1*time.Second), 0)
+var dbPingLimiter = rate.NewLimiter(rate.Every(1*time.Second), 1)
 
 func HandleHealthz(db *database.DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
