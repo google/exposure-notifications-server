@@ -26,9 +26,6 @@ provider "google-beta" {
   user_project_override = true
 }
 
-# To generate passwords.
-provider "random" {}
-
 data "google_project" "project" {
   project_id = var.project
 }
