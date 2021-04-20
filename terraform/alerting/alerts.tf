@@ -384,7 +384,7 @@ EOT
   }
 
   label_extractors = {
-    "path"     = "REGEXP_EXTRACT(httpRequest.requestUrl, \"https?://.+/(.+)/index\\\\\\\\.txt\")"
+    "path"     = "REGEXP_EXTRACT(httpRequest.requestUrl, \"https?://.+/(.+)/index\\\\.txt\")"
     "platform" = "REGEXP_EXTRACT(httpRequest.userAgent, \"(Android|Darwin)\")"
   }
 }
