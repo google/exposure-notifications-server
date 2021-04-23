@@ -388,3 +388,41 @@ EOT
     "platform" = "REGEXP_EXTRACT(httpRequest.userAgent, \"(Android|Darwin)\")"
   }
 }
+
+resource "google_logging_metric" "export_archive_downloaded" {
+  count = var.capture_export_file_downloads ? 1 : 0
+
+  name        = "export_archive_downloaded"
+  description = "Incremented on each export zip file download."
+  project     = var.project
+  filter      = <<EOT
+resource.type="http_load_balancer"
+httpRequest.requestUrl=~".zip$"
+httpRequest.status=200
+EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+
+    labels {
+      key         = "path"
+      value_type  = "STRING"
+      description = "Path of the export"
+    }
+
+    labels {
+      key         = "platform"
+      value_type  = "STRING"
+      description = "Mobile operating system"
+    }
+  }
+
+
+
+  label_extractors = {
+    "path"     = "REGEXP_EXTRACT(httpRequest.requestUrl, \"https?://.+/(.+/.+)\\\\.zip\")"
+    "platform" = "REGEXP_EXTRACT(httpRequest.userAgent, \"(Android|Darwin)\")"
+  }
+}
+
