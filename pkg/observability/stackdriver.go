@@ -18,6 +18,7 @@ package observability
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
@@ -50,12 +51,19 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 	monitoredResource := NewStackdriverMonitoredResource(ctx, config)
 	logger.Debugw("monitored resource", "resource", monitoredResource)
 
+	// Always have at least 3 workers
+	numWorkers := 3
+	if v := runtime.NumCPU() - 1; v > numWorkers {
+		numWorkers = v
+	}
+
 	options := stackdriver.Options{
 		Context:                 ctx,
 		ProjectID:               projectID,
 		ReportingInterval:       config.ReportingInterval,
 		BundleDelayThreshold:    config.BundleDelayThreshold,
 		Timeout:                 config.Timeout,
+		NumberOfWorkers:         numWorkers,
 		BundleCountThreshold:    int(config.BundleCountThreshold),
 		MonitoredResource:       monitoredResource,
 		DefaultMonitoringLabels: &stackdriver.Labels{},
