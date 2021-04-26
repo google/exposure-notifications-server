@@ -95,7 +95,7 @@ type Config struct {
 	// Should only be set if a server is being operated in a single region.
 	DefaultRegion string `env:"DEFAULT_REGION"`
 
-	// LogJSONParseErrors will log errors in parsoning incoming requests if enabled.
+	// LogJSONParseErrors will log errors from parsoning incoming requests if enabled.
 	// The logs are at the WARN log level.
 	LogJSONParseErrors bool `env:"LOG_JSON_PARSE_ERRORS, default=false"`
 

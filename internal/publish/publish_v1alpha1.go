@@ -41,7 +41,7 @@ func (s *Server) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) *r
 	if err != nil {
 		if s.config.LogJSONParseErrors {
 			logger := logging.FromContext(ctx).Named("handleV1Apha1Request")
-			logger.Warnw("v1 unmarshal failure", "error", err)
+			logger.Warnw("v1alpha1 unmarshal failure", "error", err)
 		}
 
 		message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
