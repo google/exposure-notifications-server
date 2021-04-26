@@ -38,6 +38,11 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) *response
 	var data verifyapi.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
+		if s.config.LogJSONParseErrors {
+			logger := logging.FromContext(ctx).Named("handlePublishV1.handleRequest")
+			logger.Warnw("v1 unmarshal failure", "error", err)
+		}
+
 		blame := obs.BlameClient
 		obsResult := obs.ResultError("BAD_JSON")
 		defer obs.RecordLatency(ctx, time.Now(), mLatencyMs, &blame, &obsResult)

@@ -39,6 +39,11 @@ func (s *Server) handleV1Apha1Request(w http.ResponseWriter, r *http.Request) *r
 	var data v1alpha1.Publish
 	code, err := jsonutil.Unmarshal(w, r, &data)
 	if err != nil {
+		if s.config.LogJSONParseErrors {
+			logger := logging.FromContext(ctx).Named("handleV1Apha1Request")
+			logger.Warnw("v1alpha1 unmarshal failure", "error", err)
+		}
+
 		message := fmt.Sprintf("error unmarshalling API call, code: %v: %v", code, err)
 		span.SetStatus(trace.Status{Code: trace.StatusCodeInternal, Message: message})
 		blame := obs.BlameClient
