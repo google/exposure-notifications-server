@@ -252,7 +252,7 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 		blame = obs.BlameServer
 		obsResult = obs.ResultError("ERROR_LOADING_HEALTH_AUTHORITY")
 		return &response{
-			status: http.StatusNotFound,
+			status: http.StatusInternalServerError,
 			pubResponse: &verifyapi.PublishResponse{
 				ErrorMessage: message,
 				Code:         verifyapi.ErrorUnableToLoadHealthAuthority,
