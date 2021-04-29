@@ -327,6 +327,14 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 				}
 			}
 
+			if errors.Is(err, verification.ErrNotValidYet) {
+				logger.Warnw("received future dated verification certificate", "healthAuthorityID", data.HealthAuthorityID)
+				tags := []tag.Mutator{tag.Upsert(healthAuthorityIDTag, data.HealthAuthorityID)}
+				if err := stats.RecordWithTags(ctx, tags, mJWTNotYetValid.M(1)); err != nil {
+					logger.Errorw("failed to record stats for missing public key", "error", err, "healthAuthorityID", data.HealthAuthorityID)
+				}
+			}
+
 			message := fmt.Sprintf("unable to validate diagnosis verification: %v", err)
 			if s.config.DebugLogBadCertificates {
 				logger.Errorw(message, "error", err, "jwt", data.VerificationPayload)

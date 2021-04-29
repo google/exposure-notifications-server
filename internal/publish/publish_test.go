@@ -426,7 +426,7 @@ func TestPublishWithBypass(t *testing.T) {
 			Regions:   []string{regions.current()},
 			JWTTiming: time.Hour,
 			Code:      http.StatusUnauthorized,
-			Error:     "unable to validate diagnosis verification: Token used before issued",
+			Error:     "unable to validate diagnosis verification: not valid yet (NBF or IAT) in the future",
 		},
 		{
 			Name: "certificate expired",

@@ -75,7 +75,7 @@ func TestVerifyCertificate(t *testing.T) {
 		{
 			Name:  "future",
 			Warp:  1 * time.Hour,
-			Error: "Token used before issued",
+			Error: ErrNotValidYet.Error(),
 		},
 		{
 			Name:          "invalid hmac",

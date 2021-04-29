@@ -29,6 +29,9 @@ var (
 
 	mLatencyMs = stats.Float64(publishMetricsPrefix+"requests", "publish requests", stats.UnitMilliseconds)
 
+	mJWTNotYetValid = stats.Int64(publishMetricsPrefix+"jwt_not_yet_valid",
+		"a certificate was presented with an IAT or NBF time that is in the past according to thie server", stats.UnitDimensionless)
+
 	mNoPublicKey = stats.Int64(publishMetricsPrefix+"no_public_keys",
 		"uploads where there is no public key", stats.UnitDimensionless)
 
@@ -99,6 +102,13 @@ func init() {
 			Description: "Total count of health authority verification being bypassed",
 			Measure:     mVerificationBypassed,
 			Aggregation: view.Sum(),
+		},
+		{
+			Name:        metrics.MetricRoot + "jwt_not_yet_valid",
+			Description: "Total count of instances where a verification certificate is in the future",
+			Measure:     mJWTNotYetValid,
+			Aggregation: view.Sum(),
+			TagKeys:     missingPublicKeyTags,
 		},
 		// v1 and v1alpha1
 		{
