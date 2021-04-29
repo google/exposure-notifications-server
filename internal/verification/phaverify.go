@@ -37,6 +37,7 @@ import (
 
 // ErrNoPublicKeys indicates no public keys were found when verifying the certificate.
 var ErrNoPublicKeys = errors.New("no active public keys for health authority")
+var ErrNotValidYet = errors.New("not valid yet (NBF or IAT) in the future")
 
 // Verifier can be used to verify public health authority diagnosis verification certificates.
 type Verifier struct {
@@ -72,6 +73,7 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 	var claims *verifyapi.VerificationClaims
 
 	// Unpack JWT so we can determine issuer and key version.
+	// ParseWithClaims also calls .Valid() on the parsed token.
 	token, err := jwt.ParseWithClaims(publish.VerificationPayload, &verifyapi.VerificationClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if method, ok := token.Method.(*jwt.SigningMethodECDSA); !ok || method.Name != jwt.SigningMethodES256.Name {
 			return nil, fmt.Errorf("unsupported signing method, must be %v", jwt.SigningMethodES256.Name)
@@ -129,14 +131,19 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 		return nil, ErrNoPublicKeys
 	})
 	if err != nil {
+		// Check for specific errors in the bitmask that may exist and
+		// convert them to application local errors.
+		validationError := new(jwt.ValidationError)
+		if errors.As(err, &validationError) {
+			if mask := validationError.Errors; mask&jwt.ValidationErrorIssuedAt != 0 || mask&jwt.ValidationErrorNotValidYet != 0 {
+				return nil, ErrNotValidYet
+			}
+		}
 		return nil, err
 	}
 
 	if !token.Valid {
 		return nil, fmt.Errorf("invalid verificationPayload")
-	}
-	if err := claims.Valid(); err != nil {
-		return nil, err
 	}
 
 	// JWT is valid and signature is valid.
