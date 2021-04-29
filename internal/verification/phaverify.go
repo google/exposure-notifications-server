@@ -35,9 +35,11 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-// ErrNoPublicKeys indicates no public keys were found when verifying the certificate.
-var ErrNoPublicKeys = errors.New("no active public keys for health authority")
-var ErrNotValidYet = errors.New("not valid yet (NBF or IAT) in the future")
+var (
+	// ErrNoPublicKeys indicates no public keys were found when verifying the certificate.
+	ErrNoPublicKeys = errors.New("no active public keys for health authority")
+	ErrNotValidYet  = errors.New("not valid yet (NBF or IAT) in the future")
+)
 
 // Verifier can be used to verify public health authority diagnosis verification certificates.
 type Verifier struct {
