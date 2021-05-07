@@ -71,7 +71,7 @@ type StackdriverConfig struct {
 	// uses https://google.golang.org/api/support/bundler, these two options
 	// control the max delay/count for batching the data points into one
 	// stackdriver request.
-	ReportingInterval    time.Duration `env:"STACKDRIVER_REPORTING_INTERVAL, default=15s"`
+	ReportingInterval    time.Duration `env:"STACKDRIVER_REPORTING_INTERVAL, default=60s"`
 	BundleDelayThreshold time.Duration `env:"STACKDRIVER_BUNDLE_DELAY_THRESHOLD, default=2s"`
 	BundleCountThreshold uint          `env:"STACKDRIVER_BUNDLE_COUNT_THRESHOLD, default=50"`
 	Timeout              time.Duration `env:"STACKDRIVER_TIMEOUT, default=15s"`
