@@ -152,14 +152,25 @@ func minPadSlice(s []int64, size int) []int64 {
 func TestReduce(t *testing.T) {
 	t.Parallel()
 
-	hour := timeutils.UTCMidnight(time.Now().UTC()).Add(-48 * time.Hour)
+	hour := timeutils.UTCMidnight(time.Now().UTC()).Add(-72 * time.Hour)
 	startTime := hour
 
 	input := []*HealthAuthorityStats{
-		// two entries from 2 days ago
+		// one entry from 3 days ago
 		{
 			HealthAuthorityID: 42,
 			Hour:              hour,
+			PublishCount:      []int64{1, 1, 1},
+			TEKCount:          42,
+			RevisionCount:     0,
+			OldestTekDays:     []int64{0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 10, 1},
+			OnsetAgeDays:      minPadSlice([]int64{1, 1, 1}, StatsMaxOnsetDays+1),
+			MissingOnset:      1,
+		},
+		// two entries from 2 days ago
+		{
+			HealthAuthorityID: 42,
+			Hour:              hour.Add(24 * time.Hour),
 			PublishCount:      []int64{1, 10, 4},
 			TEKCount:          112,
 			RevisionCount:     0,
@@ -169,7 +180,7 @@ func TestReduce(t *testing.T) {
 		},
 		{
 			HealthAuthorityID: 42,
-			Hour:              hour.Add(time.Hour),
+			Hour:              hour.Add(25 * time.Hour),
 			PublishCount:      []int64{0, 5, 6},
 			TEKCount:          65,
 			RevisionCount:     0,
@@ -180,7 +191,7 @@ func TestReduce(t *testing.T) {
 		// one entry from 1 days ago, but not enough uploads to be shown
 		{
 			HealthAuthorityID: 42,
-			Hour:              hour.Add(24 * time.Hour),
+			Hour:              hour.Add(48 * time.Hour),
 			PublishCount:      []int64{1, 1, 1},
 			TEKCount:          42,
 			RevisionCount:     0,
@@ -191,7 +202,7 @@ func TestReduce(t *testing.T) {
 		// two entries from today, but one shouldn't be shown (time hasn't lapsed yet)
 		{
 			HealthAuthorityID: 42,
-			Hour:              hour.Add(48 * time.Hour),
+			Hour:              hour.Add(72 * time.Hour),
 			PublishCount:      []int64{0, 187, 294},
 			TEKCount:          6734,
 			RevisionCount:     0,
@@ -201,7 +212,7 @@ func TestReduce(t *testing.T) {
 		},
 		{ // This record should be held back.
 			HealthAuthorityID: 42,
-			Hour:              hour.Add(49 * time.Hour),
+			Hour:              hour.Add(73 * time.Hour),
 			PublishCount:      []int64{0, 5, 6},
 			TEKCount:          65,
 			RevisionCount:     0,
@@ -216,6 +227,19 @@ func TestReduce(t *testing.T) {
 			Day: startTime,
 			PublishRequests: verifyapi.PublishRequests{
 				UnknownPlatform: 1,
+				Android:         1,
+				IOS:             1,
+			},
+			TotalTEKsPublished:        42,
+			RevisionRequests:          0,
+			TEKAgeDistribution:        []int64{0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 10, 1},
+			OnsetToUploadDistribution: minPadSlice([]int64{1, 1, 1}, StatsMaxOnsetDays+1),
+			RequestsMissingOnsetDate:  1,
+		},
+		{
+			Day: startTime.Add(24 * time.Hour),
+			PublishRequests: verifyapi.PublishRequests{
+				UnknownPlatform: 1,
 				Android:         15,
 				IOS:             10,
 			},
@@ -226,7 +250,7 @@ func TestReduce(t *testing.T) {
 			RequestsMissingOnsetDate:  1,
 		},
 		{
-			Day: startTime.Add(48 * time.Hour),
+			Day: startTime.Add(72 * time.Hour),
 			PublishRequests: verifyapi.PublishRequests{
 				UnknownPlatform: 0,
 				Android:         187,
@@ -240,7 +264,7 @@ func TestReduce(t *testing.T) {
 		},
 	}
 
-	got := ReduceStats(input, hour.Add(49*time.Hour), 10)
+	got := ReduceStats(input, hour.Add(73*time.Hour), 10, 48*time.Hour)
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("mismatch (-want, +got):\n%s", diff)

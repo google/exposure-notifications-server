@@ -65,7 +65,10 @@ type HealthAuthorityStats struct {
 // time indicates the cutoff point for inclusion.
 // The dayThreshold indicates how many entries are needed to include a given day.
 // Day boundaries are all in UTC.
-func ReduceStats(hourly []*HealthAuthorityStats, onlyBefore time.Time, dayThreshold int64) []*verifyapi.StatsDay {
+func ReduceStats(hourly []*HealthAuthorityStats, onlyBefore time.Time, dayThreshold int64, embargoPeriod time.Duration) []*verifyapi.StatsDay {
+	embargoRelease := embargoPeriod > 0
+	now := time.Now().UTC()
+
 	days := make(map[time.Time]*verifyapi.StatsDay)
 	// Combine the hours into days based on same UTC midnight time.
 	for _, hour := range hourly {
@@ -102,7 +105,10 @@ func ReduceStats(hourly []*HealthAuthorityStats, onlyBefore time.Time, dayThresh
 	// Bring the map back to an array
 	result := make([]*verifyapi.StatsDay, 0, len(days))
 	for _, day := range days {
-		if day.PublishRequests.Total() < dayThreshold {
+		endOfDay := timeutils.UTCMidnight(day.Day.Add(24 * time.Hour))
+		embargoOver := endOfDay.Add(embargoPeriod).Before(now)
+		okToShow := day.PublishRequests.Total() >= dayThreshold || (embargoRelease && embargoOver)
+		if !okToShow {
 			continue
 		}
 		result = append(result, day)
