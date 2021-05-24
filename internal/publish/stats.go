@@ -103,7 +103,7 @@ func (s *Server) handleMetricsRequest(ctx context.Context, bearerToken string, r
 	onlyBefore := time.Now().UTC().Truncate(time.Hour)
 
 	// Combine days - this also filters things that are "too new" and days that don't meet the threshold.
-	response.Days = model.ReduceStats(stats, onlyBefore, s.config.StatsUploadMinimum)
+	response.Days = model.ReduceStats(stats, onlyBefore, s.config.StatsUploadMinimum, s.config.StatsEmbargoPeriod)
 
 	// return
 	return response, http.StatusOK
