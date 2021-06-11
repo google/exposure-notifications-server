@@ -20,8 +20,11 @@ require (
 	github.com/aws/aws-sdk-go v1.38.56
 	github.com/client9/misspell v0.3.4
 	github.com/containerd/continuity v0.1.0 // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-gonic/gin v1.7.2
+	github.com/fatih/color v1.9.0 // indirect
+	github.com/frankban/quicktest v1.11.3 // indirect
+	github.com/go-playground/validator/v10 v10.4.1 // indirect
+	github.com/golang-jwt/jwt v3.2.1+incompatible
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6

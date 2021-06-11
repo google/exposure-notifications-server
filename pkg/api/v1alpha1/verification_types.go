@@ -20,7 +20,7 @@ package v1alpha1
 import (
 	"sort"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 )
 
 const (

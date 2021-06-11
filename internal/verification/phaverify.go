@@ -32,7 +32,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	utils "github.com/google/exposure-notifications-server/pkg/verification"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 )
 
 var (
