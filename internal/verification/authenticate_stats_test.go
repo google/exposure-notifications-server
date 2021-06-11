@@ -29,7 +29,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/verification/model"
 	"github.com/google/exposure-notifications-server/pkg/errcmp"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 )
 
 type ClaimChanger func(*jwt.StandardClaims) *jwt.StandardClaims
