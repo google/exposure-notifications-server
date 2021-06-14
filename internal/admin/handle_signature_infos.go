@@ -18,10 +18,13 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -75,31 +78,11 @@ func (s *Server) HandleSignatureInfosSave() func(c *gin.Context) {
 			ErrorPage(c, fmt.Sprintf("Error writing signature info: %v", err))
 			return
 		}
-
 		m["siginfo"] = sigInfo
 
-		// For new records, sign the magical "hello world" string
-		if sigID == 0 {
-			signer, err := s.env.GetSignerForKey(ctx, sigInfo.SigningKey)
-			if err != nil {
-				m.AddErrors(fmt.Sprintf("Failed to get key signer: %s", err))
-				c.HTML(http.StatusOK, "siginfo", m)
-				return
-			}
-
-			digest := sha256.Sum256([]byte(defaultDigestMessage))
-			sig, err := signer.Sign(rand.Reader, digest[:], crypto.SHA256)
-			if err != nil {
-				m.AddErrors(fmt.Sprintf("Failed to digest message: %s", err))
-				c.HTML(http.StatusOK, "siginfo", m)
-				return
-			}
-
-			m["signature"] = base64.StdEncoding.EncodeToString(sig)
-		}
-
 		m.AddSuccess(fmt.Sprintf("Updated signture info #%d", sigInfo.ID))
-		c.HTML(http.StatusOK, "siginfo", m)
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/siginfo/%d", sigInfo.ID))
+		c.Abort()
 	}
 }
 
@@ -125,8 +108,35 @@ func (s *Server) HandleSignatureInfosShow() func(c *gin.Context) {
 				return
 			}
 		}
-
 		m["siginfo"] = sigInfo
+
+		if c.Param("id") != "0" {
+			signer, err := s.env.GetSignerForKey(ctx, sigInfo.SigningKey)
+			if err != nil {
+				m.AddErrors(fmt.Sprintf("Failed to get key signer: %s", err))
+				c.HTML(http.StatusOK, "siginfo", m)
+				return
+			}
+
+			x509EncodedPub, err := x509.MarshalPKIXPublicKey(signer.Public())
+			if err != nil {
+				m.AddErrors(fmt.Sprintf("Failed to marshal signer: %s", err))
+				c.HTML(http.StatusOK, "siginfo", m)
+				return
+			}
+			pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509EncodedPub})
+			m["public"] = strings.TrimSpace(string(pemEncodedPub))
+
+			digest := sha256.Sum256([]byte(defaultDigestMessage))
+			sig, err := signer.Sign(rand.Reader, digest[:], crypto.SHA256)
+			if err != nil {
+				m.AddErrors(fmt.Sprintf("Failed to digest message: %s", err))
+				c.HTML(http.StatusOK, "siginfo", m)
+				return
+			}
+			m["signature"] = base64.StdEncoding.EncodeToString(sig)
+		}
+
 		c.HTML(http.StatusOK, "siginfo", m)
 	}
 }
