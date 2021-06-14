@@ -13,7 +13,7 @@
 # limitations under the License.
 
 locals {
-  all_hosts = toset(concat(var.debugger_hosts, var.export_hosts, var.exposure_hosts, var.federationout_hosts))
+  all_hosts = toset(concat(var.admin_console_hosts, var.debugger_hosts, var.export_hosts, var.exposure_hosts, var.federationout_hosts))
   enable_lb = length(local.all_hosts) > 0
 }
 
