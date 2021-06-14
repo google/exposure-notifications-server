@@ -23,6 +23,7 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/exposure-notifications-server/internal/project"
+	"github.com/google/exposure-notifications-server/pkg/keys"
 )
 
 func TestRenderSignatureInfo(t *testing.T) {
@@ -159,15 +160,32 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 	}
 }
 
-func TestHandleSigntureInfosShow(t *testing.T) {
+func TestHandleSignatureInfosShow(t *testing.T) {
 	t.Parallel()
 	ctx := project.TestContext(t)
 
 	env, s := newTestServer(t)
 	db := env.Database()
 
+	keyManager := env.KeyManager()
+	var fileSystemKeys *keys.Filesystem
+	switch v := keyManager.(type) {
+	case *keys.Filesystem:
+		fileSystemKeys = v
+	default:
+		t.Fatalf("non filesystem key manager installed")
+	}
+	key, err := fileSystemKeys.CreateSigningKey(ctx, "test/siginfo", "key")
+	if err != nil {
+		t.Fatalf("failed to create test signing key: %v", err)
+	}
+	keyVersion, err := fileSystemKeys.CreateKeyVersion(ctx, key)
+	if err != nil {
+		t.Fatalf("failed to create key version: %v", err)
+	}
+
 	info := &model.SignatureInfo{
-		SigningKey:        "/path/to/signing/key",
+		SigningKey:        keyVersion,
 		SigningKeyVersion: "v1",
 		SigningKeyID:      "mvv",
 	}
