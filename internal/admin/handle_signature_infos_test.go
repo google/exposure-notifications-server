@@ -23,7 +23,6 @@ import (
 	"github.com/google/exposure-notifications-server/internal/export/database"
 	"github.com/google/exposure-notifications-server/internal/export/model"
 	"github.com/google/exposure-notifications-server/internal/project"
-	"github.com/google/exposure-notifications-server/pkg/keys"
 )
 
 func TestRenderSignatureInfo(t *testing.T) {
@@ -44,23 +43,6 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 	db := env.Database()
 	exportDB := database.New(db)
 
-	keyManager := env.KeyManager()
-	var fileSystemKeys *keys.Filesystem
-	switch v := keyManager.(type) {
-	case *keys.Filesystem:
-		fileSystemKeys = v
-	default:
-		t.Fatalf("non filesystem key manager installed")
-	}
-	key, err := fileSystemKeys.CreateSigningKey(ctx, "test/siginfo", "key")
-	if err != nil {
-		t.Fatalf("failed to create test signing key: %v", err)
-	}
-	keyVersion, err := fileSystemKeys.CreateKeyVersion(ctx, key)
-	if err != nil {
-		t.Fatalf("failed to create key version: %v", err)
-	}
-
 	cases := []struct {
 		name     string
 		seed     *model.SignatureInfo
@@ -75,7 +57,6 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 				SigningKeyID:      "foo",
 				SigningKeyVersion: "v42",
 			},
-			want: []string{"/test/case/key/1"},
 		},
 		{
 			name: "bad_id",
@@ -99,7 +80,6 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 				SigningKeyID:      "foo-3",
 				SigningKeyVersion: "v42-3",
 			},
-			want: []string{"foo-3"},
 		},
 		{
 			name: "update_id_mismatch",
@@ -129,18 +109,6 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 				"error processing signature info: parsing time",
 				"cannot parse",
 				"tomorrow midnight",
-			},
-		},
-		{
-			name: "sign_hello_world",
-			form: &signatureInfoFormData{
-				SigningKey:        keyVersion,
-				SigningKeyID:      "foo-6",
-				SigningKeyVersion: "v42-6",
-			},
-			want: []string{
-				"The signature for the string \"hello world\" for this key is <code>",
-				"Updated signture info #",
 			},
 		},
 	}
@@ -184,7 +152,9 @@ func TestHandleSignatureInfoSave(t *testing.T) {
 			}
 			defer resp.Body.Close()
 
-			mustFindStrings(t, resp, tc.want...)
+			if len(tc.want) > 0 {
+				mustFindStrings(t, resp, tc.want...)
+			}
 		})
 	}
 }
@@ -214,7 +184,13 @@ func TestHandleSigntureInfosShow(t *testing.T) {
 		{
 			name: "lookup_existing",
 			id:   fmt.Sprintf("%d", info.ID),
-			want: []string{info.SigningKey, info.SigningKeyVersion, info.SigningKeyID},
+			want: []string{
+				info.SigningKey,
+				info.SigningKeyVersion,
+				info.SigningKeyID,
+				"public key PEM",
+				"signature for the string",
+			},
 		},
 		{
 			name: "show_new",
