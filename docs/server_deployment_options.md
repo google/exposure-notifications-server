@@ -192,7 +192,7 @@ scale to meet demand.
    </td>
   </tr>
   <tr>
-   <td><strong>Federated acesss</strong>
+   <td><strong>Federated access</strong>
    </td>
    <td>Allows other parties/countries to retrieve data
    </td>
