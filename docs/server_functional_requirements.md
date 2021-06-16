@@ -139,7 +139,7 @@ The following snippet is an example POST request payload in JSON format.
   "verificationPayload": "signed JWT issued by public health authority",
   "hmackey": "base64 encoded HMAC key used in preparing the data for the verification server",
   "symptomOnsetInterval": 12345,
-  "revisionToken": "empty or result of previous publish"
+  "revisionToken": "empty or result of previous publish",
   "padding": "random string data..."
 }
 ```
