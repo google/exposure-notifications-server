@@ -73,6 +73,13 @@ variable "alert_on_human_decrypted_value" {
   description = "Alert when a human accesses a secret. You must enable DATA_READ audit logs for Cloud KMS."
 }
 
+variable "alert_on_cloud_run_breakglass" {
+  type    = bool
+  default = true
+
+  description = "Alert when a service is deployed that bypassed Binary Authorization."
+}
+
 variable "capture_export_file_downloads" {
   type    = bool
   default = true
