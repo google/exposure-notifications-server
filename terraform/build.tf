@@ -20,14 +20,14 @@ resource "google_storage_bucket" "cloudbuild-cache" {
   force_destroy               = true
   uniform_bucket_level_access = true
 
-  // Automatically expire cached objects after 14 days.
+  // Automatically expire cached objects.
   lifecycle_rule {
     action {
       type = "Delete"
     }
 
     condition {
-      age = "14"
+      age = "7"
     }
   }
 
