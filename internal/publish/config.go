@@ -137,6 +137,11 @@ func (c *Config) Validate() error {
 			fmt.Errorf("env var `STATS_UPLOAD_MINIMUM` must be >= 10, got: %v", c.StatsUploadMinimum))
 	}
 
+	if c.StatsEmbargoPeriod < (48 * time.Hour) {
+		result = multierror.Append(result,
+			fmt.Errorf("env var `STATS_EMBARGO_PERIOD` must be >= 48h"))
+	}
+
 	return result.ErrorOrNil()
 }
 
