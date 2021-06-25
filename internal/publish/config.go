@@ -108,9 +108,11 @@ type Config struct {
 	// Publish stats API config
 	// Minimum number of publish requests that need to be present to see stats for a given day.
 	// If the minimum is not met, that day is not revealed or shown in aggregates.
+	// This value must be >= 10
 	StatsUploadMinimum int64 `env:"STATS_UPLOAD_MINIMUM, default=10"`
 	// Allow release of a day's stats after this much time has passed (measured from end of day).
 	// Set to <= 0 to disable this feature.
+	// If the value is positive, it must be >= 48h.
 	StatsEmbargoPeriod           time.Duration `env:"STATS_EMBARGO_PERIOD, default=48h"`
 	StatsResponsePaddingMinBytes int64         `env:"RESPONSE_PADDING_MIN_BYTES, default=2048"`
 	StatsResponsePaddingRange    int64         `env:"RESPONSE_PADDING_RANGE, default=1024"`
@@ -135,6 +137,11 @@ func (c *Config) Validate() error {
 	if c.StatsUploadMinimum < 10 {
 		result = multierror.Append(result,
 			fmt.Errorf("env var `STATS_UPLOAD_MINIMUM` must be >= 10, got: %v", c.StatsUploadMinimum))
+	}
+
+	if ep := c.StatsEmbargoPeriod; !(ep >= (48*time.Hour) || ep <= 0) {
+		result = multierror.Append(result,
+			fmt.Errorf("env var `STATS_EMBARGO_PERIOD` must be >= 48h or <= 0 to disable release of stats days below the threshold"))
 	}
 
 	return result.ErrorOrNil()
