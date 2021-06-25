@@ -502,7 +502,6 @@ func TestPublishWithBypass(t *testing.T) {
 				config.MaxSameStartIntervalKeys = 2
 				config.MaxIntervalAge = 14 * 24 * time.Hour
 				config.StatsUploadMinimum = 10
-				config.StatsEmbargoPeriod = 48 * time.Hour
 				aaProvider, err := authorizedapp.NewDatabaseProvider(ctx, testDB, config.AuthorizedAppConfig())
 				if err != nil {
 					t.Fatal(err)
