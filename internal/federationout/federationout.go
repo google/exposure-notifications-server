@@ -19,7 +19,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"sort"
 	"strings"
 	"time"
@@ -322,7 +321,6 @@ func buildIteratorFunction(request *BuildIteratorRequest) publishdb.IteratorFunc
 			}
 
 			revisedAt := *exp.RevisedAt
-			log.Printf("REVISED AT: %v", revisedAt)
 			if ts := revisedAt.Unix(); ts > request.state.RevisedKeyCursor.Timestamp {
 				request.state.RevisedKeyCursor.Timestamp = ts
 			}

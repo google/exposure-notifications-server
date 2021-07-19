@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -103,7 +102,6 @@ func (s *Server) HandleAuthorizedAppsSave() func(c *gin.Context) {
 		} else if form.Action == "delete" {
 			priorKey := form.PriorKey()
 
-			log.Printf("Deleting authorized app: %v", priorKey)
 			if err := aadb.DeleteAuthorizedApp(ctx, priorKey); err != nil {
 				ErrorPage(c, fmt.Sprintf("Error deleting authorized app: %v", err))
 				return
