@@ -19,7 +19,6 @@ require (
 	github.com/Azure/go-autorest/autorest/validation v0.3.1 // indirect
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15 // indirect
 	github.com/aws/aws-sdk-go v1.40.2
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/client9/misspell v0.3.4
@@ -48,11 +47,10 @@ require (
 	github.com/mattn/go-isatty v0.0.13 // indirect
 	github.com/mikehelmick/go-chaff v0.5.0
 	github.com/mitchellh/mapstructure v1.4.1
-	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/opencontainers/runc v1.0.1 // indirect
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
-	github.com/prometheus/common v0.29.0
+	github.com/prometheus/common v0.29.0 // indirect
 	github.com/prometheus/procfs v0.7.0 // indirect
 	github.com/prometheus/statsd_exporter v0.21.0 // indirect
 	github.com/rakutentech/jwk-go v1.0.1

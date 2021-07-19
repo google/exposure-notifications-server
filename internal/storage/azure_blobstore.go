@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"os"
 	"time"
@@ -29,7 +30,8 @@ import (
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/google/exposure-notifications-server/pkg/signal"
-	"github.com/prometheus/common/log"
+	"go.opencensus.io/stats"
+	"go.uber.org/zap"
 )
 
 func init() {
@@ -53,7 +55,7 @@ func newAccessTokenCredential(accountName string, accountKey string) (azblob.Cre
 	return credential, nil
 }
 
-func newMSITokenCredential(blobstoreURL string) (azblob.Credential, error) {
+func newMSITokenCredential(ctx context.Context, blobstoreURL string) (azblob.Credential, error) {
 	msiEndpoint, err := adal.GetMSIVMEndpoint()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get MSI endpoint: %w", err)
@@ -64,17 +66,27 @@ func newMSITokenCredential(blobstoreURL string) (azblob.Credential, error) {
 		return nil, fmt.Errorf("failed to get service principal token from msi %v: %w", msiEndpoint, err)
 	}
 
+	logger, err := zap.NewProduction()
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure logger: %w", err)
+	}
+
 	tokenRefresher := func(credential azblob.TokenCredential) time.Duration {
 		err := spt.Refresh()
 		if err != nil {
-			log.Errorf("failed to refresh access token: %v", err)
+			stats.Record(ctx, mAzureRefreshFailed.M(1))
+			logger.Error("failed to refresh access token",
+				zap.String("error", err.Error()))
 
 			token := spt.Token()
 			if token.Expires().After(time.Now().UTC()) {
-				log.Errorf("access token expired - shutting down server")
+				stats.Record(ctx, mAzureRefreshExpired.M(1))
+
+				logger.Error("access token expired - shutting down server")
 				if err := signal.SendInterrupt(); err != nil {
 					// extreme measures.
-					log.Fatalf("unable to shot down server safely: %v", err)
+					logger.Fatal("failed to shut down server gracefully, killing",
+						zap.String("error", err.Error()))
 				}
 			}
 
@@ -118,7 +130,7 @@ func NewAzureBlobstore(ctx context.Context, _ *Config) (Blobstore, error) {
 			return nil, err
 		}
 	} else {
-		credential, err = newMSITokenCredential(primaryURLRaw)
+		credential, err = newMSITokenCredential(ctx, primaryURLRaw)
 		if err != nil {
 			return nil, err
 		}
