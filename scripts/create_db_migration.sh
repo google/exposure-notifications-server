@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2020 Google LLC
+# Copyright 2020 the Exposure Notifications Server authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,12 +25,12 @@ fi
 command -v migrate >/dev/null 2>&1 || {
     echo >&2 "Migrate command not found. Have you installed golang-migrate?";
     echo >&2 "https://github.com/golang-migrate/migrate/blob/master/cmd/migrate/README.md#installation";
-    exit 1; 
+    exit 1;
 }
 migrate create -ext sql -dir migrations -seq $1
 
 # Template for the newly created migration file
-TEMPLATE='-- Copyright 2021 Google LLC
+TEMPLATE='-- Copyright 2021 the Exposure Notification Server authors
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ TEMPLATE='-- Copyright 2021 Google LLC
 
 BEGIN;
 
--- Author the migration here. 
+-- Author the migration here.
 
 END;'
 

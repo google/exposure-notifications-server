@@ -1,4 +1,4 @@
--- Copyright 2020 Google LLC
+-- Copyright 2020 the Exposure Notification Server authors
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ CREATE TABLE ImportFile (
     zip_filename VARCHAR(500) NOT NULL,
     discovered_at TIMESTAMPTZ NOT NULL,
     processed_at TIMESTAMPTZ,
-    status ImportFileStatus NOT NULL DEFAULT 'OPEN' 
+    status ImportFileStatus NOT NULL DEFAULT 'OPEN'
 );
 
 CREATE INDEX import_file_status_processed ON ImportFile (status, processed_at);

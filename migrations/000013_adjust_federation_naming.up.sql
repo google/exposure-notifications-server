@@ -1,4 +1,4 @@
--- Copyright 2020 Google LLC
+-- Copyright 2020 the Exposure Notification Server authors
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 
 BEGIN;
 
-ALTER TABLE FederationQuery RENAME TO FederationInQuery; 
-ALTER TABLE FederationSync RENAME TO FederationInSync; 
-ALTER TABLE FederationAuthorization RENAME TO FederationOutAuthorization; 
+ALTER TABLE FederationQuery RENAME TO FederationInQuery;
+ALTER TABLE FederationSync RENAME TO FederationInSync;
+ALTER TABLE FederationAuthorization RENAME TO FederationOutAuthorization;
 
 END;

@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020 the Exposure Notifications Server authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ message FederationFetchResponse {
     repeated ExposureKey revisedKeys = 2;
 
     bool partialResponse = 3; // required
-    FetchState nextFetchState = 4; // nextFetchState allows the query to be continued. 
+    FetchState nextFetchState = 4; // nextFetchState allows the query to be continued.
 }
 
 message FetchState {
@@ -54,7 +54,7 @@ message ExposureKey {
     int32 transmissionRisk = 2;
     int32 intervalNumber = 3; // required
     int32 intervalCount = 4; // required
- 
+
     enum ReportType {
         UNKNOWN = 0;  // Not used by this protocol
         CONFIRMED_TEST = 1;
@@ -67,7 +67,7 @@ message ExposureKey {
     ReportType reportType = 5;
     sint32 daysSinceOnsetOfSymptoms = 6; // Valid values are -14 ... 14
     bool hasSymptomOnset = 7; // Used to disambiguate between 0 and missing.
-    
+
     bool traveler = 8;
     repeated string regions = 9;
 }
