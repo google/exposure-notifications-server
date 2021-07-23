@@ -1,4 +1,4 @@
--- Copyright 2020 Google LLC
+-- Copyright 2020 the Exposure Notification Server authors
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ ALTER TABLE federationinquery
 
 ALTER TABLE federationinquery
     ALTER COLUMN only_local_provenance SET NOT NULL,
-    ALTER COLUMN only_travelers SET NOT NULL;    
+    ALTER COLUMN only_travelers SET NOT NULL;
 
 ALTER TABLE exposure
     ADD COLUMN sync_query_id VARCHAR(50);

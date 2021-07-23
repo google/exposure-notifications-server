@@ -1,4 +1,4 @@
--- Copyright 2020 Google LLC
+-- Copyright 2020 the Exposure Notification Server authors
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ CREATE TABLE HealthAuthorityStats(
     -- number of TEKs that were revised
     revisions BIGINT NOT NULL DEFAULT 0,
     -- Age of the oldest TEKs from an individual publish request. Index is number of days. 0-14
-    oldest_tek_days BIGINT [],    
+    oldest_tek_days BIGINT [],
     -- Symptom onset to upload ranges, index is number of days. 0-28.
     onset_age_days BIGINT [],
     -- Indicator of where the symptom onset was backfilled.
