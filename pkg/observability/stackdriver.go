@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"time"
 
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"github.com/google/exposure-notifications-server/pkg/logging"
@@ -130,12 +131,19 @@ func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
 
 	// register metrics in the background and don't block server startup on failures.
 	go func() {
+		// Create a separate timeout for metric registration.
+		ctx, done := context.WithTimeout(context.Background(), time.Duration(5*len(descriptorCreateRequests))*time.Second)
+		defer done()
 		logger.Infow("starting metric registration")
 		for _, cmrdesc := range descriptorCreateRequests {
-			_, err = mclient.CreateMetricDescriptor(ctx, cmrdesc)
-			if err != nil {
-				logger.Errorw("failed to create MetricDescriptor", "metric", cmrdesc.Name, "error", err)
-			}
+			func() {
+				subCtx, done := context.WithTimeout(ctx, 5*time.Second)
+				defer done()
+				_, err = mclient.CreateMetricDescriptor(subCtx, cmrdesc)
+				if err != nil {
+					logger.Errorw("failed to create MetricDescriptor", "metric", cmrdesc.Name, "error", err)
+				}
+			}()
 		}
 		logger.Infow("finished metric registration")
 	}()
