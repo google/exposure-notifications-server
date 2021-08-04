@@ -98,7 +98,11 @@ func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to create metric client: %w", err)
 	}
-	for _, v := range AllViews() {
+
+	allViews := AllViews()
+	descriptorCreateRequests := make([]*monitoringpb.CreateMetricDescriptorRequest, 0, len(allViews))
+
+	for _, v := range allViews {
 		shouldSkip := false
 		for _, prefix := range e.config.ExcludedMetricPrefixes {
 			if strings.HasPrefix(v.Name, prefix) {
@@ -121,11 +125,20 @@ func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
 			Name:             fmt.Sprintf("projects/%s", e.config.ProjectID),
 			MetricDescriptor: md,
 		}
-		_, err = mclient.CreateMetricDescriptor(ctx, cmrdesc)
-		if err != nil {
-			return fmt.Errorf("failed to create MetricDescriptor: %w", err)
-		}
+		descriptorCreateRequests = append(descriptorCreateRequests, cmrdesc)
 	}
+
+	// register metrics in the background and don't block server startup on failures.
+	go func() {
+		logger.Infow("starting metric registration")
+		for _, cmrdesc := range descriptorCreateRequests {
+			_, err = mclient.CreateMetricDescriptor(ctx, cmrdesc)
+			if err != nil {
+				logger.Errorw("failed to create MetricDescriptor", "metric", cmrdesc.Name, "error", err)
+			}
+		}
+		logger.Infow("finished metric registration")
+	}()
 
 	if err := e.exporter.StartMetricsExporter(); err != nil {
 		return fmt.Errorf("failed to start stackdriver exporter: %w", err)
