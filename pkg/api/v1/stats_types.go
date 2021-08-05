@@ -84,6 +84,18 @@ type StatsDay struct {
 	RequestsMissingOnsetDate int64 `json:"requests_missing_onset_date"`
 }
 
+func (s *StatsDay) IsEmpty() bool {
+	if s == nil {
+		return true
+	}
+
+	if s.PublishRequests.Total() > 0 {
+		return false
+	}
+
+	return true
+}
+
 // PublishRequests is a summary of one day's publish requests by platform.
 type PublishRequests struct {
 	UnknownPlatform int64 `json:"unknown"`
