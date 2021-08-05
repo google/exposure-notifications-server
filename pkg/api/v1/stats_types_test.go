@@ -34,6 +34,53 @@ func TestTotal(t *testing.T) {
 	}
 }
 
+func TestIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		stats *StatsDay
+		empty bool
+	}{
+		{
+			name:  "nil",
+			stats: nil,
+			empty: true,
+		},
+		{
+			name: "has_data",
+			stats: &StatsDay{
+				Day: time.Now(),
+				PublishRequests: PublishRequests{
+					UnknownPlatform: 0,
+					Android:         1,
+					IOS:             1,
+				},
+			},
+			empty: false,
+		},
+		{
+			name: "empty_day",
+			stats: &StatsDay{
+				Day:             time.Now(),
+				PublishRequests: PublishRequests{},
+			},
+			empty: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if diff := cmp.Diff(tc.stats.IsEmpty(), tc.empty); diff != "" {
+				t.Errorf("bad csv (+got, -want): %s", diff)
+			}
+		})
+	}
+}
+
 func TestStatsDays_MarshalCSV(t *testing.T) {
 	t.Parallel()
 
