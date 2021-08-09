@@ -59,7 +59,6 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 	}
 
 	options := stackdriver.Options{
-		Context:                 ctx,
 		ProjectID:               projectID,
 		ReportingInterval:       config.ReportingInterval,
 		BundleDelayThreshold:    config.BundleDelayThreshold,
@@ -85,16 +84,13 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 
 func (e *stackdriverExporter) metricClient() (*monitoring.MetricClient, error) {
 	opts := append(e.options.MonitoringClientOptions, option.WithUserAgent(e.options.UserAgent))
-	ctx := e.options.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return monitoring.NewMetricClient(ctx, opts...)
+	return monitoring.NewMetricClient(context.Background(), opts...)
 }
 
 // StartExporter starts the exporter.
 func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
 	logger := logging.FromContext(ctx).Named("stackdriver")
+
 	mclient, err := e.metricClient()
 	if err != nil {
 		return fmt.Errorf("unable to create metric client: %w", err)
@@ -118,7 +114,10 @@ func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
 		if err := view.Register(v); err != nil {
 			return fmt.Errorf("failed to start stackdriver exporter: view registration failed: %w", err)
 		}
-		md, err := e.exporter.ViewToMetricDescriptor(ctx, v)
+
+		// The provided context here is never used. It's unclear why it's a
+		// parameter, but it's never used.
+		md, err := e.exporter.ViewToMetricDescriptor(context.Background(), v)
 		if err != nil {
 			return fmt.Errorf("failed to convert view to MetricDescriptor: %w", err)
 		}
@@ -129,23 +128,30 @@ func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
 		descriptorCreateRequests = append(descriptorCreateRequests, cmrdesc)
 	}
 
-	// register metrics in the background and don't block server startup on failures.
+	// Register metrics in the background and don't block server startup on
+	// failures.
+	//
+	// Future optimization: only register metrics once per buildinfo data.
 	go func() {
-		// Create a separate timeout for metric registration.
-		ctx, done := context.WithTimeout(context.Background(), time.Duration(5*len(descriptorCreateRequests))*time.Second)
+		// Overall metrics registration can take a maximum of 30s.
+		ctx, done := context.WithTimeout(context.Background(), 30*time.Second)
 		defer done()
+
 		logger.Infow("starting metric registration")
+		defer logger.Infow("finished metric registration")
+
 		for _, cmrdesc := range descriptorCreateRequests {
 			func() {
-				subCtx, done := context.WithTimeout(ctx, 5*time.Second)
-				defer done()
-				_, err = mclient.CreateMetricDescriptor(subCtx, cmrdesc)
-				if err != nil {
-					logger.Errorw("failed to create MetricDescriptor", "metric", cmrdesc.Name, "error", err)
+				subCtx, subDone := context.WithTimeout(ctx, 5*time.Second)
+				defer subDone()
+
+				if _, err := mclient.CreateMetricDescriptor(subCtx, cmrdesc); err != nil {
+					logger.Errorw("failed to create MetricDescriptor",
+						"metric", cmrdesc.Name,
+						"error", err)
 				}
 			}()
 		}
-		logger.Infow("finished metric registration")
 	}()
 
 	if err := e.exporter.StartMetricsExporter(); err != nil {
