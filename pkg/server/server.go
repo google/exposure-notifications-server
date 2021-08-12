@@ -97,12 +97,7 @@ func (s *Server) ServeHTTP(ctx context.Context, srv *http.Server) error {
 		defer done()
 
 		logger.Debugf("server.Serve: shutting down")
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			select {
-			case errCh <- err:
-			default:
-			}
-		}
+		errCh <- srv.Shutdown(shutdownCtx)
 	}()
 
 	if err := ServeMetricsIfPrometheus(ctx); err != nil {
@@ -117,12 +112,10 @@ func (s *Server) ServeHTTP(ctx context.Context, srv *http.Server) error {
 	logger.Debugf("server.Serve: serving stopped")
 
 	// Return any errors that happened during shutdown.
-	select {
-	case err := <-errCh:
+	if err := <-errCh; err != nil {
 		return fmt.Errorf("failed to shutdown: %w", err)
-	default:
-		return nil
 	}
+	return nil
 }
 
 // ServeHTTPHandler is a convenience wrapper around ServeHTTP. It creates an
