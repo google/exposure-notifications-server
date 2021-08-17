@@ -35,7 +35,7 @@ func (s *Server) createMetrics(ctx context.Context) error {
 	logger.Infow("starting metric registration")
 	defer logger.Infow("finished metric registration")
 
-	//
+	// Extract the project ID.
 	sd := s.config.ObservabilityExporter.Stackdriver
 	if sd == nil {
 		return fmt.Errorf("observability export is not stackdriver")
