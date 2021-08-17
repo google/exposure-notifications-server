@@ -17,6 +17,14 @@ HTML_FILES = $(shell find . -name \*.html)
 GO_FILES = $(shell find . -name \*.go)
 MD_FILES = $(shell find . -name \*.md)
 
+generate:
+	@go generate ./...
+.PHONY: generate
+
+generate-check: generate
+	@git update-index --refresh && git diff-index --quiet HEAD --
+.PHONY: generate-check
+
 # lint uses the same linter as CI and tries to report the same results running
 # locally. There is a chance that CI detects linter errors that are not found
 # locally, but it should be rare.

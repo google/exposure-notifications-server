@@ -129,6 +129,14 @@ jobs:
             -fail-on-error="true" \
             -level="error"
 
+      - name: generate-check
+        shell: bash
+        run: |-
+          set -eEu
+          set +o pipefail
+
+          make generate-check
+
       - name: tab-check
         shell: bash
         env:
@@ -137,7 +145,6 @@ jobs:
           set -eEu
           set +o pipefail
 
-          YEAR=$(date +"%Y")
           make tabcheck | \
           reviewdog -efm="%f:%l:%m" \
             -name="tab-check" \
