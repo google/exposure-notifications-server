@@ -20,16 +20,13 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
-	"time"
 
-	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
-	"google.golang.org/api/option"
-	monitoringpb "google.golang.org/genproto/googleapis/monitoring/v3"
+	metricpb "google.golang.org/genproto/googleapis/api/metric"
 )
 
 var _ Exporter = (*stackdriverExporter)(nil)
@@ -40,8 +37,13 @@ type stackdriverExporter struct {
 	options  *stackdriver.Options
 }
 
+type StackdriverExporter interface {
+	Exporter
+	ViewToMetricDescriptor(v *view.View) (*metricpb.MetricDescriptor, error)
+}
+
 // NewStackdriver creates a new metrics and trace exporter for Stackdriver.
-func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, error) {
+func NewStackdriver(ctx context.Context, config *StackdriverConfig) (StackdriverExporter, error) {
 	logger := logging.FromContext(ctx).Named("stackdriver")
 
 	projectID := config.ProjectID
@@ -82,23 +84,17 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Exporter, e
 	}, nil
 }
 
-func (e *stackdriverExporter) metricClient() (*monitoring.MetricClient, error) {
-	opts := append(e.options.MonitoringClientOptions, option.WithUserAgent(e.options.UserAgent))
-	return monitoring.NewMetricClient(context.Background(), opts...)
+// ViewToMetricDescriptor proxies to the internal ViewToMetricDescriptor
+// implementation.
+func (e *stackdriverExporter) ViewToMetricDescriptor(v *view.View) (*metricpb.MetricDescriptor, error) {
+	return e.exporter.ViewToMetricDescriptor(context.Background(), v)
 }
 
 // StartExporter starts the exporter.
 func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
 	logger := logging.FromContext(ctx).Named("stackdriver")
 
-	mclient, err := e.metricClient()
-	if err != nil {
-		return fmt.Errorf("unable to create metric client: %w", err)
-	}
-
 	allViews := AllViews()
-	descriptorCreateRequests := make([]*monitoringpb.CreateMetricDescriptorRequest, 0, len(allViews))
-
 	for _, v := range allViews {
 		shouldSkip := false
 		for _, prefix := range e.config.ExcludedMetricPrefixes {
@@ -114,45 +110,7 @@ func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
 		if err := view.Register(v); err != nil {
 			return fmt.Errorf("failed to start stackdriver exporter: view registration failed: %w", err)
 		}
-
-		// The provided context here is never used. It's unclear why it's a
-		// parameter, but it's never used.
-		md, err := e.exporter.ViewToMetricDescriptor(context.Background(), v)
-		if err != nil {
-			return fmt.Errorf("failed to convert view to MetricDescriptor: %w", err)
-		}
-		cmrdesc := &monitoringpb.CreateMetricDescriptorRequest{
-			Name:             fmt.Sprintf("projects/%s", e.config.ProjectID),
-			MetricDescriptor: md,
-		}
-		descriptorCreateRequests = append(descriptorCreateRequests, cmrdesc)
 	}
-
-	// Register metrics in the background and don't block server startup on
-	// failures.
-	//
-	// Future optimization: only register metrics once per buildinfo data.
-	go func() {
-		// Overall metrics registration can take a maximum of 30s.
-		ctx, done := context.WithTimeout(context.Background(), 30*time.Second)
-		defer done()
-
-		logger.Infow("starting metric registration")
-		defer logger.Infow("finished metric registration")
-
-		for _, cmrdesc := range descriptorCreateRequests {
-			func() {
-				subCtx, subDone := context.WithTimeout(ctx, 5*time.Second)
-				defer subDone()
-
-				if _, err := mclient.CreateMetricDescriptor(subCtx, cmrdesc); err != nil {
-					logger.Errorw("failed to create MetricDescriptor",
-						"metric", cmrdesc.Name,
-						"error", err)
-				}
-			}()
-		}
-	}()
 
 	if err := e.exporter.StartMetricsExporter(); err != nil {
 		return fmt.Errorf("failed to start stackdriver exporter: %w", err)
