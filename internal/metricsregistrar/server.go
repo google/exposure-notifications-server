@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate go run ../../tools/gen-metrics-registrar -pkg metricsregistrar -dest ./all_metrics.go
+//go:generate go run ../../tools/gen-metrics-registrar -module-name=github.com/google/exposure-notifications-server -module-root=../../ -pkg=metricsregistrar -dest=./all_metrics.go
 
 package metricsregistrar
 
