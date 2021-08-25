@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"go.uber.org/zap"
 
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"go.opencensus.io/stats/view"
@@ -35,6 +36,7 @@ type stackdriverExporter struct {
 	exporter *stackdriver.Exporter
 	config   *StackdriverConfig
 	options  *stackdriver.Options
+	logger   *zap.SugaredLogger
 }
 
 type StackdriverExporter interface {
@@ -81,6 +83,7 @@ func NewStackdriver(ctx context.Context, config *StackdriverConfig) (Stackdriver
 		exporter: exporter,
 		config:   config,
 		options:  &options,
+		logger:   logger,
 	}, nil
 }
 
@@ -91,15 +94,16 @@ func (e *stackdriverExporter) ViewToMetricDescriptor(v *view.View) (*metricpb.Me
 }
 
 // StartExporter starts the exporter.
-func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
-	logger := logging.FromContext(ctx).Named("stackdriver")
+func (e *stackdriverExporter) StartExporter() error {
+	e.logger.Debugw("starting observability exporter")
+	defer e.logger.Debugw("finished starting observability exporter")
 
 	allViews := AllViews()
 	for _, v := range allViews {
 		shouldSkip := false
 		for _, prefix := range e.config.ExcludedMetricPrefixes {
 			if strings.HasPrefix(v.Name, prefix) {
-				logger.Infof("skip registering view %q as it matches the prefix to exclude: %q", v.Name, prefix)
+				e.logger.Infof("skip registering view %q as it matches the prefix to exclude: %q", v.Name, prefix)
 				shouldSkip = true
 				break
 			}
@@ -126,6 +130,9 @@ func (e *stackdriverExporter) StartExporter(ctx context.Context) error {
 
 // Close halts the exporter.
 func (e *stackdriverExporter) Close() error {
+	e.logger.Debugw("closing observability exporter")
+	defer e.logger.Debugw("finished closing observability exporter")
+
 	// Flush any existing metrics
 	e.exporter.Flush()
 
