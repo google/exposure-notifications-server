@@ -151,16 +151,12 @@ func AllViews() []*view.View {
 // used by this application.
 type Exporter interface {
 	io.Closer
-	StartExporter(ctx context.Context) error
+	StartExporter() error
 }
 
 // NewFromEnv returns the observability exporter given the provided configuration, or an error
 // if it failed to be created.
-func NewFromEnv(config *Config) (Exporter, error) {
-	// Create a separate ctx.
-	// The main ctx will be canceled when the server is shutting down. Sharing
-	// the main ctx prevent the last batch of the metrics to be uploaded.
-	ctx := context.Background()
+func NewFromEnv(ctx context.Context, config *Config) (Exporter, error) {
 	switch config.ExporterType {
 	case ExporterNoop:
 		return NewNoop(ctx)

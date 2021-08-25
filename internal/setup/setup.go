@@ -172,11 +172,11 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 		logger.Info("configuring observability exporter")
 
 		oeConfig := provider.ObservabilityExporterConfig()
-		oe, err := observability.NewFromEnv(oeConfig)
+		oe, err := observability.NewFromEnv(ctx, oeConfig)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create observability provider: %w", err)
 		}
-		if err := oe.StartExporter(ctx); err != nil {
+		if err := oe.StartExporter(); err != nil {
 			return nil, fmt.Errorf("failed to start observability: %w", err)
 		}
 		exporter := serverenv.WithObservabilityExporter(oe)

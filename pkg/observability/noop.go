@@ -27,7 +27,7 @@ func NewNoop(_ context.Context) (Exporter, error) {
 	return &noopExporter{}, nil
 }
 
-func (g *noopExporter) StartExporter(_ context.Context) error {
+func (g *noopExporter) StartExporter() error {
 	return nil
 }
 
