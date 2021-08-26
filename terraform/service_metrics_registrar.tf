@@ -75,6 +75,9 @@ resource "google_cloud_run_service" "metrics-registrar" {
         dynamic "env" {
           for_each = merge(
             local.common_cloudrun_env_vars,
+            {
+              "STACKDRIVER_REGISTER_METRICS" = true
+            },
 
             // This MUST come last to allow overrides!
             lookup(var.service_environment, "_all", {}),
