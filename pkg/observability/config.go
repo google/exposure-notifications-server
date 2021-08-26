@@ -81,4 +81,10 @@ type StackdriverConfig struct {
 	// them using the option below.
 	// Specify them using comma separated strings in envvar.
 	ExcludedMetricPrefixes []string `env:"STACKDRIVER_EXCLUDED_METRIC_PREFIXES"`
+
+	// RegisterMetrics instructs the loader to registering metrics. This is useful
+	// if you have another process which is responsible for registering metrics or
+	// if you aren't using any custom metrics. By default, metrics are not
+	// registered.
+	RegisterMetrics bool `env:"STACKDRIVER_REGISTER_METRICS"`
 }
