@@ -73,10 +73,18 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	n, err := util.RandomInt(2)
+	if err != nil {
+		t.Errorf("unable to generat random vaccine status: %v", err)
+		n = 0 // log error, but let the test run with vaccine = false.
+	}
+	vaccineStatus := (n%2 == 1)
+
 	// Publish some keys
 	publishRequest := &verifyapi.Publish{
 		Keys:              util.GenerateExposureKeys(12, -1, false),
 		HealthAuthorityID: bootstrap.AuthorizedApp.AppPackageName,
+		Vaccinated:        vaccineStatus,
 	}
 
 	verificationPayload, hmacKey := utils.IssueJWT(t, &utils.JWTConfig{
@@ -180,7 +188,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// Verify expected keys were exported
-	wantKeys := exportedKeysFrom(t, publishRequest.Keys)
+	wantKeys := exportedKeysFrom(t, publishRequest.Keys, publishRequest.Vaccinated)
 	sortTEKs(wantKeys)
 	sortTEKs(exportedKeys)
 	opts := cmpopts.IgnoreUnexported(exportpb.TemporaryExposureKey{})
@@ -208,7 +216,7 @@ func listExposures(ctx context.Context, db *database.DB) ([]*publishmodel.Exposu
 // exportedKeysFrom constructs valid TEKs from the given exposure keys. This is
 // mostly used for testing and comparing that two expected sets match (input and
 // output).
-func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey) []*exportpb.TemporaryExposureKey {
+func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey, vaccineStatus bool) []*exportpb.TemporaryExposureKey {
 	s := make([]*exportpb.TemporaryExposureKey, len(keys))
 	sort.Slice(keys, func(i, j int) bool {
 		return keys[i].IntervalNumber < keys[j].IntervalNumber
@@ -227,6 +235,7 @@ func exportedKeysFrom(tb testing.TB, keys []verifyapi.ExposureKey) []*exportpb.T
 			ReportType:                 exportpb.TemporaryExposureKey_CONFIRMED_TEST.Enum(),
 			// Keys are generated 1 day ago and then -1 day for each additional.
 			DaysSinceOnsetOfSymptoms: proto.Int32(daysSince),
+			Vaccinated:               proto.Bool(vaccineStatus),
 		}
 		daysSince++
 	}

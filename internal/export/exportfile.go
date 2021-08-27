@@ -156,6 +156,7 @@ func makeTEK(exp *publishmodel.Exposure) *export.TemporaryExposureKey {
 	if exp.IntervalCount != defaultIntervalCount {
 		pbek.RollingPeriod = proto.Int32(exp.IntervalCount)
 	}
+	pbek.Vaccinated = proto.Bool(exp.VaccineStatus)
 	return &pbek
 }
 

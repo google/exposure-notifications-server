@@ -120,6 +120,9 @@ message TemporaryExposureKey {
 
   // Type of variant of concern associated with a key.
   optional VariantOfConcern variant_of_concern = 7 [default = VARIANT_UNKNOWN];
+  
+  // If true, these keys come from a vacinnated user.
+  optional bool vaccinated = 8;
 }
 
 message TEKSignatureList {
