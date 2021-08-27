@@ -33,6 +33,10 @@ lint:
 	golangci-lint run --config .golangci.yaml
 .PHONY: lint
 
+protoc:
+	@./scripts/dev protoc
+.PHONY: protoc
+
 tabcheck:
 	@FINDINGS="$$(awk '/\t/ {printf "%s:%s:found tab character\n",FILENAME,FNR}' $(HTML_FILES))"; \
 		if [ -n "$${FINDINGS}" ]; then \
