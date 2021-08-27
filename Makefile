@@ -58,6 +58,7 @@ tabcheck:
 
 test:
 	@go test \
+		-shuffle=on \
 		-count=1 \
 		-short \
 		-timeout=5m \
@@ -66,6 +67,7 @@ test:
 
 test-acc:
 	@go test \
+		-shuffle=on \
 		-count=1 \
 		-race \
 		-timeout=10m \
@@ -78,6 +80,6 @@ test-coverage:
 .PHONY: test-coverage
 
 zapcheck:
-	@command -v zapw > /dev/null 2>&1 || (cd $${TMPDIR} && go get github.com/sethvargo/zapw/cmd/zapw)
+	@go install github.com/sethvargo/zapw/cmd/zapw
 	@zapw ./...
 .PHONY: zapcheck
