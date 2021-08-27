@@ -160,24 +160,24 @@ func checkExportFile(export *exportpb.TemporaryExposureKeyExport) error {
 	return errors.ErrorOrNil()
 }
 
-func checkKeys(kType string, keys []*exportpb.TemporaryExposureKey, floor, ceiling int32) error {
+func checkKeys(typ string, keys []*exportpb.TemporaryExposureKey, floor, ceiling int32) error {
 	symptomDays := int32(*symptomDayLimit)
 	var errors *multierror.Error
 	for i, k := range keys {
 		if l := len(k.KeyData); l != 16 {
-			errors = multierror.Append(errors, fmt.Errorf("%s #%d: invald key length: want 16, got: %v", kType, i, l))
+			errors = multierror.Append(errors, fmt.Errorf("%s #%d: invald key length: want 16, got: %v", typ, i, l))
 		}
 		if s := k.GetRollingStartIntervalNumber(); s < floor {
-			errors = multierror.Append(errors, fmt.Errorf("%s #%d: rolling interval start number is > %v ago, want >= %d, got %d", kType, i, *allowedTEKAge, floor, s))
+			errors = multierror.Append(errors, fmt.Errorf("%s #%d: rolling interval start number is > %v ago, want >= %d, got %d", typ, i, *allowedTEKAge, floor, s))
 		} else if s > ceiling {
-			errors = multierror.Append(errors, fmt.Errorf("%s #%d: rolling interval start number in the future, want < %d, got %d", kType, i, ceiling, s))
+			errors = multierror.Append(errors, fmt.Errorf("%s #%d: rolling interval start number in the future, want < %d, got %d", typ, i, ceiling, s))
 		}
 		if r := k.GetRollingPeriod(); r < 1 || r > 144 {
-			errors = multierror.Append(errors, fmt.Errorf("%s #%d: rolling period invalid, want >= 1 && <= 144, got %d", kType, i, r))
+			errors = multierror.Append(errors, fmt.Errorf("%s #%d: rolling period invalid, want >= 1 && <= 144, got %d", typ, i, r))
 		}
 		if k.DaysSinceOnsetOfSymptoms != nil {
 			if d := k.GetDaysSinceOnsetOfSymptoms(); d < -symptomDays || d > symptomDays {
-				errors = multierror.Append(errors, fmt.Errorf("%s #%d: days_since_onset_of_symptoms is outside of expected range, -%d..%d, got: %d", kType, i, symptomDays, symptomDays, d))
+				errors = multierror.Append(errors, fmt.Errorf("%s #%d: days_since_onset_of_symptoms is outside of expected range, -%d..%d, got: %d", typ, i, symptomDays, symptomDays, d))
 			}
 		}
 	}

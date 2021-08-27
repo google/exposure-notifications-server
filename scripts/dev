@@ -20,8 +20,7 @@ PROGNAME="$(basename $0)"
 ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 
 DOCKER_CMD="$(command -v docker || true)"
-DB_CONTAINER_IMAGE="registry.hub.docker.com/library/postgres:12-alpine"
-MIGRATE_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notifications/migrate:latest"
+DB_CONTAINER_IMAGE="registry.hub.docker.com/library/postgres:13-alpine"
 
 # Database parameters
 DB_HOST="${DB_HOST:-"127.0.0.1"}"

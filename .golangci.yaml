@@ -47,7 +47,6 @@ linters:
   - 'gofumpt'
   - 'goheader'
   - 'goimports'
-  - 'golint'
   - 'gomodguard'
   - 'goprintffuncname'
   - 'gosec'
@@ -60,7 +59,7 @@ linters:
   - 'paralleltest'
   - 'prealloc'
   - 'predeclared'
-  - 'scopelint'
+  - 'revive'
   - 'sqlclosecheck'
   - 'staticcheck'
   - 'structcheck'
@@ -80,6 +79,8 @@ issues:
   - '^G402:' # gosec: some services terminate at the load balancer
   - '^G505:' # gosec: we use crypto/sha1 for some HMACs
   - '^Range statement' # paralleltest: false positives
+  - '^var-declaration:' # revive: false positive
+  - '^exported:' # revive: backwards-compat
 
   # default: 50
   max-issues-per-linter: 0
