@@ -22,7 +22,6 @@ ROOT="$(cd "$(dirname "$0")/.." &>/dev/null; pwd -P)"
 DOCKER_CMD="$(command -v docker || true)"
 DB_CONTAINER_IMAGE="registry.hub.docker.com/library/postgres:12-alpine"
 MIGRATE_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notifications/migrate:latest"
-PROTOC_CONTAINER_IMAGE="gcr.io/cloud-devrel-public-resources/exposure-notifications/protoc:latest"
 
 # Database parameters
 DB_HOST="${DB_HOST:-"127.0.0.1"}"
@@ -157,27 +156,6 @@ function dburl() {
   echo "${DB_URL}"
 }
 
-# protoc compiles the protos
-function protoc() {
-  docker pull --quiet "${PROTOC_CONTAINER_IMAGE}" > /dev/null
-
-  docker run \
-    --interactive \
-    --rm \
-    --volume "${ROOT}:${ROOT}" \
-    --workdir "${ROOT}" \
-    "${PROTOC_CONTAINER_IMAGE}" \
-      --proto_path=${ROOT} \
-      --go_out=plugins=grpc,paths=source_relative:. \
-      ${ROOT}/internal/pb/*.proto ${ROOT}/internal/pb/federation/*.proto ${ROOT}/internal/pb/export/*.proto
-
-  # protoc and goimports argue about formatting.
-  # in our main repo, we have formatting robot overloads, so put this back.
-  goimports -w internal/pb
-
-  echo "Protos regenerated (OK)"
-}
-
 # help prints help.
 function help() {
   echo 1>&2 "Usage: ${PROGNAME} <command>"
@@ -190,7 +168,6 @@ function help() {
   echo 1>&2 "  dbseed       seed dev data"
   echo 1>&2 "  dburl        print url"
   echo 1>&2 "  dbshell      attach a psql session"
-  echo 1>&2 "  protoc       re-compile protos"
 }
 
 SUBCOMMAND="${1:-}"
@@ -232,11 +209,6 @@ case "${SUBCOMMAND}" in
   "dburl" )
     shift
     dburl "$@"
-    ;;
-
-  "protoc" )
-    shift
-    protoc "$@"
     ;;
 
   *)

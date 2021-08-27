@@ -17,25 +17,36 @@ HTML_FILES = $(shell find . -name \*.html)
 GO_FILES = $(shell find . -name \*.go)
 MD_FILES = $(shell find . -name \*.md)
 
+# diff-check runs git-diff and fails if there are any changes.
+diff-check:
+	@git update-index --refresh && git diff-index --quiet HEAD --
+.PHONY: diff-check
+
 generate:
 	@go generate ./...
 .PHONY: generate
 
-generate-check: generate
-	@git update-index --refresh && git diff-index --quiet HEAD --
+generate-check: generate diff-check
 .PHONY: generate-check
 
 # lint uses the same linter as CI and tries to report the same results running
 # locally. There is a chance that CI detects linter errors that are not found
 # locally, but it should be rare.
 lint:
-	@command -v golangci-lint > /dev/null 2>&1 || (cd $${TMPDIR} && go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.38.0)
-	golangci-lint run --config .golangci.yaml
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint
+	@golangci-lint run --config .golangci.yaml
 .PHONY: lint
 
+# protoc generates the protos
 protoc:
-	@./scripts/dev protoc
+	@go install golang.org/x/tools/cmd/goimports google.golang.org/grpc/cmd/protoc-gen-go-grpc google.golang.org/protobuf/cmd/protoc-gen-go
+	@protoc --proto_path=. --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. ./internal/pb/*.proto ./internal/pb/federation/*.proto ./internal/pb/export/*.proto
+	@goimports -w internal/pb
 .PHONY: protoc
+
+# protoc-check re-generates protos and checks if there's a git diff
+protoc-check: protoc diff-check
+.PHONY: protoc-check
 
 tabcheck:
 	@FINDINGS="$$(awk '/\t/ {printf "%s:%s:found tab character\n",FILENAME,FNR}' $(HTML_FILES))"; \

@@ -153,7 +153,7 @@ func realMain() error {
 	if *flagDestination == "-" {
 		out = os.Stdout
 	} else {
-		fout, err := os.OpenFile(*flagDestination, os.O_RDWR|os.O_CREATE, 0644)
+		fout, err := os.OpenFile(*flagDestination, os.O_RDWR|os.O_CREATE, 0o644)
 		if err != nil {
 			panic(err)
 		}
