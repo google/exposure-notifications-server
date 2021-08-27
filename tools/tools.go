@@ -19,8 +19,11 @@ package tools
 
 import (
 	_ "github.com/client9/misspell/cmd/misspell"
+	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 	_ "github.com/sethvargo/zapw/cmd/zapw"
 	_ "github.com/timakin/bodyclose"
 	_ "golang.org/x/tools/cmd/goimports"
+	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
+	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
 	_ "honnef.co/go/tools/cmd/staticcheck"
 )

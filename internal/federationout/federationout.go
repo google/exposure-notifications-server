@@ -63,6 +63,8 @@ func NewServer(env *serverenv.ServerEnv, config *Config) federation.FederationSe
 }
 
 type Server struct {
+	federation.UnimplementedFederationServer
+
 	env       *serverenv.ServerEnv
 	db        *database.FederationOutDB
 	publishdb *publishdb.PublishDB
