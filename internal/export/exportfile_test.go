@@ -132,7 +132,7 @@ func TestMarshalUnmarshalExportFile(t *testing.T) {
 		t.Fatalf("Unmarshal failed: %v", err)
 	}
 
-	wantDigest := "Da31joOIjYF7Snrjs00ypWpndEHhzAS6+PHP35Qs4ns="
+	wantDigest := "XtkSP7PYIvzwL729M0QuDv4npgBDDMdGxFOAarg3paI="
 	if b64digest := base64.StdEncoding.EncodeToString(digest); b64digest != wantDigest {
 		t.Errorf("wrong message digest want: %v, got: %v", wantDigest, b64digest)
 	}
