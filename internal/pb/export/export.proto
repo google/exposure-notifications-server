@@ -109,6 +109,8 @@ message TemporaryExposureKey {
   // E.g. 2 means TEK is 2 days after onset of symptoms.
   optional sint32 days_since_onset_of_symptoms = 6;
 
+  // Tag 7 is reserved for future use.
+
   // Data type representing a variant of concern.
   enum VariantOfConcern {
     VARIANT_UNKNOWN = 0;
@@ -119,7 +121,7 @@ message TemporaryExposureKey {
   }
 
   // Type of variant of concern associated with a key.
-  optional VariantOfConcern variant_of_concern = 7 [default = VARIANT_UNKNOWN];
+  optional VariantOfConcern variant_of_concern = 8 [default = VARIANT_UNKNOWN];
 }
 
 message TEKSignatureList {
