@@ -219,7 +219,8 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 	defer obs.RecordLatency(ctx, time.Now(), mLatencyMs, &blame, &obsResult)
 
 	logger := logging.FromContext(ctx).Named("process").
-		With("health_authority_id", data.HealthAuthorityID)
+		With("health_authority_id", data.HealthAuthorityID).
+		With("platform", platform)
 
 	logger.Info("publish API request")
 
