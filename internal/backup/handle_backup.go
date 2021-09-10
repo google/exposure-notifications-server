@@ -31,7 +31,7 @@ import (
 	"go.opencensus.io/stats"
 )
 
-const backupDatabaseLockID = "backup-database-lock" // TODO
+const backupDatabaseLockID = "backup-database-lock"
 
 func (s *Server) handleBackup() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

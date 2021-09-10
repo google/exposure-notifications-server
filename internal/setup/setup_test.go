@@ -53,7 +53,6 @@ type testConfig struct {
 
 func (t *testConfig) AuthorizedAppConfig() *authorizedapp.Config {
 	return &authorizedapp.Config{
-		// TODO: type
 		CacheDuration: 10 * time.Minute,
 	}
 }

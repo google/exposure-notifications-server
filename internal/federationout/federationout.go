@@ -80,7 +80,7 @@ func (s Server) Fetch(ctx context.Context, req *federation.FederationFetchReques
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 
-	response, err := s.fetch(ctx, req, s.publishdb.IterateExposures, publishmodel.TruncateWindow(time.Now(), s.config.TruncateWindow)) // Don't fetch the current window, which isn't complete yet. TODO(squee1945): should I double this for safety?
+	response, err := s.fetch(ctx, req, s.publishdb.IterateExposures, publishmodel.TruncateWindow(time.Now(), s.config.TruncateWindow)) // Don't fetch the current window, which isn't complete yet.
 	if err != nil {
 		stats.Record(ctx, mFetchFailed.M(1))
 		logger.Errorw("failed to fetch", "error", err)
