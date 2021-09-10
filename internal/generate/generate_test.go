@@ -138,12 +138,10 @@ func TestServer_handleGenerate(t *testing.T) {
 		{
 			name:           "same_day_release",
 			sameDayRelease: true,
-			err:            "TODO",
 		},
 		{
 			name:       "revised_keys",
 			reviseKeys: true,
-			err:        "TODO",
 		},
 	}
 

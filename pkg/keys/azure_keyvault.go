@@ -211,7 +211,7 @@ func (v *AzureKeyVault) Encrypt(ctx context.Context, keyID string, plaintext []b
 		return nil, err
 	}
 
-	// TODO(mikehelmick) - neds AEAD
+	// Azure KeyVault does not support AEAD.
 	value := base64.URLEncoding.EncodeToString(plaintext)
 	parameters := keyvault.KeyOperationsParameters{
 		Algorithm: keyvault.RSAOAEP256,
@@ -236,7 +236,7 @@ func (v *AzureKeyVault) Decrypt(ctx context.Context, keyID string, ciphertext []
 		return nil, err
 	}
 
-	// TODO(mikehelmick) - neds AEAD
+	// Azure KeyVault does not support AEAD.
 	value := base64.URLEncoding.EncodeToString(ciphertext)
 	parameters := keyvault.KeyOperationsParameters{
 		Algorithm: keyvault.RSAOAEP256,

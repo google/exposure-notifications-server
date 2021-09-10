@@ -86,7 +86,7 @@ func SetupWith(ctx context.Context, config interface{}, l envconfig.Lookuper) (*
 	// Build a list of options to pass to the server env.
 	var serverEnvOpts []serverenv.Option
 
-	// TODO: support customizable metrics
+	// Append default metrics.
 	serverEnvOpts = append(serverEnvOpts, serverenv.WithMetricsExporter(metrics.NewLogsBasedFromContext))
 
 	// Load the secret manager - this needs to be loaded first because other

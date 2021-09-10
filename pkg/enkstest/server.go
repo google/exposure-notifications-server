@@ -162,7 +162,7 @@ func NewServer(tb testing.TB, testDatabaseInstance *database.TestInstance) *Serv
 	r.PathPrefix("/federation-in/").Handler(http.StripPrefix("/federation-in", federationInServer.Routes(ctx)))
 
 	// Federation out
-	// TODO: this is a grpc listener and requires a lot of setup.
+	// This is a grpc listener and requires a lot of setup, skipping until needed.
 
 	// key-rotation
 	keyRotationConfig := &keyrotation.Config{
