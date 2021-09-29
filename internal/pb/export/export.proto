@@ -113,15 +113,15 @@ message TemporaryExposureKey {
 
   // Data type representing a variant of concern.
   enum VariantOfConcern {
-    VARIANT_UNKNOWN = 0;
-    VACCINE_IS_EFFECTIVE = 1;
-    HIGHLY_TRANSMISSIVE = 2;
-    HIGH_SEVERITY = 3;
-    VACCINE_BREAKTHROUGH = 4;
+    VARIANT_TYPE_UNKNOWN = 0;
+    VARIANT_TYPE_1 = 1;  // Vaccine is effective
+    VARIANT_TYPE_2 = 2;  // Highly transmissive
+    VARIANT_TYPE_3 = 3;  // High severity
+    VARIANT_TYPE_4 = 4;  // Vaccine breakthrough
   }
 
   // Type of variant of concern associated with a key.
-  optional VariantOfConcern variant_of_concern = 8 [default = VARIANT_UNKNOWN];
+  optional VariantOfConcern variant_of_concern = 8 [default = VARIANT_TYPE_UNKNOWN];
 }
 
 message TEKSignatureList {
