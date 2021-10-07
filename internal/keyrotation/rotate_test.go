@@ -240,11 +240,11 @@ func TestRotateKeys(t *testing.T) {
 func testMakeKey(ctx context.Context, t testing.TB, kms keys.KeyManager, keyID string) (key []byte, aad []byte, wrapped []byte) {
 	key = make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, key); err != nil {
-		t.Errorf("unable to generate AES key: %w", err)
+		t.Errorf("unable to generate AES key: %s", err)
 	}
 	aad = make([]byte, 16)
 	if _, err := io.ReadFull(rand.Reader, aad); err != nil {
-		t.Errorf("unable to generate random data: %w", err)
+		t.Errorf("unable to generate random data: %s", err)
 	}
 	wrapped, err := kms.Encrypt(ctx, keyID, key, aad)
 	if err != nil {
