@@ -85,6 +85,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/charithe/durationcheck v0.0.8 // indirect
 	github.com/chavacava/garif v0.0.0-20210405164556-e8a0a408d6af // indirect
+	github.com/containerd/containerd v1.4.11 // indirect
 	github.com/containerd/continuity v0.2.0 // indirect
 	github.com/daixiang0/gci v0.2.9 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
