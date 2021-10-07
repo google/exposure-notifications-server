@@ -135,7 +135,7 @@ func TestJSONExpander_GetSecretValue(t *testing.T) {
 			actualValue, err := sm.GetSecretValue(ctx, tc.secretName)
 			if err != nil {
 				if !tc.err {
-					t.Errorf("got error: %w, did not expect one", err)
+					t.Errorf("got error: %s, did not expect one", err)
 				}
 			}
 			if tc.err && err == nil {

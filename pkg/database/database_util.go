@@ -287,7 +287,7 @@ func (i *TestInstance) NewDatabase(tb testing.TB) (*DB, *Config) {
 
 	host, port, err := net.SplitHostPort(i.url.Host)
 	if err != nil {
-		tb.Errorf("failed to split host/port %q: %w", i.url.Host, err)
+		tb.Errorf("failed to split host/port %q: %s", i.url.Host, err)
 	}
 
 	return db, &Config{
