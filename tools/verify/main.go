@@ -18,6 +18,7 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/sha256"
 	"encoding/asn1"
 	"encoding/base64"
 	"flag"
@@ -57,9 +58,13 @@ func main() {
 }
 
 func realMain(ctx context.Context) error {
+	logger := logging.FromContext(ctx)
+
 	flag.Parse()
 	if *messageDigestFlag == "" {
-		return fmt.Errorf("--digest is required and cannot be empty")
+		logger.Info("no message digest given, using 'hello world'")
+		hash := sha256.Sum256([]byte("hello world"))
+		*messageDigestFlag = base64.StdEncoding.EncodeToString(hash[:])
 	}
 	digest, err := base64util.DecodeString(*messageDigestFlag)
 	if err != nil {
@@ -79,8 +84,6 @@ func realMain(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("--pem-file could not be read: %w", err)
 	}
-
-	logger := logging.FromContext(ctx)
 
 	// Validate the signature
 	publicKey, err := keys.ParseECDSAPublicKey(string(pemBytes))
