@@ -36,7 +36,6 @@ jobs:
         with:
           path: |
             ~/go/pkg/mod
-            ~/.cache/go-build
           key: ${{ runner.os }}-go-test-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-test-
@@ -88,7 +87,6 @@ jobs:
         with:
           path: |
             ~/go/pkg/mod
-            ~/.cache/go-build
           key: ${{ runner.os }}-go-lint-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-lint-
