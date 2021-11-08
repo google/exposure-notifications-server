@@ -67,6 +67,10 @@ variable "database_backup_schedule" {
   description = "Cron schedule in which to do a full backup of the database to Cloud Storage."
 }
 
+variable "cloud_scheduler_timezone" {
+  type    = string
+  default = "Etc/UTC"
+}
 
 variable "db_failover_replica_regions" {
   type    = list(string)
