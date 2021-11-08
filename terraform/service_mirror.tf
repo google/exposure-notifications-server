@@ -164,7 +164,7 @@ resource "google_cloud_scheduler_job" "mirror-invoke" {
   name             = "mirror-invoke"
   region           = var.cloudscheduler_location
   schedule         = "*/5 * * * *"
-  time_zone        = "America/Los_Angeles"
+  time_zone        = var.cloud_scheduler_timezone
   attempt_deadline = "600s"
 
   retry_config {

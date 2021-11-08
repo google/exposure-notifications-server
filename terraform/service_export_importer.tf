@@ -164,7 +164,7 @@ resource "google_cloud_scheduler_job" "export-importer-worker" {
   name             = "export-importer-worker"
   region           = var.cloudscheduler_location
   schedule         = "*/5 * * * *"
-  time_zone        = "America/Los_Angeles"
+  time_zone        = var.cloud_scheduler_timezone
   attempt_deadline = "600s"
 
   retry_config {
@@ -191,7 +191,7 @@ resource "google_cloud_scheduler_job" "export-importer-schedule" {
   name             = "export-importer-schedule"
   region           = var.cloudscheduler_location
   schedule         = "*/15 * * * *"
-  time_zone        = "America/Los_Angeles"
+  time_zone        = var.cloud_scheduler_timezone
   attempt_deadline = "600s"
 
   retry_config {

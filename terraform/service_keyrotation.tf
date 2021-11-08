@@ -180,7 +180,7 @@ resource "google_cloud_scheduler_job" "key-rotation-worker" {
   name             = "key-rotation-worker"
   region           = var.cloudscheduler_location
   schedule         = "* */4 * * *"
-  time_zone        = "America/Los_Angeles"
+  time_zone        = var.cloud_scheduler_timezone
   attempt_deadline = "600s"
 
   retry_config {
