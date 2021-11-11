@@ -10,9 +10,12 @@ on:
   schedule:
     - cron: '0 0 */1 * *'
 
-
 env:
   GOMAXPROCS: 7
+
+concurrency:
+  group: '${{ github.head_ref || github.ref }}'
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -20,11 +23,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Cancel previous
-        uses: styfle/cancel-workflow-action@0.7.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Check out code
         uses: actions/checkout@v2
 
@@ -61,11 +59,6 @@ jobs:
       fail-fast: false
 
     steps:
-      - name: Cancel previous
-        uses: styfle/cancel-workflow-action@0.7.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Check out code
         uses: actions/checkout@v2
 
