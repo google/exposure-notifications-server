@@ -116,6 +116,10 @@ type Config struct {
 	StatsEmbargoPeriod           time.Duration `env:"STATS_EMBARGO_PERIOD, default=48h"`
 	StatsResponsePaddingMinBytes int64         `env:"RESPONSE_PADDING_MIN_BYTES, default=2048"`
 	StatsResponsePaddingRange    int64         `env:"RESPONSE_PADDING_RANGE, default=1024"`
+
+	// ChaffRequestMaxLatencyMS prevents chaff request from consistently increasing latency
+	// if the server is under abnormal load.
+	ChaffRequestMaxLatencyMS uint64 `env:"CHAFF_REQUEST_MAX_LATENCY_MS, default=1000"`
 }
 
 func (c *Config) MaintenanceMode() bool {

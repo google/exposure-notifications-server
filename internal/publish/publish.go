@@ -114,7 +114,10 @@ func NewServer(ctx context.Context, cfg *Config, env *serverenv.ServerEnv) (*Ser
 		return nil, fmt.Errorf("config validation: %w", err)
 	}
 
-	chaffer, err := chaff.NewTracker(chaff.NewJSONResponder(chaffPublishResponse), chaff.DefaultCapacity)
+	chaffer, err := chaff.NewTracker(
+		chaff.NewJSONResponder(chaffPublishResponse),
+		chaff.DefaultCapacity,
+		chaff.WithMaxLatency(cfg.ChaffRequestMaxLatencyMS))
 	if err != nil {
 		return nil, fmt.Errorf("error making chaffer: %w", err)
 	}
