@@ -1106,6 +1106,8 @@ github.com/miekg/pkcs11 v1.0.2/go.mod h1:XsNlhZGX73bx86s2hdc/FuaLm2CPZJemRLMA+WT
 github.com/miekg/pkcs11 v1.0.3/go.mod h1:XsNlhZGX73bx86s2hdc/FuaLm2CPZJemRLMA+WTFxgs=
 github.com/mikehelmick/go-chaff v0.5.0 h1:u8lrTCbUsyVBFRHPs8Nn3i0830XAOrbcA5dbQl8tk78=
 github.com/mikehelmick/go-chaff v0.5.0/go.mod h1:mFry3zNW17oxNGmZpQV3PEOmzTNyly3nLDYawCT/iCE=
+github.com/mikehelmick/go-chaff v0.6.0 h1:RWn4tP+YI+MyCh+PsAyjr1zPFWpKX12Vzx1VXZYvcqk=
+github.com/mikehelmick/go-chaff v0.6.0/go.mod h1:mFry3zNW17oxNGmZpQV3PEOmzTNyly3nLDYawCT/iCE=
 github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible/go.mod h1:8AuVvqP/mXw1px98n46wfvcGfQ4ci2FwoAjKYxuo3Z4=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=
 github.com/mitchellh/copystructure v1.0.0 h1:Laisrj+bAB6b/yJwB5Bt3ITZhGJdqmxquMKeZ+mmkFQ=

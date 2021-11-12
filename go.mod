@@ -30,7 +30,7 @@ require (
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/kelseyhightower/run v0.0.17
 	github.com/lstoll/awskms v0.0.0-20210310122415-d1696e9c112b
-	github.com/mikehelmick/go-chaff v0.5.0
+	github.com/mikehelmick/go-chaff v0.6.0
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/rakutentech/jwk-go v1.0.1
