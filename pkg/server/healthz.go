@@ -28,6 +28,7 @@ import (
 // dbPingLimiter limits when we actually ping the database to at most 1/sec to
 // prevent a DOS since this is an unauthenticated endpoint.
 var dbPingLimiter = rate.NewLimiter(rate.Every(1*time.Second), 1)
+var healthStatus bool = true
 
 func HandleHealthz(db *database.DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +39,7 @@ func HandleHealthz(db *database.DB) http.Handler {
 		if dbPingLimiter.Allow() {
 			conn, err := db.Pool.Acquire(ctx)
 			if err != nil {
+				healthStatus = false
 				logger.Errorw("failed to acquire database connection", "error", err)
 				http.Error(w, http.StatusText(http.StatusInternalServerError),
 					http.StatusInternalServerError)
@@ -46,11 +48,20 @@ func HandleHealthz(db *database.DB) http.Handler {
 			defer conn.Release()
 
 			if err := conn.Conn().Ping(ctx); err != nil {
+				healthStatus = false
 				logger.Errorw("failed to ping database", "error", err)
 				http.Error(w, http.StatusText(http.StatusInternalServerError),
 					http.StatusInternalServerError)
 				return
 			}
+			healthStatus = true
+		}
+
+		// using cached healthStatus of previous run, won't change update until next run
+		if !healthStatus {
+			http.Error(w, http.StatusText(http.StatusInternalServerError),
+				http.StatusInternalServerError)
+			return
 		}
 
 		w.WriteHeader(http.StatusOK)
