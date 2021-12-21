@@ -19,38 +19,39 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/exposure-notifications-server/pkg/cache"
 	"github.com/google/exposure-notifications-server/pkg/database"
 	"github.com/google/exposure-notifications-server/pkg/logging"
-
-	"golang.org/x/time/rate"
 )
 
-// dbPingLimiter limits when we actually ping the database to at most 1/sec to
-// prevent a DOS since this is an unauthenticated endpoint.
-var dbPingLimiter = rate.NewLimiter(rate.Every(1*time.Second), 1)
-
 func HandleHealthz(db *database.DB) http.Handler {
+	cacher, _ := cache.New(1 * time.Second)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		logger := logging.FromContext(ctx).Named("server.HandleHealthz")
 
-		if dbPingLimiter.Allow() {
+		result, _ := cacher.WriteThruLookup("healthz", func() (interface{}, error) {
 			conn, err := db.Pool.Acquire(ctx)
 			if err != nil {
 				logger.Errorw("failed to acquire database connection", "error", err)
-				http.Error(w, http.StatusText(http.StatusInternalServerError),
-					http.StatusInternalServerError)
-				return
+				return false, nil
 			}
 			defer conn.Release()
 
 			if err := conn.Conn().Ping(ctx); err != nil {
 				logger.Errorw("failed to ping database", "error", err)
-				http.Error(w, http.StatusText(http.StatusInternalServerError),
-					http.StatusInternalServerError)
-				return
+				return false, nil
 			}
+
+			return true, nil
+		})
+
+		if !result.(bool) {
+			http.Error(w, http.StatusText(http.StatusInternalServerError),
+				http.StatusInternalServerError)
+			return
 		}
 
 		w.WriteHeader(http.StatusOK)
