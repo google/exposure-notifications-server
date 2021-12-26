@@ -36,10 +36,10 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
 
-// CalculateExpsureKeyHMACv1Alpha1 is a convenience method for anyone still on v1alpha1.
+// CalculateExposureKeyHMACv1Alpha1 is a convenience method for anyone still on v1alpha1.
 // Deprecated: use CalculateExposureKeyHMAC instead
 // Preserved for clients on v1alpha1, will be removed in v0.3 release.
-func CalculateExpsureKeyHMACv1Alpha1(legacyKeys []v1alpha1.ExposureKey, secret []byte) ([]byte, error) {
+func CalculateExposureKeyHMACv1Alpha1(legacyKeys []v1alpha1.ExposureKey, secret []byte) ([]byte, error) {
 	keys := make([]verifyapi.ExposureKey, len(legacyKeys))
 	for i, k := range legacyKeys {
 		keys[i] = verifyapi.ExposureKey{
