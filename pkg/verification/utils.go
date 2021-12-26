@@ -33,24 +33,7 @@ import (
 	"strings"
 
 	verifyapi "github.com/google/exposure-notifications-server/pkg/api/v1"
-	"github.com/google/exposure-notifications-server/pkg/api/v1alpha1"
 )
-
-// CalculateExpsureKeyHMACv1Alpha1 is a convenience method for anyone still on v1alpha1.
-// Deprecated: use CalculateExposureKeyHMAC instead
-// Preserved for clients on v1alpha1, will be removed in v0.3 release.
-func CalculateExpsureKeyHMACv1Alpha1(legacyKeys []v1alpha1.ExposureKey, secret []byte) ([]byte, error) {
-	keys := make([]verifyapi.ExposureKey, len(legacyKeys))
-	for i, k := range legacyKeys {
-		keys[i] = verifyapi.ExposureKey{
-			Key:              k.Key,
-			IntervalNumber:   k.IntervalNumber,
-			IntervalCount:    k.IntervalCount,
-			TransmissionRisk: k.TransmissionRisk,
-		}
-	}
-	return CalculateExposureKeyHMAC(keys, secret)
-}
 
 // CalculateAllAllowedExposureKeyHMAC calculates the main HMAC and the optional HMAC. The optional HMAC
 // is only valid if the transmission risks are all zero.
