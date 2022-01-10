@@ -166,11 +166,7 @@ func NewTestInstance() (*TestInstance, error) {
 	}
 
 	// Create retryable.
-	b, err := retry.NewConstant(1 * time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("failed to configure backoff: %w", err)
-	}
-	b = retry.WithMaxRetries(30, b)
+	b := retry.WithMaxRetries(30, retry.NewConstant(1*time.Second))
 
 	// Try to establish a connection to the database, with retries.
 	var conn *pgx.Conn

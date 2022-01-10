@@ -106,8 +106,7 @@ func TestEndToEnd(t *testing.T) {
 
 	// Get the exported exposures
 	var exportedKeys []*exportpb.TemporaryExposureKey
-	backoff, _ := retry.NewConstant(500 * time.Millisecond)
-	backoff = retry.WithMaxRetries(30, backoff)
+	backoff := retry.WithMaxRetries(30, retry.NewConstant(500*time.Millisecond))
 	if err := retry.Do(ctx, backoff, func(ctx context.Context) error {
 		exportDir := bootstrap.ExportConfig.BucketName
 		exportRoot := bootstrap.ExportConfig.FilenameRoot

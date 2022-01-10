@@ -172,8 +172,7 @@ func (kms *GoogleCloudKMS) CreateKeyVersion(ctx context.Context, parent string) 
 		return "", fmt.Errorf("failed to create key version: %w", err)
 	}
 
-	b, _ := retry.NewConstant(500 * time.Millisecond)
-	b = retry.WithMaxRetries(10, b)
+	b := retry.WithMaxRetries(10, retry.NewConstant(500*time.Millisecond))
 	if err := retry.Do(ctx, b, func(ctx context.Context) error {
 		version, err := kms.client.GetCryptoKeyVersion(ctx, &kmspb.GetCryptoKeyVersionRequest{
 			Name: result.Name,

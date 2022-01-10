@@ -29,6 +29,7 @@ import (
 	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/credentials/oauth"
 
 	"go.opencensus.io/plugin/ocgrpc"
@@ -90,7 +91,8 @@ func main() {
 		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
 	}
 	if *skipAuth {
-		dialOpts = append(dialOpts, grpc.WithInsecure())
+		creds := grpc.WithTransportCredentials((insecure.NewCredentials()))
+		dialOpts = append(dialOpts, creds)
 	} else {
 		creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(creds))
