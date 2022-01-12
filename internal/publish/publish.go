@@ -513,6 +513,16 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 			logger.Errorw("failed to record stats", "error", err)
 		}
 	}
+	// Backwards compat from v1alpha1 API, normally there is one region.
+	for _, region := range regions {
+		tags := []tag.Mutator{
+			tag.Upsert(healthAuthorityIDTag, data.HealthAuthorityID),
+			tag.Upsert(regionTag, region),
+		}
+		if err := stats.RecordWithTags(ctx, tags, mExposuresCount.M(int64(1))); err != nil {
+			logger.Errorw("failed to record publish request stats", "error", err)
+		}
+	}
 
 	return &response{
 		status:      http.StatusOK,

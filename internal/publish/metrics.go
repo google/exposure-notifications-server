@@ -38,6 +38,9 @@ var (
 	mExposuresCount = stats.Int64(publishMetricsPrefix+"exposures_count",
 		"exposure count", stats.UnitDimensionless)
 
+	mPublishRequest = stats.Int64(publishMetricsPrefix+"publish_requests",
+		"publish requests", stats.UnitDimensionless)
+
 	mVerificationBypassed = stats.Int64(publishMetricsPrefix+"verification_bypassed",
 		"Instances of health authority verification being bypassed", stats.UnitDimensionless)
 	// v1 and v1alpha1
@@ -61,6 +64,13 @@ var (
 	healthAuthorityIDTag = tag.MustNewKey("healthAuthorityID")
 	missingPublicKeyTags = []tag.Key{
 		healthAuthorityIDTag,
+	}
+
+	// For publish requests counts.
+	regionTag      = tag.MustNewKey("region")
+	publishTagKeys = []tag.Key{
+		healthAuthorityIDTag,
+		regionTag,
 	}
 )
 
@@ -96,6 +106,13 @@ func init() {
 			Measure:     mExposuresCount,
 			Aggregation: view.Count(),
 			TagKeys:     exposureTagKeys,
+		},
+		{
+			Name:        metrics.MetricRoot + "publish_requests",
+			Description: "Total count of publish requests",
+			Measure:     mPublishRequest,
+			Aggregation: view.Count(),
+			TagKeys:     publishTagKeys,
 		},
 		{
 			Name:        metrics.MetricRoot + "verification_bypassed_count",
