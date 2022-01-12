@@ -104,14 +104,14 @@ func init() {
 			Name:        metrics.MetricRoot + "exposures_count",
 			Description: "Total count of published exposures.",
 			Measure:     mExposuresCount,
-			Aggregation: view.Count(),
+			Aggregation: view.Sum(),
 			TagKeys:     exposureTagKeys,
 		},
 		{
 			Name:        metrics.MetricRoot + "publish_requests",
 			Description: "Total count of publish requests",
 			Measure:     mPublishRequest,
-			Aggregation: view.Count(),
+			Aggregation: view.Sum(),
 			TagKeys:     publishTagKeys,
 		},
 		{
