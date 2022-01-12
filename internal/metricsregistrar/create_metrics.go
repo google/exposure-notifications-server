@@ -16,6 +16,7 @@ package metricsregistrar
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/sync/semaphore"
+	"google.golang.org/api/iterator"
 	monitoringpb "google.golang.org/genproto/googleapis/monitoring/v3"
 )
 
@@ -46,6 +48,25 @@ func (s *Server) createMetrics(ctx context.Context) error {
 	client, err := monitoring.NewMetricClient(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to create metrics client: %w", err)
+	}
+	defer client.Close()
+
+	// Get the list of descriptors that are already registered.
+	iter := client.ListMetricDescriptors(context.Background(), &monitoringpb.ListMetricDescriptorsRequest{
+		Name: "projects/" + projectID,
+	})
+	existingMetricDescriptors := make(map[string]struct{})
+	for {
+		resp, err := iter.Next()
+		if errors.Is(err, iterator.Done) {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to list metrics: %w", err)
+		}
+
+		typ := resp.GetType()
+		existingMetricDescriptors[typ] = struct{}{}
 	}
 
 	// Create the Stackdriver exporter.
@@ -74,8 +95,6 @@ func (s *Server) createMetrics(ctx context.Context) error {
 			return fmt.Errorf("failed to acquire semaphore: %w", err)
 		}
 
-		logger.Infow("registering metrics exporter", "view", view.Name)
-
 		go func() {
 			defer sem.Release(1)
 
@@ -84,6 +103,17 @@ func (s *Server) createMetrics(ctx context.Context) error {
 				errCh <- fmt.Errorf("failed to convert view %s to MetricDescriptor: %w", view.Name, err)
 				return
 			}
+
+			if _, ok := existingMetricDescriptors[metricDescriptor.Type]; ok {
+				logger.Infow("skipping registration, already registered",
+					"view", view.Name,
+					"type", metricDescriptor.Type)
+				return
+			}
+
+			logger.Infow("registering metrics exporter",
+				"view", view.Name,
+				"type", metricDescriptor.Type)
 
 			req := &monitoringpb.CreateMetricDescriptorRequest{
 				Name:             "projects/" + projectID,
