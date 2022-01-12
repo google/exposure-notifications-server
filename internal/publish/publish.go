@@ -519,7 +519,7 @@ func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform 
 			tag.Upsert(healthAuthorityIDTag, data.HealthAuthorityID),
 			tag.Upsert(regionTag, region),
 		}
-		if err := stats.RecordWithTags(ctx, tags, mExposuresCount.M(int64(1))); err != nil {
+		if err := stats.RecordWithTags(ctx, tags, mPublishRequest.M(int64(1))); err != nil {
 			logger.Errorw("failed to record publish request stats", "error", err)
 		}
 	}
