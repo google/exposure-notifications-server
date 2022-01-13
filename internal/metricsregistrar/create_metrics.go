@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/api/iterator"
+	"google.golang.org/genproto/googleapis/api/metric"
 	monitoringpb "google.golang.org/genproto/googleapis/monitoring/v3"
 )
 
@@ -55,7 +56,7 @@ func (s *Server) createMetrics(ctx context.Context) error {
 	iter := client.ListMetricDescriptors(context.Background(), &monitoringpb.ListMetricDescriptorsRequest{
 		Name: "projects/" + projectID,
 	})
-	existingMetricDescriptors := make(map[string]struct{})
+	existingMetricDescriptors := make(map[string]*metric.MetricDescriptor)
 	for {
 		resp, err := iter.Next()
 		if errors.Is(err, iterator.Done) {
@@ -65,8 +66,8 @@ func (s *Server) createMetrics(ctx context.Context) error {
 			return fmt.Errorf("failed to list metrics: %w", err)
 		}
 
-		typ := resp.GetType()
-		existingMetricDescriptors[typ] = struct{}{}
+		typ := resp.GetName()
+		existingMetricDescriptors[typ] = resp
 	}
 
 	// Create the Stackdriver exporter.
@@ -104,16 +105,37 @@ func (s *Server) createMetrics(ctx context.Context) error {
 				return
 			}
 
-			if _, ok := existingMetricDescriptors[metricDescriptor.Type]; ok {
-				logger.Infow("skipping registration, already registered",
-					"view", view.Name,
-					"type", metricDescriptor.Type)
-				return
+			if existing, ok := existingMetricDescriptors[metricDescriptor.GetName()]; ok {
+				if existing.GetType() == metricDescriptor.GetType() &&
+					existing.GetMetricKind() == metricDescriptor.GetMetricKind() &&
+					existing.GetValueType() == metricDescriptor.GetValueType() &&
+					existing.GetUnit() == metricDescriptor.GetUnit() &&
+					existing.GetDescription() == metricDescriptor.GetDescription() &&
+					existing.GetDisplayName() == metricDescriptor.GetDisplayName() {
+					logger.Debugw("skipping registration, already registered",
+						"name", metricDescriptor.GetName(),
+						"view", view.Name)
+					return
+				}
+
+				// If we got this far, the metric exists, but it has invalid properties.
+				// Delete the metric (there is no update option).
+				logger.Warnw("metric is already registered, but properties differ, deleting",
+					"name", metricDescriptor.GetName(),
+					"existing", existing,
+					"new", metricDescriptor)
+				if err := client.DeleteMetricDescriptor(ctx, &monitoringpb.DeleteMetricDescriptorRequest{
+					Name: metricDescriptor.GetName(),
+				}); err != nil {
+					errCh <- fmt.Errorf("failed to delete existing metric descriptor for view %q: %w", view.Name, err)
+					// Don't return, still try to create the metric below
+				}
 			}
 
-			logger.Infow("registering metrics exporter",
+			logger.Infow("registering metrics descriptor",
+				"name", metricDescriptor.GetName(),
 				"view", view.Name,
-				"type", metricDescriptor.Type)
+				"descriptor", metricDescriptor)
 
 			req := &monitoringpb.CreateMetricDescriptorRequest{
 				Name:             "projects/" + projectID,

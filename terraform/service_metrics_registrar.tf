@@ -38,6 +38,10 @@ resource "google_project_iam_member" "metrics-registrar-observability" {
     "roles/logging.logWriter",
     "roles/monitoring.metricWriter",
     "roles/stackdriver.resourceMetadata.writer",
+
+    // The metrics-registrar needs permissions to delete metrics, which is only
+    // available in this role.
+    "roles/monitoring.editor",
   ])
 
   project = var.project
