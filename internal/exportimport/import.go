@@ -71,7 +71,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 		Timeout: s.config.ExportFileDownloadTimeout,
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", ir.file.ZipFilename, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ir.file.ZipFilename, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request to download export file: %w", err)
 	}
