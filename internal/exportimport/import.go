@@ -156,6 +156,7 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 			BackfillSymptomOnset:      s.config.BackfillDaysSinceOnset,
 			BackfillSymptomOnsetValue: int32(s.config.BackfillDaysSinceOnsetValue),
 			MaxSymptomOnsetDays:       int32(s.config.MaxMagnitudeSymptomOnsetDays),
+			AllowSelfReport:           true,
 			AllowClinical:             true,
 			AllowRevoked:              false,
 		},
@@ -178,7 +179,8 @@ func (s *Server) ImportExportFile(ctx context.Context, ir *ImportRequest) (*Impo
 
 	// Then revised keys and revise.
 	if len(tekExport.RevisedKeys) > 0 {
-		// Revoked
+		// Can transition to revoked, cannot transition to self report or clinical.
+		exKeyTransform.exportImportConfig.AllowSelfReport = false
 		exKeyTransform.exportImportConfig.AllowClinical = false
 		exKeyTransform.exportImportConfig.AllowRevoked = true
 

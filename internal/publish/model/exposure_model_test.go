@@ -1860,6 +1860,7 @@ func TestExposureFromExportFile(t *testing.T) {
 		BackfillSymptomOnset:      true,
 		BackfillSymptomOnsetValue: 10,
 		MaxSymptomOnsetDays:       int32(14),
+		AllowSelfReport:           true,
 		AllowClinical:             true,
 		AllowRevoked:              false,
 	}
@@ -1909,6 +1910,49 @@ func TestExposureFromExportFile(t *testing.T) {
 				LocalProvenance:       false,
 				ReportType:            verifyapi.ReportTypeClinical,
 				DaysSinceSymptomOnset: proto.Int32(2),
+			},
+		},
+		{
+			name: "valid_user_report_key",
+			key: &export.TemporaryExposureKey{
+				KeyData:                    validTEK,
+				TransmissionRiskLevel:      proto.Int32(verifyapi.TransmissionRiskSelfReport),
+				RollingStartIntervalNumber: proto.Int32(validInterval),
+				RollingPeriod:              proto.Int32(verifyapi.MaxIntervalCount),
+				ReportType:                 export.TemporaryExposureKey_SELF_REPORT.Enum(),
+				DaysSinceOnsetOfSymptoms:   proto.Int32(2),
+			},
+			want: &Exposure{
+				ExposureKey:           validTEK,
+				TransmissionRisk:      verifyapi.TransmissionRiskSelfReport,
+				IntervalNumber:        validInterval,
+				IntervalCount:         verifyapi.MaxIntervalCount,
+				LocalProvenance:       false,
+				ReportType:            verifyapi.ReportTypeSelfReport,
+				DaysSinceSymptomOnset: proto.Int32(2),
+			},
+		},
+		{
+			name: "no_user_report_on_revise",
+			key: &export.TemporaryExposureKey{
+				KeyData:                    validTEK,
+				TransmissionRiskLevel:      proto.Int32(verifyapi.TransmissionRiskSelfReport),
+				RollingStartIntervalNumber: proto.Int32(validInterval),
+				RollingPeriod:              proto.Int32(verifyapi.MaxIntervalCount),
+				ReportType:                 export.TemporaryExposureKey_SELF_REPORT.Enum(),
+				DaysSinceOnsetOfSymptoms:   proto.Int32(2),
+			},
+			wantError: "saw self report key when not allowed",
+			modifyConfig: func(c *ExportImportConfig) *ExportImportConfig {
+				return &ExportImportConfig{
+					DefaultReportType:         c.DefaultReportType,
+					BackfillSymptomOnset:      c.BackfillSymptomOnset,
+					BackfillSymptomOnsetValue: c.BackfillSymptomOnsetValue,
+					MaxSymptomOnsetDays:       c.MaxSymptomOnsetDays,
+					AllowSelfReport:           false,
+					AllowClinical:             false,
+					AllowRevoked:              false,
+				}
 			},
 		},
 		{
