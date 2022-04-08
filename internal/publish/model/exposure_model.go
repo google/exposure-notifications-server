@@ -101,6 +101,7 @@ type ExportImportConfig struct {
 	BackfillSymptomOnset      bool
 	BackfillSymptomOnsetValue int32
 	MaxSymptomOnsetDays       int32
+	AllowSelfReport           bool
 	AllowClinical             bool
 	AllowRevoked              bool
 }
@@ -125,6 +126,8 @@ func FromExportKey(key *export.TemporaryExposureKey, config *ExportImportConfig)
 			exp.ReportType = verifyapi.ReportTypeClinical
 		case export.TemporaryExposureKey_REVOKED:
 			exp.ReportType = verifyapi.ReportTypeNegative
+		case export.TemporaryExposureKey_SELF_REPORT:
+			exp.ReportType = verifyapi.ReportTypeSelfReport
 		case export.TemporaryExposureKey_UNKNOWN:
 			exp.ReportType = ""
 		default:
@@ -136,6 +139,9 @@ func FromExportKey(key *export.TemporaryExposureKey, config *ExportImportConfig)
 		exp.ReportType = config.DefaultReportType
 	}
 
+	if !config.AllowSelfReport && exp.ReportType == verifyapi.ReportTypeSelfReport {
+		return nil, fmt.Errorf("saw self report key when not allowed")
+	}
 	if !config.AllowRevoked && exp.ReportType == verifyapi.ReportTypeNegative {
 		return nil, fmt.Errorf("saw revoked key when not allowed")
 	}
