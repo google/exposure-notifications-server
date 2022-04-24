@@ -25,14 +25,14 @@ import (
 )
 
 func HandleHealthz(db *database.DB) http.Handler {
-	cacher, _ := cache.New(1 * time.Second)
+	cacher, _ := cache.New[bool](1 * time.Second)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		logger := logging.FromContext(ctx).Named("server.HandleHealthz")
 
-		result, _ := cacher.WriteThruLookup("healthz", func() (interface{}, error) {
+		result, _ := cacher.WriteThruLookup("healthz", func() (bool, error) {
 			conn, err := db.Pool.Acquire(ctx)
 			if err != nil {
 				logger.Errorw("failed to acquire database connection", "error", err)
@@ -48,7 +48,7 @@ func HandleHealthz(db *database.DB) http.Handler {
 			return true, nil
 		})
 
-		if !result.(bool) {
+		if !result {
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
 				http.StatusInternalServerError)
 			return

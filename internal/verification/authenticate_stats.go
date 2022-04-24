@@ -52,7 +52,7 @@ func (v *Verifier) AuthenticateStatsToken(ctx context.Context, rawToken string) 
 			return nil, fmt.Errorf("token does not contain expected claim set")
 		}
 
-		lookup := func() (interface{}, error) {
+		lookup := func() (*model.HealthAuthority, error) {
 			// Based on issuer, load the key versions.
 			ha, err := v.db.GetHealthAuthority(ctx, claims.Issuer)
 			// Special case not found so that we can cache it.
@@ -64,20 +64,17 @@ func (v *Verifier) AuthenticateStatsToken(ctx context.Context, rawToken string) 
 			}
 			return ha, nil
 		}
-		cacheVal, err := v.haCache.WriteThruLookup(claims.Issuer, lookup)
+		healthAuthority, err := v.haCache.WriteThruLookup(claims.Issuer, lookup)
 		if err != nil {
 			return nil, err
 		}
 
-		if cacheVal == nil {
+		// Handle not found.
+		if healthAuthority == nil {
 			return nil, fmt.Errorf("issuer not found: %v", claims.Issuer)
 		}
 
-		healthAuthority, ok := cacheVal.(*model.HealthAuthority)
-		if !ok {
-			return nil, fmt.Errorf("incorrect type in cache: %w", err)
-		}
-		// check that the API is enabled for this HA.
+		// Check that the API is enabled for this HA.
 		if !healthAuthority.EnableStatsAPI {
 			return nil, fmt.Errorf("API access forbidden")
 		}

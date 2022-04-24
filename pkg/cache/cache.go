@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package cache implements an inmemory cache for any interface{} object.
+// Package cache implements an inmemory cache for any object.
 //
 // Although exported, this package is non intended for general consumption.
 // It is a shared dependency between multiple exposure notifications projects.
@@ -29,38 +29,38 @@ var ErrInvalidDuration = errors.New("expireAfter duration cannot be negative")
 
 const initialSize = 16
 
-type Func func() (interface{}, error)
+type Func[T any] func() (T, error)
 
-type Cache struct {
-	data        map[string]item
+type Cache[T any] struct {
+	data        map[string]item[T]
 	expireAfter time.Duration
 	mu          sync.RWMutex
 }
 
-type item struct {
-	object    interface{}
+type item[T any] struct {
+	object    T
 	expiresAt int64
 }
 
-func (i *item) expired() bool {
-	return i.expiresAt < time.Now().UnixNano()
+func (c *item[T]) expired() bool {
+	return c.expiresAt < time.Now().UnixNano()
 }
 
 // New creates a new in memory cache.
-func New(expireAfter time.Duration) (*Cache, error) {
+func New[T any](expireAfter time.Duration) (*Cache[T], error) {
 	if expireAfter < 0 {
 		return nil, ErrInvalidDuration
 	}
 
-	return &Cache{
-		data:        make(map[string]item, initialSize),
+	return &Cache[T]{
+		data:        make(map[string]item[T], initialSize),
 		expireAfter: expireAfter,
 	}, nil
 }
 
 // Removes an item by name and expiry time when the purge was scheduled.
 // If there is a race, and the item has been refreshed, it will not be purged.
-func (c *Cache) purgeExpired(name string, expectedExpiryTime int64) {
+func (c *Cache[T]) purgeExpired(name string, expectedExpiryTime int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -71,23 +71,25 @@ func (c *Cache) purgeExpired(name string, expectedExpiryTime int64) {
 }
 
 // Size returns the number of items in the cache.
-func (c *Cache) Size() int {
+func (c *Cache[T]) Size() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return len(c.data)
 }
 
 // Clear removes all items from the cache, regardless of their expiration.
-func (c *Cache) Clear() {
+func (c *Cache[T]) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.data = make(map[string]item, initialSize)
+	c.data = make(map[string]item[T], initialSize)
 }
 
 // WriteThruLookup checks the cache for the value associated with name,
 // and if not found or expired, invokes the provided primaryLookup function
 // to local the value.
-func (c *Cache) WriteThruLookup(name string, primaryLookup Func) (interface{}, error) {
+func (c *Cache[T]) WriteThruLookup(name string, primaryLookup Func[T]) (T, error) {
+	var nilT T
+
 	c.mu.RLock()
 	val, hit := c.lookup(name)
 	if hit {
@@ -111,11 +113,11 @@ func (c *Cache) WriteThruLookup(name string, primaryLookup Func) (interface{}, e
 	// Value does indeed need to be refreshed. Used the provided function.
 	newData, err := primaryLookup()
 	if err != nil {
-		return nil, err
+		return nilT, err
 	}
 
 	// save the newData in the cache. newData may be nil, if that's what the WriteThruFunction provided.
-	c.data[name] = item{
+	c.data[name] = item[T]{
 		object:    newData,
 		expiresAt: time.Now().Add(c.expireAfter).UnixNano(),
 	}
@@ -127,7 +129,7 @@ func (c *Cache) WriteThruLookup(name string, primaryLookup Func) (interface{}, e
 // A return of nil, true means that nil is in the cache.
 // Where nil, false indicates a cache miss or that the value is expired and should
 // be refreshed.
-func (c *Cache) Lookup(name string) (interface{}, bool) {
+func (c *Cache[T]) Lookup(name string) (T, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -136,11 +138,11 @@ func (c *Cache) Lookup(name string) (interface{}, bool) {
 
 // Set saves the current value of an object in the cache, with the supplied
 // durintion until the object expires.
-func (c *Cache) Set(name string, object interface{}) error {
+func (c *Cache[T]) Set(name string, object T) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.data[name] = item{
+	c.data[name] = item[T]{
 		object:    object,
 		expiresAt: time.Now().Add(c.expireAfter).UnixNano(),
 	}
@@ -151,16 +153,17 @@ func (c *Cache) Set(name string, object interface{}) error {
 // lookup finds an unexpired item at the given name. The bool indicates if a hit
 // occurred. This is an internal API that is NOT thread-safe. Consumers must
 // take out a read or read-write lock.
-func (c *Cache) lookup(name string) (interface{}, bool) {
+func (c *Cache[T]) lookup(name string) (T, bool) {
+	var nilT T
 	if item, ok := c.data[name]; ok && item.expired() {
 		// Cache hit, but expired. The removal from the cache is deferred.
 		go c.purgeExpired(name, item.expiresAt)
-		return nil, false
+		return nilT, false
 	} else if ok {
 		// Cache hit, not expired.
 		return item.object, true
 	}
 
 	// Cache miss.
-	return nil, false
+	return nilT, false
 }

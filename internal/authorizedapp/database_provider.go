@@ -36,7 +36,7 @@ type DatabaseProvider struct {
 	database      *database.DB
 	cacheDuration time.Duration
 
-	cache *cache.Cache
+	cache *cache.Cache[*model.AuthorizedApp]
 }
 
 // DatabaseProviderOption is used as input to the database provider.
@@ -44,7 +44,7 @@ type DatabaseProviderOption func(*DatabaseProvider) *DatabaseProvider
 
 // NewDatabaseProvider creates a new Provider that reads from a database.
 func NewDatabaseProvider(ctx context.Context, db *database.DB, config *Config, opts ...DatabaseProviderOption) (Provider, error) {
-	cache, err := cache.New(config.CacheDuration)
+	cache, err := cache.New[*model.AuthorizedApp](config.CacheDuration)
 	if err != nil {
 		return nil, fmt.Errorf("cache.New: %w", err)
 	}
@@ -70,7 +70,7 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 	// cacher does not. To maximize cache hits, convert to lowercase.
 	name = strings.ToLower(name)
 
-	lookup := func() (interface{}, error) {
+	lookup := func() (*model.AuthorizedApp, error) {
 		// Load config.
 		config, err := p.loadAuthorizedAppFromDatabase(ctx, name)
 		if err != nil {
@@ -79,14 +79,13 @@ func (p *DatabaseProvider) AppConfig(ctx context.Context, name string) (*model.A
 		logger.Infof("authorizedapp: loaded %v, caching for %s", name, p.cacheDuration)
 		return config, nil
 	}
-	cached, err := p.cache.WriteThruLookup(name, lookup)
+	config, err := p.cache.WriteThruLookup(name, lookup)
 	// Indicates an error on the write thru lookup.
 	if err != nil {
 		return nil, err
 	}
 
 	// Handle not found.
-	config := cached.(*model.AuthorizedApp)
 	if config == nil {
 		return nil, ErrAppNotFound
 	}

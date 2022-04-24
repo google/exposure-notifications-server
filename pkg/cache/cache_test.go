@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package cache implements an inmemory cache for any interface{} object.
 package cache
 
 import (
@@ -29,7 +28,7 @@ type order struct {
 	Fries   int
 }
 
-func checkSize(t *testing.T, c *Cache, want int) {
+func checkSize(t *testing.T, c *Cache[*order], want int) {
 	t.Helper()
 
 	if got := c.Size(); got != want {
@@ -41,7 +40,7 @@ func TestCache(t *testing.T) {
 	t.Parallel()
 
 	duration := time.Millisecond * 500
-	cache, err := New(duration)
+	cache, err := New[*order](duration)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +82,7 @@ func TestCache(t *testing.T) {
 func TestCacheClear(t *testing.T) {
 	t.Parallel()
 
-	cache, err := New(30 * time.Second)
+	cache, err := New[string](30 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,13 +90,13 @@ func TestCacheClear(t *testing.T) {
 	if err := cache.Set("foo", "bar"); err != nil {
 		t.Fatal(err)
 	}
-	if got, hit := cache.Lookup("foo"); got == nil || !hit {
+	if got, hit := cache.Lookup("foo"); got == "" || !hit {
 		t.Fatalf("lookup failed got %#v", got)
 	}
 
 	cache.Clear()
 
-	if got, _ := cache.Lookup("foo"); got != nil {
+	if got, _ := cache.Lookup("foo"); got != "" {
 		t.Fatalf("lookup failed expected nil got %#v", got)
 	}
 }
@@ -105,14 +104,14 @@ func TestCacheClear(t *testing.T) {
 func TestWriteThruCache(t *testing.T) {
 	t.Parallel()
 
-	cache, err := New(time.Second)
+	cache, err := New[*order](time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	lookupCount := 0
 	want := &order{12, 34}
-	lookerUpper := func() (interface{}, error) {
+	lookerUpper := func() (*order, error) {
 		lookupCount++
 		return want, nil
 	}
@@ -135,12 +134,12 @@ func TestWriteThruCache(t *testing.T) {
 func TestWriteThruError(t *testing.T) {
 	t.Parallel()
 
-	cache, err := New(time.Second)
+	cache, err := New[*order](time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	lookerUpper := func() (interface{}, error) {
+	lookerUpper := func() (*order, error) {
 		return nil, fmt.Errorf("nope")
 	}
 
@@ -159,21 +158,21 @@ func TestWriteThruError(t *testing.T) {
 func TestInvalidDuration(t *testing.T) {
 	t.Parallel()
 
-	_, err := New(-1 * time.Second)
+	_, err := New[*order](-1 * time.Second)
 	errcmp.MustMatch(t, err, "duration cannot be negative")
 }
 
 func TestConcurrentReaders(t *testing.T) {
 	t.Parallel()
 
-	cache, err := New(time.Second * 5)
+	cache, err := New[*order](time.Second * 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	lookupCount := 0
 	want := &order{12, 34}
-	lookerUpper := func() (interface{}, error) {
+	lookerUpper := func() (*order, error) {
 		// The sleep here, reliably triggers a race condition on multiple entrants attempting
 		// to lookup the cache miss to primary storage. Only one will win!
 		time.Sleep(250 * time.Millisecond)
@@ -186,14 +185,9 @@ func TestConcurrentReaders(t *testing.T) {
 	for i := 0; i < parallel; i++ {
 		ver := i
 		go func() {
-			gotCache, err := cache.WriteThruLookup("foo", lookerUpper)
+			got, err := cache.WriteThruLookup("foo", lookerUpper)
 			if err != nil {
 				done <- fmt.Errorf("routine: %v got unexpected error: %w", ver, err)
-				return
-			}
-			got, ok := gotCache.(*order)
-			if !ok {
-				done <- fmt.Errorf("routine: %v cache item of wrong type", ver)
 				return
 			}
 			if diff := cmp.Diff(want, got); diff != "" {
