@@ -42,7 +42,7 @@ steps:
 # cache (and saving our cache) to reduce the size of our cache and speed up our
 # builds.
 - id: 'clear-cache'
-  name: 'golang:1.17'
+  name: 'golang:1.18'
   args:
   - 'go'
   - 'clean'
@@ -69,7 +69,7 @@ steps:
   - 'bin'
 
 - id: 'build'
-  name: 'golang:1.17'
+  name: 'golang:1.18'
   args:
   - 'go'
   - 'build'

@@ -22,12 +22,12 @@ jobs:
 
     steps:
     - name: 'checkout'
-      uses: 'actions/checkout@v2'
+      uses: 'actions/checkout@v3'
 
     - name: 'setup-terraform'
-      uses: 'hashicorp/setup-terraform@v1'
+      uses: 'hashicorp/setup-terraform@v2'
       with:
-        terraform_version: '1.0.5'
+        terraform_version: '1.1.9'
 
     - name: 'init'
       working-directory: './terraform'
@@ -48,12 +48,12 @@ jobs:
 
     steps:
     - name: 'checkout'
-      uses: 'actions/checkout@v2'
+      uses: 'actions/checkout@v3'
 
     - name: 'setup-terraform'
-      uses: 'hashicorp/setup-terraform@v1'
+      uses: 'hashicorp/setup-terraform@v2'
       with:
-        terraform_version: '1.0.5'
+        terraform_version: '1.1.9'
 
     - name: 'init'
       working-directory: './terraform/alerting'
