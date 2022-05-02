@@ -28,12 +28,12 @@ var _ SecretManager = (*Cacher)(nil)
 // and caches secret values.
 type Cacher struct {
 	sm    SecretManager
-	cache *cache.Cache
+	cache *cache.Cache[string]
 }
 
 // WrapCacher wraps an existing SecretManager with caching.
 func WrapCacher(ctx context.Context, sm SecretManager, ttl time.Duration) (SecretManager, error) {
-	cache, err := cache.New(ttl)
+	cache, err := cache.New[string](ttl)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func WrapCacher(ctx context.Context, sm SecretManager, ttl time.Duration) (Secre
 // GetSecretValue implements the SecretManager interface, but caches values and
 // retrieves them from the cache.
 func (sm *Cacher) GetSecretValue(ctx context.Context, name string) (string, error) {
-	lookup := func() (interface{}, error) {
+	lookup := func() (string, error) {
 		// Delegate lookup to parent sm.
 		plaintext, err := sm.sm.GetSecretValue(ctx, name)
 		if err != nil {
@@ -55,11 +55,10 @@ func (sm *Cacher) GetSecretValue(ctx context.Context, name string) (string, erro
 		return plaintext, nil
 	}
 
-	cacheVal, err := sm.cache.WriteThruLookup(name, lookup)
+	plaintext, err := sm.cache.WriteThruLookup(name, lookup)
 	if err != nil {
 		return "", err
 	}
 
-	plaintext := cacheVal.(string)
 	return plaintext, nil
 }

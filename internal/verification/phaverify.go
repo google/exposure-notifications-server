@@ -45,12 +45,12 @@ var (
 type Verifier struct {
 	db      *database.HealthAuthorityDB
 	config  *Config
-	haCache *cache.Cache
+	haCache *cache.Cache[*model.HealthAuthority]
 }
 
 // New creates a new verifier, based on this DB handle.
 func New(db *database.HealthAuthorityDB, config *Config) (*Verifier, error) {
-	cache, err := cache.New(config.CacheDuration)
+	cache, err := cache.New[*model.HealthAuthority](config.CacheDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 			return nil, fmt.Errorf("does not contain expected claim set")
 		}
 
-		lookup := func() (interface{}, error) {
+		lookup := func() (*model.HealthAuthority, error) {
 			// Based on issuer, load the key versions.
 			ha, err := v.db.GetHealthAuthority(ctx, claims.Issuer)
 			// Special case not found so that we can cache it.
@@ -105,16 +105,15 @@ func (v *Verifier) VerifyDiagnosisCertificate(ctx context.Context, authApp *aamo
 			}
 			return ha, nil
 		}
-		cacheVal, err := v.haCache.WriteThruLookup(claims.Issuer, lookup)
+		ha, err := v.haCache.WriteThruLookup(claims.Issuer, lookup)
 		if err != nil {
 			return nil, err
 		}
 
-		if cacheVal == nil {
+		// Handle not found.
+		if ha == nil {
 			return nil, fmt.Errorf("issuer not found: %v", claims.Issuer)
 		}
-
-		ha := cacheVal.(*model.HealthAuthority)
 
 		// Advisory check the aud.
 		if claims.Audience != ha.Audience {
