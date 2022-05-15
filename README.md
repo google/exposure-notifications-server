@@ -53,6 +53,9 @@ Key Server here:
 
 ## Issues and Questions
 
+If you have a question about Exposure Notifications in your region, please
+contact your local public health authority directly.
+
 You can open a
 [GitHub Issue](https://github.com/google/exposure-notifications-server/issues/new).
 Please be sure to include as much detail as you can to help aid in addressing
