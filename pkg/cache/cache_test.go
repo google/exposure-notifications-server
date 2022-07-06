@@ -41,6 +41,7 @@ func TestCache(t *testing.T) {
 
 	duration := time.Millisecond * 500
 	cache, err := New[*order](duration)
+	defer cache.Stop()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,6 +84,7 @@ func TestCacheClear(t *testing.T) {
 	t.Parallel()
 
 	cache, err := New[string](30 * time.Second)
+	defer cache.Stop()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,10 +103,42 @@ func TestCacheClear(t *testing.T) {
 	}
 }
 
+func TestMarkAndSweep(t *testing.T) {
+	t.Parallel()
+
+	cache, err := New[*order](time.Millisecond * 250)
+	defer cache.Stop()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	orderOne := &order{Burgers: 1, Fries: 2}
+	orderTwo := &order{Burgers: 2, Fries: 3}
+
+	cache.Set("one", orderOne)
+	cache.Set("two", orderTwo)
+
+	timer := time.NewTimer(time.Millisecond * 150)
+	<-timer.C
+	// set two again so that it won't TTL
+	cache.Set("two", orderTwo)
+
+	checkSize(t, cache, 2)
+
+	timer.Reset(time.Millisecond * 200)
+	<-timer.C
+
+	// entry "one" should have been purged
+	checkSize(t, cache, 1)
+
+	timer.Stop()
+}
+
 func TestWriteThruCache(t *testing.T) {
 	t.Parallel()
 
 	cache, err := New[*order](time.Second)
+	defer cache.Stop()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,6 +169,7 @@ func TestWriteThruError(t *testing.T) {
 	t.Parallel()
 
 	cache, err := New[*order](time.Second)
+	defer cache.Stop()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,6 +201,7 @@ func TestConcurrentReaders(t *testing.T) {
 	t.Parallel()
 
 	cache, err := New[*order](time.Second * 5)
+	defer cache.Stop()
 	if err != nil {
 		t.Fatal(err)
 	}

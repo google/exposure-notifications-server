@@ -35,6 +35,8 @@ type Cache[T any] struct {
 	data        map[string]item[T]
 	expireAfter time.Duration
 	mu          sync.RWMutex
+	stopChan    chan bool
+	ticker      *time.Ticker
 }
 
 type item[T any] struct {
@@ -52,10 +54,50 @@ func New[T any](expireAfter time.Duration) (*Cache[T], error) {
 		return nil, ErrInvalidDuration
 	}
 
-	return &Cache[T]{
+	markInterval := expireAfter / 2
+	if markInterval <= 0 {
+		markInterval = time.Second
+	}
+
+	c := &Cache[T]{
 		data:        make(map[string]item[T], initialSize),
 		expireAfter: expireAfter,
-	}, nil
+		stopChan:    make(chan bool),
+		ticker:      time.NewTicker(markInterval),
+	}
+
+	go c.backgroundExpire()
+
+	return c, nil
+}
+
+func (c *Cache[T]) backgroundExpire() {
+	for {
+		select {
+		case <-c.stopChan:
+			return
+		case t := <-c.ticker.C:
+			c.mark(t.UnixNano())
+		}
+	}
+}
+
+// mark takes a read lock to search for expired entries and
+// enqueues deletions in separate background functions.
+func (c *Cache[T]) mark(t int64) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	for k, v := range c.data {
+		if t > v.expiresAt {
+			go c.purgeExpired(k, v.expiresAt)
+		}
+	}
+}
+
+// Stop will shutdown the background cleanup for the cache.
+func (c *Cache[T]) Stop() {
+	c.ticker.Stop()
+	c.stopChan <- true
 }
 
 // Removes an item by name and expiry time when the purge was scheduled.
