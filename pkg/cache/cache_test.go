@@ -128,7 +128,9 @@ func TestMarkAndSweep(t *testing.T) {
 	timer := time.NewTimer(time.Millisecond * 150)
 	<-timer.C
 	// set two again so that it won't TTL
-	cache.Set("two", orderTwo)
+	if err := cache.Set("two", orderTwo); err != nil {
+		t.Fatal(err)
+	}
 
 	checkSize(t, cache, 3)
 
