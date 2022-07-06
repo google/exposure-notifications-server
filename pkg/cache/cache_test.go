@@ -115,9 +115,15 @@ func TestMarkAndSweep(t *testing.T) {
 	orderOne := &order{Burgers: 1, Fries: 2}
 	orderTwo := &order{Burgers: 2, Fries: 3}
 
-	cache.Set("one", orderOne)
-	cache.Set("two", orderTwo)
-	cache.Set("three", orderOne)
+	if err := cache.Set("one", orderOne); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.Set("two", orderTwo); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.Set("three", orderOne); err != nil {
+		t.Fatal(err)
+	}
 
 	timer := time.NewTimer(time.Millisecond * 150)
 	<-timer.C
