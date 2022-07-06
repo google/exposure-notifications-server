@@ -117,13 +117,14 @@ func TestMarkAndSweep(t *testing.T) {
 
 	cache.Set("one", orderOne)
 	cache.Set("two", orderTwo)
+	cache.Set("three", orderOne)
 
 	timer := time.NewTimer(time.Millisecond * 150)
 	<-timer.C
 	// set two again so that it won't TTL
 	cache.Set("two", orderTwo)
 
-	checkSize(t, cache, 2)
+	checkSize(t, cache, 3)
 
 	timer.Reset(time.Millisecond * 200)
 	<-timer.C

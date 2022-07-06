@@ -75,6 +75,7 @@ func (c *Cache[T]) backgroundExpire() {
 	for {
 		select {
 		case <-c.stopChan:
+			close(c.stopChan)
 			return
 		case t := <-c.ticker.C:
 			c.mark(t.UnixNano())
@@ -88,6 +89,7 @@ func (c *Cache[T]) mark(t int64) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	for k, v := range c.data {
+		k := k
 		if t > v.expiresAt {
 			go c.purgeExpired(k, v.expiresAt)
 		}
