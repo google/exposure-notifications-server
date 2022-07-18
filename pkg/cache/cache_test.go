@@ -125,16 +125,19 @@ func TestMarkAndSweep(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	timer := time.NewTimer(time.Millisecond * 150)
-	<-timer.C
-	// set two again so that it won't TTL
-	if err := cache.Set("two", orderTwo); err != nil {
-		t.Fatal(err)
-	}
-
 	checkSize(t, cache, 3)
 
-	timer.Reset(time.Millisecond * 200)
+	timer := time.NewTimer(time.Millisecond * 150)
+	for i := 0; i < 5; i++ {
+		<-timer.C
+		// set two again so that it won't TTL
+		if err := cache.Set("two", orderTwo); err != nil {
+			t.Fatal(err)
+		}
+		timer.Reset(time.Millisecond * 150)
+	}
+
+	timer.Reset(time.Millisecond * 150)
 	<-timer.C
 
 	// entry "one" should have been purged
