@@ -13,6 +13,11 @@ on:
     paths:
     - 'terraform/**'
     - '.github/workflows/terraform*'
+  workflow_dispatch:
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.head_ref || github.ref }}'
+  cancel-in-progress: true
 
 jobs:
   # main config
@@ -27,7 +32,7 @@ jobs:
     - name: 'setup-terraform'
       uses: 'hashicorp/setup-terraform@v2'
       with:
-        terraform_version: '1.1.9'
+        terraform_version: '1.2'
 
     - name: 'init'
       working-directory: './terraform'
@@ -53,7 +58,7 @@ jobs:
     - name: 'setup-terraform'
       uses: 'hashicorp/setup-terraform@v2'
       with:
-        terraform_version: '1.1.9'
+        terraform_version: '1.2'
 
     - name: 'init'
       working-directory: './terraform/alerting'

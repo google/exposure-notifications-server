@@ -182,13 +182,13 @@ resource "google_app_engine_application" "app" {
 
 # Create a helper for generating the local environment configuration - this is
 # disabled by default because it includes sensitive information to the project.
-resource "local_file" "env" {
+resource "local_sensitive_file" "env" {
   count = var.create_env_file == true ? 1 : 0
 
   filename        = "${path.root}/.env"
   file_permission = "0600"
 
-  sensitive_content = <<EOF
+  content = <<EOF
 export PROJECT_ID="${var.project}"
 export REGION="${var.region}"
 

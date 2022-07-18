@@ -98,16 +98,16 @@ variable "forward_progress_indicators" {
 }
 
 terraform {
-  required_version = "~> 1.0"
+  required_version = "~> 1.2"
 
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 3.82"
+      version = "~> 4.28"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "~> 3.82"
+      version = "~> 4.28"
     }
   }
 }

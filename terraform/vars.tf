@@ -382,20 +382,20 @@ variable "binary_authorization_allowlist_patterns" {
 }
 
 terraform {
-  required_version = "~> 1.0"
+  required_version = "~> 1.2"
 
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 3.82"
+      version = "~> 4.28"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "~> 3.82"
+      version = "~> 4.28"
     }
     local = {
       source  = "hashicorp/local"
-      version = "~> 2.1"
+      version = "~> 2.2"
     }
     null = {
       source  = "hashicorp/null"
@@ -403,7 +403,7 @@ terraform {
     }
     random = {
       source  = "hashicorp/random"
-      version = "~> 3.1"
+      version = "~> 3.3"
     }
   }
 }
