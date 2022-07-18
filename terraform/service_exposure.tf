@@ -52,7 +52,7 @@ resource "google_secret_manager_secret_iam_member" "revision-token-aad" {
 }
 
 resource "google_kms_key_ring_iam_member" "revision-tokens-encrypt-decrypt" {
-  key_ring_id = google_kms_key_ring.revision-tokens.self_link
+  key_ring_id = google_kms_key_ring.revision-tokens.id
   role        = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member      = "serviceAccount:${google_service_account.exposure.email}"
 }
@@ -102,7 +102,7 @@ resource "google_cloud_run_service" "exposure" {
           for_each = merge(
             local.common_cloudrun_env_vars,
             {
-              "REVISION_TOKEN_KEY_ID" = google_kms_crypto_key.token-key.self_link
+              "REVISION_TOKEN_KEY_ID" = google_kms_crypto_key.token-key.id
               "REVISION_TOKEN_AAD"    = "secret://${google_secret_manager_secret_version.revision_token_aad_secret_version.id}"
             },
 
@@ -141,12 +141,14 @@ resource "google_cloud_run_service" "exposure" {
       metadata[0].annotations["run.googleapis.com/client-name"],
       metadata[0].annotations["run.googleapis.com/client-version"],
       metadata[0].annotations["run.googleapis.com/ingress-status"],
+      metadata[0].annotations["run.googleapis.com/launch-stage"],
       metadata[0].annotations["serving.knative.dev/creator"],
       metadata[0].annotations["serving.knative.dev/lastModifier"],
       metadata[0].labels["cloud.googleapis.com/location"],
       template[0].metadata[0].annotations["client.knative.dev/user-image"],
       template[0].metadata[0].annotations["run.googleapis.com/client-name"],
       template[0].metadata[0].annotations["run.googleapis.com/client-version"],
+      template[0].metadata[0].annotations["run.googleapis.com/sandbox"],
       template[0].metadata[0].annotations["serving.knative.dev/creator"],
       template[0].metadata[0].annotations["serving.knative.dev/lastModifier"],
       template[0].spec[0].containers[0].image,

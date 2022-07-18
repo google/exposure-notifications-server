@@ -9,12 +9,10 @@ on:
     - main
   schedule:
     - cron: '0 0 */1 * *'
-
-env:
-  GOMAXPROCS: 7
+  workflow_dispatch:
 
 concurrency:
-  group: '${{github.workflow}}-${{ github.head_ref || github.ref }}'
+  group: '${{ github.workflow }}-${{ github.head_ref || github.ref }}'
   cancel-in-progress: true
 
 jobs:

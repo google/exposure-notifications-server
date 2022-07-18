@@ -23,7 +23,7 @@ resource "google_kms_key_ring" "export-signing" {
 }
 
 resource "google_kms_crypto_key" "export-signer" {
-  key_ring = google_kms_key_ring.export-signing.self_link
+  key_ring = google_kms_key_ring.export-signing.id
   name     = "signer"
   purpose  = "ASYMMETRIC_SIGN"
   version_template {
@@ -43,7 +43,7 @@ resource "google_kms_key_ring" "revision-tokens" {
 }
 
 resource "google_kms_crypto_key" "token-key" {
-  key_ring = google_kms_key_ring.revision-tokens.self_link
+  key_ring = google_kms_key_ring.revision-tokens.id
   name     = "token-key"
   purpose  = "ENCRYPT_DECRYPT"
   version_template {
@@ -53,5 +53,5 @@ resource "google_kms_crypto_key" "token-key" {
 }
 
 data "google_kms_crypto_key_version" "token_key_version" {
-  crypto_key = google_kms_crypto_key.token-key.self_link
+  crypto_key = google_kms_crypto_key.token-key.id
 }

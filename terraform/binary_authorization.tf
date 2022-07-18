@@ -108,7 +108,7 @@ resource "google_kms_key_ring" "binauthz-keyring" {
 }
 
 resource "google_kms_crypto_key" "binauthz-built-by-ci-signer" {
-  key_ring = google_kms_key_ring.binauthz-keyring.self_link
+  key_ring = google_kms_key_ring.binauthz-keyring.id
   name     = "binauthz-built-by-ci-signer"
   purpose  = "ASYMMETRIC_SIGN"
 
@@ -119,7 +119,7 @@ resource "google_kms_crypto_key" "binauthz-built-by-ci-signer" {
 }
 
 data "google_kms_crypto_key_version" "binauthz-built-by-ci-signer-version" {
-  crypto_key = google_kms_crypto_key.binauthz-built-by-ci-signer.self_link
+  crypto_key = google_kms_crypto_key.binauthz-built-by-ci-signer.id
 }
 
 resource "google_kms_crypto_key_iam_binding" "ci-attest" {
