@@ -28,14 +28,8 @@ jobs:
         with:
           go-version: '1.18'
 
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-test-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-test-
-            ${{ runner.os }}-go-
+      - name: Download modules
+        run: go mod download
 
       - name: go-test
         shell: bash
@@ -66,22 +60,17 @@ jobs:
         run: sudo apt-get -yqq install pcregrep
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v1
-        with:
-          version: '3.21.4'
+        run: |-
+          curl -sfLo protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protoc-21.4-linux-x86_64.zip
+          unzip protoc.zip -d protoc
+          echo "${PWD}/protoc/bin" >> $GITHUB_PATH
 
       - uses: actions/setup-go@v3
         with:
           go-version: '1.18'
 
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-lint-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-lint-
-            ${{ runner.os }}-go-
+      - name: Download modules
+        run: go mod download
 
       - name: go-lint
         shell: bash
