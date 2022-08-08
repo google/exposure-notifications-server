@@ -16,9 +16,9 @@
 // for createion and storage of the wrapped keys that encrypet revision certificates.
 //
 // RevisionKey data is stored in the revisionkeys table.
-// * The most recently created 'allowed' key is considered to be the effective key.
-//   The effective key is used to encrypt outgoing revision tokens.
-// * Any still 'allowed' key can be used to decrypt incoming revision tokens.
+//   - The most recently created 'allowed' key is considered to be the effective key.
+//     The effective key is used to encrypt outgoing revision tokens.
+//   - Any still 'allowed' key can be used to decrypt incoming revision tokens.
 //
 // This package also supports the creation of new keys with a locally generated
 // AES key that is encrypted using the provided KMS and stored in the database

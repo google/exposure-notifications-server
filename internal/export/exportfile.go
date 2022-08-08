@@ -184,8 +184,6 @@ func assignReportType(reportType *string, pbek *export.TemporaryExposureKey) {
 // the start/end/batchNum to de-duplicate. If there are X files that have the same timing
 // metadata, then only the first would get processed. We compensate here by bumping the end
 // timestamp by the file num in the batch.
-//
-//
 func marshalContents(eb *model.ExportBatch, exposures, revisedExposures []*publishmodel.Exposure, fileNum int32, splitBatch bool, signers []*Signer) ([]byte, error) {
 	exportBytes := fixedHeader
 	if len(exportBytes) != fixedHeaderWidth {

@@ -55,7 +55,7 @@ func NewGoogleSecretManager(ctx context.Context, _ *Config) (SecretManager, erro
 // GetSecretValue implements the SecretManager interface. Secret names should be
 // of the format:
 //
-//     projects/my-project/secrets/my-secret/versions/123
+//	projects/my-project/secrets/my-secret/versions/123
 func (sm *GoogleSecretManager) GetSecretValue(ctx context.Context, name string) (string, error) {
 	result, err := sm.client.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
 		Name: name,

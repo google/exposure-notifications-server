@@ -38,49 +38,67 @@ const (
 	IntervalLength = 10 * time.Minute
 )
 
-// Publish represents the body of the PublishInfectedIds API call.
-// Keys: Required and must have length >= 1 and <= 21 (`maxKeysPerPublish`)
-// Regions: Array of regions. System defined, must match configuration.
-// AppPackageName: The identifier for the mobile application.
-//  - Android: The App Package AppPackageName
-//  - iOS: The BundleID
-// VerifcationPayload: The Verification Certificate from a verification server.
-// HMACKey: the device generated secret that is used to recalculate the HMAC value
-//  that is present in the verification payload.
-//
-// SymptomOnsetInterval: An interval number that aligns with the symptom onset date.
-//  - Uses the same interval system as TEK timing.
-//  - Will be rounded down to the start of the UTC day provided.
-//  - Will be used to calculate the days +/- symptom onset for provided keys.
-//  - MUST be no more than 14 days ago.
-//  - Does not have to be within range of any of the provided keys (i.e. future
-//    key uploads)
-//
-// revisionToken: An opaque string that must be passed intact on additional
-//   publish requests from the same device, where the same TEKs may be published
-//   again.
-//
-// Padding: random base64 encoded data to obscure the request size.
-// The recommendation is that padding be at least 1kb in size with a random
-// jitter of at least 1kb. Maximum overall request size is capped at 64kb for
-// the serialized JSON.
-//
-// The following fields are deprecated, but accepted for backwards-compatibility:
-// DeviceVerificationPayload: (attestation)
-// Platform: "ios" or "android"
+// Publish represents the body of the PublishInfectedIds API call. Please see
+// the individual fields below for details on their values.
 type Publish struct {
-	Keys                 []ExposureKey `json:"temporaryExposureKeys"`
-	Regions              []string      `json:"regions"`
-	AppPackageName       string        `json:"appPackageName"`
-	VerificationPayload  string        `json:"verificationPayload"`
-	HMACKey              string        `json:"hmackey"`
-	SymptomOnsetInterval int32         `json:"symptomOnsetInterval"`
-	RevisionToken        string        `json:"revisionToken"`
+	// Keys (temporaryExposureKeys) is the list of TEKs and is required. The array
+	// must have more than 1 element and less than 21 elements
+	// (maxKeysPerPublish).
+	Keys []ExposureKey `json:"temporaryExposureKeys"`
 
+	// Regions (regions) is the list of regions for the upload. This must match
+	// the system configuration.
+	Regions []string `json:"regions"`
+
+	// AppPackageName (appPackageName) is the identifier for the mobile
+	// application:
+	//
+	//   - Android: The App Package AppPackageName
+	//   - iOS: The BundleID
+	//
+	AppPackageName string `json:"appPackageName"`
+
+	// VerificationPayload (verificationPayload) is the certificate from a
+	// verification server.
+	VerificationPayload string `json:"verificationPayload"`
+
+	// HMACKey (hmacKey) is the device-generated secret that is used to
+	// recalculate the HMAC value that is present in the verification payload.
+	HMACKey string `json:"hmackey"`
+
+	// SymptomOnsetInterval (symptomOnsetInterval) is an interval number that
+	// aligns with the symptom onset date:
+	//
+	//   - Uses the same interval system as TEK timing.
+	//   - Will be rounded down to the start of the UTC day provided.
+	//   - Will be used to calculate the days +/- symptom onset for provided keys.
+	//   - MUST be no more than 14 days ago.
+	//   - Does not have to be within range of any of the provided keys (i.e.
+	//     future key uploads)
+	//
+	SymptomOnsetInterval int32 `json:"symptomOnsetInterval"`
+
+	// RevisionToken (revisionToken) is an opaque string that must be passed
+	// intact on additional publish requests from the same device, where the same
+	// TEKs may be published again.
+	RevisionToken string `json:"revisionToken"`
+
+	// Padding (padding) is random, base64-encoded data to obscure the request
+	// size. The server will not process this data in any way. The recommendation
+	// is that padding be at least 1kb in size with a random jitter of at least
+	// 1kb. Maximum overall request size is capped at 64kb for the serialized
+	// JSON.
 	Padding string `json:"padding"`
 
-	Platform                  string `json:"platform"`                  // DEPRECATED
-	DeviceVerificationPayload string `json:"deviceVerificationPayload"` // DEPRECATED
+	// Platform (platform) must be one of "ios" or "android".
+	//
+	// DEPRECATED: This field has been deprecated.
+	Platform string `json:"platform"`
+
+	// DeviceVerificationPayload is the DeviceCheck or SafetyNet attestion.
+	//
+	// DEPRECATED: This field has been deprecated.
+	DeviceVerificationPayload string `json:"deviceVerificationPayload"`
 }
 
 // PublishResponse is sent back to the client on a publish request. If
@@ -102,32 +120,35 @@ type PublishResponse struct {
 	Warnings          []string `json:"warnings,omitempty"`
 }
 
-// ExposureKey is the 16 byte key, the start time of the key and the
-// duration of the key. A duration of 0 means 24 hours.
-// - ALL fields are REQUIRED and must meet the constraints below.
-// Key must be the base64 (RFC 4648) encoded 16 byte exposure key from the device.
-// - Base64 encoding should include padding, as per RFC 4648
-// - if the key is not exactly 16 bytes in length, the request will be failed
-// - that is, the whole batch will fail.
-// IntervalNumber must be "reasonable" as in the system won't accept keys that
-//   are scheduled to start in the future or that are too far in the past, which
-//   is configurable per installation.
-// IntervalCount must >= `minIntervalCount` and <= `maxIntervalCount`
-//   1 - 144 inclusive.
-// transmissionRisk must be >= 0 and <= 8.
-//   Transmission risk is depercated, but should still be populated for compatibility
-//   with olrder clients. If it is omitted, and there is a valid report type,
-//   then transmissionRisk will be set to 0.
-//   IF there is a report type from the verification certificate AND tranismission risk
-//    is not set, then a report type of
-//     CONFIRMED will lead to TR 2
-//     LIKELY will lead to TR 4
-//     NEGATIVE will lead to TR 6
+// ExposureKey is the 16 byte key, the start time of the key and the duration of
+// the key. A duration of 0 means 24 hours.
 type ExposureKey struct {
-	Key              string `json:"key"`
-	IntervalNumber   int32  `json:"rollingStartNumber"`
-	IntervalCount    int32  `json:"rollingPeriod"`
-	TransmissionRisk int    `json:"transmissionRisk"` // DEPRECATED
+	// Key (key) is the base64-encoded 16 byte exposure key from the device. The
+	// base64 encoding should include padding, as per RFC 4648. If the key is not
+	// exactly 16 bytes in length, the whole batch will fail.
+	Key string `json:"key"`
+
+	// IntervalNumber (rollingStartNumber) must be "reasonable" as in the system
+	// won't accept keys that are scheduled to start in the future or that are too
+	// far in the past, which is configurable per installation.
+	IntervalNumber int32 `json:"rollingStartNumber"`
+
+	// IntervalCount (rollingPeriod) must >= minIntervalCount and <=
+	// maxIntervalCount, 1 - 144 inclusive.
+	IntervalCount int32 `json:"rollingPeriod"`
+
+	// TransmissionRisk (transmissionRisk) must be >= 0 and <= 8. This field is
+	// optional, but should still be populated for compatibility with older
+	// clients. If it is omitted, and there is a valid report type, then
+	// transmissionRisk will be set to 0. If there is a report type from the
+	// verification certificate AND tranismission risk is not set, then a report
+	// type of:
+	//
+	//   - CONFIRMED will lead to transmission risk 2
+	//   - LIKELY will lead to transmission risk 4
+	//   - NEGATIVE will lead to transmission risk 6
+	//
+	TransmissionRisk int `json:"transmissionRisk,omitempty"` // DEPRECATED
 }
 
 // ExposureKeys represents a set of ExposureKey objects as input to

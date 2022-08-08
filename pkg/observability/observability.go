@@ -129,11 +129,14 @@ var collectedViews = struct {
 // This is mainly to be able to "register" the views in a module's init(), but
 // still be able to handle the errors correctly.
 // Typical usage:
-// var v = view.View{...}
-// func init() {
-//   observability.ColectViews(v)
-// }
-// // Actual view registration happens in exporter.StartExporter().
+//
+//	var v = view.View{...}
+//
+//	func init() {
+//	  observability.ColectViews(v)
+//	}
+//
+// Actual view registration happens in [exporter.StartExporter].
 func CollectViews(views ...*view.View) {
 	collectedViews.Lock()
 	defer collectedViews.Unlock()
@@ -192,12 +195,12 @@ func WithBuildInfo(ctx context.Context, info BuildInfo) context.Context {
 	return ctx
 }
 
-// RecordLatency calculate and record the latency.
-// Usage example:
-// func foo() {
-// 	 defer RecordLatency(&ctx, time.Now(), metric, tag1, tag2)
-//   // remaining of the function body.
-// }
+// RecordLatency calculate and record the latency:
+//
+//	func foo() {
+//	  defer RecordLatency(&ctx, time.Now(), metric, tag1, tag2)
+//	  // remaining of the function body.
+//	}
 func RecordLatency(ctx context.Context, start time.Time, m *stats.Float64Measure, mutators ...*tag.Mutator) {
 	additionalMutators := make([]tag.Mutator, 0, len(mutators))
 	for _, t := range mutators {

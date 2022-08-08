@@ -575,7 +575,6 @@ type TransformPublishResult struct {
 //
 // The return params are the list of exposures, a list of warnings, and any
 // errors that occur.
-//
 func (t *Transformer) TransformPublish(ctx context.Context, inData *verifyapi.Publish, regions []string, claims *verification.VerifiedClaims, batchTime time.Time) (*TransformPublishResult, error) {
 	logger := logging.FromContext(ctx).Named("TransformPublish")
 

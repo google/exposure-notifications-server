@@ -258,11 +258,11 @@ func (v *AzureKeyVault) Decrypt(ctx context.Context, keyID string, ciphertext []
 // NewSigner creates a new signer that uses a key in HashiCorp Vault's transit
 // backend. The keyID in the format:
 //
-//     AZURE_KEY_VAULT_NAME/SECRET_NAME/SECRET_VERSION
+//	AZURE_KEY_VAULT_NAME/SECRET_NAME/SECRET_VERSION
 //
 // For example:
 //
-//     my-company-vault/api-key/1
+//	my-company-vault/api-key/1
 //
 // Both name and version are required.
 func (v *AzureKeyVault) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {

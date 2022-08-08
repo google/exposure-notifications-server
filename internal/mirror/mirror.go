@@ -416,10 +416,10 @@ func downloadFile(ctx context.Context, u string, timeout time.Duration, maxBytes
 // downloadIndex downloads the index files and returns the list of entries of
 // each line. An index file has the format:
 //
-//   us/1605818705-1605819005-00001.zip
-//   us/1605818705-1605819005-00002.zip
-//   us/1605818705-1605819005-00003.zip
-//   ...
+//	us/1605818705-1605819005-00001.zip
+//	us/1605818705-1605819005-00002.zip
+//	us/1605818705-1605819005-00003.zip
+//	...
 //
 // The values are returned in the order in which they appear in the file, joined
 // with the configured mirror ExportRoot.

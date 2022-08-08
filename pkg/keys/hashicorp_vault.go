@@ -48,7 +48,8 @@ var (
 // sign export files and encrypt/decrypt data.
 //
 // For encryption keys, when using value, the keys must be created with
-//   `derived=true`
+//
+//	derived=true
 type HashiCorpVault struct {
 	client *vaultapi.Client
 }
@@ -215,7 +216,7 @@ func (v *HashiCorpVault) DestroyKeyVersion(ctx context.Context, id string) error
 // NewSigner creates a new signer that uses a key in HashiCorp Vault's transit
 // backend. The keyID is in the format:
 //
-//     name@version
+//	name@version
 //
 // Both name and version are required.
 func (v *HashiCorpVault) NewSigner(ctx context.Context, keyID string) (crypto.Signer, error) {
