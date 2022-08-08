@@ -26,9 +26,6 @@ options:
   - 'CGO_ENABLED=0'
   - 'GOOS=linux'
   - 'GOARCH=amd64'
-  volumes:
-  - name: 'go-modules'
-    path: '/go/pkg'
 
 substitutions:
   _BINAUTHZ_ATTESTOR:
@@ -38,27 +35,6 @@ substitutions:
   _TAG:
 
 steps:
-# /go/pkg sometimes already has data. We want to clear that before restoring our
-# cache (and saving our cache) to reduce the size of our cache and speed up our
-# builds.
-- id: 'clear-cache'
-  name: 'golang:1.18'
-  args:
-  - 'go'
-  - 'clean'
-  - '-modcache'
-
-- id: 'restore-cache'
-  name: 'us-docker.pkg.dev/vargolabs/gcs-cacher/gcs-cacher:0.1'
-  args:
-  - '-bucket=${PROJECT_ID}-cloudbuild-cache'
-  - '-restore=go-{{ hashGlob "go.mod" }}'
-  - '-restore=go-'
-  - '-dir=/go/pkg'
-  - '-allow-failure'
-  waitFor:
-  - 'clear-cache'
-
 #
 # build all binaries at once
 #
@@ -69,7 +45,7 @@ steps:
   - 'bin'
 
 - id: 'build'
-  name: 'golang:1.18'
+  name: 'golang:1.19'
   args:
   - 'go'
   - 'build'
@@ -79,23 +55,13 @@ steps:
   - '-o=./bin/'
   - './cmd/...'
   waitFor:
-  - 'restore-cache'
   - 'mkdir-bin'
-
-- id: 'save-cache'
-  name: 'us-docker.pkg.dev/vargolabs/gcs-cacher/gcs-cacher:0.1'
-  args:
-  - '-bucket=${PROJECT_ID}-cloudbuild-cache'
-  - '-cache=go-{{ hashGlob "go.mod" }}'
-  - '-dir=/go/pkg'
-  waitFor:
-  - 'build'
 
 #
 # admin-console
 #
 - id: 'dockerize-admin-console'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -106,7 +72,7 @@ steps:
   - 'build'
 
 - id: 'push-admin-console'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/admin-console:${_TAG}'
@@ -114,7 +80,7 @@ steps:
   - 'dockerize-admin-console'
 
 - id: 'attest-admin-console'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -134,7 +100,7 @@ steps:
 # backup
 #
 - id: 'dockerize-backup'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -145,7 +111,7 @@ steps:
   - 'build'
 
 - id: 'push-backup'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/backup:${_TAG}'
@@ -153,7 +119,7 @@ steps:
   - 'dockerize-backup'
 
 - id: 'attest-backup'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -173,7 +139,7 @@ steps:
 # cleanup-export
 #
 - id: 'dockerize-cleanup-export'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -184,7 +150,7 @@ steps:
   - 'build'
 
 - id: 'push-cleanup-export'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/cleanup-export:${_TAG}'
@@ -192,7 +158,7 @@ steps:
   - 'dockerize-cleanup-export'
 
 - id: 'attest-cleanup-export'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -212,7 +178,7 @@ steps:
 # cleanup-exposure
 #
 - id: 'dockerize-cleanup-exposure'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -223,7 +189,7 @@ steps:
   - 'build'
 
 - id: 'push-cleanup-exposure'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/cleanup-exposure:${_TAG}'
@@ -231,7 +197,7 @@ steps:
   - 'dockerize-cleanup-exposure'
 
 - id: 'attest-cleanup-exposure'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -251,7 +217,7 @@ steps:
 # debugger
 #
 - id: 'dockerize-debugger'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -262,7 +228,7 @@ steps:
   - 'build'
 
 - id: 'push-debugger'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/debugger:${_TAG}'
@@ -270,7 +236,7 @@ steps:
   - 'dockerize-debugger'
 
 - id: 'attest-debugger'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -290,7 +256,7 @@ steps:
 # export
 #
 - id: 'dockerize-export'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -301,7 +267,7 @@ steps:
   - 'build'
 
 - id: 'push-export'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/export:${_TAG}'
@@ -309,7 +275,7 @@ steps:
   - 'dockerize-export'
 
 - id: 'attest-export'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -329,7 +295,7 @@ steps:
 # export-importer
 #
 - id: 'dockerize-export-importer'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -340,7 +306,7 @@ steps:
   - 'build'
 
 - id: 'push-export-importer'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/export-importer:${_TAG}'
@@ -348,7 +314,7 @@ steps:
   - 'dockerize-export-importer'
 
 - id: 'attest-export-importer'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -368,7 +334,7 @@ steps:
 # exposure
 #
 - id: 'dockerize-exposure'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -379,7 +345,7 @@ steps:
   - 'build'
 
 - id: 'push-exposure'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/exposure:${_TAG}'
@@ -387,7 +353,7 @@ steps:
   - 'dockerize-exposure'
 
 - id: 'attest-exposure'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -407,7 +373,7 @@ steps:
 # federationin
 #
 - id: 'dockerize-federationin'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -418,7 +384,7 @@ steps:
   - 'build'
 
 - id: 'push-federationin'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/federationin:${_TAG}'
@@ -426,7 +392,7 @@ steps:
   - 'dockerize-federationin'
 
 - id: 'attest-federationin'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -446,7 +412,7 @@ steps:
 # federationout
 #
 - id: 'dockerize-federationout'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -457,7 +423,7 @@ steps:
   - 'build'
 
 - id: 'push-federationout'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/federationout:${_TAG}'
@@ -465,7 +431,7 @@ steps:
   - 'dockerize-federationout'
 
 - id: 'attest-federationout'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -485,7 +451,7 @@ steps:
 # generate
 #
 - id: 'dockerize-generate'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -496,7 +462,7 @@ steps:
   - 'build'
 
 - id: 'push-generate'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/generate:${_TAG}'
@@ -504,7 +470,7 @@ steps:
   - 'dockerize-generate'
 
 - id: 'attest-generate'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -524,7 +490,7 @@ steps:
 # key-rotation
 #
 - id: 'dockerize-key-rotation'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -535,7 +501,7 @@ steps:
   - 'build'
 
 - id: 'push-key-rotation'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/key-rotation:${_TAG}'
@@ -543,7 +509,7 @@ steps:
   - 'dockerize-key-rotation'
 
 - id: 'attest-key-rotation'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -563,7 +529,7 @@ steps:
 # metrics-registrar
 #
 - id: 'dockerize-metrics-registrar'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -574,7 +540,7 @@ steps:
   - 'build'
 
 - id: 'push-metrics-registrar'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/metrics-registrar:${_TAG}'
@@ -582,7 +548,7 @@ steps:
   - 'dockerize-metrics-registrar'
 
 - id: 'attest-metrics-registrar'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -602,7 +568,7 @@ steps:
 # migrate
 #
 - id: 'dockerize-migrate'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/migrate.dockerfile'
@@ -612,7 +578,7 @@ steps:
   - 'build'
 
 - id: 'push-migrate'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/migrate:${_TAG}'
@@ -620,7 +586,7 @@ steps:
   - 'dockerize-migrate'
 
 - id: 'attest-migrate'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -640,7 +606,7 @@ steps:
 # mirror
 #
 - id: 'dockerize-mirror'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -651,7 +617,7 @@ steps:
   - 'build'
 
 - id: 'push-mirror'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/mirror:${_TAG}'
@@ -659,7 +625,7 @@ steps:
   - 'dockerize-mirror'
 
 - id: 'attest-mirror'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
@@ -679,7 +645,7 @@ steps:
 # jwks
 #
 - id: 'dockerize-jwks'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'build'
   - '--file=builders/service.dockerfile'
@@ -690,7 +656,7 @@ steps:
   - 'build'
 
 - id: 'push-jwks'
-  name: 'docker:19'
+  name: 'gcr.io/cloud-builders/docker'
   args:
   - 'push'
   - 'gcr.io/${PROJECT_ID}/${_REPO}/jwks:${_TAG}'
@@ -698,7 +664,7 @@ steps:
   - 'dockerize-jwks'
 
 - id: 'attest-jwks'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:365.0.0'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:396.0.0'
   args:
   - 'bash'
   - '-eEuo'
