@@ -28,27 +28,32 @@ const (
 	ErrorUnauthorized = "unauthorized"
 )
 
-// StatsRequest represents the request to retrieve publish metrics for a specific
+// StatsRequest represents the request to retrieve publish metrics for a
+// specific health authority.
+//
+// Calls to this API require an "Authorization: Bearer <JWT>" header with a JWT
+// signed with the same private used to sign verification certificates for the
 // health authority.
 //
-// Calls to this API require an "Authorization: Bearer <JWT>" header
-// with a JWT signed with the same private used to sign verification certificates
-// for the health authority.
+// New stats are released every hour. And stats for a day (UTC) only start to be
+// released once there have been a sufficient numbers of publish requests for
+// that day.
 //
-// New stats are released every hour. And stats for a day (UTC) only start to be released
-// once there have been a sufficient numbers of publish requests for that day.
-//
-// This API is invoked via POST request to /v1/stats
+// This API is invoked via POST request to /v1/stats.
 type StatsRequest struct {
-	// currently no data fields in the request.
-
+	// Padding (padding) is random, base64-encoded data to obscure the request
+	// size. The server will not process this data in any way. The recommendation
+	// is that padding be at least 1kb in size with a random jitter of at least
+	// 1kb. Maximum overall request size is capped at 64kb for the serialized
+	// JSON.
 	Padding string `json:"padding"`
 }
 
 // StatsDays represents a logical collection of stats.
 type StatsDays []*StatsDay
 
-// StatsResponse returns all currently known metrics for the authenticated health authority.
+// StatsResponse returns all currently known metrics for the authenticated
+// health authority.
 //
 // There may be gaps in the Days if a day has insufficient data.
 type StatsResponse struct {
@@ -61,26 +66,32 @@ type StatsResponse struct {
 	Padding string `json:"padding"`
 }
 
-// StatsDay represents stats from an individual day. All stats represent only successful requests.
+// StatsDay represents stats from an individual day. All stats represent only
+// successful requests.
 type StatsDay struct {
 	// Day will be set to midnight UTC of the day represented. An individual day
 	// isn't released until there is a minimum threshold for updates has been met.
 	Day                time.Time       `json:"day"`
 	PublishRequests    PublishRequests `json:"publish_requests"`
 	TotalTEKsPublished int64           `json:"total_teks_published"`
-	// RevisionRequests is the number of publish requests that contained at least one TEK revision.
+
+	// RevisionRequests is the number of publish requests that contained at least
+	// one TEK revision.
 	RevisionRequests int64 `json:"requests_with_revisions"`
-	// TEKAgeDistribution shows a distribution of the oldest tek in an upload.
-	// The count at index 0-15 represent the number of uploads there the oldest TEK is that value.
-	// Index 16 represents > 15 days.
+
+	// TEKAgeDistribution shows a distribution of the oldest tek in an upload. The
+	// count at index 0-15 represent the number of uploads there the oldest TEK is
+	// that value. Index 16 represents > 15 days.
 	TEKAgeDistribution []int64 `json:"tek_age_distribution"`
-	// OnsetToUploadDistribution shows a distribution of onset to upload, the index is in days.
-	// The count at index 0-29 represents the number of uploads with that symptom onset age.
-	// Index 30 represents > 29 days.
+
+	// OnsetToUploadDistribution shows a distribution of onset to upload, the
+	// index is in days. The count at index 0-29 represents the number of uploads
+	// with that symptom onset age. Index 30 represents > 29 days.
 	OnsetToUploadDistribution []int64 `json:"onset_to_upload_distribution"`
 
-	// RequestsMissingOnsetDate is the number of publish requests where no onset date
-	// was provided. These request are not included in the onset to upload distribution.
+	// RequestsMissingOnsetDate is the number of publish requests where no onset
+	// date was provided. These request are not included in the onset to upload
+	// distribution.
 	RequestsMissingOnsetDate int64 `json:"requests_missing_onset_date"`
 }
 

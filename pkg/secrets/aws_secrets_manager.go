@@ -55,7 +55,7 @@ func NewAWSSecretsManager(ctx context.Context, _ *Config) (SecretManager, error)
 // GetSecretValue implements the SecretManager interface. Secret names should be
 // of the format:
 //
-//     SECRET@VERSION#STAGE
+//	SECRET@VERSION#STAGE
 //
 // Where:
 //   - SECRET is the name or ARN of the secret

@@ -19,7 +19,15 @@ MD_FILES = $(shell find . -name \*.md)
 
 # diff-check runs git-diff and fails if there are any changes.
 diff-check:
-	@git update-index --refresh && git diff-index --quiet HEAD --
+	@FINDINGS="$$(git status -s -uall)" ; \
+		if [ -n "$${FINDINGS}" ]; then \
+			echo "Changed files:\n\n" ; \
+			echo "$${FINDINGS}\n\n" ; \
+			echo "Diffs:\n\n" ; \
+			git diff ; \
+			git diff --cached ; \
+			exit 1 ; \
+		fi
 .PHONY: diff-check
 
 generate:
@@ -39,7 +47,9 @@ lint:
 
 # protoc generates the protos
 protoc:
-	@go install golang.org/x/tools/cmd/goimports google.golang.org/grpc/cmd/protoc-gen-go-grpc google.golang.org/protobuf/cmd/protoc-gen-go
+	@go install golang.org/x/tools/cmd/goimports@v0.1.12
+	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+	@go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
 	@protoc --proto_path=. --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. ./internal/pb/*.proto ./internal/pb/federation/*.proto ./internal/pb/export/*.proto
 	@goimports -w internal/pb
 .PHONY: protoc
@@ -49,10 +59,10 @@ protoc-check: protoc diff-check
 .PHONY: protoc-check
 
 tabcheck:
-	@FINDINGS="$$(awk '/\t/ {printf "%s:%s:found tab character\n",FILENAME,FNR}' $(HTML_FILES))"; \
+	@FINDINGS="$$(awk '/\t/ {printf "%s:%s:found tab character\n",FILENAME,FNR}' $(HTML_FILES))" ; \
 		if [ -n "$${FINDINGS}" ]; then \
-			echo "$${FINDINGS}\n\n"; \
-			exit 1; \
+			echo "$${FINDINGS}\n\n" ; \
+			exit 1 ; \
 		fi
 .PHONY: tabcheck
 

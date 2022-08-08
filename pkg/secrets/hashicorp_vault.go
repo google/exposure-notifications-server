@@ -56,12 +56,12 @@ func NewHashiCorpVault(ctx context.Context, _ *Config) (SecretManager, error) {
 // value for the secret in a key named "value" in the "data" key. This matches
 // the schema returned by the KVv2 secrets engine:
 //
-//     $ vault secrets enable -version=2 kv
-//     $ vault kv put my-secret value="abc123"
+//	$ vault secrets enable -version=2 kv
+//	$ vault kv put my-secret value="abc123"
 //
 // For example:
 //
-//     /secret/data/my-secret #=> { "data": { "value": "dajkfl32ip2" } }
+//	/secret/data/my-secret #=> { "data": { "value": "dajkfl32ip2" } }
 //
 // Note: this technically allows you to fetch dynamic secrets, but this library
 // makes no attempt at renewing leases!

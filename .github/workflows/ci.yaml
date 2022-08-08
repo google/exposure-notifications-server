@@ -61,9 +61,9 @@ jobs:
 
       - name: Install Protoc
         run: |-
-          curl -sfLo protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protoc-21.4-linux-x86_64.zip
-          unzip protoc.zip -d protoc
-          echo "${PWD}/protoc/bin" >> $GITHUB_PATH
+          curl -sfLo ${RUNNER_TEMP}/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protoc-21.4-linux-x86_64.zip
+          unzip ${RUNNER_TEMP}/protoc.zip -d ${RUNNER_TEMP}/protoc
+          echo "${RUNNER_TEMP}/protoc/bin" >> ${GITHUB_PATH}
 
       - uses: actions/setup-go@v3
         with:

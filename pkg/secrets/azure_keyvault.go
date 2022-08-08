@@ -57,11 +57,11 @@ func NewAzureKeyVault(ctx context.Context, _ *Config) (SecretManager, error) {
 // GetSecretValue implements the SecretManager interface. Secrets are specified
 // in the format:
 //
-//     AZURE_KEY_VAULT_NAME/SECRET_NAME/SECRET_VERSION
+//	AZURE_KEY_VAULT_NAME/SECRET_NAME/SECRET_VERSION
 //
 // For example:
 //
-//     my-company-vault/api-key/1
+//	my-company-vault/api-key/1
 //
 // If the secret version is omitted, the latest version is used.
 func (kv *AzureKeyVault) GetSecretValue(ctx context.Context, name string) (string, error) {
