@@ -43,7 +43,7 @@ var (
 
 	mVerificationBypassed = stats.Int64(publishMetricsPrefix+"verification_bypassed",
 		"Instances of health authority verification being bypassed", stats.UnitDimensionless)
-	// v1 and v1alpha1
+	// v1 and v1alpha1.
 	mPaddingFailed = stats.Int64(publishMetricsPrefix+"padding_failed",
 		"Instances of response padding failures", stats.UnitDimensionless)
 

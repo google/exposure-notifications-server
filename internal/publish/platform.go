@@ -37,7 +37,7 @@ func isAndroid(userAgent string) bool {
 }
 
 // isIOS determines if a User-Agent is an iOS EN device.
-// for EN Express publishes, the useragent is "bluetoothd" and "cfnetwork"
+// for EN Express publishes, the useragent is "bluetoothd" and "cfnetwork".
 func isIOS(userAgent string) bool {
 	lowerAgent := strings.ToLower(userAgent)
 	return strings.Contains(lowerAgent, "iphone") ||

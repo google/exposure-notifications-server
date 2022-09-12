@@ -19,19 +19,19 @@ import "time"
 // The following constants are generally useful in implementations of this API
 // and for clients as well..
 const (
-	// only valid exposure key keyLength
+	// only valid exposure key keyLength.
 	KeyLength = 16
 
-	// Transmission risk constraints (inclusive..inclusive)
+	// Transmission risk constraints (inclusive..inclusive).
 	MinTransmissionRisk = 0 // 0 indicates, no/unknown risk.
 	MaxTransmissionRisk = 8
 
 	// Intervals are defined as 10 minute periods, there are 144 of them in a day.
-	// IntervalCount constraints (inclusive..inclusive)
+	// IntervalCount constraints (inclusive..inclusive).
 	MinIntervalCount = 1
 	MaxIntervalCount = 144
 
-	// interval length
+	// interval length.
 	IntervalLength = 10 * time.Minute
 
 	// Error Code defintiions.
@@ -47,9 +47,9 @@ const (
 	// ErrorBadRequest indicates that the client sent a request that couldn't be parsed correctly
 	// or otherwise contains invalid data, see the extended ErrorMessage for details.
 	ErrorBadRequest = "bad_request"
-	// ErrorInternalError
+	// ErrorInternalError.
 	ErrorInternalError = "internal_error"
-	// ErrorMissingRevisionToken indicates no revision token passed when one is needed
+	// ErrorMissingRevisionToken indicates no revision token passed when one is needed.
 	ErrorMissingRevisionToken = "missing_revision_token"
 	// ErrorInvalidRevisionToken indicates a revision token was passed, but is missing a
 	// key or has invalid metadata.

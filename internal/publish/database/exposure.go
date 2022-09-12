@@ -50,7 +50,7 @@ var (
 	ErrNoRevisionToken = errors.New("sent existing exposures but no revision token present")
 
 	// ErrRevisionTokenMetadataMismatch is returned when a revision token has the correct TEK in it,
-	// but the new request is attempting to change the metadata of the key (intervalNumber/Count)
+	// but the new request is attempting to change the metadata of the key (intervalNumber/Count).
 	ErrRevisionTokenMetadataMismatch = errors.New("changing exposure key metadata is not allowed")
 
 	// ErrIncomingMetadataMismatch is returned when incoming data has a known TEK

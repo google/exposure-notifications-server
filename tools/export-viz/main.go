@@ -35,7 +35,7 @@ var filePath = flag.String("file", "", "path to the export file")
 // go run ./tools/export-viz --file export.zip > graph
 // dot -Tsvg graph > graph.svg
 //
-// Open the SVG file with a viewer (i.e. Google Chrome)
+// Open the SVG file with a viewer (i.e. Google Chrome).
 func main() {
 	if err := realMain(); err != nil {
 		log.Printf("ERROR: %v", err)

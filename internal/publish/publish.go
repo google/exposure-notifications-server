@@ -212,7 +212,7 @@ func newVersionBridge(regions []string) *versionBridge {
 }
 
 // process runs the publish business logic over a "v1" version of the publish request
-// and knows how to join in data from previous versions (the provided versionBridge)
+// and knows how to join in data from previous versions (the provided versionBridge).
 func (s *Server) process(ctx context.Context, data *verifyapi.Publish, platform string, bridge *versionBridge) *response {
 	ctx, span := trace.StartSpan(ctx, "(*publish.PublishHandler).process")
 	defer span.End()

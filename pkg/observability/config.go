@@ -27,7 +27,7 @@ const (
 	ExporterNoop        ExporterType = "NOOP"
 )
 
-// Config holds all of the configuration options for the observability exporter
+// Config holds all of the configuration options for the observability exporter.
 type Config struct {
 	ExporterType ExporterType `env:"OBSERVABILITY_EXPORTER, default=STACKDRIVER"`
 
@@ -35,7 +35,7 @@ type Config struct {
 	Stackdriver *StackdriverConfig
 }
 
-// OpenCensusConfig holds the configuration options for the open census exporter
+// OpenCensusConfig holds the configuration options for the open census exporter.
 type OpenCensusConfig struct {
 	SampleRate float64 `env:"TRACE_PROBABILITY, default=0.40"`
 
@@ -43,7 +43,7 @@ type OpenCensusConfig struct {
 	Endpoint string `env:"OCAGENT_TRACE_EXPORTER_ENDPOINT"`
 }
 
-// StackdriverConfig holds the configuration options for the stackdriver exporter
+// StackdriverConfig holds the configuration options for the stackdriver exporter.
 type StackdriverConfig struct {
 	SampleRate float64 `env:"TRACE_PROBABILITY, default=0.40"`
 

@@ -35,11 +35,11 @@ import (
 )
 
 var (
-	// ErrorExposureKeyMismatch - internal coding error, tried to revise key A by passing in key B
+	// ErrorExposureKeyMismatch - internal coding error, tried to revise key A by passing in key B.
 	ErrorExposureKeyMismatch = fmt.Errorf("attempted to revise a key with a different key")
-	// ErrorNonLocalProvenance - key revision attempted on federated key, which is not allowed
+	// ErrorNonLocalProvenance - key revision attempted on federated key, which is not allowed.
 	ErrorNonLocalProvenance = fmt.Errorf("key not origionally uploaded to this server, cannot revise")
-	// ErrorNotSameFederationSource - if a key arrived by federation, it can only be be revised by the same query (same source)
+	// ErrorNotSameFederationSource - if a key arrived by federation, it can only be be revised by the same query (same source).
 	ErrorNotSameFederationSource = fmt.Errorf("key cannot be revised by a different federation query")
 	// ErrorKeyAlreadyRevised - attempt to revise a key that has already been revised.
 	ErrorKeyAlreadyRevised = fmt.Errorf("key has already been revised and cannot be revised again")
@@ -59,7 +59,7 @@ func (e *ErrorKeyInvalidReportTypeTransition) Error() string {
 		e.from, e.to)
 }
 
-// Exposure represents the record as stored in the database
+// Exposure represents the record as stored in the database.
 type Exposure struct {
 	ExposureKey       []byte
 	TransmissionRisk  int
@@ -211,7 +211,7 @@ func ValidReportTypeTransition(from, to string) bool {
 	return false
 }
 
-// Revise updates the Revised fields of a key
+// Revise updates the Revised fields of a key.
 func (e *Exposure) Revise(in *Exposure) (bool, error) {
 	if e.ExposureKeyBase64() != in.ExposureKeyBase64() {
 		return false, ErrorExposureKeyMismatch
@@ -417,7 +417,7 @@ func DaysBetweenIntervals(a int32, b int32) int32 {
 	return days
 }
 
-// TransformerConfig defines the interface that is needed to configure a `Transformer`
+// TransformerConfig defines the interface that is needed to configure a `Transformer`.
 type TransformerConfig interface {
 	MaxExposureKeys() uint
 	MaxSameDayKeys() uint
@@ -478,7 +478,7 @@ type KeyTransform struct {
 //
 // * exposure keys are exactly 16 bytes in length after base64 decoding
 // * minInterval <= interval number +intervalCount <= maxInterval
-// * MinIntervalCount <= interval count <= MaxIntervalCount
+// * MinIntervalCount <= interval count <= MaxIntervalCount.
 func TransformExposureKey(exposureKey verifyapi.ExposureKey, appPackageName string, uppercaseRegions []string, settings *KeyTransform) (*Exposure, error) {
 	binKey, err := base64util.DecodeString(exposureKey.Key)
 	if err != nil {
@@ -543,7 +543,7 @@ func ReviseKeys(ctx context.Context, existing map[string]*Exposure, incoming []*
 // * Clinical Diagnosis -> 4
 // * Negative -> 6
 // See constants defined in
-// pkg/api/v1alpha1/verification_types.go
+// pkg/api/v1alpha1/verification_types.go.
 func ReportTypeTransmissionRisk(reportType string, providedTR int) int {
 	// If the client provided a transmission risk, we'll use that.
 	if providedTR != 0 {

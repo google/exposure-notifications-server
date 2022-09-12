@@ -24,24 +24,24 @@ import (
 )
 
 const (
-	// ExposureKeyHMACClaim is the JWT claim key for the HMAC of the TEKs
+	// ExposureKeyHMACClaim is the JWT claim key for the HMAC of the TEKs.
 	ExposureKeyHMACClaim = "tekmac"
-	// TransmissionRiskOverrideClaim is the JWT Claim key for transmission risk overrides
+	// TransmissionRiskOverrideClaim is the JWT Claim key for transmission risk overrides.
 	TransmissionRiskOverrideClaim = "trisk"
-	// ReportTypeClaim is the JWT claim for the report type (confirmed|likely|negative)
+	// ReportTypeClaim is the JWT claim for the report type (confirmed|likely|negative).
 	ReportTypeClaim = "reportType"
 	// SymptomOnsetIntervalClaim is the JWT claim for the interval representing the symptom onset.
 	SymptomOnsetIntervalClaim = "symptomOnsetInterval"
-	// TestDateIntervalClaim is the JWT claim for the interval representing the test date
+	// TestDateIntervalClaim is the JWT claim for the interval representing the test date.
 	TestDateIntervalClaim = "testDateInterval"
 	// KeyIDHeader is the standard JWT key ID header name.
 	KeyIDHeader = "kid"
 
-	// ReportType strings that correspond to what is defined in internal/pb/export/export.proto
+	// ReportType strings that correspond to what is defined in internal/pb/export/export.proto.
 
-	// ReportTypeConfirmed indicates to set ReportType.CONFIRMED_TEST
+	// ReportTypeConfirmed indicates to set ReportType.CONFIRMED_TEST.
 	ReportTypeConfirmed = "confirmed"
-	// ReportTypeClinical indicates to set ReportType.CONFIRMED_CLINICAL_DIAGNOSIS
+	// ReportTypeClinical indicates to set ReportType.CONFIRMED_CLINICAL_DIAGNOSIS.
 	ReportTypeClinical = "likely"
 	// ReportTypeNegative is allowed by the verification flow. These keys are not saved in the system.
 	ReportTypeNegative = "negative"
@@ -55,7 +55,7 @@ const (
 // TransmissionRiskVector is an additional set of claims that can be
 // included in the verification certificate for a diagnosis as received
 // from a trusted public health authority.
-// DEPRECATED - If received at a server, these values are ignored. Will be removed in v0.3
+// DEPRECATED - If received at a server, these values are ignored. Will be removed in v0.3.
 type TransmissionRiskVector []TransmissionRiskOverride
 
 // Compile time check that TransmissionRiskVector implements the sort interface.

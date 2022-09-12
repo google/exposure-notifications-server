@@ -29,7 +29,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Server hosts end points to manage key rotation
+// Server hosts end points to manage key rotation.
 type Server struct {
 	config     *Config
 	env        *serverenv.ServerEnv

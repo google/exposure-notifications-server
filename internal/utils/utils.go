@@ -83,7 +83,7 @@ func (c *StatsJWTConfig) IssueStatsJWT(t testing.TB) string {
 	return jwtString
 }
 
-// JWTConfig stores the config used to fetch a verification jwt certificate
+// JWTConfig stores the config used to fetch a verification jwt certificate.
 type JWTConfig struct {
 	HealthAuthority      *vm.HealthAuthority
 	HealthAuthorityKey   *vm.HealthAuthorityKey
@@ -156,7 +156,7 @@ func IssueJWT(t *testing.T, cfg *JWTConfig) (string, string) {
 	return jwtText, hmacKey
 }
 
-// InitializeVerificationDB links the vdb, HA and SigningKeys together
+// InitializeVerificationDB links the vdb, HA and SigningKeys together.
 func InitializeVerificationDB(ctx context.Context, tb testing.TB, db *database.DB, ha *vm.HealthAuthority, hak *vm.HealthAuthorityKey, sk *SigningKey) int64 {
 	verDB := vdb.New(db)
 	exist, err := verDB.GetHealthAuthority(context.Background(), ha.Issuer)

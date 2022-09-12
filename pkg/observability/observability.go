@@ -43,7 +43,7 @@ var (
 	// CLIENT: the client is at fault (e.g. invalid request)
 	// SERVER: the server is at fault
 	// EXTERNAL: some third party is at fault
-	// UNKNOWN: for everything else
+	// UNKNOWN: for everything else.
 	BlameTagKey = tag.MustNewKey("blame")
 
 	// ResultTagKey contains a free format text describing the result of the
@@ -56,19 +56,19 @@ var (
 )
 
 var (
-	// BlameNone indicate no API failure
+	// BlameNone indicate no API failure.
 	BlameNone = tag.Upsert(BlameTagKey, "NONE")
 
-	// BlameClient indicate the client is at fault (e.g. invalid request)
+	// BlameClient indicate the client is at fault (e.g. invalid request).
 	BlameClient = tag.Upsert(BlameTagKey, "CLIENT")
 
-	// BlameServer indicate the server is at fault
+	// BlameServer indicate the server is at fault.
 	BlameServer = tag.Upsert(BlameTagKey, "SERVER")
 
-	// BlameExternal indicate some third party is at fault
+	// BlameExternal indicate some third party is at fault.
 	BlameExternal = tag.Upsert(BlameTagKey, "EXTERNAL")
 
-	// BlameUnknown can be used for everything else
+	// BlameUnknown can be used for everything else.
 	BlameUnknown = tag.Upsert(BlameTagKey, "UNKNOWN")
 )
 
