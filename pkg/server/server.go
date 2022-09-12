@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/google/exposure-notifications-server/pkg/logging"
+	"github.com/hashicorp/go-multierror"
 
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/tracecontext"
@@ -100,7 +101,9 @@ func (s *Server) ServeHTTP(ctx context.Context, srv *http.Server) error {
 		errCh <- srv.Shutdown(shutdownCtx)
 	}()
 
-	if err := ServeMetricsIfPrometheus(ctx); err != nil {
+	// Create the prometheus metrics proxy.
+	metricsDone, err := ServeMetricsIfPrometheus(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to serve metrics: %w", err)
 	}
 
@@ -111,11 +114,20 @@ func (s *Server) ServeHTTP(ctx context.Context, srv *http.Server) error {
 
 	logger.Debugf("server.Serve: serving stopped")
 
+	var merr *multierror.Error
+
+	// Shutdown the prometheus metrics proxy.
+	if metricsDone != nil {
+		if err := metricsDone(); err != nil {
+			merr = multierror.Append(merr, fmt.Errorf("failed to close metrics exporter: %w", err))
+		}
+	}
+
 	// Return any errors that happened during shutdown.
 	if err := <-errCh; err != nil {
-		return fmt.Errorf("failed to shutdown: %w", err)
+		merr = multierror.Append(merr, fmt.Errorf("failed to shutdown server: %w", err))
 	}
-	return nil
+	return merr.ErrorOrNil()
 }
 
 // ServeHTTPHandler is a convenience wrapper around ServeHTTP. It creates an
