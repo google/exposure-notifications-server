@@ -22,7 +22,7 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/base64util"
 )
 
-// Small to base64 decode data and print some info
+// Small to base64 decode data and print some info.
 func main() {
 	if len(os.Args) != 2 {
 		log.Fatal("requires 1 argument which will be interpreted as a base64 encoded byte array")

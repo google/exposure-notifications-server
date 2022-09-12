@@ -36,7 +36,7 @@ const (
 	PlatformUnknown = "unknown"
 )
 
-// Turns a platform identifier string into an int for calculation
+// Turns a platform identifier string into an int for calculation.
 func platformToInt(platform string) int {
 	switch platform {
 	case PlatformAndroid:
@@ -135,7 +135,7 @@ func InitHour(healthAuthorityID int64, hour time.Time) *HealthAuthorityStats {
 	}
 }
 
-// PublishInfo is the paremeters to the AddPublish call
+// PublishInfo is the paremeters to the AddPublish call.
 type PublishInfo struct {
 	CreatedAt    time.Time
 	Platform     string

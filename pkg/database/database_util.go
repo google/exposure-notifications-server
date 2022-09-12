@@ -41,11 +41,11 @@ import (
 	"github.com/ory/dockertest/docker"
 	"github.com/sethvargo/go-retry"
 
-	// imported to register the postgres migration driver
+	// imported to register the postgres migration driver.
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	// imported to register the "file" source migration driver
+	// imported to register the "file" source migration driver.
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	// imported to register the "postgres" database driver for migrate
+	// imported to register the "postgres" database driver for migrate.
 )
 
 const (

@@ -69,7 +69,7 @@ func executeBulkInsertExposure(ctx context.Context, tx pgx.Tx, expos []*model.Ex
 }
 
 // BulkInsertExposures performs a large key copy at once allowing for quick population of exposure keys
-// *this should NOT be used for anything but testing, validation and checks were removed
+// *this should NOT be used for anything but testing, validation and checks were removed.
 func (db *PublishDB) BulkInsertExposures(ctx context.Context, incoming []*model.Exposure) (int, error) {
 	var updated int
 	err := db.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {

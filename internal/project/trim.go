@@ -19,7 +19,7 @@ import (
 	"unicode"
 )
 
-// TrimSpace trims space and "zero-width no-break space"
+// TrimSpace trims space and "zero-width no-break space".
 func TrimSpace(s string) string {
 	return strings.TrimFunc(s, func(r rune) bool {
 		return unicode.IsSpace(r) || r == '\uFEFF'

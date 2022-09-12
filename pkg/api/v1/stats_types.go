@@ -120,7 +120,7 @@ func (p *PublishRequests) Total() int64 {
 }
 
 // TEKAgeDistributionAsString returns an array of TEKAgeDistribution
-// as strings instead of int64
+// as strings instead of int64.
 func (s *StatsDay) TEKAgeDistributionAsString() []string {
 	rtn := make([]string, 0, len(s.TEKAgeDistribution))
 	for _, v := range s.TEKAgeDistribution {
@@ -130,7 +130,7 @@ func (s *StatsDay) TEKAgeDistributionAsString() []string {
 }
 
 // OnsetToUploadDistributionAsString returns an array of OnsetToUploadDistribution
-// as strings instead of int64
+// as strings instead of int64.
 func (s *StatsDay) OnsetToUploadDistributionAsString() []string {
 	rtn := make([]string, 0, len(s.OnsetToUploadDistribution))
 	for _, v := range s.OnsetToUploadDistribution {

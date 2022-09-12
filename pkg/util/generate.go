@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	// the length of a diagnosis key, always 16 bytes
+	// the length of a diagnosis key, always 16 bytes.
 	dkLen            = 16
 	maxIntervalCount = 144
 )
@@ -88,7 +88,7 @@ func RandomTransmissionRisk() (int, error) {
 	return n + 1, err
 }
 
-// GenerateExposuresForIntervals generates a key for each interval start passed in
+// GenerateExposuresForIntervals generates a key for each interval start passed in.
 func GenerateExposuresForIntervals(intervals []int32) ([]v1.ExposureKey, error) {
 	exposureKeys := make([]v1.ExposureKey, len(intervals))
 	var err error

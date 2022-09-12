@@ -196,7 +196,7 @@ func levelEncoder() zapcore.LevelEncoder {
 	}
 }
 
-// timeEncoder encodes the time as RFC3339 nano
+// timeEncoder encodes the time as RFC3339 nano.
 func timeEncoder() zapcore.TimeEncoder {
 	return func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 		enc.AppendString(t.Format(time.RFC3339Nano))

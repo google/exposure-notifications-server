@@ -69,7 +69,7 @@ type RevisionDB struct {
 	config *KMSConfig
 }
 
-// New creates a new `RevisionDB`
+// New creates a new `RevisionDB`.
 func New(db *database.DB, c *KMSConfig) (*RevisionDB, error) {
 	if c.WrapperKeyID == "" {
 		return nil, fmt.Errorf("no KMS key ID passed in to revision.New")
@@ -114,7 +114,7 @@ func (rdb *RevisionDB) DestroyKey(ctx context.Context, keyID int64) error {
 // Once the keys have been unwrapped, there is no reason to continue to unwrap them.
 //
 // The first return value is the ID of the currently effective key (most recently created, still active)
-// The second return value is a map of the currently allowed keys for decryption
+// The second return value is a map of the currently allowed keys for decryption.
 func (rdb *RevisionDB) GetAllowedRevisionKeyIDs(ctx context.Context) (int64, map[int64]struct{}, error) {
 	var effectiveID int64
 	keys := make(map[int64]struct{})
@@ -219,7 +219,7 @@ func (rdb *RevisionDB) GetAllowedRevisionKeys(ctx context.Context) (int64, []*Re
 }
 
 // GetEffectiveRevisionKey returns the revision key to use when encrypting revision tokens.
-// This is consided the most recently created key that is still "allowed"
+// This is consided the most recently created key that is still "allowed".
 func (rdb *RevisionDB) GetEffectiveRevisionKey(ctx context.Context) (*RevisionKey, error) {
 	var revKey *RevisionKey
 	if err := rdb.db.InTx(ctx, pgx.ReadCommitted, func(tx pgx.Tx) error {
@@ -269,7 +269,7 @@ func (rdb *RevisionDB) decrypt(ctx context.Context, ciphertext []byte, aad []byt
 	return rdb.config.KeyManager.Decrypt(ctx, rdb.config.WrapperKeyID, ciphertext, aad)
 }
 
-// CreateRevisionKey generates a new AES key and wraps it
+// CreateRevisionKey generates a new AES key and wraps it.
 func (rdb *RevisionDB) CreateRevisionKey(ctx context.Context) (*RevisionKey, error) {
 	key := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, key); err != nil {

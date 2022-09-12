@@ -32,7 +32,7 @@ const (
 	SecretPrefix = "secret://"
 
 	// FileSuffix is the suffix to use, if this secret path should be written to a file.
-	// only interpreted on environment variable values that start w/ secret://
+	// only interpreted on environment variable values that start w/ secret://.
 	FileSuffix = "?target=file"
 )
 

@@ -19,22 +19,22 @@ import "time"
 // The following constants are generally useful in implementations of this API
 // and for clients as well..
 const (
-	// only valid exposure key keyLength
+	// only valid exposure key keyLength.
 	KeyLength = 16
 
-	// Transmission risk constraints (inclusive..inclusive)
+	// Transmission risk constraints (inclusive..inclusive).
 	MinTransmissionRisk = 0 // 0 indicates, no/unknown risk.
 	MaxTransmissionRisk = 8
 
 	// Intervals are defined as 10 minute periods, there are 144 of them in a day.
-	// IntervalCount constraints (inclusive..inclusive)
+	// IntervalCount constraints (inclusive..inclusive).
 	MinIntervalCount = 1
 	MaxIntervalCount = 144
 
 	// Self explanatory.
-	// oneDay = time.Hour * 24
+	// oneDay = time.Hour * 24.
 
-	// interval length
+	// interval length.
 	IntervalLength = 10 * time.Minute
 )
 

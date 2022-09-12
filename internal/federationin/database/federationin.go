@@ -176,7 +176,7 @@ func getFederationInSync(ctx context.Context, syncID int64, queryRowContext quer
 	return &s, nil
 }
 
-// unixToTimestamp converts a unix timestamp into a time.Time
+// unixToTimestamp converts a unix timestamp into a time.Time.
 func unixToTimestamp(unixTS int64) *time.Time {
 	ts := time.Unix(unixTS, 0).UTC().Truncate(time.Second)
 	return &ts

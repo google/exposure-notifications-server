@@ -31,7 +31,7 @@ var (
 	authorizer autorest.Authorizer
 )
 
-// GetKeyVaultAuthorizer prepares a specifc authorizer for keyvault use
+// GetKeyVaultAuthorizer prepares a specifc authorizer for keyvault use.
 func GetKeyVaultAuthorizer() (autorest.Authorizer, error) {
 	mu.Lock()
 	defer mu.Unlock()
