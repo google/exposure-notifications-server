@@ -51,9 +51,6 @@ func (s *Server) Routes(ctx context.Context) http.Handler {
 	mux.SetFuncMap(TemplateFuncMap)
 	mux.SetHTMLTemplate(tmpl)
 
-	// Static assets.
-	mux.StaticFS("/assets/", http.FS(assetsFS))
-
 	// Landing page.
 	mux.GET("/", s.HandleIndex())
 

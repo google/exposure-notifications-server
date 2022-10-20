@@ -6,58 +6,73 @@
     {{if not .mirror.ID}}
       New Mirror
     {{else}}
-      Update mirror <span class="font-weight-bold text-monospace">{{.mirror.ID}}</span>
+      Update mirror {{.mirror.ID}}
     {{end}}
   </div>
+
   <div class="card-body">
-    <form method="POST" action="/mirrors/{{.mirror.ID}}" class="floating-form">
-      <div class="form-label-group">
-        <input type="text" name="index-file" id="index-file" value="{{.mirror.IndexFile}}" class="form-control" placeholder="Index File">
-        <label for="index-file">Index File</label>
-        <small class="form-text text-muted">
-          Full URL of the index file from which to read. Example: <code>https://mysever/exports/index.txt</code>.
-        </small>
+    <form method="POST" action="/mirrors/{{.mirror.ID}}" class="m-0 p-0">
+      <div class="row g-3">
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="index-file" id="index-file" value="{{.mirror.IndexFile}}" class="form-control" placeholder="Index File">
+            <label for="index-file" class="form-label">Index File</label>
+          </div>
+          <div class="form-text text-muted">
+            Full URL of the index file from which to read. Example: <code>https://mysever/exports/index.txt</code>.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="export-root" id="export-root" value="{{.mirror.ExportRoot}}" class="form-control" placeholder="Export Root">
+            <label for="export-root" class="form-label">Export Root</label>
+          </div>
+          <div class="form-text text-muted">
+            Full URL to the export root. Example: <code>https://myserver/</code>.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="cloud-storage-bucket" id="cloud-storage-bucket" value="{{.mirror.CloudStorageBucket}}" class="form-control" placeholder="Cloud Storage Bucket">
+            <label for="cloud-storage-bucket" class="form-label">Cloud Storage Bucket</label>
+          </div>
+          <div class="form-text text-muted">
+            Name of the destination storage bucket. Example: <code>my-bucket</code>.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="filename-root" id="filename-root" value="{{.mirror.FilenameRoot}}" class="form-control" placeholder="Filename Root">
+            <label for="filename-root" class="form-label">Filename Root</label>
+          </div>
+          <div class="form-text text-muted">
+            Root where the new file should be written. Example: <code>/path/to/new</code>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="filename-rewrite" id="filename-rewrite" value="{{.mirror.FilenameRewrite | deref}}" class="form-control" placeholder="Filename Rewrite">
+            <label for="filename-rewrite" class="form-label">Filename Rewrite</label>
+          </div>
+          <div class="form-text text-muted">
+            Optional regular expression for rewriting imports.
+          </div>
+        </div>
+
+        <div class="col-12 d-grid">
+          <button type="submit" class="btn btn-primary" name="action" value="save">Save changes</button>
+        </div>
+
+        {{if .mirror.ID}}
+          <div class="col-12">
+            <button type="submit" name="action" value="delete" class="btn btn-link btn-sm px-0 text-danger">Delete</button>
+          </div>
+        {{end}}
       </div>
-
-      <div class="form-label-group">
-        <input type="text" name="export-root" id="export-root" value="{{.mirror.ExportRoot}}" class="form-control" placeholder="Export Root">
-        <label for="export-root">Export Root</label>
-        <small class="form-text text-muted">
-          Full URL to the export root. Example: <code>https://myserver/</code>.
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <input type="text" name="cloud-storage-bucket" id="cloud-storage-bucket" value="{{.mirror.CloudStorageBucket}}" class="form-control" placeholder="Cloud Storage Bucket">
-        <label for="cloud-storage-bucket">Cloud Storage Bucket</label>
-        <small class="form-text text-muted">
-          Name of the destination storage bucket. Example: <code>my-bucket</code>.
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <input type="text" name="filename-root" id="filename-root" value="{{.mirror.FilenameRoot}}" class="form-control" placeholder="Filename Root">
-        <label for="filename-root">Filename Root</label>
-        <small class="form-text text-muted">
-          Root where the new file should be written. Example: <code>/path/to/new</code>
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <input type="text" name="filename-rewrite" id="filename-rewrite" value="{{.mirror.FilenameRewrite | deref}}" class="form-control" placeholder="Filename Rewrite">
-        <label for="filename-rewrite">Filename Rewrite</label>
-        <small class="form-text text-muted">
-          Optional regular expression for rewriting imports.
-        </small>
-      </div>
-
-      <button type="submit" class="mt-5 btn btn-primary btn-block" name="action" value="save">Save changes</button>
-
-      {{if .mirror.ID}}
-        <button type="submit" name="action" value="delete" class="mt-3 btn btn-link btn-sm px-0 text-danger">
-          <span class="oi oi-trash" aria-hidden="true"></span> Delete
-        </button>
-      {{end}}
     </form>
   </div>
 </div>
@@ -76,15 +91,15 @@
         <tbody>
           {{range .mirrorFiles}}
             <tr>
-              <td class="text-monospace">{{.Filename}}</td>
-              <td class="text-monospace">{{.LocalFilename}}</td>
+              <td class="font-monospace">{{.Filename}}</td>
+              <td class="font-monospace">{{.LocalFilename}}</td>
             </tr>
           {{end}}
         </tbody>
       </table>
     {{else}}
       <div class="card-body">
-        <div class="alert alert-warning" role="alert">
+        <div class="alert alert-warning mb-0" role="alert">
           There are currently no mirror files.
         </div>
       </div>

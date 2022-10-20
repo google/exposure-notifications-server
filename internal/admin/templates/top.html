@@ -1,13 +1,20 @@
 {{define "top"}}
-<html>
+<html lang="en">
 <head>
   <title>{{if .title}}{{.title}}{{else}}Exposure Notifications{{end}}</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
-    integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
-  <link rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/open-iconic/1.1.1/font/css/open-iconic-bootstrap.min.css"
-    integrity="sha256-BJ/G+e+y7bQdrYkS2RBTyNfBHpA9IuGaPmf9htub5MQ=" crossorigin="anonymous">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.2/css/bootstrap.min.css" crossorigin="anonymous" referrerpolicy="no-referrer"
+    integrity="sha512-CpIKUSyh9QX2+zSdfGP+eWLx23C8Dj9/XmHjZY2uDtfkdLGo0uY12jgcnkX9vXOgYajEKb/jiw67EYm+kBf+6g==" />
   <link rel="stylesheet" href="/assets/styles.css">
+
+  <style type="text/css">
+    #main {
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+  </style>
 </head>
 
 <body class="bg-light">
@@ -20,7 +27,7 @@
         </button>
 
         <div class="collapse navbar-collapse" id="nav-content">
-          <ul class="navbar-nav mr-auto">
+          <ul class="navbar-nav me-auto">
             <li class="nav-item active">
               <a class="nav-link" href="/">Home</a>
             </li>

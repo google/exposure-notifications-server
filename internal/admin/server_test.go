@@ -34,7 +34,6 @@ func TestServerRoutes(t *testing.T) {
 		name string
 		path string
 	}{
-		{"assets", "/assets/styles.css"},
 		{"index", "/"},
 		{"apps", "/app"},
 		{"health_authority", "/healthauthority/0"},
