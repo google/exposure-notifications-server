@@ -20,7 +20,6 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
-	"io/fs"
 
 	"github.com/google/exposure-notifications-server/internal/setup"
 	"github.com/google/exposure-notifications-server/internal/storage"
@@ -29,14 +28,8 @@ import (
 	"github.com/google/exposure-notifications-server/pkg/secrets"
 )
 
-var (
-	//go:embed templates/*
-	templatesFS embed.FS
-
-	//go:embed assets/*
-	assetsFolderFS embed.FS
-	assetsFS, _    = fs.Sub(assetsFolderFS, "assets")
-)
+//go:embed templates/*
+var templatesFS embed.FS
 
 var (
 	_ setup.BlobstoreConfigProvider     = (*Config)(nil)

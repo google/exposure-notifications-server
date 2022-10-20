@@ -6,7 +6,7 @@
     {{if .new}}
       New Verification Key
     {{else}}
-      Edit Verification Key <span class="font-weight-bold text-monospace">{{.ha.Issuer}}</span>
+      Edit Verification Key <span class="fw-bold font-monospace">{{.ha.Issuer}}</span>
     {{end}}
   </div>
   <div class="card-body">
@@ -20,64 +20,78 @@
       </div>
     {{end}}
 
-    <form method="POST" action="/healthauthority/{{.ha.ID}}" class="floating-form">
-      <div class="form-label-group">
-        <input type="text" name="name" id="name" value="{{.ha.Name}}"
-          placeholder="name" class="form-control">
-        <label for="name">Name</label>
-        <small class="form-text text-muted">
-          The name of the Health Authority. <strong>Once set, this field should
-          not be edited.</strong>
-        </small>
-      </div>
+    <form method="POST" action="/healthauthority/{{.ha.ID}}" class="mb-0">
+      <div class="row g-3">
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="name" id="name" value="{{.ha.Name}}"
+              placeholder="name" class="form-control">
+            <label for="name" class="form-label">Name</label>
+          </div>
+          <div class="form-text text-muted">
+            The name of the Health Authority. <strong>Once set, this field should
+            not be edited.</strong>
+          </div>
+        </div>
 
-      <div class="form-label-group">
-        <input type="text" name="issuer" id="issuer" value="{{.ha.Issuer}}"
-          placeholder="Issuer (iss)" class="form-control">
-        <label for="issuer">Issuer (iss)</label>
-        <small class="form-text text-muted">
-          The issuer can be any string, but is often reverse DNS, for example
-          'gov.mystate.doh'. This is what will be in the 'iss' field of the
-          certificate JWT. <strong>Once set, this field should not be
-          edited.</strong>
-        </small>
-      </div>
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="issuer" id="issuer" value="{{.ha.Issuer}}"
+              placeholder="Issuer (iss)" class="form-control">
+            <label for="issuer" class="form-label">Issuer (iss)</label>
+          </div>
+          <div class="form-text text-muted">
+            The issuer can be any string, but is often reverse DNS, for example
+            'gov.mystate.doh'. This is what will be in the 'iss' field of the
+            certificate JWT. <strong>Once set, this field should not be
+            edited.</strong>
+          </div>
+        </div>
 
-      <div class="form-label-group">
-        <input type="text" name="audience" id="audience" value="{{.ha.Audience}}"
-          placeholder="Audience (aud)" class="form-control">
-        <label for="audience">Audience (aud)</label>
-        <small class="form-text text-muted">
-          The value for audience is defined by the operator of this server. It should be
-          communicated to the health authority for inclusion in the verification
-          certificates. This is the 'aud' field of the certificate JWT.
-          <strong>Once set, this field should not be edited.</strong>
-        </small>
-      </div>
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="audience" id="audience" value="{{.ha.Audience}}"
+              placeholder="Audience (aud)" class="form-control">
+            <label for="audience" class="form-label">Audience (aud)</label>
+          </div>
+          <div class="form-text text-muted">
+            The value for audience is defined by the operator of this server. It should be
+            communicated to the health authority for inclusion in the verification
+            certificates. This is the 'aud' field of the certificate JWT.
+            <strong>Once set, this field should not be edited.</strong>
+          </div>
+        </div>
 
-      <div class="form-group">
-        <label for="enable-stats-api">Enable Stats API Access</label>
-        <select name="enable-stats-api" id="enable-stats-api" class="form-control custom-select">
-          <option value="true" {{if .ha.EnableStatsAPI}}selected{{end}}>true</option>
-          <option value="false" {{if not .ha.EnableStatsAPI}}selected{{end}}>false</option>
-        </select>
-        <small class="form-text text-muted">
-          If false, this health authority will always get "unauthorized" on the stats API.
-        </small>
-      </div>
+        <div class="col-12">
+          <div class="form-floating">
+            <select name="enable-stats-api" id="enable-stats-api" class="form-select">
+              <option value="true" {{if .ha.EnableStatsAPI}}selected{{end}}>true</option>
+              <option value="false" {{if not .ha.EnableStatsAPI}}selected{{end}}>false</option>
+            </select>
+            <label for="enable-stats-api" class="form-label">Enable Stats API Access</label>
+          </div>
+          <div class="form-text text-muted">
+            If false, this health authority will always get "unauthorized" on the stats API.
+          </div>
+        </div>
 
-      <div class="form-label-group">
-        <input type="text" name="jwks-uri" id="jwks-uri" value="{{deref .ha.JwksURI}}"
-          placeholder="JWKS URI" class="form-control">
-        <label for="jwks-uri">JWKS URI</label>
-        <small class="form-text text-muted">
-          The JWKS URI for the heath authority. If specified, the keys will be
-          fetched periodically. <em>The default time is 5 minutes, but could be
-          overridden by the administrator.</em>
-        </small>
-      </div>
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="jwks-uri" id="jwks-uri" value="{{deref .ha.JwksURI}}"
+              placeholder="JWKS URI" class="form-control">
+            <label for="jwks-uri" class="form-label">JWKS URI</label>
+          </div>
+          <div class="form-text text-muted">
+            The JWKS URI for the heath authority. If specified, the keys will be
+            fetched periodically. <em>The default time is 5 minutes, but could be
+            overridden by the administrator.</em>
+          </div>
+        </div>
 
-      <button type="submit" class="btn btn-block btn-primary" value="save">Save changes</button>
+        <div class="d-grid col-12">
+          <button type="submit" class="btn btn-primary" value="save">Save changes</button>
+        </div>
+      </div>
     </form>
   </div>
 </div>
@@ -85,23 +99,13 @@
 {{if .ha.Keys}}
   <div class="card shadow-sm mt-3">
     <div class="card-header">
-      Keys for <span class="font-weight-bold text-monospace">{{.ha.Issuer}}</span>
+      Keys for <span class="fw-bold font-monospace">{{.ha.Issuer}}</span>
     </div>
-    <div class="card-body">
-      <ul class="list-group">
-        {{range .ha.Keys}}
-          <li class="list-group-item clearfix">
-            <div class="float-right">
-              {{if .IsValid}}
-                <span class="badge badge-success">Current</span>
-              {{else if .IsFuture}}
-                <span class="badge badge-info">Future</span>
-              {{else}}
-                <span class="badge badge-warning">Not active</span>
-              {{end}}
-            </div>
-
-            <p>
+    <ul class="list-group list-group-flush">
+      {{range .ha.Keys}}
+        <li class="list-group-item py-3">
+          <div class="row g-3">
+            <div class="col-10">
               <strong>Version:</strong> {{.Version}}
               {{with $t := .From | htmlDatetime}}
                 <br />
@@ -111,99 +115,123 @@
                 <br />
                 <strong>End:</strong> {{$t}}
               {{end}}
-            </p>
-
-            <div class="form-group">
-              <textarea rows="4" class="text-monospace form-control form-control-sm">{{.PublicKeyPEM}}</textarea>
+            </div>
+            <div class="col-2 clearfix">
+              <div class="float-end">
+                {{if .IsValid}}
+                  <span class="badge bg-success">Current</span>
+                {{else if .IsFuture}}
+                  <span class="badge bg-info">Future</span>
+                {{else}}
+                  <span class="badge bg-warning">Not active</span>
+                {{end}}
+              </div>
             </div>
 
-            {{if .IsFuture}}
-              <form method="POST" action="/healthauthoritykey/{{$.ha.ID}}/activate/{{.Version}}" class="mb-1">
-                <button type="submit" class="btn btn-primary">Activate</button>
-              </form>
-            {{else if .Thru.IsZero}}
-              <form method="POST" action="/healthauthoritykey/{{$.ha.ID}}/revoke/{{.Version}}" class="mb-1">
-                <button type="submit" class="btn btn-danger">Revoke</button>
-              </form>
-            {{else}}
-              <form method="POST" action="/healthauthoritykey/{{$.ha.ID}}/reinstate/{{.Version}}" class="mb-1">
-                <button type="submit" class="btn btn-sm btn-warning">Clear Expiry Time</button>
-              </form>
-            {{end}}
-          </li>
-        {{end}}
-      </ul>
-    </div>
+            <div class="col-12">
+              <pre class="font-monospace user-select-all bg-light border rounded p-3 mb-0">{{.PublicKeyPEM}}</pre>
+            </div>
+
+            <div class="col-12 clearfix">
+              <div class="float-end">
+                {{if .IsFuture}}
+                  <form method="POST" action="/healthauthoritykey/{{$.ha.ID}}/activate/{{.Version}}" class="m-0 p-0">
+                    <button type="submit" class="btn btn-primary">Activate</button>
+                  </form>
+                {{else if .Thru.IsZero}}
+                  <form method="POST" action="/healthauthoritykey/{{$.ha.ID}}/revoke/{{.Version}}" class="m-0 p-0">
+                    <button type="submit" class="btn btn-danger">Revoke</button>
+                  </form>
+                {{else}}
+                  <form method="POST" action="/healthauthoritykey/{{$.ha.ID}}/reinstate/{{.Version}}" class="m-0 p-0">
+                    <button type="submit" class="btn btn-warning">Clear Expiry Time</button>
+                  </form>
+                {{end}}
+              </div>
+            </div>
+          </div>
+        </li>
+      {{end}}
+    </ul>
   </div>
 {{end}}
 
 <div class="card shadow-sm mt-3">
   <div class="card-header">
-    Create new key for <span class="font-weight-bold text-monospace">{{.ha.Issuer}}</span>
+    Create new key for <span class="fw-bold font-monospace">{{.ha.Issuer}}</span>
   </div>
+
   <div class="card-body">
-    <form method="POST" action="/healthauthoritykey/{{.ha.ID}}/create/new" class="floating-form">
-      <div class="form-label-group">
-        <input type="text" name="version" id="version" value="{{.hak.Version}}"
-          placeholder="Version" class="form-control">
-        <label for="version">Version</label>
-        <small class="form-text text-muted">
-          Shared opaque string between health authority server and this server.
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <textarea name="public-key-pem" id="public-key-pem" rows="4" size="80"
-          placeholder="Public key PEM" class="form-control">{{.hak.PublicKeyPEM}}</textarea>
-        <label for="public-key-pem">Public key PEM</label>
-        <small class="form-text text-muted">
-          ECDSA p256 Public Key in
-          <a href="https://en.wikipedia.org/wiki/Privacy-Enhanced_Mail"
-          target="_blank">PEM</a> format.
-        </small>
-      </div>
-
-      <div class="form-group">
-        <label for="enddate">Start Date/Time</label>
-        <div class="form-row">
-          <div class="col-md-6">
-            <input type="date" name="from-date" id="from-date" value="{{.hak.From | htmlDate}}"
-              min="2020-05-01" max="2029-12-21" class="form-control" />
+    <form method="POST" action="/healthauthoritykey/{{.ha.ID}}/create/new" class="m-0 p-0">
+      <div class="row g-3">
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="version" id="version" value="{{.hak.Version}}"
+              placeholder="Version" class="form-control">
+            <label for="version" class="form-label">Version</label>
           </div>
-          <div class="col-md-6 input-group">
-            <input type="time" name="from-time" id="from-time" value="{{.hak.From | htmlTime}}"
-              class="form-control" />
-            <div class="input-group-append">
-              <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
-            </div>
+          <div class="form-text text-muted">
+            Shared opaque string between health authority server and this server.
           </div>
         </div>
-        <small class="form-text text-muted">
-          Adjust if future effective time is needed.
-        </small>
-      </div>
 
-      <div class="form-group">
-        <label for="enddate">End Date/Time</label>
-        <div class="form-row">
-          <div class="col-md-6">
-            <input type="date" name="thru-date" id="thru-date" value="{{.hak.Thru | htmlDate}}"
-              min="2020-05-01" max="2029-12-21" class="form-control" />
+        <div class="col-12">
+          <div class="form-floating">
+            <textarea name="public-key-pem" id="public-key-pem" placeholder="Public key PEM"
+              class="form-control font-monospace" style="height:100px;">{{.hak.PublicKeyPEM}}</textarea>
+            <label for="public-key-pem" class="form-label">Public key PEM</label>
           </div>
-          <div class="col-md-6 input-group">
-            <input type="time" name="thru-time" id="thru-time" value="{{.hak.Thru | htmlTime}}"
-              class="form-control" />
-            <div class="input-group-append">
-              <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
-            </div>
+          <div class="form-text text-muted">
+            ECDSA p256 Public Key in
+            <a href="https://en.wikipedia.org/wiki/Privacy-Enhanced_Mail"
+            target="_blank">PEM</a> format.
           </div>
         </div>
-        <small class="form-text text-muted">
-          Leave blank if this is the current key version.
-        </small>
-      </div>
 
-      <button type="submit" class="mt-5 btn btn-block btn-primary" value="save">Create key</button>
+        <div class="col-12">
+          <div class="input-group">
+            <div class="form-floating">
+              <input type="date" name="from-date" id="from-date" value="{{.hak.From | htmlDate}}"
+                min="2020-05-01" max="2029-12-21" class="form-control" />
+              <label for="from-date" class="form-label">Start date</label>
+            </div>
+            <div class="form-floating">
+              <input type="time" name="from-time" id="from-time" value="{{.hak.From | htmlTime}}"
+                class="form-control" />
+              <label for="from-time" class="form-label">Start time</label>
+            </div>
+            <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK"
+              class="input-group-text text-decoration-none">UTC</a>
+          </div>
+          <div class="form-text text-muted">
+            Adjust if future effective time is needed.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="input-group">
+            <div class="form-floating">
+              <input type="date" name="thru-date" id="thru-date" value="{{.hak.Thru | htmlDate}}"
+                min="2020-05-01" max="2029-12-21" class="form-control" />
+                <label for="thru-date" class="form-label">End date</label>
+            </div>
+            <div class="form-floating">
+              <input type="time" name="thru-time" id="thru-time" value="{{.hak.Thru | htmlTime}}"
+                class="form-control" />
+              <label for="thru-time" class="form-label">End time</label>
+            </div>
+            <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK"
+              class="input-group-text">UTC</a>
+          </div>
+          <div class="form-text text-muted">
+            Leave blank if this is the current key version.
+          </div>
+        </div>
+
+        <div class="col-12 d-grid">
+          <button type="submit" class="btn btn-primary" value="save">Create key</button>
+        </div>
+      </div>
     </form>
   </div>
 </div>

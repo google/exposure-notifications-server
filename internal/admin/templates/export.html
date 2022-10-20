@@ -9,6 +9,7 @@
       Edit Export Config {{.export.ConfigID}}
     {{end}}
   </div>
+
   <div class="card-body">
     {{if .export.ConfigID}}
       <div class="alert alert-warning" role="alert">
@@ -21,189 +22,209 @@
       </div>
     {{end}}
 
-    <form method="POST" action="/exports/{{.export.ConfigID}}" class="floating-form">
-      <div class="form-label-group">
-        <input type="text" name="output-region" id="output-region" value="{{.export.OutputRegion}}"
-          placeholder="Output region" class="form-control">
-        <label for="output-region">Output region</label>
-        <small class="form-text text-muted">
-          This is the <code>output</code>
-          region that will apper in the export files. If the input regions
-          (below) are left blank, then this will also serve as the input region.
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <textarea name="input-regions" id="input-regions" rows="3"
-          placeholder="Input regions" class="form-control">{{.export.InputRegionsOnePerLine}}</textarea>
-        <label for="input-regions">Input regions</label>
-        <small class="form-text text-muted">
-          One per line, leave blank for only using the output region (above).
-          Allows for an export to combine multiple regions/apps uploaded to this
-          server.
-        </small>
-      </div>
-
-      <div class="form-group">
-        <label for="include-travelers">Include travelers</label>
-        <select name="include-travelers" id="include-travelers" class="form-control custom-select">
-          <option value="true" {{if .export.IncludeTravelers}}selected{{end}}>Yes</option>
-          <option value="false" {{if not .export.IncludeTravelers}}selected{{end}}>No</option>
-        </select>
-        <small class="form-text text-muted">
-          Should federated-in traveler keys be included in this export. If this
-          server is sharing keys with anouther server, the recommended setting
-          is 'yes'. Even if you are not yet federating, but may in the future,
-          'yes' is still the recommended setting.
-        </small>
-      </div>
-
-      <div class="form-group">
-        <label for="only-non-travelers">Only Non Travelers</label>
-        <select name="only-non-travelers" id="only-non-travelers" class="form-control custom-select">
-          <option value="true" {{if .export.OnlyNonTravelers}}selected{{end}}>Yes</option>
-          <option value="false" {{if not .export.OnlyNonTravelers}}selected{{end}}>No</option>
-        </select>
-        <small class="form-text text-muted">
-          Should only federated-in non-traveler keys be included in this export.
-          Note, setting this with 'Include Travelers' will result in an error.
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <textarea name="exclude-regions" id="exclude-regions" rows="3"
-          placeholder="Exclude regions" class="form-control">{{.export.ExcludeRegionsOnePerLine}}</textarea>
-        <label for="exclude-regions">Exclude regions</label>
-        <small class="form-text text-muted">
-          One per line, leave blank for only using the output region (above).
-          Allows you to exclude travelers from certain regions.
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <input type="text" name="bucket-name" id="bucket-name" value="{{.export.BucketName}}"
-          placeholder="Cloud storage bucket" class="form-control">
-        <label for="bucket-name">Cloud Storage bucket</label>
-        <small class="form-text text-muted">
-          The bucket name to use when storing exports on cloud based storage.
-          For local filesystem, this is the path.
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <input type="text" name="filename-root" id="filename-root" value="{{.export.FilenameRoot}}"
-          placeholder="Filename root" class="form-control">
-        <label for="filename-root">Filename root</label>
-        <small class="form-text text-muted">
-          Common prefix for all filenames that are part of this export.
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <input type="text" name="max-records-override" id="max-records-override" value="{{.export.MaxRecordsOverride | deref}}"
-          placeholder="" class="form-control">
-        <label for="max-records-override">Max records per export file (override)</label>
-        <small class="form-text text-muted">
-          If set to a value > 0, override the system settings for this export only.
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <input type="text" name="period" id="period" value="{{.export.Period}}"
-          placeholder="Export period" class="form-control">
-        <label for="period">Export period</label>
-        <small class="form-text text-muted">
-          <strong>Devices can only import 15 (iOS) or 20 (Android) exports a day. With this in mind
-          a period of no less than <em>4h</em> is recommended.</strong>
-          Valid time units are "s", "m", "h".
-        </small>
-      </div>
-
-      <div class="form-group">
-        <label for="fromdate">Valid from Date/Time</label>
-        <div class="form-row">
-          <div class="col-md-6">
-            <input type="date" id="fromdate" name="from-date" value="{{.export.From | htmlDate}}"
-              min="2020-05-01" max="2029-12-21" class="form-control" />
+    <form method="POST" action="/exports/{{.export.ConfigID}}" class="m-0 p-0">
+      <div class="row g-3">
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="output-region" id="output-region" value="{{.export.OutputRegion}}"
+              placeholder="Output region" class="form-control">
+            <label for="output-region" class="form-label">Output region</label>
           </div>
-          <div class="col-md-6 input-group">
-            <input type="time" id="fromtime" name="from-time" value="{{.export.From | htmlTime}}"
-              class="form-control" />
-            <div class="input-group-append">
-              <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
+          <div class="form-text text-muted">
+            This is the <code>output</code>
+            region that will apper in the export files. If the input regions
+            (below) are left blank, then this will also serve as the input region.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <textarea name="input-regions" id="input-regions" rows="3"
+              placeholder="Input regions" class="form-control">{{.export.InputRegionsOnePerLine}}</textarea>
+            <label for="input-regions" class="form-label">Input regions</label>
+          </div>
+          <div class="form-text text-muted">
+            One per line, leave blank for only using the output region (above).
+            Allows for an export to combine multiple regions/apps uploaded to this
+            server.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <select name="include-travelers" id="include-travelers" class="form-select">
+              <option value="true" {{if .export.IncludeTravelers}}selected{{end}}>Yes</option>
+              <option value="false" {{if not .export.IncludeTravelers}}selected{{end}}>No</option>
+            </select>
+            <label for="include-travelers" class="form-label">Include travelers</label>
+          </div>
+          <div class="form-text text-muted">
+            Should federated-in traveler keys be included in this export. If this
+            server is sharing keys with anouther server, the recommended setting
+            is 'yes'. Even if you are not yet federating, but may in the future,
+            'yes' is still the recommended setting.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <select name="only-non-travelers" id="only-non-travelers" class="form-select">
+              <option value="true" {{if .export.OnlyNonTravelers}}selected{{end}}>Yes</option>
+              <option value="false" {{if not .export.OnlyNonTravelers}}selected{{end}}>No</option>
+            </select>
+            <label for="only-non-travelers" class="form-label">Only Non Travelers</label>
+          </div>
+          <div class="form-text text-muted">
+            Should only federated-in non-traveler keys be included in this export.
+            Note, setting this with 'Include Travelers' will result in an error.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <textarea name="exclude-regions" id="exclude-regions" rows="3"
+              placeholder="Exclude regions" class="form-control">{{.export.ExcludeRegionsOnePerLine}}</textarea>
+            <label for="exclude-regions" class="form-label">Exclude regions</label>
+          </div>
+          <div class="form-text text-muted">
+            One per line, leave blank for only using the output region (above).
+            Allows you to exclude travelers from certain regions.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="bucket-name" id="bucket-name" value="{{.export.BucketName}}"
+              placeholder="Cloud storage bucket" class="form-control">
+            <label for="bucket-name" class="form-label">Cloud Storage bucket</label>
+          </div>
+          <div class="form-text text-muted">
+            The bucket name to use when storing exports on cloud based storage.
+            For local filesystem, this is the path.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="filename-root" id="filename-root" value="{{.export.FilenameRoot}}"
+              placeholder="Filename root" class="form-control">
+            <label for="filename-root" class="form-label">Filename root</label>
+          </div>
+          <div class="form-text text-muted">
+            Common prefix for all filenames that are part of this export.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="max-records-override" id="max-records-override" value="{{.export.MaxRecordsOverride | deref}}"
+              placeholder="" class="form-control">
+            <label for="max-records-override" class="form-label">Max records per export file (override)</label>
+          </div>
+          <div class="form-text text-muted">
+            If set to a value > 0, override the system settings for this export only.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="period" id="period" value="{{.export.Period}}"
+              placeholder="Export period" class="form-control">
+            <label for="period" class="form-label">Export period</label>
+          </div>
+          <div class="form-text text-muted">
+            <strong>Devices can only import 15 (iOS) or 20 (Android) exports a day. With this in mind
+            a period of no less than <em>4h</em> is recommended.</strong>
+            Valid time units are "s", "m", "h".
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="input-group">
+            <div class="form-floating">
+              <input type="date" id="fromdate" name="from-date" value="{{.export.From | htmlDate}}"
+                min="2020-05-01" max="2029-12-21" class="form-control" />
+              <label for="fromdate" class="form-label">Valid from Date</label>
             </div>
-          </div>
-        </div>
-        <small class="form-text text-muted">
-          Start time of export. Normally left blank.
-        </small>
-      </div>
-
-      <div class="form-group">
-        <label for="thrudate">Valid thru Date/Time</label>
-        <div class="form-row">
-          <div class="col-md-6">
-            <input type="date" id="thrudate" name="thru-date" value="{{.export.Thru | htmlDate}}"
-              min="2020-05-01" max="2029-12-21" class="form-control" />
-          </div>
-          <div class="col-md-6 input-group">
-            <input type="time" id="thrutime" name="thru-time" value="{{.export.Thru | htmlTime}}"
-              class="form-control" />
-            <div class="input-group-append">
-              <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
+            <div class="form-floating">
+              <input type="time" id="fromtime" name="from-time" value="{{.export.From | htmlTime}}"
+                class="form-control" />
+              <label for="fromtime" class="form-label">Valid from Time</label>
             </div>
+            <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
+          </div>
+          <div class="form-text text-muted">
+            Start time of export. Normally left blank.
           </div>
         </div>
-        <small class="form-text text-muted">
-          Generate exports until time. Normally left blank at the start, can
-          be set to stop generating an export.
-        </small>
+
+        <div class="col-12">
+          <div class="input-group">
+            <div class="form-floating">
+              <input type="date" id="thrudate" name="thru-date" value="{{.export.Thru | htmlDate}}"
+                min="2020-05-01" max="2029-12-21" class="form-control" />
+              <label for="thrudate" class="form-label">Valid thru Date</label>
+            </div>
+            <div class="form-floating">
+              <input type="time" id="thrutime" name="thru-time" value="{{.export.Thru | htmlTime}}"
+                class="form-control" />
+              <label for="thrutime" class="form-label">Valid thru Time</label>
+            </div>
+            <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
+          </div>
+          <div class="form-text text-muted">
+            Generate exports until time. Normally left blank at the start, can
+            be set to stop generating an export.
+          </div>
+        </div>
+
+        <div class="col-12">
+          {{if .siginfos}}
+            <p>
+              Select the keys used to sign exports of this type. It is possible to
+              have more than one selected at a time. Having multiple signers is the
+              correct way to rotate a signing key. The old one should not be
+              decomissions until Apple and Google have confirmed that the new public
+              key has been rolled out.
+
+              <strong>There is a limit of 10 active signing keys per export configuration.</strong>
+            </p>
+
+            <div class="form-group">
+              <ul class="list-group">
+                {{range .siginfos}}
+                  <li class="list-group-item list-group-item-action">
+                    <div class="form-check">
+                      <input type="checkbox" name="sig-info" value="{{.ID}}" id="sic{{.ID}}"
+                        class="form-check-input" {{if index $.usedSigInfos .ID}}checked{{end}}>
+                      <label class="form-check-label d-block user-select-none" for="sic{{.ID}}">
+                        ID: {{.ID}}
+                        <br />
+                        KeyID: {{.SigningKeyID}}
+                        <br />
+                        Version: {{.SigningKeyVersion}}
+                        <br />
+                        Thru: {{.FormattedEndTimestamp}}
+                        <br />
+                        SigningKey: {{.SigningKey}}
+                      </label>
+                    </div>
+                  </li>
+                {{end}}
+              </ul>
+            </div>
+          {{else}}
+            <div class="alert alert-danger mb-0" role="alert">
+              There are no Signature Info configurations. You will not be able to
+              sign your exports until one is created!
+            </div>
+          {{end}}
+        </div>
+
+        <div class="col-12 d-grid">
+          <button type="submit" class="btn btn-primary" value="save">Save changes</button>
+        </div>
       </div>
-
-      <hr/>
-
-      {{if .siginfos}}
-        <p>
-          Select the keys used to sign exports of this type. It is possible to
-          have more than one selected at a time. Having multiple signers is the
-          correct way to rotate a signing key. The old one should not be
-          decomissions until Apple and Google have confirmed that the new public
-          key has been rolled out.
-
-          <strong>There is a limit of 10 active signing keys per export configuration.</strong>
-        </p>
-
-        <div class="form-group">
-          <ul class="list-group">
-            {{range .siginfos}}
-              <li class="list-group-item list-group-item-action">
-                <div class="custom-control custom-checkbox">
-                  <input type="checkbox" name="sig-info" value="{{.ID}}" id="sic{{.ID}}"
-                    class="custom-control-input" {{if index $.usedSigInfos .ID}}checked{{end}}>
-                  <label class="custom-control-label d-block user-select-none" for="sic{{.ID}}">
-                    ID: {{.ID}}
-                    <br />
-                    KeyID: {{.SigningKeyID}}
-                    <br />
-                    Version: {{.SigningKeyVersion}}
-                    <br />
-                    Thru: {{.FormattedEndTimestamp}}
-                    <br />
-                    SigningKey: {{.SigningKey}}
-                  </label>
-                </div>
-              </li>
-            {{end}}
-          </ul>
-        </div>
-      {{else}}
-        <div class="alert alert-danger" role="alert">
-          There are no Signature Info configurations. You will not be able to
-          sign your exports until one is created!
-        </div>
-      {{end}}
-
-      <button type="submit" class="mt-5 btn btn-block btn-primary" value="save">Save changes</button>
     </form>
   </div>
 </div>

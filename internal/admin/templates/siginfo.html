@@ -25,92 +25,96 @@
       </div>
     {{end}}
 
-    <form method="POST" action="/siginfo/{{.siginfo.ID}}" class="floating-form">
-      <div class="form-label-group">
-        <input type="text" name="signing-key" id="signing-key" value="{{.siginfo.SigningKey}}"
-          placeholder="signing-key" class="form-control form-control-sm text-monospace">
-        <label for="signing-key">Signing key</label>
-        <small class="form-text text-muted">
-          The resource ID of the signing key. The exact format will be dependent
-          on the Key Management System that you are using.
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <input type="text" name="signing-key-id" id="signing-key-id" value="{{.siginfo.SigningKeyID}}"
-          placeholder="Signing key ID" class="form-control form-control-sm text-monospace">
-        <label for="signing-key-id">Signing key ID</label>
-        <small class="form-text text-muted">
-          This will normally be the Mobile Country Code (<a
-          href="https://en.wikipedia.org/wiki/Mobile_country_code"
-          target="_blank">MCC</a>) for the region that your export covers.
-          This should be coordinated with Google and Apple.
-        </small>
-      </div>
-
-      <div class="form-label-group">
-        <input type="text" name="signing-key-version" id="signing-key-version" value="{{.siginfo.SigningKeyVersion}}"
-          placeholder="Signing key version" class="form-control form-control-sm text-monospace">
-        <label for="signing-key-version">Signing key version</label>
-        <small class="form-text text-muted">
-          The version of the signing key. Normally will be v1, but may change
-          with key rotation.
-        </small>
-      </div>
-
-      <div class="form-group">
-        <label for="enddate">Use until</label>
-        <div class="form-row">
-          <div class="col-md-6">
-            <input type="date" id="enddate" name="end-date" value="{{.siginfo.HTMLEndDate}}"
-              min="2020-05-01" max="2029-12-21" class="form-control" />
+    <form method="POST" action="/siginfo/{{.siginfo.ID}}" class="m-0 p-0">
+      <div class="row g-3">
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="signing-key" id="signing-key" value="{{.siginfo.SigningKey}}"
+              placeholder="signing-key" class="form-control font-monospace">
+            <label for="signing-key" class="form-label">Signing key</label>
           </div>
-          <div class="col-md-6 input-group">
-            <input type="time" id="endtime" name="end-time" value="{{.siginfo.HTMLEndTime}}"
-              class="form-control" />
-             <div class="input-group-append">
-              <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK" class="input-group-text">UTC</a>
+          <div class="form-text text-muted">
+            The resource ID of the signing key. The exact format will be dependent
+            on the Key Management System that you are using.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+          <input type="text" name="signing-key-id" id="signing-key-id" value="{{.siginfo.SigningKeyID}}"
+            placeholder="Signing key ID" class="form-control font-monospace">
+          <label for="signing-key-id" class="form-label">Signing key ID</label>
+          </div>
+          <div class="form-text text-muted">
+            This will normally be the Mobile Country Code (<a
+            href="https://en.wikipedia.org/wiki/Mobile_country_code"
+            target="_blank">MCC</a>) for the region that your export covers.
+            This should be coordinated with Google and Apple.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-floating">
+            <input type="text" name="signing-key-version" id="signing-key-version" value="{{.siginfo.SigningKeyVersion}}"
+              placeholder="Signing key version" class="form-control font-monospace">
+            <label for="signing-key-version" class="form-label">Signing key version</label>
+          </div>
+          <div class="form-text text-muted">
+            The version of the signing key. Normally will be v1, but may change
+            with key rotation.
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="input-group">
+            <div class="form-floating">
+              <input type="date" id="enddate" name="end-date" value="{{.siginfo.HTMLEndDate}}"
+                min="2020-05-01" max="2029-12-21" class="form-control" />
+              <label for="from-date" class="form-label">Use until date</label>
+            </div>
+            <div class="form-floating">
+              <input type="time" id="endtime" name="end-time" value="{{.siginfo.HTMLEndTime}}"
+                class="form-control" />
+              <label for="from-time" class="form-label">Use until time</label>
+            </div>
+            <a href="https://www.timeanddate.com/worldclock/timezone/utc" target="_BLANK"
+              class="input-group-text text-decoration-none">UTC</a>
+          </div>
+          <div class="form-text text-muted">
+            For Export Configurations that reference this key #, this signature
+            will be added up until this date/time. If the time is blank, the key
+            will end at 00:00 UTC on the day specified. <strong>Leave blank to use
+            this key as long as it is attached to an export!</strong> Signature
+            Infos cannot be deleted. Instead they are expired by setting an end
+            date and time.
+          </div>
+        </div>
+
+        {{if .public}}
+          <div class="col-12">
+            <label for="public-key" class="form-label">Public key</label>
+            <pre id="public-key" class="font-monospace user-select-all bg-light border rounded p-3 mb-0">{{.public}}</pre>
+            <div class="form-text text-muted">
+              This is the public key PEM for the signing key resource ID above.
             </div>
           </div>
+        {{end}}
+
+        {{if .signature}}
+          <div class="col-12">
+            <label for="hello-world-signature" class="form-label">"Hello world" signature</label>
+            <pre id="hello-world-signature" class="font-monospace user-select-all bg-light border rounded p-3 mb-0">{{.signature}}</pre>
+            <div class="form-text text-muted">
+              This is a signature for the string "hello world". This signature
+              will change if you refresh the page, but all signatures are valid.
+            </div>
+          </div>
+        {{end}}
+
+        <div class="d-grid col-12">
+          <button type="submit" class="btn btn-primary" value="save">Save changes</button>
         </div>
-        <small class="form-text text-muted">
-          For Export Configurations that reference this key #, this signature
-          will be added up until this date/time. If the time is blank, the key
-          will end at 00:00 UTC on the day specified. <strong>Leave blank to use
-          this key as long as it is attached to an export!</strong> Signature
-          Infos cannot be deleted. Instead they are expired by setting an end
-          date and time.
-        </small>
       </div>
-
-      {{if or .public .signature}}
-        <hr>
-      {{end}}
-
-      {{if .public}}
-        <div class="form-label-group">
-          <textarea id="public-key" placeholder="Public key" rows="4" readonly
-            class="form-control form-control-sm text-monospace">{{.public}}</textarea>
-          <label for="public-key">Public key</label>
-          <small class="form-text text-muted">
-            This is the public key PEM for the signing key resource ID above.
-          </small>
-        </div>
-      {{end}}
-
-      {{if .signature}}
-        <div class="form-label-group">
-          <textarea id="hello-world-signature" placeholder="Signature" rows="1" readonly
-            class="form-control form-control-sm text-monospace">{{.signature}}</textarea>
-          <label for="hello-world-signature">"Hello world" signature</label>
-          <small class="form-text text-muted">
-            This is a signature for the string "hello world". This signature
-            will change if you refresh the page, but all signatures are valid.
-          </small>
-        </div>
-      {{end}}
-
-      <button type="submit" class="mt-5 btn btn-block btn-primary" value="save">Save changes</button>
     </form>
   </div>
 </div>
