@@ -22,13 +22,13 @@ import (
 	"time"
 
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
+	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	"github.com/google/exposure-notifications-server/pkg/logging"
 	"github.com/google/exposure-notifications-server/pkg/observability"
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/api/iterator"
 	"google.golang.org/genproto/googleapis/api/metric"
-	monitoringpb "google.golang.org/genproto/googleapis/monitoring/v3"
 )
 
 // createMetrics creates the upstream metrics in Stackdriver.
