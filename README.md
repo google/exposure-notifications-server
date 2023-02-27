@@ -1,3 +1,16 @@
+# Archive status announcement
+
+The Exposure Notifications Server projects are scheduled to move into
+archive status on July 1, 2023. 
+
+v1.17.0 is the last planned regular release. Maintenance releases
+may be published before the public archive date if necessary to address
+issues that may arise.
+
+The Exposure Notifications Authors want to thank everyone who contributed
+to this project either directly or indirectly 
+
+
 # Exposure Notification Reference Key Server
 
 [COVID‑19 Exposure Notifications API](https://www.google.com/covid19/exposurenotifications/)
