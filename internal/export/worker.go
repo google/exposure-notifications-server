@@ -457,7 +457,7 @@ func (s *Server) retryingCreateIndex(ctx context.Context, eb *model.ExportBatch,
 		indexName, entries, err := s.createIndex(ctx, eb, objectNames)
 		if err != nil {
 			if err1 := unlock(); err1 != nil {
-				return fmt.Errorf("releasing lock: %v (original error: %w)", err1, err)
+				return fmt.Errorf("releasing lock: %w (original error: %w)", err1, err)
 			}
 			return fmt.Errorf("creating index file for batch %d: %w", eb.BatchID, err)
 		}

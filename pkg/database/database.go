@@ -54,7 +54,7 @@ func (db *DB) InTx(ctx context.Context, isoLevel pgx.TxIsoLevel, f func(tx pgx.T
 
 	if err := f(tx); err != nil {
 		if err1 := tx.Rollback(ctx); err1 != nil {
-			return fmt.Errorf("rolling back transaction: %v (original error: %w)", err1, err)
+			return fmt.Errorf("rolling back transaction: %w (original error: %w)", err1, err)
 		}
 		return err
 	}

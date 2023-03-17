@@ -153,7 +153,7 @@ func (s *Server) processMirror(ctx context.Context, deadline time.Time, mirror *
 		logger.Debugw("finished processing mirror", "index", mirror.IndexFile)
 
 		if err := unlock(); err != nil {
-			retErr = fmt.Errorf("failed to unlock mirror: %w, original error: %s", err, retErr)
+			retErr = fmt.Errorf("failed to unlock mirror: %w, original error: %w", err, retErr)
 		}
 	}()
 
