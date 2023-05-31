@@ -1,0 +1,38 @@
+name: Atlas CI
+on:
+  pull_request:
+# Permissions to write comments on the pull request.
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  lint:
+    services:
+      # Spin up a mysql:8.0.29 container to be used as the dev-database for analysis.
+      # If you use a different database, change the image configuration and update
+      # the `dev-url` configuration below.
+      mysql:
+        image: mysql:8.0.29
+        env:
+          MYSQL_ROOT_PASSWORD: pass
+          MYSQL_DATABASE: test
+        ports:
+          - "3306:3306"
+        options: >-
+          --health-cmd "mysqladmin ping -ppass"
+          --health-interval 10s
+          --health-start-period 10s
+          --health-timeout 5s
+          --health-retries 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3.0.1
+        with:
+          fetch-depth: 0 # Mandatory unless "latest" is set below.
+      - uses: ariga/atlas-action@v0
+        with:
+          dir: migrations
+          dir-format: golang-migrate
+          latest: 100
+          cloud-token: ${{ secrets.ARIGA_TOKEN }}
+          dev-url: mysql://root:pass@localhost:3306/test
