@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+variable "force_destroy" {
+  type    = bool
+  default = false
+
+  description = "Allow resources like buckets and database instances to be destroyed."
+}
+
 variable "create_env_file" {
   type    = bool
   default = false

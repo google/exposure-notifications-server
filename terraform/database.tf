@@ -17,6 +17,8 @@ resource "google_sql_database_instance" "db-inst" {
   region           = var.db_location
   database_version = var.db_version
 
+  deletion_protection = !var.force_destroy
+
   settings {
     tier              = var.cloudsql_tier
     disk_size         = var.cloudsql_disk_size_gb
@@ -80,6 +82,8 @@ resource "google_sql_database_instance" "replicas" {
   database_version = var.db_version
 
   master_instance_name = google_sql_database_instance.db-inst.name
+
+  deletion_protection = !var.force_destroy
 
   // These are REGIONAL replicas, which cannot auto-failover. The default
   // configuration has auto-failover in zones. This is for super disaster
@@ -223,7 +227,7 @@ resource "google_storage_bucket" "backups" {
   name     = "${var.project}-backups"
   location = var.storage_location
 
-  force_destroy               = true
+  force_destroy               = var.force_destroy
   uniform_bucket_level_access = true
 
   versioning {
