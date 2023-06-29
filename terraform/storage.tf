@@ -39,6 +39,8 @@ resource "google_storage_bucket" "export" {
       type = "Delete"
     }
   }
+
+  force_destroy = var.force_destroy
 }
 
 resource "google_storage_bucket_iam_member" "public" {

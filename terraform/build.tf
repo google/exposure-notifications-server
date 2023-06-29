@@ -17,7 +17,7 @@ resource "google_storage_bucket" "cloudbuild-cache" {
   name     = "${var.project}-cloudbuild-cache"
   location = var.storage_location
 
-  force_destroy               = true
+  force_destroy               = var.force_destroy
   uniform_bucket_level_access = true
 
   // Automatically expire cached objects.
